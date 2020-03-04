@@ -70,6 +70,7 @@ module Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixtureWallet
     , fixtureWalletWith
+    , fixtureWalletWithMnemonics
     , faucetAmt
     , faucetUtxoAmt
     , proc'
@@ -80,6 +81,7 @@ module Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , fixturePassphrase
     , waitForNextEpoch
+    , waitAllTxsInLedger
     , toQueryString
     , withMethod
     , withPathParam
@@ -88,6 +90,7 @@ module Test.Integration.Framework.DSL
     , mkEpochInfo
     , notDelegating
     , delegating
+    , getSlotParams
 
     -- * CLI
     , command
@@ -135,17 +138,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
     , Coin (..)
+    , EpochLength (..)
     , EpochNo
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
-    , SlotParameters
+    , SlotLength (..)
+    , SlotParameters (..)
     , SortOrder (..)
     , StartTime (..)
     , TxIn (..)
     , TxOut (..)
+    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -230,7 +237,7 @@ import System.Process
 import Test.Hspec
     ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Request
@@ -443,6 +450,16 @@ walletId =
 -- Helpers
 --
 
+waitAllTxsInLedger
+    :: forall t n. (n ~ 'Testnet)
+    => Context t
+    -> ApiWallet
+    -> IO ()
+waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ do
+    let ep = Link.listTransactions @'Shelley w
+    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx ep Empty
+    view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
+
 waitForNextEpoch
     :: Context t
     -> IO ()
@@ -605,6 +622,13 @@ fixtureWallet
     :: Context t
     -> IO ApiWallet
 fixtureWallet ctx = do
+    (w, _) <- fixtureWalletWithMnemonics ctx
+    return w
+
+fixtureWalletWithMnemonics
+    :: Context t
+    -> IO (ApiWallet, [Text])
+fixtureWalletWithMnemonics ctx = do
     mnemonics <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
@@ -615,7 +639,7 @@ fixtureWallet ctx = do
         (Link.postWallet @'Shelley) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
-        Right a -> return a
+        Right a -> return (a, mnemonics)
   where
     sixtySeconds = 60*oneSecond
     checkBalance w = do
@@ -1191,6 +1215,23 @@ for = flip map
 --
 -- Helper for delegation statuses
 --
+getSlotParams
+    :: (Context t)
+    -> IO (EpochNo, SlotParameters)
+getSlotParams ctx = do
+    r1 <- request @ApiNetworkInformation ctx
+          Link.getNetworkInfo Default Empty
+    let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r1
+
+    let endpoint = ( "GET", "v2/network/parameters/latest" )
+    r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
+    let (Quantity slotL) = getFromResponse #slotLength r2
+    let (Quantity epochL) = getFromResponse #epochLength r2
+    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
+    let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r2
+    let sp = SlotParameters (EpochLength epochL) (SlotLength slotL) genesisBlockDate (ActiveSlotCoefficient coeff)
+
+    return (currentEpoch, sp)
 
 -- | Handy constructor for ApiEpochInfo
 mkEpochInfo

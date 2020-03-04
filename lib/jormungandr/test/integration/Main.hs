@@ -95,6 +95,7 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as Trans
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.ByronTransactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
+import qualified Test.Integration.Scenario.API.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
@@ -129,6 +130,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             TransactionsApiJormungandr.spec @t
             TransactionsCliJormungandr.spec @t
             Wallets.spec
+            HWWallets.spec
             ByronWallets.spec
             ByronTransactions.spec
             Network.spec

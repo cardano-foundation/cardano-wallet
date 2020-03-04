@@ -13,29 +13,14 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..)
-    , ApiNetworkParameters (..)
-    , ApiStakePool
-    , ApiT (..)
-    , ApiTransaction
-    , ApiWallet
-    , WalletStyle (..)
-    )
+    ( ApiStakePool, ApiT (..), ApiTransaction, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , Direction (..)
-    , EpochLength (..)
-    , EpochNo (..)
-    , PoolId (..)
-    , SlotLength (..)
-    , SlotParameters (..)
-    , TxStatus (..)
-    )
+    ( Direction (..), PoolId (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
 import Data.Functor.Identity
@@ -55,7 +40,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -78,6 +63,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
+    , getSlotParams
     , joinStakePool
     , json
     , mkEpochInfo
@@ -86,6 +72,7 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     , verify
+    , waitAllTxsInLedger
     , waitForNextEpoch
     , walletId
     , (.>)
@@ -775,16 +762,6 @@ spec = do
                     )
                 ]
 
-waitAllTxsInLedger
-    :: forall t n. (n ~ 'Testnet)
-    => Context t
-    -> ApiWallet
-    -> IO ()
-waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ do
-    let ep = Link.listTransactions @'Shelley w
-    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx ep Empty
-    view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
-
 -- | An arbitrary but valid pool id, to avoid having to list pools for testing
 -- bad requests and headers.
 arbitraryPoolId :: ApiT PoolId
@@ -829,21 +806,3 @@ joinStakePoolWithFixtureWallet ctx = do
             , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
             ]
     return (w, p)
-
-getSlotParams
-    :: (Context t)
-    -> IO (EpochNo, SlotParameters)
-getSlotParams ctx = do
-    r2 <- request @ApiNetworkInformation ctx
-          Link.getNetworkInfo Default Empty
-    let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r2
-
-    let endpoint = ( "GET", "v2/network/parameters/latest" )
-    r3 <- request @ApiNetworkParameters ctx endpoint Default Empty
-    let (Quantity slotL) = getFromResponse #slotLength r3
-    let (Quantity epochL) = getFromResponse #epochLength r3
-    let (Quantity coeff) = getFromResponse #activeSlotCoefficient r3
-    let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r3
-    let sp = SlotParameters (EpochLength epochL) (SlotLength slotL) genesisBlockDate (ActiveSlotCoefficient coeff)
-
-    return (currentEpoch, sp)
