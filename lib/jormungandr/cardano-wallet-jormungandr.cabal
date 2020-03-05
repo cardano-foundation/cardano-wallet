@@ -242,7 +242,7 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
-      Cardano.Faucet
+      Cardano.Wallet.Jormungandr.Faucet
       Cardano.Wallet.Jormungandr.Launch
       Cardano.Wallet.Jormungandr.NetworkSpec
       Cardano.Pool.MetricsSpec
@@ -311,7 +311,7 @@ benchmark latency
       Latency.hs
   other-modules:
       Test.Integration.Jcli
-      Cardano.Faucet
+      Cardano.Wallet.Jormungandr.Faucet
       Cardano.Wallet.Jormungandr.Launch
 
 executable migration-test

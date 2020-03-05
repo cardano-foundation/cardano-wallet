@@ -31,8 +31,6 @@ import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.CLI
     ( Port (..) )
-import Cardano.Faucet
-    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -53,6 +51,8 @@ import Cardano.Wallet.Jormungandr
     ( Tracers, Tracers' (..), nullTracers, serveWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Faucet
+    ( initFaucet )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network

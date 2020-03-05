@@ -20,8 +20,6 @@ import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
     ( Port (..), withLogging )
-import Cardano.Faucet
-    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Pool.Metadata
@@ -34,6 +32,8 @@ import Cardano.Wallet.Jormungandr
     ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Faucet
+    ( initFaucet )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network

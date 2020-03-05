@@ -35,7 +35,6 @@
         - aeson-qq
         - cryptonite
         - exceptions
-        - extra
         - generic-arbitrary
         - lifted-base
         - monad-control
@@ -50,13 +49,13 @@
     - message:
       - name: Module reused between components
       - module:
-        - Cardano.Faucet
+        - Cardano.Wallet.Jormungandr.Faucet
         - Cardano.Wallet.Jormungandr.Launch
         - Test.Integration.Jcli
     - message:
       - name: Weeds exported
       - module:
-        - name: Cardano.Faucet
+        - name: Cardano.Wallet.Jormungandr.Faucet
         - identifier: genFaucets
       - module:
         - name: Cardano.Wallet.Jormungandr.Launch
@@ -125,3 +124,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Startup.Windows
+
