@@ -27,7 +27,7 @@
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-, pkgs ? import ./nixpkgs-haskell.nix {}
+, pkgs ? import ./default.nix {}
 }:
 
 with pkgs.lib;
@@ -113,7 +113,8 @@ let
           pkgs.bash
           pkgs.coreutils
         ]}
-        export src=${latestRelease.src}
+        export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
+        export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
 
         exec ${./launch-migration-test.sh} "$@"
       '' // { inherit (latestRelease) cardano-wallet-jormungandr; };

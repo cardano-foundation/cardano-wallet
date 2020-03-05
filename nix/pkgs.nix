@@ -4,13 +4,4 @@ let
 in pkgs: _: with pkgs; {
   jmPkgs = import ./jormungandr.nix { inherit (pkgs) commonLib; inherit pkgs; };
   inherit (pkgs1903) stack;
-  cardanoWalletHaskellPackages = import ./haskell.nix {
-    inherit config
-      lib
-      stdenv
-      pkgs
-      haskell-nix
-      buildPackages
-      ;
-  };
 }

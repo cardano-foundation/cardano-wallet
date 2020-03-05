@@ -52,7 +52,16 @@
 with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
 
 let
-  haskellPackages = cardanoWalletHaskellPackages;
+  src = pkgs.haskell-nix.cleanSourceHaskell {
+    src = ./.;
+    name = "cardano-wallet-src";
+  };
+
+  haskellPackages = import ./nix/haskell.nix {
+    inherit config lib stdenv pkgs buildPackages;
+    inherit (pkgs) haskell-nix;
+    inherit src;
+  };
 
   filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = lib.mapAttrs (_: package: package.checks);

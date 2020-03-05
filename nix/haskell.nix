@@ -9,16 +9,13 @@
 , config ? {}
 # Enable profiling
 , profiling ? config.haskellNix.profiling or false
+# Project top-level source tree
+, src
 }:
 
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
-
-  src = haskell.cleanSourceHaskell {
-    src = ../.;
-    name = "cardano-wallet-src";
-  };
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
