@@ -5,6 +5,26 @@
 # The purpose of this file is to select jobs defined in default.nix and map
 # them to all supported build platforms.
 #
+# The layout is TARGET-SYSTEM.ATTR-PATH.BUILD-SYSTEM where
+#
+#   * TARGET-SYSTEM is one of
+#     - native - build the job for BUILD-SYSTEM
+#     - x86_64-w64-mingw32 - build the job for windows
+#     - musl64 - build the job for Linux, but statically linked with musl libc
+#
+#   * ATTR-PATH is an attribute from default.nix
+#
+#   * BUILD-SYSTEM is the system where the derivation is built. Hydra
+#     uses this to distribute builds to its build slaves. If building
+#     locally then it must reflect your local system. The value is one of:
+#     - x86_64-linux - Linux
+#     - x86_64-darwin - macOS
+#
+# Discover jobs by using tab completion in your shell:
+#   nix-build release.nix -A <TAB>
+# ... or by looking at the jobset evaluated by Hydra:
+#   https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs
+#
 ############################################################################
 
 # The project sources
