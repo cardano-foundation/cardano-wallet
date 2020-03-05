@@ -16,7 +16,6 @@
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
-  nodePkgs = pkgs.nodePkgs;
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
@@ -45,6 +44,8 @@ let
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
+        packages.cardano-wallet-byron.components.tests.unit.keepSource = true;
+        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
@@ -55,6 +56,11 @@ let
 
       # Add dependencies
       {
+        packages.cardano-wallet-byron.components.tests = {
+          # provide cardano-node command to test suites
+          integration.build-tools = [ pkgs.cardanoNodePkgs.cardano-node ];
+          unit.build-tools = [ pkgs.cardanoNodePkgs.cardano-node ];
+        };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Some tests want to write ~/.local/share/cardano-wallet
           integration.preCheck = "export HOME=`pwd`";
@@ -62,7 +68,6 @@ let
           integration.build-tools = [
             jmPkgs.jormungandr
             jmPkgs.jormungandr-cli
-            nodePkgs.cardano-node
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
