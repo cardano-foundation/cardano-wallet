@@ -201,17 +201,17 @@ test-suite integration
     , command
     , containers
     , cryptonite
-    , deepseq
+    --, deepseq
     , directory
     , exceptions
     , extra
     , filepath
-    , fmt
+    --, fmt
     , generic-arbitrary
     , generic-lens
     , hspec
-    , hspec-expectations-lifted
-    , http-api-data
+    --, hspec-expectations-lifted
+    --, http-api-data
     , http-client
     , http-types
     , iohk-monitoring
@@ -220,16 +220,16 @@ test-suite integration
     , monad-control
     , persistent
     , process
-    , random-shuffle
-    , retry
+    --, random-shuffle
+    --, retry
     , safe
-    , servant
+    --, servant
     , template-haskell
     , temporary
     , text
     , text-class
     , time
-    , transformers
+    --, transformers
     , warp
     , yaml
   build-tools:
@@ -244,19 +244,19 @@ test-suite integration
   other-modules:
       Cardano.Faucet
       Cardano.Wallet.Jormungandr.Launch
-      Cardano.Wallet.Jormungandr.NetworkSpec
-      Cardano.Pool.MetricsSpec
+      --Cardano.Wallet.Jormungandr.NetworkSpec
+      --Cardano.Pool.MetricsSpec
       Test.Integration.Jcli
       Test.Integration.Jormungandr.Fixture
       Test.Integration.Jormungandr.Scenario.API.StakePools
       Test.Integration.Jormungandr.Scenario.API.Transactions
-      Test.Integration.Jormungandr.Scenario.CLI.Launcher
-      Test.Integration.Jormungandr.Scenario.CLI.Keys
-      Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
-      Test.Integration.Jormungandr.Scenario.CLI.Server
-      Test.Integration.Jormungandr.Scenario.CLI.StakePools
-      Test.Integration.Jormungandr.Scenario.CLI.Transactions
-      Test.Utils.Ports
+      --Test.Integration.Jormungandr.Scenario.CLI.Launcher
+      --Test.Integration.Jormungandr.Scenario.CLI.Keys
+      --Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
+      --Test.Integration.Jormungandr.Scenario.CLI.Server
+      --Test.Integration.Jormungandr.Scenario.CLI.StakePools
+      --Test.Integration.Jormungandr.Scenario.CLI.Transactions
+      --Test.Utils.Ports
 
 benchmark latency
   default-language:

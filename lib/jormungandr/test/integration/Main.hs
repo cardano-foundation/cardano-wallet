@@ -75,7 +75,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, SpecWith, after, beforeWith, describe, hspec, parallel )
+    ( Spec, SpecWith, after, beforeWith, describe, hspec )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
@@ -85,10 +85,13 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 
+{--
 import qualified Cardano.Pool.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
+--}
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
+{--
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Keys as KeysCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
@@ -101,7 +104,9 @@ import qualified Test.Integration.Scenario.API.ByronTransactions as ByronTransac
 import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
 import qualified Test.Integration.Scenario.API.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Network as Network
+--}
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
+{--
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
@@ -110,7 +115,7 @@ import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
-
+--}
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
@@ -118,6 +123,7 @@ instance KnownCommand Jormungandr where
 main :: forall t. (t ~ Jormungandr) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
+        {--
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
@@ -126,19 +132,20 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec
             describe "Key CLI tests" KeysCLI.spec
-
+--}
         describe "API Specifications" $ specWithServer tr $ do
-            withCtxOnly Addresses.spec
+            --withCtxOnly Addresses.spec
             withCtxOnly Transactions.spec
-            withCtxOnly Wallets.spec
-            withCtxOnly ByronWallets.spec
-            withCtxOnly ByronTransactions.spec
-            withCtxOnly Network.spec
-            withCtxOnly HWWallets.spec
-            withCtxOnly $ TransactionsApiJormungandr.spec @t
-            withCtxOnly $ TransactionsCliJormungandr.spec @t
+            --withCtxOnly Wallets.spec
+            --withCtxOnly ByronWallets.spec
+            --withCtxOnly ByronTransactions.spec
+            --withCtxOnly Network.spec
+            --withCtxOnly HWWallets.spec
+            --withCtxOnly $ TransactionsApiJormungandr.spec @t
+            --withCtxOnly $ TransactionsCliJormungandr.spec @t
             StakePoolsApiJormungandr.spec
 
+{--
         describe "CLI Specifications" $ specWithServer tr $ do
             withCtxOnly $ AddressesCLI.spec @t
             withCtxOnly $ StakePoolsCliJormungandr.spec @t
@@ -147,6 +154,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ PortCLI.spec @t
             withCtxOnly $ NetworkCLI.spec @t
             ServerCLI.spec @t
+--}
   where
     withCtxOnly
         :: SpecWith (Context Jormungandr)
