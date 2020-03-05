@@ -41,7 +41,7 @@ let
           // { inherit overlays sources; };
       })
       # And, of course, our haskell-nix-ified stack project:
-      (import ./pkgs.nix)
+      (import ./pkgs.nix { inherit system crossSystem config; })
     ];
 
   pkgs = import nixpkgs {
