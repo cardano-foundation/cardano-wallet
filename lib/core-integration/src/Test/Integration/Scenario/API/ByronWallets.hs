@@ -16,13 +16,7 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
-    , ApiByronWalletMigrationInfo (..)
-    , ApiTransaction
-    , ApiUtxoStatistics
-    , ApiWallet
-    , WalletStyle (..)
-    )
+    ( ApiByronWallet, ApiByronWalletMigrationInfo (..), WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
@@ -42,22 +36,16 @@ import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_, void )
-import Data.Aeson.QQ
-    ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Maybe
-    ( mapMaybe )
+    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, it, runIO, shouldNotBe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -67,8 +55,6 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
-    , emptyWallet
-    , emptyWalletWith
     , eventually
     , expectErrorMessage
     , expectField
@@ -79,7 +65,6 @@ import Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixturePassphrase
     , fixtureRandomWallet
-    , fixtureWallet
     , getFromResponse
     , json
     , request
@@ -91,9 +76,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
-    , errMsg400ParseError
     , errMsg403NothingToMigrate
-    , errMsg403WrongPass
     , errMsg404NoWallet
     , kanjiWalletName
     , mnemonics12
@@ -103,29 +86,11 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Api.Types as ApiTypes
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
-
-    -- Compute the fee associated with an API transaction.
-    let apiTransactionFee :: ApiTransaction n -> Word64
-        apiTransactionFee t =
-            inputBalance t - outputBalance t
-          where
-            inputBalance = fromIntegral
-                . sum
-                . fmap (view (#amount . #getQuantity))
-                . mapMaybe ApiTypes.source
-                . view #inputs
-            outputBalance = fromIntegral
-                . sum
-                . fmap (view (#amount . #getQuantity))
-                . view #outputs
-
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
@@ -175,379 +140,6 @@ spec = do
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
-    it "BYRON_CALCULATE_03 - \
-        \Cannot estimate migration for Shelley wallet"
-        $ \ctx -> do
-            w <- emptyWallet ctx
-            let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
-            expectResponseCode @IO HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    it "BYRON_MIGRATE_01 - \
-        \after a migration operation successfully completes, the correct \
-        \amount eventually becomes available in the target wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
-            -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureByronWallet ctx
-            let originalBalance =
-                        view (#balance . #available . #getQuantity) sourceWallet
-
-            -- Create an empty target wallet:
-            targetWallet <- emptyWallet ctx
-
-            -- Calculate the expected migration fee:
-            r0 <- request @ApiByronWalletMigrationInfo ctx
-                (Link.getMigrationInfo sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
-                , expectField #migrationCost (.> Quantity 0)
-                ]
-            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
-
-            -- Perform a migration from the source wallet to the target wallet:
-            r1 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sourceWallet targetWallet)
-                Default
-                (Json [aesonQQ|{"passphrase": #{fixturePassphrase}}|])
-            verify r1
-                [ expectResponseCode @IO HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee
-            eventually "Wallet has expectedBalance" $ do
-                r2 <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet) Default Empty
-                verify r2
-                    [ expectField
-                            (#balance . #getApiT . #available)
-                            (`shouldBe` Quantity expectedBalance)
-                    , expectField
-                            (#balance . #getApiT . #total)
-                            (`shouldBe` Quantity expectedBalance)
-                    ]
-
-    it "BYRON_MIGRATE_01 - \
-        \ migrate a big wallet requiring more than one tx" $ \ctx -> do
-        -- NOTE
-        -- Special mnemonic for which 500 legacy funds are attached to in the
-        -- genesis file.
-        --
-        -- Out of these 500 coins, 100 of them are of 1 Lovelace and are
-        -- expected to be treated as dust. The rest are all worth:
-        -- 10,000,000,000 lovelace.
-        let mnemonics =
-                ["collect", "fold", "file", "clown"
-                , "injury", "sun", "brass", "diet"
-                , "exist", "spike", "behave", "clip"
-                ] :: [Text]
-        let payloadRestore = Json [json| {
-                "name": "Big Byron Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "random"
-                } |]
-        (_, wOld) <- unsafeRequest @ApiByronWallet ctx
-            (Link.postWallet @'Byron) payloadRestore
-        eventually "wallet balance greater than 0" $ do
-            request @ApiByronWallet ctx
-                (Link.getWallet @'Byron wOld)
-                Default
-                Empty >>= flip verify
-                [ expectField (#balance . #available) (.> Quantity 0)
-                ]
-        let originalBalance = view (#balance . #available . #getQuantity) wOld
-
-        -- Calculate the expected migration fee:
-        rFee <- request @ApiByronWalletMigrationInfo ctx
-            (Link.getMigrationInfo wOld)
-            Default
-            Empty
-        verify rFee
-            [ expectResponseCode @IO HTTP.status200
-            , expectField #migrationCost (.> Quantity 0)
-            ]
-        let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
-
-        -- Migrate to a new empty wallet
-        wNew <- emptyWallet ctx
-        let payloadMigrate = Json [json|{"passphrase": #{fixturePassphrase}}|]
-        request @[ApiTransaction n] ctx
-            (Link.migrateWallet wOld wNew)
-            Default
-            payloadMigrate >>= flip verify
-            [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 2). length)
-            ]
-
-        -- Check that funds become available in the target wallet:
-        let expectedBalance = originalBalance - expectedFee
-        eventually "wallet balance = expectedBalance" $ do
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley wNew)
-                Default
-                Empty >>= flip verify
-                [ expectField
-                        (#balance . #getApiT . #available)
-                        ( `shouldBe` Quantity expectedBalance)
-                , expectField
-                        (#balance . #getApiT . #total)
-                        ( `shouldBe` Quantity expectedBalance)
-                ]
-
-        -- Analyze the target wallet UTxO distribution
-        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wNew)
-            Default
-            Empty >>= flip verify
-            [ expectField
-                #distribution
-                ((`shouldBe` (Just 400)) . Map.lookup 10_000_000_000)
-            ]
-
-    it "BYRON_MIGRATE_01 - \
-        \a migration operation removes all funds from the source wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
-            -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureByronWallet ctx
-
-            -- Perform a migration from the source wallet to a target wallet:
-            targetWallet <- emptyWallet ctx
-            r0 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sourceWallet targetWallet )
-                Default
-                (Json [json|{"passphrase": #{fixturePassphrase}}|])
-            verify r0
-                [ expectResponseCode @IO HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Verify that the source wallet has no funds available:
-            r1 <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron sourceWallet) Default Empty
-            verify r1
-                [ expectResponseCode @IO HTTP.status200
-                , expectField (#balance . #available) (`shouldBe` Quantity 0)
-                ]
-
-    it "BYRON_MIGRATE_02 - \
-        \migrating an empty wallet should fail."
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
-            sourceWallet <- emptyByronWallet ctx
-            targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
-            let ep = Link.migrateWallet sourceWallet targetWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
-                ]
-
-    it "BYRON_MIGRATE_02 - \
-        \migrating wallet with dust should fail."
-        $ \ctx -> do
-            -- NOTE
-            -- Special mnemonic for which wallet with dust
-            -- (5 utxos with 60 lovelace in total)
-            let mnemonics =
-                    [ "suffer", "decorate", "head", "opera"
-                    , "yellow", "debate", "visa", "fire"
-                    , "salute", "hybrid", "stone", "smart"
-                    ] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Byron Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "random"
-                    } |]
-            (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
-                (Link.postWallet @'Byron) payloadRestore
-            eventually "wallet balance greater than 0" $ do
-                request @ApiByronWallet ctx
-                    (Link.getWallet @'Byron sourceWallet)
-                    Default
-                    Empty >>= flip verify
-                    [ expectField (#balance . #available) (.> Quantity 0)
-                    ]
-
-            targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-            let ep = Link.migrateWallet sourceWallet targetWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
-                ]
-
-    it "BYRON_MIGRATE_03 - \
-        \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
-            -- Restore a Byron wallet with funds.
-            sourceWallet <- fixtureByronWallet ctx
-
-            -- Request a migration fee prediction.
-            let ep0 = (Link.getMigrationInfo sourceWallet)
-            r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
-                , expectField #migrationCost (.> Quantity 0)
-                ]
-
-            -- Perform the migration.
-            targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-            let ep1 = Link.migrateWallet sourceWallet targetWallet
-            r1 <- request @[ApiTransaction n] ctx ep1 Default payload
-            verify r1
-                [ expectResponseCode @IO HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Verify that the fee prediction was correct.
-            let actualFee = fromIntegral $ sum $ apiTransactionFee
-                    <$> getFromResponse id r1
-            let predictedFee =
-                    getFromResponse (#migrationCost . #getQuantity) r0
-            actualFee `shouldBe` predictedFee
-
-    it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
-        -- Restore a Byron wallet with funds, to act as a source wallet:
-        sourceWallet <- fixtureByronWallet ctx
-
-        -- Perform a migration from the source wallet to a target wallet:
-        targetWallet <- emptyWallet ctx
-        r0 <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet targetWallet )
-            Default
-            (Json [json|{"passphrase": "not-the-right-passphrase"}|])
-        verify r0
-            [ expectResponseCode @IO HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
-            ]
-
-    describe "BYRON_MIGRATE_05 -\
-        \ migrating from/to inappropriate wallet types" $ do
-
-        it "Byron -> Byron" $ \ctx -> do
-            sWallet <- fixtureRandomWallet ctx
-            tWallet <- emptyRandomWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
-                ]
-
-        it "Icarus -> Icarus" $ \ctx -> do
-            sWallet <- fixtureIcarusWallet ctx
-            tWallet <- emptyIcarusWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
-                ]
-
-        it "Icarus -> Byron" $ \ctx -> do
-            sWallet <- fixtureIcarusWallet ctx
-            tWallet <- emptyRandomWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
-                ]
-
-        it "Byron -> Icarus" $ \ctx -> do
-            sWallet <- fixtureRandomWallet ctx
-            tWallet <- emptyIcarusWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
-                ]
-
-        it "Shelley -> Byron" $ \ctx -> do
-            sWallet <- fixtureWallet ctx
-            tWallet <- emptyRandomWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
-                ]
-
-        it "Shelley -> Icarus" $ \ctx -> do
-            sWallet <- fixtureWallet ctx
-            tWallet <- emptyIcarusWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
-                ]
-
-        it "Shelley -> Shelley" $ \ctx -> do
-            sWallet <- fixtureWallet ctx
-            tWallet <- emptyWallet ctx
-
-            r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
-                Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
-            verify r
-                [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
-                ]
-
-    it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
-        sourceWallet <- emptyRandomWallet ctx
-        targetWallet <- emptyWallet ctx
-
-        r <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet targetWallet )
-            Default
-            (NonJson "{passphrase:,}")
-        expectResponseCode @IO HTTP.status400 r
-        expectErrorMessage errMsg400ParseError r
-
-    it "BYRON_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> do
-        w <- emptyWallet ctx
-        r <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron w) Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    it "BYRON_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        r <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley w) Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
@@ -592,95 +184,6 @@ spec = do
             , expectListField 2
                 (#name . #getApiT . #getWalletName) (`shouldBe` "ica3")
             ]
-
-    it "BYRON_LIST_02,03 -\
-        \ Byron wallets listed only via Byron endpoints \\\
-        \ Shelley wallets listed only via new endpoints" $ \ctx -> do
-        m1 <- genMnemonics @12
-        m2 <- genMnemonics @12
-        m3 <- genMnemonics @12
-        _ <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
-
-        _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
-
-        --list only byron
-        rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
-        verify rl
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSize 3
-            , expectListField 0
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron1")
-            , expectListField 1
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron2")
-            , expectListField 2
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron3")
-            ]
-        --list only shelley
-        rl2 <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
-        verify rl2
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSize 3
-            , expectListField 0
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley1")
-            , expectListField 1
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
-            , expectListField 2
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley3")
-            ]
-
-    it "BYRON_LIST_04, DELETE_01 -\
-        \ Deleted wallets cannot be listed" $ \ctx -> do
-        m1 <- genMnemonics @12
-        m2 <- genMnemonics @12
-        m3 <- genMnemonics @12
-        _   <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
-        wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
-        _   <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
-
-        _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
-        ws3 <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
-
-        -- delete
-        _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron wb2) Default Empty
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley ws3) Default Empty
-
-        --list only byron
-        rdl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
-        verify rdl
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSize 2
-            , expectListField 0
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron1")
-            , expectListField 1
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "byron3")
-            ]
-        --list only shelley
-        rdl2 <- request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty
-        verify rdl2
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSize 2
-            , expectListField 0
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley1")
-            , expectListField 1
-                    (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
-            ]
-
-    it "BYRON_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> do
-        w <- emptyWallet ctx
-        r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
-
-    it "BYRON_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-        expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     describe "BYRON_RESTORE_01, GET_01, LIST_01 - Restore a wallet" $ do
         let scenarioSuccess style mnemonic ctx = do

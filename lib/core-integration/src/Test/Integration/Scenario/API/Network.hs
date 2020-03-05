@@ -37,7 +37,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , emptyRandomWallet
-    , emptyWallet
     , eventually
     , eventuallyUsingDelay
     , expectErrorMessage
@@ -93,36 +92,6 @@ spec = do
             Link.getNetworkInfo Default Empty
         let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
         currentEpoch `shouldBe` calculatedNextEpoch
-
-    it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
-        \ctx -> do
-            let getNetworkInfo = request @ApiNetworkInformation ctx
-                    Link.getNetworkInfo Default Empty
-            w <- emptyWallet ctx
-            waitForNextEpoch ctx
-            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
-                sync <- getNetworkInfo
-                expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
-                return sync
-
-            let epochNum =
-                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-            let slotNum =
-                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-            let blockHeight =
-                    getFromResponse (#nodeTip . #height) r
-
-            eventually "Wallet has the same tip as network/information" $ do
-                res <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley w) Default Empty
-                verify res
-                    [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField
-                            (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField
-                            (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
-                    , expectField (#tip . #height) (`shouldBe` blockHeight)
-                    ]
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> do

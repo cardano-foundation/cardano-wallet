@@ -31,7 +31,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , emptyIcarusWallet
     , emptyRandomWallet
-    , emptyWallet
     , expectErrorMessage
     , expectListSize
     , expectResponseCode
@@ -58,7 +57,6 @@ data TestCase a = TestCase
 
 spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
-
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
@@ -168,28 +166,6 @@ spec = do
             expectResponseCode @IO HTTP.status400 r
             expectErrorMessage
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
-
-    it "BYRON_TX_LIST_02 -\
-        \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> do
-        w <- emptyWallet ctx
-        let wid = w ^. walletId
-        let ep = ("GET", "v2/byron-wallets/" <> wid <> "/transactions")
-        r <- request @([ApiTransaction n]) ctx ep Default Empty
-        verify r
-            [ expectResponseCode @IO HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet wid)
-            ]
-
-    it "BYRON_TX_LIST_03 -\
-        \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> do
-        w <- emptyRandomWallet ctx
-        let wid = w ^. walletId
-        let ep = ("GET", "v2/wallets/" <> wid <> "/transactions")
-        r <- request @([ApiTransaction n]) ctx ep Default Empty
-        verify r
-            [ expectResponseCode @IO HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet wid)
-            ]
 
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyRandomWallet ctx
