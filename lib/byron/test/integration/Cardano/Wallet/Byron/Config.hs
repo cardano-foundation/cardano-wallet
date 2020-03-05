@@ -6,10 +6,6 @@
 module Cardano.Wallet.Byron.Config
     ( -- * Integration Launcher
       withCardanoNode
-
-      -- * Integration Config Generation
-    , CardanoNodeConfig
-    , withConfig
     ) where
 
 import Prelude

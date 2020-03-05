@@ -117,11 +117,7 @@ test-suite integration
   build-depends:
       base
     , aeson
-    , aeson-qq
     , async
-    , bech32
-    , bech32-th
-    , binary
     , bytestring
     , cardano-crypto-wrapper
     , cardano-ledger
@@ -131,44 +127,18 @@ test-suite integration
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , command
-    , containers
-    , contra-tracer
-    , cryptonite
-    , deepseq
     , directory
-    , exceptions
-    , extra
     , filepath
-    , fmt
-    , generic-arbitrary
-    , generic-lens
     , hspec
-    , hspec-expectations-lifted
-    , http-api-data
     , http-client
-    , http-types
     , iohk-monitoring
-    , lifted-base
-    , memory
-    , monad-control
     , network
     , ouroboros-network
-    , persistent
     , process
-    , QuickCheck
-    , random-shuffle
-    , retry
-    , safe
-    , servant
-    , template-haskell
     , temporary
     , text
-    , text-class
     , time
-    , transformers
     , unordered-containers
-    , warp
     , yaml
   build-tools:
       cardano-wallet-byron
