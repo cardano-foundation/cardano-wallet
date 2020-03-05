@@ -21,7 +21,7 @@
 module Cardano.Wallet.Byron.Network
     ( -- * Top-Level Interface
       pattern Cursor
-    , newNetworkLayer
+    , withNetworkLayer
 
       -- * Transport Helpers
     , AddrInfo
@@ -48,9 +48,11 @@ import Cardano.Wallet.Network
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
 import Control.Concurrent.Async
-    ( async, link )
+    ( async, cancel, link )
+import Control.Concurrent.MVar
+    ( MVar, isEmptyMVar, modifyMVar_, newEmptyMVar, putMVar, tryTakeMVar )
 import Control.Exception
-    ( catch, throwIO )
+    ( catch, finally, throwIO )
 import Control.Monad
     ( void )
 import Control.Monad.Class.MonadAsync
@@ -171,7 +173,7 @@ data instance Cursor (m Byron) = Cursor
     (TQueue m (ChainSyncCmd m))
 
 -- | Create an instance of the network layer
-newNetworkLayer
+withNetworkLayer
     :: Trace IO Text
         -- ^ Logging of network layer startup
     -> W.BlockchainParameters
@@ -180,28 +182,39 @@ newNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> IO (NetworkLayer IO (IO Byron) ByronBlock)
-newNetworkLayer tr bp addrInfo versionData = do
+    -> (NetworkLayer IO (IO Byron) ByronBlock -> IO a)
+        -- ^ Callback function with the network layer
+    -> IO a
+withNetworkLayer tr bp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
-    pure NetworkLayer
-        { currentNodeTip = _currentNodeTip
-        , nextBlocks = _nextBlocks
-        , initCursor = _initCursor localTxSubmissionQ
-        , cursorSlotId = _cursorSlotId
-        , postTx = _postTx localTxSubmissionQ
-        , stakeDistribution = _stakeDistribution
-        , getAccountBalance = _getAccountBalance
-        }
+    clientThread <- newEmptyMVar
+    action
+        NetworkLayer
+            { currentNodeTip = _currentNodeTip
+            , nextBlocks = _nextBlocks
+            , initCursor = _initCursor clientThread localTxSubmissionQ
+            , cursorSlotId = _cursorSlotId
+            , postTx = _postTx localTxSubmissionQ
+            , stakeDistribution = _stakeDistribution
+            , getAccountBalance = _getAccountBalance
+            }
+      `finally` do
+        tryTakeMVar clientThread >>= \case
+            Nothing -> pure ()
+            Just client -> cancel client
   where
     W.BlockchainParameters
         { getEpochLength
         } = bp
 
-    _initCursor localTxSubmissionQ headers = do
+    _initCursor clientThread localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
-        link =<< async (connectClient client versionData addrInfo)
-
+        pid <- async (connectClient client versionData addrInfo)
+        link pid
+        tryModifyMVar_ clientThread $ \case
+            Nothing   -> pure pid
+            Just pid' -> cancel pid' $> pid
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
             Right(Just intersection) ->
@@ -599,6 +612,14 @@ localSocketAddrInfo socketPath = AddrInfo
 
 swapTMVarM :: MonadSTM m => TMVar m a -> a -> m ()
 swapTMVarM var = void . atomically . swapTMVar var
+
+-- | Try modifying the MVar with the given function. Works only if there's only
+-- one thread trying to modify the MVar.
+tryModifyMVar_ :: MVar a -> (Maybe a -> IO a) -> IO ()
+tryModifyMVar_ mvar modify = do
+    isEmptyMVar mvar >>= \case
+        True  -> modify Nothing >>= putMVar mvar
+        False -> modifyMVar_ mvar (modify . Just)
 
 --------------------------------------------------------------------------------
 --
