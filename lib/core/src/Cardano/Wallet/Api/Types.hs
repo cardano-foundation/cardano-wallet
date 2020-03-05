@@ -72,6 +72,7 @@ module Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , ApiEpochNumber (..)
     , ApiNetworkParameters (..)
+    , toApiNetworkParameters
     , ApiWalletDelegation (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
@@ -125,6 +126,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
+    , BlockchainParameters (..)
     , BoundType
     , Coin (..)
     , Direction (..)
@@ -431,6 +433,18 @@ data ApiNetworkParameters = ApiNetworkParameters
     , epochStability :: !(Quantity "block" Word32)
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     } deriving (Eq, Generic, Show)
+
+toApiNetworkParameters :: BlockchainParameters -> ApiNetworkParameters
+toApiNetworkParameters bp = ApiNetworkParameters
+    (ApiT $ getGenesisBlockHash bp)
+    (ApiT $ getGenesisBlockDate bp)
+    (Quantity $ unSlotLength $ getSlotLength bp)
+    (Quantity $ unEpochLength $ getEpochLength bp)
+    (getEpochStability bp)
+    (Quantity
+        $ (*100)
+        $ unActiveSlotCoefficient
+        $ getActiveSlotCoefficient bp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

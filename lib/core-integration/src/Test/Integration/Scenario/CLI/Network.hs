@@ -13,7 +13,10 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..), ApiNetworkParameters )
+    ( ApiNetworkInformation (..)
+    , ApiNetworkParameters
+    , toApiNetworkParameters
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), epochPred )
 import Data.Generics.Internal.VL.Lens
@@ -35,12 +38,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , KnownCommand
-    , cardanoWalletCLI
-    , expectValidJSON
-    , expectedBlockchainParams
-    )
+    ( Context (..), KnownCommand, cardanoWalletCLI, expectValidJSON )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg404NoEpochNo )
 
@@ -55,18 +53,18 @@ spec = do
     describe "NETWORK_PARAMS_01 - Valid epoch values" $ do
         it "Epoch = latest" $ \ctx -> do
             params1 <- getNetworkParamsViaCliExpectingSuccess ctx "latest"
-            params1 `shouldBe` expectedBlockchainParams
+            params1 `shouldBe` toApiNetworkParameters (ctx ^. #_blockchainParameters)
 
         it "Epoch = 0" $ \ctx -> do
             params2 <- getNetworkParamsViaCliExpectingSuccess ctx "0"
-            params2 `shouldBe` expectedBlockchainParams
+            params2 `shouldBe` toApiNetworkParameters (ctx ^. #_blockchainParameters)
 
         it "Current epoch" $ \ctx -> do
             info <- getNetworkInfoViaCLI ctx
             let (EpochNo currentEpoch) = currentEpochNo info
             params3 <-
                 getNetworkParamsViaCliExpectingSuccess ctx (show currentEpoch)
-            params3 `shouldBe` expectedBlockchainParams
+            params3 `shouldBe` toApiNetworkParameters (ctx ^. #_blockchainParameters)
 
         it "Previous epoch" $ \ctx -> do
             info <- getNetworkInfoViaCLI ctx
@@ -74,7 +72,7 @@ spec = do
             let (EpochNo prevEpoch) =
                     fromMaybe minBound (epochPred $ EpochNo currentEpoch)
             params4 <- getNetworkParamsViaCliExpectingSuccess ctx (show prevEpoch)
-            params4 `shouldBe` expectedBlockchainParams
+            params4 `shouldBe` toApiNetworkParameters (ctx ^. #_blockchainParameters)
 
     describe "NETWORK_PARAMS_02 - Cannot query future epoch" $ do
         it "Future epoch" $ \ctx -> do

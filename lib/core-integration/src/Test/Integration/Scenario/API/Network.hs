@@ -16,9 +16,9 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
-    , ApiWallet
     , NtpSyncingStatus (..)
     , WalletStyle (..)
+    , toApiNetworkParameters
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SyncProgress (..) )
@@ -26,6 +26,8 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
@@ -42,7 +44,6 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectResponseCode
-    , expectedBlockchainParams
     , getFromResponse
     , request
     , verify
@@ -198,4 +199,5 @@ spec = do
            r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
            expectResponseCode @IO HTTP.status200 r2
            let networkParams = getFromResponse id r2
-           networkParams `shouldBe` expectedBlockchainParams
+           networkParams `shouldBe`
+               toApiNetworkParameters (ctx ^. #_blockchainParameters)

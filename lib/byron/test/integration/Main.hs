@@ -105,7 +105,7 @@ specWithServer tr = aroundAll withContext . after tearDown
     withContext :: (Context Byron -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext wAddr = do
+        let setupContext bp wAddr = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -120,13 +120,14 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator
+                    , _blockchainParameters = bp
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $ \addrInfo block0 ntwrkParams ->
+        withCardanoNode tr $ \addrInfo block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet @'Mainnet
                 (setupTracers (tracerSeverities (Just Info)) tr)
@@ -136,8 +137,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                 ListenOnRandomPort
                 addrInfo
                 block0
-                ntwrkParams
-                action
+                (bp, vData)
+                (action bp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()

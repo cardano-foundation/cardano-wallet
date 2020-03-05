@@ -23,6 +23,8 @@ import Prelude
 
 import Cardano.CLI
     ( Port (..) )
+import Cardano.Wallet.Primitive.Types
+    ( BlockchainParameters )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -89,6 +91,8 @@ data Context t = Context
         -- integration tests.
     , _feeEstimator :: TxDescription -> (Natural, Natural)
         -- ^ A fee estimator for the integration tests
+    , _blockchainParameters :: BlockchainParameters
+        -- ^ Blockchain parameters for the underlying chain
     , _target
         :: Proxy t
     } deriving Generic

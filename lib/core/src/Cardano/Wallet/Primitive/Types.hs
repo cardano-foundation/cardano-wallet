@@ -1496,7 +1496,7 @@ slotRangeFromTimeRange sps (Range mStart mEnd) =
         maybe (Just Nothing) (fmap Just . slotFloor sps) mEnd
 
 -- | Duration of a single slot.
-newtype SlotLength = SlotLength NominalDiffTime
+newtype SlotLength = SlotLength { unSlotLength :: NominalDiffTime }
     deriving (Show, Eq, Generic)
 
 instance NFData SlotLength
