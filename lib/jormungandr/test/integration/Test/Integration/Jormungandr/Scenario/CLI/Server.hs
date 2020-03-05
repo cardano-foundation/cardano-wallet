@@ -67,7 +67,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. KnownCommand t => SpecWith (Port "node", FeePolicy, Context t)
-spec = describe "PATATE" $ do
+spec = do
     block0H <- runIO $ argHex <$> getBlock0H
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
