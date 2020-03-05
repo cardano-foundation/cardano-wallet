@@ -38,6 +38,7 @@ import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
     ( Cursor
+    , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
@@ -50,7 +51,14 @@ import Codec.SerialiseTerm
 import Control.Concurrent.Async
     ( async, cancel, link )
 import Control.Concurrent.MVar
-    ( MVar, isEmptyMVar, modifyMVar_, newEmptyMVar, putMVar, tryTakeMVar )
+    ( MVar
+    , isEmptyMVar
+    , modifyMVar_
+    , newEmptyMVar
+    , putMVar
+    , tryReadMVar
+    , tryTakeMVar
+    )
 import Control.Exception
     ( IOException, finally )
 import Control.Monad
@@ -77,7 +85,7 @@ import Control.Monad.Class.MonadThrow
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
@@ -196,7 +204,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
     clientThread <- newEmptyMVar
     action
         NetworkLayer
-            { currentNodeTip = _currentNodeTip
+            { currentNodeTip = _currentNodeTip clientThread
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor clientThread localTxSubmissionQ
             , cursorSlotId = _cursorSlotId
@@ -207,10 +215,11 @@ withNetworkLayer tr bp addrInfo versionData action = do
       `finally` do
         tryTakeMVar clientThread >>= \case
             Nothing -> pure ()
-            Just client -> cancel client
+            Just (pid, _) -> cancel pid
   where
     W.BlockchainParameters
-        { getEpochLength
+        { getGenesisBlockHash
+        , getEpochLength
         } = bp
 
     _initCursor clientThread localTxSubmissionQ headers = do
@@ -219,11 +228,11 @@ withNetworkLayer tr bp addrInfo versionData action = do
         pid <- async (connectClient client versionData addrInfo)
         link pid
         tryModifyMVar_ clientThread $ \case
-            Nothing   -> pure pid
-            Just pid' -> cancel pid' $> pid
+            Nothing   -> pure (pid, chainSyncQ)
+            Just (old, _) -> cancel old $> (pid, chainSyncQ)
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
-            Right(Just intersection) ->
+            Right (Just intersection) ->
                 pure $ Cursor intersection chainSyncQ
             _ -> fail
                 "initCursor: intersection not found? This can't happen \
@@ -240,8 +249,16 @@ withNetworkLayer tr bp addrInfo versionData action = do
     _getAccountBalance _ =
         pure (Quantity 0)
 
-    _currentNodeTip =
-        notImplemented "currentNodeTip"
+    _currentNodeTip clientThread =
+        liftIO (tryReadMVar clientThread) >>= \case
+            Nothing -> throwE $ ErrCurrentNodeTipNetworkUnreachable $
+                ErrNetworkUnreachable "client not yet started."
+            Just (_, chainSyncQ) ->
+                liftIO (chainSyncQ `send` CmdCurrentNodeTip) >>= \case
+                    Left e ->
+                        throwE $ ErrCurrentNodeTipNetworkUnreachable e
+                    Right tip ->
+                        pure $ fromTip getGenesisBlockHash getEpochLength tip
 
     _postTx localTxSubmissionQ tx = do
         result <- withExceptT ErrPostTxNetworkUnreachable $
