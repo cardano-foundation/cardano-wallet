@@ -1,27 +1,65 @@
+############################################################################
+#
+# Cardano Wallet Nix build
+#
+# Derivation attributes of this file can be build with "nix-build -A ..."
+# Discover attribute names using tab-completion in your shell.
+#
+# Interesting top-level attributes:
+#
+#   - cardano-wallet-jormungandr - cli executable
+#   - cardano-wallet-byron - cli executable
+#   - tests - attrset of test-suite executables
+#     - cardano-wallet-core.unit
+#     - cardano-wallet-jormungandr.integration
+#     - etc (layout is PACKAGE.COMPONENT)
+#   - checks - attrset of test-suite results
+#     - cardano-wallet-core.unit
+#     - cardano-wallet-jormungandr.integration
+#     - etc
+#   - benchmarks - attret of benchmark executables
+#     - cardano-wallet-core.db
+#     - cardano-wallet-jormungandr.latency
+#     - etc
+#   - migration-tests - tests db migrations from previous versions
+#   - dockerImage - tarball of the docker image
+#   - shell - imported by shell.nix
+#   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
+#     - cardano-wallet-core.components.library
+#     - etc (layout is PACKAGE-NAME.components.COMPONENT-TYPE.COMPONENT-NAME)
+#
+# The attributes of this file are imported by the Hydra jobset and
+# mapped into the layout TARGET-SYSTEM.ATTR-PATH.BUILD-SYSTEM.
+# See release.nix for more info about that.
+#
+# Other documentation:
+#   https://github.com/input-output-hk/cardano-wallet/wiki/Building#nix-build
+#
+############################################################################
+
 { system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-# Import IOHK common nix lib
-, sourcesOverride ? {}
-# Use pinned Nixpkgs with Haskell.nix overlay
-, pkgs ? import ./nix { inherit system crossSystem config sourcesOverride; }
+# Import pinned Nixpkgs with iohk-nix and Haskell.nix overlays
+, pkgs ? import ./nix/default.nix { inherit system crossSystem config sourcesOverride; }
 # Use this git revision for stamping executables
 , gitrev ? pkgs.commonLib.commitIdFromGitRepoOrZero ./.git
+# Use this to reference local sources rather than the niv pinned versions (see nix/default.nix)
+, sourcesOverride ? {}
 }:
 
+# commonLib includes iohk-nix utilities, our util.nix and nixpkgs lib.
 with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
 
 let
-  inherit (jmPkgs) jormungandr jormungandr-cli;
-
   haskellPackages = cardanoWalletHaskellPackages;
 
-  filterCardanoPackages = pkgs.lib.filterAttrs (_: package: isCardanoWallet package);
-  getPackageChecks = pkgs.lib.mapAttrs (_: package: package.checks);
+  filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
+  getPackageChecks = lib.mapAttrs (_: package: package.checks);
 
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
-    inherit jormungandr jormungandr-cli;
+    inherit (jmPkgs) jormungandr jormungandr-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
@@ -63,10 +101,10 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ [ jormungandr jormungandr-cli
+        ++ [ self.jormungandr self.jormungandr-cli
              pkgs.pkgconfig pkgs.sqlite-interactive
              pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
-      meta.platforms = pkgs.lib.platforms.unix;
+      meta.platforms = lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {
       walletPackages = self;

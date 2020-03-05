@@ -30,7 +30,7 @@
 ############################################################################
 
 let
-  commonLib' = import ./. {};
+  commonLib' = import ./default.nix {};
 
 in { commonLib ? commonLib'.commonLib
 , pkgs ? commonLib'.pkgs
