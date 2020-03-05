@@ -52,9 +52,11 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( MVar, isEmptyMVar, modifyMVar_, newEmptyMVar, putMVar, tryTakeMVar )
 import Control.Exception
-    ( catch, finally, throwIO )
+    ( IOException, finally )
 import Control.Monad
     ( void )
+import Control.Monad.Catch
+    ( Handler (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync (race) )
 import Control.Monad.Class.MonadST
@@ -78,12 +80,16 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
+import Control.Retry
+    ( RetryPolicyM, fibonacciBackoff, limitRetries, recovering )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
+import Data.List
+    ( isInfixOf )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -93,7 +99,7 @@ import Data.Void
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( AppType (..), MuxError )
+    ( AppType (..) )
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
 import Network.TypedProtocol.Channel
@@ -379,15 +385,21 @@ connectClient client (vData, vCodec) addr = do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
     let tracers = NetworkConnectTracers nullTracer nullTracer
-    connectTo tracers versions Nothing addr `catch` handleMuxError
+    recovering policy [const $ Handler handleIOException] $ const $
+        connectTo tracers versions Nothing addr
   where
-    -- `connectTo` might rise an exception: we are the client and the protocols
-    -- specify that only  client can lawfuly close a connection, but the other
-    -- side might just disappear.
-    --
-    -- NOTE: This handler does nothing.
-    handleMuxError :: MuxError -> IO ()
-    handleMuxError = throwIO
+    -- #0  | #1  | #2 | #3   | #4   | #5 | #6   | #7    | #8  | #9    | Total
+    -- --  | --  | -  | --   | --   | -- | --   | --    | --  | --    | --
+    -- .5s | .5s | 1s | 1.5s | 2.5s | 4s | 6.5s | 10.5s | 17s | 27.5s | 71.5
+    policy :: RetryPolicyM IO
+    policy = fibonacciBackoff 500 <> limitRetries 10
+
+    -- There's a race-condition when starting the wallet and the node at the
+    -- same time: the socket might not be there yet when we try to open it.
+    -- In such case, we simply retry a bit later and hope it's there.
+    handleIOException :: IOException -> IO Bool
+    handleIOException e = pure $
+        "does not exist" `isInfixOf` show e
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --

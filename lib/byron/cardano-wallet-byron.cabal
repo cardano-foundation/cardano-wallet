@@ -44,6 +44,7 @@ library
     , cryptonite
     , deepseq
     , either
+    , exceptions
     , fmt
     , io-sim-classes
     , iohk-monitoring
@@ -52,6 +53,7 @@ library
     , network-mux
     , ouroboros-consensus
     , ouroboros-network
+    , retry
     , serialise
     , text
     , text-class
@@ -98,3 +100,84 @@ executable cardano-wallet-byron
       exe
   main-is:
     cardano-wallet-byron.hs
+
+test-suite integration
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (!flag(development))
+    ghc-options:
+      -O2
+      -Werror
+  build-depends:
+      base
+    , aeson
+    , aeson-qq
+    , async
+    , bech32
+    , bech32-th
+    , binary
+    , bytestring
+    , cardano-crypto-wrapper
+    , cardano-ledger
+    , cardano-wallet-byron
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , command
+    , containers
+    , contra-tracer
+    , cryptonite
+    , deepseq
+    , directory
+    , exceptions
+    , extra
+    , filepath
+    , fmt
+    , generic-arbitrary
+    , generic-lens
+    , hspec
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , iohk-monitoring
+    , lifted-base
+    , memory
+    , monad-control
+    , network
+    , ouroboros-network
+    , persistent
+    , process
+    , QuickCheck
+    , random-shuffle
+    , retry
+    , safe
+    , servant
+    , template-haskell
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , unordered-containers
+    , warp
+    , yaml
+  build-tools:
+      cardano-wallet-byron
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/integration
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Byron.Faucet
+      Cardano.Wallet.Byron.Config
