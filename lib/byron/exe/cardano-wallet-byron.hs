@@ -68,6 +68,8 @@ import Cardano.Wallet.Byron
     , tracerDescriptions
     , tracerLabels
     )
+import Cardano.Wallet.Byron.Compatibility
+    ( KnownNetwork (..), mainnetGenesis )
 import Cardano.Wallet.Byron.Network
     ( localSocketAddrInfo )
 import Cardano.Wallet.Logging
@@ -181,6 +183,8 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     hostPreference
                     listen
                     addrInfo
+                    mainnetGenesis
+                    (blockchainParameters @'Mainnet, versionData @'Mainnet)
                     (beforeMainLoop tr)
 
     whenJust m fn = case m of

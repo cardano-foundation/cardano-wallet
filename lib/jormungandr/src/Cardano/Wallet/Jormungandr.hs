@@ -49,8 +49,6 @@ module Cardano.Wallet.Jormungandr
 
 import Prelude
 
-import Cardano.BM.Data.LogItem
-    ( LoggerName )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -179,6 +177,7 @@ import qualified Cardano.Pool.Metrics as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Binary as J
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -221,9 +220,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
   where
     serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
-        Right (cp, nl) -> do
+        Right (cp, (block0, bp), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let (block0, bp) = staticBlockchainParameters nl
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
@@ -232,10 +230,10 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 withSystemTempDirectory "stake-pool-metadata" $ \md -> do
                 withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
                     link $ ntpThread ntpClient
-                    poolApi <- stakePoolLayer nl db block0 md
-                    byronApi <- apiLayer "byron" byronTl nl
-                    icarusApi <- apiLayer "icarus" icarusTl nl
-                    shelleyApi <- apiLayer "shelley" shelleyTl nl
+                    poolApi <- stakePoolLayer (block0, bp) nl db md
+                    byronApi   <- apiLayer (block0, bp) byronTl nl
+                    icarusApi  <- apiLayer (block0, bp) icarusTl nl
+                    shelleyApi <- apiLayer (block0, bp) shelleyTl nl
                     startServer socket nPort bp
                         byronApi
                         icarusApi
@@ -272,12 +270,11 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => LoggerName
+        => (J.Block, BlockchainParameters)
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
-    apiLayer _loggerName tl nl = do
-        let (block0, bp) = staticBlockchainParameters nl
+    apiLayer (block0, bp) tl nl = do
         let tracer = contramap MsgDatabaseStartup applicationTracer
         wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory
@@ -290,20 +287,22 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         nl' = toWLBlock <$> nl
 
     stakePoolLayer
-        :: NetworkLayer IO t J.Block
+        :: (J.Block, BlockchainParameters)
+        -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
-        -> J.Block
         -> FilePath
         -> IO (StakePoolLayer IO)
-    stakePoolLayer nl db block0 metadataDir = do
-        void $ forkFinally (monitorStakePools tr nl' db) onExit
+    stakePoolLayer (block0, bp) nl db metadataDir = do
+        void $ forkFinally (monitorStakePools tr (toSPBlock block0, k) nl' db) onExit
         getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
             J.rankingEpochConstants block0
-        pure $ newStakePoolLayer tr getEpCst db nl' metadataDir
+        pure $ newStakePoolLayer tr block0H getEpCst db nl' metadataDir
       where
         nl' = toSPBlock <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
+        k = getEpochStability bp
+        block0H = W.header $ toWLBlock block0
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError err = do

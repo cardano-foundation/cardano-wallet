@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -32,17 +33,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron
-    , byronEpochLength
-    , fromSlotNo
-    , fromTip
-    , genesisBlock
-    , genesisTip
-    , toByronHash
-    , toEpochSlots
-    , toGenTx
-    , toPoint
-    )
+    ( Byron, fromSlotNo, fromTip, genesisTip, toEpochSlots, toGenTx, toPoint )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
@@ -89,8 +80,6 @@ import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Coerce
-    ( coerce )
 import Data.Functor
     ( (<&>) )
 import Data.Quantity
@@ -200,17 +189,20 @@ newNetworkLayer tr bp addrInfo versionData = do
         , initCursor = _initCursor localTxSubmissionQ
         , cursorSlotId = _cursorSlotId
         , postTx = _postTx localTxSubmissionQ
-        , staticBlockchainParameters = _staticBlockchainParameters
         , stakeDistribution = _stakeDistribution
         , getAccountBalance = _getAccountBalance
         }
   where
+    W.BlockchainParameters
+        { getEpochLength
+        } = bp
+
     _initCursor localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         link =<< async (connectClient client versionData addrInfo)
 
-        let points = genesisPoint : (toPoint <$> headers)
+        let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
             Right(Just intersection) ->
                 pure $ Cursor intersection chainSyncQ
@@ -224,16 +216,10 @@ newNetworkLayer tr bp addrInfo versionData = do
             ExceptT (chainSyncQ `send` CmdNextBlocks)
 
     _cursorSlotId (Cursor point _) = do
-        fromSlotNo $ fromWithOrigin (SlotNo 0) $ pointSlot point
+        fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance _ =
         pure (Quantity 0)
-
-    _staticBlockchainParameters =
-        -- FIXME: Actually pass in the block0 as a parameter
-        ( genesisBlock $ toByronHash $ coerce $ W.getGenesisBlockHash bp
-        , bp
-        )
 
     _currentNodeTip =
         notImplemented "currentNodeTip"
@@ -362,7 +348,7 @@ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
     OuroborosInitiatorApplication $ \_pid -> \case
         ChainSyncWithBlocksPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            chainSyncWithBlocks tr' (W.getGenesisBlockHash bp) chainSyncQ
+            chainSyncWithBlocks tr' bp chainSyncQ
         LocalTxSubmissionPtcl ->
             let tr' = contramap (T.pack . show) $ trMessage tr in
             localTxSubmission tr' localTxSubmissionQ
@@ -434,8 +420,8 @@ chainSyncWithBlocks
         )
     => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
-    -> W.Hash "Genesis"
-        -- ^ Hash of the genesis block
+    -> W.BlockchainParameters
+        -- ^ Blockchain parameters
     -> TQueue m (ChainSyncCmd m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -446,14 +432,19 @@ chainSyncWithBlocks
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-chainSyncWithBlocks tr genesisHash queue channel = do
+chainSyncWithBlocks tr bp queue channel = do
     nodeTipVar <- newTMVarM genesisTip
     runPeer tr codec channel (chainSyncClientPeer $ client nodeTipVar)
   where
+    W.BlockchainParameters
+        { getGenesisBlockHash
+        , getEpochLength
+        } = bp
+
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecChainSync
         encodeByronBlock
-        (decodeByronBlock (toEpochSlots byronEpochLength))
+        (decodeByronBlock (toEpochSlots getEpochLength))
         (encodePoint encodeByronHeaderHash)
         (decodePoint decodeByronHeaderHash)
         (encodeTip encodeByronHeaderHash)
@@ -509,9 +500,10 @@ chainSyncWithBlocks tr genesisHash queue channel = do
                 , recvMsgRollForward = \block tip ->
                     ChainSyncClient $ do
                         swapTMVarM nodeTipVar tip
-                        let cursor  = blockPoint block
+                        let cursor' = blockPoint block
                         let blocks' = reverse (block:blocks)
-                        respond (RollForward cursor (fromTip genesisHash tip) blocks')
+                        let tip'    = fromTip getGenesisBlockHash getEpochLength tip
+                        respond (RollForward cursor' tip' blocks')
                         clientStIdle
                 }
             | otherwise = ClientStNext

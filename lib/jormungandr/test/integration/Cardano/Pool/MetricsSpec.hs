@@ -19,7 +19,7 @@ import Cardano.Wallet.Jormungandr.Launch
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..), withJormungandr, withNetworkLayer )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotId )
+    ( BlockHeader (..), BlockchainParameters (..), SlotId )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Exception
@@ -44,9 +44,9 @@ import qualified Cardano.Pool.DB.Sqlite as Pool
 spec :: Spec
 spec = around setup $ do
     it "a monitorStakePools thread with db, if killed and restarted, catches up\
-        \ with one that stays running" $ \(nl, referenceDB) ->
+        \ with one that stays running" $ \(nl, (block0, k), referenceDB) ->
         withDB "db.sqlite" $ \db ->
-            withMonitorStakePoolsThread nl db $ \worker -> do
+            withMonitorStakePoolsThread (block0, k) nl db $ \worker -> do
                 eventually "db `shouldContainSameSlotsAs` referenceDB and db shouldNotBeEmpty" $ do
                     db `shouldContainSameSlotsAs` referenceDB
                     shouldNotBeEmpty db
@@ -56,7 +56,7 @@ spec = around setup $ do
                 eventually "shouldBeBehindBy 3 db referenceDB" $
                     shouldBeBehindBy 3 db referenceDB
 
-                withMonitorStakePoolsThread nl db $ \_ ->
+                withMonitorStakePoolsThread (block0, k) nl db $ \_ ->
                     eventually "db `shouldContainSameSlotsAs` referenceDB" $
                         db `shouldContainSameSlotsAs` referenceDB
   where
@@ -103,9 +103,9 @@ spec = around setup $ do
     readSlots DBLayer{atomically, readPoolProductionCursor} =
         map slotId <$> atomically (readPoolProductionCursor 10000)
 
-    withMonitorStakePoolsThread nl db action = do
+    withMonitorStakePoolsThread (block0, k) nl db action = do
         bracket
-            (forkIO $ void $ monitorStakePools nullTracer nl db)
+            (forkIO $ void $ monitorStakePools nullTracer (block0, k) nl db)
             killThread
             action
 
@@ -113,10 +113,12 @@ spec = around setup $ do
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp ->
             withNetworkLayer tr (UseRunning cp) $ \case
-                Right (_, nl) -> withDB "reference.sqlite" $ \db -> do
+                Right (_, (b0, bp), nl) -> withDB "reference.sqlite" $ \db -> do
                     let nl' = toSPBlock <$> nl
-                    withMonitorStakePoolsThread nl' db $ \_workerThread ->
-                        cb (nl', db)
+                    let k = getEpochStability bp
+                    let block0 = toSPBlock b0
+                    withMonitorStakePoolsThread (block0, k) nl' db $ \_workerThread ->
+                        cb (nl', (block0, k), db)
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 

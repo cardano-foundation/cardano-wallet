@@ -198,7 +198,7 @@ spec = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
                 let jor = Jormungandr.mkJormungandrClient mgr baseUrl
-                let g0 = (error "block0", error "BlockchainParameters")
+                let g0 = error "BlockchainParameters"
                 return (void $ mkRawNetworkLayer g0 1000 st jor)
 
         let makeUnreachableNetworkLayer = do
@@ -395,7 +395,7 @@ spec = do
         let tr = nullTracer
         e <- withJormungandr tr cfg $
             \cp -> withNetworkLayer tr (UseRunning cp) $ \case
-                Right (_, nw) -> cb (nw, _restApi cp)
+                Right (_, _, nw) -> cb (nw, _restApi cp)
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 

@@ -718,7 +718,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
             putDelegationCertificate (PrimaryKey wid) cert slotId
 
         forM_ (NE.init cps) $ \cp' -> do
-            let (Quantity h) = currentTip cp ^. #blockHeight
+            let (Quantity h) = currentTip cp' ^. #blockHeight
             when (fromIntegral h `elem` unstable) $ do
                 liftIO $ logCheckpoint cp'
                 putCheckpoint (PrimaryKey wid) cp'

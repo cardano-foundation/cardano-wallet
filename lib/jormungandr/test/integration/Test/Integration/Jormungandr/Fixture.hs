@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -10,6 +11,8 @@ module Test.Integration.Jormungandr.Fixture
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -32,8 +35,6 @@ import System.IO.Temp
     ( withSystemTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
-import Test.Integration.Framework.Request
-    ( Context (..) )
 import Test.Integration.Jcli
     ( argHex, argInt, getBlock0H, jcli, jcliStdin, jcliStdin_, jcli_ )
 
@@ -52,10 +53,12 @@ data OwnerIdentity = WithMetadata | WithoutMetadata
 -- Note that pools are registered but have no stake. Therefore, they shouldn't
 -- really interfer with other test because they shouldn't get elected at all...
 registerStakePool
-    :: Context t
+    :: Port "node"
+    -> FeePolicy
     -> OwnerIdentity
     -> IO (PoolId, PoolOwner)
-registerStakePool ctx owner = withSystemTempDirectory "registration" $ \d -> do
+registerStakePool nPort feePolicy owner =
+    withSystemTempDirectory "registration" $ \d -> do
     -- NOTE
     -- We use a brand new faucet to pay for the registration because it is
     -- simpler. Without this, we would have to keep track of the account's
@@ -131,10 +134,10 @@ registerStakePool ctx owner = withSystemTempDirectory "registration" $ \d -> do
         -- Simplifies reading of commands above by "simulating" a UNIX pipe
         -- passing around the staging file for each command.
         fakePipe  = traverse (\args -> jcli $ args ++ ["--staging", d </> "staging"])
-        LinearFee feeConstant feeCoefficient feeCertificate = _feePolicy ctx
+        LinearFee feeConstant feeCoefficient feeCertificate = feePolicy
 
     publishCertificate tx = do
-        let host = "http://localhost:" <> show (_nodePort ctx) <> "/api"
+        let host = "http://localhost:" <> show nPort <> "/api"
         jcliStdin_ tx
             [ "rest", "v0", "message", "post"
             , "--host", host

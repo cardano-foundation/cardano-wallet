@@ -338,9 +338,9 @@ mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
-    Right (b0,bp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
+    Right (_b0, bp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure
-        ( fromJBlock <$> mkRawNetworkLayer (b0, bp) (fromIntegral k) st jm
+        ( fromJBlock <$> mkRawNetworkLayer bp (fromIntegral k) st jm
         , findIntersection st
         )
   where

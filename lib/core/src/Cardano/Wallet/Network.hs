@@ -40,7 +40,6 @@ import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
     , Hash (..)
@@ -48,8 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx
     , SlotId
     )
-import Control.Arrow
-    ( first )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -124,10 +121,6 @@ data NetworkLayer m target block = NetworkLayer
         :: SealedTx -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
 
-    , staticBlockchainParameters
-        :: (block, BlockchainParameters)
-        -- ^ Get the genesis block and blockchain parameters.
-
     , stakeDistribution
         :: ExceptT ErrNetworkUnavailable m
             ( EpochNo
@@ -142,7 +135,6 @@ data NetworkLayer m target block = NetworkLayer
 instance Functor m => Functor (NetworkLayer m target) where
     fmap f nl = nl
         { nextBlocks = fmap (fmap f) . nextBlocks nl
-        , staticBlockchainParameters = first f $ staticBlockchainParameters nl
         }
 
 {-------------------------------------------------------------------------------

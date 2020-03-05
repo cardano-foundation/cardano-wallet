@@ -67,7 +67,6 @@ import Cardano.Wallet.Network
     , FollowLog
     , NetworkLayer (currentNodeTip, stakeDistribution)
     , follow
-    , staticBlockchainParameters
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
@@ -92,7 +91,7 @@ import Control.Tracer
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.List
     ( nub, nubBy, sortOn, (\\) )
 import Data.List.NonEmpty
@@ -110,7 +109,7 @@ import Data.Text.Class
 import Data.Vector.Shuffle
     ( shuffleWith )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -158,10 +157,12 @@ data StakePool = StakePool
 -- different forks such that it's safe for readers to access it.
 monitorStakePools
     :: Tracer IO StakePoolLog
+    -> (Block, Quantity "block" Word32)
+        -- ^ Genesis block and 'k'
     -> NetworkLayer IO t Block
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr nl db@DBLayer{..} = do
+monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
     cursor <- initCursor
     traceWith tr $ MsgStartMonitoring cursor
     follow nl trFollow cursor forward header >>= \case
@@ -169,20 +170,18 @@ monitorStakePools tr nl db@DBLayer{..} = do
         Just point -> do
             traceWith tr $ MsgRollingBackTo point
             liftIO . atomically $ rollbackTo point
-            monitorStakePools tr nl db
+            monitorStakePools tr (block0, Quantity k) nl db
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let (block0, bp) = staticBlockchainParameters nl
         let sl0 = block0 ^. #header . #slotId
-        let k = fromIntegral . getQuantity . view #getEpochStability $ bp
         atomically $ do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
                 readPoolRegistration poolId >>= \case
                     Nothing -> putPoolRegistration sl0 r
                     Just{}  -> pure ()
-            readPoolProductionCursor (max 100 k)
+            readPoolProductionCursor (max 100 (fromIntegral k))
 
     forward
         :: NonEmpty Block
@@ -251,6 +250,8 @@ data ErrListStakePools
 
 newStakePoolLayer
     :: Tracer IO StakePoolLog
+    -> BlockHeader
+    -- ^ Genesis block header
     -> (EpochNo -> Quantity "lovelace" Word64 -> EpochConstants)
     -> DBLayer IO
     -> NetworkLayer IO t Block
@@ -258,7 +259,7 @@ newStakePoolLayer
     -- ^ A directory to cache downloaded stake pool metadata. Will be created if
     -- it does not exist.
     -> StakePoolLayer IO
-newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
+newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
     { listStakePools = do
         lift $ traceWith tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
@@ -273,7 +274,7 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
         nodeTip <- withExceptT ErrListStakePoolsCurrentNodeTip
             $ currentNodeTip nl
         let nodeEpoch = nodeTip ^. #slotId . #epochNumber
-        let genesisEpoch = block0 ^. #header . #slotId . #epochNumber
+        let genesisEpoch = block0H ^. #slotId . #epochNumber
 
         (distr, prod, prodTip) <- liftIO . atomically $ (,,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
@@ -297,7 +298,7 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
             combineWith (pure . sortByDesirability) epCst distr prod perfs
 
     readPoolProductionTip = readPoolProductionCursor 1 <&> \case
-        []  -> header block0
+        []  -> block0H
         h:_ -> h
 
     -- For each pool, look up its metadata. If metadata could not be found for a
@@ -317,8 +318,6 @@ newStakePoolLayer tr getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
                 let res = associateMetadata pools (zip owners' metas)
                 mapM_ (traceWith tr . fst) res
                 pure $ map snd res
-
-    (block0, _) = staticBlockchainParameters nl
 
     combineWith
         :: ([(StakePool, [PoolOwner])] -> IO [(StakePool, [PoolOwner])])

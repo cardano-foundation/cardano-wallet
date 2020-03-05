@@ -23,8 +23,6 @@ import Prelude
 
 import Cardano.CLI
     ( Port (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -82,9 +80,6 @@ data Context t = Context
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
-    , _nodePort
-        :: Port "node"
-        -- ^ Node TCP port
     , _walletPort
         :: Port "wallet"
         -- ^ Server TCP port
@@ -94,8 +89,6 @@ data Context t = Context
         -- integration tests.
     , _feeEstimator :: TxDescription -> (Natural, Natural)
         -- ^ A fee estimator for the integration tests
-    , _feePolicy :: FeePolicy
-        -- ^ Fee policy
     , _target
         :: Proxy t
     } deriving Generic

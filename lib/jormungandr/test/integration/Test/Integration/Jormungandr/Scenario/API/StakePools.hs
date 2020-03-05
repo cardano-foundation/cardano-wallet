@@ -12,6 +12,8 @@ module Test.Integration.Jormungandr.Scenario.API.StakePools
 
 import Prelude
 
+import Cardano.CLI
+    ( Port (..) )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool, ApiT (..), ApiTransaction, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -20,7 +22,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), PoolId (..), TxStatus (..) )
+    ( Direction (..), FeePolicy (..), PoolId (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
 import Data.Functor.Identity
@@ -94,18 +96,12 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Testnet) => SpecWith (Port "node", FeePolicy, Context t)
 spec = do
-    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
+    it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> do
         eventually "Listing stake pools shows expected information" $ do
             r <- request @[ApiStakePool] ctx Link.listStakePools Default Empty
             expectResponseCode HTTP.status200 r
-            -- With the current genesis.yaml we have 3 pools with 1 lovelace,
-            -- and an epoch length of 3.
-            --
-            -- For some reason, the first pool (the node we run), produces
-            -- blocks in 100% of the /slots/. This means it will have produced
-            -- either 1 or 2 blocks in the current epoch.
             verify r
                 [ expectListSize 3
 
@@ -131,25 +127,18 @@ spec = do
                     #margin (`shouldBe` (Quantity minBound))
 
                 , expectListField 0
-                    (#metrics . #controlledStake) (`shouldBe` Quantity 1000)
+                    (#metrics . #producedBlocks) (.>= Quantity 0)
                 , expectListField 1
-                    (#metrics . #controlledStake) (`shouldBe` Quantity 1000)
+                    (#metrics . #producedBlocks) (.>= Quantity 0)
                 , expectListField 2
-                    (#metrics . #controlledStake) (`shouldBe` Quantity 1000)
+                    (#metrics . #producedBlocks) (.>= Quantity 0)
 
                 , expectListField 0
-                    (#metrics . #producedBlocks) (.> Quantity 1)
+                    #apparentPerformance (.>= 0)
                 , expectListField 1
-                    (#metrics . #producedBlocks) (`shouldBe` Quantity 0)
+                    #apparentPerformance (.>= 0)
                 , expectListField 2
-                    (#metrics . #producedBlocks) (`shouldBe` Quantity 0)
-
-                , expectListField 0
-                    #apparentPerformance (.> 0)
-                , expectListField 1
-                    #apparentPerformance (`shouldBe` 0)
-                , expectListField 2
-                    #apparentPerformance (`shouldBe` 0)
+                    #apparentPerformance (.>= 0)
 
                 , expectListField 0
                     #desirability (.>= 0)
@@ -166,7 +155,7 @@ spec = do
                     #saturation (.>= 0)
                 ]
 
-    it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \ctx -> do
+    it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \(_,_,ctx) -> do
         -- We should be able to catch the stake-pool data in an un-synced state
         -- when we enter into a new epoch. The results should then be
         -- unavailible.
@@ -185,16 +174,17 @@ spec = do
                     \blockchain for metrics first. I'm at"
                 ]
 
-    it "STAKE_POOLS_LIST_04 - Discovers new pools when they are registered" $ \ctx -> do
+    it "STAKE_POOLS_LIST_04 - Discovers new pools when they are registered"
+      $ \(nPort,feePolicy,ctx) -> do
         let nWithMetadata = length . filter (isJust . view #metadata)
         let nWithoutMetadata = length . filter (isNothing . view #metadata)
 
         (_, pools) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
 
-        (poolIdA, poolAOwner)  <- registerStakePool ctx WithMetadata
-        (poolIdB, _poolBOwner) <- registerStakePool ctx WithoutMetadata
-        (poolIdC, poolCOwner)  <- registerStakePool ctx WithMetadata
+        (poolIdA, poolAOwner)  <- registerStakePool nPort feePolicy WithMetadata
+        (poolIdB, _poolBOwner) <- registerStakePool nPort feePolicy WithoutMetadata
+        (poolIdC, poolCOwner)  <- registerStakePool nPort feePolicy WithMetadata
 
         waitForNextEpoch ctx
         (_, pools') <- eventually "Stake pools are listed again" $
@@ -212,7 +202,7 @@ spec = do
         let (Just poolC) = find ((== ApiT poolIdC) . view #id) pools'
         fmap (view #owner) (poolC ^. #metadata) `shouldBe` Just poolCOwner
 
-    it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -234,7 +224,7 @@ spec = do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, Right (p:_)) <- eventually "Stake pools are listed" $
             request @[ApiStakePool] ctx Link.listStakePools Default Empty
@@ -268,7 +258,7 @@ spec = do
                     -- tests may take effect.
                 ]
 
-    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -327,7 +317,7 @@ spec = do
             ]
 
     it "STAKE_POOLS_JOIN_04 -\
-        \Delegate, stop in the next epoch, and still earn rewards" $ \ctx -> do
+        \Delegate, stop in the next epoch, and still earn rewards" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p1:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -362,7 +352,7 @@ spec = do
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
-            \I can join if I have just the right amount" $ \(ctx) -> do
+            \I can join if I have just the right amount" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
@@ -374,7 +364,7 @@ spec = do
                 ]
 
         it "STAKE_POOLS_JOIN_01x - \
-            \I cannot join if I have not enough fee to cover" $ \ctx -> do
+            \I cannot join if I have not enough fee to cover" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
@@ -383,7 +373,7 @@ spec = do
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
 
-        it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \ctx -> do
+        it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
             w <- emptyWallet ctx
@@ -394,7 +384,7 @@ spec = do
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it "STAKE_POOLS_QUIT_01x - \
-            \I can quit if I have enough to cover fee" $ \(ctx) -> do
+            \I can quit if I have enough to cover fee" $ \(_,_,ctx) -> do
             let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             let initBalance = [feeJoin + feeQuit]
@@ -412,7 +402,7 @@ spec = do
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
-            \I cannot quit if I have not enough fee to cover" $ \ctx -> do
+            \I cannot quit if I have not enough fee to cover" $ \(_,_,ctx) -> do
             let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
             let initBalance = [feeJoin+1]
@@ -423,7 +413,7 @@ spec = do
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
-    it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \(_,_,ctx) -> do
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
         (w, p) <- joinStakePoolWithWalletBalance ctx [10*fee]
 
@@ -433,7 +423,7 @@ spec = do
         let poolId = toText $ getApiT $ p ^. #id
         expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \(_,_,ctx) -> do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
         r <- joinStakePool ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
@@ -441,7 +431,7 @@ spec = do
         expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_JOIN_01 - \
-        \ If a wallet joins a stake pool, others are not affected" $ \ctx -> do
+        \ If a wallet joins a stake pool, others are not affected" $ \(_,_,ctx) -> do
         (wA, wB) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -478,7 +468,7 @@ spec = do
             [ expectField #delegation (`shouldBe` notDelegating [])
             ]
 
-    it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \(_,_,ctx) -> do
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -508,10 +498,10 @@ spec = do
                 expectErrorMessage expec r
 
         forM_ tests $ \(expec, passphrase) -> do
-            it ("Join: " ++ expec) $ \ctx -> do
+            it ("Join: " ++ expec) $ \(_,_,ctx) -> do
                 verifyIt ctx joinStakePool passphrase expec
 
-            it ("Quit: " ++ expec) $ \ctx -> do
+            it ("Quit: " ++ expec) $ \(_,_,ctx) -> do
                 verifyIt ctx (\_ _ -> quitStakePool ctx) passphrase expec
 
     describe "STAKE_POOLS_JOIN/QUIT_02 - Passphrase must be text" $ do
@@ -524,12 +514,12 @@ spec = do
                         Default payload
                 expectResponseCode HTTP.status400 r
                 expectErrorMessage "parsing Text failed" r
-        it "Join" $ \ctx -> do
+        it "Join" $ \(_,_,ctx) -> do
             verifyIt ctx Link.joinStakePool
-        it "Quit" $ \ctx -> do
+        it "Quit" $ \(_,_,ctx) -> do
             verifyIt ctx (const Link.quitStakePool)
 
-    it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \(_,_,ctx) -> do
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- emptyRandomWallet ctx
@@ -542,7 +532,7 @@ spec = do
     -- 1/ We are in Jörmungandr scenario were fees can be known exactly
     -- 2/ Fixture wallets are made of homogeneous UTxOs (all equal to the same
     -- value) and therefore, the random selection has no influence.
-    it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \ctx -> do
+    it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \(_,_,ctx) -> do
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -555,7 +545,7 @@ spec = do
             [ expectField #amount (`shouldBe` fee)
             ]
 
-    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
+    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \(_,_,ctx) -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
         w <- fixtureWalletWith ctx [feeMin + 1, feeMin + 1]
         r <- delegationFee ctx w
@@ -566,7 +556,7 @@ spec = do
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
-        \empty wallet cannot estimate fee" $ \ctx -> do
+        \empty wallet cannot estimate fee" $ \(_,_,ctx) -> do
         w <- emptyWallet ctx
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
         delegationFee ctx w >>= flip verify
@@ -574,7 +564,7 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
-    it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \ctx -> do
+    it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \(_,_,ctx) -> do
         w <- fixtureRandomWallet ctx
         let ep = Link.getDelegationFee w
         r <- request @(ApiTransaction 'Mainnet) ctx ep Default Empty
@@ -591,26 +581,26 @@ spec = do
                     (sPoolEndp (Identity arbitraryPoolId) w) Default payload
                 expectResponseCode HTTP.status400 r
 
-        it "Join" $ \ctx -> do
+        it "Join" $ \(_,_,ctx) -> do
             verifyIt ctx Link.joinStakePool
-        it "Quit" $ \ctx -> do
+        it "Quit" $ \(_,_,ctx) -> do
             verifyIt ctx (const Link.quitStakePool)
 
-    it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \ctx -> do
+    it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \(_,_,ctx) -> do
         w <- emptyWallet ctx
 
         r <- quitStakePool ctx (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403NotDelegating r
 
-    it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
+    it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \(_,_,ctx) -> do
         (w, _) <- joinStakePoolWithFixtureWallet ctx
 
         r <- quitStakePool ctx (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
-    it "STAKE_POOL_NEXT_01 - Can join/re-join another/quit stake pool" $ \ctx -> do
+    it "STAKE_POOL_NEXT_01 - Can join/re-join another/quit stake pool" $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -672,14 +662,14 @@ spec = do
                 ]
 
     it "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
-        $ \ctx -> do
+        $ \(_,_,ctx) -> do
         w <- emptyWallet ctx
         r <- quitStakePool ctx (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403NotDelegating r
 
     it "STAKE_POOL_NEXT_02 - Override join with join in the same epoch =>\
-        \ delegating to the last one in the end" $ \ctx -> do
+        \ delegating to the last one in the end" $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx
@@ -711,7 +701,7 @@ spec = do
 
     it "STAKE_POOL_NEXT_03 - Join 2 in two subsequent epochs => delegating to 1st in epoch X + 2\
         \ and 2nd in epoch X + 3"
-        $ \ctx -> do
+        $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
         w <- fixtureWallet ctx

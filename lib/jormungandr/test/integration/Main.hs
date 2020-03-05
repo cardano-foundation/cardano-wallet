@@ -19,9 +19,9 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
-    ( withLogging )
+    ( Port (..), withLogging )
 import Cardano.Faucet
-    ( initFaucet, sockAddrPort )
+    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Pool.Metadata
@@ -38,6 +38,8 @@ import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.Network.Ports
+    ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -56,6 +58,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Tuple.Extra
+    ( thd3 )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -71,7 +75,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, SpecWith, after, describe, hspec, parallel )
+    ( Spec, SpecWith, after, beforeWith, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
@@ -124,33 +128,38 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Key CLI tests" KeysCLI.spec
 
         describe "API Specifications" $ specWithServer tr $ do
-            Addresses.spec
+            withCtxOnly Addresses.spec
+            withCtxOnly Transactions.spec
+            withCtxOnly Wallets.spec
+            withCtxOnly ByronWallets.spec
+            withCtxOnly ByronTransactions.spec
+            withCtxOnly Network.spec
+            withCtxOnly HWWallets.spec
+            withCtxOnly $ TransactionsApiJormungandr.spec @t
+            withCtxOnly $ TransactionsCliJormungandr.spec @t
             StakePoolsApiJormungandr.spec
-            Transactions.spec
-            TransactionsApiJormungandr.spec @t
-            TransactionsCliJormungandr.spec @t
-            Wallets.spec
-            HWWallets.spec
-            ByronWallets.spec
-            ByronTransactions.spec
-            Network.spec
 
         describe "CLI Specifications" $ specWithServer tr $ do
-            AddressesCLI.spec @t
+            withCtxOnly $ AddressesCLI.spec @t
+            withCtxOnly $ StakePoolsCliJormungandr.spec @t
+            withCtxOnly $ TransactionsCLI.spec @t
+            withCtxOnly $ WalletsCLI.spec @t
+            withCtxOnly $ PortCLI.spec @t
+            withCtxOnly $ NetworkCLI.spec @t
             ServerCLI.spec @t
-            StakePoolsCliJormungandr.spec @t
-            TransactionsCLI.spec @t
-            WalletsCLI.spec @t
-            PortCLI.spec @t
-            NetworkCLI.spec @t
+  where
+    withCtxOnly
+        :: SpecWith (Context Jormungandr)
+        -> SpecWith (Port "node", FeePolicy, Context Jormungandr)
+    withCtxOnly =
+        beforeWith (pure . thd3)
 
 specWithServer
     :: Trace IO Text
-    -> SpecWith (Context Jormungandr)
+    -> SpecWith (Port "node", FeePolicy, Context Jormungandr)
     -> Spec
-specWithServer tr = aroundAll withContext . after tearDown
+specWithServer tr = aroundAll withContext . after (tearDown . thd3)
   where
-    withContext :: (Context Jormungandr -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext wAddr nPort bp = do
@@ -163,18 +172,18 @@ specWithServer tr = aroundAll withContext . after tearDown
                     })
                 let feePolicy = getFeePolicy bp
                 faucet <- initFaucet feePolicy
-                putMVar ctx $ Context
+                putMVar ctx (nPort, feePolicy, Context
                     { _cleanup = pure ()
                     , _manager = manager
-                    , _nodePort = nPort
-                    , _walletPort = sockAddrPort wAddr
+                    , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
-                    , _feePolicy = feePolicy
                     , _target = Proxy
-                    }
-        race (takeMVar ctx >>= action) (withServer setupContext) >>=
-            either pure (throwIO . ProcessHasExited "integration")
+                    })
+        race
+            (takeMVar ctx >>= action)
+            (withServer setupContext)
+            >>= either pure (throwIO . ProcessHasExited "integration")
 
     withServer setup =
         withConfig $ \jmCfg ->

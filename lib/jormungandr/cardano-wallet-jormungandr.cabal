@@ -218,7 +218,6 @@ test-suite integration
     , lifted-base
     , memory
     , monad-control
-    , network
     , persistent
     , process
     , random-shuffle
@@ -296,7 +295,6 @@ benchmark latency
     , hspec
     , iohk-monitoring
     , memory
-    , network
     , stm
     , temporary
     , text

@@ -20,16 +20,14 @@ import Cardano.Launcher
     , withBackendProcess
     , withBackendProcessHandle
     )
+import Cardano.Wallet.Primitive.Types
+    ( FeePolicy )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
     ( finally )
 import Control.Monad
     ( forM_, void )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Generics.Product.Typed
-    ( typed )
 import Data.Text
     ( Text )
 import System.Command
@@ -68,8 +66,8 @@ import Test.Utils.Ports
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
-spec :: forall t. KnownCommand t => SpecWith (Context t)
-spec = describe "PATATE" $ do
+spec :: forall t. KnownCommand t => SpecWith (Port "node", FeePolicy, Context t)
+spec = do
     block0H <- runIO $ argHex <$> getBlock0H
     describe "SERVER - cardano-wallet serve [SERIAL]" $ do
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
@@ -100,32 +98,32 @@ spec = describe "PATATE" $ do
                 , block0H
                 ] ++ extra
 
-        it "Should reply with the port --random" $ \ctx -> do
-            let script = mockProc "test1" (ctx ^. typed @(Port "node"))
+        it "Should reply with the port --random" $ \(nPort,_,_) -> do
+            let script = mockProc "test1" nPort
                     ["--random-port"]
             (_, _, _, ph) <- createProcess script
             waitForProcess ph `shouldReturn` ExitSuccess
 
-        it "Should reply with the port --port" $ \ctx -> do
+        it "Should reply with the port --port" $ \(nPort,_,_) -> do
             walletPort <- findPort
-            let script = mockProc "test1" (ctx ^. typed @(Port "node"))
+            let script = mockProc "test1" nPort
                     ["--port", show walletPort]
             (_, _, _, ph) <- createProcess script
             waitForProcess ph `shouldReturn` ExitSuccess
 
-        it "Regression test for #1036" $ \ctx -> do
-            let script = mockProc "test2" (ctx ^. typed @(Port "node"))
+        it "Regression test for #1036" $ \(nPort,_,_) -> do
+            let script = mockProc "test2" nPort
                     ["--random-port"]
             (_, _, _, ph) <- createProcess script
             waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
-        it "LOGGING - Serve default logs Info" $ \ctx -> do
+        it "LOGGING - Serve default logs Info" $ \(nPort,_,_) -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         ]
@@ -140,12 +138,12 @@ spec = describe "PATATE" $ do
                 grep "Debug" loggedNotMain `shouldBe` []
                 grep "Info" loggedNotMain `shouldNotBe` []
 
-        it "LOGGING - Serve debug logs for one component" $ \ctx -> do
+        it "LOGGING - Serve debug logs for one component" $ \(nPort,_,_) -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         , "--trace-pools-db", "debug"
@@ -162,12 +160,12 @@ spec = describe "PATATE" $ do
                 length poolsDebugLogs `shouldNotBe` 0
                 length netDebugLogs `shouldBe` 0
 
-        it "LOGGING - Serve disable logs for one component" $ \ctx -> do
+        it "LOGGING - Serve disable logs for one component" $ \(nPort,_,_) -> do
             withTempFile $ \logs hLogs -> do
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         , "--trace-network", "off"
@@ -184,7 +182,7 @@ spec = describe "PATATE" $ do
                 countLogs "network" `shouldBe` 0
                 countLogs "application" `shouldNotBe` 0
 
-        it "LOGGING - Serve shuts down logging correctly" $ \ctx -> do
+        it "LOGGING - Serve shuts down logging correctly" $ \(nPort,_,_) -> do
             withTempFile $ \logs hLogs -> do
                 -- This starts the server with a database directory that should
                 -- fail to create, thus causing the program to exit.
@@ -196,7 +194,7 @@ spec = describe "PATATE" $ do
                         (commandName @t)
                         ["serve"
                         , "--database", dirShouldFailToCreate
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         ]
@@ -216,11 +214,11 @@ spec = describe "PATATE" $ do
                     , replicate 38 '1'
                     , replicate 42 '1'
                     ]
-            forM_ hashes $ \hash -> it hash $ \ctx -> do
+            forM_ hashes $ \hash -> it hash $ \(nPort,_,_) -> do
                 let args =
                         ["serve"
                         , "--node-port"
-                        , show (ctx ^. typed @(Port "node"))
+                        , show nPort
                         , "--random-port"
                         , "--genesis-block-hash"
                         , hash
@@ -246,12 +244,12 @@ spec = describe "PATATE" $ do
                 \value that is 32 bytes in length"
 
     describe "SERVER - Clean shutdown" $ do
-        it "SERVER - shuts down on command" $ \ctx -> do
+        it "SERVER - shuts down on command" $ \(nPort,_,_) -> do
             logged <- withLogCollection $ \stream -> do
                 let cmd = Command
                         (commandName @t)
                         ["serve"
-                        , "--node-port", show (ctx ^. typed @(Port "node"))
+                        , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
                         ]
