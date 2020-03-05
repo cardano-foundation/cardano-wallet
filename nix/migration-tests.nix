@@ -113,7 +113,8 @@ let
           pkgs.bash
           pkgs.coreutils
         ]}
-        export src=${latestRelease.src}
+        export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
+        export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
 
         exec ${./launch-migration-test.sh} "$@"
       '' // { inherit (latestRelease) cardano-wallet-jormungandr; };

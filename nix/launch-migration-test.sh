@@ -5,8 +5,8 @@
 # Environment variables you can set:
 #   PATH - You should have all necessary programs on the PATH.
 #   stateDir - suitable temporary location for databases.
-#   src - top of source tree, defaults to parent directory of this script.
-
+#   genesisDataDir - where block0.bin and secret.yaml are
+#   configFile - path to config.yaml
 
 set -euo pipefail
 
@@ -20,12 +20,17 @@ if [ -z "${stateDir:-}" ]; then
   exit 1
 fi
 
-: "${src:=$(cd `dirname $0`/..; pwd)}"
+if [ -z "${genesisDataDir:-}" ]; then
+  echo "$0: set the genesisDataDir environment variable before running this script."
+  exit 1
+fi
 
-data=$src/lib/jormungandr/test/data/jormungandr
-echo "data is $data"
+if [ -z "${configFile:-}" ]; then
+  echo "$0: set the configFile environment variable before running this script."
+  exit 1
+fi
 
 cardano-wallet-jormungandr version
 jormungandr --version
 
-exec migration-test $1 launch --state-dir $stateDir --genesis-block $data/block0.bin -- --secret $data/secret.yaml --config $data/config.yaml
+exec migration-test $1 launch --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile
