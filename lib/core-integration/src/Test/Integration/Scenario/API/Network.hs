@@ -30,8 +30,6 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
     ( Word31 )
-import System.Info
-    ( os )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
@@ -54,6 +52,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg404NoEpochNo )
+import Test.Utils.Windows
+    ( pendingOnWindows )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -201,20 +201,14 @@ spec = do
                     HTTP.status404
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
-    it "NETWORK_CLOCK - Can query network clock" $ \ctx ->
+    it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
+        pendingOnWindows "network/clock at this point is not supported on Windows"
         eventually "ntp status = (un)available" $ do
             r <- request @ApiNetworkClock ctx
                 Link.getNetworkClock Default Empty
             expectResponseCode @IO HTTP.status200 r
-            -- network/clock at this point is not supported on Windows
-            if os == "windows"
-            then
-                expectField (#ntpStatus . #status)
-                    (`shouldBe` NtpSyncingStatusUnavailable) r
-            else
-                expectField (#ntpStatus . #status)
-                    (`shouldBe` NtpSyncingStatusAvailable) r
-
+            expectField (#ntpStatus . #status)
+                (`shouldBe` NtpSyncingStatusAvailable) r
    where
        verifyEpochNumWrong
             :: Context t
