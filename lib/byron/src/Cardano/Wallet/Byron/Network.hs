@@ -49,18 +49,11 @@ import Cardano.Wallet.Network
 import Codec.SerialiseTerm
     ( CodecCBORTerm )
 import Control.Concurrent.Async
-    ( async, cancel, link )
+    ( async, link )
 import Control.Concurrent.MVar
-    ( MVar
-    , isEmptyMVar
-    , modifyMVar_
-    , newEmptyMVar
-    , putMVar
-    , tryReadMVar
-    , tryTakeMVar
-    )
+    ( newEmptyMVar, tryPutMVar, tryReadMVar )
 import Control.Exception
-    ( IOException, finally )
+    ( IOException )
 import Control.Monad
     ( void )
 import Control.Monad.Catch
@@ -89,13 +82,13 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
-    ( RetryPolicyM, fibonacciBackoff, limitRetries, recovering )
+    ( RetryPolicyM, fibonacciBackoff, recovering )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( (<&>) )
 import Data.List
     ( isInfixOf )
 import Data.Quantity
@@ -201,35 +194,28 @@ withNetworkLayer
     -> IO a
 withNetworkLayer tr bp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
-    clientThread <- newEmptyMVar
+    nodeTip <- newEmptyMVar
     action
         NetworkLayer
-            { currentNodeTip = _currentNodeTip clientThread
+            { currentNodeTip = _currentNodeTip nodeTip
             , nextBlocks = _nextBlocks
-            , initCursor = _initCursor clientThread localTxSubmissionQ
+            , initCursor = _initCursor nodeTip localTxSubmissionQ
             , cursorSlotId = _cursorSlotId
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
             }
-      `finally` do
-        tryTakeMVar clientThread >>= \case
-            Nothing -> pure ()
-            Just (pid, _) -> cancel pid
   where
     W.BlockchainParameters
         { getGenesisBlockHash
         , getEpochLength
         } = bp
 
-    _initCursor clientThread localTxSubmissionQ headers = do
+    _initCursor nodeTip localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
-        pid <- async (connectClient client versionData addrInfo)
-        link pid
-        tryModifyMVar_ clientThread $ \case
-            Nothing   -> pure (pid, chainSyncQ)
-            Just (old, _) -> cancel old $> (pid, chainSyncQ)
+        link =<< async (connectClient client versionData addrInfo)
+        void $ tryPutMVar nodeTip chainSyncQ
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
             Right (Just intersection) ->
@@ -249,11 +235,11 @@ withNetworkLayer tr bp addrInfo versionData action = do
     _getAccountBalance _ =
         pure (Quantity 0)
 
-    _currentNodeTip clientThread =
-        liftIO (tryReadMVar clientThread) >>= \case
+    _currentNodeTip nodeTip =
+        liftIO (tryReadMVar nodeTip) >>= \case
             Nothing -> throwE $ ErrCurrentNodeTipNetworkUnreachable $
                 ErrNetworkUnreachable "client not yet started."
-            Just (_, chainSyncQ) ->
+            Just chainSyncQ ->
                 liftIO (chainSyncQ `send` CmdCurrentNodeTip) >>= \case
                     Left e ->
                         throwE $ ErrCurrentNodeTipNetworkUnreachable e
@@ -405,11 +391,9 @@ connectClient client (vData, vCodec) addr = do
     recovering policy [const $ Handler handleIOException] $ const $
         connectTo tracers versions Nothing addr
   where
-    -- #0  | #1  | #2 | #3   | #4   | #5 | #6   | #7    | #8  | #9    | Total
-    -- --  | --  | -  | --   | --   | -- | --   | --    | --  | --    | --
-    -- .5s | .5s | 1s | 1.5s | 2.5s | 4s | 6.5s | 10.5s | 17s | 27.5s | 71.5
+    -- .5s → .5s → 1s → 1.5s → 2.5s → 4s → 6.5s → 10.5s → 17s → 27.5s ...
     policy :: RetryPolicyM IO
-    policy = fibonacciBackoff 500 <> limitRetries 10
+    policy = fibonacciBackoff 500
 
     -- There's a race-condition when starting the wallet and the node at the
     -- same time: the socket might not be there yet when we try to open it.
@@ -641,14 +625,6 @@ localSocketAddrInfo socketPath = AddrInfo
 
 swapTMVarM :: MonadSTM m => TMVar m a -> a -> m ()
 swapTMVarM var = void . atomically . swapTMVar var
-
--- | Try modifying the MVar with the given function. Works only if there's only
--- one thread trying to modify the MVar.
-tryModifyMVar_ :: MVar a -> (Maybe a -> IO a) -> IO ()
-tryModifyMVar_ mvar modify = do
-    isEmptyMVar mvar >>= \case
-        True  -> modify Nothing >>= putMVar mvar
-        False -> modifyMVar_ mvar (modify . Just)
 
 --------------------------------------------------------------------------------
 --
