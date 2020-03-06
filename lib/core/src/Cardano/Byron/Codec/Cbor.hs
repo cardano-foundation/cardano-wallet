@@ -662,6 +662,8 @@ encodeTx (inps, outs) = mempty
 encodeSignedTx :: ([TxIn], [TxOut]) -> [ByteString] -> CBOR.Encoding
 encodeSignedTx tx witnesses = mempty
     <> CBOR.encodeListLen 2
+    <> CBOR.encodeWord8 0
+    <> CBOR.encodeListLen 2
     <> encodeTx tx
     <> CBOR.encodeListLen (fromIntegral $ length witnesses)
     <> mconcat (map encodeTxWitness witnesses)

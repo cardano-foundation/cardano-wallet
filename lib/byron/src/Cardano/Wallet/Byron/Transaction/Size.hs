@@ -54,12 +54,14 @@ sizeOfTx inps outs = 6
 
 -- SIGNED-TX
 --     = CBOR-LIST-LEN (2)    -- 1 byte
+--     | U8                   -- 1 byte
+--     | CBOR-LIST-LEN (2)    -- 1 byte
 --     | TX                   -- sizeOf(TX) bytes
 --     | CBOR-LIST-LEN (n)    -- 1-2 bytes (assuming n < 255)
 --     | *WITNESS             -- n * 139 bytes
---                            == 1 + sizeOf(TX) + 1-2 + n * 139
+--                            == 3 + sizeOf(TX) + 1-2 + n * 139
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx inps outs = 1
+sizeOfSignedTx inps outs = 3
     + sizeOfTx inps outs
     + sizeOf (CBOR.encodeListLen $ fromIntegral n)
     + n * sizeOfTxWitness
