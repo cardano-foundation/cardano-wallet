@@ -121,12 +121,14 @@ spec = do
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
@@ -158,7 +160,8 @@ spec = do
                 "passphrase": #{fixturePassphrase}
             }|]
 
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -197,13 +200,15 @@ spec = do
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do

@@ -296,13 +296,15 @@ selectCoins w =
 --
 
 createTransaction
-    :: forall w.
+    :: forall style w.
         ( HasType (ApiT WalletId) w
+        , Discriminate style
         )
     => w
     -> (Method, Text)
-createTransaction w =
-    endpoint @(Api.CreateTransaction Net) (wid &)
+createTransaction w = discriminate @style
+    (endpoint @(Api.CreateTransaction Net) (wid &))
+    (endpoint @(Api.CreateByronTransaction Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -334,13 +336,15 @@ listTransactions' w inf sup order = discriminate @style
     mkURL mk = mk wid inf sup (ApiT <$> order)
 
 getTransactionFee
-    :: forall w.
+    :: forall style w.
         ( HasType (ApiT WalletId) w
+        , Discriminate style
         )
     => w
     -> (Method, Text)
-getTransactionFee w =
-    endpoint @(Api.PostTransactionFee Net) (wid &)
+getTransactionFee w = discriminate @style
+    (endpoint @(Api.PostTransactionFee Net) (wid &))
+    (endpoint @(Api.PostByronTransactionFee Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

@@ -787,7 +787,7 @@ fixtureWalletWith ctx coins0 = do
                 "passphrase": #{fixturePassphrase}
             }|]
         request @(ApiTransaction 'Testnet) ctx
-            (Link.createTransaction src) Default payload
+            (Link.createTransaction @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
             rb <- request @ApiWallet ctx

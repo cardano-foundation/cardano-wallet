@@ -175,7 +175,7 @@ spec = do
                 }|]
 
             rTrans <- request @(ApiTransaction n) ctx
-                (Link.createTransaction wSrc) Default payload
+                (Link.createTransaction @'Shelley wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger

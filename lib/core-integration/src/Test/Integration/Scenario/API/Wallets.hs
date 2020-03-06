@@ -251,8 +251,8 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-            Default payload
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
@@ -1222,7 +1222,8 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payloadTrans
+            r <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
@@ -1391,8 +1392,8 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-                Default payload
+            rTrans <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
