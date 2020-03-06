@@ -192,7 +192,9 @@ genesisTip = Tip genesisPoint genesisBlockNo
 mainnetVersionData
     :: NodeVersionData
 mainnetVersionData =
-    ( NodeToClientVersionData { networkMagic = NetworkMagic 764824073 }
+    ( NodeToClientVersionData
+        { networkMagic = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
+        }
     , nodeToClientCodecCBORTerm
     )
 
