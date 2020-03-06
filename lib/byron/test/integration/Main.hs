@@ -35,12 +35,25 @@ import Cardano.Wallet.Byron.Config
     ( withCardanoNode )
 import Cardano.Wallet.Byron.Faucet
     ( initFaucet )
+import Cardano.Wallet.Byron.Transaction.Size
+    ( maxSizeOf, minSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
-    ( SyncTolerance (..) )
+    ( Address (..)
+    , BlockchainParameters (..)
+    , FeePolicy (..)
+    , Hash (..)
+    , SyncTolerance (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -51,6 +64,8 @@ import Control.Monad
     ( forM_, void )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -79,6 +94,7 @@ import Test.Integration.Framework.DSL
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
 import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsCommon
@@ -121,7 +137,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator
+                    , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
                     , _blockchainParameters = bp
                     , _target = Proxy
                     }
@@ -150,10 +166,35 @@ specWithServer tr = aroundAll withContext . after tearDown
         forM_ wallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Byron w) Default Empty
 
--- FIXME: Write fee estimator for Byron nodes.
-mkFeeEstimator :: TxDescription -> (Natural, Natural)
-mkFeeEstimator = \case
-    PaymentDescription _nInps _nOuts _nChgs ->
-        (0,0)
-    DelegDescription _nInps _nOuts _nCerts ->
-        (0,0)
+mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
+mkFeeEstimator policy = \case
+    PaymentDescription nInps nOuts nChgs ->
+        let
+            inps = take nInps
+                [ TxIn (Hash (BS.replicate 32 0)) tix | tix <- [0..] ]
+
+            outsMin = replicate (nOuts + nChgs) (TxOut addr_ coin_)
+              where
+                coin_ = minBound
+                addr_ = Address $ flip BS.replicate 0 $ minimum
+                    [ minSizeOf @Address @'Mainnet @IcarusKey
+                    , minSizeOf @Address @'Mainnet @ByronKey
+                    ]
+
+            outsMax = replicate (nOuts + nChgs) (TxOut addr_ coin_)
+              where
+                coin_ = maxBound
+                addr_ = Address $ flip BS.replicate 0 $ maximum
+                    [ maxSizeOf @Address @'Mainnet @IcarusKey
+                    , maxSizeOf @Address @'Mainnet @ByronKey
+                    ]
+
+        in
+            ( round a + round b * fromIntegral (sizeOfSignedTx inps outsMin)
+            , round a + round b * fromIntegral (sizeOfSignedTx inps outsMax)
+            )
+
+    DelegDescription{} ->
+        error "mkFeeEstimator: can't estimate fee for certificate in Byron!"
+  where
+    LinearFee (Quantity a) (Quantity b) _ = policy

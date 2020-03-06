@@ -67,7 +67,7 @@ import Cardano.Wallet.Byron.Network
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
-    ( WorstSizeOf )
+    ( MaxSizeOf )
 import Cardano.Wallet.DB.Sqlite
     ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
@@ -154,8 +154,8 @@ serveWallet
         , PaymentAddress n IcarusKey
         , DecodeAddress n
         , EncodeAddress n
-        , WorstSizeOf Address n IcarusKey
-        , WorstSizeOf Address n ByronKey
+        , MaxSizeOf Address n IcarusKey
+        , MaxSizeOf Address n ByronKey
         , t ~ IO Byron
         )
     => Tracers IO

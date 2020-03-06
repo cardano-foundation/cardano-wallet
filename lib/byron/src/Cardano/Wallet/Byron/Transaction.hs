@@ -24,7 +24,7 @@ import Prelude
 import Cardano.Wallet.Byron.Compatibility
     ( Byron )
 import Cardano.Wallet.Byron.Transaction.Size
-    ( WorstSizeOf, sizeOfSignedTx, worstSizeOf )
+    ( MaxSizeOf, maxSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -87,7 +87,7 @@ newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Byron
         , WalletKey k
-        , WorstSizeOf Address n k
+        , MaxSizeOf Address n k
         )
     => ProtocolMagic
     -> TransactionLayer t k
@@ -211,9 +211,9 @@ fromGenesisTxOut out@(TxOut (Address bytes) _) =
     Tx (Hash $ blake2b256 bytes) [] [out]
 
 dummyAddress
-    :: forall (n :: NetworkDiscriminant) k. (WorstSizeOf Address n k) => Address
+    :: forall (n :: NetworkDiscriminant) k. (MaxSizeOf Address n k) => Address
 dummyAddress =
-    Address $ BS.replicate (worstSizeOf @Address @n @k) 0
+    Address $ BS.replicate (maxSizeOf @Address @n @k) 0
 
 mkWitness
     :: WalletKey k
