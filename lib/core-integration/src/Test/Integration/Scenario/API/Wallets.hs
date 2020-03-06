@@ -853,30 +853,6 @@ spec = do
                 , ( "Wildcards passphrase", wildcardsWalletName
                   , [ expectResponseCode @IO HTTP.status204 ]
                   )
-
-                -- TODO
-                -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-                --
-                -- , ( show (minLength - 1) ++ " char long"
-                --   , T.pack (replicate (minLength - 1) 'ż')
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "passphrase is too short: expected at\
-                --             \ least 10 characters"
-                --     ]
-                --   )
-                -- , ( show (maxLength + 1) ++ " char long"
-                --   , T.pack (replicate (maxLength + 1) 'ę')
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "passphrase is too long: expected at\
-                --             \ most 255 characters"
-                --     ]
-                --   )
-                -- , ( "Empty passphrase", ""
-                --    , [ expectResponseCode @IO HTTP.status400
-                --      , expectErrorMessage "passphrase is too short: expected at\
-                --             \ least 10 characters"
-                --      ]
-                --   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
@@ -886,42 +862,14 @@ spec = do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
 
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- describe "WALLETS_UPDATE_PASS_03 - Old passphrase invalid values" $ do
-    --     let minLength = passphraseMinLength (Proxy @"encryption")
-    --     let maxLength = passphraseMaxLength (Proxy @"encryption")
-    --     let matrix =
-    --             [ ( show (minLength - 1) ++ " char long"
-    --               , T.pack (replicate (minLength - 1) 'ż')
-    --               , [ expectResponseCode @IO HTTP.status400
-    --                 , expectErrorMessage "passphrase is too short: expected at\
-    --                         \ least 10 characters" ]
-    --               )
-    --             , ( show (maxLength + 1) ++ " char long"
-    --               , T.pack (replicate (maxLength + 1) 'ę')
-    --               , [ expectResponseCode @IO HTTP.status400
-    --                 , expectErrorMessage "passphrase is too long: expected at\
-    --                         \ most 255 characters" ]
-    --               )
-    --             , ( "Empty passphrase", ""
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "passphrase is too short: expected at\
-    --                         \ least 10 characters" ]
-    --               )
-    --             , ( "Incorrect old pass", "Incorrect passphrase"
-    --               , [ expectResponseCode @IO HTTP.status403
-    --                 , expectErrorMessage errMsg403WrongPass ]
-    --               )
-    --             ]
-    --     forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
-    --         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-    --         let payload = updatePassPayload passphrase "Secure passphrase 2"
-    --         let endpoint = "v2/wallets" </> (getFromResponse walletId r)
-    --                 </> ("passphrase" :: Text)
-    --         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
-    --         verify rup expectations
+    it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ /ctx -> do
+        w -> emptyWalletWith ctx
+            ("Wallet to update pass", "cardano-passphrase", 20)
+            let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
+            rup <- request @ApiWallet ctx
+                (Link.putWalletPassphrase w) Default payload
+            expectResponseCode @IO HTTP.status403 rup
+            expectErrorMessage errMsg403WrongPass rup
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
@@ -952,65 +900,6 @@ spec = do
             rup <- request @ApiWallet ctx
                 (Link.putWalletPassphrase w) Default payload
             expectResponseCode @IO HTTP.status204 rup
-
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- describe "WALLETS_UPDATE_PASS_02,03 - invalid payloads" $  do
-    --     let matrix =
-    --             [  ( "[] as new passphrase"
-    --                , Json [json| {
-    --                     "old_passphrase": "Secure passphrase",
-    --                     "new_passphrase": []
-    --                       } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "expected Text, encountered Array" ]
-    --                )
-    --              , ( "[] as old passphrase"
-    --                , Json [json| {
-    --                    "old_passphrase": [],
-    --                    "new_passphrase": "Secure passphrase"
-    --                      } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "expected Text, encountered Array" ]
-    --                )
-    --              , ( "Num as old passphrase"
-    --                , Json [json| {
-    --                   "old_passphrase": 12345678910,
-    --                   "new_passphrase": "Secure passphrase"
-    --                      } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "expected Text, encountered Number" ]
-    --                )
-    --              , ( "Num as new passphrase"
-    --                , Json [json| {
-    --                   "old_passphrase": "Secure passphrase",
-    --                   "new_passphrase": 12345678910
-    --                      } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "expected Text, encountered Number" ]
-    --                )
-    --              , ( "Missing old passphrase"
-    --                , Json [json| {
-    --                   "new_passphrase": "Secure passphrase"
-    --                      } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "key 'old_passphrase' not present" ]
-    --                )
-    --              , ( "Missing new passphrase"
-    --                , Json [json| {
-    --                   "old_passphrase": "Secure passphrase"
-    --                      } |]
-    --                , [ expectResponseCode @IO HTTP.status400
-    --                  , expectErrorMessage "key 'new_passphrase' not present" ]
-    --               )
-    --             ]
-    --     forM_ matrix $ \(title, payload, expectations) -> it title $ \ctx -> do
-    --         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-    --         let endpoint = "v2/wallets" </> (getFromResponse walletId r)
-    --                 </> ("passphrase" :: Text)
-    --         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
-    --         verify rup expectations
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
