@@ -36,6 +36,8 @@ import Cardano.CLI
     , newCliKeyScheme
     , xPrvToTextTransform
     )
+import Cardano.Startup
+    ( setUtf8EncodingHandles )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), XPrv, unXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -45,8 +47,6 @@ import Cardano.Wallet.Primitive.Mnemonic
     , entropyToMnemonic
     , mnemonicToText
     )
-import Cardano.Startup
-    ( setUtf8EncodingHandles )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
