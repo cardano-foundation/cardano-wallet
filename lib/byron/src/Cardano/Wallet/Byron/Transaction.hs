@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , PoolId
+    , ProtocolMagic (..)
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
@@ -88,8 +89,9 @@ newTransactionLayer
         , WalletKey k
         , WorstSizeOf Address n k
         )
-    => TransactionLayer t k
-newTransactionLayer = TransactionLayer
+    => ProtocolMagic
+    -> TransactionLayer t k
+newTransactionLayer protocolMagic = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -108,7 +110,7 @@ newTransactionLayer = TransactionLayer
         let tx = (fst <$> inps, outs)
         let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
         witnesses <- forM inps $ \(_, TxOut addr _) ->
-            mkWitness sigData <$> lookupPrivateKey addr
+            mkWitness protocolMagic sigData <$> lookupPrivateKey addr
         pure
             ( Tx (Hash sigData) (second coin <$> inps) outs
             , SealedTx $ CBOR.toStrictByteString $ CBOR.encodeSignedTx tx witnesses
@@ -215,17 +217,20 @@ dummyAddress =
 
 mkWitness
     :: WalletKey k
-    => ByteString
+    => ProtocolMagic
+    -> ByteString
     -> (k 'AddressK XPrv, Passphrase "encryption")
     -> ByteString
-mkWitness sigData (xPrv, Passphrase pwd) = CBOR.toStrictByteString
+mkWitness (ProtocolMagic pm) sigData (xPrv, Passphrase pwd) =
+    CBOR.toStrictByteString
     $ CBOR.encodePublicKeyWitness (getRawKey $ publicKey xPrv)
     $ CC.unXSignature (CC.sign pwd (getRawKey xPrv) message)
   where
-    message = "\x01" <> pm <> CBOR.toStrictByteString (CBOR.encodeBytes sigData)
-    pm = notImplemented "protocolMagic"
-        -- CBOR.toStrictByteString . CBOR.encodeInt32 $ x
-        -- let ProtocolMagic x = protocolMagic @n in
+    message = mconcat
+        [ "\x01"
+        , CBOR.toStrictByteString (CBOR.encodeInt32 pm)
+        , CBOR.toStrictByteString (CBOR.encodeBytes sigData)
+        ]
 
 blake2b256 :: ByteString -> ByteString
 blake2b256 =

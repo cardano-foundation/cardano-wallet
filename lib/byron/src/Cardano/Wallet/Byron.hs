@@ -61,7 +61,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, ByronBlock, fromByronBlock )
+    ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
     ( AddrInfo, withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
@@ -136,7 +136,7 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Logging
     ( ApiLog )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData )
+    ( NodeToClientVersionData (..) )
 import System.Exit
     ( ExitCode (..) )
 
@@ -202,9 +202,10 @@ serveWallet
     serveApp socket = do
         withNetworkLayer nullTracer bp addrInfo versionData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
-                byronApi   <- apiLayer (newTransactionLayer @n) nl
-                icarusApi  <- apiLayer (newTransactionLayer @n) nl
-                startServer socket byronApi icarusApi ntpClient $> ExitSuccess
+                let pm = fromNetworkMagic $ networkMagic $ fst versionData
+                randomApi  <- apiLayer (newTransactionLayer @n pm) nl
+                icarusApi  <- apiLayer (newTransactionLayer @n pm) nl
+                startServer socket randomApi icarusApi ntpClient $> ExitSuccess
 
     startServer
         :: Socket
@@ -212,12 +213,12 @@ serveWallet
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> NtpClient
         -> IO ()
-    startServer socket byron icarus ntp = do
+    startServer socket random icarus ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                Server.byronServer byron icarus ntp
+                Server.byronServer random icarus ntp
         Server.start settings apiServerTracer socket application
 
     apiLayer

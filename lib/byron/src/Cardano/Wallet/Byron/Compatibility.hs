@@ -39,6 +39,7 @@ module Cardano.Wallet.Byron.Compatibility
     , fromByronHash
     , fromChainHash
     , fromGenesisData
+    , fromNetworkMagic
     , fromSlotNo
     , fromTip
     , fromTxAux
@@ -371,3 +372,7 @@ fromGenesisData (genesisData, genesisHash) =
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )
+
+fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
+fromNetworkMagic (NetworkMagic magic) =
+    W.ProtocolMagic (fromIntegral magic)
