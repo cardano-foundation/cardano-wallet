@@ -41,7 +41,8 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 
-import qualified Data.Text.IO as T
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text.Encoding as T
 
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
 -- instance.
@@ -125,4 +126,4 @@ filterNonEmpty tr = Tracer $ \arg -> do
 -- | Creates a tracer that prints any 'ToText' log message. This is useful for
 -- debugging functions in the REPL, when you need a 'Tracer' object.
 stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
-stdoutTextTracer = Tracer $ liftIO . T.putStrLn . toText
+stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
