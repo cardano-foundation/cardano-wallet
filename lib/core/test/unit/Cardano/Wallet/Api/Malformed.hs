@@ -179,6 +179,164 @@ instance Malformed (PathParam ApiEpochNumber) where
 --
 -- Class instances (BodyParam)
 --
+instance Malformed (BodyParam SomeByronWalletPostData) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ -- style
+          ( [aesonQQ|
+            { "style": "radom"
+            , "name": #{wName}
+            , "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy"
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $: unrecognized wallet's style."
+          )
+        , ( [aesonQQ|
+            { "style": 1
+            , "name": #{wName}
+            , "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy"
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $.style: parsing Text failed, expected String, but encountered Number"
+          )
+        -- mnemonic_sentence
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy"
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: parsing [] failed, expected Array, but encountered String"
+          )
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 12 words are expected."
+          )
+        , ( [aesonQQ|
+            { "style": "icarus"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 15 words are expected."
+          )
+        , ( [aesonQQ|
+            { "style": "trezor"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics9}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 12, 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "style": "ledger"
+            , "name": #{wName}
+            , "mnemonic_sentence": []
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 12, 15, 18, 21 or 24 words are expected."
+          )
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid number of words: 12 words are expected."
+          )
+        , ( [aesonQQ|
+            { "style": "icarus"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{invalidMnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
+          )
+        , ( [aesonQQ|
+            { "style": "ledger"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{notInDictMnemonics15}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+          )
+        , ( [aesonQQ|
+            { "style": "trezor"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{specMnemonicSentence}
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
+          )
+        -- name
+        , ( [aesonQQ|
+            { "style": "trezor"
+            , "name": #{nameTooLong}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: name is too long: expected at most 255 characters"
+          )
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": ""
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase" :#{wPassphrase}
+            }|]
+          , "Error in $.name: name is too short: expected at least 1 character"
+          )
+        -- passphrase
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase" : 100
+            }|]
+          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+          )
+        , ( [aesonQQ|
+            { "style": "icarus"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :[""]
+            }|]
+          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+          )
+        , ( [aesonQQ|
+            { "style": "trezor"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase" :""
+            }|]
+          , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
+          )
+        , ( [aesonQQ|
+            { "style": "ledger"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase" :"123456789"
+            }|]
+          , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
+          )
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            , "passphrase" : #{nameTooLong}
+            }|]
+          , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
+          )
+        , ( [aesonQQ|
+            { "style": "random"
+            , "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics12}
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPostData(ByronWalletPostData) failed, key 'passphrase' not found"
+          )
+        ]
 
 instance Malformed (BodyParam WalletOrAccountPostData) where
     malformed = first (BodyParam . Aeson.encode) <$>
@@ -350,6 +508,137 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
           )
+        -- address_pool_gap
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : ["20"]
+            }|]
+          , "Error in $['address_pool_gap']: parsing Integer failed, expected Number, but encountered Array"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : "20"
+            }|]
+          , "Error in $['address_pool_gap']: parsing Integer failed, expected Number, but encountered String"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 2.5
+            }|]
+          , "Error in $['address_pool_gap']: parsing Integer failed, unexpected floating number 2.5"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : -2.5
+            }|]
+          , "Error in $['address_pool_gap']: parsing Integer failed, unexpected floating number -2.5"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 0
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : -1000
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : -132323000
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 9
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 101
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 1000
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{wPassphrase}
+            , "address_pool_gap" : 132323000
+            }|]
+          , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+          )
+        -- passphrase
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics21}
+            , "passphrase" : 100
+            }|]
+          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :[""]
+            }|]
+          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :""
+            }|]
+          , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" :"123456789"
+            }|]
+          , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            , "passphrase" : #{nameTooLong}
+            }|]
+          , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
+          )
+        , ( [aesonQQ|
+            { "name": #{wName}
+            , "mnemonic_sentence": #{mnemonics15}
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'passphrase' not found"
+          )
         -- HW Wallets (account_public_key)
         , ( [aesonQQ|
             { "name": #{wName}
@@ -383,14 +672,11 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
            )
         ]
 
-
 instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet))
 
 instance Malformed (BodyParam (PostTransactionData 'Testnet))
 
 instance Malformed (BodyParam (PostTransactionFeeData 'Testnet))
-
-instance Malformed (BodyParam SomeByronWalletPostData)
 
 instance Malformed (BodyParam WalletPutData)
 

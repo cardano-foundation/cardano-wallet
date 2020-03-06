@@ -449,29 +449,6 @@ spec = do
                 , ( "Wildcards passphrase", wildcardsWalletName
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                -- TODO
-                -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-                --
-                -- , ( show (minLength - 1) ++ " char long"
-                --   , T.pack (replicate (minLength - 1) 'ż')
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "passphrase is too short: expected at\
-                --             \ least 10 characters"
-                --     ]
-                --   )
-                -- , ( show (maxLength + 1) ++ " char long"
-                --   , T.pack (replicate (maxLength + 1) 'ę')
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "passphrase is too long: expected at\
-                --             \ most 255 characters"
-                --     ]
-                --   )
-                -- , ( "Empty passphrase", ""
-                --    , [ expectResponseCode @IO HTTP.status400
-                --      , expectErrorMessage "passphrase is too short: expected at\
-                --             \ least 10 characters"
-                --      ]
-                --   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
             let payload = Json [json| {
@@ -481,44 +458,6 @@ spec = do
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
-
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- it "WALLETS_CREATE_07 - [] as passphrase -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": []
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Text, encountered Array"
-    --         ]
-
-    -- it "WALLETS_CREATE_07 - Num as passphrase -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": 777
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Text, encountered Number"
-    --         ]
-
-    -- it "WALLETS_CREATE_07 - passphrase param missing -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15}
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "key 'passphrase' not present"
-    --         ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
         let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
@@ -534,59 +473,6 @@ spec = do
                   , addrPoolMax
                   , [ expectResponseCode @IO HTTP.status201 ]
                   )
-                -- TODO
-                -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-                --
-                -- , ( show (addrPoolMin - 1) ++ " -> fail"
-                --   , addrPoolMin - 1
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --       \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( show (addrPoolMax + 1) ++ " -> fail"
-                --   , (addrPoolMax + 1)
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --       \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "0 -> fail", 0
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --        \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "-1 -> fail", -1
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --          \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "1000 -> fail", 1000
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --        \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "132323000 -> fail", 132323000
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --        \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "-1000 -> fail", -1000
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --        \ number between 10 and 100."
-                --     ]
-                --   )
-                -- , ( "-132323000 -> fail", -132323000
-                --   , [ expectResponseCode @IO HTTP.status400
-                --     , expectErrorMessage "An address pool gap must be a natural\
-                --        \ number between 10 and 100."
-                --     ]
-                --   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
             let payload = Json [json| {
@@ -597,62 +483,6 @@ spec = do
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
-
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- it "WALLETS_CREATE_08 - 2.5 as address_pool_gap -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": "Secure passphrase",
-    --             "address_pool_gap": 2.5
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Integer, encountered floating number"
-    --         ]
-
-
-    -- it "WALLETS_CREATE_08 - -2.5 as address_pool_gap -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": "Secure passphrase",
-    --             "address_pool_gap": -2.5
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Integer, encountered floating number"
-    --         ]
-
-    -- it "WALLETS_CREATE_08 - [] as address_pool_gap -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": "Secure passphrase",
-    --             "address_pool_gap": []
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Integer, encountered Array"
-    --         ]
-
-    -- it "WALLETS_CREATE_08 - String as address_pool_gap -> fail" $ \ctx -> do
-    --     let payload = Json [json| {
-    --             "name": "Secure Wallet",
-    --             "mnemonic_sentence": #{mnemonics15},
-    --             "passphrase": "Secure passphrase",
-    --             "address_pool_gap": "30"
-    --             } |]
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --     verify r
-    --         [ expectResponseCode @IO HTTP.status400
-    --         , expectErrorMessage "expected Integer, encountered String"
-    --         ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
         let payload = Json [json| {
