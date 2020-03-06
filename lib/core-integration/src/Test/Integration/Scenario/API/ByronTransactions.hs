@@ -68,7 +68,8 @@ spec = do
                 ]
 
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
             let link = Link.listTransactions @'Byron w
             r <- request @([ApiTransaction n]) ctx link Default Empty

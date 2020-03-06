@@ -1718,7 +1718,8 @@ spec = do
     it "BYRON_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
         \amount eventually becomes available in the target wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =
@@ -1839,7 +1840,8 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \a migration operation removes all funds from the source wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1915,7 +1917,8 @@ spec = do
 
     it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1945,7 +1948,8 @@ spec = do
             actualFee `shouldBe` predictedFee
 
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 
