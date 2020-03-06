@@ -106,28 +106,28 @@ instance ToText NtpTrace where
 instance DefinePrivacyAnnotation NtpTrace
 instance DefineSeverity NtpTrace where
     defineSeverity ev = case ev of
+        NtpTraceRunProtocolSuccess _ -> Debug
+        NtpTraceSocketOpen _ -> Debug
+        NtpTraceSocketClosed _ -> Debug
+        NtpTracePacketSent _ -> Debug
+        NtpTracePacketReceived _ -> Debug
         NtpTraceStartNtpClient -> Info
         NtpTraceTriggerUpdate -> Info
         NtpTraceRestartDelay _ -> Info
         NtpTraceRestartingClient -> Info
         NtpTraceClientSleeping -> Info
-        NtpTraceIOError _ -> Alert
-        NtpTraceLookupServerFailed _ -> Alert
         NtpTraceClientStartQuery -> Info
-        NtpTraceNoLocalAddr -> Alert
         NtpTraceIPv4IPv6NoReplies -> Info
-        NtpTraceReportPolicyQueryFailed -> Alert
         NtpTraceQueryResult _ -> Info
-        NtpTraceRunProtocolError _ _ -> Alert
         NtpTraceRunProtocolNoResult _ -> Info
-        NtpTraceRunProtocolSuccess _ -> Debug
-        NtpTraceSocketOpen _ -> Debug
-        NtpTraceSocketClosed _ -> Debug
-        NtpTracePacketSent _ -> Debug
-        NtpTracePacketSentError _ _ -> Alert
-        NtpTracePacketDecodeError _ _-> Alert
-        NtpTracePacketReceived _ -> Debug
-        NtpTraceWaitingForRepliesTimeout _ -> Alert
+        NtpTraceRunProtocolError _ _ -> Notice
+        NtpTracePacketSentError _ _ -> Notice
+        NtpTracePacketDecodeError _ _-> Notice
+        NtpTraceWaitingForRepliesTimeout _ -> Notice
+        NtpTraceIOError _ -> Notice
+        NtpTraceLookupServerFailed _ -> Notice
+        NtpTraceNoLocalAddr -> Notice
+        NtpTraceReportPolicyQueryFailed -> Notice
 
 getNtpStatus :: NtpClient -> IO ApiNetworkClock
 getNtpStatus client = ntpQueryBlocking client >>= \case
