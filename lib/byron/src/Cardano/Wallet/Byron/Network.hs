@@ -21,7 +21,7 @@
 module Cardano.Wallet.Byron.Network
     ( -- * Top-Level Interface
       pattern Cursor
-    , newNetworkLayer
+    , withNetworkLayer
 
       -- * Transport Helpers
     , AddrInfo
@@ -38,6 +38,7 @@ import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
     ( Cursor
+    , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
@@ -49,10 +50,14 @@ import Codec.SerialiseTerm
     ( CodecCBORTerm )
 import Control.Concurrent.Async
     ( async, link )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, tryPutMVar, tryReadMVar )
 import Control.Exception
-    ( catch, throwIO )
+    ( IOException )
 import Control.Monad
     ( void )
+import Control.Monad.Catch
+    ( Handler (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync (race) )
 import Control.Monad.Class.MonadST
@@ -73,15 +78,19 @@ import Control.Monad.Class.MonadThrow
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
+import Control.Retry
+    ( RetryPolicyM, fibonacciBackoff, recovering )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Functor
     ( (<&>) )
+import Data.List
+    ( isInfixOf )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -91,7 +100,7 @@ import Data.Void
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( AppType (..), MuxError )
+    ( AppType (..) )
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
 import Network.TypedProtocol.Channel
@@ -171,7 +180,7 @@ data instance Cursor (m Byron) = Cursor
     (TQueue m (ChainSyncCmd m))
 
 -- | Create an instance of the network layer
-newNetworkLayer
+withNetworkLayer
     :: Trace IO Text
         -- ^ Logging of network layer startup
     -> W.BlockchainParameters
@@ -180,31 +189,36 @@ newNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> IO (NetworkLayer IO (IO Byron) ByronBlock)
-newNetworkLayer tr bp addrInfo versionData = do
+    -> (NetworkLayer IO (IO Byron) ByronBlock -> IO a)
+        -- ^ Callback function with the network layer
+    -> IO a
+withNetworkLayer tr bp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
-    pure NetworkLayer
-        { currentNodeTip = _currentNodeTip
-        , nextBlocks = _nextBlocks
-        , initCursor = _initCursor localTxSubmissionQ
-        , cursorSlotId = _cursorSlotId
-        , postTx = _postTx localTxSubmissionQ
-        , stakeDistribution = _stakeDistribution
-        , getAccountBalance = _getAccountBalance
-        }
+    nodeTip <- newEmptyMVar
+    action
+        NetworkLayer
+            { currentNodeTip = _currentNodeTip nodeTip
+            , nextBlocks = _nextBlocks
+            , initCursor = _initCursor nodeTip localTxSubmissionQ
+            , cursorSlotId = _cursorSlotId
+            , postTx = _postTx localTxSubmissionQ
+            , stakeDistribution = _stakeDistribution
+            , getAccountBalance = _getAccountBalance
+            }
   where
     W.BlockchainParameters
-        { getEpochLength
+        { getGenesisBlockHash
+        , getEpochLength
         } = bp
 
-    _initCursor localTxSubmissionQ headers = do
+    _initCursor nodeTip localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         link =<< async (connectClient client versionData addrInfo)
-
+        void $ tryPutMVar nodeTip chainSyncQ
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
-            Right(Just intersection) ->
+            Right (Just intersection) ->
                 pure $ Cursor intersection chainSyncQ
             _ -> fail
                 "initCursor: intersection not found? This can't happen \
@@ -221,8 +235,16 @@ newNetworkLayer tr bp addrInfo versionData = do
     _getAccountBalance _ =
         pure (Quantity 0)
 
-    _currentNodeTip =
-        notImplemented "currentNodeTip"
+    _currentNodeTip nodeTip =
+        liftIO (tryReadMVar nodeTip) >>= \case
+            Nothing -> throwE $ ErrCurrentNodeTipNetworkUnreachable $
+                ErrNetworkUnreachable "client not yet started."
+            Just chainSyncQ ->
+                liftIO (chainSyncQ `send` CmdCurrentNodeTip) >>= \case
+                    Left e ->
+                        throwE $ ErrCurrentNodeTipNetworkUnreachable e
+                    Right tip ->
+                        pure $ fromTip getGenesisBlockHash getEpochLength tip
 
     _postTx localTxSubmissionQ tx = do
         result <- withExceptT ErrPostTxNetworkUnreachable $
@@ -366,15 +388,19 @@ connectClient client (vData, vCodec) addr = do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
     let tracers = NetworkConnectTracers nullTracer nullTracer
-    connectTo tracers versions Nothing addr `catch` handleMuxError
+    recovering policy [const $ Handler handleIOException] $ const $
+        connectTo tracers versions Nothing addr
   where
-    -- `connectTo` might rise an exception: we are the client and the protocols
-    -- specify that only  client can lawfuly close a connection, but the other
-    -- side might just disappear.
-    --
-    -- NOTE: This handler does nothing.
-    handleMuxError :: MuxError -> IO ()
-    handleMuxError = throwIO
+    -- .5s → .5s → 1s → 1.5s → 2.5s → 4s → 6.5s → 10.5s → 17s → 27.5s ...
+    policy :: RetryPolicyM IO
+    policy = fibonacciBackoff 500
+
+    -- There's a race-condition when starting the wallet and the node at the
+    -- same time: the socket might not be there yet when we try to open it.
+    -- In such case, we simply retry a bit later and hope it's there.
+    handleIOException :: IOException -> IO Bool
+    handleIOException e = pure $
+        "does not exist" `isInfixOf` show e
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --

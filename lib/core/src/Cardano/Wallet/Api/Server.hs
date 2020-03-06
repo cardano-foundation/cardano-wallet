@@ -144,6 +144,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
+    , toApiNetworkParameters
     )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
@@ -1484,22 +1485,10 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
                     { errGivenEpoch = epochNum
                     , errCurrentEpoch = currentEpochNum
                     }
-            pure resp
+            pure (toApiNetworkParameters bp)
 
         ApiEpochNumberLatest ->
-            pure resp
-  where
-    (W.SlotLength slotLength) = bp ^. #getSlotLength
-    resp :: ApiNetworkParameters
-    resp = ApiNetworkParameters
-        (ApiT $ bp ^. #getGenesisBlockHash)
-        (ApiT $ bp ^. #getGenesisBlockDate)
-        (Quantity slotLength)
-        (Quantity $ W.unEpochLength $ bp ^. #getEpochLength)
-        (bp ^. #getEpochStability)
-        (Quantity $ (*100)
-            $ W.unActiveSlotCoefficient
-            $ bp ^. #getActiveSlotCoefficient )
+            pure (toApiNetworkParameters bp)
 
 data ErrNoSuchEpoch = ErrNoSuchEpoch
     { errGivenEpoch :: W.EpochNo

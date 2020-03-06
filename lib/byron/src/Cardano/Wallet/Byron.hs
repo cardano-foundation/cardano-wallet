@@ -63,7 +63,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, fromByronBlock )
 import Cardano.Wallet.Byron.Network
-    ( AddrInfo, newNetworkLayer )
+    ( AddrInfo, withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
@@ -198,11 +198,11 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = do
-        nl <- newNetworkLayer nullTracer bp addrInfo versionData
-        byronApi   <- apiLayer (newTransactionLayer @n) nl
-        icarusApi  <- apiLayer (newTransactionLayer @n) nl
-        withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
-            startServer socket byronApi icarusApi ntpClient $> ExitSuccess
+        withNetworkLayer nullTracer bp addrInfo versionData $ \nl -> do
+            withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
+                byronApi   <- apiLayer (newTransactionLayer @n) nl
+                icarusApi  <- apiLayer (newTransactionLayer @n) nl
+                startServer socket byronApi icarusApi ntpClient $> ExitSuccess
 
     startServer
         :: Socket

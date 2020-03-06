@@ -20,8 +20,6 @@ import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
     ( Port (..), withLogging )
-import Cardano.Faucet
-    ( initFaucet )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Pool.Metadata
@@ -34,6 +32,8 @@ import Cardano.Wallet.Jormungandr
     ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Faucet
+    ( initFaucet )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
@@ -178,6 +178,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
+                    , _blockchainParameters = bp
                     , _target = Proxy
                     })
         race

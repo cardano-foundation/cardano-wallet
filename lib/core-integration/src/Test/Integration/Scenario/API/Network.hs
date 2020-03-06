@@ -16,9 +16,9 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
-    , ApiWallet
     , NtpSyncingStatus (..)
     , WalletStyle (..)
+    , toApiNetworkParameters
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SyncProgress (..) )
@@ -26,6 +26,8 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Word.Odd
@@ -37,13 +39,11 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , emptyRandomWallet
-    , emptyWallet
     , eventually
     , eventuallyUsingDelay
     , expectErrorMessage
     , expectField
     , expectResponseCode
-    , expectedBlockchainParams
     , getFromResponse
     , request
     , verify
@@ -93,36 +93,6 @@ spec = do
             Link.getNetworkInfo Default Empty
         let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
         currentEpoch `shouldBe` calculatedNextEpoch
-
-    it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
-        \ctx -> do
-            let getNetworkInfo = request @ApiNetworkInformation ctx
-                    Link.getNetworkInfo Default Empty
-            w <- emptyWallet ctx
-            waitForNextEpoch ctx
-            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
-                sync <- getNetworkInfo
-                expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
-                return sync
-
-            let epochNum =
-                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-            let slotNum =
-                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-            let blockHeight =
-                    getFromResponse (#nodeTip . #height) r
-
-            eventually "Wallet has the same tip as network/information" $ do
-                res <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley w) Default Empty
-                verify res
-                    [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField
-                            (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField
-                            (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
-                    , expectField (#tip . #height) (`shouldBe` blockHeight)
-                    ]
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> do
@@ -229,4 +199,5 @@ spec = do
            r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
            expectResponseCode @IO HTTP.status200 r2
            let networkParams = getFromResponse id r2
-           networkParams `shouldBe` expectedBlockchainParams
+           networkParams `shouldBe`
+               toApiNetworkParameters (ctx ^. #_blockchainParameters)

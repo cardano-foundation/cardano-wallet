@@ -163,6 +163,7 @@ buildStep dryRun bk =
             [ color "always"
             , [ "test" ]
             , fast opt
+            , skip "cardano-node-integration"
             , case qaLevel bk of
                 QuickTest -> skip "integration"
                 FullTest -> []

@@ -1538,6 +1538,28 @@ spec = do
             r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TX_LIST_02 -\
+        \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> do
+        w <- emptyWallet ctx
+        let wid = w ^. walletId
+        let ep = ("GET", "v2/byron-wallets/" <> wid <> "/transactions")
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet wid)
+            ]
+
+    it "BYRON_TX_LIST_03 -\
+        \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> do
+        w <- emptyRandomWallet ctx
+        let wid = w ^. walletId
+        let ep = ("GET", "v2/wallets/" <> wid <> "/transactions")
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet wid)
+            ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do
