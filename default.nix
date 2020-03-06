@@ -69,7 +69,7 @@ let
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
     inherit (jmPkgs) jormungandr jormungandr-cli;
-    inherit (pkgs.cardanoNodePkgs) cardano-node;
+    inherit (pkgs) cardano-node;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {

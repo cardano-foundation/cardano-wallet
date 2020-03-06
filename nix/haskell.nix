@@ -58,8 +58,8 @@ let
       {
         packages.cardano-wallet-byron.components.tests = {
           # provide cardano-node command to test suites
-          integration.build-tools = [ pkgs.cardanoNodePkgs.cardano-node ];
-          unit.build-tools = [ pkgs.cardanoNodePkgs.cardano-node ];
+          integration.build-tools = [ pkgs.cardano-node ];
+          unit.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Some tests want to write ~/.local/share/cardano-wallet

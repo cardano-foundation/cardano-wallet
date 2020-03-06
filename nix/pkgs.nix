@@ -3,8 +3,14 @@
 let
   sources = import ./sources.nix {};
   pkgs1903 = import sources."nixpkgs-19.03" {};
-in pkgs: _: with pkgs; {
+  cardanoNodePkgs = import sources.cardano-node { inherit system crossSystem config; };
+in pkgs: super: with pkgs; {
   jmPkgs = import ./jormungandr.nix { inherit (pkgs) commonLib; inherit pkgs; };
-  cardanoNodePkgs = import sources."cardano-node" { inherit system crossSystem config; };
+  cardano-node = cardanoNodePkgs.cardano-node // {
+    # provide configuration directory as a convenience
+    configs = pkgs.runCommand "cardano-node-configs" {} ''
+      cp -R ${sources.cardano-node}/configuration $out;
+    '';
+  };
   inherit (pkgs1903) stack;
 }
