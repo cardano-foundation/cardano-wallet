@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -58,6 +57,8 @@ import Cardano.DB.Sqlite
     , startSqliteBackend
     , tableName
     )
+import Cardano.DB.Sqlite.Delete
+    ( deleteSqliteDatabase )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -104,22 +105,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Control.Arrow
     ( (***) )
-#if defined(mingw32_HOST_OS)
-import Control.Concurrent
-    ( threadDelay )
-#endif
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( Exception, bracket, throwIO
-#if defined(mingw32_HOST_OS)
-    , try, throw
-#endif
-     )
+    ( Exception, bracket, throwIO )
 import Control.Monad
-    ( forM, mapM_, void, when )
+    ( forM, void, when )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Class
@@ -129,7 +122,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -184,15 +177,9 @@ import Database.Persist.Types
 import Fmt
     ( pretty )
 import System.Directory
-    ( doesFileExist, listDirectory, removePathForcibly )
+    ( doesFileExist, listDirectory )
 import System.FilePath
     ( (</>) )
-#if defined(mingw32_HOST_OS)
-import System.IO.Error
-    ( isPermissionError )
-import Debug.Trace
-    ( traceShow )
-#endif
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -282,12 +269,8 @@ newDBFactory tr defaultFieldValues mDatabaseDir = do
                     (action . snd)
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
-                let files =
-                        [ databaseFile wid
-                        , databaseFile wid <> "-wal"
-                        , databaseFile wid <> "-shm"
-                        ]
-                mapM_ internalRemovePathForcibly files
+                let tr' = contramap (MsgRemovingDatabaseFile (pretty wid)) tr
+                deleteSqliteDatabase tr' (databaseFile wid)
             }
           where
             databaseFilePrefix = keyTypeDescriptor $ Proxy @k
@@ -295,36 +278,6 @@ newDBFactory tr defaultFieldValues mDatabaseDir = do
                 databaseDir </>
                 databaseFilePrefix <> "." <>
                 T.unpack (toText wid) <> ".sqlite"
-
-internalRemovePathForcibly :: FilePath -> IO ()
-internalRemovePathForcibly =
-#if defined(mingw32_HOST_OS)
-    -- On Windows we have to retry the delete a couple of times.
-    -- The reason for this is that a FileDelete command just marks a
-    -- file for deletion. The file is really only removed when the last
-    -- handle to the file is closed. Unfortunately there are a lot of
-    -- system services that can have a file temporarily opened using a shared
-    -- read-only lock, such as the built in AV and search indexer.
-    --
-    -- We can't really guarantee that these are all off, so what we can do is
-    -- whenever after an rm the file still exists to try again and wait a bit.
-    retryOnPermissionErrors 5 . removePathForcibly
-#else
-    removePathForcibly
-#endif
-
-#if defined(mingw32_HOST_OS)
-retryOnPermissionErrors :: Int -> IO a -> IO a
-retryOnPermissionErrors maxRetries io = do
-    res <- try io
-    case res of
-        Right a -> return a
-        Left ex | isPermissionError ex && maxRetries > 1 -> do
-                    let retries' = traceShow (ex, maxRetries) (maxRetries - 1)
-                    threadDelay ((maxRetries - retries') * 200)
-                    retryOnPermissionErrors retries' io
-                | otherwise -> traceShow ("OTHER ERROR" :: String) (throw ex)
-#endif
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.

@@ -114,6 +114,10 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
+import Control.Concurrent.Async
+    ( concurrently_ )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -146,8 +150,10 @@ import GHC.Conc
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
     ( doesFileExist, listDirectory, removeFile )
+import System.FilePath
+    ( (</>) )
 import System.IO
-    ( hClose )
+    ( IOMode (..), hClose, withFile )
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
@@ -166,6 +172,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldNotBe
     , shouldNotContain
     , shouldReturn
     , shouldThrow
@@ -307,11 +314,18 @@ fileModeSpec =  do
                 destroyDBLayer ctx
 
     describe "DBFactory" $ do
-        it "withDatabase *> removeDatabase works and remove files" $ do
-            withSystemTempDirectory "DBFactory" $ \dir -> do
-                DBFactory{..} <- newDBFactory
-                    nullTracer defaultFieldValues (Just dir)
+        let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
+                dbf <- newDBFactory nullTracer defaultFieldValues (Just dir)
+                action dir dbf
 
+        let whileFileOpened delay f action = do
+                opened <- newEmptyMVar
+                concurrently_
+                    (withFile f ReadMode (\_ -> putMVar opened () >> threadDelay delay))
+                    (takeMVar opened >> action)
+
+        it "withDatabase *> removeDatabase works and remove files" $ do
+            withDBFactory $ \dir DBFactory{..} -> do
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
@@ -322,6 +336,20 @@ fileModeSpec =  do
                             void $ readCheckpoint $ PrimaryKey testWid
 
                 killThread pid *> removeDatabase testWid
+                listDirectory dir `shouldReturn` mempty
+
+        it "removeDatabase still works if file is opened" $ do
+            withDBFactory $ \dir DBFactory{..} -> do
+                -- set up a database file
+                withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> pure ()
+                files <- listDirectory dir
+                files `shouldNotBe` mempty
+
+                -- Try removing the database when it's already opened for
+                -- reading for 100ms.
+                -- This simulates an antivirus program on windows which may
+                -- interfere with file deletion.
+                whileFileOpened 100000 (dir </> head files) (removeDatabase testWid)
                 listDirectory dir `shouldReturn` mempty
 
     describe "Sqlite database file" $ do

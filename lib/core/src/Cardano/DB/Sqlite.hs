@@ -50,6 +50,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.DB.Sqlite.Delete
+    ( DeleteSqliteDatabaseLog )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
@@ -366,6 +368,7 @@ data DBLog
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
     | MsgRemoving Text
+    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
@@ -431,6 +434,7 @@ instance DefineSeverity DBLog where
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
         MsgRemoving _ -> Info
+        MsgRemovingDatabaseFile _ msg -> defineSeverity msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
@@ -457,6 +461,8 @@ instance ToText DBLog where
             "Statement already finalized: " <> msg
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
+        MsgRemovingDatabaseFile wid msg ->
+            "Removing " <> wid <> ": " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
             [ tableName field
             , " table does not contain required field '"

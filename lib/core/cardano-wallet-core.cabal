@@ -99,6 +99,7 @@ library
   exposed-modules:
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite
+      Cardano.DB.Sqlite.Delete
       Cardano.Pool.DB
       Cardano.Pool.DB.MVar
       Cardano.Pool.DB.Model
