@@ -31,13 +31,10 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( LoggingOptions (..)
     , cli
-    , cmdAddress
     , cmdKey
     , cmdMnemonic
     , cmdNetwork
-    , cmdTransaction
     , cmdVersion
-    , cmdWallet
     , databaseOption
     , enableWindowsANSI
     , helperTracing
@@ -124,12 +121,9 @@ main = withUtf8Encoding $ do
     runCli $ cli $ mempty
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet @'Mainnet
-        <> cmdTransaction @'Mainnet
-        <> cmdAddress @'Mainnet
+        <> cmdKey
         <> cmdNetwork @'Mainnet
         <> cmdVersion
-        <> cmdKey
 
 beforeMainLoop
     :: Trace IO MainLog
