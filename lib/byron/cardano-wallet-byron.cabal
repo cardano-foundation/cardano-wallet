@@ -129,8 +129,10 @@ test-suite cardano-node-integration
     , cardano-wallet-test-utils
     , directory
     , filepath
+    , generic-lens
     , hspec
     , http-client
+    , http-types
     , iohk-monitoring
     , network
     , ouroboros-network
@@ -151,3 +153,4 @@ test-suite cardano-node-integration
   other-modules:
       Cardano.Wallet.Byron.Faucet
       Cardano.Wallet.Byron.Config
+      Test.Integration.Byron.Scenario.API.Transactions

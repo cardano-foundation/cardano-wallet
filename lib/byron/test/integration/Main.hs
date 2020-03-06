@@ -80,8 +80,9 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
-import qualified Test.Integration.Scenario.API.ByronTransactions as ByronTransactions
-import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
+import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
+import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsCommon
+import qualified Test.Integration.Scenario.API.ByronWallets as WalletsCommon
 import qualified Test.Integration.Scenario.API.Network as Network
 
 -- | Define the actual executable name for the bridge CLI
@@ -92,8 +93,9 @@ main :: forall t. (t ~ Byron) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "API Specifications" $ specWithServer tr $ do
-            ByronWallets.spec
-            ByronTransactions.spec
+            WalletsCommon.spec
+            TransactionsByron.spec
+            TransactionsCommon.spec
             Network.spec
 
 specWithServer
