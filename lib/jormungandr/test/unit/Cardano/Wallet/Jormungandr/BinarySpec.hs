@@ -19,7 +19,6 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
-    , Ratio (..)
     , StakeDelegationType (..)
     , TaxParameters (..)
     , TxWitnessTag (..)
@@ -207,7 +206,7 @@ spec = do
             txId' <- Hash <$> unsafeFromHexFile
                 (poolDir </> "registration_no_fees.txid")
 
-            let taxes = TaxParameters 0 (Ratio 0 1) Nothing
+            let taxes = TaxParameters 0 0 Nothing
 
             runGet getFragment (BL.fromStrict tx)
                 `shouldBe`

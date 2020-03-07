@@ -41,6 +41,8 @@ import Cardano.Pool.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
+import Cardano.Wallet.Gen
+    ( genPercentage )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetBlock (..)
@@ -67,7 +69,7 @@ import Cardano.Wallet.Primitive.Types
     , slotSucc
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeRunExceptT )
+    ( unsafeFromText, unsafeMkPercentage, unsafeRunExceptT )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -88,6 +90,8 @@ import Data.Maybe
     ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Text.Class
     ( toText )
 import Data.Word
@@ -279,7 +283,8 @@ test_emptyDatabaseNotSynced = do
     let spl = newStakePoolLayer nullTracer header0 getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
-        Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 0
+        Left (ErrMetricsIsUnsynced p) ->
+            p `shouldBe` (Quantity $ unsafeMkPercentage 0)
         _ -> fail $ "got something else than expected: " <> show res
   where
     nl = mockNetworkLayer
@@ -297,7 +302,8 @@ test_notSyncedProgress = do
     let spl = newStakePoolLayer nullTracer header0 getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
     case res of
-        Left (ErrMetricsIsUnsynced (Quantity p)) -> p `shouldBe` toEnum 33
+        Left (ErrMetricsIsUnsynced p) ->
+            p `shouldBe` (Quantity $ unsafeMkPercentage $ 1 % 3)
         _ -> fail $ "got something else than expected: " <> show res
   where
     nodeTip = header0 { blockHeight = Quantity 42 }
@@ -429,7 +435,7 @@ instance Arbitrary PoolRegistrationCertificate where
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> fmap (L.nub . getNonEmpty) (scale (`mod` 3) arbitrary)
-        <*> fmap toEnum (choose (0, 100))
+        <*> genPercentage
         <*> fmap Quantity arbitrary
 
 instance Arbitrary RegistrationsTest where

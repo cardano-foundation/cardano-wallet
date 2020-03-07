@@ -10,8 +10,7 @@ module Cardano.Wallet.Jormungandr.RewardsSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Rewards
-    ( Ratio (..)
-    , RewardFormula (..)
+    ( RewardFormula (..)
     , RewardLimit (..)
     , RewardParams (..)
     , TaxParameters (..)
@@ -21,6 +20,8 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -31,12 +32,12 @@ spec = describe "rewardsAt" $ do
     it "try-out ITN parameters" $ property $ withMaxSuccess 100000 $ \epochNo ->
         let
             drawingLimit =
-                ( RewardLimitByAbsoluteStake (Ratio 4109589 10000000000)
+                ( RewardLimitByAbsoluteStake (4109589 % 10000000000)
                 , Quantity 10548000000000000
                 )
             treasuryTax = TaxParameters
                 { taxFixed = 0
-                , taxRatio = Ratio 1 10
+                , taxRatio = 1 % 10
                 , taxLimit = Nothing
                 }
             epochStart = EpochNo 1
@@ -44,7 +45,7 @@ spec = describe "rewardsAt" $ do
                 { rFixed = 3835616440000
                 , rEpochRate = 1
                 , rEpochStart = fromIntegral $ unEpochNo epochStart
-                , rRatio = Ratio 0 1
+                , rRatio = 0 % 1
                 }
         in
             rewardsAt drawingLimit treasuryTax epochNo rewardFormula
@@ -58,7 +59,7 @@ spec = describe "rewardsAt" $ do
                 { rFixed = 10000
                 , rEpochRate = 1
                 , rEpochStart = 10
-                , rRatio = Ratio 1 1
+                , rRatio = 1 % 1
                 }
         mapM_ (testReward noDrawingLimit noTreasuryTax rewardFormula) $ mconcat
             [ [ (e, 0) | e <- [0..9]  ]
@@ -74,7 +75,7 @@ spec = describe "rewardsAt" $ do
                 { rFixed = 10000
                 , rEpochRate = 2
                 , rEpochStart = 10
-                , rRatio = Ratio 1000 1
+                , rRatio = 1000 % 1
                 }
         mapM_ (testReward noDrawingLimit noTreasuryTax rewardFormula) $ mconcat
             [ [ (e, 0) | e <- [0..9]  ]
@@ -90,7 +91,7 @@ spec = describe "rewardsAt" $ do
                 { rFixed = 10000
                 , rEpochRate = 2
                 , rEpochStart = 10
-                , rRatio = Ratio 1 2
+                , rRatio = 1 % 2
                 }
         mapM_ (testReward noDrawingLimit noTreasuryTax rewardFormula) $ mconcat
             [ [ (e, 0) | e <- [0..9]  ]
@@ -115,7 +116,7 @@ spec = describe "rewardsAt" $ do
 
     noTreasuryTax = TaxParameters
         { taxFixed = 0
-        , taxRatio = Ratio 0 1
+        , taxRatio = 0 % 1
         , taxLimit = Nothing
         }
 

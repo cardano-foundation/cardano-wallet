@@ -8,6 +8,8 @@
 -- This module allows for code-reuse where desired, by providing generators.
 module Cardano.Wallet.Gen
     ( genMnemonic
+    , genPercentage
+    , shrinkPercentage
     ) where
 
 import Prelude
@@ -15,13 +17,17 @@ import Prelude
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy )
+    ( unsafeMkEntropy, unsafeMkPercentage )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Percentage (..) )
+import Data.Ratio
+    ( denominator, numerator, (%) )
 import GHC.TypeLits
     ( natVal )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, vectorOf )
+    ( Arbitrary (..), Gen, choose, vectorOf )
 
 import qualified Data.ByteString as BS
 
@@ -40,3 +46,16 @@ genMnemonic = do
         bytes <- BS.pack <$> vectorOf n arbitrary
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
+
+genPercentage :: Gen Percentage
+genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
+  where
+    genDouble :: Gen Double
+    genDouble = choose (0, 1)
+
+shrinkPercentage :: Percentage -> [Percentage]
+shrinkPercentage x = unsafeMkPercentage <$>
+    ((% q) <$> shrink p) ++ (map (p %) . filter (/= 0) $ shrink q)
+  where
+    p = numerator $ getPercentage x
+    q = denominator $ getPercentage x

@@ -36,7 +36,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
-    , SyncProgress (..)
     , TxStatus (..)
     , WalletId (..)
     , flatSlot
@@ -67,8 +66,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..), getPercentage, mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -301,30 +298,6 @@ instance FromHttpApiData SlotId where
 instance PathPiece SlotId where
     toPathPiece = error "toPathPiece stub needed for persistent"
     fromPathPiece = error "fromPathPiece stub needed for persistent"
-
-
-----------------------------------------------------------------------------
--- SyncProgress
-
-walletStateNum :: SyncProgress -> Word8
-walletStateNum Ready = 100
-walletStateNum (Syncing (Quantity pc)) =
-    fromIntegral $ getPercentage pc
-
-walletStateFromNum :: Word8 -> SyncProgress
-walletStateFromNum n | n < 100 = Syncing (Quantity pc)
-                     | otherwise = Ready
-    where Right pc = mkPercentage n
-
-instance PersistField SyncProgress where
-    toPersistValue = toPersistValue . walletStateNum
-    fromPersistValue = fmap walletStateFromNum . fromPersistValue
-
-instance PersistFieldSql SyncProgress where
-    sqlType _ = sqlType (Proxy @Word8)
-
-instance Read SyncProgress where
-    readsPrec _ = error "readsPrec stub needed for persistent"
 
 ----------------------------------------------------------------------------
 -- TxStatus

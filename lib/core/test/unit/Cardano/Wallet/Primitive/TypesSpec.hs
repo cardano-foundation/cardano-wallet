@@ -96,13 +96,13 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic, unsafeFromHex )
+    ( someDummyMnemonic, unsafeFromHex, unsafeMkPercentage )
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
-    ( evaluate )
+    ( SomeException, evaluate, try )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_, replicateM, when )
 import Crypto.Hash
     ( hash )
 import Data.Either
@@ -117,6 +117,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set, (\\) )
 import Data.Text
@@ -172,7 +174,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
-    ( monadicIO, run )
+    ( assert, monadicIO, monitor, run )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
@@ -271,21 +273,21 @@ spec = do
             let nodeTip = mockBlockHeader (SlotId 0 0) 0
             let ntwkTip = SlotId 1 0
             syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ toEnum 0)
+                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0)
 
         it "unit test #2 - 10/20 50%" $ do
             let slotParams = mockSlotParams 1
             let nodeTip = mockBlockHeader (SlotId 1 0) 10
             let ntwkTip = SlotId 2 0
             syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ toEnum 50)
+                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.5)
 
         it "unit test #3 - 12/15 80% " $ do
             let slotParams = mockSlotParams 0.5
             let nodeTip = mockBlockHeader (SlotId 2 2) 12
             let ntwkTip = SlotId 2 8
             syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ toEnum 80)
+                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.8)
 
         it "unit test #4 - 10/10 100%" $ do
             let slotParams = mockSlotParams 1
@@ -318,25 +320,34 @@ spec = do
             let slotParams = mockSlotParams 0.5
             let ntwkTip = SlotId 1 0
             let plots =
-                    [ (mockBlockHeader (SlotId 0 0) 0, 0)
-                    , (mockBlockHeader (SlotId 0 1) 1, 20)
-                    , (mockBlockHeader (SlotId 0 2) 2, 33)
-                    , (mockBlockHeader (SlotId 0 3) 2, 33)
-                    , (mockBlockHeader (SlotId 0 4) 2, 40)
-                    , (mockBlockHeader (SlotId 0 5) 3, 60)
-                    , (mockBlockHeader (SlotId 0 6) 3, 60)
-                    , (mockBlockHeader (SlotId 0 7) 4, 66)
-                    , (mockBlockHeader (SlotId 0 8) 5, 83)
-                    , (mockBlockHeader (SlotId 0 9) 5, 100)
-                    , (mockBlockHeader (SlotId 1 0) 5, 100)
+                    [ (mockBlockHeader (SlotId 0 0) 0, 0.0)
+                    , (mockBlockHeader (SlotId 0 1) 1, 0.2)
+                    , (mockBlockHeader (SlotId 0 2) 2, 1 % 3)
+                    , (mockBlockHeader (SlotId 0 3) 2, 1 % 3)
+                    , (mockBlockHeader (SlotId 0 4) 2, 0.40)
+                    , (mockBlockHeader (SlotId 0 5) 3, 0.60)
+                    , (mockBlockHeader (SlotId 0 6) 3, 0.60)
+                    , (mockBlockHeader (SlotId 0 7) 4, 2 % 3)
+                    , (mockBlockHeader (SlotId 0 8) 5, 5 % 6)
+                    , (mockBlockHeader (SlotId 0 9) 5, 1.00)
+                    , (mockBlockHeader (SlotId 1 0) 5, 1.00)
                     ]
             forM_ plots $ \(nodeTip, p) -> do
-                let progress = if p == 100
+                let progress = if p == 1
                         then Ready
-                        else Syncing (Quantity $ toEnum p)
+                        else Syncing (Quantity $ unsafeMkPercentage p)
                 syncProgress syncTolerance slotParams nodeTip ntwkTip
                     `shouldBe` progress
 
+        it "syncProgress should never crash"
+            $ property $ \f netSlot wSlot bh -> monadicIO $ do
+                let slotParams = mockSlotParams f
+                let nodeTip = mockBlockHeader wSlot bh
+                when (netSlot > wSlot) $ do
+                    let x = syncProgress syncTolerance slotParams nodeTip netSlot
+                    res <- run (try @SomeException $ evaluate x)
+                    monitor (counterexample $ "Result: " ++ show res)
+                    assert (isRight res)
 
     describe "flatSlot" $ do
 

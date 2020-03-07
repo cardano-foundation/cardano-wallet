@@ -18,6 +18,7 @@ module Cardano.Wallet.Unsafe
     , unsafeDeserialiseCbor
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
+    , unsafeMkPercentage
 
     , someDummyMnemonic
     , unsafeMkMnemonic
@@ -64,6 +65,8 @@ import Data.Char
     ( isHexDigit )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Percentage, mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -211,3 +214,8 @@ unsafeBech32Decode txt = case Bech32.decodeLenient txt of
   where
     bomb msg = error $ "Could not decode bech32 string " ++ show txt
         ++ " because " ++ msg
+
+unsafeMkPercentage :: HasCallStack => Rational -> Percentage
+unsafeMkPercentage r = either (const bomb) id $ mkPercentage r
+  where
+    bomb = error $ "unsafeMkPercentage: " ++ show r ++ " is out of bounds."

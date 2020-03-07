@@ -13,6 +13,8 @@ import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
+import Cardano.Wallet.Gen
+    ( genPercentage )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochLength (..)
@@ -117,7 +119,7 @@ instance Arbitrary PoolRegistrationCertificate where
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> scale (`mod` 8) (listOf arbitrary)
-        <*> fmap toEnum (choose (0, 100))
+        <*> genPercentage
         <*> fmap Quantity arbitrary
 
 instance Arbitrary StakePoolsFixture where
