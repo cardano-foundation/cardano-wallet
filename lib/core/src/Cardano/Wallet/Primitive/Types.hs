@@ -377,7 +377,7 @@ data WalletDelegationNext = WalletDelegationNext
 instance NFData WalletDelegationNext
 
 instance Buildable WalletDelegationNext where
-    build (WalletDelegationNext st _) = build st
+    build (WalletDelegationNext _ st) = build st
 
 data WalletDelegation = WalletDelegation
     { active :: !WalletDelegationStatus
