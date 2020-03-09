@@ -367,6 +367,8 @@ data DBLog
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
+    | MsgWaitingForDatabase Text (Maybe Int)
+    | MsgRemovingInUse Text Int
     | MsgRemoving Text
     | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
     | MsgManualMigrationNeeded DBField Text
@@ -433,6 +435,8 @@ instance DefineSeverity DBLog where
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
+        MsgWaitingForDatabase _ _ -> Info
+        MsgRemovingInUse _ _ -> Notice
         MsgRemoving _ -> Info
         MsgRemovingDatabaseFile _ msg -> defineSeverity msg
         MsgManualMigrationNeeded{} -> Notice
@@ -459,6 +463,13 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
+        MsgWaitingForDatabase wid Nothing ->
+            "Database "+|wid|+" is ready to be deleted"
+        MsgWaitingForDatabase wid (Just count) ->
+            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+        MsgRemovingInUse wid count ->
+            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Attempting to remove the database anyway."
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
         MsgRemovingDatabaseFile wid msg ->

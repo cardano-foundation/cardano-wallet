@@ -1,18 +1,27 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- A function to delete a SQLite database file, which isn't as straightforward
--- as it sounds.
+-- A function to wait until a suitable time to delete a SQLite database file,
+-- and a function to delete a SQLite database file, which isn't as
+-- straightforward as it sounds.
 
 module Cardano.DB.Sqlite.Delete
-    ( deleteSqliteDatabase
+    ( -- * Removing files with retry
+      deleteSqliteDatabase
     , DeleteSqliteDatabaseLog (..)
+    -- * Ref-counting open databases
+    , RefCount
+    , newRefCount
+    , withRef
+    , waitForFree
     ) where
 
 import Prelude
@@ -21,8 +30,22 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Control.Concurrent.MVar
+    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
+import Control.Exception
+    ( bracket_ )
+import Control.Retry
+    ( capDelay, fibonacciBackoff, limitRetriesByCumulativeDelay, retrying )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Aeson
     ( ToJSON )
+import Data.Function
+    ( (&) )
+import Data.Map.Strict
+    ( Map )
+import Data.Maybe
+    ( fromMaybe, isJust )
 import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
@@ -39,16 +62,17 @@ import Control.Retry
     , recovering
     , retryPolicy
     )
-import Control.Tracer
-    ( Tracer, traceWith )
 import System.IO.Error
     ( isPermissionError )
 #else
-import Control.Tracer
-    ( Tracer )
 #endif
 
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+
+{-------------------------------------------------------------------------------
+                           Removing files with retry
+-------------------------------------------------------------------------------}
 
 -- | Remove a SQLite database file.
 --
@@ -114,3 +138,53 @@ instance DefineSeverity DeleteSqliteDatabaseLog where
     defineSeverity msg = case msg of
         MsgRetryDelete _ -> Warning
         MsgGaveUpDelete _ -> Error
+
+{-------------------------------------------------------------------------------
+                          Ref-counting open databases
+-------------------------------------------------------------------------------}
+
+-- | Mutable variable containing reference counts to IDs of type @ix@.
+data RefCount ix = RefCount
+    { _refCount :: MVar (Map ix Int) -- ^ number of references to each index
+    , _takeLock :: MVar () -- ^ lock on incrementing references
+    }
+
+-- | Construct a 'RefCount' with zero references.
+newRefCount :: Ord ix => IO (RefCount ix)
+newRefCount = RefCount <$> newMVar mempty <*> newMVar ()
+
+-- | Acquire a reference to the given identifier, perform the given action, then
+-- release the reference. Multiple 'withRef' calls can take references at the
+-- same time.
+withRef :: Ord ix => RefCount ix -> ix -> IO a -> IO a
+withRef (RefCount mvar lock) ix =
+    bracket_ (modifyMVar_ lock $ const $ modify inc) (modify dec)
+  where
+    modify f = modifyMVar_ mvar (pure . f)
+    inc m = Map.insert ix (maybe 0 (+1) (Map.lookup ix m)) m
+    dec = Map.update (\n -> if n >= 1 then Just (n - 1) else Nothing) ix
+
+-- | Attempt to wait until all 'withRef' calls for the given identifier have
+-- completed, then perform an action.
+--
+-- This will block for up to 2 minutes before running the action. The action is
+-- passed the reference count, which should be @0@ under normal conditions.
+--
+-- No new references can be taken using 'withRef' while the action is running.
+waitForFree
+    :: Ord ix
+    => Tracer IO (Maybe Int)
+    -> RefCount ix
+    -> ix
+    -> (Int -> IO a)
+    -> IO a
+waitForFree tr (RefCount mvar lock) ix action = modifyMVar lock $ const $ do
+    res <- retrying pol (const $ pure . isJust) (const check)
+    ((), ) <$> action (fromMaybe 0 res)
+  where
+    check = do
+        refs <- Map.lookup ix <$> readMVar mvar
+        traceWith tr refs
+        pure refs
+    pol = fibonacciBackoff 50_000 & capDelay 5_000_000
+        & limitRetriesByCumulativeDelay 120_000_000
