@@ -105,6 +105,7 @@ module Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
+    , restoreWalletViaCLI
     , deleteWalletViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
@@ -1219,6 +1220,28 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
             hPutStr stdin secondFactor
             hPutStr stdin (passphrase ++ "\n")
             hPutStr stdin (passphrase ++ "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            return (c, T.unpack out, err)
+
+restoreWalletViaCLI
+    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+    => s
+    -> [String]
+    -> String
+    -> IO (ExitCode, String, Text)
+restoreWalletViaCLI ctx args accPubKey = do
+    let portArgs =
+            [ "--port", show (ctx ^. typed @(Port "wallet")) ]
+    let fullArgs =
+            [ "wallet", "restore" ] ++ portArgs ++ args
+    let process = proc' (commandName @t) fullArgs
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin accPubKey
             hFlush stdin
             hClose stdin
             c <- waitForProcess h
