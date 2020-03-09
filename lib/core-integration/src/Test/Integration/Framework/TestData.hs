@@ -47,6 +47,7 @@ module Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403DelegationFee
     , errMsg403NotEnoughMoney
+    , errMsg403NotEnoughMoney_
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg403NoPendingAnymore
@@ -265,6 +266,11 @@ errMsg403DelegationFee :: Natural -> String
 errMsg403DelegationFee n =
     "I'm unable to select enough coins to pay for a delegation certificate. \
     \I need: " ++ show n ++ " Lovelace."
+
+errMsg403NotEnoughMoney_ :: String
+errMsg403NotEnoughMoney_ =
+    "I can't process this payment because there's \
+    \not enough UTxO available in the wallet."
 
 errMsg403NotEnoughMoney :: Int -> Int -> String
 errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
