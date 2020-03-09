@@ -116,7 +116,9 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount
+    ( AccountPostData (..)
+    , AccountPublicKey
+    , AddressAmount
     , AllowedMnemonics
     , ApiEpochNumber
     , ApiMnemonicT (..)
@@ -783,6 +785,7 @@ cmdWallet = command "wallet" $ info (helper <*> cmds) $ mempty
     cmds = subparser $ mempty
         <> cmdWalletList @t
         <> cmdWalletCreate @t
+        <> cmdWalletRestore @t
         <> cmdWalletGet @t
         <> cmdWalletUpdate @t
         <> cmdWalletDelete @t
@@ -841,6 +844,27 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
                 (ApiMnemonicT <$> wSndFactor)
                 (ApiT wName)
                 (ApiT wPwd)
+
+cmdWalletRestore
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletRestore = command "restore" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Restore a wallet using a public account key."
+  where
+    cmd = fmap exec $ WalletCreateArgs
+        <$> portOption
+        <*> walletNameArgument
+        <*> poolGapOption
+    exec (WalletCreateArgs wPort wName wGap) = do
+        pubAccKey <- do
+            let prompt = "Please enter a 128 character public account key: "
+            let parser = fromText @AccountPublicKey
+            fst <$> getLine prompt parser
+        runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
+            WalletOrAccountPostData $ Right $ AccountPostData
+                (ApiT wName)
+                pubAccKey
+                (Just $ ApiT wGap)
 
 -- | Arguments for 'wallet get' command
 data WalletGetArgs = WalletGetArgs

@@ -625,6 +625,15 @@ data ApiPoolId
     | ApiPoolId PoolId
     deriving (Eq, Generic, Show)
 
+instance FromText AccountPublicKey where
+    fromText txt = case xpubFromText (T.encodeUtf8 txt) of
+        Left _ ->
+            Left $ TextDecodingError $ unwords $
+            [ "AccountPublicKey: unable to deserialize ShelleyKey from json. "
+            , "Expecting hex-encoded string of 128 characters."]
+        Right pubkey ->
+            Right $ AccountPublicKey $ ApiT $ ShelleyKey pubkey
+
 {-------------------------------------------------------------------------------
                               API Types: Byron
 -------------------------------------------------------------------------------}
@@ -740,15 +749,8 @@ instance ToJSON WalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON AccountPublicKey where
-    parseJSON bytes = do
-        bs <- T.encodeUtf8 <$> parseJSON bytes
-        case xpubFromText bs of
-            Left _ ->
-                fail $
-                "AccountPublicKey: unable to deserialize ShelleyKey from json. "
-                <> "Expecting hex-encoded string of 128 characters."
-            Right pubkey ->
-                pure $ AccountPublicKey $ ApiT $ ShelleyKey pubkey
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
 instance ToJSON AccountPublicKey where
     toJSON =
         toJSON . T.decodeUtf8 . serializeXPub . getApiT . key
