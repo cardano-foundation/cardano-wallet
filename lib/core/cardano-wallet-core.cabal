@@ -209,6 +209,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-state-machine >= 0.6.0
     , random
+    , retry
     , safe
     , servant
     , servant-server
@@ -238,6 +239,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Byron.Codec.CborSpec
+      Cardano.DB.Sqlite.DeleteSpec
       Cardano.Pool.DB.Arbitrary
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec

@@ -115,9 +115,9 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
-    ( concurrently_ )
+    ( concurrently, concurrently_ )
 import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -351,6 +351,20 @@ fileModeSpec =  do
                 -- interfere with file deletion.
                 whileFileOpened 100000 (dir </> head files) (removeDatabase testWid)
                 listDirectory dir `shouldReturn` mempty
+
+        it "removeDatabase waits for connections to close" $ do
+            withDBFactory $ \_ DBFactory{..} -> do
+                closed <- newEmptyMVar
+
+                let conn =
+                        withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
+                            threadDelay 500000
+                            putMVar closed ()
+                let rm = do
+                        removeDatabase testWid
+                        isEmptyMVar closed
+
+                concurrently conn rm `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do

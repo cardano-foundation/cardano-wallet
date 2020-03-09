@@ -16,12 +16,16 @@
 module Cardano.DB.Sqlite.Delete
     ( -- * Removing files with retry
       deleteSqliteDatabase
+    , deleteSqliteDatabase'
+    , deleteSqliteDatabaseRetryPolicy
     , DeleteSqliteDatabaseLog (..)
     -- * Ref-counting open databases
     , RefCount
     , newRefCount
     , withRef
     , waitForFree
+    , waitForFree'
+    , waitForFreeRetryPolicy
     ) where
 
 import Prelude
@@ -35,7 +39,15 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( bracket_ )
 import Control.Retry
-    ( capDelay, fibonacciBackoff, limitRetriesByCumulativeDelay, retrying )
+    ( RetryPolicy
+    , RetryStatus (..)
+    , capDelay
+    , fibonacciBackoff
+    , limitRetries
+    , limitRetriesByCumulativeDelay
+    , retryPolicy
+    , retrying
+    )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -55,13 +67,7 @@ import System.Directory
 
 #if defined(mingw32_HOST_OS)
 import Control.Retry
-    ( RetryPolicy
-    , RetryStatus (..)
-    , limitRetries
-    , logRetries
-    , recovering
-    , retryPolicy
-    )
+    ( logRetries, recovering )
 import System.IO.Error
     ( isPermissionError )
 #else
@@ -94,18 +100,35 @@ import qualified Data.Text as T
 -- See <https://github.com/haskell/directory/issues/96> for more information
 -- about this issue.
 deleteSqliteDatabase :: Tracer IO DeleteSqliteDatabaseLog -> FilePath -> IO ()
-deleteSqliteDatabase tr db = mapM_ (handleErrors tr . removePathForcibly) files
+deleteSqliteDatabase tr =
+    deleteSqliteDatabase' tr deleteSqliteDatabaseRetryPolicy
+
+-- | A variant of 'deleteSqliteDatabase' where the caller can specify the
+-- 'RetryPolicy'.
+deleteSqliteDatabase'
+    :: Tracer IO DeleteSqliteDatabaseLog
+    -> RetryPolicy
+    -> FilePath
+    -> IO ()
+deleteSqliteDatabase' tr pol db = mapM_ delete files
   where
     files = [ db, db <> "-wal", db <> "-shm" ]
+    delete = handleErrors tr pol . removePathForcibly
 
-handleErrors :: Tracer IO DeleteSqliteDatabaseLog -> IO () -> IO ()
+handleErrors
+    :: Tracer IO DeleteSqliteDatabaseLog
+    -> RetryPolicy
+    -> IO ()
+    -> IO ()
 #if defined(mingw32_HOST_OS)
-handleErrors tr = recovering policy [check] . const
+handleErrors tr policy = recovering policy [check] . const
   where
     check = logRetries (pure . isPermissionError) logRetry
-    policy = linearBackoff 25000 <> limitRetries 10
     logRetry True _ st = traceWith tr $ MsgRetryDelete $ rsIterNumber st
     logRetry False e _ = traceWith tr $ MsgGaveUpDelete $ show e
+#else
+handleErrors _ _ = id
+#endif
 
 -- | Retry policy where delay increases linearly from base with each retry.
 -- (as <https://www.sqlite.org/src/info/89f1848d7f implemented by SQLite>)
@@ -116,9 +139,9 @@ linearBackoff
 linearBackoff base = retryPolicy $ \ RetryStatus { rsIterNumber = n } ->
   Just $! base * n
 
-#else
-handleErrors _ = id
-#endif
+-- | Recommended retry policy for 'deleteSqliteDatabase'.
+deleteSqliteDatabaseRetryPolicy :: RetryPolicy
+deleteSqliteDatabaseRetryPolicy = linearBackoff 25000 <> limitRetries 10
 
 -- | Log messages that may arise from 'deleteSqliteDatabase'.
 data DeleteSqliteDatabaseLog
@@ -161,8 +184,8 @@ withRef (RefCount mvar lock) ix =
     bracket_ (modifyMVar_ lock $ const $ modify inc) (modify dec)
   where
     modify f = modifyMVar_ mvar (pure . f)
-    inc m = Map.insert ix (maybe 0 (+1) (Map.lookup ix m)) m
-    dec = Map.update (\n -> if n >= 1 then Just (n - 1) else Nothing) ix
+    inc m = Map.insert ix (maybe 1 (+1) (Map.lookup ix m)) m
+    dec = Map.update (\n -> if n > 1 then Just (n - 1) else Nothing) ix
 
 -- | Attempt to wait until all 'withRef' calls for the given identifier have
 -- completed, then perform an action.
@@ -174,11 +197,31 @@ withRef (RefCount mvar lock) ix =
 waitForFree
     :: Ord ix
     => Tracer IO (Maybe Int)
+    -- ^ Logging of current number of references
     -> RefCount ix
+    -- ^ Mutable variable containing reference counts
     -> ix
+    -- ^ Identifier
     -> (Int -> IO a)
+    -- ^ Action to run, passed number of references in use
     -> IO a
-waitForFree tr (RefCount mvar lock) ix action = modifyMVar lock $ const $ do
+waitForFree tr = waitForFree' tr waitForFreeRetryPolicy
+
+-- | A variant of 'waitForFree' where the caller can specify the 'RetryPolicy'.
+waitForFree'
+    :: Ord ix
+    => Tracer IO (Maybe Int)
+    -- ^ Logging of current number of references
+    -> RetryPolicy
+    -- ^ How and when to poll the 'RefCount'
+    -> RefCount ix
+    -- ^ Mutable variable containing reference counts
+    -> ix
+    -- ^ Identifier
+    -> (Int -> IO a)
+    -- ^ Action to run, passed number of references in use
+    -> IO a
+waitForFree' tr pol (RefCount mvar lock) ix action = modifyMVar lock $ const $ do
     res <- retrying pol (const $ pure . isJust) (const check)
     ((), ) <$> action (fromMaybe 0 res)
   where
@@ -186,5 +229,9 @@ waitForFree tr (RefCount mvar lock) ix action = modifyMVar lock $ const $ do
         refs <- Map.lookup ix <$> readMVar mvar
         traceWith tr refs
         pure refs
-    pol = fibonacciBackoff 50_000 & capDelay 5_000_000
-        & limitRetriesByCumulativeDelay 120_000_000
+
+-- | Recommended retry schedule for polling the 'RefCount'. It will poll for up
+-- to 2 minutes.
+waitForFreeRetryPolicy :: RetryPolicy
+waitForFreeRetryPolicy = fibonacciBackoff 50_000 & capDelay 5_000_000
+    & limitRetriesByCumulativeDelay 120_000_000
