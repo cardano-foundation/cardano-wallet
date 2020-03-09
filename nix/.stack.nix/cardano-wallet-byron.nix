@@ -127,43 +127,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."directory" or (buildDepError "directory"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."http-client" or (buildDepError "http-client"))
-            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-            (hsPkgs."network" or (buildDepError "network"))
-            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
-            (hsPkgs."process" or (buildDepError "process"))
-            (hsPkgs."temporary" or (buildDepError "temporary"))
-            (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."time" or (buildDepError "time"))
-            (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
-            (hsPkgs."yaml" or (buildDepError "yaml"))
-            ];
-          build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-byron or (pkgs.buildPackages.cardano-wallet-byron or (buildToolDepError "cardano-wallet-byron")))
-            ];
-          buildable = true;
-          };
-        };
-      tests = {
-        "integration" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."aeson" or (buildDepError "aeson"))
-            (hsPkgs."async" or (buildDepError "async"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
-            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
-            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
-            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
-            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
-            (hsPkgs."directory" or (buildDepError "directory"))
-            (hsPkgs."filepath" or (buildDepError "filepath"))
-            (hsPkgs."hspec" or (buildDepError "hspec"))
-            (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."http-types" or (buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."network" or (buildDepError "network"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
