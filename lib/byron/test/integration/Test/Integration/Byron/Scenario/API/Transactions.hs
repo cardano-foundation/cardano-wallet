@@ -15,8 +15,6 @@ module Test.Integration.Byron.Scenario.API.Transactions
 
 import Prelude
 
-import Cardano.Wallet.Api.Link
-    ( Discriminate )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiT (..)
@@ -26,20 +24,14 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Direction (..), TxStatus (..), WalletId )
-import Data.Aeson
-    ( FromJSON )
+    ( Address, Direction (..), TxStatus (..) )
+import Control.Monad
+    ( forM, forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Generics.Product.Typed
-    ( HasType )
 import Data.Quantity
     ( Quantity (..) )
-import GHC.Generics
-    ( Generic )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -55,11 +47,11 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , faucetAmt
     , fixtureIcarusWallet
+    , fixtureIcarusWalletAddrs
     , fixturePassphrase
     , fixtureRandomWallet
-    , icarusAddresses
+    , fixtureRandomWalletAddrs
     , json
-    , randomAddresses
     , request
     , verify
     )
@@ -69,52 +61,69 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = describe "BYRON_TXS" $ do
-    scenario_TRANS_CREATE_01 @'Byron fixtureRandomWallet (randomAddresses @n)
-    scenario_TRANS_CREATE_01 @'Byron fixtureIcarusWallet (icarusAddresses @n)
+    -- Random → Random
+    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+        [ fixtureRandomWalletAddrs @n
+        ]
+
+    -- Random → [Random, Icarus]
+    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+        [ fixtureRandomWalletAddrs @n
+        , fixtureIcarusWalletAddrs @n
+        ]
+
+    -- Icarus → Icarus
+    scenario_TRANS_CREATE_01_02 fixtureIcarusWallet
+        [ fixtureIcarusWalletAddrs @n
+        ]
+
+    -- Icarus → [Icarus, Random]
+    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+        [ fixtureIcarusWalletAddrs @n
+        , fixtureRandomWalletAddrs @n
+        ]
+
 
 --
 -- Scenarios
 --
 
-scenario_TRANS_CREATE_01
-    :: forall style t n mw wallet.
+scenario_TRANS_CREATE_01_02
+    :: forall t n.
         ( n ~ 'Mainnet
-        , Discriminate style
-        , HasType (ApiT WalletId) wallet
-        , FromJSON wallet
-        , Generic wallet
-        , Show wallet
         )
-    => (Context t -> IO (wallet, Mnemonic mw))
-    -> (Mnemonic mw -> [Address])
+    => (Context t -> IO ApiByronWallet)
+    -> [Context t -> IO (ApiByronWallet, [Address])]
     -> SpecWith (Context t)
-scenario_TRANS_CREATE_01 fixtureWallet fixtureAddresses =
-  it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
+scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     -- SETUP
-    (wSrc, _)   <- fixtureWallet ctx
-    (wDest, mw) <- fixtureWallet ctx
+    let amnt = 1 :: Natural
+    wSrc <- fixtureSource ctx
+    (recipients, payments) <- fmap unzip $ forM fixtures $ \fixtureTarget -> do
+        (wDest, addrs) <- fixtureTarget ctx
+        let addr = encodeAddress @n $ head addrs
+        pure (wDest, [json|
+            { "address": #{addr}
+            , "amount":
+                { "quantity": #{amnt}
+                , "unit": "lovelace"
+                }
+            }|])
+
 
     -- ACTION
-    let addr = encodeAddress @n $ head $ fixtureAddresses mw
-    let amnt = 1 :: Natural
-    let body = [json|{
-            "payments": [{
-                "address": #{addr},
-                "amount": {
-                    "quantity": #{amnt},
-                    "unit": "lovelace"
-                }
-            }],
-            "passphrase": #{fixturePassphrase}
-        }|]
+    let body = [json|
+            { "payments": #{payments}
+            , "passphrase": #{fixturePassphrase}
+            }|]
     r <- request @(ApiTransaction n) ctx
-        (Link.createTransaction @style wSrc) Default (Json body)
+        (Link.createTransaction @'Byron wSrc) Default (Json body)
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
-            { nInputs  = 1
-            , nOutputs = 1
-            , nChanges = 1
+            { nInputs  = length fixtures
+            , nOutputs = length fixtures
+            , nChanges = length fixtures
             }
     verify r
         [ expectResponseCode HTTP.status202
@@ -136,10 +145,14 @@ scenario_TRANS_CREATE_01 fixtureWallet fixtureAddresses =
                 )
             ]
 
-    eventually "destination balance increases" $ do
-        rDest <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron wDest) Default Empty
-        verify rDest
-            [ expectField (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt + amnt))
-            ]
+    forM_ recipients $ \wDest -> do
+        eventually "destination balance increases" $ do
+            rDest <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wDest) Default Empty
+            verify rDest
+                [ expectField (#balance . #available)
+                    (`shouldBe` Quantity (faucetAmt + amnt))
+                ]
+  where
+    title =
+        "TRANS_CREATE_01/02 - " ++ show (length fixtures) ++ " recipients"
