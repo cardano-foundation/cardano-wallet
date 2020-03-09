@@ -243,6 +243,8 @@ spec = do
             , "  list                     List all known wallets."
             , "  create                   Create a new wallet using a sequential"
             , "                           address scheme."
+            , "  restore                  Restore a wallet using a public"
+            , "                           account key."
             , "  get                      Fetch the wallet with specified id."
             , "  update                   Update a wallet."
             , "  delete                   Deletes wallet with specified wallet"
@@ -265,6 +267,19 @@ spec = do
             [ "Usage:  wallet create [--port INT] STRING"
             , "                      [--address-pool-gap INT]"
             , "  Create a new wallet using a sequential address scheme."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --address-pool-gap INT   number of unused consecutive addresses"
+            , "                           to keep track of. (default: 20)"
+            ]
+
+        ["wallet", "restore", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet restore [--port INT] STRING"
+            , "                       [--address-pool-gap INT]"
+            , "  Restore a wallet using a public account key."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
