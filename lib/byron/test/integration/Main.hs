@@ -105,12 +105,12 @@ import qualified Test.Integration.Scenario.API.Network as Network
 instance KnownCommand Byron where
     commandName = "cardano-wallet-byron"
 
-main :: forall t. (t ~ Byron) => IO ()
+main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "API Specifications" $ specWithServer tr $ do
             WalletsCommon.spec
-            TransactionsByron.spec
+            (TransactionsByron.spec @n)
             TransactionsCommon.spec
             Network.spec
 

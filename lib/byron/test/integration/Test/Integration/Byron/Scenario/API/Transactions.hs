@@ -19,11 +19,16 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiT (..)
     , ApiTransaction
+    , DecodeAddress (..)
     , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), PaymentAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( Address, Direction (..), TxStatus (..) )
 import Control.Monad
@@ -59,38 +64,53 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
+spec
+    :: forall (n :: NetworkDiscriminant) t.
+        ( PaymentAddress n IcarusKey
+        , PaymentAddress n ByronKey
+        , EncodeAddress n
+        , DecodeAddress n
+        )
+    => SpecWith (Context t)
 spec = describe "BYRON_TXS" $ do
     -- Random → Random
-    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+    scenario_TRANS_CREATE_01_02 @n
+        fixtureRandomWallet
         [ fixtureRandomWalletAddrs @n
         ]
 
     -- Random → [Random, Icarus]
-    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+    scenario_TRANS_CREATE_01_02 @n
+        fixtureRandomWallet
         [ fixtureRandomWalletAddrs @n
         , fixtureIcarusWalletAddrs @n
         ]
 
     -- Icarus → Icarus
-    scenario_TRANS_CREATE_01_02 fixtureIcarusWallet
+    scenario_TRANS_CREATE_01_02 @n
+        fixtureIcarusWallet
         [ fixtureIcarusWalletAddrs @n
         ]
 
     -- Icarus → [Icarus, Random]
-    scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+    scenario_TRANS_CREATE_01_02 @n
+        fixtureRandomWallet
         [ fixtureIcarusWalletAddrs @n
         , fixtureRandomWalletAddrs @n
         ]
 
+--    scenario_TRANS_CREATE_02x @n
+--        (fixtureRandomWalletWith [1_000_000_000])
+--        fixtureByronAddress
 
 --
 -- Scenarios
 --
 
 scenario_TRANS_CREATE_01_02
-    :: forall t n.
-        ( n ~ 'Mainnet
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
         )
     => (Context t -> IO ApiByronWallet)
     -> [Context t -> IO (ApiByronWallet, [Address])]
