@@ -854,6 +854,8 @@ instance Malformed (BodyParam ApiNetworkTip) where
         ]
 
 instance Malformed (BodyParam PostExternalTransactionData)
+-- no cases here as all bad requests are served by ErrDecodeSignedTxWrongPayload
+-- in Server.hs. Tested by integration tests.
 
 --
 -- Class instances (Header)
