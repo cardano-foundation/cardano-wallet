@@ -252,6 +252,7 @@ spec = do
                         , "--node-port", show nPort
                         , "--random-port"
                         , "--genesis-block-hash", block0H
+                        , "--shutdown-handler"
                         ]
                         (pure ())
                         CreatePipe
