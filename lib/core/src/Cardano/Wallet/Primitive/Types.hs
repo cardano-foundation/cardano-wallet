@@ -1527,7 +1527,10 @@ instance NFData StartTime
 
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic { getProtocolMagic :: Int32 }
-    deriving (Generic, Show)
+    deriving (Generic, Show, Eq)
+
+instance ToText ProtocolMagic where
+    toText (ProtocolMagic pm) = T.pack (show pm)
 
 -- | Hard-coded protocol magic for the Byron TestNet
 testnetMagic :: ProtocolMagic

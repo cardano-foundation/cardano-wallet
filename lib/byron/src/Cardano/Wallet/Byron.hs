@@ -63,7 +63,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
-    ( AddrInfo, withNetworkLayer )
+    ( AddrInfo (..), withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockchainParameters (..)
     , ChimericAccount
+    , ProtocolMagic
     , SyncTolerance
     , WalletId
     )
@@ -193,8 +194,10 @@ serveWallet
   block0
   (bp, versionData)
   beforeMainLoop = do
+    let ntwrk = networkDiscriminantVal @n
+    let magic = fromNetworkMagic $ networkMagic $ fst versionData
     traceWith applicationTracer $ MsgStarting addrInfo
-    traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
+    traceWith applicationTracer $ MsgNetworkName ntwrk magic
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
@@ -273,7 +276,7 @@ exitCodeApiServer = \case
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
     = MsgStarting AddrInfo
-    | MsgNetworkName NetworkDiscriminant
+    | MsgNetworkName NetworkDiscriminant ProtocolMagic
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
@@ -281,9 +284,10 @@ data ApplicationLog
 instance ToText ApplicationLog where
     toText = \case
         MsgStarting info ->
-            "Wallet backend server starting. " <> T.pack (show info) <> "..."
-        MsgNetworkName n ->
-            "Node is Haskell Node on " <> toText n
+            let addr = T.pack $ show $ addrAddress info
+            in "Wallet backend server starting. Using " <> addr <> "."
+        MsgNetworkName n magic ->
+            "Node is Haskell Node on " <> toText n <> " (" <> toText magic <> ")."
         MsgDatabaseStartup dbMsg ->
             toText dbMsg
         MsgServerStartupError startupErr -> case startupErr of
@@ -307,7 +311,7 @@ instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity = \case
         MsgStarting _ -> Info
-        MsgNetworkName _ -> Info
+        MsgNetworkName _ _ -> Info
         MsgDatabaseStartup ev -> defineSeverity ev
         MsgServerStartupError _ -> Alert
 
