@@ -671,19 +671,19 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 { "name": #{wName}
                 , "account_public_key" :#{accountPublicKeyInvalid}
                 }|]
-              , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+              , "Error in $['account_public_key']: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
                 , "account_public_key" :#{accountPublicKeyTooLong}
                 }|]
-              , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+              , "Error in $['account_public_key']: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
               )
              , ( [aesonQQ|
                  { "name": #{wName}
                  , "account_public_key" :#{accountPublicKeyTooShort}
                  }|]
-               , "Error in $['account_public_key']: AccountPublicKey: unable to deserialize ShelleyKey from json. Expecting hex-encoded string of 128 characters."
+               , "Error in $['account_public_key']: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
                )
             ]
 

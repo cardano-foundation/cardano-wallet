@@ -28,8 +28,8 @@ import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
-    , AccountPublicKey (..)
     , AddressAmount (..)
+    , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -1080,7 +1080,7 @@ instance Arbitrary AccountPostData where
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
         let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
-        pure $ AccountPostData wName (AccountPublicKey $ ApiT accXPub) Nothing
+        pure $ AccountPostData wName (ApiAccountPublicKey $ ApiT accXPub) Nothing
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary

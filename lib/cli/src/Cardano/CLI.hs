@@ -117,9 +117,9 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
-    , AccountPublicKey
     , AddressAmount
     , AllowedMnemonics
+    , ApiAccountPublicKey
     , ApiEpochNumber
     , ApiMnemonicT (..)
     , ApiNetworkClock
@@ -851,7 +851,7 @@ data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
     { _port :: Port "Wallet"
     , _name :: WalletName
     , _gap :: AddressPoolGap
-    , _key :: AccountPublicKey
+    , _key :: ApiAccountPublicKey
     }
 
 cmdWalletCreateFromPublicKey
@@ -1549,7 +1549,7 @@ walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
 
 -- | <public-key=ACCOUNT_PUBLIC_KEY>
-accPubKeyArgument :: Parser AccountPublicKey
+accPubKeyArgument :: Parser ApiAccountPublicKey
 accPubKeyArgument = argumentT $ mempty
     <> metavar "ACCOUNT_PUBLIC_KEY"
     <> help "128-character hex-encoded public account key."
