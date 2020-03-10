@@ -11,6 +11,8 @@
 , profiling ? config.haskellNix.profiling or false
 # Project top-level source tree
 , src
+# GitHub PR number (when building on Hydra)
+, pr ? null
 }:
 
 let
@@ -55,6 +57,10 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-jormungandr.components.tests = {
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          integration.doCheck = !isHydraPRJobset;
           # Some tests want to write ~/.local/share/cardano-wallet
           integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
@@ -126,6 +132,9 @@ let
       })
     ];
   };
+
+  # Hydra will pass the GitHub PR number as a string argument to release.nix.
+  isHydraPRJobset = toString pr != "";
 
 in
   pkgSet.config.hsPkgs // { _config = pkgSet.config; }

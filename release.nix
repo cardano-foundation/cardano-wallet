@@ -34,6 +34,7 @@
 , projectArgs ? {
     config = { allowUnfree = false; inHydra = true; };
     gitrev = cardano-wallet.rev;
+    inherit pr;
   }
 
 # The systems that the jobset will be built for.
@@ -51,6 +52,8 @@
 # Import pkgs, including IOHK common nix lib
 , pkgs ? import ./nix { inherit sourcesOverride; }
 
+# GitHub PR number (as a string), provided as a Hydra input
+, pr ? null
 }:
 
 with (import pkgs.iohkNix.release-lib) {
@@ -73,15 +76,18 @@ let
       map (drv: drv // { inherit packageName; }) (collectTests' package)
     ) ds);
 
+  # Remove build jobs for which cross compiling does not make sense.
+  filterJobsCross = filterAttrs (n: _: n != "dockerImage" && n != "shell" && n != "stackShell");
+
   inherit (systems.examples) mingwW64 musl64;
 
   jobs = {
     native = mapTestOn (packagePlatformsOrig project);
     # Cross compilation, excluding the dockerImage and shells that we cannnot cross compile
-    "${mingwW64.config}" = mapTestOnCross mingwW64 (packagePlatformsCross
-      (filterAttrs (n: _: n != "dockerImage" && n != "shell" && n != "stackShell") project));
-    musl64 = mapTestOnCross musl64 (packagePlatformsCross
-      (filterAttrs (n: _: n != "dockerImage" && n != "shell") project));
+    "${mingwW64.config}" = mapTestOnCross mingwW64
+      (packagePlatformsCross (filterJobsCross project));
+    musl64 = mapTestOnCross musl64
+      (packagePlatformsCross (filterJobsCross project));
   }
   // {
     # This aggregate job is what IOHK Hydra uses to update

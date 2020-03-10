@@ -46,6 +46,8 @@
 , gitrev ? pkgs.commonLib.commitIdFromGitRepoOrZero ./.git
 # Use this to reference local sources rather than the niv pinned versions (see nix/default.nix)
 , sourcesOverride ? {}
+# GitHub PR number (as a string), set when building a Hydra PR jobset.
+, pr ? null
 }:
 
 # commonLib includes iohk-nix utilities, our util.nix and nixpkgs lib.
@@ -60,7 +62,7 @@ let
   haskellPackages = import ./nix/haskell.nix {
     inherit config lib stdenv pkgs buildPackages;
     inherit (pkgs) haskell-nix;
-    inherit src;
+    inherit src pr;
   };
 
   filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);

@@ -124,6 +124,7 @@ import Options.Applicative
     , metavar
     , option
     , progDesc
+    , switch
     , value
     )
 import Options.Applicative.Types
@@ -241,31 +242,29 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helper' <*> cmd) $ mempt
     exec args@(LaunchArgs hostPreference listen nodePort mStateDir sTolerance logOpt jArgs) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
-            void $ withShutdownHandler trShutdown $ do
-                logInfo tr $ MsgLaunchArgs args
-                case genesisBlock jArgs of
-                    Right block0File -> requireFilePath block0File
-                    Left _ -> pure ()
-                let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
-                let databaseDir = stateDir </> "wallets"
-                let cp = JormungandrConfig
-                        { _stateDir = stateDir
-                        , _genesisBlock = genesisBlock jArgs
-                        , _restApiPort = fromIntegral . getPort <$> nodePort
-                        , _outputStream = Inherit
-                        , _extraArgs = extraJormungandrArgs jArgs
-                        }
-                setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
-                setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
-                exitWith =<< serveWallet @'Testnet
-                    tracers
-                    sTolerance
-                    (Just databaseDir)
-                    hostPreference
-                    listen
-                    (Launch cp)
-                    (beforeMainLoop tr)
+            logInfo tr $ MsgLaunchArgs args
+            case genesisBlock jArgs of
+                Right block0File -> requireFilePath block0File
+                Left _ -> pure ()
+            let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
+            let databaseDir = stateDir </> "wallets"
+            let cp = JormungandrConfig
+                    { _stateDir = stateDir
+                    , _genesisBlock = genesisBlock jArgs
+                    , _restApiPort = fromIntegral . getPort <$> nodePort
+                    , _outputStream = Inherit
+                    , _extraArgs = extraJormungandrArgs jArgs
+                    }
+            setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
+            setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
+            exitWith =<< serveWallet @'Testnet
+                tracers
+                sTolerance
+                (Just databaseDir)
+                hostPreference
+                listen
+                (Launch cp)
+                (beforeMainLoop tr)
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -279,6 +278,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _block0H :: Hash "Genesis"
+    , _enableShutdownHandler :: Bool
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show, Eq)
 
@@ -296,15 +296,15 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> genesisHashOption
+        <*> shutdownHandlerFlag
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
         -> IO ()
-    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H logOpt) = do
+    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H enableShutdownHandler logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            let trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
-            void $ withShutdownHandler trShutdown $ do
+            withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logInfo tr $ MsgServeArgs args
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl
@@ -321,6 +321,11 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     whenJust m fn = case m of
        Nothing -> pure ()
        Just a  -> fn a
+
+    withShutdownHandlerMaybe _ False = void
+    withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
+      where
+        trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
 
 {-------------------------------------------------------------------------------
                                  Options
@@ -367,6 +372,11 @@ extraArguments = many $ argument jmArg $ mempty
     suggestion arg = "The " <> arg <> " option is used by the 'launch'"
         <> " command.\nIf you need to use this option,"
         <> " run Jörmungandr separately and use 'serve'."
+
+shutdownHandlerFlag :: Parser Bool
+shutdownHandlerFlag = switch
+    (  long "shutdown-handler"
+    <> help "Enable the clean shutdown handler (exits when stdin is closed)" )
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers
