@@ -1,8 +1,13 @@
+-- |
+-- Copyright: © 2018-2020 IOHK
+-- License: Apache-2.0
+
 module Cardano.DB.Sqlite.DeleteSpec (spec) where
 
 import Prelude
 
 import Cardano.DB.Sqlite.Delete
+    ( newRefCount, waitForFree', withRef )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -20,12 +25,12 @@ spec :: Spec
 spec = describe "RefCount" $ do
     let testId = 1 :: Int
         otherId = 2 :: Int
-        
+
     it "resource can be allocated multiple times" $ do
         ref <- newRefCount
         withRef ref testId $ withRef ref testId $ pure ()
         waitForFree' nullTracer testPol ref testId $ flip shouldBe 0
-        
+
     it "waitForFree waits for withRef to finish" $ do
         ref <- newRefCount
         closed <- newEmptyMVar
@@ -37,7 +42,7 @@ spec = describe "RefCount" $ do
                 n `shouldBe` 0
                 isEmptyMVar closed
 
-        concurrently conn rm `shouldReturn` ((), False)
+        concurrently conn (threadDelay 10 >> rm) `shouldReturn` ((), False)
 
     it "waitForFree uses correct id" $ do
         ref <- newRefCount
@@ -50,7 +55,7 @@ spec = describe "RefCount" $ do
         withRef ref testId $
             waitForFree' nullTracer quickPol ref testId $
                 flip shouldBe 1
-        
+
 testPol :: RetryPolicy
 testPol = constantDelay 50000 <> limitRetries 20
 

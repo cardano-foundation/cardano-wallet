@@ -364,7 +364,7 @@ fileModeSpec =  do
                         removeDatabase testWid
                         isEmptyMVar closed
 
-                concurrently conn rm `shouldReturn` ((), False)
+                concurrently conn (threadDelay 10 >> rm) `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
