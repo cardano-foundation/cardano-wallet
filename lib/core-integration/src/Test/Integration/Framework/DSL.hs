@@ -1212,7 +1212,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArgs =
             [ "--port", show (ctx ^. typed @(Port "wallet")) ]
     let fullArgs =
-            [ "wallet", "create from-mnemonic" ] ++ portArgs ++ args
+            [ "wallet", "create", "from-mnemonic" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
@@ -1234,7 +1234,7 @@ createWalletFromPublicKeyViaCLI
     -> String
     -> IO r
 createWalletFromPublicKeyViaCLI ctx args accPubKey = cardanoWalletCLI @t $
-    [ "wallet", "create from-public-key", "--port"
+    [ "wallet", "create", "from-public-key", "--port"
     , show (ctx ^. typed @(Port "wallet"))] ++ args ++ [accPubKey]
 
 deleteWalletViaCLI
