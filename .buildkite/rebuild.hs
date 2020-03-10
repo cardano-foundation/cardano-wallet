@@ -446,7 +446,8 @@ saveStackWork cfg = saveZippedCache stackWorkCache cfg tar
   where
     nullTerminate = (<> "\0") . FP.encode
     dirs = nullTerminate <$> find (ends ".stack-work") "."
-    tar = TB.inproc "tar" ["--null", "-T", "-", "-c"] dirs
+    tar = TB.inproc "tar" (exclude ++ ["--null", "-T", "-", "-c"]) dirs
+    exclude = ["--exclude", ".stack-work/logs"]
 
 saveZippedCache :: FilePath -> CICacheConfig -> Shell ByteString -> IO ()
 saveZippedCache ext cfg@CICacheConfig{..} tar = case putCacheName cfg ext of
