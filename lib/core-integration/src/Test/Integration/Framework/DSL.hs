@@ -1212,7 +1212,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArgs =
             [ "--port", show (ctx ^. typed @(Port "wallet")) ]
     let fullArgs =
-            [ "wallet", "create" ] ++ portArgs ++ args
+            [ "wallet", "create from-mnemonic" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do

@@ -241,8 +241,7 @@ spec = do
             , ""
             , "Available commands:"
             , "  list                     List all known wallets."
-            , "  create                   Create a new wallet using a sequential"
-            , "                           address scheme."
+            , "  create from-mnemonic     Create a new wallet using a mnemonic."
             , "  create from-public-key   Create a wallet using a public account"
             , "                           key."
             , "  get                      Fetch the wallet with specified id."
@@ -263,10 +262,10 @@ spec = do
             , "                           API. (default: 8090)"
             ]
 
-        ["wallet", "create", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create [--port INT] STRING"
-            , "                      [--address-pool-gap INT]"
-            , "  Create a new wallet using a sequential address scheme."
+        ["wallet", "create from-mnemonic", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet create from-mnemonic [--port INT] STRING"
+            , "                                    [--address-pool-gap INT]"
+            , "  Create a new wallet using a mnemonic."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
