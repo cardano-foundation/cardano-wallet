@@ -1924,6 +1924,41 @@ paths:
         - *parametersSortOrder
       responses: *responsesListTransactions
 
+    post:
+      operationId: postByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+  /byron-wallets/{walletId}/payment-fees:
+    post:
+      operationId: postByronTransactionFee
+      tags: ["Byron Transactions"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for the transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionFeeData
+      responses: *responsesPostTransactionFee
+
   /byron-wallets/{walletId}/transactions/{transactionId}:
     delete:
       operationId: deleteByronTransaction

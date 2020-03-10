@@ -459,7 +459,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
         addrs0 = knownAddresses s0
-        (change, s1) = genChange mempty s0
+        (change, s1) = genChange (delegationAddress @'Mainnet) s0
         addrs1 = knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0
@@ -579,7 +579,7 @@ changeAddresses
     -> SeqState 'Mainnet ShelleyKey
     -> ([Address], SeqState 'Mainnet ShelleyKey)
 changeAddresses as s =
-    let (a, s') = genChange mempty s
+    let (a, s') = genChange (\k _ -> paymentAddress @'Mainnet k) s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap

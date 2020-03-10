@@ -29,7 +29,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), Passphrase (..), fromMnemonic )
+    ( DelegationAddress (..)
+    , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , fromMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -117,12 +121,14 @@ spec = do
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
@@ -154,7 +160,8 @@ spec = do
                 "passphrase": #{fixturePassphrase}
             }|]
 
-        r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payload
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -193,13 +200,15 @@ spec = do
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_ESTIMATE_09 - \
         \a fee can be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
-        r <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
@@ -433,7 +442,7 @@ fixtureExternalTx ctx toSend = do
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
     -- we create change address
-    let (addrChng, st') = genChange () st
+    let (addrChng, st') = genChange (delegationAddress @n) st
     -- we generate address private keys for all source wallet addresses
     let (Just keysAddrSrc) = isOwned st' (rootXPrv, pwd) addrSrc
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng

@@ -251,8 +251,8 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-            Default payload
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
@@ -1222,7 +1222,8 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc) Default payloadTrans
+            r <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
@@ -1391,8 +1392,8 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-                Default payload
+            rTrans <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
             let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
@@ -1718,7 +1719,8 @@ spec = do
     it "BYRON_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
         \amount eventually becomes available in the target wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =
@@ -1839,7 +1841,8 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \a migration operation removes all funds from the source wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1915,7 +1918,8 @@ spec = do
 
     it "BYRON_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1945,7 +1949,8 @@ spec = do
             actualFee `shouldBe` predictedFee
 
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 

@@ -7,6 +7,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -66,7 +67,13 @@ module Test.Integration.Framework.DSL
     , tearDown
     , fixtureRawTx
     , fixtureRandomWallet
+    , fixtureRandomWalletMws
+    , fixtureRandomWalletAddrs
+    , fixtureRandomWalletWith
     , fixtureIcarusWallet
+    , fixtureIcarusWalletMws
+    , fixtureIcarusWalletAddrs
+    , fixtureIcarusWalletWith
     , fixtureWallet
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
@@ -84,6 +91,8 @@ module Test.Integration.Framework.DSL
     , toQueryString
     , withMethod
     , withPathParam
+    , icarusAddresses
+    , randomAddresses
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -129,13 +138,25 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( AccountingStyle (..)
+    , HardDerivation (..)
+    , NetworkDiscriminant (..)
+    , PaymentAddress (..)
+    , SomeMnemonic (..)
+    , WalletKey (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
+    ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -157,6 +178,8 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     )
+import Control.Arrow
+    ( second )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -249,6 +272,8 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -646,20 +671,107 @@ fixtureWalletWithMnemonics ctx = do
             else threadDelay oneSecond *> checkBalance w
 
 -- | Restore a faucet Random wallet and wait until funds are available.
+fixtureRandomWalletMws
+    :: Context t
+    -> IO (ApiByronWallet, Mnemonic 12)
+fixtureRandomWalletMws ctx = do
+    mnemonics <- nextWallet @"random" (_faucet ctx)
+    (,mnemonics) <$> fixtureLegacyWallet ctx "random" (mnemonicToText mnemonics)
+
 fixtureRandomWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureRandomWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
-    fixtureLegacyWallet ctx "random" mnemonics
+fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
+
+fixtureRandomWalletAddrs
+    :: forall (n :: NetworkDiscriminant) t.
+        ( PaymentAddress n ByronKey
+        )
+    => Context t
+    -> IO (ApiByronWallet, [Address])
+fixtureRandomWalletAddrs =
+    fmap (second (randomAddresses @n)) . fixtureRandomWalletMws
+
+-- | Restore a wallet with the given UTxO distribution. Note that there's a
+-- limitation to what can be done here. We only have 10 UTxO available in each
+-- faucet and they "only" have 'faucetUtxoAmt = 100_000 Ada' in each.
+--
+-- This function makes no attempt at ensuring the request is valid, so be
+-- careful.
+--
+-- TODO: Remove duplication between Shelley / Byron fixtures.
+fixtureRandomWalletWith
+    :: forall (n :: NetworkDiscriminant) t.
+        ( EncodeAddress n
+        , DecodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => Context t
+    -> [Natural]
+    -> IO ApiByronWallet
+fixtureRandomWalletWith ctx coins0 = do
+    src  <- fixtureRandomWallet ctx
+    mws  <- entropyToMnemonic <$> genEntropy
+    dest <- emptyByronWalletWith ctx "random"
+        ("Random Wallet", mnemonicToText @12 mws, fixturePassphrase)
+    let addrs = randomAddresses @n mws
+    mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
+    void $ request @() ctx
+        (Link.deleteWallet @'Byron src) Default Empty
+    snd <$> unsafeRequest @ApiByronWallet ctx
+        (Link.getWallet @'Byron dest) Empty
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
+fixtureIcarusWalletMws
+    :: Context t
+    -> IO (ApiByronWallet, Mnemonic 15)
+fixtureIcarusWalletMws ctx = do
+    mnemonics <- nextWallet @"icarus" (_faucet ctx)
+    (,mnemonics) <$> fixtureLegacyWallet ctx "icarus" (mnemonicToText mnemonics)
+
 fixtureIcarusWallet
     :: Context t
     -> IO ApiByronWallet
-fixtureIcarusWallet ctx = do
-    mnemonics <- mnemonicToText <$> nextWallet @"icarus" (_faucet ctx)
-    fixtureLegacyWallet ctx "icarus" mnemonics
+fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
+
+fixtureIcarusWalletAddrs
+    :: forall (n :: NetworkDiscriminant) t.
+        ( PaymentAddress n IcarusKey
+        )
+    => Context t
+    -> IO (ApiByronWallet, [Address])
+fixtureIcarusWalletAddrs =
+    fmap (second (icarusAddresses @n)) . fixtureIcarusWalletMws
+
+-- | Restore a wallet with the given UTxO distribution. Note that there's a
+-- limitation to what can be done here. We only have 10 UTxO available in each
+-- faucet and they "only" have 'faucetUtxoAmt = 100_000 Ada' in each.
+--
+-- This function makes no attempt at ensuring the request is valid, so be
+-- careful.
+--
+-- TODO: Remove duplication between Shelley / Byron fixtures.
+fixtureIcarusWalletWith
+    :: forall (n :: NetworkDiscriminant) t.
+        ( EncodeAddress n
+        , DecodeAddress n
+        , PaymentAddress n IcarusKey
+        )
+    => Context t
+    -> [Natural]
+    -> IO ApiByronWallet
+fixtureIcarusWalletWith ctx coins0 = do
+    src  <- fixtureIcarusWallet ctx
+    mws  <- entropyToMnemonic <$> genEntropy
+    dest <- emptyByronWalletWith ctx "icarus"
+        ("Icarus Wallet", mnemonicToText @15 mws, fixturePassphrase)
+    let addrs = icarusAddresses @n mws
+    mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
+    void $ request @() ctx
+        (Link.deleteWallet @'Byron src) Default Empty
+    snd <$> unsafeRequest @ApiByronWallet ctx
+        (Link.getWallet @'Byron dest) Empty
+
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
@@ -738,7 +850,7 @@ fixtureWalletWith ctx coins0 = do
                 "passphrase": #{fixturePassphrase}
             }|]
         request @(ApiTransaction 'Testnet) ctx
-            (Link.createTransaction src) Default payload
+            (Link.createTransaction @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
             rb <- request @ApiWallet ctx
@@ -752,6 +864,51 @@ fixtureWalletWith ctx coins0 = do
             getFromResponse (#balance . #getApiT . #available) ra
                 `shouldBe`
                     getFromResponse (#balance . #getApiT . #total) ra
+
+-- | Move coins from a wallet to another
+moveByronCoins
+    :: forall (n :: NetworkDiscriminant) t.
+        ( EncodeAddress n
+        , DecodeAddress n
+        )
+    => Context t
+        -- ^ Api context
+    -> ApiByronWallet
+        -- ^ Source Wallet
+    -> (ApiByronWallet, [Address])
+        -- ^ Destination wallet
+    -> [Natural]
+        -- ^ Coins to move
+    -> IO ()
+moveByronCoins ctx src (dest, addrs) coins = do
+    balance <- getFromResponse (#balance . #available . #getQuantity)
+        <$> request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
+    let payments = for (zip coins addrs) $ \(amt, addr) ->
+            let addrStr = encodeAddress @n addr
+            in [aesonQQ|{
+                "address": #{addrStr},
+                "amount": {
+                    "quantity": #{amt},
+                    "unit": "lovelace"
+                }
+            }|]
+    let payload = Json [aesonQQ|{
+            "payments": #{payments :: [Value]},
+            "passphrase": #{fixturePassphrase}
+        }|]
+    request @(ApiTransaction n) ctx
+        (Link.createTransaction @'Byron src) Default payload
+        >>= expectResponseCode HTTP.status202
+    eventually "balance available = balance total" $ do
+        rb <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron dest) Default Empty
+        expectField (#balance . #available)
+            (`shouldBe` Quantity (sum (balance:coins))) rb
+        ra <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron src) Default Empty
+        getFromResponse (#balance . #available) ra
+            `shouldBe` getFromResponse (#balance . #total) ra
+
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural
@@ -833,6 +990,56 @@ delegationFee
     -> IO (HTTP.Status, Either RequestException ApiFee)
 delegationFee ctx w = do
     request @ApiFee ctx (Link.getDelegationFee w) Default Empty
+
+-- | Generate an infinite list of addresses for random wallets.
+--
+-- To be typically used as:
+--
+-- >>> take 1 (randomAddresses @n)
+-- [addr]
+randomAddresses
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    => Mnemonic 12
+    -> [Address]
+randomAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Byron.generateKeyFromSeed seed pwd
+        accXPrv =
+            Byron.deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            Byron.deriveAddressPrivateKey pwd accXPrv
+    in
+        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        | ix <- [minBound..maxBound]
+        ]
+
+-- | Generate an infinite list of addresses for icarus wallets
+--
+-- To be typically used as:
+--
+-- >>> take 1 (icarusAddresses @n)
+-- [addr]
+icarusAddresses
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey)
+    => Mnemonic 15
+    -> [Address]
+icarusAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Icarus.generateKeyFromSeed seed pwd
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+    in
+        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        | ix <- [minBound..maxBound]
+        ]
 
 listAddresses
     :: Context t

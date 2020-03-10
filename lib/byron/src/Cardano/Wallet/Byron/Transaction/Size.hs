@@ -17,8 +17,10 @@ module Cardano.Wallet.Byron.Transaction.Size
     , sizeOfTxWitness
     , sizeOfTxOut
     , sizeOfCoin
-    , worstSizeOf
-    , WorstSizeOf
+    , maxSizeOf
+    , MaxSizeOf
+    , minSizeOf
+    , MinSizeOf
     ) where
 
 import Prelude
@@ -54,12 +56,14 @@ sizeOfTx inps outs = 6
 
 -- SIGNED-TX
 --     = CBOR-LIST-LEN (2)    -- 1 byte
+--     | U8                   -- 1 byte
+--     | CBOR-LIST-LEN (2)    -- 1 byte
 --     | TX                   -- sizeOf(TX) bytes
 --     | CBOR-LIST-LEN (n)    -- 1-2 bytes (assuming n < 255)
 --     | *WITNESS             -- n * 139 bytes
---                            == 1 + sizeOf(TX) + 1-2 + n * 139
+--                            == 3 + sizeOf(TX) + 1-2 + n * 139
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx inps outs = 1
+sizeOfSignedTx inps outs = 3
     + sizeOfTx inps outs
     + sizeOf (CBOR.encodeListLen $ fromIntegral n)
     + n * sizeOfTxWitness
@@ -121,8 +125,11 @@ sizeOfCoin = sizeOf . CBOR.encodeWord64 . getCoin
 sizeOf :: CBOR.Encoding -> Int
 sizeOf = fromIntegral . BL.length . CBOR.toLazyByteString
 
-class WorstSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
-    worstSizeOf :: Int
+class MaxSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
+    maxSizeOf :: Int
+
+class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
+    minSizeOf :: Int
 
 -- ADDRESS (MainNet, Icarus)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -147,7 +154,8 @@ class WorstSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) whe
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (Ø)       --     1 byte
 --             | U8                   --     1 bytes
-instance WorstSizeOf Address 'Mainnet IcarusKey where worstSizeOf = 44
+instance MaxSizeOf Address 'Mainnet IcarusKey where maxSizeOf = 44
+instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 40
 
 -- ADDRESS (TestNet, Icarus)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -172,7 +180,8 @@ instance WorstSizeOf Address 'Mainnet IcarusKey where worstSizeOf = 44
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (8)       --     8 bytes
 --             | U8                   --     1 bytes
-instance WorstSizeOf Address 'Testnet IcarusKey where worstSizeOf = 51
+instance MaxSizeOf Address 'Testnet IcarusKey where maxSizeOf = 51
+instance MinSizeOf Address 'Testnet IcarusKey where minSizeOf = 47
 
 -- ADDRESS (MainNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -197,7 +206,8 @@ instance WorstSizeOf Address 'Testnet IcarusKey where worstSizeOf = 51
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (34)      --    34 bytes
 --             | U8                   --     1 bytes
-instance WorstSizeOf Address 'Mainnet ByronKey where worstSizeOf = 77
+instance MaxSizeOf Address 'Mainnet ByronKey where maxSizeOf = 77
+instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 73
 
 -- ADDRESS (TestNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -222,4 +232,5 @@ instance WorstSizeOf Address 'Mainnet ByronKey where worstSizeOf = 77
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (41)      --    41 bytes
 --             | U8                   --     1 bytes
-instance WorstSizeOf Address 'Testnet ByronKey where worstSizeOf = 84
+instance MaxSizeOf Address 'Testnet ByronKey where maxSizeOf = 84
+instance MinSizeOf Address 'Testnet ByronKey where minSizeOf = 80

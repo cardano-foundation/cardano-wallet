@@ -93,7 +93,8 @@ spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
 spec = do
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet] $ \fixtureByronWallet -> do
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
             let ep = Link.getMigrationInfo w
             r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty

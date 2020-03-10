@@ -226,7 +226,8 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         wSrc <- fixtureWallet ctx
         let pass = "cardano-wallet" :: Text
 
-        replicateM_ batchSize (postTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend)
+        replicateM_ batchSize
+            (postTx ctx (wSrc, Link.createTransaction @'Shelley, pass) wDest amtToSend)
         eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
@@ -262,7 +263,8 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
         let pass = "Secure Passphrase" :: Text
 
-        postMultiTx ctx (wSrc, Link.createTransaction, pass) wDest amtToSend batchSize
+        postMultiTx ctx
+            (wSrc, Link.createTransaction @'Shelley, pass) wDest amtToSend batchSize
         eventually "repeatPostMultiTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
@@ -343,18 +345,18 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                     }
                 }]
             }|]
-        t6 <- measureApiLogs tvar
-            (request @ApiFee ctx (Link.getTransactionFee wal1) Default payload)
+        t6 <- measureApiLogs tvar $ request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wal1) Default payload
 
         fmtResult "postTransactionFee " t6
 
-        t7 <- measureApiLogs tvar
-            (request @[ApiStakePool] ctx Link.listStakePools Default Empty)
+        t7 <- measureApiLogs tvar $ request @[ApiStakePool] ctx
+            Link.listStakePools Default Empty
 
         fmtResult "listStakePools     " t7
 
-        t8 <- measureApiLogs tvar
-            (request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty)
+        t8 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
 
         fmtResult "getNetworkInfo     " t8
 

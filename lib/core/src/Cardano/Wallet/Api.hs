@@ -54,7 +54,9 @@ module Cardano.Wallet.Api
         , ForceResyncByronWallet
 
     , ByronTransactions
+        , CreateByronTransaction
         , ListByronTransactions
+        , PostByronTransactionFee
         , DeleteByronTransaction
 
     , ByronMigrations
@@ -389,8 +391,17 @@ type ForceResyncByronWallet = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type ByronTransactions n =
-         ListByronTransactions n
+    CreateByronTransaction n
+    :<|> ListByronTransactions n
+    :<|> PostByronTransactionFee n
     :<|> DeleteByronTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransaction
+type CreateByronTransaction n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> ReqBody '[JSON] (PostTransactionData n)
+    :> PostAccepted '[JSON] (ApiTransaction n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
 type ListByronTransactions n = "byron-wallets"
@@ -400,6 +411,13 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransactionFee
+type PostByronTransactionFee n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "payment-fees"
+    :> ReqBody '[JSON] (PostTransactionFeeData n)
+    :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
 type DeleteByronTransaction = "byron-wallets"

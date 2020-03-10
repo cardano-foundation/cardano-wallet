@@ -61,13 +61,13 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, ByronBlock, fromByronBlock )
+    ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
-    ( AddrInfo, withNetworkLayer )
+    ( AddrInfo (..), withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
-    ( WorstSizeOf )
+    ( MaxSizeOf )
 import Cardano.Wallet.DB.Sqlite
     ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
+    , PaymentAddress
     , PersistPrivateKey
     , WalletKey
     , networkDiscriminantVal
@@ -97,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockchainParameters (..)
     , ChimericAccount
+    , ProtocolMagic
     , SyncTolerance
     , WalletId
     )
@@ -135,7 +137,7 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Logging
     ( ApiLog )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData )
+    ( NodeToClientVersionData (..) )
 import System.Exit
     ( ExitCode (..) )
 
@@ -150,10 +152,11 @@ import qualified Network.Wai.Handler.Warp as Warp
 serveWallet
     :: forall (n :: NetworkDiscriminant) t.
         ( NetworkDiscriminantVal n
+        , PaymentAddress n IcarusKey
         , DecodeAddress n
         , EncodeAddress n
-        , WorstSizeOf Address n IcarusKey
-        , WorstSizeOf Address n ByronKey
+        , MaxSizeOf Address n IcarusKey
+        , MaxSizeOf Address n ByronKey
         , t ~ IO Byron
         )
     => Tracers IO
@@ -191,8 +194,10 @@ serveWallet
   block0
   (bp, versionData)
   beforeMainLoop = do
+    let ntwrk = networkDiscriminantVal @n
+    let magic = fromNetworkMagic $ networkMagic $ fst versionData
     traceWith applicationTracer $ MsgStarting addrInfo
-    traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
+    traceWith applicationTracer $ MsgNetworkName ntwrk magic
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
@@ -200,9 +205,10 @@ serveWallet
     serveApp socket = do
         withNetworkLayer nullTracer bp addrInfo versionData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
-                byronApi   <- apiLayer (newTransactionLayer @n) nl
-                icarusApi  <- apiLayer (newTransactionLayer @n) nl
-                startServer socket byronApi icarusApi ntpClient $> ExitSuccess
+                let pm = fromNetworkMagic $ networkMagic $ fst versionData
+                randomApi  <- apiLayer (newTransactionLayer @n pm) nl
+                icarusApi  <- apiLayer (newTransactionLayer @n pm) nl
+                startServer socket randomApi icarusApi ntpClient $> ExitSuccess
 
     startServer
         :: Socket
@@ -210,12 +216,12 @@ serveWallet
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> NtpClient
         -> IO ()
-    startServer socket byron icarus ntp = do
+    startServer socket random icarus ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                Server.byronServer byron icarus ntp
+                Server.byronServer random icarus ntp
         Server.start settings apiServerTracer socket application
 
     apiLayer
@@ -270,7 +276,7 @@ exitCodeApiServer = \case
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
     = MsgStarting AddrInfo
-    | MsgNetworkName NetworkDiscriminant
+    | MsgNetworkName NetworkDiscriminant ProtocolMagic
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
@@ -278,9 +284,10 @@ data ApplicationLog
 instance ToText ApplicationLog where
     toText = \case
         MsgStarting info ->
-            "Wallet backend server starting. " <> T.pack (show info) <> "..."
-        MsgNetworkName n ->
-            "Node is Haskell Node on " <> toText n
+            let addr = T.pack $ show $ addrAddress info
+            in "Wallet backend server starting. Using " <> addr <> "."
+        MsgNetworkName n magic ->
+            "Node is Haskell Node on " <> toText n <> " (" <> toText magic <> ")."
         MsgDatabaseStartup dbMsg ->
             toText dbMsg
         MsgServerStartupError startupErr -> case startupErr of
@@ -304,7 +311,7 @@ instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity = \case
         MsgStarting _ -> Info
-        MsgNetworkName _ -> Info
+        MsgNetworkName _ _ -> Info
         MsgDatabaseStartup ev -> defineSeverity ev
         MsgServerStartupError _ -> Alert
 

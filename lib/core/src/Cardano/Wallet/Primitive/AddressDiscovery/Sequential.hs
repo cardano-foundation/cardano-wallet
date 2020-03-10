@@ -624,7 +624,6 @@ instance WalletKey k => IsOurs (SeqState n k) ChimericAccount where
 
 instance
     ( SoftDerivation k
-    , DelegationAddress n k
     ) => GenChange (SeqState n k) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
@@ -632,13 +631,15 @@ instance
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    type ArgGenChange (SeqState n k) = ()
-    genChange () (SeqState intPool extPool pending rpk) =
+    type ArgGenChange (SeqState n k) =
+        (k 'AddressK XPub -> k 'AddressK XPub -> Address)
+
+    genChange mkAddress (SeqState intPool extPool pending rpk) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub UTxOInternal ix
-            addr = delegationAddress @n addressXPub rpk
+            addr = mkAddress addressXPub rpk
         in
             (addr, SeqState intPool extPool pending' rpk)
 

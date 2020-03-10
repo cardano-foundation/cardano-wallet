@@ -120,8 +120,8 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-            Default payload
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
@@ -216,8 +216,8 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            rTrans <- request @(ApiTransaction n) ctx (Link.createTransaction wSrc)
-                Default payload
+            rTrans <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wSrc) Default payload
             expectResponseCode @IO HTTP.status403 rTrans
             expectErrorMessage (errMsg403NoRootKey $ wSrc ^. walletId) rTrans
 
@@ -287,7 +287,8 @@ spec = do
                     }]
                 }|]
 
-            rFee <- request @ApiFee ctx (Link.getTransactionFee wSrc) Default payload
+            rFee <- request @ApiFee ctx
+                (Link.getTransactionFee @'Shelley wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rFee
 
         it "Can delete" $ \ctx -> do

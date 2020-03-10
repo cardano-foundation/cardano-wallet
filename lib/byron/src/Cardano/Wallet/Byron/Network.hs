@@ -24,7 +24,7 @@ module Cardano.Wallet.Byron.Network
     , withNetworkLayer
 
       -- * Transport Helpers
-    , AddrInfo
+    , AddrInfo(..)
     , localSocketAddrInfo
     ) where
 
