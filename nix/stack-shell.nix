@@ -11,7 +11,7 @@ haskell.lib.buildStackProject rec {
 
   buildInputs =
     (with walletPackages; [ jormungandr jormungandr-cli cardano-node ]) ++
-    [ zlib gmp ncurses lzma openssl git systemd.dev nodejs ] ++
+    [ zlib gmp ncurses lzma openssl git systemd.dev ] ++
     (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
 
   phases = ["nobuildPhase"];

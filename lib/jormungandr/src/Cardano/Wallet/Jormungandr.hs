@@ -71,8 +71,6 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
-import Cardano.Wallet.DaedalusIPC
-    ( DaedalusIPCLog, daedalusIPC )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -131,7 +129,7 @@ import Control.Applicative
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
-    ( link, race )
+    ( link )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -142,8 +140,6 @@ import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Contravariant
     ( contramap )
 import Data.Maybe
@@ -214,10 +210,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     traceWith applicationTracer $ MsgNetworkName $ networkDiscriminantVal @n
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
-        Right (wPort, socket) -> do
-            either id id <$> race
-                (daedalusIPC daedalusIPCTracer wPort $> ExitSuccess)
-                (serveApp socket)
+        Right (_wPort, socket) -> serveApp socket
 
   where
     serveApp socket = withNetworkLayer networkTracer backend $ \case
@@ -451,7 +444,6 @@ data Tracers' f = Tracers
     , stakePoolEngineTracer :: f (WorkerLog Text StakePoolLog)
     , stakePoolDbTracer     :: f DBLog
     , networkTracer         :: f NetworkLayerLog
-    , daedalusIPCTracer     :: f DaedalusIPCLog
     , ntpClientTracer       :: f NtpTrace
     }
 
@@ -476,7 +468,6 @@ tracerSeverities sev = Tracers
     , stakePoolEngineTracer = Const sev
     , stakePoolDbTracer     = Const sev
     , networkTracer         = Const sev
-    , daedalusIPCTracer     = Const sev
     , ntpClientTracer       = Const sev
     }
 
@@ -490,7 +481,6 @@ setupTracers sev tr = Tracers
     , stakePoolEngineTracer = mkTrace stakePoolEngineTracer $ onoff stakePoolEngineTracer tr
     , stakePoolDbTracer     = mkTrace stakePoolDbTracer     $ onoff stakePoolDbTracer tr
     , networkTracer         = mkTrace networkTracer         $ onoff networkTracer tr
-    , daedalusIPCTracer     = mkTrace daedalusIPCTracer     $ onoff daedalusIPCTracer tr
     , ntpClientTracer       = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
     }
   where
@@ -520,7 +510,6 @@ tracerLabels = Tracers
     , stakePoolEngineTracer = Const "pools-engine"
     , stakePoolDbTracer     = Const "pools-db"
     , networkTracer         = Const "network"
-    , daedalusIPCTracer     = Const "daedalus-ipc"
     , ntpClientTracer       = Const "ntp-client"
     }
 
@@ -548,9 +537,6 @@ tracerDescriptions =
     , ( lbl networkTracer
       , "About networking communications with the node."
       )
-    , ( lbl daedalusIPCTracer
-      , "About inter-process communications with Daedalus."
-      )
     , ( lbl ntpClientTracer
       , "About ntp-client."
       )
@@ -568,6 +554,5 @@ nullTracers = Tracers
     , stakePoolEngineTracer = nullTracer
     , stakePoolDbTracer     = nullTracer
     , networkTracer         = nullTracer
-    , daedalusIPCTracer     = nullTracer
     , ntpClientTracer       = nullTracer
     }

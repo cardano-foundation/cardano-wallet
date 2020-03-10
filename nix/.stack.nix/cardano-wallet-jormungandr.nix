@@ -224,7 +224,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.nodejs or (pkgs.buildPackages.nodejs or (buildToolDepError "nodejs")))
             (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
             ];
           buildable = true;
