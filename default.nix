@@ -71,6 +71,7 @@ let
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
     inherit (jmPkgs) jormungandr jormungandr-cli;
+    inherit (pkgs) cardano-node;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
@@ -80,7 +81,11 @@ let
       haskellBuildUtils = haskellBuildUtils.package;
     };
 
-    inherit (haskellPackages.cardano-wallet-byron.components.exes) cardano-wallet-byron;
+    cardano-wallet-byron = import ./nix/package-cardano-node.nix {
+      inherit pkgs gitrev;
+      haskellBuildUtils = haskellBuildUtils.package;
+      exe = haskellPackages.cardano-wallet-byron.components.exes.cardano-wallet-byron;
+    };
 
     # `tests` are the test suites which have been built.
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
@@ -113,6 +118,7 @@ let
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
         ++ [ self.jormungandr self.jormungandr-cli
+             self.cardano-node
              pkgs.pkgconfig pkgs.sqlite-interactive
              pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
       meta.platforms = lib.platforms.unix;
