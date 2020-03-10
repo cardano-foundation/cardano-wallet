@@ -105,7 +105,7 @@ module Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
-    , restoreWalletViaCLI
+    , createWalletFromPublicKeyViaCLI
     , deleteWalletViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
@@ -1227,27 +1227,15 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
             err <- TIO.hGetContents stderr
             return (c, T.unpack out, err)
 
-restoreWalletViaCLI
-    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+createWalletFromPublicKeyViaCLI
+    :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
     -> String
-    -> IO (ExitCode, String, Text)
-restoreWalletViaCLI ctx args accPubKey = do
-    let portArgs =
-            [ "--port", show (ctx ^. typed @(Port "wallet")) ]
-    let fullArgs =
-            [ "wallet", "restore" ] ++ portArgs ++ args
-    let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $
-        \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin accPubKey
-            hFlush stdin
-            hClose stdin
-            c <- waitForProcess h
-            out <- TIO.hGetContents stdout
-            err <- TIO.hGetContents stderr
-            return (c, T.unpack out, err)
+    -> IO r
+createWalletFromPublicKeyViaCLI ctx args accPubKey = cardanoWalletCLI @t $
+    [ "wallet", "create from-public-key", "--port"
+    , show (ctx ^. typed @(Port "wallet"))] ++ args ++ [accPubKey]
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)

@@ -55,6 +55,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , cardanoWalletCLI
+    , createWalletFromPublicKeyViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyRandomWallet
@@ -73,7 +74,6 @@ import Test.Integration.Framework.DSL
     , listWalletsViaCLI
     , notDelegating
     , postTransactionViaCLI
-    , restoreWalletViaCLI
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , verify
@@ -287,9 +287,10 @@ spec = do
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
         let accXPub = T.unpack $ T.decodeUtf8 $ serializeXPub $
                 publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
-        (c2, o2, e2) <- restoreWalletViaCLI @t ctx ["n"] accXPub
+        (Exit c2, Stdout o2, Stderr e2) <-
+            createWalletFromPublicKeyViaCLI @t ctx ["n"] accXPub
         c2 `shouldBe` ExitSuccess
-        T.unpack e2 `shouldContain` cmdOk
+        e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
 
         -- make sure funds are there

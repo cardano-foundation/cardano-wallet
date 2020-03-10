@@ -785,7 +785,7 @@ cmdWallet = command "wallet" $ info (helper <*> cmds) $ mempty
     cmds = subparser $ mempty
         <> cmdWalletList @t
         <> cmdWalletCreate @t
-        <> cmdWalletRestore @t
+        <> cmdWalletCreateFromPublicKey @t
         <> cmdWalletGet @t
         <> cmdWalletUpdate @t
         <> cmdWalletDelete @t
@@ -845,25 +845,31 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
                 (ApiT wName)
                 (ApiT wPwd)
 
-cmdWalletRestore
+-- | Arguments for 'wallet create from-public-key' command
+data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
+    { _port :: Port "Wallet"
+    , _name :: WalletName
+    , _gap :: AddressPoolGap
+    , _key :: AccountPublicKey
+    }
+
+cmdWalletCreateFromPublicKey
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWalletRestore = command "restore" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Restore a wallet using a public account key."
+cmdWalletCreateFromPublicKey =
+    command "create from-public-key" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Create a wallet using a public account key."
   where
-    cmd = fmap exec $ WalletCreateArgs
+    cmd = fmap exec $ WalletCreateFromPublicKeyArgs
         <$> portOption
         <*> walletNameArgument
         <*> poolGapOption
-    exec (WalletCreateArgs wPort wName wGap) = do
-        pubAccKey <- do
-            let prompt = "Please enter a 128 character public account key: "
-            let parser = fromText @AccountPublicKey
-            fst <$> getLine prompt parser
+        <*> accPubKeyArgument
+    exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
         runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
             WalletOrAccountPostData $ Right $ AccountPostData
                 (ApiT wName)
-                pubAccKey
+                wAccPubKey
                 (Just $ ApiT wGap)
 
 -- | Arguments for 'wallet get' command
@@ -1540,6 +1546,12 @@ transactionIdArgument = argumentT $ mempty
 walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
+
+-- | <public-key=ACCOUNT_PUBLIC_KEY>
+accPubKeyArgument :: Parser AccountPublicKey
+accPubKeyArgument = argumentT $ mempty
+    <> metavar "ACCOUNT_PUBLIC_KEY"
+    <> help "128-character hex-encoded public account key."
 
 -- | <payload=BINARY_BLOB>
 transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
