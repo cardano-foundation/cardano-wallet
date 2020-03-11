@@ -13,8 +13,10 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation (..)
+    ( ApiNetworkClock (..)
+    , ApiNetworkInformation (..)
     , ApiNetworkParameters
+    , NtpSyncingStatus (..)
     , toApiNetworkParameters
     )
 import Cardano.Wallet.Primitive.Types
@@ -38,7 +40,13 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( Context (..), KnownCommand, cardanoWalletCLI, expectValidJSON )
+    ( Context (..)
+    , KnownCommand
+    , cardanoWalletCLI
+    , eventually
+    , expectCliField
+    , expectValidJSON
+    )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg404NoEpochNo )
 
@@ -86,6 +94,12 @@ spec = do
             let maxEpoch = show $ fromIntegral @Word31 @Int maxBound
             params <- getNetworkParamsViaCliExpectingFailure ctx maxEpoch
             params `shouldContain` (errMsg404NoEpochNo maxEpoch)
+
+    it "CLI_NETWORK - network clock" $ \ctx -> do
+        eventually "ntp status = available" $ do
+            clock <- getNetworkClockViaCLI ctx
+            expectCliField (#ntpStatus . #status)
+                (`shouldBe` NtpSyncingStatusAvailable) clock
   where
       getNetworkParamsViaCliExpectingSuccess
           :: Context t
@@ -121,6 +135,17 @@ spec = do
           c `shouldBe` ExitSuccess
           e `shouldContain` cmdOk
           expectValidJSON (Proxy @ApiNetworkInformation) o
+
+      getNetworkClockViaCLI
+          :: Context t
+          -> IO ApiNetworkClock
+      getNetworkClockViaCLI ctx = do
+          let port = show (ctx ^. typed @(Port "wallet"))
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+              ["network", "clock", "--port", port ]
+          c `shouldBe` ExitSuccess
+          e `shouldContain` cmdOk
+          expectValidJSON (Proxy @ApiNetworkClock) o
 
       currentEpochNo :: ApiNetworkInformation -> EpochNo
       currentEpochNo netInfo =
