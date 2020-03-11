@@ -49,6 +49,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg404NoEpochNo )
+import Test.Utils.Windows
+    ( pendingOnWindows )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -96,6 +98,7 @@ spec = do
             params `shouldContain` (errMsg404NoEpochNo maxEpoch)
 
     it "CLI_NETWORK - network clock" $ \ctx -> do
+        pendingOnWindows "network clock at this point is not supported on Windows"
         eventually "ntp status = available" $ do
             clock <- getNetworkClockViaCLI ctx
             expectCliField (#ntpStatus . #status)
