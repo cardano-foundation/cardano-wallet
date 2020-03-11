@@ -177,7 +177,6 @@ spec_WrongContentTypeHeader malformedRequest (ExpectedError msg) = do
         , "message": #{msg}
         }|])
 
-
 spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
 spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
     response <- request malformedRequest
