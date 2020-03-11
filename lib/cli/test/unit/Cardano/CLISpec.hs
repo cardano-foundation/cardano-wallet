@@ -446,6 +446,7 @@ spec = do
             , "Available commands:"
             , "  information              View network information."
             , "  parameters               View network parameters."
+            , "  clock                    View NTP offset."
             ]
 
         ["network", "information", "--help"] `shouldShowUsage`
@@ -467,6 +468,16 @@ spec = do
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  EPOCH_NUMBER             epoch number parameter or 'latest'"
+            ]
+
+        ["network", "clock", "--help"] `shouldShowUsage`
+            [ "Usage:  network clock [--port INT]"
+            , "  View NTP offset."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
             ]
 
         ["key", "root", "--help"] `shouldShowUsage`
