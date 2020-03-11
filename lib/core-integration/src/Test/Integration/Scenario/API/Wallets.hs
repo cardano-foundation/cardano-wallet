@@ -534,44 +534,6 @@ spec = do
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
             verify r expectations
 
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- describe "WALLETS_CREATE_09 - Bad request" $ do
-    --     let matrix =
-    --             [ ( "empty payload", NonJson "" )
-    --             , ( "{} payload", NonJson "{}" )
-    --             , ( "non-json valid payload"
-    --               , NonJson
-    --                     "{name: wallet,\
-    --                     \ mnemonic_sentence: [pill, hand, ask, useless, asset,\
-    --                     \ rely, above, pipe, embark, game, elder, unaware,\
-    --                     \ nasty, coach, glad],\
-    --                     \ passphrase: 1234567890}"
-    --               )
-    --             ]
-
-    --     forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
-    --         let payload = nonJson
-    --         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-    --         expectResponseCode @IO HTTP.status400 r
-
-    -- it "WALLETS_CREATE_10 - Invalid JSON" $ \ctx -> do
-    --     -- This test case is designed to check that we can handle the case where
-    --     -- the payload of an API call triggers a JSON parsing error. We want to
-    --     -- check that we can produce an appropriate error message.
-    --     --
-    --     -- We could go to the trouble of testing with many kinds of broken JSON
-    --     -- across multiple different endpoints, but for now we simply test one
-    --     -- representative endpoint with one simple broken JSON string.
-    --     --
-    --     -- TODO: Later on, we can generalize this, if necessary.
-    --     --
-    --     let payloadBad = NonJson "}"
-    --     r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payloadBad
-    --     expectResponseCode @IO HTTP.status400 r
-    --     expectErrorMessage errMsg400ParseError r
-
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
 
@@ -862,14 +824,14 @@ spec = do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
 
-    it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ /ctx -> do
-        w -> emptyWalletWith ctx
+    it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ \ctx -> do
+        w <- emptyWalletWith ctx
             ("Wallet to update pass", "cardano-passphrase", 20)
-            let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
-            rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase w) Default payload
-            expectResponseCode @IO HTTP.status403 rup
-            expectErrorMessage errMsg403WrongPass rup
+        let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
+        rup <- request @ApiWallet ctx
+            (Link.putWalletPassphrase w) Default payload
+        expectResponseCode @IO HTTP.status403 rup
+        expectErrorMessage errMsg403WrongPass rup
 
     describe "WALLETS_UPDATE_PASS_03 - Can update pass from pass that's boundary\
     \ value" $ do
@@ -1713,14 +1675,6 @@ spec = do
                             (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
-
-    -- TODO
-    -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
-    --
-    -- describe "WALLETS_RESYNC_03" $ do
-    --     scenarioWalletResync03_invalidPayload @'Shelley emptyWallet
-    --     scenarioWalletResync03_invalidPayload @'Byron emptyRandomWallet
-    --     scenarioWalletResync03_invalidPayload @'Byron emptyIcarusWallet
   where
     -- Compute the fee associated with an API transaction.
     apiTransactionFee :: ApiTransaction n -> Word64
@@ -1805,31 +1759,3 @@ scenarioWalletResync02_notGenesis fixture = it
         [ expectResponseCode @IO HTTP.status403
         , expectErrorMessage errMsg403RejectedTip
         ]
-
--- TODO
--- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
---
--- -- force resync eventually get us back to the same point
--- scenarioWalletResync03_invalidPayload
---     :: forall style t n wallet.
---         ( n ~ 'Testnet
---         , Discriminate style
---         , HasType (ApiT WalletId) wallet
---         , HasField' "state" wallet (ApiT SyncProgress)
---         , FromJSON wallet
---         , Generic wallet
---         , Show wallet
---         )
---     => (Context t -> IO wallet)
---     -> SpecWith (Context t)
--- scenarioWalletResync03_invalidPayload fixture = it
---   "given payload is invalid (camelCase)" $ \ctx -> do
---     w <- fixture ctx
---
---     -- 1. Force a resync using an invalid payload
---     let payload = Json [json|{ "epochNumber": 0, "slot_number": 0 }|]
---     r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
---     verify r
---         [ expectResponseCode @IO HTTP.status400
---         , expectErrorMessage "key 'epoch_number' not present"
---         ]

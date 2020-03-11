@@ -351,28 +351,6 @@ spec = do
                     @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
                 verify r expectations
 
--- TODO
--- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
---
---    describe "BYRON_RESTORE_07 - Bad request" $ do
---        let matrix =
---                [ ( "empty payload", NonJson "" )
---                , ( "{} payload", NonJson "{}" )
---                , ( "non-json valid payload"
---                  , NonJson
---                        "{name: wallet,\
---                        \ mnemonic_sentence: [pill, hand, ask, useless, asset,\
---                        \ rely, above, pipe, embark, game, elder, unaware,\
---                        \ nasty, coach, glad],\
---                        \ passphrase: 1234567890}"
---                  )
---                ]
---
---        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
---            let payload = nonJson
---            r <- request @ApiByronWallet ctx (Link.postWallet @'Random) Default payload
---            expectResponseCode @IO HTTP.status400 r
-
     it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
         -- NOTE
         -- Special Icarus mnemonic where address indexes are all after the index
