@@ -1183,6 +1183,7 @@ cmdNetwork = command "network" $ info (helper <*> cmds) $ mempty
     cmds = subparser $ mempty
         <> cmdNetworkInformation @t
         <> cmdNetworkParameters @t
+        <> cmdNetworkClock @t
 
 -- | Arguments for 'network information' command
 newtype NetworkInformationArgs = NetworkInformationArgs
@@ -1217,6 +1218,21 @@ cmdNetworkParameters = command "parameters" $ info (helper <*> cmd) $ mempty
     exec (NetworkParametersArgs wPort epoch) = do
         runClient wPort Aeson.encodePretty $
             networkParameters (walletClient @t) epoch
+
+-- | Arguments for 'network clock' command
+newtype NetworkClockArgs = NetworkClockArgs
+    { _port :: Port "Wallet"
+    }
+
+cmdNetworkClock
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdNetworkClock = command "clock" $ info (helper <*> cmd) $ mempty
+    <> progDesc "View NTP offset."
+  where
+    cmd = fmap exec $ NetworkClockArgs <$> portOption
+    exec (NetworkClockArgs wPort) = do
+        runClient wPort Aeson.encodePretty $ networkClock (walletClient @t)
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
