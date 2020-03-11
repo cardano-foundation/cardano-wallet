@@ -22,9 +22,9 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Chain Parameters
     , KnownNetwork (..)
-    , mainnetGenesis
 
       -- * Genesis
+    , emptyGenesis
     , genesisTip
 
       -- * Conversions
@@ -152,6 +152,27 @@ instance KnownNetwork 'Mainnet where
             W.ActiveSlotCoefficient 1.0
         }
 
+instance KnownNetwork 'Testnet where
+    versionData = testnetVersionData
+    blockchainParameters = W.BlockchainParameters
+        { getGenesisBlockHash = W.Hash $ unsafeFromHex
+            "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471"
+        , getGenesisBlockDate =
+            W.StartTime $ posixSecondsToUTCTime 1563999616
+        , getFeePolicy =
+            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+        , getSlotLength =
+            W.SlotLength 20
+        , getEpochLength =
+            W.EpochLength 21600
+        , getTxMaxSize =
+            Quantity 65535
+        , getEpochStability =
+            Quantity 2160
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 1.0
+        }
+
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
 -- the following assumption:
@@ -160,8 +181,8 @@ instance KnownNetwork 'Mainnet where
 --
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
-mainnetGenesis :: W.Block
-mainnetGenesis = W.Block
+emptyGenesis :: W.BlockchainParameters -> W.Block
+emptyGenesis bp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
@@ -170,12 +191,11 @@ mainnetGenesis = W.Block
         , blockHeight =
             Quantity 0
         , headerHash =
-            coerce $ W.getGenesisBlockHash $ blockchainParameters @'Mainnet
+            coerce $ W.getGenesisBlockHash bp
         , parentHeaderHash =
             W.Hash (BS.replicate 32 0)
         }
     }
-
 
 --------------------------------------------------------------------------------
 --
@@ -194,7 +214,19 @@ mainnetVersionData
     :: NodeVersionData
 mainnetVersionData =
     ( NodeToClientVersionData
-        { networkMagic = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
+        { networkMagic =
+            NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
+        }
+    , nodeToClientCodecCBORTerm
+    )
+
+-- | Settings for configuring a TestNet network client
+testnetVersionData
+    :: NodeVersionData
+testnetVersionData =
+    ( NodeToClientVersionData
+        { networkMagic =
+            NetworkMagic $ fromIntegral $ W.getProtocolMagic W.testnetMagic
         }
     , nodeToClientCodecCBORTerm
     )

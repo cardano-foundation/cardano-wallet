@@ -57,7 +57,8 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Byron
-    ( TracerSeverities
+    ( SomeNetworkDiscriminant (..)
+    , TracerSeverities
     , Tracers
     , Tracers' (..)
     , serveWallet
@@ -66,7 +67,7 @@ import Cardano.Wallet.Byron
     , tracerLabels
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( KnownNetwork (..), mainnetGenesis )
+    ( KnownNetwork (..), NodeVersionData, emptyGenesis )
 import Cardano.Wallet.Byron.Network
     ( localSocketAddrInfo )
 import Cardano.Wallet.Logging
@@ -74,15 +75,17 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncTolerance )
+    ( BlockchainParameters, SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
-    ( Const (..), optional )
+    ( Const (..), optional, (<|>) )
 import Control.Monad
     ( void )
 import Control.Tracer
     ( contramap )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -94,6 +97,7 @@ import Options.Applicative
     , Mod
     , Parser
     , command
+    , flag'
     , help
     , helper
     , info
@@ -141,10 +145,11 @@ data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _listen :: Listen
     , _nodeSocket :: FilePath
+    , _networkDiscriminant :: SomeNetworkDiscriminant
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _logging :: LoggingOptions TracerSeverities
-    } deriving (Show, Eq)
+    } deriving (Show)
 
 cmdServe
     :: Mod CommandFields (IO ())
@@ -157,29 +162,46 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <$> hostPreferenceOption
         <*> listenOption
         <*> nodeSocketOption
+        <*> networkDiscriminantFlag
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
         -> IO ()
-    exec args@(ServeArgs hostPreference listen nodeSocket databaseDir sTolerance logOpt) = do
+    exec args@(ServeArgs
+      host
+      listen
+      nodeSocket
+      network@(SomeNetworkDiscriminant proxy)
+      databaseDir
+      sTolerance
+      logOpt) = do
         let addrInfo = localSocketAddrInfo nodeSocket
+        let networkParams = knownParameters proxy
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
             void $ withShutdownHandler (trMessage (contramap (fmap MsgShutdownHandler) tr)) $ do
                 logDebug tr $ MsgServeArgs args
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-                exitWith =<< serveWallet @'Mainnet
+                exitWith =<< serveWallet
+                    network
                     tracers
                     sTolerance
                     databaseDir
-                    hostPreference
+                    host
                     listen
                     addrInfo
-                    mainnetGenesis
-                    (blockchainParameters @'Mainnet, versionData @'Mainnet)
+                    (emptyGenesis (fst networkParams))
+                    networkParams
                     (beforeMainLoop tr)
+
+    knownParameters
+        :: forall n. (KnownNetwork n)
+        => Proxy n
+        -> (BlockchainParameters, NodeVersionData)
+    knownParameters _proxy =
+        ( blockchainParameters @n, versionData @n )
 
     whenJust m fn = case m of
        Nothing -> pure ()
@@ -195,6 +217,12 @@ nodeSocketOption = optionT $ mempty
     <> long "node-socket"
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
+
+-- | --testnet|--mainnet
+networkDiscriminantFlag :: Parser SomeNetworkDiscriminant
+networkDiscriminantFlag =
+        flag' (SomeNetworkDiscriminant $ Proxy @'Mainnet) (long "mainnet")
+    <|> flag' (SomeNetworkDiscriminant $ Proxy @'Testnet) (long "testnet")
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers
@@ -225,7 +253,7 @@ data MainLog
     | MsgListenAddress SockAddr
     | MsgSigTerm
     | MsgShutdownHandler ShutdownHandlerLog
-    deriving (Show, Eq)
+    deriving (Show)
 
 instance ToText MainLog where
     toText msg = case msg of

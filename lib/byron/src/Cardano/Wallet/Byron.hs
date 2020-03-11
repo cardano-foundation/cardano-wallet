@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -27,7 +28,8 @@
 -- "Cardano.Wallet.Byron.Transaction"
 
 module Cardano.Wallet.Byron
-    ( serveWallet
+    ( SomeNetworkDiscriminant (..)
+    , serveWallet
 
       -- * Tracing
     , Tracers' (..)
@@ -61,7 +63,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
+    ( Byron, ByronBlock, KnownNetwork (..), fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
     ( AddrInfo (..), withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
@@ -116,8 +118,6 @@ import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Contravariant
     ( contramap )
 import Data.Proxy
@@ -146,20 +146,34 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
+-- | Encapsulate a network discriminant and the necessary constraints it should
+-- satisfy.
+data SomeNetworkDiscriminant where
+    SomeNetworkDiscriminant
+        :: forall (n :: NetworkDiscriminant).
+            ( KnownNetwork n
+            , NetworkDiscriminantVal n
+            , PaymentAddress n IcarusKey
+            , DecodeAddress n
+            , EncodeAddress n
+            , MaxSizeOf Address n IcarusKey
+            , MaxSizeOf Address n ByronKey
+            )
+        => Proxy n
+        -> SomeNetworkDiscriminant
+
+deriving instance Show SomeNetworkDiscriminant
+
 -- | The @cardano-wallet-shelley@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall (n :: NetworkDiscriminant) t.
-        ( NetworkDiscriminantVal n
-        , PaymentAddress n IcarusKey
-        , DecodeAddress n
-        , EncodeAddress n
-        , MaxSizeOf Address n IcarusKey
-        , MaxSizeOf Address n ByronKey
-        , t ~ IO Byron
+    :: forall t.
+        ( t ~ IO Byron
         )
-    => Tracers IO
+    => SomeNetworkDiscriminant
+    -- ^ Proxy for the network discriminant
+    -> Tracers IO
     -- ^ Logging config.
     -> SyncTolerance
     -- ^ A time tolerance within we consider being synced
@@ -185,6 +199,7 @@ serveWallet
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet
+  (SomeNetworkDiscriminant proxy)
   Tracers{..}
   sTolerance
   databaseDir
@@ -192,10 +207,10 @@ serveWallet
   listen
   addrInfo
   block0
-  (bp, versionData)
+  (bp, vData)
   beforeMainLoop = do
-    let ntwrk = networkDiscriminantVal @n
-    let magic = fromNetworkMagic $ networkMagic $ fst versionData
+    let ntwrk = networkDiscriminantValFromProxy proxy
+    let magic = fromNetworkMagic $ networkMagic $ fst vData
     traceWith applicationTracer $ MsgStarting addrInfo
     traceWith applicationTracer $ MsgNetworkName ntwrk magic
     Server.withListeningSocket hostPref listen $ \case
@@ -203,20 +218,34 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = do
-        withNetworkLayer nullTracer bp addrInfo versionData $ \nl -> do
+        withNetworkLayer nullTracer bp addrInfo vData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
-                let pm = fromNetworkMagic $ networkMagic $ fst versionData
-                randomApi  <- apiLayer (newTransactionLayer @n pm) nl
-                icarusApi  <- apiLayer (newTransactionLayer @n pm) nl
-                startServer socket randomApi icarusApi ntpClient $> ExitSuccess
+                let pm = fromNetworkMagic $ networkMagic $ fst vData
+                randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
+                icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
+                startServer proxy socket randomApi icarusApi ntpClient
+                pure ExitSuccess
+
+    networkDiscriminantValFromProxy
+        :: forall n. (NetworkDiscriminantVal n)
+        => Proxy n
+        -> NetworkDiscriminant
+    networkDiscriminantValFromProxy _ =
+        networkDiscriminantVal @n
 
     startServer
-        :: Socket
+        :: forall n.
+            ( PaymentAddress n IcarusKey
+            , DecodeAddress n
+            , EncodeAddress n
+            )
+        => Proxy n
+        -> Socket
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> NtpClient
         -> IO ()
-    startServer socket random icarus ntp = do
+    startServer _proxy socket random icarus ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)

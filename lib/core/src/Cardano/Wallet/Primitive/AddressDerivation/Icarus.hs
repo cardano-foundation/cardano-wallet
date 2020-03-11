@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant )
+    ( Address (..), Hash (..), invariant, testnetMagic )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
@@ -383,6 +383,15 @@ instance PaymentAddress 'Mainnet IcarusKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
+    liftPaymentAddress (KeyFingerprint bytes) =
+        Address bytes
+
+instance PaymentAddress 'Testnet IcarusKey where
+    paymentAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getKey k)
+            [ CBOR.encodeProtocolMagicAttr testnetMagic
+            ]
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
