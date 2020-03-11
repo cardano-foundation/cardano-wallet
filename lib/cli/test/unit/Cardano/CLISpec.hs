@@ -123,7 +123,7 @@ spec = do
             <> cmdTransaction @'Testnet
             <> cmdAddress @'Testnet
             <> cmdStakePool @'Testnet
-            <> cmdNetwork @'Testnet
+            <> cmdNetwork
             <> cmdKey
 
 

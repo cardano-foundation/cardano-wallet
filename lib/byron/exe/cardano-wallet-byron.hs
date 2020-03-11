@@ -122,7 +122,7 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdKey
-        <> cmdNetwork @'Mainnet
+        <> cmdNetwork
         <> cmdVersion
 
 beforeMainLoop
