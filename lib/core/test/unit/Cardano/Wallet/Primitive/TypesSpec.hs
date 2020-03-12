@@ -339,7 +339,7 @@ spec = do
                 syncProgress syncTolerance slotParams nodeTip ntwkTip
                     `shouldBe` progress
 
-        it "syncProgress should never crash"
+        it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \f netSlot wSlot bh -> monadicIO $ do
                 let slotParams = mockSlotParams f
                 let nodeTip = mockBlockHeader wSlot bh
