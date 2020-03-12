@@ -147,6 +147,7 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , NonNegative (..)
     , NonZero (..)
     , Property
@@ -159,6 +160,7 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , forAll
     , infiniteList
     , oneof
     , property
@@ -355,14 +357,17 @@ spec = do
                     `shouldBe` progress
 
         it "syncProgress should never crash" $ withMaxSuccess 10000
-            $ property $ \f netSlot wSlot bh -> monadicIO $ do
+            $ property $ \f bh -> do
                 let slotParams = mockSlotParams f
-                let nodeTip = mockBlockHeader wSlot bh
-                when (netSlot > wSlot) $ do
+                let el = getEpochLength slotParams
+                let genSlotIdPair = (,) <$> (genSlotId el) <*> (genSlotId el)
+                forAll genSlotIdPair $ \(walSlot, netSlot) -> monadicIO $ do
+                    let nodeTip = mockBlockHeader walSlot bh
                     let x = syncProgress syncTolerance slotParams nodeTip netSlot
-                    res <- run (try @SomeException $ evaluate x)
-                    monitor (counterexample $ "Result: " ++ show res)
-                    assert (isRight res)
+                    when (netSlot > walSlot) $ do
+                        res <- run (try @SomeException $ evaluate x)
+                        monitor (counterexample $ "Result: " ++ show res)
+                        assert (isRight res)
 
     describe "flatSlot" $ do
 
@@ -1307,6 +1312,14 @@ instance Arbitrary EpochNo where
         closeToMinBound =                getSmall <$> arbitrary
         closeToMaxBound = (maxBound -) . getSmall <$> arbitrary
     shrink = genericShrink
+
+
+genSlotId :: EpochLength -> Gen SlotId
+genSlotId (EpochLength el) | el > 0 = do
+    ep <- choose (0, 10)
+    sl <- choose (0, el - 1)
+    return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+genSlotId _ = error "genSlotId: epochLength must > 0"
 
 instance Arbitrary SlotId where
     shrink _ = []
