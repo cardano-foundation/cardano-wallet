@@ -63,6 +63,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Either.Combinators
     ( maybeToRight )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -89,9 +91,10 @@ newTransactionLayer
         , WalletKey k
         , MaxSizeOf Address n k
         )
-    => ProtocolMagic
+    => Proxy n
+    -> ProtocolMagic
     -> TransactionLayer t k
-newTransactionLayer protocolMagic = TransactionLayer
+newTransactionLayer _proxy protocolMagic = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx

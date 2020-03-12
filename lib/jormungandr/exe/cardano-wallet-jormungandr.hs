@@ -169,7 +169,7 @@ main = withUtf8Encoding $ do
         <> cmdTransaction @'Testnet
         <> cmdAddress @'Testnet
         <> cmdStakePool @'Testnet
-        <> cmdNetwork @'Testnet
+        <> cmdNetwork
         <> cmdVersion
         <> cmdKey
 

@@ -28,7 +28,11 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, WalletStyle (..) )
 import Cardano.Wallet.Byron
-    ( serveWallet, setupTracers, tracerSeverities )
+    ( SomeNetworkDiscriminant (..)
+    , serveWallet
+    , setupTracers
+    , tracerSeverities
+    )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron )
 import Cardano.Wallet.Byron.Config
@@ -147,7 +151,8 @@ specWithServer tr = aroundAll withContext . after tearDown
     withServer action =
         withCardanoNode tr $ \addrInfo block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
-            serveWallet @'Mainnet
+            serveWallet
+                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 (setupTracers (tracerSeverities (Just Info)) tr)
                 (SyncTolerance 10)
                 (Just db)

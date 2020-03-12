@@ -46,6 +46,7 @@ library
     , http-client
     , iohk-monitoring
     , memory
+    , servant-server
     , servant-client
     , servant-client-core
     , text
