@@ -339,6 +339,21 @@ spec = do
                 syncProgress syncTolerance slotParams nodeTip ntwkTip
                     `shouldBe` progress
 
+        it "unit test #6 - block height 0" $ do
+            let slotParams = mockSlotParams 0.5
+            let ntwkTip = SlotId 1 0
+            let plots =
+                    [ (mockBlockHeader (SlotId 0 8) 0, 0)
+                    , (mockBlockHeader (SlotId 0 9) 0, 0)
+                    , (mockBlockHeader (SlotId 1 0) 0, 1)
+                    ]
+            forM_ plots $ \(nodeTip, p) -> do
+                let progress = if p == 1
+                        then Ready
+                        else Syncing (Quantity $ unsafeMkPercentage p)
+                syncProgress syncTolerance slotParams nodeTip ntwkTip
+                    `shouldBe` progress
+
         it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \f netSlot wSlot bh -> monadicIO $ do
                 let slotParams = mockSlotParams f
