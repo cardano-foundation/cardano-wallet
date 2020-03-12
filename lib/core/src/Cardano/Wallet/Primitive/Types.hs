@@ -1362,7 +1362,8 @@ syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
         ActiveSlotCoefficient f = sp ^. #getActiveSlotCoefficient
         remainingBlocks = round (remainingSlots * f)
 
-        progress = bhTip % (bhTip + remainingBlocks)
+        -- Using (max 1) to avoid division by 0.
+        progress = bhTip % (max 1 (bhTip + remainingBlocks))
     in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 1 then
         Ready
     else
