@@ -147,6 +147,7 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , NonNegative (..)
     , NonZero (..)
     , Property
@@ -159,6 +160,7 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , forAll
     , infiniteList
     , oneof
     , property
@@ -339,15 +341,33 @@ spec = do
                 syncProgress syncTolerance slotParams nodeTip ntwkTip
                     `shouldBe` progress
 
-        it "syncProgress should never crash"
-            $ property $ \f netSlot wSlot bh -> monadicIO $ do
+        it "unit test #6 - block height 0" $ do
+            let slotParams = mockSlotParams 0.5
+            let ntwkTip = SlotId 1 0
+            let plots =
+                    [ (mockBlockHeader (SlotId 0 8) 0, 0)
+                    , (mockBlockHeader (SlotId 0 9) 0, 0)
+                    , (mockBlockHeader (SlotId 1 0) 0, 1)
+                    ]
+            forM_ plots $ \(nodeTip, p) -> do
+                let progress = if p == 1
+                        then Ready
+                        else Syncing (Quantity $ unsafeMkPercentage p)
+                syncProgress syncTolerance slotParams nodeTip ntwkTip
+                    `shouldBe` progress
+
+        it "syncProgress should never crash" $ withMaxSuccess 10000
+            $ property $ \f bh -> do
                 let slotParams = mockSlotParams f
-                let nodeTip = mockBlockHeader wSlot bh
-                when (netSlot > wSlot) $ do
+                let el = getEpochLength slotParams
+                let genSlotIdPair = (,) <$> (genSlotId el) <*> (genSlotId el)
+                forAll genSlotIdPair $ \(walSlot, netSlot) -> monadicIO $ do
+                    let nodeTip = mockBlockHeader walSlot bh
                     let x = syncProgress syncTolerance slotParams nodeTip netSlot
-                    res <- run (try @SomeException $ evaluate x)
-                    monitor (counterexample $ "Result: " ++ show res)
-                    assert (isRight res)
+                    when (netSlot > walSlot) $ do
+                        res <- run (try @SomeException $ evaluate x)
+                        monitor (counterexample $ "Result: " ++ show res)
+                        assert (isRight res)
 
     describe "flatSlot" $ do
 
@@ -1292,6 +1312,14 @@ instance Arbitrary EpochNo where
         closeToMinBound =                getSmall <$> arbitrary
         closeToMaxBound = (maxBound -) . getSmall <$> arbitrary
     shrink = genericShrink
+
+
+genSlotId :: EpochLength -> Gen SlotId
+genSlotId (EpochLength el) | el > 0 = do
+    ep <- choose (0, 10)
+    sl <- choose (0, el - 1)
+    return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+genSlotId _ = error "genSlotId: epochLength must > 0"
 
 instance Arbitrary SlotId where
     shrink _ = []
