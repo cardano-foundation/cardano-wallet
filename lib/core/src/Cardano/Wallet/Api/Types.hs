@@ -87,7 +87,7 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types (Hardware)
     , AccountPostData (..)
-    , AccountPublicKey (..)
+    , ApiAccountPublicKey (..)
     , WalletOrAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
@@ -381,7 +381,7 @@ data ByronWalletPostData mw = ByronWalletPostData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-newtype AccountPublicKey = AccountPublicKey
+newtype ApiAccountPublicKey = ApiAccountPublicKey
     { key :: (ApiT (ShelleyKey 'AccountK XPub))
     } deriving (Eq, Generic, Show)
 
@@ -391,7 +391,7 @@ newtype WalletOrAccountPostData = WalletOrAccountPostData
 
 data AccountPostData = AccountPostData
     { name :: !(ApiT WalletName)
-    , accountPublicKey :: !AccountPublicKey
+    , accountPublicKey :: !ApiAccountPublicKey
     , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
     } deriving (Eq, Generic, Show)
 
@@ -625,6 +625,15 @@ data ApiPoolId
     | ApiPoolId PoolId
     deriving (Eq, Generic, Show)
 
+instance FromText ApiAccountPublicKey where
+    fromText txt = case xpubFromText (T.encodeUtf8 txt) of
+        Left _ ->
+            Left $ TextDecodingError $ unwords
+            [ "Invalid account public key: expecting a hex-encoded value"
+            , "that is 64 bytes in length."]
+        Right pubkey ->
+            Right $ ApiAccountPublicKey $ ApiT $ ShelleyKey pubkey
+
 {-------------------------------------------------------------------------------
                               API Types: Byron
 -------------------------------------------------------------------------------}
@@ -739,17 +748,10 @@ instance FromJSON WalletPostData where
 instance ToJSON WalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON AccountPublicKey where
-    parseJSON bytes = do
-        bs <- T.encodeUtf8 <$> parseJSON bytes
-        case xpubFromText bs of
-            Left _ ->
-                fail $
-                "AccountPublicKey: unable to deserialize ShelleyKey from json. "
-                <> "Expecting hex-encoded string of 128 characters."
-            Right pubkey ->
-                pure $ AccountPublicKey $ ApiT $ ShelleyKey pubkey
-instance ToJSON AccountPublicKey where
+instance FromJSON ApiAccountPublicKey where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON ApiAccountPublicKey where
     toJSON =
         toJSON . T.decodeUtf8 . serializeXPub . getApiT . key
 

@@ -99,8 +99,8 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
-    , AccountPublicKey (..)
     , AddressAmount (..)
+    , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -753,7 +753,7 @@ postAccountWallet ctx body = do
   where
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wName = getApiT (body ^. #name)
-    (AccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
+    (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ digest accXPub
 

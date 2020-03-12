@@ -105,6 +105,7 @@ module Test.Integration.Framework.DSL
     , cardanoWalletCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
+    , createWalletFromPublicKeyViaCLI
     , deleteWalletViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
@@ -1211,7 +1212,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArgs =
             [ "--port", show (ctx ^. typed @(Port "wallet")) ]
     let fullArgs =
-            [ "wallet", "create" ] ++ portArgs ++ args
+            [ "wallet", "create", "from-mnemonic" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
@@ -1225,6 +1226,16 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
             out <- TIO.hGetContents stdout
             err <- TIO.hGetContents stderr
             return (c, T.unpack out, err)
+
+createWalletFromPublicKeyViaCLI
+    :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
+    => s
+    -> [String]
+    -> String
+    -> IO r
+createWalletFromPublicKeyViaCLI ctx args accPubKey = cardanoWalletCLI @t $
+    [ "wallet", "create", "from-public-key", "--port"
+    , show (ctx ^. typed @(Port "wallet"))] ++ args ++ [accPubKey]
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)

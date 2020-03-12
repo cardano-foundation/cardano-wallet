@@ -241,8 +241,7 @@ spec = do
             , ""
             , "Available commands:"
             , "  list                     List all known wallets."
-            , "  create                   Create a new wallet using a sequential"
-            , "                           address scheme."
+            , "  create                   Create a new wallet."
             , "  get                      Fetch the wallet with specified id."
             , "  update                   Update a wallet."
             , "  delete                   Deletes wallet with specified wallet"
@@ -261,10 +260,10 @@ spec = do
             , "                           API. (default: 8090)"
             ]
 
-        ["wallet", "create", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create [--port INT] STRING"
-            , "                      [--address-pool-gap INT]"
-            , "  Create a new wallet using a sequential address scheme."
+        ["wallet", "create", "from-mnemonic", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet create from-mnemonic [--port INT] STRING"
+            , "                                    [--address-pool-gap INT]"
+            , "  Create a new wallet using a mnemonic."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -272,6 +271,22 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --address-pool-gap INT   number of unused consecutive addresses"
             , "                           to keep track of. (default: 20)"
+            ]
+
+        ["wallet", "create", "from-public-key", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet create from-public-key [--port INT] STRING"
+            , "                                      [--address-pool-gap INT]"
+            , "                                      ACCOUNT_PUBLIC_KEY"
+            , "  Create a wallet using a public account key."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --address-pool-gap INT   number of unused consecutive addresses"
+            , "                           to keep track of. (default: 20)"
+            , "  ACCOUNT_PUBLIC_KEY       64-byte (128-character) hex-encoded"
+            , "                           public account key."
             ]
 
         ["wallet", "get", "--help"] `shouldShowUsage`

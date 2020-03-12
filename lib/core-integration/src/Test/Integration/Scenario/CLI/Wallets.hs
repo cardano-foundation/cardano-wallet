@@ -15,10 +15,16 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiUtxoStatistics, ApiWallet, encodeAddress, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
+    ( FromMnemonic (..)
+    , HardDerivation (..)
+    , NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , PersistPublicKey (..)
+    , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +55,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , cardanoWalletCLI
+    , createWalletFromPublicKeyViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyRandomWallet
@@ -84,6 +91,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 spec
     :: forall t n. (n ~ 'Testnet, KnownCommand t)
@@ -229,6 +237,70 @@ spec = do
             , expectCliField
                     (#balance . #getApiT . #total) (`shouldBe` Quantity amount)
             , expectCliField walletId (`shouldBe` wDest ^. walletId)
+            ]
+
+    it "WALLETS_CREATE_02 - Restored wallet preserves funds from account\
+       \ public key" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+
+        -- create a wallet
+        Stdout m <- generateMnemonicsViaCLI @t []
+        (c1, o1, e1) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
+        c1 `shouldBe` ExitSuccess
+        T.unpack e1 `shouldContain` cmdOk
+        wDest <- expectValidJSON (Proxy @ApiWallet) o1
+        verify wDest
+            [ expectCliField
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            , expectCliField
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            ]
+
+        --send transaction to the wallet
+        let amount = 11
+        addrs:_ <- listAddresses ctx wDest
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amount) <> "@" <> addr
+                ]
+
+        (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        T.unpack ep `shouldContain` cmdOk
+        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
+        cp `shouldBe` ExitSuccess
+
+        eventually "Wallet balance is as expected" $ do
+            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            jg <- expectValidJSON (Proxy @ApiWallet) og
+            expectCliField (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amount) jg
+            expectCliField (#balance . #getApiT . #total)
+                (`shouldBe` Quantity amount) jg
+
+        -- delete wallet
+        Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+        cd `shouldBe` ExitSuccess
+
+        -- restore wallet from account public key
+        let (Right seed) = fromMnemonic @'[15] (T.pack <$> words m)
+        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
+        let accXPub = T.unpack $ T.decodeUtf8 $ serializeXPub $
+                publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        (Exit c2, Stdout o2, Stderr e2) <-
+            createWalletFromPublicKeyViaCLI @t ctx ["n"] accXPub
+        c2 `shouldBe` ExitSuccess
+        e2 `shouldContain` cmdOk
+        wRestored <- expectValidJSON (Proxy @ApiWallet) o2
+
+        -- make sure funds are there
+        Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
+        justRestored <- expectValidJSON (Proxy @ApiWallet) o3
+        verify justRestored
+            [ expectCliField
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity amount)
+            , expectCliField
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity amount)
             ]
 
     it "WALLETS_CREATE_03 - Cannot create wallet that exists" $ \ctx -> do

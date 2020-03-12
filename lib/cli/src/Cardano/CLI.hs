@@ -116,8 +116,10 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount
+    ( AccountPostData (..)
+    , AddressAmount
     , AllowedMnemonics
+    , ApiAccountPublicKey
     , ApiEpochNumber
     , ApiMnemonicT (..)
     , ApiNetworkClock
@@ -803,6 +805,16 @@ cmdWalletList = command "list" $ info (helper <*> cmd) $ mempty
     exec (WalletListArgs wPort) = do
         runClient wPort Aeson.encodePretty $ listWallets (walletClient @t)
 
+cmdWalletCreate
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletCreate = command "create" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Create a new wallet."
+  where
+    cmds = subparser $ mempty
+        <> cmdWalletCreateFromMnemonic @t
+        <> cmdWalletCreateFromPublicKey @t
+
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
     { _port :: Port "Wallet"
@@ -810,11 +822,12 @@ data WalletCreateArgs = WalletCreateArgs
     , _gap :: AddressPoolGap
     }
 
-cmdWalletCreate
+cmdWalletCreateFromMnemonic
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Create a new wallet using a sequential address scheme."
+cmdWalletCreateFromMnemonic =
+    command "from-mnemonic" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Create a new wallet using a mnemonic."
   where
     cmd = fmap exec $ WalletCreateArgs
         <$> portOption
@@ -841,6 +854,33 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
                 (ApiMnemonicT <$> wSndFactor)
                 (ApiT wName)
                 (ApiT wPwd)
+
+-- | Arguments for 'wallet create from-public-key' command
+data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
+    { _port :: Port "Wallet"
+    , _name :: WalletName
+    , _gap :: AddressPoolGap
+    , _key :: ApiAccountPublicKey
+    }
+
+cmdWalletCreateFromPublicKey
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletCreateFromPublicKey =
+    command "from-public-key" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Create a wallet using a public account key."
+  where
+    cmd = fmap exec $ WalletCreateFromPublicKeyArgs
+        <$> portOption
+        <*> walletNameArgument
+        <*> poolGapOption
+        <*> accPubKeyArgument
+    exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
+        runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
+            WalletOrAccountPostData $ Right $ AccountPostData
+                (ApiT wName)
+                wAccPubKey
+                (Just $ ApiT wGap)
 
 -- | Arguments for 'wallet get' command
 data WalletGetArgs = WalletGetArgs
@@ -1516,6 +1556,12 @@ transactionIdArgument = argumentT $ mempty
 walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
+
+-- | <public-key=ACCOUNT_PUBLIC_KEY>
+accPubKeyArgument :: Parser ApiAccountPublicKey
+accPubKeyArgument = argumentT $ mempty
+    <> metavar "ACCOUNT_PUBLIC_KEY"
+    <> help "64-byte (128-character) hex-encoded public account key."
 
 -- | <payload=BINARY_BLOB>
 transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
