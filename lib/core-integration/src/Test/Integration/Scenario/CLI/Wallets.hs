@@ -94,7 +94,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
+    :: forall t n. (n ~ 'Mainnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do

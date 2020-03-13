@@ -96,7 +96,7 @@ spec = do
 
         it "throws when encoding XPub of invalid length (Testnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @'Testnet (ShelleyKey $ XPub "\148" cc))
+            evaluate (paymentAddress @('Testnet _) (ShelleyKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
     describe "KeyFingerprint" $ do
@@ -107,7 +107,7 @@ spec = do
         it "Inspecting Invalid addresses throws"
             (property prop_fingerprintInvalidAddress)
         it "Roundtrips paymentKeyFingerprint . liftPaymentFingerprint (Testnet)"
-            (property (prop_fingerprintRoundtrip @'Testnet))
+            (property (prop_fingerprintRoundtrip @('Testnet _)))
         it "Roundtrips paymentKeyFingerprint . liftPaymentFingerprint (Mainnet)"
             (property (prop_fingerprintRoundtrip @'Mainnet))
 
@@ -167,14 +167,14 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
 
 -- | Single addresses have a payment key but no delegation key
 prop_fingerprintSingleAddress
-    :: SingleAddress 'Testnet
+    :: SingleAddress ('Testnet pm)
     -> Property
 prop_fingerprintSingleAddress (SingleAddress addr) = property $
     isRight (paymentKeyFingerprint @ShelleyKey addr)
 
 -- | Grouped addresses have a payment key and a delegation key
 prop_fingerprintGroupedAddress
-    :: GroupedAddress 'Testnet
+    :: GroupedAddress ('Testnet pm)
     -> Property
 prop_fingerprintGroupedAddress (GroupedAddress addr) = property $
     isRight (paymentKeyFingerprint @ShelleyKey addr)
@@ -237,8 +237,8 @@ instance Arbitrary InvalidAddress where
       where
         validSizes = [publicKeySize, 2*publicKeySize]
         validFirstBytes =
-            [ addrSingle @'Testnet
+            [ addrSingle @('Testnet _)
             , addrSingle @'Mainnet
-            , addrGrouped @'Testnet
+            , addrGrouped @('Testnet _)
             , addrGrouped @'Mainnet
             ]

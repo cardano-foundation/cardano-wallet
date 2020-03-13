@@ -96,7 +96,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Port "node", FeePolicy, Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Port "node", FeePolicy, Context t)
 spec = do
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> do
         eventually "Listing stake pools shows expected information" $ do
@@ -759,7 +759,7 @@ arbitraryPoolId = either (error . show) ApiT $ fromText
     "a659052d84ddb6a04189bee523d59c0a3385c921f43db5dc5de17a4f3f11dc4c"
 
 joinStakePoolWithWalletBalance
-    :: forall t n. (n ~ 'Testnet)
+    :: forall t n. (n ~ 'Mainnet)
     => (Context t)
     -> [Natural]
     -> IO (ApiWallet, ApiStakePool)
@@ -779,7 +779,7 @@ joinStakePoolWithWalletBalance ctx balance = do
     return (w, p)
 
 joinStakePoolWithFixtureWallet
-    :: forall t n. (n ~ 'Testnet)
+    :: forall t n. (n ~ 'Mainnet)
     => (Context t)
     -> IO (ApiWallet, ApiStakePool)
 joinStakePoolWithFixtureWallet ctx = do

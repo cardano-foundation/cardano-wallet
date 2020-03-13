@@ -54,7 +54,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> do
         w <- emptyRandomWallet ctx

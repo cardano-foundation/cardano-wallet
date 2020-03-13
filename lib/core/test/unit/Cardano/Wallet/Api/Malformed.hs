@@ -803,7 +803,7 @@ instance Malformed (BodyParam ApiWalletPassphrase) where
               )
             ]
 
-instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet)) where
+instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
@@ -814,7 +814,7 @@ instance Malformed (BodyParam (ApiSelectCoinsData 'Testnet)) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
-instance Malformed (BodyParam (PostTransactionData 'Testnet)) where
+instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
@@ -867,7 +867,7 @@ instance Malformed (BodyParam (PostTransactionData 'Testnet)) where
               )
             ]
 
-instance Malformed (BodyParam (PostTransactionFeeData 'Testnet)) where
+instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>

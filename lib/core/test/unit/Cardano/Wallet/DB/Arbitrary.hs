@@ -425,7 +425,7 @@ instance Arbitrary (Index 'WholeDomain 'AddressK) where
                               Sequential State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (SeqState 'Testnet ShelleyKey) where
+instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs rwd) =
         (\(i, e, x) -> SeqState i e x rwd) <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
@@ -498,7 +498,7 @@ arbitraryRewardAccount =
                                  Random State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (RndState 'Testnet) where
+instance Arbitrary (RndState 'Mainnet) where
     shrink (RndState k ix addrs pending g) =
         [ RndState k ix' addrs' pending' g
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
@@ -535,7 +535,7 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
-deriving instance Eq (SeqState 'Testnet ShelleyKey)
+deriving instance Eq (SeqState 'Mainnet ShelleyKey)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

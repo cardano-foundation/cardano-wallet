@@ -296,10 +296,10 @@ application :: Application
 application = serve api server
     & handleRawError (curry handler)
 
-api :: Proxy (Api 'Testnet)
-api = Proxy @(Api 'Testnet)
+api :: Proxy (Api ('Testnet 0))
+api = Proxy @(Api ('Testnet 0))
 
-server :: Server (Api 'Testnet)
+server :: Server (Api ('Testnet 0))
 server = error
     "No test from this module should actually reach handlers of the server. \
     \Tests are indeed all testing the internal machinery of Servant + Wai and \

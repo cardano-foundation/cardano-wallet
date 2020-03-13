@@ -165,10 +165,10 @@ main = withUtf8Encoding $ do
         <> cmdLaunch dataDir
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet @'Testnet
-        <> cmdTransaction @'Testnet
-        <> cmdAddress @'Testnet
-        <> cmdStakePool @'Testnet
+        <> cmdWallet @('Testnet 0)
+        <> cmdTransaction @('Testnet 0)
+        <> cmdAddress @('Testnet 0)
+        <> cmdStakePool @('Testnet 0)
         <> cmdNetwork
         <> cmdVersion
         <> cmdKey
@@ -257,7 +257,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> helper' <*> cmd) $ mempt
                     }
             setupDirectory (logInfo tr . MsgSetupStateDir) stateDir
             setupDirectory (logInfo tr . MsgSetupDatabases) databaseDir
-            exitWith =<< serveWallet @'Testnet
+            exitWith =<< serveWallet @('Testnet 0)
                 tracers
                 sTolerance
                 (Just databaseDir)
@@ -309,7 +309,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-                exitWith =<< serveWallet @'Testnet
+                exitWith =<< serveWallet @('Testnet 0)
                     tracers
                     sTolerance
                     databaseDir

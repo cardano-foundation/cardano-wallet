@@ -132,7 +132,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
+main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
     fmtLn "Latencies for 2 fixture wallets scenario"
     runScenario logging tvar (nFixtureWallet 2)
@@ -459,7 +459,7 @@ benchWithServer
 benchWithServer tracers action = withConfig $ \jmCfg -> do
     ctx <- newEmptyMVar
     race_ (takeMVar ctx >>= action) $ do
-        res <- serveWallet @'Testnet
+        res <- serveWallet @('Testnet 0)
             tracers (SyncTolerance 10)
             Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) $ \wAddr _ bp -> do

@@ -473,7 +473,7 @@ walletId =
 --
 
 waitAllTxsInLedger
-    :: forall t n. (n ~ 'Testnet)
+    :: forall t n. (n ~ 'Mainnet)
     => Context t
     -> ApiWallet
     -> IO ()
@@ -837,7 +837,7 @@ fixtureWalletWith ctx coins0 = do
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress 'Testnet] ctx
+            <$> request @[ApiAddress 'Mainnet] ctx
                     (Link.listAddresses dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
@@ -850,7 +850,7 @@ fixtureWalletWith ctx coins0 = do
                 "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
-        request @(ApiTransaction 'Testnet) ctx
+        request @(ApiTransaction 'Mainnet) ctx
             (Link.createTransaction @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
@@ -951,37 +951,37 @@ joinStakePool
     => Context t
     -> ApiT PoolId
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Mainnet))
 joinStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx
+    request @(ApiTransaction 'Mainnet) ctx
         (Link.joinStakePool (Identity p) w) Default payload
 
 quitStakePool
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Mainnet))
 quitStakePool ctx (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx
+    request @(ApiTransaction 'Mainnet) ctx
         (Link.quitStakePool w) Default payload
 
 selectCoins
     :: forall t w. (HasType (ApiT WalletId) w)
     => Context t
     -> w
-    -> NonEmpty (AddressAmount 'Testnet)
-    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection 'Testnet))
+    -> NonEmpty (AddressAmount 'Mainnet)
+    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection 'Mainnet))
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {
             "payments": #{payments}
         } |]
-    request @(ApiCoinSelection 'Testnet) ctx
+    request @(ApiCoinSelection 'Mainnet) ctx
         (Link.selectCoins w) Default payload
 
 delegationFee
@@ -1045,16 +1045,16 @@ icarusAddresses mw =
 listAddresses
     :: Context t
     -> ApiWallet
-    -> IO [ApiAddress 'Testnet]
+    -> IO [ApiAddress 'Mainnet]
 listAddresses ctx w = do
     let link = Link.listAddresses w
-    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx link Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress 'Mainnet] ctx link Empty
     return addrs
 
 listAllTransactions
     :: Context t
     -> ApiWallet
-    -> IO [ApiTransaction 'Testnet]
+    -> IO [ApiTransaction 'Mainnet]
 listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing Nothing
 
@@ -1064,9 +1064,9 @@ listTransactions
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
-    -> IO [ApiTransaction 'Testnet]
+    -> IO [ApiTransaction 'Mainnet]
 listTransactions ctx wallet mStart mEnd mOrder = do
-    (_, txs) <- unsafeRequest @[ApiTransaction 'Testnet] ctx path Empty
+    (_, txs) <- unsafeRequest @[ApiTransaction 'Mainnet] ctx path Empty
     return txs
   where
     path = Link.listTransactions' @'Shelley wallet

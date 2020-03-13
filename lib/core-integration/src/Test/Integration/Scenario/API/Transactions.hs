@@ -115,7 +115,7 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\

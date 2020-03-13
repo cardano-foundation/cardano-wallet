@@ -145,7 +145,7 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
@@ -1706,7 +1706,7 @@ spec = do
 -- force resync eventually get us back to the same point
 scenarioWalletResync01_happyPath
     :: forall style t n wallet.
-        ( n ~ 'Testnet
+        ( n ~ 'Mainnet
         , Discriminate style
         , HasType (ApiT WalletId) wallet
         , HasField' "state" wallet (ApiT SyncProgress)
@@ -1738,7 +1738,7 @@ scenarioWalletResync01_happyPath fixture = it
 -- force resync eventually get us back to the same point
 scenarioWalletResync02_notGenesis
     :: forall style t n wallet.
-        ( n ~ 'Testnet
+        ( n ~ 'Mainnet
         , Discriminate style
         , HasType (ApiT WalletId) wallet
         , HasField' "state" wallet (ApiT SyncProgress)

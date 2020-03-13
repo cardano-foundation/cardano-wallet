@@ -91,7 +91,7 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx

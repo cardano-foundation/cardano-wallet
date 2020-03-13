@@ -190,7 +190,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
         withConfig $ \jmCfg ->
         withMetadataRegistry $
         withSystemTempDirectory "cardano-wallet-databases" $ \db ->
-            serveWallet @'Testnet
+            serveWallet @'Mainnet
                 tracers
                 (SyncTolerance 10)
                 (Just db)

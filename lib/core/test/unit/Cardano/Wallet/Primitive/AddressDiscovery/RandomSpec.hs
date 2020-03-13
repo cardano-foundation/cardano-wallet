@@ -222,8 +222,8 @@ checkIsOwned GoldenTest{..} = do
         Just (addrXPrv, pwd)
         else Nothing
 
-rndStateFromMnem :: SomeMnemonic -> (ByronKey 'RootK XPrv, RndState 'Testnet)
-rndStateFromMnem mnemonic = (rootXPrv, mkRndState @'Testnet rootXPrv 0)
+rndStateFromMnem :: SomeMnemonic -> (ByronKey 'RootK XPrv, RndState 'Mainnet)
+rndStateFromMnem mnemonic = (rootXPrv, mkRndState @'Mainnet rootXPrv 0)
   where
     rootXPrv = generateKeyFromSeed mnemonic (Passphrase "")
 
@@ -245,7 +245,7 @@ propSpec = describe "Random Address Discovery Properties" $ do
 -- | A pair of random address discovery state, and the encryption passphrase for
 -- the RndState root key.
 data Rnd = Rnd
-    (RndState 'Testnet)
+    (RndState 'Mainnet)
     (ByronKey 'RootK XPrv)
     (Passphrase "encryption")
     deriving Show
@@ -259,7 +259,7 @@ prop_derivedKeysAreOurs
     (Rnd st@(RndState _ accIx _ _ _) rk pwd) (Rnd st' _ _) addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    addr = paymentAddress @'Testnet addrKey
+    addr = paymentAddress @'Mainnet addrKey
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
 
@@ -276,7 +276,7 @@ prop_derivedKeysAreOwned
     .&&.
     isOwned st' (rk', pwd') addr === Nothing
   where
-    addr = paymentAddress @'Testnet (publicKey addrKeyPrv)
+    addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
@@ -309,7 +309,7 @@ prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
 
     forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
 
-    addr = paymentAddress @'Testnet (publicKey addrKeyPrv)
+    addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 

@@ -55,7 +55,7 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do

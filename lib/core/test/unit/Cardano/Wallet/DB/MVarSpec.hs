@@ -36,7 +36,7 @@ import Test.QuickCheck
 import qualified Cardano.Wallet.DB.MVar as MVar
 
 spec :: Spec
-spec = withDB @(SeqState 'Testnet ShelleyKey) MVar.newDBLayer $
+spec = withDB @(SeqState 'Mainnet ShelleyKey) MVar.newDBLayer $
     describe "MVar" properties
 
 newtype DummyStateMVar = DummyStateMVar Int

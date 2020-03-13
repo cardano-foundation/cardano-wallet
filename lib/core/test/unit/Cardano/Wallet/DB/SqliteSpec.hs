@@ -214,7 +214,7 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @(SeqState 'Testnet ShelleyKey) @ShelleyKey $ do
+loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) @ShelleyKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
@@ -301,8 +301,8 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeq = DBLayer IO (SeqState 'Testnet ShelleyKey) ShelleyKey
-type TestDBRnd = DBLayer IO (RndState 'Testnet) ByronKey
+type TestDBSeq = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
+type TestDBRnd = DBLayer IO (RndState 'Mainnet) ByronKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -310,7 +310,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- Just <$> temporaryDBFile
-                (ctx, _) <- newDBLayer' @(SeqState 'Testnet ShelleyKey) db
+                (ctx, _) <- newDBLayer' @(SeqState 'Mainnet ShelleyKey) db
                 destroyDBLayer ctx
 
     describe "DBFactory" $ do
@@ -444,7 +444,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @(SeqState 'Testnet ShelleyKey))
+            (property $ prop_randomOpChunks @(SeqState 'Mainnet ShelleyKey))
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -508,7 +508,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 testOpeningCleaning
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState 'Testnet ShelleyKey) ShelleyKey -> IO s)
+    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO s)
     -> s
     -> s
     -> Expectation
@@ -525,7 +525,7 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState 'Testnet ShelleyKey) ShelleyKey -> IO ())
+    :: (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -642,10 +642,10 @@ cutRandomly = iter []
                                    Test data
 -------------------------------------------------------------------------------}
 
-testCp :: Wallet (SeqState 'Testnet ShelleyKey)
+testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCp = snd $ initWallet block0 genesisParameters initDummyState
   where
-    initDummyState :: SeqState 'Testnet ShelleyKey
+    initDummyState :: SeqState 'Mainnet ShelleyKey
     initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
@@ -678,10 +678,10 @@ testTxs =
                            Test data - Sequential AD
 -------------------------------------------------------------------------------}
 
-testCpSeq :: Wallet (SeqState 'Testnet ShelleyKey)
+testCpSeq :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 
-initDummyStateSeq :: SeqState 'Testnet ShelleyKey
+initDummyStateSeq :: SeqState 'Mainnet ShelleyKey
 initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)

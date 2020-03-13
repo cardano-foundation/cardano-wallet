@@ -103,7 +103,7 @@ import Web.HttpApiData
 import qualified Data.Text as T
 
 spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
+    :: forall t n. (n ~ 'Mainnet, KnownCommand t)
     => SpecWith (Context t)
 spec = do
 

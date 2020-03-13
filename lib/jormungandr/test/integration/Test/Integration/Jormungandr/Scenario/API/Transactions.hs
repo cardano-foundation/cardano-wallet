@@ -116,7 +116,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
 spec = do
 
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
@@ -415,7 +415,7 @@ data ExternalTxFixture = ExternalTxFixture
 -- Most of this could be replaced with simple calls of the derivation primitives
 -- in AddressDerivation.
 fixtureExternalTx
-    :: forall t n. (n ~ 'Testnet)
+    :: forall t n. (n ~ 'Mainnet)
     => (Context t)
     -> Natural
     -> IO ExternalTxFixture
