@@ -1591,6 +1591,9 @@ instance ToSchema (ByronWalletPostData '[12,15,18,21,24]) where
     -- NOTE ApiByronWalletLedgerPostData works too. Only the description differs.
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletTrezorPostData"
 
+instance ToSchema ByronWalletFromXPrvPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomXPrvPostData"
+
 instance ToSchema SomeByronWalletPostData where
     declareNamedSchema _ = do
         NamedSchema _ schema <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
