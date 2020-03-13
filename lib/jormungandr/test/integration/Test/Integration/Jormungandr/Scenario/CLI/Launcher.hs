@@ -79,6 +79,7 @@ spec = do
     let testData = $(getTestData) </> "jormungandr"
     let block0 = testData </> "block0.bin"
     let secret = testData </> "secret.yaml"
+    let config = testData </> "config.yaml"
     describe "LAUNCH - cardano-wallet launch [SERIAL]" $ do
         it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
             let args =
@@ -201,6 +202,7 @@ spec = do
                     , "--genesis-block", block0
                     , "--"
                     , "--secret", secret
+                    , "--config", config
                     ]
             let process = proc' (commandName @t) args
             wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
