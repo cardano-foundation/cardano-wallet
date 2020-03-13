@@ -63,7 +63,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, ByronBlock, KnownNetwork (..), fromByronBlock, fromNetworkMagic )
+    ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
     ( AddrInfo (..), withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
@@ -100,7 +100,6 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockchainParameters (..)
     , ChimericAccount
-    , ProtocolMagic
     , SyncTolerance
     , WalletId
     )
@@ -151,8 +150,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
-            ( KnownNetwork n
-            , NetworkDiscriminantVal n
+            ( NetworkDiscriminantVal n
             , PaymentAddress n IcarusKey
             , DecodeAddress n
             , EncodeAddress n
@@ -210,9 +208,8 @@ serveWallet
   (bp, vData)
   beforeMainLoop = do
     let ntwrk = networkDiscriminantValFromProxy proxy
-    let magic = fromNetworkMagic $ networkMagic $ fst vData
     traceWith applicationTracer $ MsgStarting addrInfo
-    traceWith applicationTracer $ MsgNetworkName ntwrk magic
+    traceWith applicationTracer $ MsgNetworkName ntwrk
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
@@ -229,7 +226,7 @@ serveWallet
     networkDiscriminantValFromProxy
         :: forall n. (NetworkDiscriminantVal n)
         => Proxy n
-        -> NetworkDiscriminant
+        -> Text
     networkDiscriminantValFromProxy _ =
         networkDiscriminantVal @n
 
@@ -305,7 +302,7 @@ exitCodeApiServer = \case
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
     = MsgStarting AddrInfo
-    | MsgNetworkName NetworkDiscriminant ProtocolMagic
+    | MsgNetworkName Text
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
@@ -315,8 +312,8 @@ instance ToText ApplicationLog where
         MsgStarting info ->
             let addr = T.pack $ show $ addrAddress info
             in "Wallet backend server starting. Using " <> addr <> "."
-        MsgNetworkName n magic ->
-            "Node is Haskell Node on " <> toText n <> " (" <> toText magic <> ")."
+        MsgNetworkName network ->
+            "Node is Haskell Node on " <> network <> "."
         MsgDatabaseStartup dbMsg ->
             toText dbMsg
         MsgServerStartupError startupErr -> case startupErr of
@@ -340,7 +337,7 @@ instance DefinePrivacyAnnotation ApplicationLog
 instance DefineSeverity ApplicationLog where
     defineSeverity = \case
         MsgStarting _ -> Info
-        MsgNetworkName _ _ -> Info
+        MsgNetworkName _ -> Info
         MsgDatabaseStartup ev -> defineSeverity ev
         MsgServerStartupError _ -> Alert
 

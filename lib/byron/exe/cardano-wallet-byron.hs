@@ -76,7 +76,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockchainParameters, SyncTolerance )
+    ( BlockchainParameters, ProtocolMagic (..), SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -91,6 +91,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.TypeLits
+    ( KnownNat, SomeNat (..), someNatVal )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
@@ -227,11 +229,27 @@ nodeSocketOption = optionT $ mempty
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
 
--- | --testnet|--mainnet
+-- | --mainnet|--testnet NETWORK_DISCRIMINANT
 networkDiscriminantFlag :: Parser SomeNetworkDiscriminant
 networkDiscriminantFlag =
-        flag' (SomeNetworkDiscriminant $ Proxy @'Mainnet) (long "mainnet")
-    <|> flag' (SomeNetworkDiscriminant $ Proxy @'Testnet) (long "testnet")
+    mainnetFlag <|> testnetOption
+  where
+    mainnetFlag = flag' (SomeNetworkDiscriminant $ Proxy @'Mainnet) $ mempty
+        <> long "mainnet"
+
+    testnetOption = fmap someTestnetDiscriminant $ optionT $ mempty
+        <> long "testnet"
+        <> metavar "NETWORK_MAGIC"
+      where
+        someTestnetDiscriminant :: ProtocolMagic -> SomeNetworkDiscriminant
+        someTestnetDiscriminant (ProtocolMagic pm) =
+            case someNatVal (fromIntegral pm) of
+                Just (SomeNat proxy) -> SomeNetworkDiscriminant $ mapProxy proxy
+                _ -> error "networkDiscriminantFlag: impossible: failed to \
+                    \convert ProtocolMagic to SomeNat."
+
+        mapProxy :: forall pm. KnownNat pm => Proxy pm -> Proxy (Testnet pm)
+        mapProxy _proxy = Proxy @('Testnet pm)
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers

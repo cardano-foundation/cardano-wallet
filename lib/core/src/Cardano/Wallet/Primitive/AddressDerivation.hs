@@ -561,22 +561,18 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -------------------------------------------------------------------------------}
 
 -- | Available network options.
-data NetworkDiscriminant = Mainnet | Testnet
-    deriving (Generic, Show, Eq, Bounded, Enum)
-
-instance NFData NetworkDiscriminant
-
-instance FromText NetworkDiscriminant where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText NetworkDiscriminant where
-    toText = toTextFromBoundedEnum SnakeLowerCase
+data NetworkDiscriminant = Mainnet | Testnet Nat
 
 class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
-    networkDiscriminantVal :: NetworkDiscriminant
+    networkDiscriminantVal :: Text
 
-instance NetworkDiscriminantVal 'Mainnet where networkDiscriminantVal = Mainnet
-instance NetworkDiscriminantVal 'Testnet where networkDiscriminantVal = Testnet
+instance NetworkDiscriminantVal 'Mainnet where
+    networkDiscriminantVal =
+        "mainnet"
+
+instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
+    networkDiscriminantVal =
+        "testnet (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types

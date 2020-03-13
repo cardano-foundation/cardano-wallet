@@ -91,6 +91,8 @@ import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Decoding as CBOR
@@ -142,12 +144,12 @@ instance WalletKey ByronKey where
     getRawKey = getKey
     keyTypeDescriptor _ = "rnd"
 
-instance PaymentAddress 'Testnet ByronKey where
+instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
-            , CBOR.encodeProtocolMagicAttr testnetMagic
+            , CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
             ]
       where
         (acctIx, addrIx) = derivationPath k

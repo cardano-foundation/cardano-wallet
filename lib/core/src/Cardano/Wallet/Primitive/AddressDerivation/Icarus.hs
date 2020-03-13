@@ -104,6 +104,8 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -386,11 +388,11 @@ instance PaymentAddress 'Mainnet IcarusKey where
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes
 
-instance PaymentAddress 'Testnet IcarusKey where
+instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey where
     paymentAddress k = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeProtocolMagicAttr testnetMagic
+            [ CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
             ]
     liftPaymentAddress (KeyFingerprint bytes) =
         Address bytes

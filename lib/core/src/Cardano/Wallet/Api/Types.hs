@@ -220,7 +220,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownNat, Nat, Symbol )
 import Numeric.Natural
     ( Natural )
 import Servant.API
@@ -1231,7 +1231,7 @@ class DecodeAddress (n :: NetworkDiscriminant) where
 instance EncodeAddress 'Mainnet where
     encodeAddress = gEncodeAddress
 
-instance EncodeAddress 'Testnet where
+instance EncodeAddress ('Testnet pm) where
     encodeAddress = gEncodeAddress
 
 gEncodeAddress :: Address -> Text
@@ -1252,8 +1252,8 @@ gEncodeAddress (Address bytes) =
 instance DecodeAddress 'Mainnet where
     decodeAddress = gDecodeAddress (decodeShelleyAddress @'Mainnet)
 
-instance DecodeAddress 'Testnet where
-    decodeAddress = gDecodeAddress (decodeShelleyAddress @'Testnet)
+instance KnownNat pm => DecodeAddress ('Testnet pm) where
+    decodeAddress = gDecodeAddress (decodeShelleyAddress @('Testnet pm))
 
 gDecodeAddress
     :: (ByteString -> Either TextDecodingError Address)
