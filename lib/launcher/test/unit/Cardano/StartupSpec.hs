@@ -106,7 +106,7 @@ spec = describe "withShutdownHandler" $ do
 
 withPipe :: ((Handle, Handle) -> IO a) -> IO a
 withPipe = bracket createPipe closePipe
-    where closePipe (a, b) = hClose a >> hClose b
+    where closePipe (a, b) = hClose b >> hClose a
 
 captureLogging' :: (Tracer IO msg -> IO a) -> IO [msg]
 captureLogging' = fmap fst . captureLogging
