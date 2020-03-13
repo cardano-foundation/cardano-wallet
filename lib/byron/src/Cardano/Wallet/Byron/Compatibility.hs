@@ -134,7 +134,7 @@ instance KnownNetwork 'Mainnet where
     versionData = mainnetVersionData
     blockchainParameters = W.BlockchainParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "f0f7892b5c333cffc4b3c4344de48af4cc63f55e44936196f365a9ef2244134f"
+            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
         , getFeePolicy =
