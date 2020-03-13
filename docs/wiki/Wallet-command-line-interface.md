@@ -42,6 +42,7 @@ Available COMMANDS:
   network
     <a href="#network-information">information</a>         View network information
     <a href="#network-parameters">parameters</a>          View network parameters
+    <a href="#network-clock">clock</a>               View NTP offset
   key
     <a href="#key-root">root</a>                Extract root extended private key from a mnemonic sentence.
     <a href="#key-child">child</a>               Derive child keys.
@@ -578,6 +579,10 @@ $ cardano-wallet stake-pools list
 
 View network information and syncing progress between the node and the blockchain.
 
+```
+$ cardano-wallet network information
+```
+
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## network parameters
@@ -585,6 +590,31 @@ View network information and syncing progress between the node and the blockchai
 > `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER` 
 
 View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not later than the current one), ie., `0`, `1`, .. .
+
+```
+$ cardano-wallet network parameters latest
+```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## network clock
+
+> `cardano-wallet network clock` 
+
+View [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) offset for cardano-wallet server in microseconds.
+
+```
+$ cardano-wallet network clock
+Ok.
+{
+    "status": "available",
+    "offset": {
+        "quantity": -30882,
+        "unit": "microsecond"
+    }
+}
+```
+> :warning: At this stage the command is not supported on Windows platform. Invoked on Windows will return `status: unavailable` in the response message.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
