@@ -232,20 +232,3 @@ withObject action = \case
     _ -> fail
         "withObject: was given an invalid JSON. Expected an Object but got \
         \something else."
-
--- | Construct an initial genesis block from a genesis UTxO.
-mkBlock0 :: BlockchainParameters -> [TxOut] -> Block
-mkBlock0 bp outs = Block
-    { delegations  = []
-    , header = BlockHeader
-        { slotId =
-            SlotId 0 0
-        , blockHeight =
-            Quantity 0
-        , headerHash =
-            coerce $ getGenesisBlockHash bp
-        , parentHeaderHash =
-            Hash (BS.replicate 32 0)
-        }
-    , transactions = fromGenesisTxOut <$> outs
-    }
