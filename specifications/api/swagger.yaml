@@ -581,7 +581,6 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
       properties:
         quantity:
           type: integer
-          minimum: 0
           example: 14
         unit:
           type: string
