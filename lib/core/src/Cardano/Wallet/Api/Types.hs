@@ -369,7 +369,7 @@ data WalletPostData = WalletPostData
     } deriving (Eq, Generic, Show)
 
 data SomeByronWalletPostData
-    = SomeRandomWallet (ByronWalletPostData (AllowedMnemonics 'Random))
+    = RandomWalletFromMnemonic (ByronWalletPostData (AllowedMnemonics 'Random))
     | SomeIcarusWallet (ByronWalletPostData (AllowedMnemonics 'Icarus))
     | SomeTrezorWallet (ByronWalletPostData (AllowedMnemonics 'Trezor))
     | SomeLedgerWallet (ByronWalletPostData (AllowedMnemonics 'Ledger))
@@ -782,7 +782,7 @@ instance ToJSON AccountPostData where
 
 instance ToJSON SomeByronWalletPostData where
     toJSON = \case
-        SomeRandomWallet w -> toJSON w
+        RandomWalletFromMnemonic w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Random)
         SomeIcarusWallet w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Icarus)
@@ -798,7 +798,7 @@ instance FromJSON SomeByronWalletPostData where
     parseJSON = withObject "SomeByronWallet" $ \obj -> do
         obj .: "style" >>= \case
             t | t == toText Random ->
-                SomeRandomWallet <$> parseJSON (Aeson.Object obj)
+                RandomWalletFromMnemonic <$> parseJSON (Aeson.Object obj)
             t | t == toText Icarus ->
                 SomeIcarusWallet <$> parseJSON (Aeson.Object obj)
             t | t == toText Trezor ->

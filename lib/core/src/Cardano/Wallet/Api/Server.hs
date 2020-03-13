@@ -488,7 +488,7 @@ server byron icarus shelley spl ntp =
     byronWallets :: Server ByronWallets
     byronWallets =
         (\case
-            SomeRandomWallet x -> postRandomWallet byron x
+            RandomWalletFromMnemonic x -> postRandomWallet byron x
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
@@ -604,7 +604,7 @@ byronServer byron icarus ntp =
     byronWallets :: Server ByronWallets
     byronWallets =
         (\case
-            SomeRandomWallet x -> postRandomWallet byron x
+            RandomWalletFromMnemonic x -> postRandomWallet byron x
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
