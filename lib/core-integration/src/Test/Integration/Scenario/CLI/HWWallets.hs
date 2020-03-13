@@ -15,14 +15,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiWallet, encodeAddress, getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
-    , HardDerivation (..)
-    , NetworkDiscriminant (..)
-    , PersistPublicKey (..)
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( generateKeyFromSeed )
+    ( NetworkDiscriminant (..) )
 -- import Cardano.Wallet.Primitive.Types
 --     ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 -- import Control.Monad
@@ -48,37 +41,25 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    -- , cardanoWalletCLI
     , createWalletFromPublicKeyViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
-    -- , emptyRandomWallet
-    -- , emptyWallet
-    -- , emptyWalletWith
     , eventually
     , expectCliField
-    -- , expectCliListField
     , expectValidJSON
-    -- , expectWalletUTxO
     , fixtureWallet
     , generateMnemonicsViaCLI
-    -- , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddresses
-    -- , listWalletsViaCLI
-    -- , notDelegating
     , postTransactionViaCLI
-    -- , updateWalletNameViaCLI
-    -- , updateWalletPassphraseViaCLI
+    , pubKeyFromMnemonics
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( cmdOk
-    )
+    ( cmdOk )
 
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 spec
     :: forall t n. (n ~ 'Testnet, KnownCommand t)
@@ -128,10 +109,7 @@ spec = do
         cd `shouldBe` ExitSuccess
 
         -- restore wallet from account public key
-        let (Right seed) = fromMnemonic @'[15] (T.pack <$> words m)
-        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = T.unpack $ T.decodeUtf8 $ serializeXPub $
-                publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
+        let accXPub = pubKeyFromMnemonics' (words m)
         (Exit c2, Stdout o2, Stderr e2) <-
             createWalletFromPublicKeyViaCLI @t ctx ["n"] accXPub
         c2 `shouldBe` ExitSuccess
@@ -148,6 +126,8 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity amount)
             ]
 
+pubKeyFromMnemonics' :: [String] -> String
+pubKeyFromMnemonics' m = T.unpack $ pubKeyFromMnemonics (T.pack <$> m)
 
 --       expect (expEc, expOut, expErr) (ec, out, err) = do
 --               ec `shouldBe` expEc
