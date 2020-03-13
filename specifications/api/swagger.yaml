@@ -565,10 +565,10 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
     status:
       type: string
       enum:
-        - unavailable
         - available
+        - unavailable
         - pending
-    drift:
+    offset:
       type: object
       description: |
         <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
@@ -581,12 +581,11 @@ x-networkInformationNtpStatus: &networkInformationNtpStatus
       properties:
         quantity:
           type: integer
-          minimum: 0
           example: 14
         unit:
           type: string
           enum:
-            - microseconds
+            - microsecond
 
 x-networkInformationNodeTip: &networkInformationNodeTip
   <<: *blockReference
@@ -661,7 +660,7 @@ components:
         next_epoch: *ApiEpochInfo
 
     ApiNetworkClock: &ApiNetworkClock
-      <<: *networkClockSyncProgress
+      <<: *networkInformationNtpStatus
 
     ApiNetworkParameters: &ApiNetworkParameters
       type: object
