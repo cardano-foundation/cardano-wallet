@@ -45,6 +45,7 @@ import Cardano.CLI
     , optionT
     , runCli
     , setupDirectory
+    , shutdownHandlerFlag
     , syncToleranceOption
     , withLogging
     )
@@ -148,6 +149,7 @@ data ServeArgs = ServeArgs
     , _networkDiscriminant :: SomeNetworkDiscriminant
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
+    , _enableShutdownHandler :: Bool
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -165,6 +167,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> networkDiscriminantFlag
         <*> optional databaseOption
         <*> syncToleranceOption
+        <*> shutdownHandlerFlag
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
@@ -176,12 +179,13 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       network@(SomeNetworkDiscriminant proxy)
       databaseDir
       sTolerance
+      enableShutdownHandler
       logOpt) = do
         let addrInfo = localSocketAddrInfo nodeSocket
         let networkParams = knownParameters proxy
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            void $ withShutdownHandler (trMessage (contramap (fmap MsgShutdownHandler) tr)) $ do
+            withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
                 exitWith =<< serveWallet
@@ -206,6 +210,11 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     whenJust m fn = case m of
        Nothing -> pure ()
        Just a  -> fn a
+
+    withShutdownHandlerMaybe _ False = void
+    withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
+      where
+        trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
 
 {-------------------------------------------------------------------------------
                                  Options

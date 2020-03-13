@@ -54,6 +54,7 @@ import Cardano.CLI
     , requireFilePath
     , runCli
     , setupDirectory
+    , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
     , withLogging
@@ -124,7 +125,6 @@ import Options.Applicative
     , metavar
     , option
     , progDesc
-    , switch
     , value
     )
 import Options.Applicative.Types
@@ -372,11 +372,6 @@ extraArguments = many $ argument jmArg $ mempty
     suggestion arg = "The " <> arg <> " option is used by the 'launch'"
         <> " command.\nIf you need to use this option,"
         <> " run Jörmungandr separately and use 'serve'."
-
-shutdownHandlerFlag :: Parser Bool
-shutdownHandlerFlag = switch
-    (  long "shutdown-handler"
-    <> help "Enable the clean shutdown handler (exits when stdin is closed)" )
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers

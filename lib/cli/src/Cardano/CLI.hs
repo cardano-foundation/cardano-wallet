@@ -48,8 +48,11 @@ module Cardano.CLI
     , listenOption
     , nodePortOption
     , nodePortMaybeOption
+    , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
+
+    -- * Option parsers for configuring tracing
     , LoggingOptions (..)
     , helperTracing
     , loggingOptions
@@ -262,6 +265,7 @@ import Options.Applicative
     , str
     , strOption
     , subparser
+    , switch
     , value
     )
 import Options.Applicative.Help.Pretty
@@ -1399,6 +1403,12 @@ sizeOption = optionT $ mempty
     <> help "number of mnemonic words to generate."
     <> value MS_15
     <> showDefaultWith showT
+
+-- | [--shutdown-handler]
+shutdownHandlerFlag :: Parser Bool
+shutdownHandlerFlag = switch
+    (  long "shutdown-handler"
+    <> help "Enable the clean shutdown handler (exits when stdin is closed)" )
 
 -- | --state-dir=DIR, default: ~/.cardano-wallet/$backend/$network
 stateDirOption :: FilePath -> Parser (Maybe FilePath)
