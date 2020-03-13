@@ -17,7 +17,6 @@
 module Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer
     , fromGenesisTxOut
-    , mkBlock0
     ) where
 
 import Prelude
@@ -216,13 +215,9 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 -- Internal
 --
 
-fromGenesisTxOut :: TxOut -> Tx
-fromGenesisTxOut out@(TxOut (Address bytes) _) =
-    Tx (Hash $ blake2b256 bytes) [] [out]
-
 -- | Construct an initial genesis block from a genesis UTxO.
-mkBlock0 :: BlockchainParameters -> [TxOut] -> Block
-mkBlock0 bp outs = Block
+fromGenesisTxOut :: BlockchainParameters -> [TxOut] -> Block
+fromGenesisTxOut bp outs = Block
     { delegations  = []
     , header = BlockHeader
         { slotId =
@@ -234,9 +229,12 @@ mkBlock0 bp outs = Block
         , parentHeaderHash =
             Hash (BS.replicate 32 0)
         }
-    , transactions = fromGenesisTxOut <$> outs
+    , transactions = mkTx <$> outs
     }
-
+  where
+    mkTx out@(TxOut (Address bytes) _) =
+        Tx (Hash $ blake2b256 bytes) [] [out]
+--
 dummyAddress
     :: forall (n :: NetworkDiscriminant) k. (MaxSizeOf Address n k) => Address
 dummyAddress =

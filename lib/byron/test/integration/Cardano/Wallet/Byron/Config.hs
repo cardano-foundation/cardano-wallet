@@ -31,13 +31,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , BlockchainParameters (..)
-    , Hash (..)
-    , SlotId (..)
-    , TxOut (..)
-    )
+    ( Block (..), BlockchainParameters (..), Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Exception
@@ -48,10 +42,6 @@ import Control.Monad.Fail
     ( MonadFail )
 import Data.Aeson
     ( toJSON )
-import Data.Coerce
-    ( coerce )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Time.Clock.POSIX
@@ -72,7 +62,6 @@ import Test.Utils.Paths
     ( getTestData )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -195,7 +184,7 @@ withConfig action =
                 , nodeSocketFile
                 , nodeTopologyFile
                 }
-            , mkBlock0 bp outs
+            , fromGenesisTxOut bp outs
             , ( bp
               , ( NodeToClientVersionData { networkMagic }
                 , nodeToClientCodecCBORTerm

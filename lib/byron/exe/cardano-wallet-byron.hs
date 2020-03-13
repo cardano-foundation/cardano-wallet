@@ -82,7 +82,7 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Byron.Network
     ( localSocketAddrInfo )
 import Cardano.Wallet.Byron.Transaction
-    ( mkBlock0 )
+    ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -213,7 +213,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     ( discriminant
                     , bp
                     , vData
-                    , mkBlock0 bp outs
+                    , fromGenesisTxOut bp outs
                     )
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
