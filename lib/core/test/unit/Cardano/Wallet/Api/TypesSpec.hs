@@ -60,10 +60,12 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
+    , EncryptedRootXPrv (..)
     , Iso8601Time (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
@@ -322,6 +324,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
             jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -1083,6 +1086,18 @@ instance Arbitrary AccountPostData where
         pure $ AccountPostData wName (ApiAccountPublicKey $ ApiT accXPub) Nothing
 
 instance Arbitrary WalletPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (Hash "Password") where
+    arbitrary = Hash . B8.pack <$> replicateM 64 arbitrary
+
+instance Arbitrary EncryptedRootXPrv where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ EncryptedRootXPrv $ BS.pack $ take 128 bytes
+
+instance Arbitrary ByronWalletFromXPrvPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
