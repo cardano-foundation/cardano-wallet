@@ -270,7 +270,7 @@ spec = do
                 (^? (_Ctor @"ErrGetDescendantsNetworkUnreachable"))
 
         describe "getStakeDistribution" $ do
-            let ep client () = Jormungandr.getStakeDistribution client
+            let ep client () = Jormungandr.getStakeDistribution client 0
             testInvalidUrlPath ep (error "should throw")
             testGetNetworkUnreachable ep pure
 

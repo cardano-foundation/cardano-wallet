@@ -98,7 +98,7 @@ import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (currentBalance)
     , ApiStakeDistribution (pools)
     , ApiT (..)
-    , StakeApiResponse (epoch, stake)
+    , StakeApiResponse (stake)
     )
 import Cardano.Wallet.Jormungandr.Binary
     ( runGetOrFail )
@@ -346,15 +346,13 @@ mkRawNetworkLayer bp batchSize st j = NetworkLayer
         maybe (SlotId 0 0) slotId (blockHeadersTip unstable)
 
     _stakeDistribution
-        :: ExceptT ErrNetworkUnavailable m
-            ( EpochNo
-            , Map PoolId (Quantity "lovelace" Word64)
-            )
-    _stakeDistribution = do
-        r <- getStakeDistribution j
-        let epochNo = getApiT . epoch $ r
+        :: EpochNo
+        -> ExceptT ErrNetworkUnavailable m
+            (Map PoolId (Quantity "lovelace" Word64))
+    _stakeDistribution ep = do
+        r <- getStakeDistribution j ep
         let distr = map (\(ApiT a, ApiT b) -> (a,b)) . pools . stake $ r
-        return (epochNo, Map.fromList distr)
+        return $ Map.fromList distr
 
     _getAccountBalance (ChimericAccount acc) =
         liftE1

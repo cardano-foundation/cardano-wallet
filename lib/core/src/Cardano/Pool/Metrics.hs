@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | This module can fold over a blockchain to collect metrics about
 -- Stake pools.
@@ -81,7 +82,7 @@ import Cardano.Wallet.Unsafe
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( forM_, when )
+    ( forM, forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -93,7 +94,7 @@ import Control.Tracer
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.List
     ( nub, nubBy, sortOn, (\\) )
 import Data.List.NonEmpty
@@ -122,6 +123,7 @@ import System.Random
     ( StdGen )
 
 import qualified Cardano.Pool.Ranking as Ranking
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 
@@ -192,15 +194,19 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
         -> BlockHeader
         -> IO (FollowAction ErrMonitorStakePools)
     forward blocks nodeTip = handler $ do
-        (ep, dist) <- withExceptT ErrMonitorStakePoolsNetworkUnavailable $
-            stakeDistribution nl
+        let epochs = NE.nub $ view (#header . #slotId . #epochNumber) <$> blocks
+        distributions <- forM epochs $ \ep -> do
+            liftIO $ traceWith tr $ MsgStakeDistribution ep
+            withExceptT ErrMonitorStakePoolsNetworkUnavailable $
+                (ep,) <$> stakeDistribution nl ep
+
         currentTip <- withExceptT ErrMonitorStakePoolsCurrentNodeTip $
             currentNodeTip nl
         when (nodeTip /= currentTip) $ throwE ErrMonitorStakePoolsWrongTip
 
-        liftIO $ traceWith tr $ MsgStakeDistribution ep
         mapExceptT atomically $ do
-            lift $ putStakeDistribution ep (Map.toList dist)
+            forM_ distributions $ \(ep, dist) ->
+                lift $ putStakeDistribution ep (Map.toList dist)
             forM_ blocks $ \b -> do
                 forM_ (poolRegistrations b) $ \pool -> do
                     lift $ putPoolRegistration (b ^. #header . #slotId) pool

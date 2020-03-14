@@ -122,10 +122,9 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: ExceptT ErrNetworkUnavailable m
-            ( EpochNo
-            , Map PoolId (Quantity "lovelace" Word64)
-            )
+        :: EpochNo
+        -> ExceptT ErrNetworkUnavailable m
+            (Map PoolId (Quantity "lovelace" Word64))
 
     , getAccountBalance
         :: ChimericAccount

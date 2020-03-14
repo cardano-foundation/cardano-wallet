@@ -1202,6 +1202,9 @@ newtype EpochNo = EpochNo { unEpochNo :: Word31 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Bounded, Enum)
 
+instance ToText EpochNo where
+    toText = T.pack . show . unEpochNo
+
 instance Buildable EpochNo where
     build (EpochNo e) = build $ fromIntegral @Word31 @Word32 e
 
