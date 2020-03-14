@@ -40,11 +40,7 @@ import Prelude
 import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Pool.Metrics
-    ( ErrListStakePools (..)
-    , ErrMetricsInconsistency (..)
-    , StakePool (..)
-    , StakePoolLayer (..)
-    )
+    ( ErrListStakePools (..), StakePool (..), StakePoolLayer (..) )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCannotJoin (..)
@@ -2089,7 +2085,6 @@ instance LiftHandler ErrCurrentNodeTip where
 
 instance LiftHandler ErrListStakePools where
      handler = \case
-         ErrListStakePoolsMetricsInconsistency e -> handler e
          ErrListStakePoolsCurrentNodeTip e -> handler e
          ErrMetricsIsUnsynced p ->
              apiError err503 NotSynced $ mconcat
@@ -2097,16 +2092,6 @@ instance LiftHandler ErrListStakePools where
                  , "blockchain for metrics first. I'm at "
                  , toText p
                  ]
-
-instance LiftHandler ErrMetricsInconsistency where
-    handler = \case
-        ErrProducerNotInDistribution producer ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "Something is terribly wrong with the metrics I collected. "
-                , "I recorded that some blocks were produced by "
-                , toText producer
-                , " but the node doesn't know about this stake pool!"
-                ]
 
 instance LiftHandler ErrSelectForDelegation where
     handler = \case

@@ -36,6 +36,7 @@ import Cardano.Wallet.Jormungandr.Binary
     ( Block, eitherRunGet, getBlock )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
+    , EpochNo (..)
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
@@ -106,6 +107,9 @@ instance ToHttpApiData BlockId where
 
 instance ToHttpApiData AccountId where
     toUrlPiece = toText . getAccountId
+
+instance ToHttpApiData (ApiT EpochNo) where
+    toUrlPiece = toText . getApiT
 
 instance MimeUnrender JormungandrBinary [BlockId] where
     mimeUnrender _ =

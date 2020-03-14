@@ -109,7 +109,6 @@ import Test.QuickCheck
     , checkCoverage
     , choose
     , counterexample
-    , cover
     , elements
     , frequency
     , property
@@ -159,7 +158,7 @@ prop_combineDefaults
 prop_combineDefaults mStake = do
     combineMetrics mStake Map.empty Map.empty
     ===
-    Right (Map.map (, Quantity 0, 0) mStake)
+    Map.map (, Quantity 0, 0) mStake
 
 -- | it fails if a block-producer or performance is not in the stake distr
 prop_combineIsLeftBiased
@@ -168,19 +167,8 @@ prop_combineIsLeftBiased
     -> Map (LowEntropy PoolId) Double
     -> Property
 prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
-    let
-        shouldLeft = or
-            [ not . Map.null $ Map.difference mProd mStake
-            , not . Map.null $ Map.difference mPerf mStake
-            ]
-    in
-    cover 10 shouldLeft "A pool without stake produced"
-    $ cover 50 (not shouldLeft) "Successfully combined the maps"
-    $ case combineMetrics mStake mProd mPerf of
-        Left _ ->
-            shouldLeft === True
-        Right x ->
-            Map.map (\(a,_,_) -> a) x === mStake
+    let x = combineMetrics mStake mProd mPerf
+    in Map.map (\(a,_,_) -> a) x === mStake
   where
     mStake = Map.mapKeys getLowEntropy mStake_
     mProd  = Map.mapKeys getLowEntropy mProd_
@@ -267,8 +255,8 @@ prop_trackRegistrations test = monadicIO $ do
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
                 pure . const (Cursor header0)
-            , stakeDistribution =
-                pure (0, mempty)
+            , stakeDistribution = \_ ->
+                pure mempty
             , currentNodeTip =
                 pure header0
             }

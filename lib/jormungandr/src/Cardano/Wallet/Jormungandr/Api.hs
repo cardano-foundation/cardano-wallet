@@ -22,6 +22,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountId
     , AccountState
+    , ApiT
     , BlockId
     , Hex
     , JormungandrBinary
@@ -30,7 +31,7 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Jormungandr.Binary
     ( Block )
 import Cardano.Wallet.Primitive.Types
-    ( SealedTx (..) )
+    ( EpochNo, SealedTx (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
@@ -94,4 +95,5 @@ type PostMessage
 type GetStakeDistribution
     = "api" :> "v0"
     :> "stake"
+    :> Capture "epoch" (ApiT EpochNo)
     :> Get '[JSON] StakeApiResponse

@@ -57,7 +57,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Api.Types
-    ( AccountId (..), AccountState, BlockId (..), StakeApiResponse )
+    ( AccountId (..), AccountState, ApiT (..), BlockId (..), StakeApiResponse )
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..)
     , Fragment (..)
@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , BlockchainParameters (..)
+    , EpochNo (..)
     , Hash (..)
     , SealedTx
     , SlotLength (..)
@@ -153,7 +154,8 @@ data JormungandrClient m = JormungandrClient
         :: Hash "Genesis"
         -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
     , getStakeDistribution
-        :: ExceptT ErrNetworkUnavailable m StakeApiResponse
+        :: EpochNo
+        -> ExceptT ErrNetworkUnavailable m StakeApiResponse
     }
 
 -- | Construct a 'JormungandrClient'
@@ -303,9 +305,9 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
             _ ->
                 throwE $ ErrGetBlockchainParamsIncompleteParams params
 
-    , getStakeDistribution = ExceptT $ do
-        let ctx = safeLink api (Proxy @GetStakeDistribution)
-        run cGetStakeDistribution >>= defaultHandler ctx
+    , getStakeDistribution = \ep -> ExceptT $ do
+        let ctx = safeLink api (Proxy @GetStakeDistribution) (ApiT ep)
+        run (cGetStakeDistribution (ApiT ep)) >>= defaultHandler ctx
     }
   where
     run :: ClientM a -> IO (Either ClientError a)
