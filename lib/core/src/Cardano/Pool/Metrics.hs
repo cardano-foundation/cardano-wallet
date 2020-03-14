@@ -31,7 +31,6 @@ module Cardano.Pool.Metrics
     , monitorStakePools
 
       -- * Combining Metrics
-    , ErrMetricsInconsistency (..)
     , combineMetrics
 
       -- * Associating metadata
@@ -254,7 +253,6 @@ data StakePoolLayer m = StakePoolLayer
 
 data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
-     | ErrListStakePoolsMetricsInconsistency ErrMetricsInconsistency
      | ErrListStakePoolsCurrentNodeTip ErrCurrentNodeTip
      deriving (Show)
 
@@ -340,18 +338,16 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         liftIO $ do
             traceWith tr $ MsgUsingTotalStakeForRanking totalStake
             traceWith tr $ MsgUsingRankingEpochConstants epConstants
-        case combineMetrics distr prod perfs of
-            Left e ->
-                throwE $ ErrListStakePoolsMetricsInconsistency e
-            Right ps -> lift $ do
-                let len = fromIntegral (length ps)
-                let avg = if null ps
-                        then 0
-                        else sum ((\(_,_,c) -> c) <$> (Map.elems ps)) / len
-                ns <- readNewcomers db (Map.keys ps) avg
-                pools <- atomically $
-                    Map.traverseMaybeWithKey mergeRegistration (ps <> ns)
-                sortResults $ Map.elems pools
+        let ps = combineMetrics distr prod perfs
+        lift $ do
+            let len = fromIntegral (length ps)
+            let avg = if null ps
+                    then 0
+                    else sum ((\(_,_,c) -> c) <$> (Map.elems ps)) / len
+            ns <- readNewcomers db (Map.keys ps) avg
+            pools <- atomically $
+                Map.traverseMaybeWithKey mergeRegistration (ps <> ns)
+            sortResults $ Map.elems pools
       where
         totalStake =
             Quantity $ Map.foldl' (\a (Quantity b) -> a + b) 0 distr
@@ -419,16 +415,8 @@ readNewcomers DBLayer{..} elders avg = do
 -- 2. A pool-production map
 -- 3. A pool-performance map
 --
--- If a pool has produced a block without existing in the stake-distribution,
--- i.e it exists in (2) but not (1), this function will return
--- @Left ErrMetricsInconsistency@.
---
--- If a pool is in (1) but not (2), it simply means it has produced 0 blocks so
--- far.
---
--- Similarly, if we do have metrics about a pool in (3), but this pool is
--- unknown from (1) & (2), this function also returns
--- @Left ErrMetricsInconsistency@.
+-- If a pool is in 2 or 3 but not in 1, it means that the pool has been
+-- de-registered.
 --
 -- If a pool is in (1+2) but not in (3), it simply means it has produced 0
 -- blocks so far.
@@ -436,38 +424,23 @@ combineMetrics
     :: Map PoolId (Quantity "lovelace" Word64)
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId Double
-    -> Either
-        ErrMetricsInconsistency
-        ( Map PoolId
-            ( Quantity "lovelace" Word64
-            , Quantity "block" Word64
-            , Double
-            )
+    -> Map PoolId
+        ( Quantity "lovelace" Word64
+        , Quantity "block" Word64
+        , Double
         )
-combineMetrics mStake mProd mPerf = do
-    mActivity <- zipWithRightDefault (,) (Quantity 0) mStake mProd
-    zipWithRightDefault unzipZip3 0 mActivity mPerf
+combineMetrics mStake mProd mPerf =
+    let
+        mActivity = zipWithRightDefault (,) (Quantity 0) mStake mProd
+    in
+        zipWithRightDefault unzipZip3 0 mActivity mPerf
   where
     unzipZip3 :: (a,b) -> c -> (a,b,c)
     unzipZip3 (a,b) c = (a,b,c)
 
--- | Possible errors returned by 'combineMetrics'.
-newtype ErrMetricsInconsistency
-    = ErrProducerNotInDistribution PoolId
-        -- ^ Somehow, we tried to combine invalid metrics together and passed
-        -- a passed a block production that doesn't match the producers found in
-        -- the stake activity.
-        --
-        -- Note that the opposite case is okay as we only observe pools that
-        -- have produced blocks. So it could be the case that a pool exists in
-        -- the distribution but not in the production! (In which case, we'll
-        -- assign it a production of '0').
-    deriving (Show, Eq)
-
 -- | Combine two maps with the given zipping function. It defaults when elements
--- of the first map (left) are not present in the second (right), but returns an
--- error when elements of the second (right) map are not present in the first
--- (left).
+-- of the first map (left) are not present in the second (right), and discards
+-- elements in the second (right) map are not present in the first (left).
 --
 -- Example:
 --
@@ -476,20 +449,17 @@ newtype ErrMetricsInconsistency
 -- let m2 = Map.fromList [(2, True)]
 -- @
 --
--- >>> zipWithRightDefault (,) ErrMissing False m1 m2
--- Right (Map.fromList [(1, ('a', False)), (2, ('b', True)), (3, ('c', False))])
---
--- >>> zipWithRightDefault (,) ErrMissing False m2 m1
--- Left (ErrMissing 1)
+-- >>> zipWithRightDefault (,) False m1 m2
+-- Map.fromList [(1, ('a', False)), (2, ('b', True)), (3, ('c', False))])
 zipWithRightDefault
     :: Ord k
     => (l -> r -> a)
     -> r
     -> Map k l
     -> Map k r
-    -> Either errMissingLeft (Map k a)
+    -> Map k a
 zipWithRightDefault combine rZero =
-    Map.mergeA leftButNotRight rightButNotLeft bothPresent
+    Map.merge leftButNotRight rightButNotLeft bothPresent
   where
     leftButNotRight = traverseMissing $ \_k l -> pure (combine l rZero)
     rightButNotLeft = dropMissing
