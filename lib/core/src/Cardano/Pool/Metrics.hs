@@ -99,7 +99,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Merge.Strict
-    ( traverseMissing, zipWithMatched )
+    ( dropMissing, traverseMissing, zipWithMatched )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -439,9 +439,8 @@ combineMetrics
             )
         )
 combineMetrics mStake mProd mPerf = do
-    let errMissingLeft = ErrProducerNotInDistribution
-    mActivity <- zipWithRightDefault (,) errMissingLeft (Quantity 0) mStake mProd
-    zipWithRightDefault unzipZip3 errMissingLeft 0 mActivity mPerf
+    mActivity <- zipWithRightDefault (,) (Quantity 0) mStake mProd
+    zipWithRightDefault unzipZip3 0 mActivity mPerf
   where
     unzipZip3 :: (a,b) -> c -> (a,b,c)
     unzipZip3 (a,b) c = (a,b,c)
@@ -479,16 +478,15 @@ newtype ErrMetricsInconsistency
 zipWithRightDefault
     :: Ord k
     => (l -> r -> a)
-    -> (k -> errMissingLeft)
     -> r
     -> Map k l
     -> Map k r
     -> Either errMissingLeft (Map k a)
-zipWithRightDefault combine onMissing rZero =
+zipWithRightDefault combine rZero =
     Map.mergeA leftButNotRight rightButNotLeft bothPresent
   where
     leftButNotRight = traverseMissing $ \_k l -> pure (combine l rZero)
-    rightButNotLeft = traverseMissing $ \k _r -> Left (onMissing k)
+    rightButNotLeft = dropMissing
     bothPresent     = zipWithMatched  $ \_k l r -> (combine l r)
 
 -- | Given a mapping from 'PoolId' -> 'PoolOwner' and a mapping between
