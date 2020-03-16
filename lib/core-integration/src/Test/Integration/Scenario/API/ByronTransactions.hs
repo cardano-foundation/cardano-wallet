@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -14,9 +15,7 @@ module Test.Integration.Scenario.API.ByronTransactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiTransaction, WalletStyle (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( ApiByronWallet, ApiTransaction, DecodeAddress, WalletStyle (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -55,7 +54,9 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do

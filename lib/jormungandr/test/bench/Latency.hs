@@ -243,7 +243,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         pure ()
 
     postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -260,7 +260,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         return r
 
     repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, utxoExp) = do
-        wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
+        wSrc <- fixtureWalletWith @n ctx (replicate batchSize 1000)
         let pass = "Secure Passphrase" :: Text
 
         postMultiTx ctx
@@ -285,7 +285,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         pure ()
 
     postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt nOuts = do
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destinations = replicate nOuts $ (addrs !! 1) ^. #id
         let amounts = take nOuts [amt, amt .. ]
         let payments = flip map (zip amounts destinations) $ \(coin, addr) ->
@@ -333,7 +333,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
         fmtResult "listTransactions   " t5
 
-        addrs <- listAddresses ctx wal2
+        addrs <- listAddresses @n ctx wal2
         let amt = 1 :: Natural
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{

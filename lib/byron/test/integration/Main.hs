@@ -113,9 +113,9 @@ main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "API Specifications" $ specWithServer tr $ do
-            WalletsCommon.spec
-            (TransactionsByron.spec @n)
-            TransactionsCommon.spec
+            WalletsCommon.spec @n
+            TransactionsByron.spec @n
+            TransactionsCommon.spec @n
             Network.spec
 
 specWithServer

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -20,13 +21,13 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
     , WalletStyle (..)
     , insertedAt
     , pendingSince
     , time
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
@@ -115,7 +116,10 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
@@ -157,7 +161,7 @@ spec = do
 
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [5_000_000]
+        wSrc <- fixtureWalletWith @n ctx [5_000_000]
         wDest <- emptyWallet ctx
 
         eventually "Pending tx has pendingSince field" $ do
@@ -237,7 +241,7 @@ spec = do
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let amt = 1
         let destination1 = (addrs !! 1) ^. #id
@@ -301,8 +305,8 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
-        addrs1 <- listAddresses ctx wDest1
-        addrs2 <- listAddresses ctx wDest2
+        addrs1 <- listAddresses @n ctx wDest1
+        addrs2 <- listAddresses @n ctx wDest2
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -366,9 +370,9 @@ spec = do
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wSrc <- fixtureWalletWith @n ctx [2_124_333]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
@@ -402,9 +406,9 @@ spec = do
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
-        wSrc <- fixtureWalletWith ctx [feeMin+amt]
+        wSrc <- fixtureWalletWith @n ctx [feeMin+amt]
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -461,9 +465,9 @@ spec = do
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -485,9 +489,9 @@ spec = do
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [feeMin]
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -511,7 +515,7 @@ spec = do
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -535,7 +539,7 @@ spec = do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -598,7 +602,7 @@ spec = do
 
     it "TRANS_ESTIMATE_01 - Single Output Fee Estimation" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        addrs <- listAddresses ctx wb
+        addrs <- listAddresses @n ctx wb
 
         let amt = 1
         let destination = (addrs !! 1) ^. #id
@@ -629,7 +633,7 @@ spec = do
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let amt = 1
         let destination1 = (addrs !! 1) ^. #id
@@ -668,8 +672,8 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
-        addrs1 <- listAddresses ctx wDest1
-        addrs2 <- listAddresses ctx wDest2
+        addrs1 <- listAddresses @n ctx wDest1
+        addrs2 <- listAddresses @n ctx wDest2
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -707,9 +711,9 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wSrc <- fixtureWalletWith @n ctx [2_124_333]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
@@ -741,9 +745,9 @@ spec = do
 
     it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
         let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
-        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
         let amt = 1 :: Natural
 
         let destination = addr ^. #id
@@ -766,9 +770,9 @@ spec = do
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [feeMin]
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -801,7 +805,7 @@ spec = do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -820,7 +824,7 @@ spec = do
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
         -- Make tx from fixtureWallet
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let amt = 1 :: Natural
         let destination = (addrs !! 1) ^. #id
@@ -886,11 +890,11 @@ spec = do
         $ \ctx -> do
         let a1 = Quantity $ sum $ replicate 10 1
         let a2 = Quantity $ sum $ replicate 10 2
-        w <- fixtureWalletWith ctx $ mconcat
+        w <- fixtureWalletWith @n ctx $ mconcat
                 [ replicate 10 1
                 , replicate 10 2
                 ]
-        txs <- listAllTransactions ctx w
+        txs <- listAllTransactions @n ctx w
         let [Just t2, Just t1] = fmap (fmap time . insertedAt) txs
         let matrix :: [TestCase [ApiTransaction n]] =
                 [ TestCase -- 1
@@ -1184,33 +1188,33 @@ spec = do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
-              txs1 <- listTransactions ctx w (Just t ) (Just t ) Nothing
-              txs2 <- listTransactions ctx w (Just te) (Just t ) Nothing
-              txs3 <- listTransactions ctx w (Just t ) (Just tl) Nothing
-              txs4 <- listTransactions ctx w (Just te) (Just tl) Nothing
+              txs1 <- listTransactions @n ctx w (Just t ) (Just t ) Nothing
+              txs2 <- listTransactions @n ctx w (Just te) (Just t ) Nothing
+              txs3 <- listTransactions @n ctx w (Just t ) (Just tl) Nothing
+              txs4 <- listTransactions @n ctx w (Just te) (Just tl) Nothing
               length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let tl = utcTimeSucc t
-              txs1 <- listTransactions ctx w (Just tl) (Nothing) Nothing
-              txs2 <- listTransactions ctx w (Just tl) (Just tl) Nothing
+              txs1 <- listTransactions @n ctx w (Just tl) (Nothing) Nothing
+              txs2 <- listTransactions @n ctx w (Just tl) (Just tl) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let te = utcTimePred t
-              txs1 <- listTransactions ctx w (Nothing) (Just te) Nothing
-              txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
+              txs1 <- listTransactions @n ctx w (Nothing) (Just te) Nothing
+              txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
     it "TRANS_DELETE_01 -\
@@ -1355,7 +1359,7 @@ spec = do
             w <- emptyRandomWallet ctx
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
+            addr:_ <- listAddresses @n ctx wDest
             let destination = addr ^. #id
             let payload = Json [json|{
                     "payments": [{
@@ -1376,7 +1380,7 @@ spec = do
             w <- emptyRandomWallet ctx
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
+            addr:_ <- listAddresses @n ctx wDest
             let destination = addr ^. #id
             let payload = Json [json|{
                     "payments": [{
@@ -1457,7 +1461,7 @@ spec = do
         -> Natural
         -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
     postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1482,9 +1486,9 @@ spec = do
             _ -> error "Expected at least one transaction with a time."
 
     fixtureErrInputsDepleted ctx = do
-        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let addrIds = view #id <$> take 3 addrs
         let amounts = [40_000_000, 22, 22] :: [Natural]

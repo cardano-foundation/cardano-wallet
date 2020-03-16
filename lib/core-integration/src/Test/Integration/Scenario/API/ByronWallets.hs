@@ -16,12 +16,13 @@ module Test.Integration.Scenario.API.ByronWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiByronWalletMigrationInfo (..), WalletStyle (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
+    ( ApiByronWallet
+    , ApiByronWalletMigrationInfo (..)
+    , DecodeAddress
+    , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -89,7 +90,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."

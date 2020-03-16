@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -24,18 +25,16 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , fromMnemonic
-    )
+    ( DelegationAddress (..), Passphrase (..), fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), generateKeyFromSeed )
+    ( KnownNetwork (..), ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -116,9 +115,13 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownNetwork n
+    , DecodeAddress n
+    , EncodeAddress n
+    , DelegationAddress n ShelleyKey
+    ) => SpecWith (Context t)
 spec = do
-
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @(ApiTransaction n) ctx
@@ -133,7 +136,7 @@ spec = do
 
     it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let hrp = [Bech32.humanReadablePart|addr|]
         bytes <- generate (vectorOf 32 arbitrary)
@@ -212,14 +215,14 @@ spec = do
         expectResponseCode HTTP.status202 r
 
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
-        txs <- fixtureWallet ctx >>= listAllTransactions ctx
+        txs <- fixtureWallet ctx >>= listAllTransactions @n ctx
         length txs `shouldBe` 10
         txs `shouldSatisfy` all (null . view #inputs)
 
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do
         w <- emptyWallet ctx
-        addr:_ <- listAddresses ctx w
+        addr:_ <- listAddresses @n ctx w
         let amt = 1234
         payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         let headers = Headers
@@ -246,7 +249,7 @@ spec = do
             txDeleteTest05 title eWallet = it title $ \ctx -> do
                 -- post external tx
                 wal <- emptyWallet ctx
-                addr:_ <- listAddresses ctx wal
+                addr:_ <- listAddresses @n ctx wal
                 let amt = 1234
                 payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
                 let headers = Headers
@@ -280,7 +283,7 @@ spec = do
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture wSrc wDest fee bin _) <-
-                fixtureExternalTx ctx toSend
+                fixtureExternalTx @n ctx toSend
         let baseOk = Base64
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
@@ -318,7 +321,7 @@ spec = do
        \improper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <-
-                fixtureExternalTx ctx toSend
+                fixtureExternalTx @n ctx toSend
         let baseWrong = Base16
         let wronglyEncodedTx = T.decodeUtf8 $ convertToBase baseWrong bin
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
@@ -333,7 +336,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx ctx toSend
+        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @n ctx toSend
         let payload = NonJson $ BL.fromStrict $ ("\NUL\NUL"<>) $ getSealedTx bin
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request @ApiTxId ctx Link.postExternalTransaction headers payload
@@ -354,7 +357,7 @@ spec = do
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
 
         let destination = addr ^. #id
         let payload = Json [json|{
@@ -372,7 +375,7 @@ spec = do
     fixtureZeroAmtMulti ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
@@ -415,7 +418,10 @@ data ExternalTxFixture = ExternalTxFixture
 -- Most of this could be replaced with simple calls of the derivation primitives
 -- in AddressDerivation.
 fixtureExternalTx
-    :: forall t n. (n ~ 'Mainnet)
+    :: forall n t.
+        ( DecodeAddress n
+        , DelegationAddress n ShelleyKey
+        )
     => (Context t)
     -> Natural
     -> IO ExternalTxFixture
@@ -437,7 +443,7 @@ fixtureExternalTx ctx toSend = do
         ]
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
-    txsSrc <- listAllTransactions ctx wSrc
+    txsSrc <- listAllTransactions @n ctx wSrc
     let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ outs _):_ = reverse txsSrc
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
@@ -463,7 +469,7 @@ fixtureExternalTx ctx toSend = do
         expectField (#state . #getApiT) (`shouldBe` Ready) r
 
     let wDest = getFromResponse Prelude.id r1
-    addrsDest <- listAddresses ctx wDest
+    addrsDest <- listAddresses @n ctx wDest
     let addrDest = (head addrsDest) ^. #id
     -- we choose one available address to which money will be transfered
     let addrDest' = getApiT $ fst addrDest

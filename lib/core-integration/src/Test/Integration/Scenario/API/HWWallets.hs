@@ -23,12 +23,13 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , HardDerivation (..)
-    , NetworkDiscriminant (..)
     , PersistPublicKey (..)
     , WalletKey (..)
     )
@@ -91,7 +92,10 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall t n. (n ~ 'Mainnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -108,7 +112,7 @@ spec = do
 
         --send funds
         let wDest = getFromResponse id rInit
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -166,9 +170,9 @@ spec = do
         -- join stake pool
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-        r <- joinStakePool ctx (p ^. #id) (w, fixturePassphrase)
+        r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
         expectResponseCode @IO HTTP.status202 r
-        waitAllTxsInLedger ctx w
+        waitAllTxsInLedger @n ctx w
         let expectedDelegation =
                 [ expectField #delegation
                     (`shouldBe` notDelegating
@@ -190,7 +194,7 @@ spec = do
             expectedDelegation
 
         -- cannot quit stake pool
-        rQuit <- quitStakePool ctx (wRestored, fixturePassphrase)
+        rQuit <- quitStakePool @n ctx (wRestored, fixturePassphrase)
         expectResponseCode @IO HTTP.status403 rQuit
         expectErrorMessage (errMsg403NoRootKey $ wRestored ^. walletId) rQuit
 
@@ -204,7 +208,7 @@ spec = do
             wSrc <- restoreWalletFromPubKey ctx pubKey
             wDest <- emptyWallet ctx
 
-            addrs <- listAddresses ctx wDest
+            addrs <- listAddresses @n ctx wDest
             let destination = (addrs !! 1) ^. #id
             let payload = Json [json|{
                     "payments": [{
@@ -231,7 +235,7 @@ spec = do
             -- cannot join stake pool
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-            rJoin <- joinStakePool ctx (p ^. #id) (wk, fixturePassphrase)
+            rJoin <- joinStakePool @n ctx (p ^. #id) (wk, fixturePassphrase)
             expectResponseCode @IO HTTP.status403 rJoin
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
 
@@ -275,7 +279,7 @@ spec = do
             wSrc <- restoreWalletFromPubKey ctx pubKey
             wDest <- emptyWallet ctx
 
-            addrs <- listAddresses ctx wDest
+            addrs <- listAddresses @n ctx wDest
             let destination = (addrs !! 1) ^. #id
             let payload = Json [json|{
                     "payments": [{
@@ -371,11 +375,11 @@ spec = do
 
             source <- restoreWalletFromPubKey ctx pubKey
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses ctx target
+            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
 
             let amount = Quantity 1
             let payment = AddressAmount targetAddress amount
-            selectCoins ctx source (payment :| []) >>= flip verify
+            selectCoins @n ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))
