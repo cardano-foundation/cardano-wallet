@@ -7,6 +7,8 @@
 
 module Test.Integration.Scenario.CLI.Wallets
     ( spec
+    , walletNames
+    , walletNamesInvalid
     ) where
 
 import Prelude
@@ -267,15 +269,13 @@ spec = do
             expectCliField
                 (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
-    it "WALLETS_CREATE_04 - Cannot create wallet when name exceeds length" $ \ctx -> do
-        let n = replicate (walletNameMaxLength + 1) 'ą'
-        Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
-
-        (c, o, e) <- createWalletViaCLI @t ctx [n] m "\n" "secure-passphrase"
-        c `shouldBe` ExitFailure 1
-        T.unpack e `shouldContain`
-            "name is too long: expected at most 255 characters"
-        o `shouldBe` ""
+    describe "WALLETS_CREATE_04 - Wallet names invalid" $ do
+        forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> do
+            Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
+            (c, o, e) <- createWalletViaCLI @t ctx [name] m "\n" "secure-passphrase"
+            c `shouldBe` ExitFailure 1
+            T.unpack e `shouldContain` expects
+            o `shouldBe` ""
 
     describe "WALLETS_CREATE_05 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> do
@@ -791,9 +791,15 @@ walletNames =
         [ ( "Name min", replicate walletNameMinLength 'ź' )
         , ( "Name max", replicate walletNameMaxLength 'ą' )
         , ( "Name max - 1", replicate ( walletNameMaxLength - 1 ) 'ą' )
-        , ( "Name max + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
+        , ( "Name min + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
         , ( "Single space", " " )
         , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
         , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
         , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
         ]
+
+walletNamesInvalid :: [(String, String)]
+walletNamesInvalid =
+    [ ("", "name is too short: expected at least 1 character")
+    , (replicate (walletNameMaxLength + 1) 'ą', "name is too long: expected at most 255 characters")
+    ]

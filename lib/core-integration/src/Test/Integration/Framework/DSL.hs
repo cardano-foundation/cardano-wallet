@@ -1250,11 +1250,11 @@ createWalletFromPublicKeyViaCLI
     :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
-    -> String
+        -- ^ NAME, [--address-pool-gap INT], ACCOUNT_PUBLIC_KEY
     -> IO r
-createWalletFromPublicKeyViaCLI ctx args accPubKey = cardanoWalletCLI @t $
+createWalletFromPublicKeyViaCLI ctx args = cardanoWalletCLI @t $
     [ "wallet", "create", "from-public-key", "--port"
-    , show (ctx ^. typed @(Port "wallet"))] ++ args ++ [accPubKey]
+    , show (ctx ^. typed @(Port "wallet"))] ++ args
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
