@@ -1596,10 +1596,15 @@ instance ToSchema ByronWalletFromXPrvPostData where
 
 instance ToSchema SomeByronWalletPostData where
     declareNamedSchema _ = do
-        NamedSchema _ schema <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
-        let props = schema ^. properties
-        pure $ NamedSchema Nothing $ schema
-            & properties .~ (props & at "style" .~ Just (Inline styleSchema))
+        NamedSchema _ schema1 <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
+        let props1 = schema1 ^. properties
+        NamedSchema _ schema2 <- declareNamedSchema (Proxy @ByronWalletFromXPrvPostData)
+        let props2 = schema2 ^. properties
+        pure $ NamedSchema Nothing $ mempty
+            & properties .~ mconcat
+            [ props1 & at "style" .~ Just (Inline styleSchema)
+            , props2 & at "style" .~ Just (Inline styleSchema)
+            ]
       where
         styleSchema = mempty
             & type_ .~ Just SwaggerString
