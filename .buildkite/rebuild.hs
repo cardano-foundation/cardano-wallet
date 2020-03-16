@@ -141,7 +141,7 @@ buildStep dryRun bk =
     titled "Build"
         (build Fast ["--test", "--no-run-tests"]) .&&.
     titled "Test"
-        (timeout 30 (test Fast Serial .&&. test Fast Parallel)) .&&.
+        (timeout 45 (test Fast Serial .&&. test Fast Parallel)) .&&.
     titled "Checking golden test files"
         (checkUnclean dryRun "lib/core/test/data")
   where
