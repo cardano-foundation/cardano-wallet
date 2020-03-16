@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
+    , ApiEncryptedRootXPrv (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiFee (..)
@@ -65,7 +66,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
-    , EncryptedRootXPrv (..)
     , Iso8601Time (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
@@ -1089,17 +1089,17 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (Hash "Password") where
-    arbitrary = Hash . B8.pack <$> replicateM 64 arbitrary
-
-instance Arbitrary EncryptedRootXPrv where
+instance Arbitrary ApiEncryptedRootXPrv where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ EncryptedRootXPrv $ BS.pack $ take 128 bytes
+        return $ ApiEncryptedRootXPrv $ BS.pack $ take 128 bytes
 
 instance Arbitrary ByronWalletFromXPrvPostData where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = do
+        n <- arbitrary
+        rootXPrv <- arbitrary
+        h <- ApiT . Hash . B8.pack <$> replicateM 64 arbitrary
+        pure $ ByronWalletFromXPrvPostData n rootXPrv h
 
 instance Arbitrary SomeByronWalletPostData where
     arbitrary = genericArbitrary

@@ -166,6 +166,7 @@ module Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , invariant
     , distance
+    , hashFromText
     ) where
 
 import Prelude
@@ -1627,7 +1628,6 @@ instance FromText (Hash "Account")      where fromText = hashFromText 32
 instance FromText (Hash "Genesis")      where fromText = hashFromText 32
 instance FromText (Hash "Block")        where fromText = hashFromText 32
 instance FromText (Hash "BlockHeader")  where fromText = hashFromText 32
-instance FromText (Hash "Password")     where fromText = hashFromText 64
 
 hashFromText
     :: forall t. (KnownSymbol t)

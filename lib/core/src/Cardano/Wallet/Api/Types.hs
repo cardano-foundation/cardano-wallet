@@ -85,7 +85,7 @@ module Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
-    , EncryptedRootXPrv (..)
+    , ApiEncryptedRootXPrv (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -147,6 +147,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , hashFromText
     , isValidCoin
     , unsafeEpochNo
     )
@@ -385,10 +386,10 @@ data ByronWalletPostData mw = ByronWalletPostData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
--- | A root private key, encrypted using a given passphrase.
+-- | A root private key hex-encoded, encrypted using a given passphrase.
 -- The underlying key should contain: private key, chain code, and public key
-newtype EncryptedRootXPrv =
-    EncryptedRootXPrv { getEncryptedRootXPrv :: ByteString }
+newtype ApiEncryptedRootXPrv =
+    ApiEncryptedRootXPrv { getEncryptedRootXPrv :: ByteString }
     deriving (Generic, Eq, Show)
 
 encryptedRootXPrvBytesLength :: Int
@@ -396,8 +397,13 @@ encryptedRootXPrvBytesLength = 128
 
 data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
     { name :: !(ApiT WalletName)
-    , encryptedRootPrivateKey :: !EncryptedRootXPrv
-    , passphraseHash :: !(ApiT (Hash "Password"))
+    , encryptedRootPrivateKey :: !ApiEncryptedRootXPrv
+    , passphraseHash :: !(ApiT (Hash "encryption"))
+    -- ^ A hash of master passphrase. The hash should be a 64-byte output of a
+    -- Scrypt function with the following parameters:
+    -- - logN = 14
+    -- - r = 8
+    -- - p = 1
     } deriving (Eq, Generic, Show)
 
 newtype ApiAccountPublicKey = ApiAccountPublicKey
@@ -653,12 +659,12 @@ instance FromText ApiAccountPublicKey where
         Right pubkey ->
             Right $ ApiAccountPublicKey $ ApiT $ ShelleyKey pubkey
 
-instance FromText EncryptedRootXPrv where
+instance FromText ApiEncryptedRootXPrv where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
         Left _ ->
             textDecodingError
         Right bytes | BS.length bytes == encryptedRootXPrvBytesLength ->
-            Right $ EncryptedRootXPrv bytes
+            Right $ ApiEncryptedRootXPrv bytes
         Right _ ->
             textDecodingError
       where
@@ -669,10 +675,15 @@ instance FromText EncryptedRootXPrv where
             , "bytes in length."
             ]
 
-instance ToText EncryptedRootXPrv where
+instance ToText ApiEncryptedRootXPrv where
     toText = T.decodeUtf8
         . convertToBase Base16
         . getEncryptedRootXPrv
+
+instance FromText (ApiT (Hash "encryption"))  where
+    fromText txt = case hashFromText 64 txt of
+        Left err -> Left err
+        Right h -> pure $ ApiT h
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -867,15 +878,16 @@ instance FromMnemonic mw => FromJSON (ByronWalletPostData mw) where
 instance ToJSON (ByronWalletPostData mw) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT (Hash "Password")) where
-    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
-instance ToJSON (ApiT (Hash "Password")) where
-    toJSON = toJSON . toText . getApiT
-
-instance FromJSON EncryptedRootXPrv where
+instance FromJSON (ApiT (Hash "encryption")) where
     parseJSON =
         parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
-instance ToJSON EncryptedRootXPrv where
+instance ToJSON (ApiT (Hash "encryption")) where
+    toJSON = toJSON . toText . getApiT
+
+instance FromJSON ApiEncryptedRootXPrv where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON ApiEncryptedRootXPrv where
     toJSON = toJSON . toText
 
 instance FromJSON ByronWalletFromXPrvPostData where
