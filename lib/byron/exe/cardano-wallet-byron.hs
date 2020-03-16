@@ -29,7 +29,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logInfo, logNotice )
+    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.Chain.Genesis
     ( readGenesisData )
 import Cardano.CLI
@@ -89,14 +89,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( ProtocolMagic (..), SyncTolerance )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional, (<|>) )
 import Control.Monad
     ( void )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Control.Tracer
     ( contramap )
 import Data.Proxy
@@ -128,7 +128,7 @@ import Options.Applicative
 import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
-    ( exitWith )
+    ( ExitCode (..), exitWith )
 
 import qualified Data.Text as T
 
@@ -198,27 +198,14 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       enableShutdownHandler
       logOpt) = do
         let addrInfo = localSocketAddrInfo nodeSocket
-        (discriminant, bp, vData, block0) <- case networkConfig of
-            MainnetConfig (discriminant, vData) -> pure
-                ( discriminant
-                , blockchainParameters @'Mainnet
-                , vData
-                , emptyGenesis (blockchainParameters @'Mainnet)
-                )
-            TestnetConfig (discriminant, vData) genesisFile -> do
-                (genesisData, genesisHash) <- unsafeRunExceptT $
-                    readGenesisData genesisFile
-                let (bp, outs) = fromGenesisData (genesisData, genesisHash)
-                pure
-                    ( discriminant
-                    , bp
-                    , vData
-                    , fromGenesisTxOut bp outs
-                    )
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
+
+                (discriminant, bp, vData, block0) <-
+                    parseGenesisData tr networkConfig
+
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
                 exitWith =<< serveWallet
                     discriminant
@@ -240,6 +227,31 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
         trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
+
+
+    parseGenesisData tr = \case
+        MainnetConfig (discriminant, vData) -> pure
+            ( discriminant
+            , blockchainParameters @'Mainnet
+            , vData
+            , emptyGenesis (blockchainParameters @'Mainnet)
+            )
+        TestnetConfig (discriminant, vData) genesisFile -> do
+            (genesisData, genesisHash) <-
+                runExceptT (readGenesisData genesisFile) >>= \case
+                    Right a -> pure a
+                    Left err -> do
+                        logError tr $ MsgFailedToParseGenesis $ T.pack $ show err
+                        exitWith $ ExitFailure 33
+
+            let (bp, outs) = fromGenesisData (genesisData, genesisHash)
+            pure
+                ( discriminant
+                , bp
+                , vData
+                , fromGenesisTxOut bp outs
+                )
+
 
 {-------------------------------------------------------------------------------
                                  Options
@@ -294,8 +306,8 @@ networkConfigurationOption =
                     ( SomeNetworkDiscriminant $ mapProxy proxy
                     , testnetVersionData pm
                     )
-                _ -> error "networkDiscriminantFlag: impossible: failed to \
-                    \convert ProtocolMagic to SomeNat."
+                _ -> error "networkDiscriminantFlag: failed to convert \
+                    \ProtocolMagic to SomeNat."
 
         mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
         mapProxy _proxy = Proxy @('Testnet a)
@@ -337,6 +349,7 @@ data MainLog
     | MsgListenAddress SockAddr
     | MsgSigTerm
     | MsgShutdownHandler ShutdownHandlerLog
+    | MsgFailedToParseGenesis Text
     deriving (Show)
 
 instance ToText MainLog where
@@ -357,6 +370,11 @@ instance ToText MainLog where
             "Terminated by signal."
         MsgShutdownHandler msg' ->
             toText msg'
+        MsgFailedToParseGenesis hint -> T.unwords
+            [ "Failed to parse genesis configuration. You may want to check the"
+            , "filepath given via --genesis and make sure it points to a valid"
+            , "JSON genesis file. Here's (perhaps) some helpful hint:", hint
+            ]
 
 withTracers
     :: LoggingOptions TracerSeverities

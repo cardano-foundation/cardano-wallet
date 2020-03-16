@@ -97,6 +97,7 @@ executable cardano-wallet-byron
     , optparse-applicative
     , text
     , text-class
+    , transformers
   hs-source-dirs:
       exe
   main-is:
