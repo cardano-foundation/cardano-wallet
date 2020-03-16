@@ -22,7 +22,9 @@ Available COMMANDS:
     <a href="#mnemonic-reward-credentials">reward-credentials</a>  Derive reward account private key from mnemonic.
   wallet
     <a href="#wallet-list">list</a>                List all known wallets
-    <a href="#wallet-create">create</a>              Create & restore a wallet from a BIP-39 mnemonic sentence
+    create
+      <a href="#wallet-create-from-mnemonic">from-mnemonic</a>     Create a new wallet using a mnemonic
+      <a href="#wallet-create-from-public-key">from-public-key</a>   Create a wallet using a public account key
     <a href="#wallet-get">get</a>                 Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution 
     update
@@ -354,9 +356,9 @@ $ cardano-wallet wallet list
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## wallet create
+## wallet create from mnemonic
 
-> `cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]`
+> `cardano-wallet wallet create from-mnemonic [--port=INT] <name> [--address-pool-gap=INT]`
 
 Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for mnemonic words and password.
 
@@ -371,6 +373,17 @@ Enter the passphrase a second time: ****************
 
 after this your new wallet will be created
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## wallet create from public key
+
+> `cardano-wallet-jormungandr wallet create from-public-key [--port INT] STRING [--address-pool-gap INT] ACCOUNT_PUBLIC_KEY`
+
+Create a new wallet using a sequential address scheme using account public key.
+
+```
+$ cardano-wallet-jormungandr wallet create from-public-key "New Public Key Wallet" b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+```
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## wallet get
