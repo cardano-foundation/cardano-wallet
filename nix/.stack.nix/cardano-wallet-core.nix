@@ -163,6 +163,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."quickcheck-state-machine" or (buildDepError "quickcheck-state-machine"))
             (hsPkgs."random" or (buildDepError "random"))
+            (hsPkgs."retry" or (buildDepError "retry"))
             (hsPkgs."safe" or (buildDepError "safe"))
             (hsPkgs."servant" or (buildDepError "servant"))
             (hsPkgs."servant-server" or (buildDepError "servant-server"))

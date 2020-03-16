@@ -114,12 +114,14 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
+import Control.Concurrent.Async
+    ( concurrently, concurrently_ )
 import Control.Concurrent.MVar
-    ( newEmptyMVar, takeMVar, tryPutMVar )
+    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( SomeException, finally, handle, throwIO )
+    ( SomeException, handle, throwIO )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -148,8 +150,10 @@ import GHC.Conc
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import System.Directory
     ( doesFileExist, listDirectory, removeFile )
+import System.FilePath
+    ( (</>) )
 import System.IO
-    ( hClose )
+    ( IOMode (..), hClose, withFile )
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
@@ -168,6 +172,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldNotBe
     , shouldNotContain
     , shouldReturn
     , shouldThrow
@@ -309,26 +314,57 @@ fileModeSpec =  do
                 destroyDBLayer ctx
 
     describe "DBFactory" $ do
-        it "withDatabase *> removeDatabase works and remove files" $ do
-            withSystemTempDirectory "DBFactory" $ \dir -> do
-                DBFactory{..} <- newDBFactory
-                    nullTracer defaultFieldValues (Just dir)
-                mvar <- newEmptyMVar
+        let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
+                dbf <- newDBFactory nullTracer defaultFieldValues (Just dir)
+                action dir dbf
 
+        let whileFileOpened delay f action = do
+                opened <- newEmptyMVar
+                concurrently_
+                    (withFile f ReadMode (\_ -> putMVar opened () >> threadDelay delay))
+                    (takeMVar opened >> action)
+
+        it "withDatabase *> removeDatabase works and remove files" $ do
+            withDBFactory $ \dir DBFactory{..} -> do
                 -- NOTE
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
                 pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
                     handle @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
-                            liftIO $ void $ tryPutMVar mvar ()
                             liftIO $ threadDelay 10000
                             void $ readCheckpoint $ PrimaryKey testWid
 
-                flip finally (killThread pid) $ do
-                    takeMVar mvar
-                    removeDatabase testWid
-                    listDirectory dir `shouldReturn` mempty
+                killThread pid *> removeDatabase testWid
+                listDirectory dir `shouldReturn` mempty
+
+        it "removeDatabase still works if file is opened" $ do
+            withDBFactory $ \dir DBFactory{..} -> do
+                -- set up a database file
+                withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> pure ()
+                files <- listDirectory dir
+                files `shouldNotBe` mempty
+
+                -- Try removing the database when it's already opened for
+                -- reading for 100ms.
+                -- This simulates an antivirus program on windows which may
+                -- interfere with file deletion.
+                whileFileOpened 100000 (dir </> head files) (removeDatabase testWid)
+                listDirectory dir `shouldReturn` mempty
+
+        it "removeDatabase waits for connections to close" $ do
+            withDBFactory $ \_ DBFactory{..} -> do
+                closed <- newEmptyMVar
+
+                let conn =
+                        withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
+                            threadDelay 500000
+                            putMVar closed ()
+                let rm = do
+                        removeDatabase testWid
+                        isEmptyMVar closed
+
+                concurrently conn (threadDelay 10 >> rm) `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do

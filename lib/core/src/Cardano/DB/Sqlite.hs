@@ -50,6 +50,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.DB.Sqlite.Delete
+    ( DeleteSqliteDatabaseLog )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.Exception
@@ -365,7 +367,10 @@ data DBLog
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
+    | MsgWaitingForDatabase Text (Maybe Int)
+    | MsgRemovingInUse Text Int
     | MsgRemoving Text
+    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
@@ -430,7 +435,10 @@ instance DefineSeverity DBLog where
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
+        MsgWaitingForDatabase _ _ -> Info
+        MsgRemovingInUse _ _ -> Notice
         MsgRemoving _ -> Info
+        MsgRemovingDatabaseFile _ msg -> defineSeverity msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
@@ -455,8 +463,17 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
+        MsgWaitingForDatabase wid Nothing ->
+            "Database "+|wid|+" is ready to be deleted"
+        MsgWaitingForDatabase wid (Just count) ->
+            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+        MsgRemovingInUse wid count ->
+            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Attempting to remove the database anyway."
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
+        MsgRemovingDatabaseFile wid msg ->
+            "Removing " <> wid <> ": " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
             [ tableName field
             , " table does not contain required field '"

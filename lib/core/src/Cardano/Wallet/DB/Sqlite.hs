@@ -57,6 +57,8 @@ import Cardano.DB.Sqlite
     , startSqliteBackend
     , tableName
     )
+import Cardano.DB.Sqlite.Delete
+    ( deleteSqliteDatabase, newRefCount, waitForFree, withRef )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -110,7 +112,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception, bracket, throwIO )
 import Control.Monad
-    ( forM, mapM_, void, when )
+    ( forM, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Class
@@ -120,7 +122,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -175,7 +177,7 @@ import Database.Persist.Types
 import Fmt
     ( pretty )
 import System.Directory
-    ( doesFileExist, listDirectory, removePathForcibly )
+    ( doesFileExist, listDirectory )
 import System.FilePath
     ( (</>) )
 
@@ -236,16 +238,16 @@ newDBFactory
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr defaultFieldValues mDatabaseDir = do
-    mvar <- newMVar mempty
-    case mDatabaseDir of
+newDBFactory tr defaultFieldValues = \case
+    Nothing -> do
         -- NOTE
         -- For the in-memory database, we do actually preserve the database
         -- after the 'action' is done. This allows for calling 'withDatabase'
         -- several times within the same execution and get back the same
         -- database. The memory is only cleaned up when calling
         -- 'removeDatabase', to mimic the way the file database works!
-        Nothing -> pure DBFactory
+        mvar <- newMVar mempty
+        pure DBFactory
             { withDatabase = \wid action -> do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
                     Just (_, db) -> pure (m, db)
@@ -258,28 +260,33 @@ newDBFactory tr defaultFieldValues mDatabaseDir = do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
             }
-        Just databaseDir -> pure DBFactory
-            { withDatabase = \wid action -> do
-                withDBLayer
-                    tr
-                    defaultFieldValues
-                    (Just $ databaseFile wid)
-                    (action . snd)
+
+    Just databaseDir -> do
+        refs <- newRefCount
+        pure DBFactory
+            { withDatabase = \wid action -> withRef refs wid $ withDBLayer
+                tr
+                defaultFieldValues
+                (Just $ databaseFile wid)
+                (action . snd)
             , removeDatabase = \wid -> do
-                traceWith tr $ MsgRemoving (pretty wid)
-                let files =
-                        [ databaseFile wid
-                        , databaseFile wid <> "-wal"
-                        , databaseFile wid <> "-shm"
-                        ]
-                mapM_ removePathForcibly files
+                let widp = pretty wid
+                -- try to wait for all 'withDatabase' calls to finish before
+                -- deleting database file.
+                let trWait = contramap (MsgWaitingForDatabase widp) tr
+                waitForFree trWait refs wid $ \inUse -> do
+                    unless (inUse == 0) $
+                        traceWith tr $ MsgRemovingInUse widp inUse
+                    traceWith tr $ MsgRemoving widp
+                    let trDel = contramap (MsgRemovingDatabaseFile widp) tr
+                    deleteSqliteDatabase trDel (databaseFile wid)
             }
-          where
-            databaseFilePrefix = keyTypeDescriptor $ Proxy @k
-            databaseFile wid =
-                databaseDir </>
-                databaseFilePrefix <> "." <>
-                T.unpack (toText wid) <> ".sqlite"
+      where
+        databaseFilePrefix = keyTypeDescriptor $ Proxy @k
+        databaseFile wid =
+            databaseDir </>
+            databaseFilePrefix <> "." <>
+            T.unpack (toText wid) <> ".sqlite"
 
 -- | Return all wallet databases that match the specified key type within the
 --   specified directory.

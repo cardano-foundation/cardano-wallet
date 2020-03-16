@@ -36,6 +36,8 @@ import Cardano.CLI
     , newCliKeyScheme
     , xPrvToTextTransform
     )
+import Cardano.Startup
+    ( setUtf8EncodingHandles )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), XPrv, unXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -127,14 +129,16 @@ spec = do
             <> cmdKey
 
 
-    let shouldStdOut args expected = it (unwords args) $
+    let shouldStdOut args expected = it (unwords args) $ do
+            setUtf8EncodingHandles
             case execParserPure defaultPrefs parser args of
                 Success x -> capture_ x >>= (`shouldBe` expected)
                 CompletionInvoked _ -> expectationFailure
                     "expected parser to show usage but it offered completion"
                 Failure failure ->
                     expectationFailure $ "parser failed with: " ++ show failure
-    let expectStdErr args expectation = it (unwords args) $
+    let expectStdErr args expectation = it (unwords args) $ do
+            setUtf8EncodingHandles
             case execParserPure defaultPrefs parser args of
                 Success x ->
                     hCapture_ [stderr] (try @SomeException x) >>= (expectation)
