@@ -346,7 +346,7 @@ toWLBlock = J.convertBlock
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
     = MsgStarting JormungandrBackend
-    | MsgNetworkName NetworkDiscriminant
+    | MsgNetworkName Text
     | MsgWalletStartupError ErrStartup
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
@@ -356,7 +356,7 @@ instance ToText ApplicationLog where
     toText msg = case msg of
         MsgStarting backend ->
             "Wallet backend server starting. " <> toText backend <> "..."
-        MsgNetworkName n -> "Node is Jörmungandr on " <> toText n
+        MsgNetworkName n -> "Node is Jörmungandr on " <> n
         MsgDatabaseStartup dbMsg -> toText dbMsg
         MsgWalletStartupError startupErr -> case startupErr of
             ErrStartupGetBlockchainParameters e -> case e of

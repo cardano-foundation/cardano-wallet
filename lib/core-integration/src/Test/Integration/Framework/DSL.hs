@@ -473,7 +473,7 @@ walletId =
 --
 
 waitAllTxsInLedger
-    :: forall t n. (n ~ 'Testnet)
+    :: forall n t. (DecodeAddress n)
     => Context t
     -> ApiWallet
     -> IO ()
@@ -811,7 +811,8 @@ fixtureLegacyWallet ctx style mnemonics = do
 -- This function makes no attempt at ensuring the request is valid, so be
 -- careful.
 fixtureWalletWith
-    :: Context t
+    :: forall n t. (EncodeAddress n, DecodeAddress n)
+    => Context t
     -> [Natural]
     -> IO ApiWallet
 fixtureWalletWith ctx coins0 = do
@@ -837,7 +838,7 @@ fixtureWalletWith ctx coins0 = do
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress 'Testnet] ctx
+            <$> request @[ApiAddress n] ctx
                     (Link.listAddresses dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
@@ -850,7 +851,7 @@ fixtureWalletWith ctx coins0 = do
                 "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
-        request @(ApiTransaction 'Testnet) ctx
+        request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
@@ -947,41 +948,51 @@ json :: QuasiQuoter
 json = aesonQQ
 
 joinStakePool
-    :: forall t w. (HasType (ApiT WalletId) w)
+    :: forall n t w.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        )
     => Context t
     -> ApiT PoolId
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
 joinStakePool ctx p (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx
+    request @(ApiTransaction n) ctx
         (Link.joinStakePool (Identity p) w) Default payload
 
 quitStakePool
-    :: forall t w. (HasType (ApiT WalletId) w)
+    :: forall n t w.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        )
     => Context t
     -> (w, Text)
-    -> IO (HTTP.Status, Either RequestException (ApiTransaction 'Testnet))
+    -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
 quitStakePool ctx (w, pass) = do
     let payload = Json [aesonQQ| {
             "passphrase": #{pass}
             } |]
-    request @(ApiTransaction 'Testnet) ctx
+    request @(ApiTransaction n) ctx
         (Link.quitStakePool w) Default payload
 
 selectCoins
-    :: forall t w. (HasType (ApiT WalletId) w)
+    :: forall n t w.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        , EncodeAddress n
+        )
     => Context t
     -> w
-    -> NonEmpty (AddressAmount 'Testnet)
-    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection 'Testnet))
+    -> NonEmpty (AddressAmount n)
+    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {
             "payments": #{payments}
         } |]
-    request @(ApiCoinSelection 'Testnet) ctx
+    request @(ApiCoinSelection n) ctx
         (Link.selectCoins w) Default payload
 
 delegationFee
@@ -1043,30 +1054,33 @@ icarusAddresses mw =
         ]
 
 listAddresses
-    :: Context t
+    :: forall n t. (DecodeAddress n)
+    => Context t
     -> ApiWallet
-    -> IO [ApiAddress 'Testnet]
+    -> IO [ApiAddress n]
 listAddresses ctx w = do
     let link = Link.listAddresses w
-    (_, addrs) <- unsafeRequest @[ApiAddress 'Testnet] ctx link Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
     return addrs
 
 listAllTransactions
-    :: Context t
+    :: forall n t. (DecodeAddress n)
+    => Context t
     -> ApiWallet
-    -> IO [ApiTransaction 'Testnet]
+    -> IO [ApiTransaction n]
 listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing Nothing
 
 listTransactions
-    :: Context t
+    :: forall n t. (DecodeAddress n)
+    => Context t
     -> ApiWallet
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
-    -> IO [ApiTransaction 'Testnet]
+    -> IO [ApiTransaction n]
 listTransactions ctx wallet mStart mEnd mOrder = do
-    (_, txs) <- unsafeRequest @[ApiTransaction 'Testnet] ctx path Empty
+    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx path Empty
     return txs
   where
     path = Link.listTransactions' @'Shelley wallet

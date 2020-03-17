@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -13,11 +14,16 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, encodeAddress, getApiT )
+    ( ApiTransaction
+    , ApiUtxoStatistics
+    , ApiWallet
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , getApiT
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , HardDerivation (..)
-    , NetworkDiscriminant (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PersistPublicKey (..)
@@ -93,9 +99,11 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
-    => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownCommand t
+    , DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
         wid <- emptyRandomWallet' ctx
@@ -193,7 +201,7 @@ spec = do
 
         --send transaction to the wallet
         let amount = 11
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -258,7 +266,7 @@ spec = do
 
         --send transaction to the wallet
         let amount = 11
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -737,7 +745,7 @@ spec = do
         forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            addr:_ <- listAddresses ctx wDest
+            addr:_ <- listAddresses @n ctx wDest
             let wid = T.unpack $ wSrc ^. walletId
             (c, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
@@ -777,7 +785,7 @@ spec = do
         --send transactions to the wallet
         let coins = [13, 43, 66, 101, 1339] :: [Integer]
         let matrix = zip coins [1..]
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         forM_ matrix $ \(amount, alreadyAbsorbed) -> do
             let args = T.unpack <$>

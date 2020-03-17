@@ -595,8 +595,8 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState 'Testnet ShelleyKey) ShelleyKey
-type WalletBench = Wallet (SeqState 'Testnet ShelleyKey)
+type DBLayerBench = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
+type WalletBench = Wallet (SeqState 'Mainnet ShelleyKey)
 
 instance NFData (DBLayer m s k) where
     rnf _ = ()
@@ -608,7 +608,7 @@ testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
 {-# NOINLINE initDummyState #-}
-initDummyState :: SeqState 'Testnet ShelleyKey
+initDummyState :: SeqState 'Mainnet ShelleyKey
 initDummyState =
     mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
   where
@@ -647,7 +647,7 @@ label prefix n = B8.take 32 $ B8.pack (prefix <> show n) <> B8.replicate 32 '0'
 
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
-    delegationAddress @'Testnet
+    delegationAddress @'Mainnet
         (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
         rewardAccount
   where

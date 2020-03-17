@@ -180,8 +180,8 @@ instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 40
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (8)       --     8 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Testnet IcarusKey where maxSizeOf = 51
-instance MinSizeOf Address 'Testnet IcarusKey where minSizeOf = 47
+instance MaxSizeOf Address ('Testnet pm) IcarusKey where maxSizeOf = 51
+instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 47
 
 -- ADDRESS (MainNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -232,5 +232,5 @@ instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 73
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (41)      --    41 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Testnet ByronKey where maxSizeOf = 84
-instance MinSizeOf Address 'Testnet ByronKey where minSizeOf = 80
+instance MaxSizeOf Address ('Testnet pm) ByronKey where maxSizeOf = 84
+instance MinSizeOf Address ('Testnet pm) ByronKey where minSizeOf = 80

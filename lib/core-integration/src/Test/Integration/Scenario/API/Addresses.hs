@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -12,9 +13,13 @@ module Test.Integration.Scenario.API.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiTransaction, ApiWallet, WalletStyle (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( ApiAddress
+    , ApiTransaction
+    , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
+    , WalletStyle (..)
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -54,7 +59,10 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> do
         w <- emptyRandomWallet ctx
@@ -158,7 +166,7 @@ spec = do
             ]
         forM_ [0..9] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..9] $ \addrNum -> do

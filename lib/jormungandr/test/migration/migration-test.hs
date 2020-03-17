@@ -79,11 +79,11 @@ import qualified Data.Text as T
 
 main :: IO ()
 main = do
-    (testAction, launchArgs) <- parseArgs @'Testnet
+    (testAction, launchArgs) <- parseArgs @('Testnet 0)
 
     cfg <- defaultConfigStdout
     withTrace cfg "migration-test" $ \tr ->
-        testMain @'Testnet tr 8090 testAction launchArgs >>= exitWith
+        testMain @('Testnet 0) tr 8090 testAction launchArgs >>= exitWith
 
 -- | Something to do while the server is running.
 type TestAction (t :: NetworkDiscriminant) = Trace IO Text -> ApiBase -> IO ExitCode

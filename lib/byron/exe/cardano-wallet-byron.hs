@@ -3,6 +3,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -27,7 +29,9 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logInfo, logNotice )
+    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
+import Cardano.Chain.Genesis
+    ( readGenesisData )
 import Cardano.CLI
     ( LoggingOptions (..)
     , cli
@@ -68,21 +72,31 @@ import Cardano.Wallet.Byron
     , tracerLabels
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( KnownNetwork (..), NodeVersionData, emptyGenesis )
+    ( KnownNetwork (..)
+    , NodeVersionData
+    , emptyGenesis
+    , fromGenesisData
+    , mainnetVersionData
+    , testnetVersionData
+    )
 import Cardano.Wallet.Byron.Network
     ( localSocketAddrInfo )
+import Cardano.Wallet.Byron.Transaction
+    ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockchainParameters, SyncTolerance )
+    ( ProtocolMagic (..), SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional, (<|>) )
 import Control.Monad
     ( void )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Control.Tracer
     ( contramap )
 import Data.Proxy
@@ -91,6 +105,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.TypeLits
+    ( SomeNat (..), someNatVal )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
@@ -112,7 +128,7 @@ import Options.Applicative
 import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
-    ( exitWith )
+    ( ExitCode (..), exitWith )
 
 import qualified Data.Text as T
 
@@ -146,7 +162,7 @@ data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _listen :: Listen
     , _nodeSocket :: FilePath
-    , _networkDiscriminant :: SomeNetworkDiscriminant
+    , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
@@ -164,7 +180,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <$> hostPreferenceOption
         <*> listenOption
         <*> nodeSocketOption
-        <*> networkDiscriminantFlag
+        <*> networkConfigurationOption
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> shutdownHandlerFlag
@@ -176,36 +192,32 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       host
       listen
       nodeSocket
-      network@(SomeNetworkDiscriminant proxy)
+      networkConfig
       databaseDir
       sTolerance
       enableShutdownHandler
       logOpt) = do
         let addrInfo = localSocketAddrInfo nodeSocket
-        let networkParams = knownParameters proxy
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
+
+                (discriminant, bp, vData, block0) <-
+                    parseGenesisData tr networkConfig
+
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
                 exitWith =<< serveWallet
-                    network
+                    discriminant
                     tracers
                     sTolerance
                     databaseDir
                     host
                     listen
                     addrInfo
-                    (emptyGenesis (fst networkParams))
-                    networkParams
+                    block0
+                    (bp, vData)
                     (beforeMainLoop tr)
-
-    knownParameters
-        :: forall n. (KnownNetwork n)
-        => Proxy n
-        -> (BlockchainParameters, NodeVersionData)
-    knownParameters _proxy =
-        ( blockchainParameters @n, versionData @n )
 
     whenJust m fn = case m of
        Nothing -> pure ()
@@ -216,9 +228,52 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       where
         trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
 
+
+    parseGenesisData tr = \case
+        MainnetConfig (discriminant, vData) -> pure
+            ( discriminant
+            , blockchainParameters @'Mainnet
+            , vData
+            , emptyGenesis (blockchainParameters @'Mainnet)
+            )
+        TestnetConfig (discriminant, vData) genesisFile -> do
+            (genesisData, genesisHash) <-
+                runExceptT (readGenesisData genesisFile) >>= \case
+                    Right a -> pure a
+                    Left err -> do
+                        logError tr $ MsgFailedToParseGenesis $ T.pack $ show err
+                        exitWith $ ExitFailure 33
+
+            let (bp, outs) = fromGenesisData (genesisData, genesisHash)
+            pure
+                ( discriminant
+                , bp
+                , vData
+                , fromGenesisTxOut bp outs
+                )
+
+
 {-------------------------------------------------------------------------------
                                  Options
 -------------------------------------------------------------------------------}
+
+data NetworkConfiguration where
+    MainnetConfig
+        :: (SomeNetworkDiscriminant, NodeVersionData)
+        -> NetworkConfiguration
+
+    TestnetConfig
+        :: (SomeNetworkDiscriminant, NodeVersionData)
+        -> FilePath
+        -> NetworkConfiguration
+
+-- | Hand-written as there's no Show instance for 'NodeVersionData'
+instance Show NetworkConfiguration where
+    show = \case
+        MainnetConfig{} ->
+            "MainnetConfig"
+        TestnetConfig _ genesisFile ->
+            "TestnetConfig " <> show genesisFile
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
@@ -227,11 +282,43 @@ nodeSocketOption = optionT $ mempty
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
 
--- | --testnet|--mainnet
-networkDiscriminantFlag :: Parser SomeNetworkDiscriminant
-networkDiscriminantFlag =
-        flag' (SomeNetworkDiscriminant $ Proxy @'Mainnet) (long "mainnet")
-    <|> flag' (SomeNetworkDiscriminant $ Proxy @'Testnet) (long "testnet")
+-- | --mainnet | (--testnet=NETWORK_MAGIC --genesis=FILE)
+networkConfigurationOption :: Parser NetworkConfiguration
+networkConfigurationOption =
+    mainnetFlag <|> (TestnetConfig <$> testnetOption <*> genesisOption)
+  where
+    -- --mainnet
+    mainnetFlag = flag'
+        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
+        (long "mainnet")
+
+    -- --testnet NETWORK_MAGIC
+    testnetOption = fmap someTestnetDiscriminant $ optionT $ mempty
+        <> long "testnet"
+        <> metavar "NETWORK_MAGIC"
+      where
+        someTestnetDiscriminant
+            :: ProtocolMagic
+            -> (SomeNetworkDiscriminant, NodeVersionData)
+        someTestnetDiscriminant pm@(ProtocolMagic n) =
+            case someNatVal (fromIntegral n) of
+                Just (SomeNat proxy) ->
+                    ( SomeNetworkDiscriminant $ mapProxy proxy
+                    , testnetVersionData pm
+                    )
+                _ -> error "networkDiscriminantFlag: failed to convert \
+                    \ProtocolMagic to SomeNat."
+
+        mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
+        mapProxy _proxy = Proxy @('Testnet a)
+
+    -- | --genesis=FILE
+    genesisOption
+        :: Parser FilePath
+    genesisOption = optionT $ mempty
+        <> long "genesis"
+        <> metavar "FILE"
+        <> help "Path to the genesis .json file."
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers
@@ -262,6 +349,7 @@ data MainLog
     | MsgListenAddress SockAddr
     | MsgSigTerm
     | MsgShutdownHandler ShutdownHandlerLog
+    | MsgFailedToParseGenesis Text
     deriving (Show)
 
 instance ToText MainLog where
@@ -282,6 +370,11 @@ instance ToText MainLog where
             "Terminated by signal."
         MsgShutdownHandler msg' ->
             toText msg'
+        MsgFailedToParseGenesis hint -> T.unwords
+            [ "Failed to parse genesis configuration. You may want to check the"
+            , "filepath given via --genesis and make sure it points to a valid"
+            , "JSON genesis file. Here's (perhaps) some helpful hint:", hint
+            ]
 
 withTracers
     :: LoggingOptions TracerSeverities

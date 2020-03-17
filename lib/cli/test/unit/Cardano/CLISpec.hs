@@ -121,10 +121,10 @@ spec = do
 
     let parser = cli $ mempty
             <> cmdMnemonic
-            <> cmdWallet @'Testnet
-            <> cmdTransaction @'Testnet
-            <> cmdAddress @'Testnet
-            <> cmdStakePool @'Testnet
+            <> cmdWallet @'Mainnet
+            <> cmdTransaction @'Mainnet
+            <> cmdAddress @'Mainnet
+            <> cmdStakePool @'Mainnet
             <> cmdNetwork
             <> cmdKey
 

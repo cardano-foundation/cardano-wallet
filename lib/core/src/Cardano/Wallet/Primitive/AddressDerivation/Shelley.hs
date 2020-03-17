@@ -293,11 +293,11 @@ instance PaymentAddress 'Mainnet ShelleyKey where
     liftPaymentAddress (KeyFingerprint k0) =
         encodeShelleyAddress (addrSingle @'Mainnet) [k0]
 
-instance PaymentAddress 'Testnet ShelleyKey where
+instance PaymentAddress ('Testnet pm) ShelleyKey where
     paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (addrSingle @'Testnet) [xpubPublicKey k0]
+        encodeShelleyAddress (addrSingle @('Testnet _)) [xpubPublicKey k0]
     liftPaymentAddress (KeyFingerprint k0) =
-        encodeShelleyAddress (addrSingle @'Testnet) [k0]
+        encodeShelleyAddress (addrSingle @('Testnet _)) [k0]
 
 instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
@@ -305,11 +305,11 @@ instance DelegationAddress 'Mainnet ShelleyKey where
     liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
         encodeShelleyAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
 
-instance DelegationAddress 'Testnet ShelleyKey where
+instance DelegationAddress ('Testnet pm) ShelleyKey where
     delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Testnet) (xpubPublicKey <$> [k0, k1])
+        encodeShelleyAddress (addrGrouped @('Testnet _)) (xpubPublicKey <$> [k0, k1])
     liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Testnet) ([k0, xpubPublicKey k1])
+        encodeShelleyAddress (addrGrouped @('Testnet _)) ([k0, xpubPublicKey k1])
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: NetworkDiscriminant) where
@@ -340,20 +340,20 @@ instance KnownNetwork 'Mainnet where
     addrGrouped = 0x04
     addrAccount = 0x05
 
-instance KnownNetwork 'Testnet where
+instance KnownNetwork ('Testnet pm) where
     addrSingle = 0x83
     addrGrouped = 0x84
     addrAccount = 0x85
 
 isAddrSingle :: Address -> Bool
 isAddrSingle (Address bytes) =
-    firstByte `elem` [[addrSingle @'Testnet], [addrSingle @'Mainnet]]
+    firstByte `elem` [[addrSingle @('Testnet _)], [addrSingle @'Mainnet]]
   where
     firstByte = BS.unpack (BS.take 1 bytes)
 
 isAddrGrouped :: Address -> Bool
 isAddrGrouped (Address bytes) =
-    firstByte `elem` [[addrGrouped @'Testnet], [addrGrouped @'Mainnet]]
+    firstByte `elem` [[addrGrouped @('Testnet _)], [addrGrouped @'Mainnet]]
   where
     firstByte = BS.unpack (BS.take 1 bytes)
 
@@ -387,7 +387,7 @@ decodeShelleyAddress bytes = do
     let firstByte = BS.unpack $ BS.take 1 bytes
 
     let knownBytes = pure <$>
-            knownDiscriminants @'Testnet ++ knownDiscriminants @'Mainnet
+            knownDiscriminants @('Testnet _) ++ knownDiscriminants @'Mainnet
     when (firstByte `notElem` knownBytes) $ Left (invalidAddressType firstByte)
 
     let allowedBytes = pure <$> knownDiscriminants @n

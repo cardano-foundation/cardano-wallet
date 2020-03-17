@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -28,6 +29,8 @@ import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Jormungandr
     ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -41,7 +44,12 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( DelegationAddress (..)
+    , NetworkDiscriminant (..)
+    , NetworkDiscriminantVal (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -115,7 +123,7 @@ import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
-main :: forall t. (t ~ Jormungandr) => IO ()
+main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "No backend required" $ do
@@ -127,25 +135,25 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Stake Pool Metrics" MetricsSpec.spec
             describe "Key CLI tests" KeysCLI.spec
 
-        describe "API Specifications" $ specWithServer tr $ do
-            withCtxOnly Addresses.spec
-            withCtxOnly Transactions.spec
-            withCtxOnly Wallets.spec
-            withCtxOnly ByronWallets.spec
-            withCtxOnly ByronTransactions.spec
+        describe "API Specifications" $ specWithServer @n tr $ do
+            withCtxOnly $ Addresses.spec @n
+            withCtxOnly $ Transactions.spec @n
+            withCtxOnly $ Wallets.spec @n
+            withCtxOnly $ ByronWallets.spec @n
+            withCtxOnly $ ByronTransactions.spec @n
+            withCtxOnly $ HWWallets.spec @n
+            withCtxOnly $ TransactionsApiJormungandr.spec @n @t
+            withCtxOnly $ TransactionsCliJormungandr.spec @n @t
             withCtxOnly Network.spec
-            withCtxOnly HWWallets.spec
-            withCtxOnly $ TransactionsApiJormungandr.spec @t
-            withCtxOnly $ TransactionsCliJormungandr.spec @t
-            StakePoolsApiJormungandr.spec
+            StakePoolsApiJormungandr.spec @n
 
-        describe "CLI Specifications" $ specWithServer tr $ do
-            withCtxOnly $ AddressesCLI.spec @t
-            withCtxOnly $ StakePoolsCliJormungandr.spec @t
-            withCtxOnly $ TransactionsCLI.spec @t
-            withCtxOnly $ WalletsCLI.spec @t
+        describe "CLI Specifications" $ specWithServer @n tr $ do
+            withCtxOnly $ AddressesCLI.spec @n @t
+            withCtxOnly $ TransactionsCLI.spec @n @t
+            withCtxOnly $ WalletsCLI.spec @n @t
             withCtxOnly $ PortCLI.spec @t
             withCtxOnly $ NetworkCLI.spec @t
+            withCtxOnly $ StakePoolsCliJormungandr.spec @t
             ServerCLI.spec @t
   where
     withCtxOnly
@@ -155,7 +163,13 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
         beforeWith (pure . thd3)
 
 specWithServer
-    :: Trace IO Text
+    :: forall (n :: NetworkDiscriminant).
+        ( NetworkDiscriminantVal n
+        , DecodeAddress n
+        , EncodeAddress n
+        , DelegationAddress n ShelleyKey
+        )
+    => Trace IO Text
     -> SpecWith (Port "node", FeePolicy, Context Jormungandr)
     -> Spec
 specWithServer tr = aroundAll withContext . after (tearDown . thd3)
@@ -190,7 +204,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
         withConfig $ \jmCfg ->
         withMetadataRegistry $
         withSystemTempDirectory "cardano-wallet-databases" $ \db ->
-            serveWallet @'Testnet
+            serveWallet @n
                 tracers
                 (SyncTolerance 10)
                 (Just db)

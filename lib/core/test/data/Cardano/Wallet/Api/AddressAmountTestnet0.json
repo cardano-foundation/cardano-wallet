@@ -1,0 +1,75 @@
+{
+    "seed": 120200620206997478,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 251,
+                "unit": "lovelace"
+            },
+            "address": "addr1snhvpzkmj30ch62jhumkkv5cr6vv0q53y2uf5szun8z4avysvxvsxpefr97tt3f29lmu6y2x9499vavz4ym3f00sjverdxefdjg2wh527s54hy"
+        },
+        {
+            "amount": {
+                "quantity": 234,
+                "unit": "lovelace"
+            },
+            "address": "addr1skuyzzu54zjxyakc25rch232um88fu6ee25x87f74r3p8wc9xqqyk7twng9"
+        },
+        {
+            "amount": {
+                "quantity": 87,
+                "unit": "lovelace"
+            },
+            "address": "addr1sw7dkrrpeslz8z6anjwrc8afetn69s025w5h4genzvtu9xyq5k6rgrwhvhv"
+        },
+        {
+            "amount": {
+                "quantity": 63,
+                "unit": "lovelace"
+            },
+            "address": "addr1s06dpjkcl9zgaff7t4cfwpmz9d78g8ph0wkewa32s0dqwwn5pufevaw5xye"
+        },
+        {
+            "amount": {
+                "quantity": 105,
+                "unit": "lovelace"
+            },
+            "address": "addr1shf83qnupur7c6uj496yr4u7hqwc8377jkvenmuknf2kmq8jwzhwys6k7zf"
+        },
+        {
+            "amount": {
+                "quantity": 154,
+                "unit": "lovelace"
+            },
+            "address": "addr1swl705aarazvzwhfr7pv05wlmj2872zlzkgjzr6en8hx975jpk0t6g3m0ug"
+        },
+        {
+            "amount": {
+                "quantity": 95,
+                "unit": "lovelace"
+            },
+            "address": "addr1shh02w67zpynyz979xdh7x94l23hqqah5900x4z79mtryjlrdzmsv47aru4"
+        },
+        {
+            "amount": {
+                "quantity": 40,
+                "unit": "lovelace"
+            },
+            "address": "addr1skfz0vgdkydk8pl6ukpayx7gf7heqq9wypxpya3qjgyda9za4djtypdvtj7"
+        },
+        {
+            "amount": {
+                "quantity": 65,
+                "unit": "lovelace"
+            },
+            "address": "addr1sjhn524vca0twz4syqnhgj085rxyv3sklpdpm5tdtgza25sv4hydlpu23lg2vueucmkreswxasrm8e75hvravy0fvf63n80wf9myr7l6jd6wcp"
+        },
+        {
+            "amount": {
+                "quantity": 15,
+                "unit": "lovelace"
+            },
+            "address": "addr1svxllx8vscg4mq8m6pqjkhz5ye5937gcxskqds4uklmzazethj0n6yfffqa"
+        }
+    ]
+}

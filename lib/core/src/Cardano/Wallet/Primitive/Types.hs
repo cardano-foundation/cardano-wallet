@@ -158,8 +158,8 @@ module Cardano.Wallet.Primitive.Types
 
     -- * ProtocolMagic
     , ProtocolMagic (..)
-    , testnetMagic
     , mainnetMagic
+    , testnetMagic
 
     -- * Polymorphic
     , Hash (..)
@@ -250,7 +250,7 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
+    ( KnownNat, KnownSymbol, Symbol, natVal, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -1537,13 +1537,16 @@ newtype ProtocolMagic = ProtocolMagic { getProtocolMagic :: Int32 }
 instance ToText ProtocolMagic where
     toText (ProtocolMagic pm) = T.pack (show pm)
 
--- | Hard-coded protocol magic for the Byron TestNet
-testnetMagic :: ProtocolMagic
-testnetMagic = ProtocolMagic 1097911063
+instance FromText ProtocolMagic where
+    fromText = fmap (ProtocolMagic . fromIntegral @Natural) . fromText
 
--- | Hard-codedo protocol magic for the Byron MainNet
+-- | Hard-coded protocol magic for the Byron MainNet
 mainnetMagic :: ProtocolMagic
 mainnetMagic =  ProtocolMagic 764824073
+
+-- | Derive testnet magic from a type-level Nat
+testnetMagic :: forall pm. KnownNat pm => ProtocolMagic
+testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 
 {-------------------------------------------------------------------------------
               Stake Pool Delegation and Registration Certificates

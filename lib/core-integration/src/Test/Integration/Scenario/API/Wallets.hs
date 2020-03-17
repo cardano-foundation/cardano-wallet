@@ -28,13 +28,12 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -145,7 +144,10 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall t n. (n ~ 'Testnet) => SpecWith (Context t)
+spec :: forall n t.
+    ( DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
@@ -239,7 +241,7 @@ spec = do
 
         --send funds
         let wDest = getFromResponse id rInit
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -891,7 +893,7 @@ spec = do
             rup <- request @ApiWallet ctx (Link.putWalletPassphrase wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
-            addrs <- listAddresses ctx wDest
+            addrs <- listAddresses @n ctx wDest
             let destination = (addrs !! 1) ^. #id
             let payloadTrans = Json [json|{
                     "payments": [{
@@ -946,7 +948,7 @@ spec = do
         \ctx -> do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses ctx target
+            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity 1
             let payment = AddressAmount targetAddress amount
             selectCoins ctx source (payment :| []) >>= flip verify
@@ -963,7 +965,7 @@ spec = do
             let paymentCount = 10
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddresses <- fmap (view #id) <$> listAddresses ctx target
+            targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
             let amounts = Quantity <$> [1 ..]
             let payments = NE.fromList
                     $ take paymentCount
@@ -982,7 +984,7 @@ spec = do
     it "WALLETS_COIN_SELECTION_03 - \
         \Deleted wallet is not available for selection" $ \ctx -> do
         w <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins ctx w payments >>= flip verify
@@ -993,7 +995,7 @@ spec = do
     it "WALLETS_COIN_SELECTION_03 - \
         \Wrong selection method (not 'random')" $ \ctx -> do
         w <- fixtureWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
@@ -1041,7 +1043,7 @@ spec = do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- fixtureWallet ctx
-            (addr:_) <- fmap (view #id) <$> listAddresses ctx w
+            (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
             let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx (Link.selectCoins w) headers payload
@@ -1058,7 +1060,7 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send funds
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let coins = [13::Natural, 43, 66, 101, 1339]
         let matrix = zip coins [1..]
@@ -1705,9 +1707,8 @@ spec = do
 
 -- force resync eventually get us back to the same point
 scenarioWalletResync01_happyPath
-    :: forall style t n wallet.
-        ( n ~ 'Testnet
-        , Discriminate style
+    :: forall style t wallet.
+        ( Discriminate style
         , HasType (ApiT WalletId) wallet
         , HasField' "state" wallet (ApiT SyncProgress)
         , FromJSON wallet
@@ -1737,9 +1738,8 @@ scenarioWalletResync01_happyPath fixture = it
 
 -- force resync eventually get us back to the same point
 scenarioWalletResync02_notGenesis
-    :: forall style t n wallet.
-        ( n ~ 'Testnet
-        , Discriminate style
+    :: forall style t wallet.
+        ( Discriminate style
         , HasType (ApiT WalletId) wallet
         , HasField' "state" wallet (ApiT SyncProgress)
         , FromJSON wallet

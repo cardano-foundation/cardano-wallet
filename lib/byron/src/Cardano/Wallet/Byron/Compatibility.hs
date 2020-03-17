@@ -21,6 +21,8 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Chain Parameters
     , KnownNetwork (..)
+    , mainnetVersionData
+    , testnetVersionData
 
       -- * Genesis
     , emptyGenesis
@@ -134,7 +136,7 @@ instance KnownNetwork 'Mainnet where
     versionData = mainnetVersionData
     blockchainParameters = W.BlockchainParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "f0f7892b5c333cffc4b3c4344de48af4cc63f55e44936196f365a9ef2244134f"
+            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
         , getFeePolicy =
@@ -145,27 +147,6 @@ instance KnownNetwork 'Mainnet where
             W.EpochLength 21600
         , getTxMaxSize =
             Quantity 8192
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        }
-
-instance KnownNetwork 'Testnet where
-    versionData = testnetVersionData
-    blockchainParameters = W.BlockchainParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "96fceff972c2c06bd3bb5243c39215333be6d56aaf4823073dca31afe5038471"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1563999616
-        , getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getTxMaxSize =
-            Quantity 65535
         , getEpochStability =
             Quantity 2160
         , getActiveSlotCoefficient =
@@ -221,11 +202,12 @@ mainnetVersionData =
 
 -- | Settings for configuring a TestNet network client
 testnetVersionData
-    :: NodeVersionData
-testnetVersionData =
+    :: W.ProtocolMagic
+    -> NodeVersionData
+testnetVersionData pm =
     ( NodeToClientVersionData
         { networkMagic =
-            NetworkMagic $ fromIntegral $ W.getProtocolMagic W.testnetMagic
+            NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
         }
     , nodeToClientCodecCBORTerm
     )

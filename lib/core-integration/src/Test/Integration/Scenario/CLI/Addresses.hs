@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -11,9 +12,7 @@ module Test.Integration.Scenario.CLI.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet, EncodeAddress (..), getApiT )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( ApiAddress, ApiWallet, DecodeAddress (..), EncodeAddress (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -58,9 +57,11 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
-    => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownCommand t
+    , DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do

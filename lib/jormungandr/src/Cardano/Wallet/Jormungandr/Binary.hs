@@ -94,7 +94,7 @@ import Cardano.Wallet.Jormungandr.Rewards
     , rewardsAt
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), Passphrase (..) )
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -724,7 +724,7 @@ data ConfigParam
     = Block0Date W.StartTime
     -- ^ The official start time of the blockchain, in seconds since the Unix
     -- epoch.
-    | Discrimination NetworkDiscriminant
+    | ConfigDiscrimination Discrimination
     -- ^ Address discrimination. Testnet / Mainnet.
     | Consensus ConsensusVersion
     -- ^ Consensus version. BFT / Genesis Praos.
@@ -783,7 +783,7 @@ getConfigParam = label "getConfigParam" $ do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     let unimpl = skip len >> return (UnimplementedConfigParam tag)
     isolate len $ case tag of
-        1 -> Discrimination <$> getNetworkDiscriminant
+        1 -> ConfigDiscrimination <$> getDiscrimination
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
             <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
@@ -858,6 +858,13 @@ getPoolCapping = do
     maxParticipation <- getWord32be
     pure PoolCapping{minParticipation,maxParticipation}
 
+data Discrimination
+    = Production
+    | Testing
+    deriving (Generic, Eq, Show)
+
+instance NFData Discrimination
+
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
 newtype Milli = Milli Word64
@@ -889,10 +896,10 @@ getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
     2 -> return GenesisPraos
     other -> fail $ "Unknown consensus version: " ++ show other
 
-getNetworkDiscriminant :: Get NetworkDiscriminant
-getNetworkDiscriminant = label "getNetworkDiscriminant" $ getWord8 >>= \case
-    1 -> return Mainnet
-    2 -> return Testnet
+getDiscrimination :: Get Discrimination
+getDiscrimination = label "getDiscrimination" $ getWord8 >>= \case
+    1 -> return Production
+    2 -> return Testing
     other -> fail $ "Invalid network/discrimination value: " ++ show other
 
 getMilli :: Get Milli

@@ -36,11 +36,15 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
+    , BlockHeader (..)
+    , BlockchainParameters (..)
     , Coin (..)
     , Hash (..)
     , PoolId
     , ProtocolMagic (..)
     , SealedTx (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -61,6 +65,8 @@ import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.ByteString
     ( ByteString )
+import Data.Coerce
+    ( coerce )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Proxy
@@ -209,10 +215,26 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 -- Internal
 --
 
-fromGenesisTxOut :: TxOut -> Tx
-fromGenesisTxOut out@(TxOut (Address bytes) _) =
-    Tx (Hash $ blake2b256 bytes) [] [out]
-
+-- | Construct an initial genesis block from a genesis UTxO.
+fromGenesisTxOut :: BlockchainParameters -> [TxOut] -> Block
+fromGenesisTxOut bp outs = Block
+    { delegations  = []
+    , header = BlockHeader
+        { slotId =
+            SlotId 0 0
+        , blockHeight =
+            Quantity 0
+        , headerHash =
+            coerce $ getGenesisBlockHash bp
+        , parentHeaderHash =
+            Hash (BS.replicate 32 0)
+        }
+    , transactions = mkTx <$> outs
+    }
+  where
+    mkTx out@(TxOut (Address bytes) _) =
+        Tx (Hash $ blake2b256 bytes) [] [out]
+--
 dummyAddress
     :: forall (n :: NetworkDiscriminant) k. (MaxSizeOf Address n k) => Address
 dummyAddress =

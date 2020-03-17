@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -18,13 +19,12 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
-    , encodeAddress
+    , DecodeAddress
+    , EncodeAddress (..)
     , getApiT
     , insertedAt
     , time
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), SortOrder (..), TxStatus (..) )
 import Control.Monad
@@ -102,9 +102,11 @@ import Web.HttpApiData
 
 import qualified Data.Text as T
 
-spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
-    => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownCommand t
+    , DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
 
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
@@ -149,7 +151,7 @@ spec = do
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr <- listAddresses ctx wDest
+        addr <- listAddresses @n ctx wDest
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14
@@ -204,8 +206,8 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
-        addr1:_ <- listAddresses ctx wDest1
-        addr2:_ <- listAddresses ctx wDest2
+        addr1:_ <- listAddresses @n ctx wDest1
+        addr2:_ <- listAddresses @n ctx wDest2
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14
@@ -256,9 +258,9 @@ spec = do
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wSrc <- fixtureWalletWith @n ctx [2_124_333]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
@@ -276,9 +278,9 @@ spec = do
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
-        wSrc <- fixtureWalletWith ctx [feeMin+amt]
+        wSrc <- fixtureWalletWith @n ctx [feeMin+amt]
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -314,9 +316,9 @@ spec = do
                 ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
@@ -336,9 +338,9 @@ spec = do
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -352,9 +354,9 @@ spec = do
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [feeMin]
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -370,7 +372,7 @@ spec = do
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -399,7 +401,7 @@ spec = do
         forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
@@ -414,7 +416,7 @@ spec = do
     describe "TRANS_CREATE_07 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let port = show $ ctx ^. typed @(Port "wallet")
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let args =
@@ -435,7 +437,7 @@ spec = do
     it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
         wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
@@ -455,7 +457,7 @@ spec = do
         ex `shouldBe` ExitSuccess
 
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let args = T.unpack <$>
@@ -472,7 +474,7 @@ spec = do
     it "TRANS_ESTIMATE_01 - Can estimate fee of transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 14
         let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -496,7 +498,7 @@ spec = do
     it "TRANS_ESTIMATE_02 - Multiple Output Tx fees estimate to single wallet via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr <- listAddresses ctx wDest
+        addr <- listAddresses @n ctx wDest
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
         let amt = 14 :: Natural
@@ -524,8 +526,8 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
-        addr1:_ <- listAddresses ctx wDest1
-        addr2:_ <- listAddresses ctx wDest2
+        addr1:_ <- listAddresses @n ctx wDest1
+        addr2:_ <- listAddresses @n ctx wDest2
         let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
         let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
         let amt = 14 :: Natural
@@ -549,9 +551,9 @@ spec = do
         c `shouldBe` ExitSuccess
 
     it "TRANS_ESTIMATE_04 - Multiple Output Txs fees estimation doesn't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wSrc <- fixtureWalletWith @n ctx [2_124_333]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
@@ -566,9 +568,9 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_ESTIMATE_05 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
 
         let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
@@ -588,9 +590,9 @@ spec = do
 
     it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -603,9 +605,9 @@ spec = do
 
     it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [feeMin]
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -635,7 +637,7 @@ spec = do
         forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
@@ -675,7 +677,7 @@ spec = do
         -- Make tx from fixtureWallet
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
+        addr:_ <- listAddresses @n ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
         let amt = 14 :: Natural
         let args = T.unpack <$>
@@ -742,7 +744,7 @@ spec = do
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
         let a1 = Quantity $ sum $ replicate 10 1
         let a2 = Quantity $ sum $ replicate 10 2
-        w <- fixtureWalletWith ctx $ mconcat
+        w <- fixtureWalletWith @n ctx $ mconcat
                 [ replicate 10 1
                 , replicate 10 2
                 ]
@@ -849,7 +851,7 @@ spec = do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
@@ -874,7 +876,7 @@ spec = do
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range [t + 𝛿t, ...)" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
@@ -889,7 +891,7 @@ spec = do
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t]" $
           \ctx -> do
-              w <- fixtureWalletWith ctx [1]
+              w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let te = utcIso8601ToText $ utcTimePred t
@@ -1010,7 +1012,7 @@ spec = do
         forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
             wSrc <- emptyRandomWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
             let args = T.unpack <$>
@@ -1034,7 +1036,7 @@ spec = do
           -> Natural
           -> IO (ApiTransaction n)
       postTxViaCLI ctx wSrc wDest amt = do
-          addr:_ <- listAddresses ctx wDest
+          addr:_ <- listAddresses @n ctx wDest
           let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
           let args = T.unpack <$>
                   [ wSrc ^. walletId

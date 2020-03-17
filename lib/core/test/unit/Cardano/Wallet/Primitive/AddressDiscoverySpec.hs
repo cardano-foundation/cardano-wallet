@@ -62,7 +62,7 @@ spec :: Spec
 spec = do
     describe "Random Address Discovery Properties" $ do
         it "isOurs works as expected during key derivation in testnet" $ do
-            property (prop_derivedKeysAreOurs @'Testnet)
+            property (prop_derivedKeysAreOurs @('Testnet 0))
         it "isOurs works as expected during key derivation in mainnet" $ do
             property (prop_derivedKeysAreOurs @'Mainnet)
 

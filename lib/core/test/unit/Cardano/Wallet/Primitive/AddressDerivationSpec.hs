@@ -81,7 +81,6 @@ import Test.QuickCheck
     , classify
     , counterexample
     , expectFailure
-    , genericShrink
     , label
     , oneof
     , property
@@ -118,7 +117,6 @@ spec = do
 
     describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "encryption")
-        textRoundtrip $ Proxy @NetworkDiscriminant
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -468,10 +466,6 @@ instance Arbitrary (IcarusKey 'RootK XPrv) where
 instance Arbitrary (IcarusKey 'AccountK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> (genRootKeysIcaWithPass =<< genPassphrase (0, 16))
-
-instance Arbitrary NetworkDiscriminant where
-    arbitrary = arbitraryBoundedEnum
-    shrink = genericShrink
 
 newtype Unencrypted a = Unencrypted { getUnencrypted :: a }
     deriving (Eq, Show)

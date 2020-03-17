@@ -371,7 +371,7 @@ mkStdTxSpec = do
 
     describe "mkStdTx 'Testnet" $ do
         let tl = newTransactionLayer block0
-        let paymentAddress' = paymentAddress @'Testnet
+        let paymentAddress' = paymentAddress @('Testnet 0)
 
         let addr0 = paymentAddress' (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
@@ -427,11 +427,11 @@ mkStdTxSpec = do
         -- ^ DdzFFzCqrhsyySN2fbNnZf4kh2gg9t4mZzcnCiiw1EFG4ynvCGi35qgdUPh1DJp5Z28SVQxsxfNn7CaRB6DbvvvXZzdtMJ4ML2RrXvrG
         let addrRnd1 = paymentAddress @'Mainnet (publicKey xprvRnd1)
         -- ^ DdzFFzCqrhsrqGWaofA6TmXeChoV5YGk8GyvLE2DCyTib8YpQn4qxsomw4oagtcpa321iQynEtT2D31xG5XGLSWTLHe9CZz26CwZZBQf
-        let addr0 = paymentAddress @'Testnet (publicKey xprv0)
+        let addr0 = paymentAddress @('Testnet 0) (publicKey xprv0)
         -- ^ ta1svk32hg8rppc0wn0lzpkq996pd3xkxqguel8tharwrpdch6czu2luue5k36
-        let addr1 = paymentAddress @'Testnet (publicKey xprv1)
+        let addr1 = paymentAddress @('Testnet 0) (publicKey xprv1)
         -- ^ ta1swedmnalvvgqqgt2dczppejvyrn2lydmk2pxya4dd076wal8v6eykfpz5qu
-        let addr2 = paymentAddress @'Testnet (publicKey xprv2)
+        let addr2 = paymentAddress @('Testnet 0) (publicKey xprv2)
         -- ^ ta1svp2m296efkn4zy63y769x4g52g5vrt7e9dnvszt7z2vrfe0ya66vfmfxyf
 
         let keystore = mkKeystore
@@ -481,15 +481,15 @@ mkStdTxSpec = do
 
     describe "mkStdTx unknown input" $ do
         unknownInputTest (Proxy @'Mainnet) block0
-        unknownInputTest (Proxy @'Testnet) block0
+        unknownInputTest (Proxy @('Testnet 0)) block0
 
     describe "validateSelection cannot accept selection that violates maxNumberOfInputs" $ do
         tooNumerousInpsTest (Proxy @'Mainnet) block0
-        tooNumerousInpsTest (Proxy @'Testnet) block0
+        tooNumerousInpsTest (Proxy @('Testnet 0)) block0
 
     describe "validateSelection cannot accept selection that violates maxNumberOfOutputs" $ do
         tooNumerousOutsTest (Proxy @'Mainnet) block0
-        tooNumerousOutsTest (Proxy @'Testnet) block0
+        tooNumerousOutsTest (Proxy @('Testnet 0)) block0
 
 goldenTestStdTx
     :: TransactionLayer t k

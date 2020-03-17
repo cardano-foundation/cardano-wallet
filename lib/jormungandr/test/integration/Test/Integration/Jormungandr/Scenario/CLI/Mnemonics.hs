@@ -194,7 +194,7 @@ mnemonicsToAccountAddress m1 m2 = do
     mkAccountAddress =
         Bech32.encodeLenient hrp
         . Bech32.dataPartFromBytes
-        . (BS.pack [addrAccount @'Testnet] <>)
+        . (BS.pack [addrAccount @('Testnet 0)] <>)
         . xpubPublicKey
         . getRawKey
         . publicKey

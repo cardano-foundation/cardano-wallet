@@ -132,7 +132,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet) => IO ()
+main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
     fmtLn "Latencies for 2 fixture wallets scenario"
     runScenario logging tvar (nFixtureWallet 2)
@@ -243,7 +243,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         pure ()
 
     postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -260,7 +260,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         return r
 
     repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, utxoExp) = do
-        wSrc <- fixtureWalletWith ctx (replicate batchSize 1000)
+        wSrc <- fixtureWalletWith @n ctx (replicate batchSize 1000)
         let pass = "Secure Passphrase" :: Text
 
         postMultiTx ctx
@@ -285,7 +285,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         pure ()
 
     postMultiTx ctx (wSrc, postTxEndp, pass) wDest amt nOuts = do
-        addrs <- listAddresses ctx wDest
+        addrs <- listAddresses @n ctx wDest
         let destinations = replicate nOuts $ (addrs !! 1) ^. #id
         let amounts = take nOuts [amt, amt .. ]
         let payments = flip map (zip amounts destinations) $ \(coin, addr) ->
@@ -333,7 +333,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
         fmtResult "listTransactions   " t5
 
-        addrs <- listAddresses ctx wal2
+        addrs <- listAddresses @n ctx wal2
         let amt = 1 :: Natural
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -459,7 +459,7 @@ benchWithServer
 benchWithServer tracers action = withConfig $ \jmCfg -> do
     ctx <- newEmptyMVar
     race_ (takeMVar ctx >>= action) $ do
-        res <- serveWallet @'Testnet
+        res <- serveWallet @('Testnet 0)
             tracers (SyncTolerance 10)
             Nothing "127.0.0.1"
             ListenOnRandomPort (Launch jmCfg) $ \wAddr _ bp -> do

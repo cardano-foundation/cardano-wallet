@@ -1,4 +1,6 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -11,9 +13,11 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxId (..), ApiWallet, getApiT )
+    ( ApiTxId (..), ApiWallet, DecodeAddress (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), hex )
+    ( DelegationAddress (..), hex )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..) )
 import Data.ByteArray.Encoding
@@ -64,14 +68,16 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
-    => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownCommand t
+    , DecodeAddress n
+    , DelegationAddress n ShelleyKey
+    ) => SpecWith (Context t)
 spec = do
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> do
         w <- emptyWallet ctx
-        addr:_ <- listAddresses ctx w
+        addr:_ <- listAddresses @n ctx w
         let amt = 4321
 
         payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
@@ -98,7 +104,7 @@ spec = do
        \proper binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ wDest _ bin tx) <-
-            fixtureExternalTx @t ctx toSend
+            fixtureExternalTx @n @t ctx toSend
         let baseOk = Base16
         let arg = B8.unpack $ convertToBase baseOk bin
         let expectedTxId = T.decodeUtf8 $ hex . getHash $ txId tx
@@ -139,7 +145,7 @@ spec = do
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \not hex-encoded binary format" $ \ctx -> do
         let toSend = 1 :: Natural
-        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @t ctx toSend
+        (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @n @t ctx toSend
         let baseWrong = Base64
         let argWrong = B8.unpack $ convertToBase baseWrong bin
         -- post external transaction
@@ -160,7 +166,7 @@ spec = do
 
     it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> do
         w <- emptyWallet ctx
-        addr:_ <- listAddresses ctx w
+        addr:_ <- listAddresses @n ctx w
         let amt = 11111
 
         -- post external tx
