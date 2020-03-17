@@ -93,6 +93,7 @@ module Test.Integration.Framework.DSL
     , withPathParam
     , icarusAddresses
     , randomAddresses
+    , pubKeyFromMnemonics
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -146,9 +147,11 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
+    , FromMnemonic (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
+    , PersistPublicKey (..)
     , SomeMnemonic (..)
     , WalletKey (..)
     )
@@ -156,6 +159,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -1245,11 +1250,11 @@ createWalletFromPublicKeyViaCLI
     :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
-    -> String
+        -- ^ NAME, [--address-pool-gap INT], ACCOUNT_PUBLIC_KEY
     -> IO r
-createWalletFromPublicKeyViaCLI ctx args accPubKey = cardanoWalletCLI @t $
+createWalletFromPublicKeyViaCLI ctx args = cardanoWalletCLI @t $
     [ "wallet", "create", "from-public-key", "--port"
-    , show (ctx ^. typed @(Port "wallet"))] ++ args ++ [accPubKey]
+    , show (ctx ^. typed @(Port "wallet"))] ++ args
 
 deleteWalletViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
@@ -1428,6 +1433,17 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 -- | 'map' flipped.
 for :: [a] -> (a -> b) -> [b]
 for = flip map
+
+--
+-- Helper for HWWallets, getting pubKey from mnemonic sentence
+--
+pubKeyFromMnemonics :: [Text] -> Text
+pubKeyFromMnemonics mnemonics =
+    T.decodeUtf8 $ serializeXPub $ publicKey
+       $ deriveAccountPrivateKey mempty rootXPrv minBound
+ where
+     (Right seed) = fromMnemonic @'[15] mnemonics
+     rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
 
 --
 -- Helper for delegation statuses

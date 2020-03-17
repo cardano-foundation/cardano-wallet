@@ -27,14 +27,6 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
-    , HardDerivation (..)
-    , PersistPublicKey (..)
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -75,6 +67,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , mkEpochInfo
     , notDelegating
+    , pubKeyFromMnemonics
     , quitStakePool
     , request
     , selectCoins
@@ -88,7 +81,6 @@ import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -435,14 +427,6 @@ spec = do
                 ]
 
  where
-     pubKeyFromMnemonics :: [Text] -> Text
-     pubKeyFromMnemonics mnemonics =
-         T.decodeUtf8 $ serializeXPub $ publicKey
-            $ deriveAccountPrivateKey mempty rootXPrv minBound
-      where
-          (Right seed) = fromMnemonic @'[15] mnemonics
-          rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-
      restoredWalletName :: Text
      restoredWalletName = "Wallet from pub key"
 

@@ -79,4 +79,5 @@ library
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
+      Test.Integration.Scenario.CLI.HWWallets
       Cardano.Wallet.TransactionSpecShared

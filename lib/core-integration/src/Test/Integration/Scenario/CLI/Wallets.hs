@@ -7,6 +7,8 @@
 
 module Test.Integration.Scenario.CLI.Wallets
     ( spec
+    , walletNames
+    , walletNamesInvalid
     ) where
 
 import Prelude
@@ -22,15 +24,7 @@ import Cardano.Wallet.Api.Types
     , getApiT
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
-    , HardDerivation (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
-    , PersistPublicKey (..)
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( generateKeyFromSeed )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
@@ -61,7 +55,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
     , cardanoWalletCLI
-    , createWalletFromPublicKeyViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyRandomWallet
@@ -97,7 +90,6 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 spec :: forall n t.
     ( KnownCommand t
@@ -247,70 +239,6 @@ spec = do
             , expectCliField walletId (`shouldBe` wDest ^. walletId)
             ]
 
-    it "WALLETS_CREATE_02 - Restored wallet preserves funds from account\
-       \ public key" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-
-        -- create a wallet
-        Stdout m <- generateMnemonicsViaCLI @t []
-        (c1, o1, e1) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
-        c1 `shouldBe` ExitSuccess
-        T.unpack e1 `shouldContain` cmdOk
-        wDest <- expectValidJSON (Proxy @ApiWallet) o1
-        verify wDest
-            [ expectCliField
-                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
-            , expectCliField
-                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
-            ]
-
-        --send transaction to the wallet
-        let amount = 11
-        addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", T.pack (show amount) <> "@" <> addr
-                ]
-
-        (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        T.unpack ep `shouldContain` cmdOk
-        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
-        cp `shouldBe` ExitSuccess
-
-        eventually "Wallet balance is as expected" $ do
-            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
-            expectCliField (#balance . #getApiT . #available)
-                (`shouldBe` Quantity amount) jg
-            expectCliField (#balance . #getApiT . #total)
-                (`shouldBe` Quantity amount) jg
-
-        -- delete wallet
-        Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-        cd `shouldBe` ExitSuccess
-
-        -- restore wallet from account public key
-        let (Right seed) = fromMnemonic @'[15] (T.pack <$> words m)
-        let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
-        let accXPub = T.unpack $ T.decodeUtf8 $ serializeXPub $
-                publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
-        (Exit c2, Stdout o2, Stderr e2) <-
-            createWalletFromPublicKeyViaCLI @t ctx ["n"] accXPub
-        c2 `shouldBe` ExitSuccess
-        e2 `shouldContain` cmdOk
-        wRestored <- expectValidJSON (Proxy @ApiWallet) o2
-
-        -- make sure funds are there
-        Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
-        justRestored <- expectValidJSON (Proxy @ApiWallet) o3
-        verify justRestored
-            [ expectCliField
-                    (#balance . #getApiT . #available) (`shouldBe` Quantity amount)
-            , expectCliField
-                    (#balance . #getApiT . #total) (`shouldBe` Quantity amount)
-            ]
-
     it "WALLETS_CREATE_03 - Cannot create wallet that exists" $ \ctx -> do
         Stdout m1 <- generateMnemonicsViaCLI @t ["--size", "24"]
         Stdout m2 <- generateMnemonicsViaCLI @t ["--size", "12"]
@@ -338,15 +266,13 @@ spec = do
             expectCliField
                 (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
-    it "WALLETS_CREATE_04 - Cannot create wallet when name exceeds length" $ \ctx -> do
-        let n = replicate (walletNameMaxLength + 1) 'ą'
-        Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
-
-        (c, o, e) <- createWalletViaCLI @t ctx [n] m "\n" "secure-passphrase"
-        c `shouldBe` ExitFailure 1
-        T.unpack e `shouldContain`
-            "name is too long: expected at most 255 characters"
-        o `shouldBe` ""
+    describe "WALLETS_CREATE_04 - Wallet names invalid" $ do
+        forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> do
+            Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
+            (c, o, e) <- createWalletViaCLI @t ctx [name] m "\n" "secure-passphrase"
+            c `shouldBe` ExitFailure 1
+            T.unpack e `shouldContain` expects
+            o `shouldBe` ""
 
     describe "WALLETS_CREATE_05 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> do
@@ -862,9 +788,15 @@ walletNames =
         [ ( "Name min", replicate walletNameMinLength 'ź' )
         , ( "Name max", replicate walletNameMaxLength 'ą' )
         , ( "Name max - 1", replicate ( walletNameMaxLength - 1 ) 'ą' )
-        , ( "Name max + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
+        , ( "Name min + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
         , ( "Single space", " " )
         , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
         , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
         , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
         ]
+
+walletNamesInvalid :: [(String, String)]
+walletNamesInvalid =
+    [ ("", "name is too short: expected at least 1 character")
+    , (replicate (walletNameMaxLength + 1) 'ą', "name is too long: expected at most 255 characters")
+    ]

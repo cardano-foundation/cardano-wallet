@@ -112,6 +112,7 @@ import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
@@ -151,6 +152,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ AddressesCLI.spec @n @t
             withCtxOnly $ TransactionsCLI.spec @n @t
             withCtxOnly $ WalletsCLI.spec @n @t
+            withCtxOnly $ HWWalletsCLI.spec @n @t
             withCtxOnly $ PortCLI.spec @t
             withCtxOnly $ NetworkCLI.spec @t
             withCtxOnly $ StakePoolsCliJormungandr.spec @t
