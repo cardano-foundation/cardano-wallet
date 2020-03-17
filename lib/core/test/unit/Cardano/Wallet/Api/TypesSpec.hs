@@ -37,7 +37,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiEncryptedRootXPrv (..)
     , ApiEpochInfo (..)
     , ApiEpochNumber (..)
     , ApiFee (..)
@@ -145,7 +144,7 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText, unsafeXPrv )
 import Control.Lens
     ( at, (.~), (^.) )
 import Control.Monad
@@ -1089,15 +1088,10 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiEncryptedRootXPrv where
-    arbitrary = do
-        InfiniteList bytes _ <- arbitrary
-        return $ ApiEncryptedRootXPrv $ BS.pack $ take 128 bytes
-
 instance Arbitrary ByronWalletFromXPrvPostData where
     arbitrary = do
         n <- arbitrary
-        rootXPrv <- arbitrary
+        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
         h <- ApiT . Hash . B8.pack <$> replicateM 64 arbitrary
         pure $ ByronWalletFromXPrvPostData n rootXPrv h
 
