@@ -85,6 +85,7 @@ let
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
       exe = haskellPackages.cardano-wallet-byron.components.exes.cardano-wallet-byron;
+      inherit (self) cardano-node;
     };
 
     # `tests` are the test suites which have been built.

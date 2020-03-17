@@ -9,6 +9,8 @@
 , gitrev
 # executable component for the program, from Haskell.nix
 , exe
+# node backend
+, cardano-node
 }:
 
 with pkgs.lib;
@@ -25,6 +27,7 @@ pkgs.stdenv.mkDerivation rec {
     set-git-rev "${gitrev}" $out/bin/${exe.identifier.name}* || true
   '' + (if pkgs.stdenv.hostPlatform.isWindows then ''
     cp -vf ${pkgs.libffi}/bin/libffi-6.dll $out/bin
+    cp -vf ${cardano-node}/bin/* $out/bin
   '' else (if pkgs.stdenv.hostPlatform.isDarwin then ''
     rewrite-libs $out/bin $out/bin/${exe.identifier.name}
   '' else ''
