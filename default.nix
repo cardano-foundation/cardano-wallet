@@ -117,10 +117,18 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ [ self.jormungandr self.jormungandr-cli
-             self.cardano-node
-             pkgs.pkgconfig pkgs.sqlite-interactive
-             pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
+        ++ (with self; [
+          jormungandr
+          jormungandr-cli
+          cardano-node
+        ]) ++ (with pkgs; [
+          stack
+          cabal-install
+          niv
+          pkgconfig
+          sqlite-interactive
+          pythonPackages.openapi-spec-validator
+        ]);
       meta.platforms = lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {
