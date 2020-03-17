@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,11 +17,11 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , encodeAddress
     , getApiT
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -79,9 +80,11 @@ import Test.Integration.Scenario.CLI.Wallets
 
 import qualified Data.Text as T
 
-spec
-    :: forall t n. (n ~ 'Testnet, KnownCommand t)
-    => SpecWith (Context t)
+spec :: forall n t.
+    ( KnownCommand t
+    , DecodeAddress n
+    , EncodeAddress n
+    ) => SpecWith (Context t)
 spec = do
 
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
@@ -102,7 +105,7 @@ spec = do
 
         --send transaction to the wallet
         let amount = 11
-        addrs:_ <- listAddresses ctx wDest
+        addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -163,7 +166,7 @@ spec = do
 
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let args = T.unpack <$>
                     [ wRestored ^. walletId
@@ -218,7 +221,7 @@ spec = do
 
             -- get fee
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses ctx wDest
+            addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let amt = 1
             let args = T.unpack <$>

@@ -152,7 +152,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ AddressesCLI.spec @n @t
             withCtxOnly $ TransactionsCLI.spec @n @t
             withCtxOnly $ WalletsCLI.spec @n @t
-            withCtxOnly $ HWWalletsCLI.spec @t
+            withCtxOnly $ HWWalletsCLI.spec @n @t
             withCtxOnly $ PortCLI.spec @t
             withCtxOnly $ NetworkCLI.spec @t
             withCtxOnly $ StakePoolsCliJormungandr.spec @t
