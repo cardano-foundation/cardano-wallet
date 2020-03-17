@@ -31,7 +31,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.Chain.Genesis
-    ( readGenesisData )
+    ( GenesisData (..), readGenesisData )
 import Cardano.CLI
     ( LoggingOptions (..)
     , cli
@@ -76,6 +76,7 @@ import Cardano.Wallet.Byron.Compatibility
     , NodeVersionData
     , emptyGenesis
     , fromGenesisData
+    , fromProtocolMagicId
     , mainnetVersionData
     , testnetVersionData
     )
@@ -99,6 +100,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
     ( contramap )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -236,13 +239,18 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
             , vData
             , emptyGenesis (blockchainParameters @'Mainnet)
             )
-        TestnetConfig (discriminant, vData) genesisFile -> do
+        TestnetConfig genesisFile -> do
             (genesisData, genesisHash) <-
                 runExceptT (readGenesisData genesisFile) >>= \case
                     Right a -> pure a
                     Left err -> do
                         logError tr $ MsgFailedToParseGenesis $ T.pack $ show err
                         exitWith $ ExitFailure 33
+
+            let (discriminant, vData) = genesisData
+                    & gdProtocolMagicId
+                    & fromProtocolMagicId
+                    & someTestnetDiscriminant
 
             let (bp, outs) = fromGenesisData (genesisData, genesisHash)
             pure
@@ -251,7 +259,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                 , vData
                 , fromGenesisTxOut bp outs
                 )
-
 
 {-------------------------------------------------------------------------------
                                  Options
@@ -263,8 +270,7 @@ data NetworkConfiguration where
         -> NetworkConfiguration
 
     TestnetConfig
-        :: (SomeNetworkDiscriminant, NodeVersionData)
-        -> FilePath
+        :: FilePath
         -> NetworkConfiguration
 
 -- | Hand-written as there's no Show instance for 'NodeVersionData'
@@ -272,7 +278,7 @@ instance Show NetworkConfiguration where
     show = \case
         MainnetConfig{} ->
             "MainnetConfig"
-        TestnetConfig _ genesisFile ->
+        TestnetConfig genesisFile ->
             "TestnetConfig " <> show genesisFile
 
 -- | --node-socket=FILE
@@ -282,43 +288,38 @@ nodeSocketOption = optionT $ mempty
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
 
--- | --mainnet | (--testnet=NETWORK_MAGIC --genesis=FILE)
+-- | --mainnet | (--testnet=FILE)
 networkConfigurationOption :: Parser NetworkConfiguration
 networkConfigurationOption =
-    mainnetFlag <|> (TestnetConfig <$> testnetOption <*> genesisOption)
+    mainnetFlag <|> (TestnetConfig <$> testnetOption)
   where
     -- --mainnet
     mainnetFlag = flag'
         (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
         (long "mainnet")
 
-    -- --testnet NETWORK_MAGIC
-    testnetOption = fmap someTestnetDiscriminant $ optionT $ mempty
-        <> long "testnet"
-        <> metavar "NETWORK_MAGIC"
-      where
-        someTestnetDiscriminant
-            :: ProtocolMagic
-            -> (SomeNetworkDiscriminant, NodeVersionData)
-        someTestnetDiscriminant pm@(ProtocolMagic n) =
-            case someNatVal (fromIntegral n) of
-                Just (SomeNat proxy) ->
-                    ( SomeNetworkDiscriminant $ mapProxy proxy
-                    , testnetVersionData pm
-                    )
-                _ -> error "networkDiscriminantFlag: failed to convert \
-                    \ProtocolMagic to SomeNat."
-
-        mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
-        mapProxy _proxy = Proxy @('Testnet a)
-
-    -- | --genesis=FILE
-    genesisOption
+    -- | --testnet=FILE
+    testnetOption
         :: Parser FilePath
-    genesisOption = optionT $ mempty
-        <> long "genesis"
+    testnetOption = optionT $ mempty
+        <> long "testnet"
         <> metavar "FILE"
         <> help "Path to the genesis .json file."
+
+someTestnetDiscriminant
+    :: ProtocolMagic
+    -> (SomeNetworkDiscriminant, NodeVersionData)
+someTestnetDiscriminant pm@(ProtocolMagic n) =
+    case someNatVal (fromIntegral n) of
+        Just (SomeNat proxy) ->
+            ( SomeNetworkDiscriminant $ mapProxy proxy
+            , testnetVersionData pm
+            )
+        _ -> error "networkDiscriminantFlag: failed to convert \
+            \ProtocolMagic to SomeNat."
+  where
+    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
+    mapProxy _proxy = Proxy @('Testnet a)
 
 tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers

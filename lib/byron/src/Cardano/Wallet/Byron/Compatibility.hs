@@ -41,6 +41,7 @@ module Cardano.Wallet.Byron.Compatibility
     , fromChainHash
     , fromGenesisData
     , fromNetworkMagic
+    , fromProtocolMagicId
     , fromSlotNo
     , fromTip
     , fromTxAux
@@ -66,6 +67,8 @@ import Cardano.Chain.UTxO
     ( Tx (..), TxAux, TxIn (..), TxOut (..), taTx, unTxPayload )
 import Cardano.Crypto
     ( AbstractHash (..), hash )
+import Cardano.Crypto.ProtocolMagic
+    ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
@@ -389,3 +392,6 @@ fromGenesisData (genesisData, genesisHash) =
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
+
+fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
+fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
