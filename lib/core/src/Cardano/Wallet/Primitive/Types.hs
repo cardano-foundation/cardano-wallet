@@ -166,6 +166,7 @@ module Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , invariant
     , distance
+    , hashFromText
     ) where
 
 import Prelude

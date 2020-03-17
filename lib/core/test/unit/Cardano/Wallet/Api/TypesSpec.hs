@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
@@ -143,7 +144,7 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText, unsafeXPrv )
 import Control.Lens
     ( at, (.~), (^.) )
 import Control.Monad
@@ -322,6 +323,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
             jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -1086,6 +1088,13 @@ instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ByronWalletFromXPrvPostData where
+    arbitrary = do
+        n <- arbitrary
+        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+        h <- ApiT . Hash . B8.pack <$> replicateM 64 arbitrary
+        pure $ ByronWalletFromXPrvPostData n rootXPrv h
+
 instance Arbitrary SomeByronWalletPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1576,12 +1585,20 @@ instance ToSchema (ByronWalletPostData '[12,15,18,21,24]) where
     -- NOTE ApiByronWalletLedgerPostData works too. Only the description differs.
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletTrezorPostData"
 
+instance ToSchema ByronWalletFromXPrvPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomXPrvPostData"
+
 instance ToSchema SomeByronWalletPostData where
     declareNamedSchema _ = do
-        NamedSchema _ schema <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
-        let props = schema ^. properties
-        pure $ NamedSchema Nothing $ schema
-            & properties .~ (props & at "style" .~ Just (Inline styleSchema))
+        NamedSchema _ schema1 <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
+        let props1 = schema1 ^. properties
+        NamedSchema _ schema2 <- declareNamedSchema (Proxy @ByronWalletFromXPrvPostData)
+        let props2 = schema2 ^. properties
+        pure $ NamedSchema Nothing $ mempty
+            & properties .~ mconcat
+            [ props1 & at "style" .~ Just (Inline styleSchema)
+            , props2 & at "style" .~ Just (Inline styleSchema)
+            ]
       where
         styleSchema = mempty
             & type_ .~ Just SwaggerString

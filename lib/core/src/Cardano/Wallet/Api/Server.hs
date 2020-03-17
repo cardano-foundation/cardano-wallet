@@ -128,6 +128,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -488,7 +489,8 @@ server byron icarus shelley spl ntp =
     byronWallets :: Server ByronWallets
     byronWallets =
         (\case
-            SomeRandomWallet x -> postRandomWallet byron x
+            RandomWalletFromMnemonic x -> postRandomWallet byron x
+            RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
@@ -604,7 +606,8 @@ byronServer byron icarus ntp =
     byronWallets :: Server ByronWallets
     byronWallets =
         (\case
-            SomeRandomWallet x -> postRandomWallet byron x
+            RandomWalletFromMnemonic x -> postRandomWallet byron x
+            RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
@@ -865,6 +868,12 @@ postRandomWallet ctx body = do
     pwd   = getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
+
+postRandomWalletFromXPrv
+    :: ctx
+    -> ByronWalletFromXPrvPostData
+    -> Handler ApiByronWallet
+postRandomWalletFromXPrv _ctx _body = throwError err501
 
 postIcarusWallet
     :: forall ctx s t k.

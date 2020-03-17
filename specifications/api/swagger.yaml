@@ -268,6 +268,29 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
+x-walletPassphraseHash: &walletPassphraseHash
+  description: |
+    A hash of master passphrase. The hash should be a 64-byte output of a Scrypt function with the following parameters:
+    - logN = 14
+    - r = 8
+    - p = 1
+  type: string
+  format: hex
+  minLength: 128
+  maxLength: 128
+  example: 3be2ead8e3c3be2ea67c41a6e898ceecddeecd88585d11d15d8733f7ad1adbaf3c1570d8e3c67c41a6e898ceecddeecd88585d11d15d8733f7ad1adbaf3c1570
+
+x-walletEncryptedRootPrivateKey: &walletEncryptedRootPrivateKey
+  description: |
+    A root private key, encrypted using a given passphrase. The underlying key should contain:
+    - A private key
+    - A chain code
+    - A public key
+  type: string
+  format: hex
+  minLength: 256
+  maxLength: 256
+
 x-walletAddressPoolGap: &walletAddressPoolGap
   description: Number of consecutive unused addresses allowed
   type: integer
@@ -928,6 +951,20 @@ components:
           <<: *walletMnemonicSentence
           minItems: 12
           maxItems: 12
+
+    ApiByronWalletRandomXPrvPostData: &ApiByronWalletRandomXPrvPostData
+      type: object
+      required:
+        - name
+        - encrypted_root_private_key
+        - passphrase_hash
+      properties:
+        style:
+          type: string
+          enum: ["random"]
+        name: *walletName
+        encrypted_root_private_key: *walletEncryptedRootPrivateKey
+        passphrase_hash: *walletPassphraseHash
 
     ApiByronWalletIcarusPostData: &ApiByronWalletIcarusPostData
       type: object
@@ -1853,6 +1890,7 @@ paths:
             schema:
               oneOf:
                 - *ApiByronWalletRandomPostData
+                - *ApiByronWalletRandomXPrvPostData
                 - *ApiByronWalletIcarusPostData
                 - *ApiByronWalletTrezorPostData
                 - *ApiByronWalletLedgerPostData

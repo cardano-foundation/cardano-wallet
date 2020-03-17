@@ -84,6 +84,7 @@ module Cardano.Wallet.Api.Types
     , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
+    , ByronWalletFromXPrvPostData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -112,7 +113,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , PersistPublicKey (..)
     , SomeMnemonic (..)
+    , XPrv
     , XPub
+    , unXPrv
+    , xprv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
@@ -145,6 +149,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , hashFromText
     , isValidCoin
     , unsafeEpochNo
     )
@@ -178,7 +183,7 @@ import Data.Aeson
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -369,7 +374,8 @@ data WalletPostData = WalletPostData
     } deriving (Eq, Generic, Show)
 
 data SomeByronWalletPostData
-    = SomeRandomWallet (ByronWalletPostData (AllowedMnemonics 'Random))
+    = RandomWalletFromMnemonic (ByronWalletPostData (AllowedMnemonics 'Random))
+    | RandomWalletFromXPrv ByronWalletFromXPrvPostData
     | SomeIcarusWallet (ByronWalletPostData (AllowedMnemonics 'Icarus))
     | SomeTrezorWallet (ByronWalletPostData (AllowedMnemonics 'Trezor))
     | SomeLedgerWallet (ByronWalletPostData (AllowedMnemonics 'Ledger))
@@ -379,6 +385,19 @@ data ByronWalletPostData mw = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT mw)
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
+    { name :: !(ApiT WalletName)
+    , encryptedRootPrivateKey :: !(ApiT XPrv)
+    -- ^ A root private key hex-encoded, encrypted using a given passphrase.
+    -- The underlying key should contain: private key, chain code, and public key
+    , passphraseHash :: !(ApiT (Hash "encryption"))
+    -- ^ A hash of master passphrase. The hash should be a 64-byte output of a
+    -- Scrypt function with the following parameters:
+    -- - logN = 14
+    -- - r = 8
+    -- - p = 1
     } deriving (Eq, Generic, Show)
 
 newtype ApiAccountPublicKey = ApiAccountPublicKey
@@ -634,6 +653,35 @@ instance FromText ApiAccountPublicKey where
         Right pubkey ->
             Right $ ApiAccountPublicKey $ ApiT $ ShelleyKey pubkey
 
+instance FromText (ApiT XPrv) where
+    fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
+        Left _ ->
+            textDecodingError
+        Right (bytes :: ByteString) -> case xprv bytes of
+            Left _ -> textDecodingError
+            Right val -> Right $ ApiT val
+      where
+        textDecodingError = Left $ TextDecodingError $ unwords
+            [ "Invalid encrypted root private key:"
+            , "expecting a hex-encoded value that is 128 "
+            , "bytes in length."
+            ]
+
+instance {-# OVERLAPPING #-} Show (ApiT XPrv) where
+    show _ = "<xprv>"
+
+instance {-# OVERLAPPING #-} Eq (ApiT XPrv) where
+    (ApiT val1) == (ApiT val2) = unXPrv val1 == unXPrv val2
+
+instance ToText (ApiT XPrv) where
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . unXPrv
+        . getApiT
+
+instance FromText (ApiT (Hash "encryption"))  where
+    fromText = fmap ApiT . hashFromText 64
+
 {-------------------------------------------------------------------------------
                               API Types: Byron
 -------------------------------------------------------------------------------}
@@ -782,7 +830,9 @@ instance ToJSON AccountPostData where
 
 instance ToJSON SomeByronWalletPostData where
     toJSON = \case
-        SomeRandomWallet w -> toJSON w
+        RandomWalletFromMnemonic w -> toJSON w
+            & withExtraField (fieldName, toJSON $ toText Random)
+        RandomWalletFromXPrv w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Random)
         SomeIcarusWallet w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Icarus)
@@ -798,7 +848,11 @@ instance FromJSON SomeByronWalletPostData where
     parseJSON = withObject "SomeByronWallet" $ \obj -> do
         obj .: "style" >>= \case
             t | t == toText Random ->
-                SomeRandomWallet <$> parseJSON (Aeson.Object obj)
+                (obj .:? "passphrase_hash" :: Aeson.Parser (Maybe Text)) >>= \case
+                    Nothing ->
+                        RandomWalletFromMnemonic <$> parseJSON (Aeson.Object obj)
+                    Just _ ->
+                        RandomWalletFromXPrv <$> parseJSON (Aeson.Object obj)
             t | t == toText Icarus ->
                 SomeIcarusWallet <$> parseJSON (Aeson.Object obj)
             t | t == toText Trezor ->
@@ -819,6 +873,23 @@ withExtraField (k,v) = \case
 instance FromMnemonic mw => FromJSON (ByronWalletPostData mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON (ByronWalletPostData mw) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Hash "encryption")) where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON (ApiT (Hash "encryption")) where
+    toJSON = toJSON . toText . getApiT
+
+instance FromJSON (ApiT XPrv) where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+instance ToJSON (ApiT XPrv) where
+    toJSON = toJSON . toText
+
+instance FromJSON ByronWalletFromXPrvPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ByronWalletFromXPrvPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPutData where
