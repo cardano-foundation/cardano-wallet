@@ -1882,7 +1882,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Restore a Byron wallet from a mnemonic sentence.
+        Restore a Byron wallet from a mnemonic sentence or encrypted root private key.
       requestBody:
         required: true
         content:
