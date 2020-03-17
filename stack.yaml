@@ -26,6 +26,8 @@ extra-deps:
 - servant-client-0.17
 - servant-swagger-1.1.8
 
+- Win32-2.6.2.0
+
 # 'zip' with an extra flag to disable bzlib2 library
 - zip-1.3.0
 

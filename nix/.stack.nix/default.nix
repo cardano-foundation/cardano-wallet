@@ -13,6 +13,7 @@
         "servant-client-core" = (((hackage.servant-client-core)."0.17").revisions).default;
         "servant-client" = (((hackage.servant-client)."0.17").revisions).default;
         "servant-swagger" = (((hackage.servant-swagger)."1.1.8").revisions).default;
+        "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
         "zip" = (((hackage.zip)."1.3.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
