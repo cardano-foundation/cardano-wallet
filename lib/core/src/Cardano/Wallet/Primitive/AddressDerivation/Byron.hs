@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , generateKeyFromMasterKey
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -265,6 +266,11 @@ hdPassphrase masterKey = Passphrase $
     (PBKDF2.Parameters 500 32)
     (unXPub masterKey)
     ("address-hashing" :: ByteString)
+
+generateKeyFromMasterKey
+    :: XPrv
+    -> ByronKey 'RootK XPrv
+generateKeyFromMasterKey _ = undefined
 
 {-------------------------------------------------------------------------------
                                    Passphrase
