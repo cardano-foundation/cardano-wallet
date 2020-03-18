@@ -722,7 +722,7 @@ postShelleyWallet ctx body = do
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
-        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
   where
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
@@ -830,7 +830,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.attachPrivateKey wrk wid (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wid = WalletId $ digest $ publicKey rootXPrv
