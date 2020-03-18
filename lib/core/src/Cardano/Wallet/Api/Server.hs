@@ -2213,6 +2213,8 @@ instance LiftHandler (Request, ServerError) where
             , "understand your message. Please double-check your 'Content-Type' "
             , "request header and make sure it's set to '", cType, "'."
             ]
+        501 -> apiError err' NotImplemented
+            "I'm really sorry but this endpoint is not implemented yet."
         _ -> apiError err' UnexpectedError $ mconcat
             [ "It looks like something unexpected went wrong. Unfortunately I "
             , "don't yet know how to handle this type of situation. Here's "
