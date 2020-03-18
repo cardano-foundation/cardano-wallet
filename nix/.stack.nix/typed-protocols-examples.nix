@@ -39,18 +39,18 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-binary-test"; version = "1.3.0"; };
-      license = "MIT";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "IOHK";
+      identifier = { name = "typed-protocols-examples"; version = "0.1.0.0"; };
+      license = "Apache-2.0";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
+      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
+      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "Test helpers from cardano-binary exposed to other packages";
-      description = "Test helpers from cardano-binary exposed to other packages";
+      synopsis = "Examples and tests for the typed-protocols framework";
+      description = "";
       buildType = "Simple";
       isLocal = true;
       };
@@ -59,28 +59,37 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-prelude-test" or (buildDepError "cardano-prelude-test"))
-          (hsPkgs."cborg" or (buildDepError "cborg"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."formatting" or (buildDepError "formatting"))
-          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
-          (hsPkgs."hspec" or (buildDepError "hspec"))
-          (hsPkgs."pretty-show" or (buildDepError "pretty-show"))
-          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-          (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."vector" or (buildDepError "vector"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
           ];
         buildable = true;
+        };
+      tests = {
+        "typed-protocols-tests" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (buildDepError "typed-protocols-examples"))
+            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+            (hsPkgs."io-sim" or (buildDepError "io-sim"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."time" or (buildDepError "time"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-base";
-      rev = "f869bee9b08ba1044b1476737c9d65083e1c6c7f";
-      sha256 = "0df3bdf13cwx3hd8n4q53g9hybb0w8mh837y64ydd88xhdfaf6a3";
+      url = "https://github.com/input-output-hk/ouroboros-network";
+      rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
+      sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
       });
-    postUnpack = "sourceRoot+=/binary/test; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/typed-protocols-examples; echo source root reset to \$sourceRoot";
     }

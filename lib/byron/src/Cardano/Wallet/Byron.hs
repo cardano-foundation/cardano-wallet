@@ -65,7 +65,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
-    ( AddrInfo (..), withNetworkLayer )
+    ( withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
@@ -107,8 +107,6 @@ import Cardano.Wallet.Registry
     ( WorkerLog (..) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
-import Codec.SerialiseTerm
-    ( CodecCBORTerm )
 import Control.Applicative
     ( Const (..) )
 import Control.DeepSeq
@@ -137,6 +135,8 @@ import Network.Wai.Middleware.Logging
     ( ApiLog )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
+import Ouroboros.Network.Protocol.Handshake.Version
+    ( CodecCBORTerm )
 import System.Exit
     ( ExitCode (..) )
 
@@ -181,7 +181,7 @@ serveWallet
     -- ^ Which host to bind.
     -> Listen
     -- ^ HTTP API Server port.
-    -> AddrInfo
+    -> FilePath
     -- ^ Socket for communicating with the node
     -> Block
     -- ^ The genesis block, or some starting point.
@@ -203,19 +203,19 @@ serveWallet
   databaseDir
   hostPref
   listen
-  addrInfo
+  socketPath
   block0
   (bp, vData)
   beforeMainLoop = do
     let ntwrk = networkDiscriminantValFromProxy proxy
-    traceWith applicationTracer $ MsgStarting addrInfo
+    traceWith applicationTracer $ MsgStarting socketPath
     traceWith applicationTracer $ MsgNetworkName ntwrk
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = do
-        withNetworkLayer nullTracer bp addrInfo vData $ \nl -> do
+        withNetworkLayer nullTracer bp socketPath vData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
@@ -301,7 +301,7 @@ exitCodeApiServer = \case
 
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
-    = MsgStarting AddrInfo
+    = MsgStarting FilePath
     | MsgNetworkName Text
     | MsgServerStartupError ListenError
     | MsgDatabaseStartup DatabasesStartupLog
@@ -309,8 +309,8 @@ data ApplicationLog
 
 instance ToText ApplicationLog where
     toText = \case
-        MsgStarting info ->
-            let addr = T.pack $ show $ addrAddress info
+        MsgStarting socket ->
+            let addr = T.pack $ show socket
             in "Wallet backend server starting. Using " <> addr <> "."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."

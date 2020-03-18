@@ -70,8 +70,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
-import Codec.SerialiseTerm
-    ( CodecCBORTerm )
 import Data.Coerce
     ( coerce )
 import Data.Quantity
@@ -86,7 +84,7 @@ import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Ledger.Byron
+import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..), ByronHash (..), GenTx (..), decodeByronGenTx )
 import Ouroboros.Network.Block
     ( BlockNo (..)
@@ -94,8 +92,10 @@ import Ouroboros.Network.Block
     , Point (..)
     , SlotNo (..)
     , Tip (..)
-    , genesisBlockNo
     , genesisPoint
+    , getLegacyTipBlockNo
+    , getTipPoint
+    , legacyTip
     )
 import Ouroboros.Network.ChainFragment
     ( HasHeader (..) )
@@ -105,6 +105,8 @@ import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
+import Ouroboros.Network.Protocol.Handshake.Version
+    ( CodecCBORTerm )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Crypto.Hash as Crypto
@@ -181,8 +183,16 @@ emptyGenesis bp = W.Block
 --
 -- Genesis
 
+
 genesisTip :: Tip ByronBlock
-genesisTip = Tip genesisPoint genesisBlockNo
+genesisTip = legacyTip genesisPoint genesisBlockNo
+  where
+    -- NOTE: ourobouros-network states that:
+    --
+    -- There /is/ no block number if we are at genesis
+    -- ('genesisBlockNo' is the block number of the first block on the chain).
+    -- Usage of this function should be phased out.
+    genesisBlockNo = BlockNo 0
 
 
 --------------------------------------------------------------------------------
@@ -310,7 +320,7 @@ fromBlockNo (BlockNo h) =
     Quantity (fromIntegral h)
 
 fromTip :: W.Hash "Genesis" -> W.EpochLength -> Tip ByronBlock -> W.BlockHeader
-fromTip genesisHash epLength tip = case getPoint (tipPoint tip) of
+fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
     Origin -> W.BlockHeader
         { slotId = W.SlotId 0 0
         , blockHeight = Quantity 0
@@ -319,7 +329,7 @@ fromTip genesisHash epLength tip = case getPoint (tipPoint tip) of
         }
     At blk -> W.BlockHeader
         { slotId = fromSlotNo epLength $ Point.blockPointSlot blk
-        , blockHeight = fromBlockNo $ tipBlockNo tip
+        , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromByronHash $ Point.blockPointHash blk
         -- TODO
         -- We only use the parentHeaderHash in the

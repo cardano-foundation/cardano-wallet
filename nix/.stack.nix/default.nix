@@ -44,6 +44,7 @@
         iohk-monitoring = ./iohk-monitoring.nix;
         lobemo-backend-aggregation = ./lobemo-backend-aggregation.nix;
         lobemo-backend-monitoring = ./lobemo-backend-monitoring.nix;
+        tracer-transformers = ./tracer-transformers.nix;
         ekg-prometheus-adapter = ./ekg-prometheus-adapter.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
@@ -64,8 +65,11 @@
         network-mux = ./network-mux.nix;
         ouroboros-network = ./ouroboros-network.nix;
         ouroboros-consensus = ./ouroboros-consensus.nix;
+        ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
         typed-protocols = ./typed-protocols.nix;
-        typed-protocols-cbor = ./typed-protocols-cbor.nix;
+        typed-protocols-examples = ./typed-protocols-examples.nix;
+        ouroboros-network-framework = ./ouroboros-network-framework.nix;
+        ouroboros-network-testing = ./ouroboros-network-testing.nix;
         ntp-client = ./ntp-client.nix;
         };
       };

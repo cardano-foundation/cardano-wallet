@@ -59,34 +59,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-          (hsPkgs."time" or (buildDepError "time"))
           ];
         buildable = true;
-        };
-      tests = {
-        "test-protocols" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-            (hsPkgs."io-sim" or (buildDepError "io-sim"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."time" or (buildDepError "time"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "398004e1403367cc2a25c639eb6349d473e51b2d";
-      sha256 = "1x940w0sma3mhl4hfd937sp25hdl3migkl8zsyl92p59468218i9";
+      rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
+      sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
       });
     postUnpack = "sourceRoot+=/typed-protocols; echo source root reset to \$sourceRoot";
     }

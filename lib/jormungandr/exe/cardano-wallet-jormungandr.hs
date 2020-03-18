@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -304,7 +305,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H enableShutdownHandler logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            withShutdownHandlerMaybe tr enableShutdownHandler $ do
+            withShutdownHandlerMaybe (contramap (mempty,) tr) enableShutdownHandler $ do
                 logInfo tr $ MsgServeArgs args
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl

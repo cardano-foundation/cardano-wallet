@@ -39,18 +39,18 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-binary-test"; version = "1.3.0"; };
-      license = "MIT";
+      identifier = { name = "tracer-transformers"; version = "0.1.0.1"; };
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
-      author = "IOHK";
+      author = "Neil Davies, Alexander Diemand, Andreas Triantafyllos";
       homepage = "";
       url = "";
-      synopsis = "Test helpers from cardano-binary exposed to other packages";
-      description = "Test helpers from cardano-binary exposed to other packages";
+      synopsis = "tracer transformers and examples showing their use";
+      description = "";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,29 +58,38 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-prelude-test" or (buildDepError "cardano-prelude-test"))
-          (hsPkgs."cborg" or (buildDepError "cborg"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."formatting" or (buildDepError "formatting"))
-          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
-          (hsPkgs."hspec" or (buildDepError "hspec"))
-          (hsPkgs."pretty-show" or (buildDepError "pretty-show"))
-          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-          (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."vector" or (buildDepError "vector"))
-          ];
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
+          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.5") (hsPkgs."contravariant" or (buildDepError "contravariant"));
         buildable = true;
+        };
+      exes = {
+        "tracer-transfomers-example1" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."time" or (buildDepError "time"))
+            (hsPkgs."tracer-transformers" or (buildDepError "tracer-transformers"))
+            ];
+          buildable = true;
+          };
+        "tracer-transfomers-example2" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."tracer-transformers" or (buildDepError "tracer-transformers"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-base";
-      rev = "f869bee9b08ba1044b1476737c9d65083e1c6c7f";
-      sha256 = "0df3bdf13cwx3hd8n4q53g9hybb0w8mh837y64ydd88xhdfaf6a3";
+      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      rev = "3e45d5dd4942c295f0ea4bfed7c407b914b15447";
+      sha256 = "0vik0qqw0p5xdrl2r84fz8jhmlzcx0b3cxpvb434ldb8xnlx8q8i";
       });
-    postUnpack = "sourceRoot+=/binary/test; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/tracer-transformers; echo source root reset to \$sourceRoot";
     }

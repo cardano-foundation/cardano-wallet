@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -46,8 +47,6 @@ import Cardano.Wallet.Network
     , NextBlocksResult (..)
     , mapCursor
     )
-import Codec.SerialiseTerm
-    ( CodecCBORTerm )
 import Control.Concurrent.Async
     ( async, link )
 import Control.Concurrent.MVar
@@ -64,12 +63,16 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
-    , TQueue (..)
+    , TMVar
+    , TQueue
     , atomically
     , newEmptyTMVarM
+    , newTMVarM
     , newTQueue
     , putTMVar
+    , readTMVar
     , readTQueue
+    , swapTMVar
     , takeTMVar
     , writeTQueue
     )
@@ -103,15 +106,9 @@ import Network.Mux
     ( AppType (..) )
 import Network.Socket
     ( AddrInfo (..), Family (..), SockAddr (..), SocketType (..) )
-import Network.TypedProtocol.Channel
-    ( Channel )
 import Network.TypedProtocol.Codec
     ( Codec )
-import Network.TypedProtocol.Codec.Cbor
-    ( DeserialiseFailure )
-import Network.TypedProtocol.Driver
-    ( TraceSendRecv, runPeer )
-import Ouroboros.Consensus.Ledger.Byron
+import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..)
     , GenTx
     , decodeByronBlock
@@ -132,16 +129,27 @@ import Ouroboros.Network.Block
     , encodeTip
     , genesisPoint
     , pointSlot
+    , unwrapCBORinCBOR
     )
+import Ouroboros.Network.Channel
+    ( Channel )
+import Ouroboros.Network.Codec
+    ( DeserialiseFailure )
+import Ouroboros.Network.Driver.Simple
+    ( TraceSendRecv, runPeer )
 import Ouroboros.Network.Mux
-    ( OuroborosApplication (..) )
+    ( MuxPeer (..), OuroborosApplication (..), RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
+    , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
     , NodeToClientVersion (..)
     , NodeToClientVersionData (..)
     , connectTo
+    , localSnocket
+    , nodeToClientProtocols
+    , withIOManager
     )
 import Ouroboros.Network.Point
     ( fromWithOrigin )
@@ -157,7 +165,7 @@ import Ouroboros.Network.Protocol.ChainSync.Codec
 import Ouroboros.Network.Protocol.ChainSync.Type
     ( ChainSync )
 import Ouroboros.Network.Protocol.Handshake.Version
-    ( DictVersion (..), simpleSingletonVersions )
+    ( CodecCBORTerm, DictVersion (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..)
     , LocalTxSubmissionClient (..)
@@ -185,7 +193,7 @@ withNetworkLayer
         -- ^ Logging of network layer startup
     -> W.BlockchainParameters
         -- ^ Static blockchain parameters
-    -> AddrInfo
+    -> FilePath
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
@@ -213,7 +221,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
 
     _initCursor nodeTip localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
-        let client = mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
+        let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         link =<< async (connectClient client versionData addrInfo)
         void $ tryPutMVar nodeTip chainSyncQ
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
@@ -336,17 +344,10 @@ send queue cmd = do
 type NetworkClient m = OuroborosApplication
     'InitiatorApp
         -- Initiator ~ Client (as opposed to Responder / Server)
-    ConnectionId
-        -- An identifier for the peer: here, a local and remote socket.
-    NodeToClientProtocols
-        -- Specifies which mini-protocols our client is talking.
-        -- 'NodeToClientProtocols' allows for two mini-protocols:
-        --  - Chain Sync
-        --  - Tx submission
-    m
-        -- Underlying monad we run in
     ByteString
         -- Concrete representation for bytes string
+    m
+        -- Underlying monad we run in
     Void
         -- Return type of a network client. Void indicates that the client
         -- never exits.
@@ -367,29 +368,33 @@ mkNetworkClient
         -- ^ Communication channel with the LocalTxSubmission client
     -> NetworkClient m
 mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
-    OuroborosInitiatorApplication $ \_pid -> \case
-        ChainSyncWithBlocksPtcl ->
+    nodeToClientProtocols NodeToClientProtocols
+        { localChainSyncProtocol =
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            chainSyncWithBlocks tr' bp chainSyncQ
-        LocalTxSubmissionPtcl ->
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
+                chainSyncWithBlocks tr' bp chainSyncQ channel
+        , localTxSubmissionProtocol =
             let tr' = contramap (T.pack . show) $ trMessage tr in
-            localTxSubmission tr' localTxSubmissionQ
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
+                localTxSubmission tr' localTxSubmissionQ channel
+        }
 
 -- Connect a client to a network, see `mkNetworkClient` to construct a network
 -- client interface.
 --
 -- >>> connectClient (mkNetworkClient tr bp queue) mainnetVersionData addrInfo
 connectClient
-    :: NetworkClient IO
+    :: (ConnectionId LocalAddress -> NetworkClient IO)
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
-    -> AddrInfo
+    -> FilePath
     -> IO ()
-connectClient client (vData, vCodec) addr = do
+connectClient client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
     let tracers = NetworkConnectTracers nullTracer nullTracer
+    let socket = localSnocket iocp addr
     recovering policy [const $ Handler handleIOException] $ const $
-        connectTo tracers versions Nothing addr
+        connectTo socket tracers versions addr
   where
     -- .5s → .5s → 1s → 1.5s → 2.5s → 4s → 6.5s → 10.5s → 17s → 27.5s ...
     policy :: RetryPolicyM IO
@@ -470,7 +475,7 @@ chainSyncWithBlocks tr bp queue channel = do
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecChainSync
         encodeByronBlock
-        (decodeByronBlock (toEpochSlots getEpochLength))
+        (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
         (encodePoint encodeByronHeaderHash)
         (decodePoint decodeByronHeaderHash)
         (encodeTip encodeByronHeaderHash)

@@ -45,12 +45,14 @@ extra-deps:
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: b4643defabb23b3d78f4b690a01bb6a41a3cd203
+  commit: 3e45d5dd4942c295f0ea4bfed7c407b914b15447
   subdirs:
     - contra-tracer
     - iohk-monitoring
     - plugins/backend-aggregation
     - plugins/backend-monitoring
+    - tracer-transformers
+
 # dependencies of iohk-monitoring-framework
 - git: https://github.com/CodiePP/ekg-prometheus-adapter
   commit: 1a258b6df7d9807d4c4ff3e99722223d31a2c320
@@ -76,7 +78,7 @@ extra-deps:
 # - tasty-hedgehog-1.0.0.1
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: eed4fc484366214831576eef0c7fe90d1d08c78b
+  commit: f869bee9b08ba1044b1476737c9d65083e1c6c7f
   subdirs:
     - binary
     - binary/test
@@ -84,7 +86,7 @@ extra-deps:
     - slotting
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: c62e2eeba5756898cbf59732fccd6a83a4065c18
+  commit: 1368966fd6d806d8eb65cd1ba193548c402355f6
   subdirs:
     - cardano-ledger
     - cardano-ledger/test
@@ -92,7 +94,7 @@ extra-deps:
     - crypto/test
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: f27e8b66a393f0b7da1893889dcea07da0fe4dec
+  commit: 647cd71e3c4630488e71596f5e9c26fee598b541
   subdirs:
     - byron/semantics/executable-spec # small-steps
     - byron/ledger/executable-spec    # cs-ledger
@@ -102,21 +104,24 @@ extra-deps:
   commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
 
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: 00487726c4bc21b4744e59d913334ebfeac7d68e
+  commit: fe76ec64f6b45259cc407a6d840dad79ee6063b6
   subdirs:
     - .
     - test
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: 398004e1403367cc2a25c639eb6349d473e51b2d
+  commit: a85bd4751ca5c81c0507482848358980814e9ca3
   subdirs:
     - io-sim
     - io-sim-classes
     - network-mux
     - ouroboros-network
     - ouroboros-consensus
+    - ouroboros-consensus-byron
     - typed-protocols
-    - typed-protocols-cbor
+    - typed-protocols-examples
+    - ouroboros-network-framework
+    - ouroboros-network-testing
 
 - git: https://github.com/input-output-hk/ouroboros-network
   commit: f12e7c2168fe3bc4e236898a6e0207479cda3302

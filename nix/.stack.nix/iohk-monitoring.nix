@@ -75,6 +75,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."katip" or (buildDepError "katip"))
           (hsPkgs."lens" or (buildDepError "lens"))
           (hsPkgs."mtl" or (buildDepError "mtl"))
+          (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."safe" or (buildDepError "safe"))
           (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
           (hsPkgs."scientific" or (buildDepError "scientific"))
@@ -83,6 +84,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."time-units" or (buildDepError "time-units"))
+          (hsPkgs."tracer-transformers" or (buildDepError "tracer-transformers"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           (hsPkgs."vector" or (buildDepError "vector"))
@@ -121,6 +123,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."time" or (buildDepError "time"))
             (hsPkgs."time-units" or (buildDepError "time-units"))
+            (hsPkgs."tracer-transformers" or (buildDepError "tracer-transformers"))
             (hsPkgs."transformers" or (buildDepError "transformers"))
             (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
             (hsPkgs."vector" or (buildDepError "vector"))
@@ -135,8 +138,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "b4643defabb23b3d78f4b690a01bb6a41a3cd203";
-      sha256 = "10h64sxgddxx4ia9pyzrrdqf66gnh52gzjj6nin991lbw6dav45c";
+      rev = "3e45d5dd4942c295f0ea4bfed7c407b914b15447";
+      sha256 = "0vik0qqw0p5xdrl2r84fz8jhmlzcx0b3cxpvb434ldb8xnlx8q8i";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }
