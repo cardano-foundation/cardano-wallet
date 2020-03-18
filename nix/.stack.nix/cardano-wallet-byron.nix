@@ -88,7 +88,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."typed-protocols-examples" or (buildDepError "typed-protocols-examples"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
-          (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
           (hsPkgs."warp" or (buildDepError "warp"))
           ];
         buildable = true;
@@ -135,7 +134,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."http-client" or (buildDepError "http-client"))
             (hsPkgs."http-types" or (buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-            (hsPkgs."network" or (buildDepError "network"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."temporary" or (buildDepError "temporary"))
