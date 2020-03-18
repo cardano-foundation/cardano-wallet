@@ -160,7 +160,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+    ( ByronKey, generateKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -870,10 +870,28 @@ postRandomWallet ctx body = do
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postRandomWalletFromXPrv
-    :: ctx
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ RndState 'Mainnet
+        , k ~ ByronKey
+        )
+    => ctx
     -> ByronWalletFromXPrvPostData
     -> Handler ApiByronWallet
-postRandomWalletFromXPrv _ctx _body = throwError err501
+postRandomWalletFromXPrv ctx body = do
+    s <- liftIO $ mkRndState byronKey <$> getStdRandom random
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
+    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphraseHash)
+    masterKey = getApiT (body ^. #encryptedRootPrivateKey)
+    byronKey = generateKeyFromMasterKey masterKey
+    wid = WalletId $ digest $ publicKey byronKey
 
 postIcarusWallet
     :: forall ctx s t k.
