@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -95,6 +96,8 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional, (<|>) )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( void )
 import Control.Tracer
@@ -322,10 +325,12 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
        Nothing -> pure ()
        Just a  -> fn a
 
+    withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
     withShutdownHandlerMaybe _ False = void
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
-        trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
+        trShutdown = trMessage
+            $ contramap (second $ fmap MsgShutdownHandler) tr
 
 {-------------------------------------------------------------------------------
                                  Options

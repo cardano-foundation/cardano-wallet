@@ -6,6 +6,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -80,8 +81,6 @@ import Cardano.Wallet.Byron.Compatibility
     , mainnetVersionData
     , testnetVersionData
     )
-import Cardano.Wallet.Byron.Network
-    ( localSocketAddrInfo )
 import Cardano.Wallet.Byron.Transaction
     ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
@@ -200,7 +199,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       sTolerance
       enableShutdownHandler
       logOpt) = do
-        let addrInfo = localSocketAddrInfo nodeSocket
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
@@ -217,7 +215,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     databaseDir
                     host
                     listen
-                    addrInfo
+                    nodeSocket
                     block0
                     (bp, vData)
                     (beforeMainLoop tr)
@@ -225,11 +223,11 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     whenJust m fn = case m of
        Nothing -> pure ()
        Just a  -> fn a
-
+    withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
     withShutdownHandlerMaybe _ False = void
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
-        trShutdown = trMessage (contramap (fmap MsgShutdownHandler) tr)
+        trShutdown = trMessage $ contramap (\(n, x) -> (n, fmap MsgShutdownHandler x)) tr
 
 
     parseGenesisData tr = \case
