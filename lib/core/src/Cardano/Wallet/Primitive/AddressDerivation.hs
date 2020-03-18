@@ -119,7 +119,7 @@ import Control.DeepSeq
 import Control.Monad
     ( unless, when )
 import Crypto.Hash
-    ( Digest, HashAlgorithm )
+    ( Blake2b_256, Digest, HashAlgorithm, hash )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -164,6 +164,9 @@ import Type.Reflection
     ( typeOf )
 
 import qualified Cardano.Crypto.Wallet.Encrypted as CC
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -500,7 +503,7 @@ encryptPassphrase
     => PassphraseScheme
     -> Passphrase purpose
     -> m (Hash purpose)
-encryptPassphrase scheme (Passphrase bytes) = case scheme of
+encryptPassphrase scheme pwd@(Passphrase bytes) = case scheme of
     EncryptWithPBKDF2 -> do
         salt <- getRandomBytes @_ @ByteString 16
         let params = Parameters
@@ -512,8 +515,26 @@ encryptPassphrase scheme (Passphrase bytes) = case scheme of
             <> salt
             <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
 
-    EncryptWithScrypt -> do
-        error "TODO: encryptPassphrase@EncryptWithScrypt"
+    EncryptWithScrypt ->  do
+        salt <- Scrypt.Salt <$> getRandomBytes @_ @ByteString 32
+        let msg = preparePassphrase pwd
+        return $ Hash $ Scrypt.getEncryptedPass $
+            Scrypt.encryptPass Scrypt.defaultParams salt msg
+
+-- | Manipulation done on legacy passphrases before getting encrypted.
+--
+-- Yes there's CBOR. Yes it's hashed before being encrypted. You don't actually
+-- pronounce the 'l' in salmon. A lot of things in the world don't make sense
+-- but we still live just fine.
+preparePassphrase
+    :: Passphrase any
+    -> Scrypt.Pass
+preparePassphrase =
+    Scrypt.Pass
+    . CBOR.toStrictByteString
+    . CBOR.encodeBytes
+    . BA.convert
+    . hash @_ @Blake2b_256
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
@@ -522,9 +543,16 @@ checkPassphrase
     -> Hash purpose
     -> Either ErrWrongPassphrase ()
 checkPassphrase scheme received stored = do
-    salt <- getSalt stored
-    unless (constantTimeEq (encryptPassphrase scheme received salt) stored) $
-        Left ErrWrongPassphrase
+    case scheme of
+        EncryptWithPBKDF2 -> do
+            salt <- getSalt stored
+            unless (constantTimeEq (encryptPassphrase scheme received salt) stored) $
+                Left ErrWrongPassphrase
+        EncryptWithScrypt -> do
+            let msg = preparePassphrase received
+            if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
+                then Right ()
+                else Left ErrWrongPassphrase
   where
     getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")
     getSalt (Hash bytes) = do

@@ -78,6 +78,7 @@ library
     , retry
     , safe
     , scientific
+    , scrypt
     , servant
     , servant-client
     , servant-server
