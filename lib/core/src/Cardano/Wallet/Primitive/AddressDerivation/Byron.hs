@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeGenerateKeyFromMasterKey
     , generateKeyFromMasterKey
 
       -- * Derivation
