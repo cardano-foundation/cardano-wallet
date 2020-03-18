@@ -18,6 +18,7 @@ extra-deps:
 - OddWord-1.0.2.0
 - command-0.1.1
 - wai-extra-3.0.29.1
+- Win32-2.6.2.0
 
 # Needed because network > 3.1 is needed for cardano-wallet-byron
 - servant-0.17
