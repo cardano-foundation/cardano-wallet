@@ -22,7 +22,13 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( FromMnemonic (..)
+    , Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -87,7 +93,9 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteArray as BA
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -399,6 +407,21 @@ spec = do
             [ expectResponseCode @IO HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
+
+    it "BYRON_RESTORE_10 - Can restore wallet using master root key" $ \ctx -> do
+        m <- genMnemonics @12
+        let passw = "Secure Passphrase"
+        w <- emptyByronWalletWith ctx "random"
+             ("Byron Wallet", m, passw)
+        rd <- request
+              @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+
+        let (Right seed) = fromMnemonic @'[12] m
+        let _rootXPrv =
+                generateKeyFromSeed seed (Passphrase $ BA.convert $ T.encodeUtf8 passw)
+
+        expectResponseCode @IO HTTP.status204 rd
+
  where
      genMnemonics
         :: forall mw ent csz.
