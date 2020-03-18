@@ -1458,6 +1458,7 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
 -- - logN = 14
 -- - r = 8
 -- - p = 1
+-- - bytesNumber = 64
 attachPrivateKeyFromPwdHash
     :: forall ctx s k.
         ( HasDBLayer s k ctx

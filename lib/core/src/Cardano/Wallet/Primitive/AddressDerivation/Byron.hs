@@ -258,7 +258,8 @@ blake2b256 :: ScrubbedBytes -> ScrubbedBytes
 blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
 
 -- | Derive a symmetric key for encrypting and authenticating the address
--- derivation path.
+-- derivation path. PBKDF2 encryption using HMAC with the hash algorithm SHA512
+-- is employed.
 hdPassphrase :: XPub -> Passphrase "addr-derivation-payload"
 hdPassphrase masterKey = Passphrase $
     PBKDF2.generate
@@ -270,7 +271,17 @@ hdPassphrase masterKey = Passphrase $
 generateKeyFromMasterKey
     :: XPrv
     -> ByronKey 'RootK XPrv
-generateKeyFromMasterKey _ = undefined
+generateKeyFromMasterKey = unsafeGenerateKeyFromMasterKey ()
+
+unsafeGenerateKeyFromMasterKey
+    :: DerivationPath depth
+    -> XPrv
+    -> ByronKey depth XPrv
+unsafeGenerateKeyFromMasterKey derivationPath masterKey = ByronKey
+    { getKey = masterKey
+    , derivationPath
+    , payloadPassphrase = hdPassphrase (toXPub masterKey)
+    }
 
 {-------------------------------------------------------------------------------
                                    Passphrase
