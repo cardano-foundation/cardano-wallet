@@ -127,6 +127,7 @@ extra-deps:
   commit: f12e7c2168fe3bc4e236898a6e0207479cda3302
   subdirs:
     - ntp-client
+    - Win32-network
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
@@ -136,6 +137,8 @@ flags:
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
 ghc-options: {"$locals": -ddump-to-file -ddump-hi}
+
+allow-newer: true
 
 nix:
   shell-file: nix/stack-shell.nix

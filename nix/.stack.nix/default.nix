@@ -71,6 +71,7 @@
         ouroboros-network-framework = ./ouroboros-network-framework.nix;
         ouroboros-network-testing = ./ouroboros-network-testing.nix;
         ntp-client = ./ntp-client.nix;
+        Win32-network = ./Win32-network.nix;
         };
       };
   resolver = "lts-14.25";
