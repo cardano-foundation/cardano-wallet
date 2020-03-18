@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -137,7 +138,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
     , walletNameMaxLength
@@ -335,7 +335,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
+            jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @StakePoolMetadata
 
@@ -1204,8 +1204,8 @@ instance Arbitrary WalletName where
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
 
-instance Arbitrary WalletPassphraseInfo where
-    arbitrary = WalletPassphraseInfo <$> genUniformTime
+instance Arbitrary ApiWalletPassphraseInfo where
+    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
 
 instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary

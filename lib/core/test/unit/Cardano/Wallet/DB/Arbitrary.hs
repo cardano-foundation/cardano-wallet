@@ -79,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
+    , PassphraseScheme (..)
     , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
@@ -156,13 +157,14 @@ import Test.QuickCheck
     , frequency
     , generate
     , genericShrink
-    , liftArbitrary
     , oneof
     , scale
     , shrinkIntegral
     , shrinkList
     , vectorOf
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary )
 import Test.Utils.Time
     ( genUniformTime )
 
@@ -318,8 +320,15 @@ instance Arbitrary WalletMetadata where
     arbitrary =  WalletMetadata
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> genUniformTime
-        <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
+        <*> oneof
+            [ pure Nothing
+            , Just <$> (WalletPassphraseInfo <$> genUniformTime <*> arbitrary)
+            ]
         <*> pure (WalletDelegation NotDelegating [])
+
+instance Arbitrary PassphraseScheme where
+    arbitrary = genericArbitrary
+
 
 {-------------------------------------------------------------------------------
                                    Blocks

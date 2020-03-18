@@ -235,6 +235,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , Hash (..)
     , IsDelegatingTo (..)
+    , PassphraseScheme (..)
     , PoolId
     , Range (..)
     , SealedTx
@@ -1449,8 +1450,11 @@ attachPrivateKeyFromPwd
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
-    hpwd <- liftIO $ encryptPassphrase pwd
-    attachPrivateKey db wid (xprv, hpwd)
+    -- NOTE Only new wallets are constructed through this function, so the
+    -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
+    let scheme = EncryptWithPBKDF2
+    hpwd <- liftIO $ encryptPassphrase scheme pwd
+    attachPrivateKey db wid (xprv, hpwd) scheme
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1468,7 +1472,9 @@ attachPrivateKeyFromPwdHash
     -> (k 'RootK XPrv, Hash "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
-    attachPrivateKey db wid (xprv, hpwd)
+    -- NOTE Only legacy wallets are imported through this function, passphrase
+    -- were encrypted with the legacy scheme (Scrypt).
+    attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1476,13 +1482,19 @@ attachPrivateKey
     :: DBLayer IO s k
     -> WalletId
     -> (k 'RootK XPrv, Hash "encryption")
+    -> PassphraseScheme
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKey db wid (xprv, hpwd) = db & \DBLayer{..} -> do
+attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
         putPrivateKey (PrimaryKey wid) (xprv, hpwd)
         meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
-        let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+        let modify x = x
+                { passphraseInfo = Just $ WalletPassphraseInfo
+                    { lastUpdatedAt = now
+                    , passphraseScheme = scheme
+                    }
+                }
         putWalletMeta (PrimaryKey wid) (modify meta)
 
 -- | Execute an action which requires holding a root XPrv.
@@ -1496,13 +1508,16 @@ withRootKey
     -> ExceptT e IO a
 withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
     xprv <- withExceptT embed $ mapExceptT atomically $ do
-        lift (readPrivateKey (PrimaryKey wid)) >>= \case
-            Nothing ->
-                throwE $ ErrWithRootKeyNoRootKey wid
-            Just (xprv, hpwd) -> do
+        mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
+            lift (readWalletMeta $ PrimaryKey wid)
+        mXPrv <- lift $ readPrivateKey $ PrimaryKey wid
+        case (mXPrv, mScheme) of
+            (Just (xprv, hpwd), Just scheme) -> do
                 withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
-                    return $ checkPassphrase pwd hpwd
+                    return $ checkPassphrase scheme pwd hpwd
                 return xprv
+            _ ->
+                throwE $ ErrWithRootKeyNoRootKey wid
     action xprv
   where
     db = ctx ^. dbLayer @s @k
