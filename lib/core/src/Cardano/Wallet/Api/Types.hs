@@ -48,6 +48,7 @@ module Cardano.Wallet.Api.Types
     , ApiStakePoolMetrics (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ApiUtxoStatistics (..)
     , WalletBalance (..)
     , WalletPostData (..)
@@ -148,7 +149,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , hashFromText
     , isValidCoin
     , unsafeEpochNo
@@ -318,9 +318,13 @@ data ApiWallet = ApiWallet
     , balance :: !(ApiT WalletBalance)
     , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+
+data ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
+    { lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegation = ApiWalletDelegation
@@ -690,7 +694,7 @@ data ApiByronWallet = ApiByronWallet
     { id :: !(ApiT WalletId)
     , balance :: !(ApiByronWalletBalance)
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
@@ -989,10 +993,10 @@ instance FromJSON (ApiT WalletName) where
 instance ToJSON (ApiT WalletName) where
     toJSON = toJSON . toText . getApiT
 
-instance FromJSON (ApiT WalletPassphraseInfo) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT WalletPassphraseInfo) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+instance FromJSON ApiWalletPassphraseInfo where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletPassphraseInfo where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT SyncProgress) where
     parseJSON = fmap ApiT . genericParseJSON syncProgressOptions

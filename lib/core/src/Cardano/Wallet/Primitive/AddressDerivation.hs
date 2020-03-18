@@ -90,6 +90,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic(..)
     , FromMnemonicError(..)
     , ErrWrongPassphrase(..)
+    , PassphraseScheme(..)
     , encryptPassphrase
     , checkPassphrase
     ) where
@@ -110,7 +111,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mkMnemonic
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount (..), Hash (..) )
+    ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -495,26 +496,34 @@ instance
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase
-    :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
-encryptPassphrase (Passphrase bytes) = do
-    salt <- getRandomBytes @_ @ByteString 16
-    let params = Parameters
-            { iterCounts = 20000
-            , outputLength = 64
-            }
-    return $ Hash $ BA.convert $ mempty
-        <> BS.singleton (fromIntegral (BS.length salt))
-        <> salt
-        <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
+    :: MonadRandom m
+    => PassphraseScheme
+    -> Passphrase purpose
+    -> m (Hash purpose)
+encryptPassphrase scheme (Passphrase bytes) = case scheme of
+    EncryptWithPBKDF2 -> do
+        salt <- getRandomBytes @_ @ByteString 16
+        let params = Parameters
+                { iterCounts = 20000
+                , outputLength = 64
+                }
+        return $ Hash $ BA.convert $ mempty
+            <> BS.singleton (fromIntegral (BS.length salt))
+            <> salt
+            <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
+
+    EncryptWithScrypt -> do
+        error "TODO: encryptPassphrase@EncryptWithScrypt"
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
-    :: Passphrase purpose
+    :: PassphraseScheme
+    -> Passphrase purpose
     -> Hash purpose
     -> Either ErrWrongPassphrase ()
-checkPassphrase received stored = do
+checkPassphrase scheme received stored = do
     salt <- getSalt stored
-    unless (constantTimeEq (encryptPassphrase received salt) stored) $
+    unless (constantTimeEq (encryptPassphrase scheme received salt) stored) $
         Left ErrWrongPassphrase
   where
     getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")

@@ -128,6 +128,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , Iso8601Time (..)
@@ -240,7 +241,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', (.~), (^.) )
+    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -777,7 +778,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , delegation = toApiWalletDelegation (meta ^. #delegation)
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , passphrase = ApiWalletPassphraseInfo
+            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
         , tip = getWalletTip cp
         }
@@ -845,7 +847,8 @@ mkLegacyWallet _ctx wid cp meta pending progress =
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , passphrase = ApiWalletPassphraseInfo
+            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
         , tip = getWalletTip cp
         }

@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..) )
+    ( Address (..), Hash (..), PassphraseScheme (..) )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -89,6 +89,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Text.Roundtrip
@@ -284,25 +286,30 @@ prop_roundtripXPub xpub = do
     xpub' === xpub
 
 prop_passphraseRoundtrip
-    :: Passphrase "encryption"
+    :: PassphraseScheme
+    -> Passphrase "encryption"
     -> Property
-prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
-    hpwd <- encryptPassphrase pwd
-    checkPassphrase pwd hpwd `shouldBe` Right ()
+prop_passphraseRoundtrip scheme pwd = monadicIO $ liftIO $ do
+    hpwd <- encryptPassphrase scheme pwd
+    checkPassphrase scheme pwd hpwd `shouldBe` Right ()
 
 prop_passphraseRoundtripFail
-    :: (Passphrase "encryption", Passphrase "encryption")
+    :: (PassphraseScheme, Passphrase "encryption")
+    -> (PassphraseScheme, Passphrase "encryption")
     -> Property
-prop_passphraseRoundtripFail (p, p') =
-    p /= p' ==> monadicIO $ liftIO $ do
-        hp <- encryptPassphrase p
-        checkPassphrase p' hp `shouldBe` Left ErrWrongPassphrase
+prop_passphraseRoundtripFail (s,p) (s',p') =
+    if p == p' && s == s'
+    then property True
+    else monadicIO $ liftIO $ do
+        hp <- encryptPassphrase s p
+        checkPassphrase s' p' hp `shouldBe` Left ErrWrongPassphrase
 
 prop_passphraseHashMalformed
-    :: Passphrase "encryption"
+    :: PassphraseScheme
+    -> Passphrase "encryption"
     -> Property
-prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
-    checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
+prop_passphraseHashMalformed scheme pwd = monadicIO $ liftIO $ do
+    checkPassphrase scheme pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
 
 -- | xPrvFromStrippedPubXPrv and unXPrvStripPub
 prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property
@@ -434,6 +441,9 @@ instance Arbitrary (Hash "encryption") where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
         return $ Hash $ BS.pack $ take 32 bytes
+
+instance Arbitrary PassphraseScheme where
+    arbitrary = genericArbitrary
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

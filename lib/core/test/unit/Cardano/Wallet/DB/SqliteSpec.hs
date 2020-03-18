@@ -94,6 +94,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , PassphraseScheme (..)
     , Range
     , SlotId (..)
     , SortOrder (..)
@@ -396,7 +397,7 @@ fileModeSpec =  do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             now <- getCurrentTime
             let meta = testMetadata
-                   { passphraseInfo = Just $ WalletPassphraseInfo now }
+                   { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
             atomically $ unsafeRunExceptT $
                 initializeWallet testPk testCp meta mempty
             destroyDBLayer ctx
@@ -622,7 +623,7 @@ attachPrivateKey DBLayer{..} wid = do
     let Right pwd = fromText "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     let k = generateKeyFromSeed (seed, Nothing) pwd
-    h <- liftIO $ encryptPassphrase pwd
+    h <- liftIO $ encryptPassphrase EncryptWithPBKDF2 pwd
     mapExceptT atomically $ putPrivateKey wid (k, h)
     return (k, h)
 
