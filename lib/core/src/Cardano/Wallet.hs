@@ -67,6 +67,7 @@ module Cardano.Wallet
     , createWallet
     , createIcarusWallet
     , attachPrivateKeyFromPwd
+    , attachPrivateKeyFromPwdHash
     , listUtxoStatistics
     , readWallet
     , deleteWallet
@@ -1449,6 +1450,23 @@ attachPrivateKeyFromPwd
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
     hpwd <- liftIO $ encryptPassphrase pwd
+    attachPrivateKey db wid (xprv, hpwd)
+  where
+    db = ctx ^. dbLayer @s @k
+
+-- | The hash here is the output of Scrypt function with the following parameters:
+-- - logN = 14
+-- - r = 8
+-- - p = 1
+attachPrivateKeyFromPwdHash
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (k 'RootK XPrv, Hash "encryption")
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
     attachPrivateKey db wid (xprv, hpwd)
   where
     db = ctx ^. dbLayer @s @k
