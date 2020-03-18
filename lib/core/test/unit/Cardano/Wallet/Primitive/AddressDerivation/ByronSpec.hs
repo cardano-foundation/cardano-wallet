@@ -29,8 +29,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
     , generateKeyFromSeed
     , minSeedLengthBytes
-    , unsafeGenerateKeyFromMasterKey
     , unsafeGenerateKeyFromSeed
+    , unsafeMkByronKeyFromMasterKey
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
@@ -86,7 +86,7 @@ prop_keyDerivationFromXPrv masterkey accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
     rndKey :: ByronKey 'AddressK XPrv
-    rndKey = unsafeGenerateKeyFromMasterKey (accIx, addrIx) masterkey
+    rndKey = unsafeMkByronKeyFromMasterKey (accIx, addrIx) masterkey
 
 {-------------------------------------------------------------------------------
                                   Golden tests
