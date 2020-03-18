@@ -160,7 +160,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey, generateKeyFromMasterKey )
+    ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -890,7 +890,7 @@ postRandomWalletFromXPrv ctx body = do
     wName = getApiT (body ^. #name)
     pwd   = getApiT (body ^. #passphraseHash)
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
-    byronKey = generateKeyFromMasterKey masterKey
+    byronKey = mkByronKeyFromMasterKey masterKey
     wid = WalletId $ digest $ publicKey byronKey
 
 postIcarusWallet
