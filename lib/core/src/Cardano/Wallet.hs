@@ -66,7 +66,7 @@ module Cardano.Wallet
     -- ** Wallet
     , createWallet
     , createIcarusWallet
-    , attachPrivateKey
+    , attachPrivateKeyFromPwd
     , listUtxoStatistics
     , readWallet
     , deleteWallet
@@ -615,7 +615,7 @@ updateWalletPassphrase ctx wid (old, new) =
     withRootKey @ctx @s @k ctx wid (coerce old) ErrUpdatePassphraseWithRootKey
         $ \xprv -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
             let xprv' = changePassphrase old new xprv
-            attachPrivateKey @ctx @s @k ctx wid (xprv', coerce new)
+            attachPrivateKeyFromPwd @ctx @s @k ctx wid (xprv', coerce new)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -1437,11 +1437,9 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
-
--- | Attach a given private key to a wallet. The private key is
--- necessary for some operations like signing transactions, or
--- generating new accounts.
-attachPrivateKey
+-- | The password here undergoes PBKDF2 encryption using HMAC
+-- with the hash algorithm SHA512 which is realized in encryptPassphare
+attachPrivateKeyFromPwd
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         )
@@ -1449,16 +1447,24 @@ attachPrivateKey
     -> WalletId
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKey ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
+attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
     hpwd <- liftIO $ encryptPassphrase pwd
+    attachPrivateKey db wid (xprv, hpwd)
+  where
+    db = ctx ^. dbLayer @s @k
+
+attachPrivateKey
+    :: DBLayer IO s k
+    -> WalletId
+    -> (k 'RootK XPrv, Hash "encryption")
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKey db wid (xprv, hpwd) = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
         putPrivateKey (PrimaryKey wid) (xprv, hpwd)
         meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
         let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
         putWalletMeta (PrimaryKey wid) (modify meta)
-  where
-    db = ctx ^. dbLayer @s @k
 
 -- | Execute an action which requires holding a root XPrv.
 withRootKey
