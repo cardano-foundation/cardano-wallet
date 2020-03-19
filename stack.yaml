@@ -123,10 +123,6 @@ extra-deps:
     - typed-protocols-examples
     - ouroboros-network-framework
     - ouroboros-network-testing
-
-- git: https://github.com/input-output-hk/ouroboros-network
-  commit: f12e7c2168fe3bc4e236898a6e0207479cda3302
-  subdirs:
     - ntp-client
     - Win32-network
 
