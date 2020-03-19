@@ -384,7 +384,7 @@ setupTracers sev tr = Tracers
     , apiServerTracer    = mkTrace apiServerTracer    $ onoff apiServerTracer tr
     , walletEngineTracer = mkTrace walletEngineTracer $ onoff walletEngineTracer tr
     , walletDbTracer     = mkTrace walletDbTracer     $ onoff walletDbTracer tr
-    , ntpClientTracer    = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
+    , ntpClientTracer    = mkTrace ntpClientTracer    $ onoff ntpClientTracer tr
     }
   where
     onoff
