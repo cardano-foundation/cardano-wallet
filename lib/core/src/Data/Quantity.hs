@@ -142,6 +142,9 @@ newtype Percentage = Percentage
 
 instance NFData Percentage
 
+instance Buildable Percentage where
+    build = build . toText
+
 instance ToJSON Percentage where
     toJSON =
         toJSON

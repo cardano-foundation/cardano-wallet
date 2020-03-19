@@ -165,5 +165,35 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           buildable = true;
           };
         };
+      benchmarks = {
+        "restore" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."criterion-measurement" or (buildDepError "criterion-measurement"))
+            (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+            (hsPkgs."deepseq" or (buildDepError "deepseq"))
+            (hsPkgs."digest" or (buildDepError "digest"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."fmt" or (buildDepError "fmt"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."persistent" or (buildDepError "persistent"))
+            (hsPkgs."persistent-template" or (buildDepError "persistent-template"))
+            (hsPkgs."process" or (buildDepError "process"))
+            (hsPkgs."say" or (buildDepError "say"))
+            (hsPkgs."temporary" or (buildDepError "temporary"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."time" or (buildDepError "time"))
+            (hsPkgs."transformers" or (buildDepError "transformers"))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // rec { src = (pkgs.lib).mkDefault ../.././lib/byron; }
