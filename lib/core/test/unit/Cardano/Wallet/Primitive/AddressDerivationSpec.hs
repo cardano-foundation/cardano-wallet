@@ -56,6 +56,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), PassphraseScheme (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -238,6 +240,16 @@ spec = do
 
         it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
             (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
+
+    describe "golden test legacy passphrase encryption" $ do
+        it "compare new implementation with cardano-sl" $ do
+            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
+            let hash = Hash $ unsafeFromHex
+                    "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
+                    \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
+                    \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
+                    \414941366a515867386539493d"
+            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
 
 {-------------------------------------------------------------------------------
                                Properties
