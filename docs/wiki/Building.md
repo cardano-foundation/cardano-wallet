@@ -39,7 +39,7 @@ the build from the Hydra cache rather than building locally.
 To build the wallet for Windows, from **Linux**:
 
 ```
-nix-build release.nix -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
+nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
 ```
 
 If you're using **macOS**, then change `x86_64-linux` to
@@ -50,7 +50,7 @@ by default to reduce the load on CI):
 nix-build \
     release.nix \
     --arg supportedCrossSystems '["x86_64-darwin"]' \
-     -A x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-darwin
+     -A x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-darwin
 ```
 
 ### Building straight from GitHub
