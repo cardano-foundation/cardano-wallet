@@ -81,7 +81,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
-    ( RetryPolicyM, fibonacciBackoff, recovering )
+    ( RetryPolicyM, constantDelay, fibonacciBackoff, recovering, retrying )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString.Lazy
@@ -218,12 +218,20 @@ withNetworkLayer tr bp addrInfo versionData action = do
         link =<< async (connectClient client versionData addrInfo)
         void $ tryPutMVar nodeTip chainSyncQ
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
-        chainSyncQ `send` CmdFindIntersection points >>= \case
+        let policy = constantDelay 500
+        let findIt = chainSyncQ `send` CmdFindIntersection points
+        let shouldRetry _ = \case
+                Left (_ :: ErrNetworkUnavailable) -> pure True
+                Right Nothing -> pure False
+                Right Just{}  -> pure False
+        retrying policy shouldRetry (const findIt) >>= \case
             Right (Just intersection) ->
                 pure $ Cursor intersection chainSyncQ
-            _ -> fail
-                "initCursor: intersection not found? This can't happen \
-                \because we always give at least the genesis point..."
+            _ -> fail $ unwords
+                [ "initCursor: intersection not found? This can't happen"
+                , "because we always give at least the genesis point."
+                , "Here are the points we gave: " <> show headers
+                ]
 
     _nextBlocks (Cursor _ chainSyncQ) = do
         let toCursor point = Cursor point chainSyncQ
@@ -326,7 +334,7 @@ send queue cmd = do
         Left{}  -> Left (ErrNetworkUnreachable "timeout")
         Right a -> Right a
   where
-    timeout = threadDelay 60
+    timeout = threadDelay 90
 
 --------------------------------------------------------------------------------
 --
