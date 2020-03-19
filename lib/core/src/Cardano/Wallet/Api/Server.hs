@@ -158,6 +158,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , XPrv
     , digest
+    , preparePassphrase
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -188,6 +189,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , HistogramBar (..)
+    , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
     , SyncProgress
@@ -728,7 +730,7 @@ postShelleyWallet ctx body = do
   where
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
-    pwd = getApiT (body ^. #passphrase)
+    pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wid = WalletId $ digest $ publicKey rootXPrv
@@ -868,7 +870,7 @@ postRandomWallet ctx body = do
         W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -911,7 +913,7 @@ postIcarusWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -930,7 +932,7 @@ postTrezorWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -949,7 +951,7 @@ postLedgerWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromHardwareLedger mw pwd
       where mw = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -1625,12 +1627,12 @@ rndStateChange
         )
     => ctx
     -> ApiT WalletId
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $ \wrk ->
-        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv ->
-            pure (xprv, pwd)
+        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
+            pure (xprv, preparePassphrase scheme pwd)
   where
     liftE = throwE . ErrSignPaymentNoSuchWallet
 

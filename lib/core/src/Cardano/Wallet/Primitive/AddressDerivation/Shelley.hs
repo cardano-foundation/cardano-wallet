@@ -276,8 +276,8 @@ digestSeq (ShelleyKey k) =
 -- expected to have already checked that. Using an incorrect passphrase here
 -- will lead to very bad thing.
 changePassphraseSeq
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
+    :: Passphrase "encryption"
+    -> Passphrase "encryption"
     -> ShelleyKey depth XPrv
     -> ShelleyKey depth XPrv
 changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =

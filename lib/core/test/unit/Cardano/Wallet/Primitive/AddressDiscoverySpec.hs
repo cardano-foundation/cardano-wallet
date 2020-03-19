@@ -121,7 +121,7 @@ instance Show XPrv where
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
     arbitrary = do
-        let p = Proxy :: Proxy "encryption"
+        let p = Proxy :: Proxy "raw"
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
