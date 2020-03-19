@@ -24,7 +24,7 @@ let
     daedalusIPC = ../lib/jormungandr/test/integration/js;
   };
 
-  name = "cardano-wallet-jormungandr-${project.version}-tests-win64";
+  name = "cardano-wallet-${project.version}-tests-win64";
   jm-bat = pkgs.writeText "jm.bat" ''
     jormungandr.exe --config test\data\jormungandr\config.yaml --genesis-block test\data\jormungandr\block0.bin --secret test\data\jormungandr\secret.yaml
   '';
