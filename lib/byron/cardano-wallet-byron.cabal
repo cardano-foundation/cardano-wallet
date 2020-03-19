@@ -31,6 +31,7 @@ library
       -Werror
   build-depends:
       base
+    , aeson
     , async
     , bytestring
     , cardano-binary
@@ -38,13 +39,16 @@ library
     , cardano-crypto-wrapper
     , cardano-ledger
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cborg
     , containers
     , contra-tracer
     , cryptonite
     , deepseq
+    , directory
     , either
     , exceptions
+    , filepath
     , fmt
     , io-sim-classes
     , iohk-monitoring
@@ -54,14 +58,18 @@ library
     , ouroboros-consensus-byron
     , ouroboros-network
     , ouroboros-network-framework
+    , process
     , retry
     , serialise
+    , temporary
     , text
     , text-class
-    , typed-protocols-examples
     , time
     , transformers
+    , typed-protocols-examples
+    , unordered-containers
     , warp
+    , yaml
   hs-source-dirs:
       src
   exposed-modules:
@@ -70,6 +78,7 @@ library
       Cardano.Wallet.Byron.Network
       Cardano.Wallet.Byron.Transaction
       Cardano.Wallet.Byron.Transaction.Size
+      Cardano.Wallet.Byron.Launch
 
 executable cardano-wallet-byron
   default-language:
@@ -121,28 +130,19 @@ test-suite cardano-node-integration
     , aeson
     , async
     , bytestring
-    , cardano-crypto-wrapper
-    , cardano-ledger
     , cardano-wallet-byron
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , directory
-    , filepath
     , generic-lens
     , hspec
     , http-client
     , http-types
     , iohk-monitoring
-    , ouroboros-network
-    , process
     , temporary
     , text
-    , time
-    , unordered-containers
-    , yaml
   build-tools:
       cardano-wallet-byron
   type:
@@ -153,5 +153,4 @@ test-suite cardano-node-integration
       Main.hs
   other-modules:
       Cardano.Wallet.Byron.Faucet
-      Cardano.Wallet.Byron.Config
       Test.Integration.Byron.Scenario.API.Transactions

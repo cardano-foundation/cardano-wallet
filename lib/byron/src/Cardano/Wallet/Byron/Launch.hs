@@ -1,9 +1,14 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Byron.Config
+-- |
+-- Copyright: © 2018-2020 IOHK
+-- License: Apache-2.0
+--
+-- Provides a function to launch cardano-node for /testing/.
+
+module Cardano.Wallet.Byron.Launch
     ( -- * Integration Launcher
       withCardanoNode
     ) where
@@ -56,8 +61,6 @@ import System.FilePath
     ( (</>) )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
-import Test.Utils.Paths
-    ( getTestData )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -82,11 +85,13 @@ data CardanoNodeConfig = CardanoNodeConfig
 withCardanoNode
     :: Trace IO Text
     -- ^ Some trace for logging
+    -> FilePath
+    -- ^ Test directory
     -> (FilePath -> Block -> (BlockchainParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket description and genesis params
     -> IO a
-withCardanoNode tr action =
-    orThrow $ withConfig $ \cfg block0 (bp, vData) -> do
+withCardanoNode tr tdir action =
+    orThrow $ withConfig tdir $ \cfg block0 (bp, vData) -> do
         nodePort <- getRandomPort
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
@@ -125,18 +130,20 @@ withCardanoNode tr action =
 --       └── node.topology
 --
 withConfig
-    :: (  CardanoNodeConfig
+    :: FilePath
+    -- ^ Test data directory
+    -> (  CardanoNodeConfig
        -> Block
        -> (BlockchainParameters, NodeVersionData)
        -> IO a
        )
     -- ^ Callback function with the node configuration and genesis params
     -> IO a
-withConfig action =
+withConfig tdir action =
     bracket setupConfig teardownConfig $ \(_a,b,c,d) -> action b c d
   where
     source :: FilePath
-    source = $(getTestData) </> "cardano-node"
+    source = tdir </> "cardano-node"
 
     setupConfig
         :: IO ( FilePath
