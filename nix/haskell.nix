@@ -62,7 +62,7 @@ let
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
-        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-byron.components.tests.cardano-node-integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
@@ -75,7 +75,7 @@ let
       {
         packages.cardano-wallet-byron.components.tests = {
           # provide cardano-node command to test suites
-          integration.build-tools = [ pkgs.cardano-node ];
+          cardano-node-integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
