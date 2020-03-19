@@ -93,6 +93,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseScheme(..)
     , encryptPassphrase
     , checkPassphrase
+    , preparePassphrase
     ) where
 
 import Prelude
@@ -132,6 +133,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Coerce
+    ( coerce )
 import Data.List
     ( intercalate )
 import Data.Proxy
@@ -372,16 +375,8 @@ class PassphraseMaxLength (purpose :: Symbol) where
     -- | Maximum length for a passphrase
     passphraseMaxLength :: Proxy purpose -> Int
 
-instance PassphraseMinLength "encryption" where passphraseMinLength _ = 10
-instance PassphraseMaxLength "encryption" where passphraseMaxLength _ = 255
-instance PassphraseMinLength "encryption-old" where
-    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
-instance PassphraseMaxLength "encryption-old" where
-    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
-instance PassphraseMinLength "encryption-new" where
-    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
-instance PassphraseMaxLength "encryption-new" where
-    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
+instance PassphraseMinLength "raw" where passphraseMinLength _ = 10
+instance PassphraseMaxLength "raw" where passphraseMaxLength _ = 255
 
 instance
     ( PassphraseMaxLength purpose
@@ -500,26 +495,18 @@ instance
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase
     :: MonadRandom m
-    => PassphraseScheme
-    -> Passphrase purpose
-    -> m (Hash purpose)
-encryptPassphrase scheme pwd@(Passphrase bytes) = case scheme of
-    EncryptWithPBKDF2 -> do
-        salt <- getRandomBytes @_ @ByteString 16
-        let params = Parameters
-                { iterCounts = 20000
-                , outputLength = 64
-                }
-        return $ Hash $ BA.convert $ mempty
-            <> BS.singleton (fromIntegral (BS.length salt))
-            <> salt
-            <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
-
-    EncryptWithScrypt ->  do
-        salt <- Scrypt.Salt <$> getRandomBytes @_ @ByteString 32
-        let msg = preparePassphrase pwd
-        return $ Hash $ Scrypt.getEncryptedPass $
-            Scrypt.encryptPass Scrypt.defaultParams salt msg
+    => Passphrase "encryption"
+    -> m (Hash "encryption")
+encryptPassphrase  (Passphrase bytes) = do
+    salt <- getRandomBytes @_ @ByteString 16
+    let params = Parameters
+            { iterCounts = 20000
+            , outputLength = 64
+            }
+    return $ Hash $ BA.convert $ mempty
+        <> BS.singleton (fromIntegral (BS.length salt))
+        <> salt
+        <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
 
 -- | Manipulation done on legacy passphrases before getting encrypted.
 --
@@ -527,29 +514,33 @@ encryptPassphrase scheme pwd@(Passphrase bytes) = case scheme of
 -- pronounce the 'l' in salmon. A lot of things in the world don't make sense
 -- but we still live just fine.
 preparePassphrase
-    :: Passphrase any
-    -> Scrypt.Pass
-preparePassphrase =
-    Scrypt.Pass
-    . CBOR.toStrictByteString
-    . CBOR.encodeBytes
-    . BA.convert
-    . hash @_ @Blake2b_256
+    :: PassphraseScheme
+    -> Passphrase "raw"
+    -> Passphrase "encryption"
+preparePassphrase = \case
+    EncryptWithPBKDF2 -> coerce
+    EncryptWithScrypt -> Passphrase
+        . BA.convert
+        . CBOR.toStrictByteString
+        . CBOR.encodeBytes
+        . BA.convert
+        . hash @_ @Blake2b_256
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
     :: PassphraseScheme
-    -> Passphrase purpose
-    -> Hash purpose
+    -> Passphrase "raw"
+    -> Hash "encryption"
     -> Either ErrWrongPassphrase ()
 checkPassphrase scheme received stored = do
+    let prepared = preparePassphrase scheme received
     case scheme of
         EncryptWithPBKDF2 -> do
             salt <- getSalt stored
-            unless (constantTimeEq (encryptPassphrase scheme received salt) stored) $
+            unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
                 Left ErrWrongPassphrase
         EncryptWithScrypt -> do
-            let msg = preparePassphrase received
+            let msg = Scrypt.Pass $ BA.convert prepared
             if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
                 then Right ()
                 else Left ErrWrongPassphrase
@@ -623,8 +614,10 @@ class WalletKey (key :: Depth -> * -> *) where
     -- expected to have already checked that. Using an incorrect passphrase here
     -- will lead to very bad thing.
     changePassphrase
-        :: Passphrase "encryption-old"
-        -> Passphrase "encryption-new"
+        :: Passphrase "encryption"
+            -- ^ Old passphrase
+        -> Passphrase "encryption"
+            -- ^ New passphrase
         -> key depth XPrv
         -> key depth XPrv
 

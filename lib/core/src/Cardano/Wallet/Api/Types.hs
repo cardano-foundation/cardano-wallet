@@ -344,7 +344,7 @@ data ApiWalletDelegationStatus
     deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
-    { passphrase :: ApiT (Passphrase "encryption")
+    { passphrase :: ApiT (Passphrase "raw")
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -374,7 +374,7 @@ data WalletPostData = WalletPostData
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , name :: !(ApiT WalletName)
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data SomeByronWalletPostData
@@ -388,7 +388,7 @@ data SomeByronWalletPostData
 data ByronWalletPostData mw = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT mw)
     , name :: !(ApiT WalletName)
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
@@ -423,13 +423,13 @@ newtype WalletPutData = WalletPutData
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
-    { oldPassphrase :: !(ApiT (Passphrase "encryption-old"))
-    , newPassphrase :: !(ApiT (Passphrase "encryption-new"))
+    { oldPassphrase :: !(ApiT (Passphrase "raw"))
+    , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData n = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount n))
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 newtype PostTransactionFeeData n = PostTransactionFeeData

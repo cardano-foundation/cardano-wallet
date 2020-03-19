@@ -296,8 +296,8 @@ unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
 -- expected to have already checked that. Using an incorrect passphrase here
 -- will lead to very bad thing.
 changePassphraseRnd
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
+    :: Passphrase "encryption"
+    -> Passphrase "encryption"
     -> ByronKey depth XPrv
     -> ByronKey depth XPrv
 changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey

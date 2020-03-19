@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , getIndex
     , hex
+    , preparePassphrase
     , unXPrvStripPub
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrv
@@ -118,7 +119,7 @@ spec = do
             prop_predMinBoundSoftIx
 
     describe "Text Roundtrip" $ do
-        textRoundtrip $ Proxy @(Passphrase "encryption")
+        textRoundtrip $ Proxy @(Passphrase "raw")
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -286,27 +287,25 @@ prop_roundtripXPub xpub = do
     xpub' === xpub
 
 prop_passphraseRoundtrip
-    :: PassphraseScheme
-    -> Passphrase "encryption"
+    :: Passphrase "raw"
     -> Property
-prop_passphraseRoundtrip scheme pwd = monadicIO $ liftIO $ do
-    hpwd <- encryptPassphrase scheme pwd
-    checkPassphrase scheme pwd hpwd `shouldBe` Right ()
+prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
+    hpwd <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 pwd)
+    checkPassphrase EncryptWithPBKDF2 pwd hpwd `shouldBe` Right ()
 
 prop_passphraseRoundtripFail
-    :: (PassphraseScheme, Passphrase "encryption")
-    -> (PassphraseScheme, Passphrase "encryption")
+    :: Passphrase "raw"
+    -> Passphrase "raw"
     -> Property
-prop_passphraseRoundtripFail (s,p) (s',p') =
-    if p == p' && s == s'
-    then property True
-    else monadicIO $ liftIO $ do
-        hp <- encryptPassphrase s p
-        checkPassphrase s' p' hp `shouldBe` Left ErrWrongPassphrase
+prop_passphraseRoundtripFail p p' =
+    p /= p' ==> monadicIO $ liftIO $ do
+        hp <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 p)
+        checkPassphrase EncryptWithPBKDF2 p' hp
+            `shouldBe` Left ErrWrongPassphrase
 
 prop_passphraseHashMalformed
     :: PassphraseScheme
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> Property
 prop_passphraseHashMalformed scheme pwd = monadicIO $ liftIO $ do
     checkPassphrase scheme pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
@@ -411,13 +410,13 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
-    Arbitrary (Passphrase purpose) where
+instance Arbitrary (Passphrase "raw") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy purpose
+      where p = Proxy :: Proxy "raw"
+
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
         | otherwise =
@@ -426,7 +425,11 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy purpose
+      where p = Proxy :: Proxy "raw"
+
+instance Arbitrary (Passphrase "encryption") where
+    arbitrary = preparePassphrase EncryptWithPBKDF2
+        <$> arbitrary @(Passphrase "raw")
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
     shrink (Passphrase "") = []

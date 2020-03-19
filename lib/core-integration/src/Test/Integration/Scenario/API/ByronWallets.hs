@@ -323,8 +323,8 @@ spec = do
             ]
 
     describe "BYRON_RESTORE_06 - Passphrase" $ do
-        let minLength = passphraseMinLength (Proxy @"encryption")
-        let maxLength = passphraseMaxLength (Proxy @"encryption")
+        let minLength = passphraseMinLength (Proxy @"raw")
+        let maxLength = passphraseMaxLength (Proxy @"raw")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź')

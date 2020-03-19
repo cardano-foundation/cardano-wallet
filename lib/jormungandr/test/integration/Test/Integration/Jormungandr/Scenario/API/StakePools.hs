@@ -487,8 +487,8 @@ spec = do
     describe "STAKE_POOLS_JOIN/QUIT_02 -\
         \ Passphrase must have appropriate length" $ do
 
-        let pMax = passphraseMaxLength (Proxy @"encryption")
-        let pMin = passphraseMinLength (Proxy @"encryption")
+        let pMax = passphraseMaxLength (Proxy @"raw")
+        let pMin = passphraseMinLength (Proxy @"raw")
         let tooShort =
                 "passphrase is too short: expected at least 10 characters"
         let tooLong =

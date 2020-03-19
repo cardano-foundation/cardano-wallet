@@ -71,6 +71,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
     , PersistPrivateKey
     , SomeMnemonic (..)
     , encryptPassphrase
@@ -143,8 +144,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import GHC.Conc
@@ -185,9 +184,11 @@ import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Data.ByteArray as BA
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified GHC.Conc as TVar
 
 spec :: Spec
@@ -620,10 +621,10 @@ attachPrivateKey
     -> PrimaryKey WalletId
     -> ExceptT ErrNoSuchWallet IO (ShelleyKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey DBLayer{..} wid = do
-    let Right pwd = fromText "simplevalidphrase"
+    let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
     let k = generateKeyFromSeed (seed, Nothing) pwd
-    h <- liftIO $ encryptPassphrase EncryptWithPBKDF2 pwd
+    h <- liftIO $ encryptPassphrase pwd
     mapExceptT atomically $ putPrivateKey wid (k, h)
     return (k, h)
 
