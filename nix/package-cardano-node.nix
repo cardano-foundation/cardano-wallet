@@ -26,8 +26,8 @@ pkgs.stdenv.mkDerivation rec {
     chmod -R +w $out
     set-git-rev "${gitrev}" $out/bin/${exe.identifier.name}* || true
   '' + (if pkgs.stdenv.hostPlatform.isWindows then ''
-    cp -vf ${pkgs.libffi}/bin/libffi-6.dll $out/bin
-    cp -vf ${cardano-node}/bin/* $out/bin
+    cp --remove-destination -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
+    cp --remove-destination -v ${cardano-node}/bin/* $out/bin
   '' else (if pkgs.stdenv.hostPlatform.isDarwin then ''
     rewrite-libs $out/bin $out/bin/${exe.identifier.name}
   '' else ''
