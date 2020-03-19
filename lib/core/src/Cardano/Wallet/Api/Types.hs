@@ -323,7 +323,7 @@ data ApiWallet = ApiWallet
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
 
-data ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
+newtype ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
     { lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
 
