@@ -135,7 +135,5 @@ flags:
 # See https://github.com/ndmitchell/weeder/issues/53
 ghc-options: {"$locals": -ddump-to-file -ddump-hi}
 
-allow-newer: true
-
 nix:
   shell-file: nix/stack-shell.nix
