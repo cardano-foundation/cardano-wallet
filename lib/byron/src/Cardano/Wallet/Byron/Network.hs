@@ -28,7 +28,7 @@ module Cardano.Wallet.Byron.Network
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( Trace, logWarning, nullTracer )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, fromSlotNo, fromTip, toEpochSlots, toGenTx, toPoint )
 import Cardano.Wallet.Logging
@@ -176,6 +176,7 @@ data instance Cursor (m Byron) = Cursor
 withNetworkLayer
     :: Trace IO Text
         -- ^ Logging of network layer startup
+        -- FIXME: Use a typed message instead of a 'Text'
     -> W.BlockchainParameters
         -- ^ Static blockchain parameters
     -> FilePath
@@ -217,7 +218,9 @@ withNetworkLayer tr bp addrInfo versionData action = do
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
         let shouldRetry _ = \case
-                Left (_ :: ErrNetworkUnavailable) -> pure True
+                Left (_ :: ErrNetworkUnavailable) -> do
+                    logWarning tr "Can't init cursor: node didn't reply. Trying again..."
+                    pure True
                 Right Nothing -> pure False
                 Right Just{}  -> pure False
         retrying policy shouldRetry (const findIt) >>= \case
