@@ -55,16 +55,12 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
-    , TMVar
     , TQueue
     , atomically
     , newEmptyTMVarM
-    , newTMVarM
     , newTQueue
     , putTMVar
-    , readTMVar
     , readTQueue
-    , swapTMVar
     , takeTMVar
     , writeTQueue
     )
@@ -194,7 +190,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
 
     -- NOTE: We keep a client connection running just for accessing the node tip.
     nodeTipQ <- atomically newTQueue
-    let nodeTipClient = mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
+    let nodeTipClient = const $ mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
     link =<< async (connectClient nodeTipClient versionData addrInfo)
 
     action
