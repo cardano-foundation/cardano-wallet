@@ -32,13 +32,13 @@ import Data.Quantity
 import Data.Text.Class
     ( ToText (..) )
 import Network.NTP.Client
-    ( NtpClient (..), withNtpClient )
-import Network.NTP.Packet
-    ( Microsecond (..), NtpOffset (..) )
-import Network.NTP.Query
-    ( NtpSettings (..), NtpStatus (..) )
-import Network.NTP.Trace
-    ( IPVersion (..), NtpTrace (..) )
+    ( IPVersion (..)
+    , NtpClient (..)
+    , NtpSettings (..)
+    , NtpStatus (..)
+    , NtpTrace (..)
+    , withNtpClient
+    )
 
 ntpSettings :: NtpSettings
 ntpSettings = NtpSettings
@@ -60,7 +60,7 @@ instance ToText NtpTrace where
         NtpTraceTriggerUpdate ->
             "ntp client is triggered"
         NtpTraceRestartDelay d ->
-            "ntp client restart delay is "<>toText d
+            "ntp client restart delay is " <> toText d
         NtpTraceRestartingClient ->
             "ntp client is restarted"
         NtpTraceClientSleeping ->
@@ -77,31 +77,33 @@ instance ToText NtpTrace where
             "no replies from servers when running ntp client"
         NtpTraceReportPolicyQueryFailed ->
             "policy query error when running ntp client"
-        NtpTraceQueryResult (Microsecond ms) ->
-            "ntp client gives offset of "<> toText ms <> " microseconds"
+        NtpTraceQueryResult ms ->
+            "ntp client gives offset of " <> toText (fromIntegral ms :: Integer)
+            <> " microseconds"
         NtpTraceRunProtocolError ver err ->
-            "ntp client experienced error "<>toText (show err)
-            <>" when using "<>toText ver <> " protocol"
+            "ntp client experienced error " <> toText (show err)
+            <> " when using " <> toText ver <> " protocol"
         NtpTraceRunProtocolNoResult ver ->
-            "ntp client got no result when running "<> toText ver <> " protocol"
+            "ntp client got no result when running " <> toText ver
+            <> " protocol"
         NtpTraceRunProtocolSuccess ver ->
-            "ntp client successfull running "<> toText ver <> " protocol"
+            "ntp client successfull running " <> toText ver <> " protocol"
         NtpTraceSocketOpen ver ->
-            "ntp client opened socket when running "<> toText ver
+            "ntp client opened socket when running " <> toText ver
         NtpTraceSocketClosed ver ->
-            "ntp client closed socket when running "<> toText ver
+            "ntp client closed socket when running " <> toText ver
         NtpTracePacketSent ver ->
-            "ntp client sent packet when running "<> toText ver
+            "ntp client sent packet when running " <> toText ver
         NtpTracePacketSentError ver err ->
-            "ntp client experienced error "<> toText (show err)
-            <>" when sending packet using "<> toText ver
+            "ntp client experienced error " <> toText (show err)
+            <> " when sending packet using " <> toText ver
         NtpTracePacketDecodeError ver err ->
-            "ntp client experienced error "<> toText (show err)
-            <>" when decoding packet using "<> toText ver
+            "ntp client experienced error " <> toText (show err)
+            <> " when decoding packet using " <> toText ver
         NtpTracePacketReceived ver ->
-            "ntp client received packet using "<> toText ver
+            "ntp client received packet using " <> toText ver
         NtpTraceWaitingForRepliesTimeout ver ->
-            "ntp client experienced timeout using "<> toText ver <> " protocol"
+            "ntp client experienced timeout using " <> toText ver <> " protocol"
 
 instance DefinePrivacyAnnotation NtpTrace
 instance DefineSeverity NtpTrace where
@@ -130,14 +132,13 @@ instance DefineSeverity NtpTrace where
         NtpTraceReportPolicyQueryFailed -> Notice
 
 getNtpStatus :: NtpClient -> IO ApiNetworkClock
-getNtpStatus client = ntpQueryBlocking client >>= \case
-    NtpSyncPending ->
-        pure $ ApiNetworkClock $
-        ApiNtpStatus NtpSyncingStatusPending Nothing
-    NtpSyncUnavailable ->
-        pure $ ApiNetworkClock $
-        ApiNtpStatus NtpSyncingStatusUnavailable Nothing
-    (NtpDrift (NtpOffset (Microsecond ms))) ->
-        pure $ ApiNetworkClock $
-        ApiNtpStatus NtpSyncingStatusAvailable
-        (Just $ Quantity $ fromIntegral ms)
+getNtpStatus = fmap (ApiNetworkClock . toStatus) . ntpQueryBlocking
+  where
+    toStatus = \case
+        NtpSyncPending ->
+            ApiNtpStatus NtpSyncingStatusPending Nothing
+        NtpSyncUnavailable ->
+            ApiNtpStatus NtpSyncingStatusUnavailable Nothing
+        NtpDrift ms ->
+            ApiNtpStatus NtpSyncingStatusAvailable
+            (Just $ Quantity (fromIntegral ms :: Integer))

@@ -24,7 +24,7 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( ToObject (..) )
+    ( ToObject (..), contramap )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
@@ -450,7 +450,7 @@ withLatencyLogging action = do
 
 setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
 setupTracers tvar = nullTracers
-    { apiServerTracer = trMessage (traceInTVarIO tvar) }
+    { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
 
 benchWithServer
     :: Tracers IO

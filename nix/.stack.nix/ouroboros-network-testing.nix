@@ -39,18 +39,18 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-binary-test"; version = "1.3.0"; };
-      license = "MIT";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "IOHK";
+      identifier = { name = "ouroboros-network-testing"; version = "0.1.0.0"; };
+      license = "Apache-2.0";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
+      maintainer = "";
+      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts, Karl Knuttson";
       homepage = "";
       url = "";
-      synopsis = "Test helpers from cardano-binary exposed to other packages";
-      description = "Test helpers from cardano-binary exposed to other packages";
+      synopsis = "Common modules used for testing in ouroboros-network and ouroboros-consensus";
+      description = "";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,29 +58,19 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-prelude-test" or (buildDepError "cardano-prelude-test"))
+          (hsPkgs."io-sim" or (buildDepError "io-sim"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."formatting" or (buildDepError "formatting"))
-          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
-          (hsPkgs."hspec" or (buildDepError "hspec"))
-          (hsPkgs."pretty-show" or (buildDepError "pretty-show"))
+          (hsPkgs."serialise" or (buildDepError "serialise"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-          (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."vector" or (buildDepError "vector"))
           ];
         buildable = true;
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-base";
-      rev = "f869bee9b08ba1044b1476737c9d65083e1c6c7f";
-      sha256 = "0df3bdf13cwx3hd8n4q53g9hybb0w8mh837y64ydd88xhdfaf6a3";
+      url = "https://github.com/input-output-hk/ouroboros-network";
+      rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
+      sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
       });
-    postUnpack = "sourceRoot+=/binary/test; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/ouroboros-network-testing; echo source root reset to \$sourceRoot";
     }

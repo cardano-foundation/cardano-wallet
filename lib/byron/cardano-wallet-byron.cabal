@@ -51,16 +51,16 @@ library
     , memory
     , network
     , network-mux
-    , ouroboros-consensus
+    , ouroboros-consensus-byron
     , ouroboros-network
+    , ouroboros-network-framework
     , retry
     , serialise
     , text
     , text-class
+    , typed-protocols-examples
     , time
     , transformers
-    , typed-protocols
-    , typed-protocols-cbor
     , warp
   hs-source-dirs:
       src
@@ -136,7 +136,6 @@ test-suite cardano-node-integration
     , http-client
     , http-types
     , iohk-monitoring
-    , network
     , ouroboros-network
     , process
     , temporary

@@ -39,17 +39,20 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { asserts = false; ipv6 = false; };
+    flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "network-mux"; version = "0.1.0.0"; };
+      identifier = {
+        name = "ouroboros-network-framework";
+        version = "0.1.0.0";
+        };
       license = "Apache-2.0";
       copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "duncan@well-typed.com, marcin.szamotulski@iohk.io, marc.fontaine@iohk.io, karl.knutsson@iohk.io, alex@well-typed.com, neil.davies@pnsol.com";
-      author = "Duncan Coutts, Marc Fontaine, Karl Knutsson, Marcin Szamotulski, Alexander Vieth, Neil Davies";
+      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
+      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "Multiplexing library";
+      synopsis = "";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,67 +61,83 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-          (hsPkgs."array" or (buildDepError "array"))
-          (hsPkgs."binary" or (buildDepError "binary"))
+          (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."network" or (buildDepError "network"))
-          (hsPkgs."process" or (buildDepError "process"))
-          (hsPkgs."statistics-linreg" or (buildDepError "statistics-linreg"))
-          (hsPkgs."vector" or (buildDepError "vector"))
+          (hsPkgs."mtl" or (buildDepError "mtl"))
+          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+          (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+          (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."network-mux" or (buildDepError "network-mux"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."dns" or (buildDepError "dns"))
+          (hsPkgs."iproute" or (buildDepError "iproute"))
+          (hsPkgs."serialise" or (buildDepError "serialise"))
+          (hsPkgs."typed-protocols-examples" or (buildDepError "typed-protocols-examples"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           ] ++ (pkgs.lib).optionals (system.isWindows) [
-          (hsPkgs."Win32" or (buildDepError "Win32"))
           (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+          (hsPkgs."Win32" or (buildDepError "Win32"))
           ];
         buildable = true;
         };
       exes = {
-        "mux-demo" = {
+        "demo-ping-pong" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."network-mux" or (buildDepError "network-mux"))
-            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-            (hsPkgs."io-sim" or (buildDepError "io-sim"))
-            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-            (hsPkgs."binary" or (buildDepError "binary"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cborg" or (buildDepError "cborg"))
-            (hsPkgs."serialise" or (buildDepError "serialise"))
-            (hsPkgs."Win32" or (buildDepError "Win32"))
-            (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
-            ];
-          buildable = if !system.isWindows then false else true;
-          };
-        };
-      tests = {
-        "test-network-mux" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-            (hsPkgs."io-sim" or (buildDepError "io-sim"))
-            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-            (hsPkgs."array" or (buildDepError "array"))
-            (hsPkgs."binary" or (buildDepError "binary"))
+            (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."hashable" or (buildDepError "hashable"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."directory" or (buildDepError "directory"))
+            (hsPkgs."network-mux" or (buildDepError "network-mux"))
             (hsPkgs."network" or (buildDepError "network"))
-            (hsPkgs."process" or (buildDepError "process"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."splitmix" or (buildDepError "splitmix"))
-            (hsPkgs."serialise" or (buildDepError "serialise"))
+            (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
+            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
             (hsPkgs."stm" or (buildDepError "stm"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (buildDepError "typed-protocols-examples"))
+            ] ++ (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+            (hsPkgs."Win32" or (buildDepError "Win32"))
+            ];
+          buildable = true;
+          };
+        };
+      tests = {
+        "ouroboros-network-framework-tests" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."directory" or (buildDepError "directory"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."time" or (buildDepError "time"))
+            (hsPkgs."cborg" or (buildDepError "cborg"))
+            (hsPkgs."serialise" or (buildDepError "serialise"))
+            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
+            (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (buildDepError "typed-protocols-examples"))
+            (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."network-mux" or (buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
+            (hsPkgs."ouroboros-network-testing" or (buildDepError "ouroboros-network-testing"))
+            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."dns" or (buildDepError "dns"))
+            (hsPkgs."iproute" or (buildDepError "iproute"))
+            (hsPkgs."io-sim" or (buildDepError "io-sim"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
-            (hsPkgs."time" or (buildDepError "time"))
             ] ++ (pkgs.lib).optionals (system.isWindows) [
-            (hsPkgs."Win32" or (buildDepError "Win32"))
             (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+            (hsPkgs."Win32" or (buildDepError "Win32"))
             ];
           buildable = true;
           };
@@ -130,5 +149,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
       sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
       });
-    postUnpack = "sourceRoot+=/network-mux; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/ouroboros-network-framework; echo source root reset to \$sourceRoot";
     }

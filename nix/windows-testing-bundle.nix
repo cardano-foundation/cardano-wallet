@@ -10,6 +10,8 @@
 { pkgs
 , project
 , cardano-wallet-jormungandr
+, cardano-wallet-byron
+, cardano-node
 , tests ? []
 , benchmarks ? []
 }:
@@ -18,10 +20,11 @@ let
   testData = {
     core = ../lib/core/test/data;
     jormungandr = ../lib/jormungandr/test/data;
+    byron = ../lib/byron/test/data;
     daedalusIPC = ../lib/jormungandr/test/integration/js;
   };
 
-  name = "cardano-wallet-jormungandr-${project.version}-tests-win64";
+  name = "cardano-wallet-${project.version}-tests-win64";
   jm-bat = pkgs.writeText "jm.bat" ''
     jormungandr.exe --config test\data\jormungandr\config.yaml --genesis-block test\data\jormungandr\block0.bin --secret test\data\jormungandr\secret.yaml
   '';
@@ -44,9 +47,10 @@ in pkgs.runCommand name {
   mkdir -pv jm jm/test/data jm/test/integration $out/nix-support
   cd jm
 
-  cp -v ${cardano-wallet-jormungandr}/bin/* .
+  cp -vf ${cardano-wallet-jormungandr}/bin/* .
+  cp -vf ${cardano-wallet-byron}/bin/* .
   cp -v ${nodejs}/node.exe .
-  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* test/data
+  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* test/data
   cp -Rv --no-preserve=mode ${testData.daedalusIPC} test/integration/js
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"

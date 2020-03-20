@@ -14,7 +14,7 @@ import Cardano.BM.Configuration.Model
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.LogItem
-    ( LOContent (LogMessage), LogObject (..), mkLOMeta )
+    ( LOContent (LogMessage), LogObject (..), LoggerName, mkLOMeta )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -244,7 +244,7 @@ assertProcessesExited phs = recoverAll policy test
 
 withTestLogging :: (Tracer IO LauncherLog -> IO a) -> IO a
 withTestLogging action =
-    bracket before after (action . trMessage . fst)
+    bracket before after (action . trMessageText . fst)
   where
     before = do
         cfg <- defaultConfigStdout
@@ -254,15 +254,15 @@ withTestLogging action =
         logDebug tr "Logging shutdown."
         shutdown sb
 
-trMessage
+trMessageText
     :: (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a)
-    => Tracer m (LogObject Text)
+    => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
-trMessage tr = Tracer $ \arg -> do
+trMessageText tr = Tracer $ \arg -> do
    let msg = toText arg
        tracer = if msg == mempty then nullTracer else tr
    lo <- LogObject
        <$> pure mempty
        <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
        <*> pure (LogMessage msg)
-   traceWith tracer lo
+   traceWith tracer (mempty, lo)
