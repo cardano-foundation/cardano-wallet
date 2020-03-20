@@ -643,6 +643,8 @@ mkWalletMetadataUpdate meta =
     , WalCreationTime =. meta ^. #creationTime
     , WalPassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , WalPassphraseScheme =.
+        W.passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
 blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
