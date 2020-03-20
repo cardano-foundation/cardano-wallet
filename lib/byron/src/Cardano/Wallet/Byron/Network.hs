@@ -4,6 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -23,16 +24,19 @@ module Cardano.Wallet.Byron.Network
     ( -- * Top-Level Interface
       pattern Cursor
     , withNetworkLayer
+
+      -- * Logging
+    , NetworkLayerLog
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( Trace, logWarning, nullTracer )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, fromSlotNo, fromTip, toEpochSlots, toGenTx, toPoint )
-import Cardano.Wallet.Logging
-    ( trMessage )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrCurrentNodeTip (..)
@@ -47,6 +51,8 @@ import Control.Concurrent.Async
     ( async, link )
 import Control.Exception
     ( IOException )
+import Control.Monad
+    ( (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -69,15 +75,24 @@ import Control.Monad.Class.MonadThrow
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
-    ( RetryPolicyM, constantDelay, fibonacciBackoff, recovering, retrying )
+    ( RetryPolicyM
+    , RetryStatus (..)
+    , capDelay
+    , constantDelay
+    , fibonacciBackoff
+    , recovering
+    , retrying
+    )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer, contramap, traceWith )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Data.List
@@ -86,12 +101,16 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Void
     ( Void )
+import Fmt
+    ( pretty )
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( AppType (..) )
+    ( AppType (..), MuxError (..), MuxErrorType (..), MuxTrace, WithMuxBearer )
 import Network.TypedProtocol.Codec
     ( Codec )
 import Ouroboros.Consensus.Byron.Ledger
@@ -127,6 +146,7 @@ import Ouroboros.Network.Mux
     ( MuxPeer (..), OuroborosApplication (..), RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
+    , Handshake
     , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
@@ -161,8 +181,11 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Codec
     ( codecLocalTxSubmission )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission )
+import System.IO.Error
+    ( isDoesNotExistError )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.CBOR.Term as CBOR
 import qualified Codec.Serialise as CBOR
 import qualified Data.Text as T
 
@@ -174,7 +197,7 @@ data instance Cursor (m Byron) = Cursor
 
 -- | Create an instance of the network layer
 withNetworkLayer
-    :: Trace IO Text
+    :: Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
         -- FIXME: Use a typed message instead of a 'Text'
     -> W.BlockchainParameters
@@ -192,7 +215,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
     -- NOTE: We keep a client connection running just for accessing the node tip.
     nodeTipQ <- atomically newTQueue
     let nodeTipClient = const $ mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
-    link =<< async (connectClient nodeTipClient versionData addrInfo)
+    link =<< async (connectClient tr nodeTipClient versionData addrInfo)
 
     action
         NetworkLayer
@@ -213,13 +236,13 @@ withNetworkLayer tr bp addrInfo versionData action = do
     _initCursor localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
-        link =<< async (connectClient client versionData addrInfo)
+        link =<< async (connectClient tr client versionData addrInfo)
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
         let shouldRetry _ = \case
                 Left (_ :: ErrNetworkUnavailable) -> do
-                    logWarning tr "Can't init cursor: node didn't reply. Trying again..."
+                    traceWith tr $ MsgFindIntersectionTimeout headers
                     pure True
                 Right Nothing -> pure False
                 Right Just{}  -> pure False
@@ -329,7 +352,7 @@ send queue cmd = do
         Left{}  -> Left (ErrNetworkUnreachable "timeout")
         Right a -> Right a
   where
-    timeout = threadDelay 90
+    timeout = threadDelay 30
 
 --------------------------------------------------------------------------------
 --
@@ -353,8 +376,8 @@ type NetworkClient m = OuroborosApplication
 
 -- | Construct a network client with the given communication channel
 mkNetworkClient
-    :: (MonadIO m, MonadThrow m, MonadST m, MonadTimer m)
-    => Trace m Text
+    :: (MonadThrow m, MonadST m, MonadTimer m)
+    => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.BlockchainParameters
         -- ^ Static blockchain parameters
@@ -366,11 +389,11 @@ mkNetworkClient
 mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
     nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
-            let tr' = contramap (T.pack . show) $ trMessage tr in
+            let tr' = contramap MsgChainSync tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 chainSyncWithBlocks tr' bp chainSyncQ channel
         , localTxSubmissionProtocol =
-            let tr' = contramap (T.pack . show) $ trMessage tr in
+            let tr' = contramap MsgTxSubmission tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 localTxSubmission tr' localTxSubmissionQ channel
         }
@@ -380,28 +403,55 @@ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
 --
 -- >>> connectClient (mkNetworkClient tr bp queue) mainnetVersionData addrInfo
 connectClient
-    :: (ConnectionId LocalAddress -> NetworkClient IO)
+    :: Tracer IO NetworkLayerLog
+    -> (ConnectionId LocalAddress -> NetworkClient IO)
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
     -> FilePath
     -> IO ()
-connectClient client (vData, vCodec) addr = withIOManager $ \iocp -> do
+connectClient tr client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
-    let tracers = NetworkConnectTracers nullTracer nullTracer
+    let tracers = NetworkConnectTracers
+            { nctMuxTracer = contramap MsgMuxTracer tr
+            , nctHandshakeTracer = contramap MsgHandshakeTracer tr
+            }
     let socket = localSnocket iocp addr
-    recovering policy [const $ Handler handleIOException] $ const $
-        connectTo socket tracers versions addr
+    recovering policy
+        [ const $ Handler handleIOException
+        , const $ Handler handleMuxError
+        ] $ \status -> do
+            traceWith tr $ MsgCouldntConnect (rsIterNumber status)
+            connectTo socket tracers versions addr
   where
-    -- .5s → .5s → 1s → 1.5s → 2.5s → 4s → 6.5s → 10.5s → 17s → 27.5s ...
+    -- .25s -> .25s -> .5s → .75s → 1.25s → 2s
     policy :: RetryPolicyM IO
-    policy = fibonacciBackoff 500
+    policy = fibonacciBackoff 250_000 & capDelay 2_000_000
 
     -- There's a race-condition when starting the wallet and the node at the
     -- same time: the socket might not be there yet when we try to open it.
     -- In such case, we simply retry a bit later and hope it's there.
     handleIOException :: IOException -> IO Bool
-    handleIOException e = pure $
-        "does not exist" `isInfixOf` show e
+    handleIOException e
+        | isDoesNotExistError e     = pure True
+        | isResourceVanishedError e = do
+            traceWith tr $ MsgConnectionLost (Just e)
+            pure True
+        | otherwise = pure False
+      where
+        isResourceVanishedError = isInfixOf "resource vanished" . show
+
+    -- Recover frmo error when the connection with the node is lost.
+    handleMuxError :: MuxError -> IO Bool
+    handleMuxError = pure . errorType >=> \case
+        MuxUnknownMiniProtocol -> pure False
+        MuxDecodeError -> pure False
+        MuxIngressQueueOverRun -> pure False
+        MuxInitiatorOnly -> pure False
+        MuxIOException e -> handleIOException e
+        MuxBearerClosed -> do
+            traceWith tr $ MsgConnectionLost Nothing
+            pure True
+
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
@@ -618,3 +668,57 @@ localTxSubmission tr queue channel =
 
 notImplemented :: HasCallStack => String -> a
 notImplemented what = error ("Not implemented: " <> what)
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data NetworkLayerLog
+    = MsgCouldntConnect Int
+    | MsgConnectionLost (Maybe IOException)
+    | MsgChainSync (TraceSendRecv (ChainSync ByronBlock (Tip ByronBlock)))
+    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) String))
+    | MsgMuxTracer (WithMuxBearer (ConnectionId LocalAddress) MuxTrace)
+    | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
+    | MsgFindIntersectionTimeout [W.BlockHeader]
+
+type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
+
+instance ToText NetworkLayerLog where
+    toText = \case
+        MsgCouldntConnect n -> T.unwords
+            [ "Couldn't connect to node (x" <> toText (n + 1) <> ")."
+            , "Retrying in a bit..."
+            ]
+        MsgConnectionLost Nothing  ->
+            "Connection lost with the node."
+        MsgConnectionLost (Just e) -> T.unwords
+            [ toText (MsgConnectionLost Nothing)
+            , T.pack (show e)
+            ]
+        MsgTxSubmission msg ->
+            T.pack (show msg)
+        MsgChainSync msg ->
+            T.pack (show msg)
+        MsgMuxTracer msg ->
+            T.pack (show msg)
+        MsgHandshakeTracer msg ->
+            T.pack (show msg)
+        MsgFindIntersectionTimeout points -> T.unwords
+            [ "Couldn't find an intersection in a timely manner for: "
+            , T.intercalate ", " (pretty <$> points)
+            , ". Trying again..."
+            ]
+
+instance DefinePrivacyAnnotation NetworkLayerLog
+instance DefineSeverity NetworkLayerLog where
+    defineSeverity = \case
+        MsgCouldntConnect 0          -> Debug
+        MsgCouldntConnect 1          -> Notice
+        MsgCouldntConnect{}          -> Warning
+        MsgConnectionLost{}          -> Warning
+        MsgTxSubmission{}            -> Info
+        MsgChainSync{}               -> Debug
+        MsgMuxTracer{}               -> Debug
+        MsgHandshakeTracer{}         -> Debug
+        MsgFindIntersectionTimeout{} -> Warning
