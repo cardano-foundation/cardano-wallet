@@ -64,4 +64,4 @@
 
 - [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of `cardano-wallet`).
 
-- [ ] Add the release to the automated migration tests (keep only the last 3 versions).  
+- [ ] Add the release to the [automated migration tests](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61) (keep only the last 3 versions).  
