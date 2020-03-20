@@ -38,22 +38,6 @@ let
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
-      # Allow reinstallation of Win32
-      { nonReinstallablePkgs =
-        [ "rts" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
-          "deepseq" "array" "ghc-boot-th" "pretty" "template-haskell"
-          # ghcjs custom packages
-          "ghcjs-prim" "ghcjs-th"
-          "ghc-boot"
-          "ghc" "array" "binary" "bytestring" "containers"
-          "filepath" "ghc-boot" "ghc-compact" "ghc-prim"
-          # "ghci" "haskeline"
-          "hpc"
-          "mtl" "parsec" "text" "transformers"
-          "xhtml"
-          # "stm" "terminfo"
-        ];
-      }
       # Add source filtering to local packages
       {
         packages.cardano-wallet-core.src = filterSubDir /lib/core;
@@ -143,6 +127,25 @@ let
         packages.ekg.components.library.enableSeparateDataOutput = true;
         enableLibraryProfiling = profiling;
       })
+
+      # Allow installation of a newer version of Win32 than what is
+      # included with GHC. The packages in this list are all those
+      # installed with GHC, except for Win32.
+      { nonReinstallablePkgs =
+        [ "rts" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
+          "deepseq" "array" "ghc-boot-th" "pretty" "template-haskell"
+          # ghcjs custom packages
+          "ghcjs-prim" "ghcjs-th"
+          "ghc-boot"
+          "ghc" "array" "binary" "bytestring" "containers"
+          "filepath" "ghc-boot" "ghc-compact" "ghc-prim"
+          # "ghci" "haskeline"
+          "hpc"
+          "mtl" "parsec" "text" "transformers"
+          "xhtml"
+          # "stm" "terminfo"
+        ];
+      }
     ];
     pkg-def-extras = [
       # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214
