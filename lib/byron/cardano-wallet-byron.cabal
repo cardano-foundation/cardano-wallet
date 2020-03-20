@@ -127,33 +127,13 @@ test-suite unit
       -Werror
   build-depends:
       base
-    , aeson
-    , aeson-qq
-    , binary
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-byron
-    , cardano-wallet-test-utils
-    , cborg
     , containers
-    , deepseq
-    , directory
-    , filepath
-    , fmt
-    , generic-arbitrary
     , hspec
-    , hspec-golden-aeson
-    , lifted-base
     , memory
-    , monad-control
-    , monad-loops
-    , QuickCheck
-    , safe
-    , servant
-    , text
-    , text-class
-    , transformers
   build-tools:
       hspec-discover
   type:
