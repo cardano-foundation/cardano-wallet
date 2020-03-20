@@ -633,8 +633,8 @@ mkWalletEntity wid meta = Wallet
     { walId = wid
     , walName = meta ^. #name . coerce
     , walCreationTime = meta ^. #creationTime
-    , walPassphraseLastUpdatedAt =
-        W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , walPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , walPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
     }
 
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
@@ -643,6 +643,8 @@ mkWalletMetadataUpdate meta =
     , WalCreationTime =. meta ^. #creationTime
     , WalPassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , WalPassphraseScheme =.
+        W.passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
 blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
@@ -657,8 +659,9 @@ metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
-    , passphraseInfo = W.WalletPassphraseInfo <$>
-        walPassphraseLastUpdatedAt wal
+    , passphraseInfo = W.WalletPassphraseInfo
+        <$> walPassphraseLastUpdatedAt wal
+        <*> walPassphraseScheme wal
     , delegation = walDelegation
     }
 

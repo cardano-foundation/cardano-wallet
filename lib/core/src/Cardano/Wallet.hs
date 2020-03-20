@@ -66,7 +66,8 @@ module Cardano.Wallet
     -- ** Wallet
     , createWallet
     , createIcarusWallet
-    , attachPrivateKey
+    , attachPrivateKeyFromPwd
+    , attachPrivateKeyFromPwdHash
     , listUtxoStatistics
     , readWallet
     , deleteWallet
@@ -180,6 +181,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , preparePassphrase
     , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -234,6 +236,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (LinearFee)
     , Hash (..)
     , IsDelegatingTo (..)
+    , PassphraseScheme (..)
     , PoolId
     , Range (..)
     , SealedTx
@@ -609,13 +612,20 @@ updateWalletPassphrase
         )
     => ctx
     -> WalletId
-    -> (Passphrase "encryption-old", Passphrase "encryption-new")
+    -> (Passphrase "raw", Passphrase "raw")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphrase ctx wid (old, new) =
     withRootKey @ctx @s @k ctx wid (coerce old) ErrUpdatePassphraseWithRootKey
-        $ \xprv -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
-            let xprv' = changePassphrase old new xprv
-            attachPrivateKey @ctx @s @k ctx wid (xprv', coerce new)
+        $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
+            -- NOTE
+            -- /!\ Important /!\
+            -- attachPrivateKeyFromPwd does use 'EncryptWithPBKDF2', so
+            -- regardless of the passphrase current scheme, we'll re-encrypt
+            -- it using the new scheme, always.
+            let oldP = preparePassphrase scheme old
+            let newP = preparePassphrase EncryptWithPBKDF2 new
+            let xprv' = changePassphrase oldP newP xprv
+            attachPrivateKeyFromPwd @ctx @s @k ctx wid (xprv', newP)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
@@ -1036,11 +1046,11 @@ signPayment
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv -> do
+    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
@@ -1049,7 +1059,7 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl keyFrom ins allOuts
 
@@ -1071,16 +1081,16 @@ signTx
         )
     => ctx
     -> WalletId
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> UnsignedTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv -> do
+    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
 
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl keyFrom inps outs
 
@@ -1156,13 +1166,14 @@ signDelegation
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> CoinSelection
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
-    withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv -> do
+    withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
+        let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
@@ -1171,14 +1182,14 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let rewardAcc = deriveRewardAccount @k pwd xprv
-            let keyFrom = isOwned (getState cp) (xprv, pwd)
+            let rewardAcc = deriveRewardAccount @k pwdP xprv
+            let keyFrom = isOwned (getState cp) (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join poolId ->
-                        mkDelegationJoinTx tl poolId (rewardAcc, pwd) keyFrom ins allOuts
+                        mkDelegationJoinTx tl poolId (rewardAcc, pwdP) keyFrom ins allOuts
                     Quit ->
-                        mkDelegationQuitTx tl (rewardAcc, pwd) keyFrom ins allOuts
+                        mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
@@ -1373,7 +1384,7 @@ joinStakePool
     -> WalletId
     -> (PoolId, [PoolId])
     -> ArgGenChange s
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
 joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
@@ -1412,7 +1423,7 @@ quitStakePool
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> ExceptT ErrQuitStakePool IO (Tx, TxMeta, UTCTime)
 quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
@@ -1437,11 +1448,9 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
-
--- | Attach a given private key to a wallet. The private key is
--- necessary for some operations like signing transactions, or
--- generating new accounts.
-attachPrivateKey
+-- | The password here undergoes PBKDF2 encryption using HMAC
+-- with the hash algorithm SHA512 which is realized in encryptPassphare
+attachPrivateKeyFromPwd
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         )
@@ -1449,36 +1458,103 @@ attachPrivateKey
     -> WalletId
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKey ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
+attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
     hpwd <- liftIO $ encryptPassphrase pwd
+    -- NOTE Only new wallets are constructed through this function, so the
+    -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
+    --
+    -- We do an extra sanity check after having encrypted the passphrase: we
+    -- tried to avoid some programmer mistakes with the phantom types on
+    -- Passphrase, but it's still possible that someone would inadvertently call
+    -- this function with a 'Passphrase' that wasn't prepared for
+    -- 'EncryptWithPBKDF2', if this happens, this is a programmer error and we
+    -- must fail hard for this would have dramatic effects later on.
+    case checkPassphrase EncryptWithPBKDF2 (coerce pwd) hpwd of
+        Right () -> attachPrivateKey db wid (xprv, hpwd) EncryptWithPBKDF2
+        Left{} -> fail
+            "Awe crap! The passphrase given to 'attachPrivateKeyFromPwd' wasn't \
+            \rightfully constructed. This is a programmer error. Look for calls \
+            \to this function and make sure that the given Passphrase wasn't not \
+            \prepared using 'EncryptWithScrypt'!"
+  where
+    db = ctx ^. dbLayer @s @k
+
+-- | The hash here is the output of Scrypt function with the following parameters:
+-- - logN = 14
+-- - r = 8
+-- - p = 1
+-- - bytesNumber = 64
+attachPrivateKeyFromPwdHash
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (k 'RootK XPrv, Hash "encryption")
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
+    -- NOTE Only legacy wallets are imported through this function, passphrase
+    -- were encrypted with the legacy scheme (Scrypt).
+    attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt
+  where
+    db = ctx ^. dbLayer @s @k
+
+attachPrivateKey
+    :: DBLayer IO s k
+    -> WalletId
+    -> (k 'RootK XPrv, Hash "encryption")
+    -> PassphraseScheme
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
     now <- liftIO getCurrentTime
     mapExceptT atomically $ do
         putPrivateKey (PrimaryKey wid) (xprv, hpwd)
         meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
-        let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+        let modify x = x
+                { passphraseInfo = Just $ WalletPassphraseInfo
+                    { lastUpdatedAt = now
+                    , passphraseScheme = scheme
+                    }
+                }
         putWalletMeta (PrimaryKey wid) (modify meta)
-  where
-    db = ctx ^. dbLayer @s @k
 
 -- | Execute an action which requires holding a root XPrv.
+--
+-- 'withRootKey' takes a callback function with two arguments:
+--
+--  - The encrypted root private key itself
+--  - The underlying passphrase scheme (legacy or new)
+--
+-- Caller are then expected to use 'preparePassphrase' with the given scheme in
+-- order to "prepare" the passphrase to be used by other function. This does
+-- nothing for the new encryption, but for the legacy encryption with Scrypt,
+-- passphrases needed to first be CBOR serialized and blake2b_256 hashed.
+--
+-- @@@
+--     withRootKey @ctx @s @k ctx wid pwd OnError $ \xprv scheme ->
+--         changePassphrase (preparePassphrase scheme pwd) newPwd xprv
+-- @@@
 withRootKey
     :: forall ctx s k e a. HasDBLayer s k ctx
     => ctx
     -> WalletId
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> (ErrWithRootKey -> e)
-    -> (k 'RootK XPrv -> ExceptT e IO a)
+    -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
 withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
-    xprv <- withExceptT embed $ mapExceptT atomically $ do
-        lift (readPrivateKey (PrimaryKey wid)) >>= \case
-            Nothing ->
-                throwE $ ErrWithRootKeyNoRootKey wid
-            Just (xprv, hpwd) -> do
+    (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
+        mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
+            lift (readWalletMeta $ PrimaryKey wid)
+        mXPrv <- lift $ readPrivateKey $ PrimaryKey wid
+        case (mXPrv, mScheme) of
+            (Just (xprv, hpwd), Just scheme) -> do
                 withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
-                    return $ checkPassphrase pwd hpwd
-                return xprv
-    action xprv
+                    return $ checkPassphrase scheme pwd hpwd
+                return (xprv, scheme)
+            _ ->
+                throwE $ ErrWithRootKeyNoRootKey wid
+    action xprv scheme
   where
     db = ctx ^. dbLayer @s @k
 

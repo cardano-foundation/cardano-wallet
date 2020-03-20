@@ -30,11 +30,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     , generateKeyFromSeed
     , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
+    , unsafeMkByronKeyFromMasterKey
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeMkMnemonic, unsafeXPrv )
 import Control.Monad
     ( (<=<) )
 import Data.ByteArray.Encoding
@@ -55,24 +56,37 @@ spec :: Spec
 spec = do
     goldenSpec
     describe "Random Address Derivation Properties" $ do
-        it "Key derivation works for various indexes" $
-            property prop_keyDerivation
+        it "Key derivation from seed works for various indexes" $
+            property prop_keyDerivationFromSeed
+        it "Key derivation from master key works for various indexes" $
+            property prop_keyDerivationFromXPrv
 
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
 
-prop_keyDerivation
+prop_keyDerivationFromSeed
     :: SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK
     -> Index 'WholeDomain 'AddressK
     -> Property
-prop_keyDerivation seed encPwd accIx addrIx =
+prop_keyDerivationFromSeed seed encPwd accIx addrIx =
     rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
     rndKey :: ByronKey 'AddressK XPrv
     rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
+
+prop_keyDerivationFromXPrv
+    :: XPrv
+    -> Index 'WholeDomain 'AccountK
+    -> Index 'WholeDomain 'AddressK
+    -> Property
+prop_keyDerivationFromXPrv masterkey accIx addrIx =
+    rndKey `seq` property () -- NOTE Making sure this doesn't throw
+  where
+    rndKey :: ByronKey 'AddressK XPrv
+    rndKey = unsafeMkByronKeyFromMasterKey (accIx, addrIx) masterkey
 
 {-------------------------------------------------------------------------------
                                   Golden tests
@@ -161,3 +175,6 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
+
+instance Arbitrary XPrv where
+    arbitrary = unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
