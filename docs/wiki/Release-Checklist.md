@@ -63,3 +63,5 @@
 - [ ] Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
 
 - [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of `cardano-wallet`).
+
+- [ ] Add the release to the automated migration tests (keep only the last 3 versions).  
