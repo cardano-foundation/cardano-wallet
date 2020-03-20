@@ -113,6 +113,22 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           };
         };
       tests = {
+        "unit" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."memory" or (buildDepError "memory"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))
+            ];
+          buildable = true;
+          };
         "cardano-node-integration" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
