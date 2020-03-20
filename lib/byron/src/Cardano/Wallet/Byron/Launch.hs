@@ -153,7 +153,7 @@ withConfig tdir action =
               )
     setupConfig = do
         dir <- getCanonicalTemporaryDirectory
-            >>= \tmpRoot -> createTempDirectory tmpRoot "cardano-wallet-byron"
+            >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
 
         let nodeConfigFile   = dir </> "node.config"
         let nodeDatabaseDir  = dir </> "node.db"
