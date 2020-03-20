@@ -30,7 +30,7 @@ import Prelude
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, fromSlotNo, fromTip, genesisTip, toEpochSlots, toGenTx, toPoint )
+    ( Byron, fromSlotNo, fromTip, toEpochSlots, toGenTx, toPoint )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network
@@ -45,12 +45,8 @@ import Cardano.Wallet.Network
     )
 import Control.Concurrent.Async
     ( async, link )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, tryPutMVar, tryReadMVar )
 import Control.Exception
     ( IOException )
-import Control.Monad
-    ( void )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -59,16 +55,12 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
-    , TMVar
     , TQueue
     , atomically
     , newEmptyTMVarM
-    , newTMVarM
     , newTQueue
     , putTMVar
-    , readTMVar
     , readTQueue
-    , swapTMVar
     , takeTMVar
     , writeTQueue
     )
@@ -195,12 +187,17 @@ withNetworkLayer
     -> IO a
 withNetworkLayer tr bp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
-    nodeTip <- newEmptyMVar
+
+    -- NOTE: We keep a client connection running just for accessing the node tip.
+    nodeTipQ <- atomically newTQueue
+    let nodeTipClient = const $ mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
+    link =<< async (connectClient nodeTipClient versionData addrInfo)
+
     action
         NetworkLayer
-            { currentNodeTip = _currentNodeTip nodeTip
+            { currentNodeTip = _currentNodeTip nodeTipQ
             , nextBlocks = _nextBlocks
-            , initCursor = _initCursor nodeTip localTxSubmissionQ
+            , initCursor = _initCursor localTxSubmissionQ
             , cursorSlotId = _cursorSlotId
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
@@ -212,11 +209,10 @@ withNetworkLayer tr bp addrInfo versionData action = do
         , getEpochLength
         } = bp
 
-    _initCursor nodeTip localTxSubmissionQ headers = do
+    _initCursor localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         link =<< async (connectClient client versionData addrInfo)
-        void $ tryPutMVar nodeTip chainSyncQ
         let points = genesisPoint : (toPoint getEpochLength <$> headers)
         chainSyncQ `send` CmdFindIntersection points >>= \case
             Right (Just intersection) ->
@@ -236,16 +232,12 @@ withNetworkLayer tr bp addrInfo versionData action = do
     _getAccountBalance _ =
         pure (Quantity 0)
 
-    _currentNodeTip nodeTip =
-        liftIO (tryReadMVar nodeTip) >>= \case
-            Nothing -> throwE $ ErrCurrentNodeTipNetworkUnreachable $
-                ErrNetworkUnreachable "client not yet started."
-            Just chainSyncQ ->
-                liftIO (chainSyncQ `send` CmdCurrentNodeTip) >>= \case
-                    Left e ->
-                        throwE $ ErrCurrentNodeTipNetworkUnreachable e
-                    Right tip ->
-                        pure $ fromTip getGenesisBlockHash getEpochLength tip
+    _currentNodeTip nodeTipQ =
+        liftIO (nodeTipQ `send` CmdCurrentNodeTip) >>= \case
+            Left e ->
+                throwE $ ErrCurrentNodeTipNetworkUnreachable e
+            Right tip ->
+                pure $ fromTip getGenesisBlockHash getEpochLength tip
 
     _postTx localTxSubmissionQ tx = do
         result <- withExceptT ErrPostTxNetworkUnreachable $
@@ -457,8 +449,7 @@ chainSyncWithBlocks
         -- socket).
     -> m Void
 chainSyncWithBlocks tr bp queue channel = do
-    nodeTipVar <- newTMVarM genesisTip
-    runPeer tr codec channel (chainSyncClientPeer $ client nodeTipVar)
+    runPeer tr codec channel (chainSyncClientPeer client)
   where
     W.BlockchainParameters
         { getGenesisBlockHash
@@ -474,10 +465,8 @@ chainSyncWithBlocks tr bp queue channel = do
         (encodeTip encodeByronHeaderHash)
         (decodeTip decodeByronHeaderHash)
 
-    client
-        :: TMVar m (Tip ByronBlock)
-        -> ChainSyncClient ByronBlock (Tip ByronBlock) m Void
-    client nodeTipVar = ChainSyncClient clientStIdle
+    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
+    client = ChainSyncClient clientStIdle
       where
         -- Client in the state 'Idle'. We wait for requests / commands on an
         -- 'TQueue'. Commands start a chain of messages and state transitions
@@ -485,6 +474,9 @@ chainSyncWithBlocks tr bp queue channel = do
         clientStIdle
             :: m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
         clientStIdle = atomically (readTQueue queue) >>= \case
+            CmdCurrentNodeTip respond -> pure $
+                SendMsgFindIntersect [genesisPoint] (clientStNodeTip respond)
+
             CmdFindIntersection points respond -> pure $
                 SendMsgFindIntersect points (clientStIntersect respond)
 
@@ -493,23 +485,32 @@ chainSyncWithBlocks tr bp queue channel = do
                     (clientStNext ([], 1000) respond)
                     (pure $ clientStNext ([], 1) respond)
 
-            CmdCurrentNodeTip respond -> do
-                respond =<< atomically (readTMVar nodeTipVar)
-                clientStIdle
+        clientStNodeTip
+            :: (Tip ByronBlock -> m ())
+            -> ClientStIntersect ByronBlock (Tip ByronBlock) m Void
+        clientStNodeTip respond = ClientStIntersect
+            { recvMsgIntersectFound = \_ tip ->
+                ChainSyncClient $ do
+                    respond tip
+                    clientStIdle
+
+            , recvMsgIntersectNotFound = \tip ->
+                ChainSyncClient $ do
+                    respond tip
+                    clientStIdle
+            }
 
         clientStIntersect
             :: (Maybe (Point ByronBlock) -> m ())
             -> ClientStIntersect ByronBlock (Tip ByronBlock) m Void
         clientStIntersect respond = ClientStIntersect
-            { recvMsgIntersectFound = \intersection tip ->
+            { recvMsgIntersectFound = \intersection _tip ->
                 ChainSyncClient $ do
-                    swapTMVarM nodeTipVar tip
                     respond (Just intersection)
                     clientStIdle
 
-            , recvMsgIntersectNotFound = \tip ->
+            , recvMsgIntersectNotFound = \_tip ->
                 ChainSyncClient $ do
-                    swapTMVarM nodeTipVar tip
                     respond Nothing
                     clientStIdle
             }
@@ -523,7 +524,6 @@ chainSyncWithBlocks tr bp queue channel = do
                 { recvMsgRollBackward = onRollback
                 , recvMsgRollForward = \block tip ->
                     ChainSyncClient $ do
-                        swapTMVarM nodeTipVar tip
                         let cursor' = blockPoint block
                         let blocks' = reverse (block:blocks)
                         let tip'    = fromTip getGenesisBlockHash getEpochLength tip
@@ -538,8 +538,7 @@ chainSyncWithBlocks tr bp queue channel = do
                         (pure $ clientStNext (block:blocks,1) respond)
                 }
           where
-            onRollback point tip = ChainSyncClient $ do
-                swapTMVarM nodeTipVar tip
+            onRollback point _tip = ChainSyncClient $ do
                 respond (RollBackward point)
                 clientStIdle
 
@@ -601,13 +600,6 @@ localTxSubmission tr queue channel =
         clientStIdle = atomically (readTQueue queue) <&> \case
             CmdSubmitTx tx respond ->
                 SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
-
---------------------------------------------------------------------------------
---
--- Internal
-
-swapTMVarM :: MonadSTM m => TMVar m a -> a -> m ()
-swapTMVarM var = void . atomically . swapTMVar var
 
 --------------------------------------------------------------------------------
 --
