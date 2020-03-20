@@ -65,7 +65,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
-    ( withNetworkLayer )
+    ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
@@ -215,7 +215,7 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = do
-        withNetworkLayer nullTracer bp socketPath vData $ \nl -> do
+        withNetworkLayer networkTracer bp socketPath vData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
@@ -354,6 +354,7 @@ data Tracers' f = Tracers
     , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
     , walletDbTracer     :: f DBLog
     , ntpClientTracer    :: f NtpTrace
+    , networkTracer      :: f NetworkLayerLog
     }
 
 -- | All of the Byron 'Tracer's.
@@ -375,6 +376,7 @@ tracerSeverities sev = Tracers
     , walletDbTracer     = Const sev
     , walletEngineTracer = Const sev
     , ntpClientTracer    = Const sev
+    , networkTracer      = Const sev
     }
 
 -- | Set up tracing with textual log messages.
@@ -385,6 +387,7 @@ setupTracers sev tr = Tracers
     , walletEngineTracer = mkTrace walletEngineTracer $ onoff walletEngineTracer tr
     , walletDbTracer     = mkTrace walletDbTracer     $ onoff walletDbTracer tr
     , ntpClientTracer    = mkTrace ntpClientTracer    $ onoff ntpClientTracer tr
+    , networkTracer      = mkTrace networkTracer      $ onoff networkTracer tr
     }
   where
     onoff
@@ -412,6 +415,7 @@ tracerLabels = Tracers
     , walletEngineTracer = Const "wallet-engine"
     , walletDbTracer     = Const "wallet-db"
     , ntpClientTracer    = Const "ntp-client"
+    , networkTracer      = Const "network"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -431,6 +435,9 @@ tracerDescriptions =
       )
     , ( lbl ntpClientTracer
       , "About ntp-client."
+      )
+    , ( lbl networkTracer
+      , "About network communication with the node."
       )
     ]
   where

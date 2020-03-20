@@ -325,6 +325,7 @@ tracerSeveritiesOption = Tracers
     <*> traceOpt walletEngineTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
     <*> traceOpt ntpClientTracer (Just Info)
+    <*> traceOpt networkTracer (Just Info)
   where
     traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
         <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
