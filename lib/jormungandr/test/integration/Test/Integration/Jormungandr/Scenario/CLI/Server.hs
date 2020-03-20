@@ -37,7 +37,7 @@ import System.Exit
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( Handle, hClose )
+    ( Handle, IOMode (..), hClose, withFile )
 import System.IO.Temp
     ( withSystemTempDirectory, withSystemTempFile )
 import System.Process
@@ -62,6 +62,8 @@ import Test.Integration.Jcli
     ( argHex, getBlock0H )
 import Test.Utils.Ports
     ( findPort )
+import Test.Utils.Windows
+    ( nullFileName )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -244,7 +246,9 @@ spec = do
                 \value that is 32 bytes in length"
 
     describe "SERVER - Clean shutdown" $ do
-        it "SERVER - shuts down on command" $ \(nPort,_,_) -> do
+        let exitSuccess = ProcessHasExited
+                "cardano-wallet-jormungandr" ExitSuccess
+        it "shuts down on command" $ \(nPort,_,_) -> do
             logged <- withLogCollection $ \stream -> do
                 let cmd = Command
                         (commandName @t)
@@ -263,7 +267,32 @@ spec = do
                     hClose hStdin
                     threadDelay oneSecond -- give handler a chance to run
 
-                res `shouldBe` Left (ProcessHasExited "cardano-wallet-jormungandr" ExitSuccess)
+                res `shouldBe` Left exitSuccess
+
+            let enabledLogs = grep "shutdown handler is enabled" logged
+            let shutdownLogs = grep "Starting clean shutdown" logged
+            length enabledLogs `shouldBe` 1
+            length shutdownLogs `shouldBe` 1
+
+        it "null device as stdin" $ \(nPort,_,_) -> do
+            logged <- withLogCollection $ \stream -> do
+                withFile nullFileName ReadMode $ \hNull -> do
+                    let cmd = Command
+                            (commandName @t)
+                            ["serve"
+                            , "--node-port", show nPort
+                            , "--random-port"
+                            , "--genesis-block-hash", block0H
+                            , "--shutdown-handler"
+                            ]
+                            (pure ())
+                            (UseHandle hNull)
+                            stream
+
+                    res <- withBackendProcess nullTracer cmd $
+                        threadDelay (oneSecond * 2)
+
+                    res `shouldBe` Left exitSuccess
 
             let enabledLogs = grep "shutdown handler is enabled" logged
             let shutdownLogs = grep "Starting clean shutdown" logged

@@ -29,10 +29,14 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Control.Concurrent
+    ( forkIO )
 import Control.Concurrent.Async
     ( race )
+import Control.Concurrent.MVar
+    ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( IOException, handle )
+    ( IOException, catch, handle, throwIO )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
@@ -43,6 +47,7 @@ import System.IO
     ( Handle
     , hIsOpen
     , hSetEncoding
+    , hWaitForInput
     , mkTextEncoding
     , stderr
     , stderr
@@ -64,7 +69,6 @@ import Cardano.Startup.POSIX
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers
@@ -100,8 +104,6 @@ setUtf8EncodingHandles = do
 -- So, when running @cardano-wallet@ as a subprocess, the parent process should
 -- pass a pipe for 'stdin', then close the pipe when it wants @cardano-wallet@
 -- to shut down.
---
--- TODO: may need to add 'forkIO' if 'hGet' blocks on windows
 withShutdownHandler :: Tracer IO ShutdownHandlerLog -> IO a -> IO (Maybe a)
 withShutdownHandler tr = withShutdownHandler' tr stdin
 
@@ -118,9 +120,17 @@ withShutdownHandler' tr h action = do
     readerLoop = do
         handle (traceWith tr . MsgShutdownError) readerLoop'
         traceWith tr MsgShutdownEOF
-    readerLoop' = BS.hGet h 1000 >>= \case
-        "" -> pure () -- EOF
-        _ -> readerLoop
+    readerLoop' = waitForInput >>= \case
+        True -> do
+            _ <- BS.hGet h 1000 -- consume input
+            readerLoop' -- and repeat
+        False -> pure ()
+    -- Wait indefinitely for input to be available.
+    -- Runs in separate thread so that it does not deadlock on Windows.
+    waitForInput = do
+        v <- newEmptyMVar :: IO (MVar (Either IOException Bool))
+        _ <- forkIO ((hWaitForInput h (-1) >>= putMVar v . Right) `catch` (putMVar v . Left))
+        takeMVar v >>= either throwIO pure
 
 data ShutdownHandlerLog
     = MsgShutdownHandler Bool
