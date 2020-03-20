@@ -27,7 +27,7 @@
 -- This module contains the core primitive of a Wallet. This is roughly a
 -- Haskell translation of the [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf)
 --
--- It doesn't contain any particular business-logic code, but define a few
+-- It doesn't contain any particular business-logic code, but defines a few
 -- primitive operations on Wallet core types as well.
 
 module Cardano.Wallet.Primitive.Types
@@ -279,7 +279,7 @@ import qualified Data.Text.Lazy.Builder as Builder
 -- the blockchain like @Wallet s@ is.
 --
 -- Whereas @Wallet s@ in 'Cardano.Wallet.Primitive' can be updated using
--- @applyBlock@, @WalletMetadata@ is not*.
+-- @applyBlock@, @WalletMetadata@ can not*.
 --
 -- *) Except for possibly 'status' and 'delegation'...
 data WalletMetadata = WalletMetadata
@@ -330,7 +330,7 @@ instance ToText WalletName where
 instance Buildable WalletName where
     build = build . toText
 
--- | Calling 'fromText @WalletName' on shorter longer string will fail.
+-- | Calling 'fromText @WalletName' on shorter string will fail.
 walletNameMinLength :: Int
 walletNameMinLength = 1
 
@@ -380,7 +380,7 @@ instance NFData WalletDelegationNext
 
 instance Buildable WalletDelegationNext where
     build (WalletDelegationNext e st) =
-        build st <> " (in epoch: " <> build e <>")"
+        build st <> " (in epoch: " <> build e <> ")"
 
 data WalletDelegation = WalletDelegation
     { active :: !WalletDelegationStatus
@@ -711,7 +711,7 @@ data Tx = Tx
         -- for which inputs are serialized in a specific order.
     , outputs
         :: ![TxOut]
-        -- ^ NOTE: Order of outputs matter in the transaction representations. Outputs
+        -- ^ NOTE: Order of outputs matters in the transaction representations. Outputs
         -- are used as inputs for next transactions which refer to them using
         -- their indexes. It matters also for serialization.
     } deriving (Show, Generic, Ord, Eq)
@@ -830,7 +830,7 @@ instance FromText Direction where
 instance ToText Direction where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
--- | @SealedTx@ is a serialised transaction that is ready to be submited
+-- | @SealedTx@ is a serialised transaction that is ready to be submitted
 -- to the node.
 newtype SealedTx = SealedTx { getSealedTx :: ByteString }
     deriving stock (Show, Eq, Generic)
@@ -909,9 +909,9 @@ instance FromText FeePolicy where
 --
 -- For more details, see also [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
 --
--- Shelley base addresses can be declined into two types:
+-- Shelley base addresses can be divided into two types:
 --
--- - Single Addresses: which only holds a public spending key
+-- - Single Addresses: which only hold a public spending key
 -- - Group Addresses: which hold both a spending and delegation keys
 --
 -- It'll therefore seem legitimate to represent addresses as:
@@ -928,7 +928,7 @@ instance FromText FeePolicy where
 -- them three despite having no need for such fine-grained representation.
 --
 -- Indeed, from the wallet core code, addresses are nothing more than an opaque
--- bunch of bytes that can be compared with each others. When signing
+-- bunch of bytes that can be compared with each other. When signing
 -- transactions, we have to lookup addresses anyway and therefore, can re-derive
 -- their corresponding public keys. The only moment the distinction between
 -- address type matters is when it comes to representing addresses at the edge
@@ -991,7 +991,7 @@ instance NFData Coin
 
 instance Bounded Coin where
     minBound = Coin 0
-    maxBound = Coin 45000000000000000
+    maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
     build = build . getCoin
@@ -1308,7 +1308,7 @@ mkSyncTolerance :: Int -> SyncTolerance
 mkSyncTolerance =
     SyncTolerance . toEnum . (* pico)
   where
-    pico = 1000*1000*1000*1000
+    pico = 1_000_000_000_000
 
 instance ToText SyncTolerance where
     toText (SyncTolerance t) = T.pack (show t)
@@ -1462,7 +1462,7 @@ slotSucc (SlotParameters (EpochLength el) _ _ _) (SlotId en (SlotNo sn))
     | sn < el - 1 = SlotId en (SlotNo $ sn + 1)
     | otherwise = SlotId (en + 1) 0
 
--- | The time that a slot begins.
+-- | The time when a slot begins.
 slotStartTime :: SlotParameters -> SlotId -> UTCTime
 slotStartTime (SlotParameters el (SlotLength sl) (StartTime st) _) slot =
     addUTCTime offset st
