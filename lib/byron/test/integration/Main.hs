@@ -149,7 +149,7 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $ \addrInfo block0 (bp,vData) ->
+        withCardanoNode tr $ \socketPath block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
@@ -158,7 +158,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                 (Just db)
                 "127.0.0.1"
                 ListenOnRandomPort
-                addrInfo
+                socketPath
                 block0
                 (bp, vData)
                 (action bp)

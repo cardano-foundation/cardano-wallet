@@ -7,18 +7,17 @@
 ############################################################################
 
 { pkgs
-, project
-, cardano-wallet-jormungandr
+, exe
 }:
 
 let
-  name = "cardano-wallet-jormungandr-${project.version}-win64";
+  name = "${exe.name}-win64";
 
 in pkgs.runCommand name { buildInputs = [ pkgs.buildPackages.zip ]; } ''
   mkdir -p $out/nix-support release
   cd release
 
-  cp ${cardano-wallet-jormungandr}/bin/* .
+  cp ${exe}/bin/* .
   chmod -R +w .
 
   zip -r $out/${name}.zip .

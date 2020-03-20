@@ -43,7 +43,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     package = {
       specVersion = "1.10";
       identifier = { name = "cardano-binary"; version = "1.5.0"; };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
@@ -101,8 +101,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "eed4fc484366214831576eef0c7fe90d1d08c78b";
-      sha256 = "0h9vbs2bsx6pvb300vl66znwpkqn169pmvsl4pv8mn0sz8iw4pk6";
+      rev = "f869bee9b08ba1044b1476737c9d65083e1c6c7f";
+      sha256 = "0df3bdf13cwx3hd8n4q53g9hybb0w8mh837y64ydd88xhdfaf6a3";
       });
     postUnpack = "sourceRoot+=/binary; echo source root reset to \$sourceRoot";
     }

@@ -21,7 +21,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..), Passphrase (..) )
+    ( AccountingStyle (..), Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -430,3 +430,14 @@ instance PersistFieldSql HDPassphrase where
 
 instance Read HDPassphrase where
     readsPrec _ = error "readsPrec stub needed for persistent"
+
+----------------------------------------------------------------------------
+-- PassphraseScheme
+--
+
+instance PersistField PassphraseScheme where
+    toPersistValue = toPersistValue . show
+    fromPersistValue = fromPersistValue >=> pure . read
+
+instance PersistFieldSql PassphraseScheme where
+    sqlType _ = sqlType (Proxy @String)

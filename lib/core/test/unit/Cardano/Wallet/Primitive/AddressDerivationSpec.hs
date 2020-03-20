@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , getIndex
     , hex
+    , preparePassphrase
     , unXPrvStripPub
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrv
@@ -54,7 +55,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..) )
+    ( Address (..), Hash (..), PassphraseScheme (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -89,6 +92,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Text.Roundtrip
@@ -116,7 +121,7 @@ spec = do
             prop_predMinBoundSoftIx
 
     describe "Text Roundtrip" $ do
-        textRoundtrip $ Proxy @(Passphrase "encryption")
+        textRoundtrip $ Proxy @(Passphrase "raw")
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -236,6 +241,16 @@ spec = do
         it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
             (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
 
+    describe "golden test legacy passphrase encryption" $ do
+        it "compare new implementation with cardano-sl" $ do
+            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
+            let hash = Hash $ unsafeFromHex
+                    "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
+                    \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
+                    \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
+                    \414941366a515867386539493d"
+            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
+
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
@@ -284,25 +299,28 @@ prop_roundtripXPub xpub = do
     xpub' === xpub
 
 prop_passphraseRoundtrip
-    :: Passphrase "encryption"
+    :: Passphrase "raw"
     -> Property
 prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
-    hpwd <- encryptPassphrase pwd
-    checkPassphrase pwd hpwd `shouldBe` Right ()
+    hpwd <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 pwd)
+    checkPassphrase EncryptWithPBKDF2 pwd hpwd `shouldBe` Right ()
 
 prop_passphraseRoundtripFail
-    :: (Passphrase "encryption", Passphrase "encryption")
+    :: Passphrase "raw"
+    -> Passphrase "raw"
     -> Property
-prop_passphraseRoundtripFail (p, p') =
+prop_passphraseRoundtripFail p p' =
     p /= p' ==> monadicIO $ liftIO $ do
-        hp <- encryptPassphrase p
-        checkPassphrase p' hp `shouldBe` Left ErrWrongPassphrase
+        hp <- encryptPassphrase (preparePassphrase EncryptWithPBKDF2 p)
+        checkPassphrase EncryptWithPBKDF2 p' hp
+            `shouldBe` Left ErrWrongPassphrase
 
 prop_passphraseHashMalformed
-    :: Passphrase "encryption"
+    :: PassphraseScheme
+    -> Passphrase "raw"
     -> Property
-prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
-    checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
+prop_passphraseHashMalformed scheme pwd = monadicIO $ liftIO $ do
+    checkPassphrase scheme pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
 
 -- | xPrvFromStrippedPubXPrv and unXPrvStripPub
 prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property
@@ -404,13 +422,13 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
-    Arbitrary (Passphrase purpose) where
+instance Arbitrary (Passphrase "raw") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy purpose
+      where p = Proxy :: Proxy "raw"
+
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
         | otherwise =
@@ -419,7 +437,11 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy purpose
+      where p = Proxy :: Proxy "raw"
+
+instance Arbitrary (Passphrase "encryption") where
+    arbitrary = preparePassphrase EncryptWithPBKDF2
+        <$> arbitrary @(Passphrase "raw")
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
     shrink (Passphrase "") = []
@@ -434,6 +456,9 @@ instance Arbitrary (Hash "encryption") where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
         return $ Hash $ BS.pack $ take 32 bytes
+
+instance Arbitrary PassphraseScheme where
+    arbitrary = genericArbitrary
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

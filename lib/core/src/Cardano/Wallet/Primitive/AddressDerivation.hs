@@ -90,8 +90,10 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic(..)
     , FromMnemonicError(..)
     , ErrWrongPassphrase(..)
+    , PassphraseScheme(..)
     , encryptPassphrase
     , checkPassphrase
+    , preparePassphrase
     ) where
 
 import Prelude
@@ -110,7 +112,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mkMnemonic
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount (..), Hash (..) )
+    ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -118,7 +120,7 @@ import Control.DeepSeq
 import Control.Monad
     ( unless, when )
 import Crypto.Hash
-    ( Digest, HashAlgorithm )
+    ( Blake2b_256, Digest, HashAlgorithm, hash )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -131,6 +133,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Coerce
+    ( coerce )
 import Data.List
     ( intercalate )
 import Data.Proxy
@@ -163,6 +167,9 @@ import Type.Reflection
     ( typeOf )
 
 import qualified Cardano.Crypto.Wallet.Encrypted as CC
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -368,16 +375,8 @@ class PassphraseMaxLength (purpose :: Symbol) where
     -- | Maximum length for a passphrase
     passphraseMaxLength :: Proxy purpose -> Int
 
-instance PassphraseMinLength "encryption" where passphraseMinLength _ = 10
-instance PassphraseMaxLength "encryption" where passphraseMaxLength _ = 255
-instance PassphraseMinLength "encryption-old" where
-    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
-instance PassphraseMaxLength "encryption-old" where
-    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
-instance PassphraseMinLength "encryption-new" where
-    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
-instance PassphraseMaxLength "encryption-new" where
-    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
+instance PassphraseMinLength "raw" where passphraseMinLength _ = 10
+instance PassphraseMaxLength "raw" where passphraseMaxLength _ = 255
 
 instance
     ( PassphraseMaxLength purpose
@@ -495,8 +494,10 @@ instance
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase
-    :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
-encryptPassphrase (Passphrase bytes) = do
+    :: MonadRandom m
+    => Passphrase "encryption"
+    -> m (Hash "encryption")
+encryptPassphrase  (Passphrase bytes) = do
     salt <- getRandomBytes @_ @ByteString 16
     let params = Parameters
             { iterCounts = 20000
@@ -507,15 +508,42 @@ encryptPassphrase (Passphrase bytes) = do
         <> salt
         <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
 
+-- | Manipulation done on legacy passphrases before getting encrypted.
+--
+-- Yes there's CBOR. Yes it's hashed before being encrypted. You don't actually
+-- pronounce the 'l' in salmon. A lot of things in the world don't make sense
+-- but we still live just fine.
+preparePassphrase
+    :: PassphraseScheme
+    -> Passphrase "raw"
+    -> Passphrase "encryption"
+preparePassphrase = \case
+    EncryptWithPBKDF2 -> coerce
+    EncryptWithScrypt -> Passphrase
+        . BA.convert
+        . CBOR.toStrictByteString
+        . CBOR.encodeBytes
+        . BA.convert
+        . hash @_ @Blake2b_256
+
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
-    :: Passphrase purpose
-    -> Hash purpose
+    :: PassphraseScheme
+    -> Passphrase "raw"
+    -> Hash "encryption"
     -> Either ErrWrongPassphrase ()
-checkPassphrase received stored = do
-    salt <- getSalt stored
-    unless (constantTimeEq (encryptPassphrase received salt) stored) $
-        Left ErrWrongPassphrase
+checkPassphrase scheme received stored = do
+    let prepared = preparePassphrase scheme received
+    case scheme of
+        EncryptWithPBKDF2 -> do
+            salt <- getSalt stored
+            unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
+                Left ErrWrongPassphrase
+        EncryptWithScrypt -> do
+            let msg = Scrypt.Pass $ BA.convert prepared
+            if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
+                then Right ()
+                else Left ErrWrongPassphrase
   where
     getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")
     getSalt (Hash bytes) = do
@@ -586,8 +614,10 @@ class WalletKey (key :: Depth -> * -> *) where
     -- expected to have already checked that. Using an incorrect passphrase here
     -- will lead to very bad thing.
     changePassphrase
-        :: Passphrase "encryption-old"
-        -> Passphrase "encryption-new"
+        :: Passphrase "encryption"
+            -- ^ Old passphrase
+        -> Passphrase "encryption"
+            -- ^ New passphrase
         -> key depth XPrv
         -> key depth XPrv
 

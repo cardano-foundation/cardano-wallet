@@ -48,6 +48,7 @@ module Cardano.Wallet.Api.Types
     , ApiStakePoolMetrics (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ApiUtxoStatistics (..)
     , WalletBalance (..)
     , WalletPostData (..)
@@ -148,7 +149,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , hashFromText
     , isValidCoin
     , unsafeEpochNo
@@ -318,9 +318,13 @@ data ApiWallet = ApiWallet
     , balance :: !(ApiT WalletBalance)
     , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+
+newtype ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
+    { lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDelegation = ApiWalletDelegation
@@ -340,7 +344,7 @@ data ApiWalletDelegationStatus
     deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
-    { passphrase :: ApiT (Passphrase "encryption")
+    { passphrase :: ApiT (Passphrase "raw")
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -370,7 +374,7 @@ data WalletPostData = WalletPostData
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , name :: !(ApiT WalletName)
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data SomeByronWalletPostData
@@ -384,7 +388,7 @@ data SomeByronWalletPostData
 data ByronWalletPostData mw = ByronWalletPostData
     { mnemonicSentence :: !(ApiMnemonicT mw)
     , name :: !(ApiT WalletName)
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
@@ -419,13 +423,13 @@ newtype WalletPutData = WalletPutData
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
-    { oldPassphrase :: !(ApiT (Passphrase "encryption-old"))
-    , newPassphrase :: !(ApiT (Passphrase "encryption-new"))
+    { oldPassphrase :: !(ApiT (Passphrase "raw"))
+    , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData n = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount n))
-    , passphrase :: !(ApiT (Passphrase "encryption"))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 newtype PostTransactionFeeData n = PostTransactionFeeData
@@ -690,7 +694,7 @@ data ApiByronWallet = ApiByronWallet
     { id :: !(ApiT WalletId)
     , balance :: !(ApiByronWalletBalance)
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
@@ -989,10 +993,10 @@ instance FromJSON (ApiT WalletName) where
 instance ToJSON (ApiT WalletName) where
     toJSON = toJSON . toText . getApiT
 
-instance FromJSON (ApiT WalletPassphraseInfo) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT WalletPassphraseInfo) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+instance FromJSON ApiWalletPassphraseInfo where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletPassphraseInfo where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT SyncProgress) where
     parseJSON = fmap ApiT . genericParseJSON syncProgressOptions

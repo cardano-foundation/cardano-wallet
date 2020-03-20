@@ -57,10 +57,11 @@ share
 
 -- Wallet IDs, address discovery state, and metadata.
 Wallet
-    walId                       W.WalletId     sql=wallet_id
-    walCreationTime             UTCTime        sql=creation_time
-    walName                     Text           sql=name
-    walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
+    walId                       W.WalletId                sql=wallet_id
+    walCreationTime             UTCTime                   sql=creation_time
+    walName                     Text                      sql=name
+    walPassphraseLastUpdatedAt  UTCTime Maybe             sql=passphrase_last_updated_at
+    walPassphraseScheme         W.PassphraseScheme Maybe  sql=passphrase_scheme
 
     Primary walId
     deriving Show Generic

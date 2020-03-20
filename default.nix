@@ -71,8 +71,11 @@ let
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
     inherit (jmPkgs) jormungandr jormungandr-cli;
+    # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
     inherit (pkgs) cardano-node;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
+    # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
+    inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
       inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
@@ -85,6 +88,7 @@ let
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
       exe = haskellPackages.cardano-wallet-byron.components.exes.cardano-wallet-byron;
+      inherit (self) cardano-node;
     };
 
     # `tests` are the test suites which have been built.
@@ -117,10 +121,18 @@ let
           hlint.components.exes.hlint
         ])
         ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
-        ++ [ self.jormungandr self.jormungandr-cli
-             self.cardano-node
-             pkgs.pkgconfig pkgs.sqlite-interactive
-             pkgs.cabal-install pkgs.pythonPackages.openapi-spec-validator ];
+        ++ (with self; [
+          jormungandr
+          jormungandr-cli
+          cardano-node
+        ]) ++ (with pkgs; [
+          stack
+          cabal-install
+          niv
+          pkgconfig
+          sqlite-interactive
+          pythonPackages.openapi-spec-validator
+        ]);
       meta.platforms = lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {

@@ -332,7 +332,7 @@ spec = do
             e `shouldBe` cmdOk
 
     describe "WALLETS_CREATE_07 - Passphrase is valid" $ do
-        let proxy_ = Proxy @"encryption"
+        let proxy_ = Proxy @"raw"
         let passphraseMax = replicate (passphraseMaxLength proxy_) 'ą'
         let passBelowMax = replicate (passphraseMaxLength proxy_ - 1) 'ć'
         let passphraseMin = replicate (passphraseMinLength proxy_) 'ń'
@@ -355,7 +355,7 @@ spec = do
             expectCliField #passphrase (`shouldNotBe` Nothing) j
 
     describe "WALLETS_CREATE_07 - When passphrase is invalid" $ do
-        let proxy_ = Proxy @"encryption"
+        let proxy_ = Proxy @"raw"
         let passAboveMax = replicate (passphraseMaxLength proxy_ + 1) 'ą'
         let passBelowMin = replicate (passphraseMinLength proxy_ - 1) 'ń'
         let passMinWarn = "passphrase is too short: expected at \
@@ -524,8 +524,8 @@ spec = do
             expectCliField #passphrase (`shouldNotBe` initPassUpdateTime) j
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
-        let minLength = passphraseMinLength (Proxy @"encryption")
-        let maxLength = passphraseMaxLength (Proxy @"encryption")
+        let minLength = passphraseMinLength (Proxy @"raw")
+        let maxLength = passphraseMaxLength (Proxy @"raw")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , replicate minLength 'ź'
@@ -582,8 +582,8 @@ spec = do
             exitCode `shouldBe` ExitFailure 1
 
     describe "WALLETS_UPDATE_PASS_03 - Old passphrase values" $ do
-        let minLength = passphraseMinLength (Proxy @"encryption")
-        let maxLength = passphraseMaxLength (Proxy @"encryption")
+        let minLength = passphraseMinLength (Proxy @"raw")
+        let maxLength = passphraseMaxLength (Proxy @"raw")
         let matrix =
                 [ ( show (minLength - 1) ++ " char long"
                   , replicate (minLength - 1) 'ź'
@@ -615,8 +615,8 @@ spec = do
 
     describe "WALLETS_UPDATE_PASS_03 - \
         \Can update pass from pass that's boundary value" $ do
-        let minLength = passphraseMinLength (Proxy @"encryption")
-        let maxLength = passphraseMaxLength (Proxy @"encryption")
+        let minLength = passphraseMinLength (Proxy @"raw")
+        let maxLength = passphraseMaxLength (Proxy @"raw")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , replicate minLength 'ź'

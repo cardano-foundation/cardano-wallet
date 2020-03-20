@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -23,7 +24,7 @@ module Cardano.Wallet.Logging
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (..), LogObject (..), mkLOMeta )
+    ( LOContent (..), LOMeta (..), LogObject (..), LoggerName, mkLOMeta )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -47,7 +48,7 @@ import qualified Data.Text.Encoding as T
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
 -- instance.
 transformTextTrace :: ToText a => Trace IO Text -> Trace IO a
-transformTextTrace = contramap (fmap toText) . filterNonEmpty
+transformTextTrace = contramap (fmap . fmap $ toText) . filterNonEmpty
 
 -- | Traces some data.
 logTrace
@@ -75,7 +76,7 @@ fromLogObject = contramap (getLogMessage . loContent)
 -- representation is empty, then no tracing happens.
 trMessageText
     :: (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a)
-    => Tracer m (LogObject Text)
+    => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
 trMessageText tr = Tracer $ \arg -> do
    let msg = toText arg
@@ -84,16 +85,16 @@ trMessageText tr = Tracer $ \arg -> do
        <$> pure mempty
        <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
        <*> pure (LogMessage msg)
-   traceWith tracer lo
+   traceWith tracer (mempty, lo)
 
 -- | Tracer transformer which converts 'Trace m a' to 'Tracer m a' by wrapping
 -- typed log messages into a 'LogObject'.
 trMessage
     :: (MonadIO m, DefinePrivacyAnnotation a, DefineSeverity a)
-    => Tracer m (LogObject a)
+    => Tracer m (LoggerName, LogObject a)
     -> Tracer m a
 trMessage tr = Tracer $ \arg ->
-   traceWith tr =<< LogObject
+   traceWith tr =<< (return . (mempty,)) =<< LogObject
        <$> pure mempty
        <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
        <*> pure (LogMessage arg)
@@ -108,7 +109,7 @@ filterTraceSeverity
     -> Trace m a
     -> Trace m a
 filterTraceSeverity sevlimit tr = Tracer $ \arg -> do
-    when (severity (loMeta arg) >= sevlimit) $
+    when (severity (loMeta (snd arg)) >= sevlimit) $
         traceWith tr arg
 
 -- | Trace transformer which removes empty traces.
@@ -117,7 +118,7 @@ filterNonEmpty
     => Trace m a
     -> Trace m a
 filterNonEmpty tr = Tracer $ \arg -> do
-    when (nonEmptyMessage (loContent arg)) $
+    when (nonEmptyMessage $ loContent $ snd arg) $
         traceWith tr arg
   where
     nonEmptyMessage (LogMessage msg) = msg /= mempty

@@ -371,7 +371,7 @@ walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
 
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
-    -> Passphrase "encryption-new"
+    -> Passphrase "raw"
     -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
@@ -381,24 +381,24 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (coerce new, new)
+        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
         attempt `shouldBe` Left err
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+        unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
         attempt <- runExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, new)
         attempt `shouldBe` Right ()
 
 walletUpdatePassphraseWrong
     :: (WalletId, WalletName, DummyState)
     -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-    -> (Passphrase "encryption-old", Passphrase "encryption-new")
+    -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+        unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
         attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
@@ -408,7 +408,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
 walletUpdatePassphraseNoSuchWallet
     :: (WalletId, WalletName, DummyState)
     -> WalletId
-    -> (Passphrase "encryption-old", Passphrase "encryption-new")
+    -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
@@ -430,7 +430,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
             return info
 
     void $ infoShouldSatisfy isNothing
-    unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
+    unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
     info <- infoShouldSatisfy isJust
     pause
     unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, coerce pwd)
@@ -441,18 +441,19 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
 walletKeyIsReencrypted
     :: (WalletId, WalletName)
     -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-    -> Passphrase "encryption-new"
+    -> Passphrase "raw"
     -> Property
 walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
     monadicIO $ liftIO $ do
         let state = Map.insert (Address "source") minBound mempty
         let wallet = (wid, wname, DummyState state)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ W.attachPrivateKey wl wid (xprv, pwd)
-        (_,_,_,txOld) <- unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () pwd selection
+        unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+        (_,_,_,txOld) <-
+            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () (coerce pwd) selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <-
-            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () (coerce newPwd) selection
+            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () newPwd selection
         txOld `shouldBe` txNew
   where
     selection = CoinSelection

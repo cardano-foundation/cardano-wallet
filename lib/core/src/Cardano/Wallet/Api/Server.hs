@@ -128,6 +128,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , Iso8601Time (..)
@@ -157,10 +158,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , XPrv
     , digest
+    , preparePassphrase
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+    ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -187,6 +189,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , HistogramBar (..)
+    , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
     , SyncProgress
@@ -240,7 +243,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', (.~), (^.) )
+    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -722,12 +725,12 @@ postShelleyWallet ctx body = do
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
-        W.attachPrivateKey @_ @s @k wrk wid (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
   where
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
-    pwd = getApiT (body ^. #passphrase)
+    pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wid = WalletId $ digest $ publicKey rootXPrv
@@ -777,7 +780,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , delegation = toApiWalletDelegation (meta ^. #delegation)
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , passphrase = ApiWalletPassphraseInfo
+            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
         , tip = getWalletTip cp
         }
@@ -830,7 +834,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
     liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-        W.attachPrivateKey wrk wid (rootXPrv, pwd)
+        W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
     wid = WalletId $ digest $ publicKey rootXPrv
@@ -845,7 +849,8 @@ mkLegacyWallet _ctx wid cp meta pending progress =
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiT <$> meta ^. #passphraseInfo
+        , passphrase = ApiWalletPassphraseInfo
+            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
         , tip = getWalletTip cp
         }
@@ -865,15 +870,33 @@ postRandomWallet ctx body = do
         W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Rnd.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postRandomWalletFromXPrv
-    :: ctx
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , s ~ RndState 'Mainnet
+        , k ~ ByronKey
+        )
+    => ctx
     -> ByronWalletFromXPrvPostData
     -> Handler ApiByronWallet
-postRandomWalletFromXPrv _ctx _body = throwError err501
+postRandomWalletFromXPrv ctx body = do
+    s <- liftIO $ mkRndState byronKey <$> getStdRandom random
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+        W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
+    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
+  where
+    wName = getApiT (body ^. #name)
+    pwd   = getApiT (body ^. #passphraseHash)
+    masterKey = getApiT (body ^. #encryptedRootPrivateKey)
+    byronKey = mkByronKeyFromMasterKey masterKey
+    wid = WalletId $ digest $ publicKey byronKey
 
 postIcarusWallet
     :: forall ctx s t k.
@@ -890,7 +913,7 @@ postIcarusWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -909,7 +932,7 @@ postTrezorWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -928,7 +951,7 @@ postLedgerWallet ctx body = do
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
   where
     wName = getApiT (body ^. #name)
-    pwd   = getApiT (body ^. #passphrase)
+    pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = Ica.generateKeyFromHardwareLedger mw pwd
       where mw = getApiMnemonicT (body ^. #mnemonicSentence)
 
@@ -1604,12 +1627,12 @@ rndStateChange
         )
     => ctx
     -> ApiT WalletId
-    -> Passphrase "encryption"
+    -> Passphrase "raw"
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
     liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $ \wrk ->
-        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv ->
-            pure (xprv, pwd)
+        W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
+            pure (xprv, preparePassphrase scheme pwd)
   where
     liftE = throwE . ErrSignPaymentNoSuchWallet
 

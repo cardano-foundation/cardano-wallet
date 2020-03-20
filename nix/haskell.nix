@@ -46,8 +46,7 @@ let
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
-        packages.cardano-wallet-byron.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-byron.components.tests.cardano-node-integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
@@ -60,8 +59,7 @@ let
       {
         packages.cardano-wallet-byron.components.tests = {
           # provide cardano-node command to test suites
-          integration.build-tools = [ pkgs.cardano-node ];
-          unit.build-tools = [ pkgs.cardano-node ];
+          cardano-node-integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
@@ -129,6 +127,25 @@ let
         packages.ekg.components.library.enableSeparateDataOutput = true;
         enableLibraryProfiling = profiling;
       })
+
+      # Allow installation of a newer version of Win32 than what is
+      # included with GHC. The packages in this list are all those
+      # installed with GHC, except for Win32.
+      { nonReinstallablePkgs =
+        [ "rts" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
+          "deepseq" "array" "ghc-boot-th" "pretty" "template-haskell"
+          # ghcjs custom packages
+          "ghcjs-prim" "ghcjs-th"
+          "ghc-boot"
+          "ghc" "array" "binary" "bytestring" "containers"
+          "filepath" "ghc-boot" "ghc-compact" "ghc-prim"
+          # "ghci" "haskeline"
+          "hpc"
+          "mtl" "parsec" "text" "transformers"
+          "xhtml"
+          # "stm" "terminfo"
+        ];
+      }
     ];
     pkg-def-extras = [
       # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214

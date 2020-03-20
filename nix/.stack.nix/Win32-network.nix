@@ -39,46 +39,65 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { asserts = false; };
+    flags = { demo = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "io-sim"; version = "0.1.0.0"; };
+      identifier = { name = "Win32-network"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
+      maintainer = "duncan@well-typed.com, marcin.szamotulski@iohk.io";
+      author = "Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "A pure simlator for monadic concurrency with STM";
+      synopsis = "Win32 network API";
       description = "";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
-        depends = [
+        depends = (pkgs.lib).optionals (system.isWindows) [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-          (hsPkgs."exceptions" or (buildDepError "exceptions"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."psqueues" or (buildDepError "psqueues"))
-          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."bytestring" or (buildDepError "bytestring"))
+          (hsPkgs."network" or (buildDepError "network"))
+          (hsPkgs."Win32" or (buildDepError "Win32"))
           ];
+        libs = (pkgs.lib).optional (system.isWindows) (pkgs."ws2_32" or (sysDepError "ws2_32"));
         buildable = true;
         };
+      exes = {
+        "named-pipe-demo" = {
+          depends = if system.isWindows
+            then [
+              (hsPkgs."base" or (buildDepError "base"))
+              (hsPkgs."binary" or (buildDepError "binary"))
+              (hsPkgs."bytestring" or (buildDepError "bytestring"))
+              (hsPkgs."Win32" or (buildDepError "Win32"))
+              (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+              ]
+            else [ (hsPkgs."base" or (buildDepError "base")) ];
+          buildable = true;
+          };
+        };
       tests = {
-        "test-sim" = {
-          depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."array" or (buildDepError "array"))
-            (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."io-sim" or (buildDepError "io-sim"))
-            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."time" or (buildDepError "time"))
-            ];
+        "test-Win32-network" = {
+          depends = if system.isWindows
+            then [
+              (hsPkgs."async" or (buildDepError "async"))
+              (hsPkgs."base" or (buildDepError "base"))
+              (hsPkgs."binary" or (buildDepError "binary"))
+              (hsPkgs."bytestring" or (buildDepError "bytestring"))
+              (hsPkgs."network" or (buildDepError "network"))
+              (hsPkgs."stm" or (buildDepError "stm"))
+              (hsPkgs."tasty" or (buildDepError "tasty"))
+              (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
+              (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+              (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+              (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
+              (hsPkgs."Win32" or (buildDepError "Win32"))
+              (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+              ]
+            else [ (hsPkgs."base" or (buildDepError "base")) ];
           buildable = true;
           };
         };
@@ -89,5 +108,5 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
       sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
       });
-    postUnpack = "sourceRoot+=/io-sim; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/Win32-network; echo source root reset to \$sourceRoot";
     }

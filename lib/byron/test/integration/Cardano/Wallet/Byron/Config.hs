@@ -20,8 +20,6 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Byron.Compatibility
     ( NodeVersionData, fromGenesisData )
-import Cardano.Wallet.Byron.Network
-    ( AddrInfo, localSocketAddrInfo )
 import Cardano.Wallet.Byron.Transaction
     ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
@@ -84,7 +82,7 @@ data CardanoNodeConfig = CardanoNodeConfig
 withCardanoNode
     :: Trace IO Text
     -- ^ Some trace for logging
-    -> (AddrInfo -> Block -> (BlockchainParameters, NodeVersionData) -> IO a)
+    -> (FilePath -> Block -> (BlockchainParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket description and genesis params
     -> IO a
 withCardanoNode tr action =
@@ -93,8 +91,7 @@ withCardanoNode tr action =
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
         withBackendProcess (trMessageText tr) cmd $ do
-            let addrInfo = localSocketAddrInfo (nodeSocketFile cfg)
-            action addrInfo block0 (bp, vData)
+            action (nodeSocketFile cfg) block0 (bp, vData)
   where
     orThrow = (=<<) (either throwIO pure)
     mkArgs cfg port =

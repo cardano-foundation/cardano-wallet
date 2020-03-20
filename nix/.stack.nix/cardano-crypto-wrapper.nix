@@ -43,7 +43,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     package = {
       specVersion = "1.10";
       identifier = { name = "cardano-crypto-wrapper"; version = "1.3.0"; };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
@@ -68,7 +68,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."cryptonite-openssl" or (buildDepError "cryptonite-openssl"))
           (hsPkgs."data-default" or (buildDepError "data-default"))
           (hsPkgs."formatting" or (buildDepError "formatting"))
           (hsPkgs."memory" or (buildDepError "memory"))
@@ -101,8 +100,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "c62e2eeba5756898cbf59732fccd6a83a4065c18";
-      sha256 = "04s2dp5dyikm2pxfphiyh429pckkg06dqx3sl4bbzvg6x5qfqvbn";
+      rev = "1368966fd6d806d8eb65cd1ba193548c402355f6";
+      sha256 = "0mrgby1sw2yawfhkj20zg8wl7k3v9jkcv43prfxxlakikpdkjzhp";
       });
     postUnpack = "sourceRoot+=/crypto; echo source root reset to \$sourceRoot";
     }

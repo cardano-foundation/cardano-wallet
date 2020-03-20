@@ -34,6 +34,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeMkByronKeyFromMasterKey
+    , mkByronKeyFromMasterKey
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -257,7 +259,8 @@ blake2b256 :: ScrubbedBytes -> ScrubbedBytes
 blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
 
 -- | Derive a symmetric key for encrypting and authenticating the address
--- derivation path.
+-- derivation path. PBKDF2 encryption using HMAC with the hash algorithm SHA512
+-- is employed.
 hdPassphrase :: XPub -> Passphrase "addr-derivation-payload"
 hdPassphrase masterKey = Passphrase $
     PBKDF2.generate
@@ -265,6 +268,21 @@ hdPassphrase masterKey = Passphrase $
     (PBKDF2.Parameters 500 32)
     (unXPub masterKey)
     ("address-hashing" :: ByteString)
+
+mkByronKeyFromMasterKey
+    :: XPrv
+    -> ByronKey 'RootK XPrv
+mkByronKeyFromMasterKey = unsafeMkByronKeyFromMasterKey ()
+
+unsafeMkByronKeyFromMasterKey
+    :: DerivationPath depth
+    -> XPrv
+    -> ByronKey depth XPrv
+unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
+    { getKey = masterKey
+    , derivationPath
+    , payloadPassphrase = hdPassphrase (toXPub masterKey)
+    }
 
 {-------------------------------------------------------------------------------
                                    Passphrase
@@ -278,8 +296,8 @@ hdPassphrase masterKey = Passphrase $
 -- expected to have already checked that. Using an incorrect passphrase here
 -- will lead to very bad thing.
 changePassphraseRnd
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
+    :: Passphrase "encryption"
+    -> Passphrase "encryption"
     -> ByronKey depth XPrv
     -> ByronKey depth XPrv
 changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey

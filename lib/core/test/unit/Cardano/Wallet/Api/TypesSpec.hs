@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletPassphrase (..)
+    , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -137,7 +138,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , log10
     , walletNameMaxLength
@@ -327,7 +327,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "raw"))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -335,7 +335,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
+            jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @StakePoolMetadata
 
@@ -390,20 +390,20 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|"-----"|]
                 `shouldBe` (Left @String @(ApiT Address, Proxy ('Testnet 0)) msg)
 
-        it "ApiT (Passphrase \"encryption\") (too short)" $ do
-            let minLength = passphraseMinLength (Proxy :: Proxy "encryption")
+        it "ApiT (Passphrase \"raw\") (too short)" $ do
+            let minLength = passphraseMinLength (Proxy :: Proxy "raw")
             let msg = "Error in $: passphrase is too short: \
                     \expected at least " <> show minLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|"patate"|]
-                `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
+                `shouldBe` (Left @String @(ApiT (Passphrase "raw")) msg)
 
-        it "ApiT (Passphrase \"encryption\") (too long)" $ do
-            let maxLength = passphraseMaxLength (Proxy :: Proxy "encryption")
+        it "ApiT (Passphrase \"raw\") (too long)" $ do
+            let maxLength = passphraseMaxLength (Proxy :: Proxy "raw")
             let msg = "Error in $: passphrase is too long: \
                     \expected at most " <> show maxLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
+            |] `shouldBe` (Left @String @(ApiT (Passphrase "raw")) msg)
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \
@@ -1204,8 +1204,8 @@ instance Arbitrary WalletName where
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
 
-instance Arbitrary WalletPassphraseInfo where
-    arbitrary = WalletPassphraseInfo <$> genUniformTime
+instance Arbitrary ApiWalletPassphraseInfo where
+    arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
 
 instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary

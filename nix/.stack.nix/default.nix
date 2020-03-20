@@ -8,6 +8,7 @@
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "wai-extra" = (((hackage.wai-extra)."3.0.29.1").revisions).default;
+        "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
         "servant" = (((hackage.servant)."0.17").revisions).default;
         "servant-server" = (((hackage.servant-server)."0.17").revisions).default;
         "servant-client-core" = (((hackage.servant-client-core)."0.17").revisions).default;
@@ -44,6 +45,7 @@
         iohk-monitoring = ./iohk-monitoring.nix;
         lobemo-backend-aggregation = ./lobemo-backend-aggregation.nix;
         lobemo-backend-monitoring = ./lobemo-backend-monitoring.nix;
+        tracer-transformers = ./tracer-transformers.nix;
         ekg-prometheus-adapter = ./ekg-prometheus-adapter.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
@@ -64,9 +66,13 @@
         network-mux = ./network-mux.nix;
         ouroboros-network = ./ouroboros-network.nix;
         ouroboros-consensus = ./ouroboros-consensus.nix;
+        ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
         typed-protocols = ./typed-protocols.nix;
-        typed-protocols-cbor = ./typed-protocols-cbor.nix;
+        typed-protocols-examples = ./typed-protocols-examples.nix;
+        ouroboros-network-framework = ./ouroboros-network-framework.nix;
+        ouroboros-network-testing = ./ouroboros-network-testing.nix;
         ntp-client = ./ntp-client.nix;
+        Win32-network = ./Win32-network.nix;
         };
       };
   resolver = "lts-14.25";
