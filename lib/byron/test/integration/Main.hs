@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -35,10 +36,10 @@ import Cardano.Wallet.Byron
     )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron )
-import Cardano.Wallet.Byron.Config
-    ( withCardanoNode )
 import Cardano.Wallet.Byron.Faucet
     ( initFaucet )
+import Cardano.Wallet.Byron.Launch
+    ( withCardanoNode )
 import Cardano.Wallet.Byron.Transaction.Size
     ( maxSizeOf, minSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Network.Ports
@@ -95,6 +96,8 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
@@ -149,7 +152,7 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $ \socketPath block0 (bp,vData) ->
+        withCardanoNode tr $(getTestData) $ \socketPath block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
