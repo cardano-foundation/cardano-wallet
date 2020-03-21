@@ -40,7 +40,9 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..) )
+    ( Hash (..), SyncProgress (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad
     ( forM_, void )
 import Data.Generics.Internal.VL.Lens
@@ -420,6 +422,11 @@ spec = do
         let _rootXPrv =
                 generateKeyFromSeed seed (Passphrase $ BA.convert $ T.encodeUtf8 passw)
 
+        let _passwHash = Hash $ unsafeFromHex
+                "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
+                \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
+                \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
+                \414941366a515867386539493d"
         expectResponseCode @IO HTTP.status204 rd
 
  where
