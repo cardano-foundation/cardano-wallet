@@ -38,11 +38,13 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , UnicodeString (..)
     , arbitraryBoundedEnum
+    , arbitrarySizedNatural
     , choose
     , classify
     , elements
     , genericShrink
     , property
+    , shrinkIntegral
     , vectorOf
     , (===)
     , (==>)
@@ -71,8 +73,6 @@ spec = do
                     <> show (maxBound @Int)
                     <> "."
             in fromText @Int "patate" === Left (TextDecodingError err)
-        it "fromText . toText === pure"
-            $ property $ \(i :: Int) -> (fromText . toText) i === pure i
         it "fromText ~ fromTextMaybe" $
             property $ \(Digits t) ->
                 classify (isNothing (fromTextMaybe @Int t))
@@ -94,9 +94,6 @@ spec = do
             let err = "Expecting natural number"
             in fromText @Natural "-14" === Left (TextDecodingError err)
 
-        it "fromText . toText == pure" $ property $ \(x :: Natural) ->
-            (fromText . toText) x === pure x
-
     describe "Double" $ do
         it "fromText \"patate\"" $
             let err = "Expecting floating number"
@@ -107,12 +104,13 @@ spec = do
             fromText @Text "patate" === pure "patate"
         it "toText \"patate\"" $
             toText @Text "patate" === "patate"
-        it "fromText . toText === pure" $
-            property $ \(t :: Text) -> (fromText . toText) t === pure t
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @String
         textRoundtrip $ Proxy @Double
+        textRoundtrip $ Proxy @Natural
+        textRoundtrip $ Proxy @Int
+        textRoundtrip $ Proxy @Text
 
     describe "BoundedEnum" $ do
         it "fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a" $
@@ -159,14 +157,8 @@ instance Arbitrary Digits where
         pure (sign ++ str)
 
 instance Arbitrary Natural where
-    shrink x =
-        [ fromIntegral x
-        | x' <- shrink (fromIntegral x)
-        , x' >= 0
-        , x' /= x
-        ]
-    arbitrary =
-        fromIntegral . abs <$> arbitrary @Integer
+    shrink = shrinkIntegral
+    arbitrary = arbitrarySizedNatural
 
 data TestBoundedEnum
     = A

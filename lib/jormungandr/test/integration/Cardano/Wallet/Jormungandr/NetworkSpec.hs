@@ -119,7 +119,7 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( Arbitrary (..), generate, vectorOf )
+    ( Arbitrary (..), generate, vector )
 import Test.Utils.Ports
     ( randomUnusedTCPPorts )
 
@@ -178,7 +178,7 @@ spec = do
             \(nw, _) -> do
                 -- NOTE There's a very little chance of hash clash here. But,
                 -- for what it's worth, I didn't bother retrying.
-                bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
+                bytes <- BS.pack <$> generate (vector 32)
                 let block = BlockHeader
                         { slotId = SlotId 42 14 -- Anything
                         , blockHeight = Quantity 0 -- Anything
@@ -481,7 +481,7 @@ instance Eq (NextBlocksResult (Cursor t) b) where
     a == b = show a == show b
 
 instance Arbitrary (Hash any) where
-    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . BS.pack <$> vector 32
 
 getRollForward :: NextBlocksResult (Cursor t) block -> Maybe [block]
 getRollForward AwaitReply = Nothing

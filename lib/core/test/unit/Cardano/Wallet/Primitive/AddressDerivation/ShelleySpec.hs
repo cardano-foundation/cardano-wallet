@@ -61,7 +61,7 @@ import Test.QuickCheck
     , expectFailure
     , property
     , suchThat
-    , vectorOf
+    , vector
     , (===)
     , (==>)
     )
@@ -208,7 +208,7 @@ instance Arbitrary AccountingStyle where
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
         n <- choose (minSeedLengthBytes, 64)
-        bytes <- BS.pack <$> vectorOf n arbitrary
+        bytes <- BS.pack <$> vector n
         return $ Passphrase $ BA.convert bytes
 
 newtype SingleAddress (n :: NetworkDiscriminant)
@@ -217,7 +217,7 @@ newtype SingleAddress (n :: NetworkDiscriminant)
 
 instance KnownNetwork n => Arbitrary (SingleAddress n) where
     arbitrary = SingleAddress . Address . BS.pack
-        <$> fmap ([addrSingle @n] <>) (vectorOf publicKeySize arbitrary)
+        <$> fmap ([addrSingle @n] <>) (vector publicKeySize)
 
 newtype GroupedAddress (n :: NetworkDiscriminant)
     = GroupedAddress Address
@@ -225,7 +225,7 @@ newtype GroupedAddress (n :: NetworkDiscriminant)
 
 instance KnownNetwork n => Arbitrary (GroupedAddress n) where
     arbitrary = GroupedAddress . Address . BS.pack
-        <$> fmap ([addrGrouped @n] <>) (vectorOf (2*publicKeySize) arbitrary)
+        <$> fmap ([addrGrouped @n] <>) (vector (2*publicKeySize))
 
 newtype InvalidAddress = InvalidAddress Address deriving (Eq, Show)
 
@@ -233,7 +233,7 @@ instance Arbitrary InvalidAddress where
     arbitrary = InvalidAddress . Address . BS.pack <$> do
         firstByte <- suchThat arbitrary (`notElem` validFirstBytes)
         len <- elements validSizes
-        ([firstByte]<>) <$> vectorOf len arbitrary
+        (firstByte:) <$> vector len
       where
         validSizes = [publicKeySize, 2*publicKeySize]
         validFirstBytes =

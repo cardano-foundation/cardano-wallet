@@ -38,8 +38,7 @@ import Numeric.Natural
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
+    ( Gen
     , Property
     , choose
     , conjoin
@@ -48,6 +47,7 @@ import Test.QuickCheck
     , label
     , property
     , vectorOf
+    , vector
     , withMaxSuccess
     , (===)
     )
@@ -254,7 +254,7 @@ genUTxO r (Coin dust) = do
     genTxIn :: Int -> Gen [TxIn]
     genTxIn n = do
         ids <- vectorOf n (Hash <$> genBytes 8)
-        ixs <- vectorOf n arbitrary
+        ixs <- vector n
         pure $ zipWith TxIn ids ixs
 
     genTxOut :: Int -> Gen [TxOut]
@@ -264,7 +264,7 @@ genUTxO r (Coin dust) = do
         pure $ zipWith TxOut addrs coins
 
     genBytes :: Int -> Gen ByteString
-    genBytes n = B8.pack <$> vectorOf n arbitrary
+    genBytes n = B8.pack <$> vector n
 
     genCoin :: Gen Coin
     genCoin = Coin <$> frequency

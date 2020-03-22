@@ -87,7 +87,7 @@ import Test.QuickCheck
     , label
     , oneof
     , property
-    , vectorOf
+    , vector
     , (.&&.)
     , (===)
     , (==>)
@@ -556,11 +556,11 @@ genAddress
     => Gen Address
 genAddress = oneof
     [ (\bytes -> Address (BS.pack (addrSingle @network:bytes)))
-        <$> vectorOf Seq.publicKeySize arbitrary
+        <$> vector Seq.publicKeySize
     , (\bytes -> Address (BS.pack (addrGrouped @network:bytes)))
-        <$> vectorOf (2*Seq.publicKeySize) arbitrary
+        <$> vector (2*Seq.publicKeySize)
     , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
-        <$> vectorOf Seq.publicKeySize arbitrary
+        <$> vector Seq.publicKeySize
     ]
 
 genLegacyAddress :: (Int, Int) -> Gen Address
@@ -571,7 +571,7 @@ genLegacyAddress range = do
             , 216, 24   -- Tag 24
             , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
             ]
-    addrPayload <- BS.pack <$> vectorOf n arbitrary
+    addrPayload <- BS.pack <$> vector n
     let crc = BS.pack [26,1,2,3,4]
     return $ Address (prefix <> addrPayload <> crc)
 

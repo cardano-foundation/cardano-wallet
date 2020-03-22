@@ -108,8 +108,10 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , applyArbitrary4
     , counterexample
     , elements
+    , vector
     , frequency
     , property
     , scale
@@ -347,11 +349,7 @@ getEpConsts _ _ = EpochConstants
 -------------------------------------------------------------------------------}
 
 instance Arbitrary BlockHeader where
-    arbitrary = BlockHeader
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary4 BlockHeader
     shrink = genericShrink
 
 instance Arbitrary SlotId where
@@ -410,7 +408,7 @@ instance Arbitrary (LowEntropy PoolId) where
         <$> elements [ "ares", "athena", "hades", "hestia", "nemesis" ]
 
 instance Arbitrary PoolId where
-    arbitrary = fmap (PoolId . B8.pack) (vectorOf 32 arbitrary)
+    arbitrary = fmap (PoolId . B8.pack) (vector 32)
 
 instance Arbitrary PoolOwner where
     shrink _  = []

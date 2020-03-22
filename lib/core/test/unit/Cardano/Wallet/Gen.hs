@@ -27,7 +27,7 @@ import Data.Ratio
 import GHC.TypeLits
     ( natVal )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, vectorOf )
+    ( Arbitrary (..), Gen, choose, vector )
 
 import qualified Data.ByteString as BS
 
@@ -43,7 +43,7 @@ genMnemonic
     => Gen (Mnemonic mw)
 genMnemonic = do
         let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vectorOf n arbitrary
+        bytes <- BS.pack <$> vector n
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
 

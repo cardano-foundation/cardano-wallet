@@ -54,14 +54,14 @@ import Test.QuickCheck
     , Confidence (..)
     , Gen
     , Property
+    , applyArbitrary2
     , checkCoverageWith
     , choose
     , cover
     , elements
     , generate
-    , oneof
     , scale
-    , vectorOf
+    , vector
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
@@ -208,21 +208,19 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     shrink xs = catMaybes (NE.nonEmpty <$> shrink (NE.toList xs))
     arbitrary = do
         n <- choose (1, 10)
-        NE.fromList <$> vectorOf n arbitrary
+        NE.fromList <$> vector n
 
 instance Arbitrary CoinSelProp where
     shrink (CoinSelProp utxo outs) = uncurry CoinSelProp
         <$> zip (shrink utxo) (shrink outs)
-    arbitrary = CoinSelProp
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary2 CoinSelProp
 
 instance Arbitrary Address where
     -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Address "ADDR01"
-        , pure $ Address "ADDR02"
-        , pure $ Address "ADDR03"
+    arbitrary = elements
+        [ Address "ADDR01"
+        , Address "ADDR02"
+        , Address "ADDR03"
         ]
 
 instance Arbitrary Coin where
@@ -238,34 +236,32 @@ instance Arbitrary TxIn where
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
     arbitrary = do
-        wds <- vectorOf 10 arbitrary :: Gen [Word8]
+        wds <- vector 10 :: Gen [Word8]
         let bs = BS.pack wds
         pure $ Hash bs
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary2 TxOut
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
         n <- choose (1, 100)
         utxo <- zip
-            <$> vectorOf n arbitrary
-            <*> vectorOf n arbitrary
+            <$> vector n
+            <*> vector n
         return $ UTxO $ Map.fromList utxo
 
 genUTxO :: [Word64] -> Gen UTxO
 genUTxO coins = do
     let n = length coins
-    inps <- vectorOf n arbitrary
+    inps <- vector n
     outs <- genTxOut coins
     return $ UTxO $ Map.fromList $ zip inps outs
 
 genTxOut :: [Word64] -> Gen [TxOut]
 genTxOut coins = do
     let n = length coins
-    outs <- vectorOf n arbitrary
+    outs <- vector n
     return $ zipWith TxOut outs (map Coin coins)

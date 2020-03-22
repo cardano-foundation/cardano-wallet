@@ -150,6 +150,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , NonEmptyList (..)
     , Positive (..)
+    , applyArbitrary2
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
@@ -162,6 +163,7 @@ import Test.QuickCheck
     , shrinkIntegral
     , shrinkList
     , vectorOf
+    , vector
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )
@@ -209,7 +211,7 @@ newtype InitialCheckpoint s =
 instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
     shrink = genericShrink
     arbitrary = do
-        pairs <- choose (1, 10) >>= flip vectorOf arbitrary
+        pairs <- choose (1, 10) >>= vector
         pure $ KeyValPairs $ L.sortOn fst pairs
 
 -- | For checkpoints, we make sure to generate them in order.
@@ -217,7 +219,7 @@ instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
     => Arbitrary (KeyValPairs k (ShowFmt (Wallet s))) where
     shrink = genericShrink
     arbitrary = do
-        pairs <- choose (1, 10) >>= flip vectorOf arbitrary
+        pairs <- choose (1, 10) >>= vector
         pure $ KeyValPairs $ second ShowFmt
            <$> L.sortOn (\(k,cp) -> (k, view #slotId (currentTip cp))) pairs
 
@@ -272,7 +274,7 @@ instance Arbitrary MockChain where
                     (mockHash slot)
                     (mockHash slot)
             Block h
-                <$> (choose (1, 10) >>= \k -> vectorOf k arbitrary)
+                <$> (choose (1, 10) >>= vector)
                 <*> pure []
 
         epochLength :: EpochLength
@@ -344,7 +346,7 @@ instance Arbitrary BlockHeader where
 instance Arbitrary SlotId where
     shrink (SlotId (EpochNo ep) (SlotNo sl)) =
         uncurry SlotId <$> shrink (EpochNo ep, SlotNo sl)
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 SlotId
 
 instance Arbitrary SlotNo where
     shrink (SlotNo x) = SlotNo <$> shrink x
@@ -407,8 +409,8 @@ instance Arbitrary UTxO where
     arbitrary = do
         n <- choose (1, 10)
         u <- zip
-            <$> vectorOf n arbitrary
-            <*> vectorOf n arbitrary
+            <$> vector n
+            <*> vector n
         return $ UTxO $ Map.fromList u
 
 {-------------------------------------------------------------------------------
@@ -416,7 +418,7 @@ instance Arbitrary UTxO where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Address where
-    arbitrary = Address . B8.pack <$> vectorOf addrSingleSize arbitrary
+    arbitrary = Address . B8.pack <$> vector addrSingleSize
 
 instance Arbitrary (Index 'Soft 'AddressK) where
     shrink _ = []
@@ -556,11 +558,11 @@ instance Eq XPrv where
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do
-        Hash . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
+        Hash . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary PoolId where
     arbitrary = do
-        PoolId . convertToBase Base16 . BS.pack <$> vectorOf 16 arbitrary
+        PoolId . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary DelegationCertificate where
     arbitrary = oneof
