@@ -30,6 +30,7 @@ import Cardano.CLI
     , cmdStakePool
     , cmdTransaction
     , cmdWallet
+    , cmdWalletCreate
     , defaultDiscriminantOption
     , hGetLine
     , hGetSensitiveLine
@@ -39,6 +40,13 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( setUtf8EncodingHandles )
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( XPrv, unXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -122,13 +130,12 @@ spec = do
 
     let parser = cli $ mempty
             <> cmdMnemonic
-            <> cmdWallet defaultDiscriminantOption
-            <> cmdTransaction defaultDiscriminantOption
-            <> cmdAddress defaultDiscriminantOption
-            <> cmdStakePool defaultDiscriminantOption
-            <> cmdNetwork
+            <> cmdWallet defaultDiscriminantOption cmdWalletCreate walletClient
+            <> cmdTransaction defaultDiscriminantOption transactionClient walletClient
+            <> cmdAddress defaultDiscriminantOption addressClient
+            <> cmdStakePool defaultDiscriminantOption stakePoolClient
+            <> cmdNetwork networkClient
             <> cmdKey
-
 
     let shouldStdOut args expected = it (unwords args) $ do
             setUtf8EncodingHandles

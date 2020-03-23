@@ -9,6 +9,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 -- |
@@ -20,21 +21,41 @@
 -- The functions in this module can be run with "Servant.Client.runClientM".
 
 module Cardano.Wallet.Api.Client
-    ( -- * API endpoints
+    ( -- * API Clients
       WalletClient (..)
     , walletClient
+    , byronWalletClient
 
-      -- * Helper functions
-    , waitForSync
-    , waitForRestore
+    , TransactionClient (..)
+    , transactionClient
+    , byronTransactionClient
+
+    , AddressClient (..)
+    , addressClient
+
+    , StakePoolClient (..)
+    , stakePoolClient
+
+    , NetworkClient (..)
+    , networkClient
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Api )
+    ( Addresses
+    , ByronTransactions
+    , ByronWallets
+    , Network
+    , PostData
+    , Proxy_
+    , StakePools
+    , Transactions
+    , Wallets
+    )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiByronWallet
     , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
@@ -55,18 +76,15 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , WalletOrAccountPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, SortOrder, SyncProgress (..), WalletId )
+    ( AddressState, SortOrder, WalletId )
 import Control.Monad
     ( void )
-import Control.Retry
-    ( RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, retrying )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
 import Servant
@@ -80,29 +98,25 @@ import Servant.Client
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
-data WalletClient t = WalletClient
-    { listAddresses
-        :: ApiT WalletId
-        -> Maybe (ApiT AddressState)
-        -> ClientM [ApiAddress t]
-    , deleteWallet
+data WalletClient wallet = WalletClient
+    { deleteWallet
         :: ApiT WalletId
         -> ClientM ()
     , getWallet
         :: ApiT WalletId
-        -> ClientM ApiWallet
+        -> ClientM wallet
     , getWalletUtxoStatistics
         :: ApiT WalletId
         -> ClientM ApiUtxoStatistics
     , listWallets
-        :: ClientM [ApiWallet]
+        :: ClientM [wallet]
     , postWallet
-        :: WalletOrAccountPostData
-        -> ClientM ApiWallet
+        :: PostData wallet
+        -> ClientM wallet
     , putWallet
         :: ApiT WalletId
         -> WalletPutData
-        -> ClientM ApiWallet
+        -> ClientM wallet
     , putWalletPassphrase
         :: ApiT WalletId
         -> WalletPutPassphraseData
@@ -111,19 +125,22 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> ApiNetworkTip
         -> ClientM NoContent
-    , listTransactions
+    }
+
+data TransactionClient n = TransactionClient
+    { listTransactions
         :: ApiT WalletId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
-        -> ClientM [ApiTransaction t]
+        -> ClientM [ApiTransaction n]
     , postTransaction
         :: ApiT WalletId
-        -> PostTransactionData t
-        -> ClientM (ApiTransaction t)
+        -> PostTransactionData n
+        -> ClientM (ApiTransaction n)
     , postTransactionFee
         :: ApiT WalletId
-        -> PostTransactionFeeData t
+        -> PostTransactionFeeData n
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
@@ -132,18 +149,32 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> ApiTxId
         -> ClientM NoContent
-    , listPools
+    }
+
+newtype AddressClient n = AddressClient
+    { listAddresses
+        :: ApiT WalletId
+        -> Maybe (ApiT AddressState)
+        -> ClientM [ApiAddress n]
+    }
+
+data StakePoolClient n = StakePoolClient
+    { listPools
         :: ClientM [ApiStakePool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
+        -> ClientM (ApiTransaction n)
     , quitStakePool
         :: ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
-    , networkInformation
+        -> ClientM (ApiTransaction n)
+    }
+
+
+data NetworkClient = NetworkClient
+    { networkInformation
         :: ClientM ApiNetworkInformation
     , networkParameters
         :: ApiEpochNumber
@@ -152,26 +183,10 @@ data WalletClient t = WalletClient
         :: ClientM ApiNetworkClock
     }
 
--- | Produces a 'WalletClient' for the cardano-wallet V2 API.
---
--- You should apply a
--- "Cardano.Wallet.Primitive.AddressDerivation.NetworkDiscriminant" type
--- parameter to this to get a concrete client.
-walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
+-- | Produces a 'WalletClient' working against the /wallets API.
+walletClient :: WalletClient ApiWallet
 walletClient =
     let
-        (wallets
-            :<|> addresses
-            :<|> coinSelections
-            :<|> transactions
-            :<|> stakePools
-            :<|> _byronWallets
-            :<|> _byronTransactions
-            :<|> _byronMigrations
-            :<|> network
-            :<|> proxy_) =
-            client (Proxy @("v2" :> (Api t)))
-
         _deleteWallet
             :<|> _getWallet
             :<|> _listWallets
@@ -180,77 +195,137 @@ walletClient =
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
             :<|> _forceResyncWallet
-            = wallets
-
-        _listAddresses =
-            addresses
-
-        _selectCoins
-            = coinSelections
-
-        _postTransaction
-            :<|> _listTransactions
-            :<|> _postTransactionFee
-            :<|> _deleteTransaction
-            = transactions
-
-        _listPools
-            :<|> _joinStakePool
-            :<|> _quitStakePool
-            :<|> _delegationFee
-            = stakePools
-
-        _networkInformation
-            :<|> _networkParameters
-            :<|> _networkClock
-            = network
-
-        _postExternalTransaction
-            = proxy_
+            = client (Proxy @("v2" :> Wallets))
     in
         WalletClient
-            { listAddresses = _listAddresses
-            , deleteWallet = void . _deleteWallet
+            { deleteWallet = void . _deleteWallet
             , getWallet = _getWallet
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
             , forceResyncWallet = _forceResyncWallet
-            , listTransactions = _listTransactions
+            , getWalletUtxoStatistics = _getWalletUtxoStatistics
+            }
+
+-- | Produces a 'WalletClient' working against the /wallets API.
+byronWalletClient :: WalletClient ApiByronWallet
+byronWalletClient =
+    let
+        _postWallet
+            :<|> _deleteWallet
+            :<|> _getWallet
+            :<|> _listWallets
+            :<|> _forceResyncWallet
+            :<|> _putWallet
+            :<|> _getWalletUtxoStatistics
+            = client (Proxy @("v2" :> ByronWallets))
+    in
+        WalletClient
+            { deleteWallet = void . _deleteWallet
+            , getWallet = _getWallet
+            , listWallets = _listWallets
+            , postWallet = _postWallet
+            , putWallet = _putWallet
+            , putWalletPassphrase = error "TODO: putWalletPassphrase"
+            , forceResyncWallet = _forceResyncWallet
+            , getWalletUtxoStatistics = _getWalletUtxoStatistics
+            }
+
+
+-- | Produces a 'TransactionClient t' working against the /wallets API.
+transactionClient
+    :: forall (n :: NetworkDiscriminant). (EncodeAddress n, DecodeAddress n)
+    => Proxy n
+    -> TransactionClient n
+transactionClient _ =
+    let
+        _postTransaction
+            :<|> _listTransactions
+            :<|> _postTransactionFee
+            :<|> _deleteTransaction
+            = client (Proxy @("v2" :> (Transactions n)))
+
+        _postExternalTransaction
+            = client (Proxy @("v2" :> Proxy_))
+    in
+        TransactionClient
+            { listTransactions = _listTransactions
             , postTransaction = _postTransaction
+            , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
-            , postTransactionFee = _postTransactionFee
-            , getWalletUtxoStatistics = _getWalletUtxoStatistics
-            , listPools = _listPools
+            }
+
+-- | Produces a 'TransactionClient n' working against the /byron-wallets API.
+byronTransactionClient
+    :: forall (n :: NetworkDiscriminant). (EncodeAddress n, DecodeAddress n)
+    => Proxy n
+    -> TransactionClient n
+byronTransactionClient _ =
+    let
+        _postTransaction
+            :<|> _listTransactions
+            :<|> _postTransactionFee
+            :<|> _deleteTransaction
+            = client (Proxy @("v2" :> (ByronTransactions n)))
+
+        _postExternalTransaction
+            = client (Proxy @("v2" :> Proxy_))
+
+    in TransactionClient
+        { listTransactions = _listTransactions
+        , postTransaction = _postTransaction
+        , postTransactionFee = _postTransactionFee
+        , postExternalTransaction = _postExternalTransaction
+        , deleteTransaction = _deleteTransaction
+        }
+
+-- | Produces an 'AddressClient n' working against the /wallets API
+addressClient
+    :: forall (n :: NetworkDiscriminant). (DecodeAddress n)
+    => Proxy n
+    -> AddressClient n
+addressClient _ =
+    let
+        _listAddresses
+            = client (Proxy @("v2" :> Addresses n))
+    in
+        AddressClient
+            { listAddresses = _listAddresses
+            }
+
+-- | Produces an 'StakePoolsClient n' working against the /stake-pools API
+stakePoolClient
+    :: forall (n :: NetworkDiscriminant). (DecodeAddress n)
+    => Proxy n
+    -> StakePoolClient n
+stakePoolClient _ =
+    let
+        _listPools
+            :<|> _joinStakePool
+            :<|> _quitStakePool
+            :<|> _delegationFee
+            = client (Proxy @("v2" :> StakePools n))
+    in
+        StakePoolClient
+            { listPools = _listPools
             , joinStakePool = _joinStakePool
             , quitStakePool = _quitStakePool
-            , networkInformation = _networkInformation
+            }
+
+-- | Produces a 'NetworkClient'
+networkClient
+    :: NetworkClient
+networkClient =
+    let
+        _networkInformation
+            :<|> _networkParameters
+            :<|> _networkClock
+            = client (Proxy @("v2" :> Network))
+    in
+        NetworkClient
+            { networkInformation = _networkInformation
             , networkParameters = _networkParameters
             , networkClock = _networkClock
             }
-
-{-------------------------------------------------------------------------------
-                                    Helpers
--------------------------------------------------------------------------------}
-
--- | Poll a wallet by ID until it has restored.
-waitForRestore :: WalletClient t -> ApiT WalletId -> ClientM ApiWallet
-waitForRestore wc wid = retrying retryPolicy (const shouldRetry) (const action)
-  where
-    shouldRetry res = pure (res ^. #state /= ApiT Ready)
-    action = getWallet wc wid
-
--- | Poll the wallet server until it reports that it has synced with the
--- network.
-waitForSync :: WalletClient t -> ClientM ()
-waitForSync wc = void $ retrying retryPolicy (const shouldRetry) (const action)
-  where
-    shouldRetry res = pure (res ^. #syncProgress /= ApiT Ready)
-    action = networkInformation wc
-
-retryPolicy :: RetryPolicy
-retryPolicy = limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
-  where
-    second = 1000*1000

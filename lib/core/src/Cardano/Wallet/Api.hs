@@ -16,6 +16,9 @@ module Cardano.Wallet.Api
       Api
     , ApiV2
 
+      -- * Type Families
+    , PostData
+
       -- * Shelley
     , Wallets
         , DeleteWallet
@@ -157,6 +160,10 @@ import Servant.API.Verbs
     , PutNoContent
     )
 
+type family PostData wallet :: * where
+    PostData ApiWallet = WalletOrAccountPostData
+    PostData ApiByronWallet = SomeByronWalletPostData
+
 type ApiV2 n = "v2" :> Api n
 
 type Api n =
@@ -203,7 +210,7 @@ type ListWallets = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet
 type PostWallet = "wallets"
-    :> ReqBody '[JSON] WalletOrAccountPostData
+    :> ReqBody '[JSON] (PostData ApiWallet)
     :> PostCreated '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
@@ -364,7 +371,7 @@ type ByronWallets =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
-    :> ReqBody '[JSON] SomeByronWalletPostData
+    :> ReqBody '[JSON] (PostData ApiByronWallet)
     :> PostCreated '[JSON] ApiByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet

@@ -40,6 +40,7 @@ import Cardano.CLI
     , cmdTransaction
     , cmdVersion
     , cmdWallet
+    , cmdWalletCreate
     , databaseOption
     , enableWindowsANSI
     , forceTestnetOption
@@ -67,6 +68,13 @@ import Cardano.Startup
     , installSignalHandlers
     , withShutdownHandler
     , withUtf8Encoding
+    )
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
     )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
@@ -168,11 +176,11 @@ main = withUtf8Encoding $ do
         <> cmdLaunch dataDir
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet forceTestnetOption
-        <> cmdTransaction forceTestnetOption
-        <> cmdAddress forceTestnetOption
-        <> cmdStakePool forceTestnetOption
-        <> cmdNetwork
+        <> cmdWallet forceTestnetOption cmdWalletCreate walletClient
+        <> cmdTransaction forceTestnetOption transactionClient walletClient
+        <> cmdAddress forceTestnetOption addressClient
+        <> cmdStakePool forceTestnetOption stakePoolClient
+        <> cmdNetwork networkClient
         <> cmdVersion
         <> cmdKey
 
