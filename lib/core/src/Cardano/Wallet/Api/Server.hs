@@ -310,7 +310,7 @@ import Servant
     , throwError
     )
 import Servant.Server
-    ( Handler (..), ServerError (..) )
+    ( Handler (..), ServerError (..), runHandler )
 import System.IO.Error
     ( ioeGetErrorType
     , isAlreadyInUseError
@@ -503,9 +503,15 @@ server byron icarus shelley spl ntp =
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
              )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , fst <$> getWallet byron  mkLegacyWallet wid)
-                (icarus, fst <$> getWallet icarus mkLegacyWallet wid)
+        :<|> (\wid -> withLegacyLayer' wid
+                ( byron
+                , fst <$> getWallet byron mkLegacyWallet wid
+                , const (fst <$> getWallet byron mkLegacyWallet wid)
+                )
+                ( icarus
+                , fst <$> getWallet icarus mkLegacyWallet wid
+                , const (fst <$> getWallet icarus mkLegacyWallet wid)
+                )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
@@ -620,9 +626,15 @@ byronServer byron icarus ntp =
                 (byron , deleteWallet byron wid)
                 (icarus, deleteWallet icarus wid)
              )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , fst <$> getWallet byron  mkLegacyWallet wid)
-                (icarus, fst <$> getWallet icarus mkLegacyWallet wid)
+        :<|> (\wid -> withLegacyLayer' wid
+                ( byron
+                , fst <$> getWallet byron  mkLegacyWallet wid
+                , const (fst <$> getWallet byron  mkLegacyWallet wid)
+                )
+                ( icarus
+                , fst <$> getWallet icarus mkLegacyWallet wid
+                , const (fst <$> getWallet icarus mkLegacyWallet wid)
+                )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
@@ -972,7 +984,25 @@ withLegacyLayer
     -> (icarus, Handler a)
     -> Handler a
 withLegacyLayer (ApiT wid) (byron, withByron) (icarus, withIcarus) =
-    tryByron (const $ tryIcarus liftE liftE) liftE
+    withLegacyLayer' (ApiT wid)
+        (byron, withByron, liftE)
+        (icarus, withIcarus, liftE)
+
+-- | Like 'withLegacyLayer' but allow passing a custom handler for handling dead
+-- workers.
+withLegacyLayer'
+    :: forall byron icarus t a.
+        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
+        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+        )
+    => ApiT WalletId
+    -> (byron, Handler a, ErrDeadWallet -> Handler a)
+    -> (icarus, Handler a, ErrDeadWallet -> Handler a)
+    -> Handler a
+withLegacyLayer' (ApiT wid)
+  (byron, withByron, deadByron)
+  (icarus, withIcarus, deadIcarus)
+    = tryByron (const $ tryIcarus liftE deadIcarus) deadByron
   where
     tryIcarus onMissing onDead = withWorkerCtx @_
         @(SeqState 'Mainnet IcarusKey)
@@ -1016,20 +1046,26 @@ getWallet
     :: forall ctx s t k apiWallet.
         ( ctx ~ ApiLayer s t k
         , HasWorkerRegistry s k ctx
+        , HasDBFactory s k ctx
         )
     => ctx
     -> MkApiWallet ctx s apiWallet
     -> ApiT WalletId
     -> Handler (apiWallet, UTCTime)
 getWallet ctx mkApiWallet (ApiT wid) = do
-    (cp, meta, pending) <- withWorkerCtx @_ @s @k ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.readWallet @_ @s @k wrk wid
+    withWorkerCtx @_ @s @k ctx wid liftE whenDead whenAlive
+  where
+    df = ctx ^. dbFactory @s @k
 
-    progress <- liftIO $
-        W.walletSyncProgress ctx cp
+    whenAlive wrk = do
+        (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
+        progress <- liftIO $ W.walletSyncProgress ctx cp
+        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending progress
 
-    (, meta ^. #creationTime)
-        <$> mkApiWallet ctx wid cp meta pending progress
+    whenDead _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
+        let wrk = hoistResource db (MsgFromWorker wid) ctx
+        (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
+        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending W.Dead
 
 listWallets
     :: forall ctx s t k apiWallet.
@@ -1845,13 +1881,13 @@ instance LiftHandler ErrNoSuchWallet where
 instance LiftHandler ErrDeadWallet where
     handler = \case
         ErrDeadWallet wid ->
-            apiError err500 WalletIsDead $ mconcat
-                [ "That's embarassing. My associated worker for ", toText wid
-                , "no longer responding. This is not something that is supposed "
-                , "to happen. The worker must have left a trace in the logs of "
-                , "severity 'Error' when it died which might explain the cause. "
-                , "Said differently, this wallet won't be accessible until the "
-                , "server is restarted but there are good chances it'll recover "
+            apiError err500 WalletIsDead $ T.unwords
+                [ "That's embarassing. My associated worker for", toText wid
+                , "is no longer responding. This is not something that is supposed"
+                , "to happen. The worker must have left a trace in the logs of"
+                , "severity 'Error' when it died which might explain the cause."
+                , "Said differently, this wallet won't be accessible until the"
+                , "server is restarted but there are good chances it'll recover"
                 , "itself upon restart."
                 ]
 
