@@ -38,8 +38,11 @@ import Cardano.CLI
     , cmdKey
     , cmdMnemonic
     , cmdNetwork
+    , cmdTransaction
     , cmdVersion
+    , cmdWallet
     , databaseOption
+    , defaultDiscriminantOption
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
@@ -144,6 +147,8 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdKey
+        <> cmdWallet defaultDiscriminantOption
+        <> cmdTransaction defaultDiscriminantOption
         <> cmdNetwork
         <> cmdVersion
 

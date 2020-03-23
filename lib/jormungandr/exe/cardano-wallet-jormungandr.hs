@@ -42,6 +42,7 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , enableWindowsANSI
+    , forceTestnetOption
     , getDataDir
     , helperTracing
     , hostPreferenceOption
@@ -167,10 +168,10 @@ main = withUtf8Encoding $ do
         <> cmdLaunch dataDir
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet @('Testnet 0)
-        <> cmdTransaction @('Testnet 0)
-        <> cmdAddress @('Testnet 0)
-        <> cmdStakePool @('Testnet 0)
+        <> cmdWallet forceTestnetOption
+        <> cmdTransaction forceTestnetOption
+        <> cmdAddress forceTestnetOption
+        <> cmdStakePool forceTestnetOption
         <> cmdNetwork
         <> cmdVersion
         <> cmdKey
