@@ -54,6 +54,7 @@ module Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
+    , emptyByronWalletFromXPrvWith
     , getFromResponse
     , getFromResponseList
     , json
@@ -594,6 +595,24 @@ emptyByronWalletWith ctx style (name, mnemonic, pass) = do
             "name": #{name},
             "mnemonic_sentence": #{mnemonic},
             "passphrase": #{pass},
+            "style": #{style}
+        }|]
+    r <- request @ApiByronWallet ctx
+        (Link.postWallet @'Byron) Default payload
+    expectResponseCode @IO HTTP.status201 r
+    return (getFromResponse id r)
+
+emptyByronWalletFromXPrvWith
+    :: forall t. ()
+    => Context t
+    -> String
+    -> (Text, Text, Text)
+    -> IO ApiByronWallet
+emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "encrypted_root_private_key": #{key},
+            "passphrase_hash": #{passHash},
             "style": #{style}
         }|]
     r <- request @ApiByronWallet ctx
