@@ -52,6 +52,8 @@ module Cardano.CLI
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
+    , defaultDiscriminantOption
+    , forceTestnetOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -790,17 +792,18 @@ cmdMnemonicRewardCredentials =
 -------------------------------------------------------------------------------}
 
 cmdWallet
-    :: Mod CommandFields (IO ())
-cmdWallet = command "wallet" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWallet opts = command "wallet" $ info (helper <*> cmds) $ mempty
     <> progDesc "Manage wallets."
   where
     cmds = subparser $ mempty
-        <> cmdWalletList
-        <> cmdWalletCreate
-        <> cmdWalletGet
-        <> cmdWalletUpdate
-        <> cmdWalletDelete
-        <> cmdWalletGetUtxoStatistics
+        <> cmdWalletList opts
+        <> cmdWalletCreate opts
+        <> cmdWalletGet opts
+        <> cmdWalletUpdate opts
+        <> cmdWalletDelete opts
+        <> cmdWalletGetUtxoStatistics opts
 
 -- | Arguments for 'wallet list' command
 data WalletListArgs = WalletListArgs
@@ -809,8 +812,9 @@ data WalletListArgs = WalletListArgs
     }
 
 cmdWalletList
-    :: Mod CommandFields (IO ())
-cmdWalletList = command "list" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletList discriminantOption = command "list" $ info (helper <*> cmd) $ mempty
     <> progDesc "List all known wallets."
   where
     cmd = fmap exec $ WalletListArgs
@@ -820,13 +824,14 @@ cmdWalletList = command "list" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ listWallets (walletClient' proxy)
 
 cmdWalletCreate
-    :: Mod CommandFields (IO ())
-cmdWalletCreate = command "create" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletCreate opts = command "create" $ info (helper <*> cmds) $ mempty
     <> progDesc "Create a new wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletCreateFromMnemonic
-        <> cmdWalletCreateFromPublicKey
+        <> cmdWalletCreateFromMnemonic opts
+        <> cmdWalletCreateFromPublicKey opts
 
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
@@ -837,8 +842,9 @@ data WalletCreateArgs = WalletCreateArgs
     }
 
 cmdWalletCreateFromMnemonic
-    :: Mod CommandFields (IO ())
-cmdWalletCreateFromMnemonic =
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletCreateFromMnemonic discriminantOption =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create a new wallet using a mnemonic."
   where
@@ -879,8 +885,9 @@ data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
     }
 
 cmdWalletCreateFromPublicKey
-    :: Mod CommandFields (IO ())
-cmdWalletCreateFromPublicKey =
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletCreateFromPublicKey discriminantOption =
     command "from-public-key" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create a wallet using a public account key."
   where
@@ -905,8 +912,9 @@ data WalletGetArgs = WalletGetArgs
     }
 
 cmdWalletGet
-    :: Mod CommandFields (IO ())
-cmdWalletGet = command "get" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletGet discriminantOption = command "get" $ info (helper <*> cmd) $ mempty
     <> progDesc "Fetch the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
@@ -918,13 +926,14 @@ cmdWalletGet = command "get" $ info (helper <*> cmd) $ mempty
             ApiT wId
 
 cmdWalletUpdate
-    :: Mod CommandFields (IO ())
-cmdWalletUpdate = command "update" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletUpdate opts = command "update" $ info (helper <*> cmds) $ mempty
     <> progDesc "Update a wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletUpdateName
-        <> cmdWalletUpdatePassphrase
+        <> cmdWalletUpdateName opts
+        <> cmdWalletUpdatePassphrase opts
 
 -- | Arguments for 'wallet update name' command
 data WalletUpdateNameArgs = WalletUpdateNameArgs
@@ -935,8 +944,9 @@ data WalletUpdateNameArgs = WalletUpdateNameArgs
     }
 
 cmdWalletUpdateName
-    :: Mod CommandFields (IO ())
-cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletUpdateName discriminantOption = command "name" $ info (helper <*> cmd) $ mempty
     <> progDesc "Update a wallet's name."
   where
     cmd = fmap exec $ WalletUpdateNameArgs
@@ -957,8 +967,9 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     }
 
 cmdWalletUpdatePassphrase
-    :: Mod CommandFields (IO ())
-cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletUpdatePassphrase discriminantOption = command "passphrase" $ info (helper <*> cmd) $
     progDesc "Update a wallet's passphrase."
   where
     cmd = fmap exec $ WalletUpdatePassphraseArgs
@@ -989,8 +1000,9 @@ data WalletDeleteArgs = WalletDeleteArgs
     }
 
 cmdWalletDelete
-    :: Mod CommandFields (IO ())
-cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletDelete discriminantOption = command "delete" $ info (helper <*> cmd) $ mempty
     <> progDesc "Deletes wallet with specified wallet id."
   where
     cmd = fmap exec $ WalletDeleteArgs
@@ -1003,8 +1015,9 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
 
 
 cmdWalletGetUtxoStatistics
-    :: Mod CommandFields (IO ())
-cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdWalletGetUtxoStatistics discriminantOption = command "utxo" $ info (helper <*> cmd) $ mempty
     <> progDesc "Get UTxO statistics for the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
@@ -1026,16 +1039,17 @@ cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
 
 -- | cardano-wallet transaction
 cmdTransaction
-    :: Mod CommandFields (IO ())
-cmdTransaction = command "transaction" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransaction opts = command "transaction" $ info (helper <*> cmds) $ mempty
     <> progDesc "Manage transactions."
   where
     cmds = subparser $ mempty
-        <> cmdTransactionCreate
-        <> cmdTransactionFees
-        <> cmdTransactionList
-        <> cmdTransactionSubmit
-        <> cmdTransactionForget
+        <> cmdTransactionCreate opts
+        <> cmdTransactionFees opts
+        <> cmdTransactionList opts
+        <> cmdTransactionSubmit opts
+        <> cmdTransactionForget opts
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -1046,8 +1060,9 @@ data TransactionCreateArgs t = TransactionCreateArgs
     }
 
 cmdTransactionCreate
-    :: Mod CommandFields (IO ())
-cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransactionCreate discriminantOption = command "create" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create and submit a new transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
@@ -1070,8 +1085,9 @@ cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
                 handleResponse Aeson.encodePretty res
 
 cmdTransactionFees
-    :: Mod CommandFields (IO ())
-cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransactionFees discriminantOption = command "fees" $ info (helper <*> cmd) $ mempty
     <> progDesc "Estimate fees for a transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
@@ -1103,8 +1119,9 @@ data TransactionListArgs = TransactionListArgs
     }
 
 cmdTransactionList
-    :: Mod CommandFields (IO ())
-cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransactionList discriminantOption = command "list" $ info (helper <*> cmd) $ mempty
     <> progDesc "List the transactions associated with a wallet."
   where
     cmd = fmap exec $ TransactionListArgs
@@ -1130,8 +1147,9 @@ data TransactionSubmitArgs = TransactionSubmitArgs
     }
 
 cmdTransactionSubmit
-    :: Mod CommandFields (IO ())
-cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransactionSubmit discriminantOption = command "submit" $ info (helper <*> cmd) $ mempty
     <> progDesc "Submit an externally-signed transaction."
   where
     cmd = fmap exec $ TransactionSubmitArgs
@@ -1151,8 +1169,9 @@ data TransactionForgetArgs = TransactionForgetArgs
     }
 
 cmdTransactionForget
-    :: Mod CommandFields (IO ())
-cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdTransactionForget discriminantOption = command "forget" $ info (helper <*> cmd) $ mempty
     <> progDesc "Forget a pending transaction with specified id."
   where
     cmd = fmap exec $ TransactionForgetArgs
@@ -1170,12 +1189,13 @@ cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
 -------------------------------------------------------------------------------}
 
 cmdAddress
-    :: Mod CommandFields (IO ())
-cmdAddress = command "address" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdAddress opts = command "address" $ info (helper <*> cmds) $ mempty
     <> progDesc "Manage addresses."
   where
     cmds = subparser $ mempty
-        <> cmdAddressList
+        <> cmdAddressList opts
 
 -- | Arguments for 'address list' command
 data AddressListArgs = AddressListArgs
@@ -1186,8 +1206,9 @@ data AddressListArgs = AddressListArgs
     }
 
 cmdAddressList
-    :: Mod CommandFields (IO ())
-cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdAddressList discriminantOption = command "list" $ info (helper <*> cmd) $ mempty
     <> progDesc "List all known addresses of a given wallet."
   where
     cmd = fmap exec $ AddressListArgs
@@ -1218,12 +1239,13 @@ cmdVersion = command "version" $ info cmd $ mempty
 -------------------------------------------------------------------------------}
 
 cmdStakePool
-    :: Mod CommandFields (IO ())
-cmdStakePool = command "stake-pool" $ info (helper <*> cmds) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdStakePool opts = command "stake-pool" $ info (helper <*> cmds) $ mempty
     <> progDesc "Manage stake pools."
   where
     cmds = subparser $ mempty
-        <> cmdStakePoolList
+        <> cmdStakePoolList opts
 
 -- | Arguments for 'stake-pool list' command
 data StakePoolListArgs = StakePoolListArgs
@@ -1232,8 +1254,9 @@ data StakePoolListArgs = StakePoolListArgs
     }
 
 cmdStakePoolList
-    :: Mod CommandFields (IO ())
-cmdStakePoolList = command "list" $ info (helper <*> cmd) $ mempty
+    :: Parser SomeNetworkDiscriminant
+    -> Mod CommandFields (IO ())
+cmdStakePoolList discriminantOption = command "list" $ info (helper <*> cmd) $ mempty
     <> progDesc "List all known stake pools."
   where
     cmd = fmap exec $ StakePoolListArgs
@@ -1559,8 +1582,8 @@ walletStyleOption = option (eitherReader fromTextS)
          formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
 
 -- | --mainnet | (--testnet=NETWORK_MAGIC), default: --mainnet
-discriminantOption :: Parser SomeNetworkDiscriminant
-discriminantOption =
+defaultDiscriminantOption :: Parser SomeNetworkDiscriminant
+defaultDiscriminantOption =
     testnetOption <|> mainnetFlag
   where
     -- --mainnet
@@ -1576,6 +1599,11 @@ discriminantOption =
         <> long "testnet"
         <> metavar "NETWORK_MAGIC"
         <> help "A required network magic (e.g. 1097911063)"
+
+-- | A dummy 'Parser' for the ITN, fixed to 'Testnet'
+forceTestnetOption :: Parser SomeNetworkDiscriminant
+forceTestnetOption =
+    pure $ SomeNetworkDiscriminant $ Proxy @('Testnet 0)
 
 someTestnetDiscriminant
     :: ProtocolMagic
