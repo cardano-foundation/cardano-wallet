@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , checkPassphrase
     , encryptPassphrase
+    , encryptPasswordWithScrypt
     , getIndex
     , hex
     , preparePassphrase
@@ -130,12 +131,14 @@ spec = do
     describe "Passphrases" $ do
         it "checkPassphrase p h(p) == Right ()" $
             property prop_passphraseRoundtrip
-
         it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
             property prop_passphraseRoundtripFail
-
         it "checkPassphrase fails when hash is malformed" $
             property prop_passphraseHashMalformed
+        it "checkPassphrase p h(p) == Right () for Scrypt passwords" $
+            property prop_passphraseFromScryptRoundtrip
+        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase for Scrypt passwords" $
+            property prop_passphraseFromScryptRoundtripFail
 
     describe "FromMnemonic" $ do
         let noInDictErr =
@@ -321,6 +324,23 @@ prop_passphraseHashMalformed
     -> Property
 prop_passphraseHashMalformed scheme pwd = monadicIO $ liftIO $ do
     checkPassphrase scheme pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
+
+prop_passphraseFromScryptRoundtrip
+    :: Passphrase "raw"
+    -> Property
+prop_passphraseFromScryptRoundtrip p = monadicIO $ liftIO $ do
+    hp <- encryptPasswordWithScrypt p
+    checkPassphrase EncryptWithScrypt p (Hash hp) `shouldBe` Right ()
+
+prop_passphraseFromScryptRoundtripFail
+    :: Passphrase "raw"
+    -> Passphrase "raw"
+    -> Property
+prop_passphraseFromScryptRoundtripFail p p' =
+    p /= p' ==> monadicIO $ liftIO $ do
+        hp <- encryptPasswordWithScrypt p
+        checkPassphrase EncryptWithScrypt p' (Hash hp)
+            `shouldBe` Left ErrWrongPassphrase
 
 -- | xPrvFromStrippedPubXPrv and unXPrvStripPub
 prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property

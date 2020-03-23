@@ -562,11 +562,13 @@ checkPassphrase scheme received stored = do
 -- p = 1
 -- These parameters are in Scrypt.defaultParams
 encryptPasswordWithScrypt
-    :: ByteString
-    -> IO Scrypt.EncryptedPass
-encryptPasswordWithScrypt passwd =
-    Scrypt.encryptPassIO Scrypt.defaultParams (Scrypt.Pass passwd)
-
+    :: Passphrase "raw"
+    -> IO ByteString
+encryptPasswordWithScrypt p =
+    Scrypt.getEncryptedPass <$>
+    Scrypt.encryptPassIO Scrypt.defaultParams (Scrypt.Pass $ BA.convert passwd)
+  where
+    (Passphrase passwd) = preparePassphrase EncryptWithScrypt p
 
 -- | Indicate a failure when checking for a given 'Passphrase' match
 data ErrWrongPassphrase = ErrWrongPassphrase
