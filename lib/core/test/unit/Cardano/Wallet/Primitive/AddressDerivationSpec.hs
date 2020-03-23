@@ -270,6 +270,15 @@ spec = do
                     \62424135735931457a564e7630705a77614c79596e4d4b645730433337\
                     \626648314252493379364d5a364a58394149367857673d3d"
             checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
+        it "compare new implementation with cardano-sl - cardano-wallet password" $ do
+            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "cardano-wallet"
+            let hash = Hash $ unsafeFromHex
+                    "31347c387c317c2b6a6f747446495a6a566d586f43374c6c54425a576c\
+                    \597a425834515177666475467578436b4d485569733d7c78324d646738\
+                    \49554a3232507235676531393575445a76583646552b7757395a6a6a2f\
+                    \51303054356c654751794279732f7662753367526d726c316c657a7150\
+                    \43676d364e6758476d4d2f4b6438343265304b4945773d3d"
+            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
 
 {-------------------------------------------------------------------------------
                                Properties
