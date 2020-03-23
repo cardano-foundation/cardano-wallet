@@ -240,18 +240,35 @@ spec = do
               (property prop_strippedPubXPrvRoundtrip3)
         it "xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPubCheckRoundtrip"
               (property prop_strippedPubXPrvRoundtrip4)
-
         it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
             (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
 
     describe "golden test legacy passphrase encryption" $ do
-        it "compare new implementation with cardano-sl" $ do
+        it "compare new implementation with cardano-sl - short password" $ do
             let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
             let hash = Hash $ unsafeFromHex
                     "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
                     \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
                     \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
                     \414941366a515867386539493d"
+            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
+        it "compare new implementation with cardano-sl - normal password" $ do
+            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "Secure Passphrase"
+            let hash = Hash $ unsafeFromHex
+                    "31347c387c317c714968506842665966555a336f5156434c384449744b\
+                    \677642417a6c584d62314d6d4267695433776a556f3d7c53672b436e30\
+                    \4232766b4475682f704265335569694577633364385845756f55737661\
+                    \42514e62464443353569474f4135736e453144326743346f47564c472b\
+                    \524331385958326c6863552f36687a38432f496172773d3d"
+            checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
+        it "compare new implementation with cardano-sl - empty password" $ do
+            let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 ""
+            let hash = Hash $ unsafeFromHex
+                    "31347c387c317c4b2b4a4648677a657641666f39564a4b3036755a694f\
+                    \655475524d5644424e75303859376a4a744d3556453d7c4c76486f324e\
+                    \357a463348396d5a5071566e495648492f6a686652304e627058465634\
+                    \62424135735931457a564e7630705a77614c79596e4d4b645730433337\
+                    \626648314252493379364d5a364a58394149367857673d3d"
             checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
 
 {-------------------------------------------------------------------------------
