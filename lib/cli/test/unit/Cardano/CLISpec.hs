@@ -16,7 +16,6 @@ import Prelude
 
 import Cardano.CLI
     ( CliKeyScheme (..)
-    , CliWalletStyle (..)
     , DerivationIndex (..)
     , DerivationPath (..)
     , MnemonicSize (..)
@@ -47,6 +46,8 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
+import Cardano.Wallet.Api.Types
+    ( ByronWalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( XPrv, unXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -112,6 +113,7 @@ import Test.QuickCheck
     , genericShrink
     , oneof
     , property
+    , suchThat
     , vector
     , (.&&.)
     , (===)
@@ -572,7 +574,6 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
-        textRoundtrip $ Proxy @CliWalletStyle
         textRoundtrip $ Proxy @DerivationIndex
         textRoundtrip $ Proxy @DerivationPath
 
@@ -810,7 +811,7 @@ spec = do
     backspace :: Text
     backspace = T.singleton (toEnum 127)
 
-prop_roundtripCliKeySchemeKeyViaHex :: CliWalletStyle -> Property
+prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
@@ -820,7 +821,7 @@ prop_roundtripCliKeySchemeKeyViaHex style =
   where
     inverse (a, b) = (b, a)
 
-prop_allowedWordLengthsAllWork :: CliWalletStyle -> Property
+prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
     (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
   where
@@ -949,9 +950,9 @@ instance Arbitrary MnemonicSize where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
-instance Arbitrary CliWalletStyle where
-    arbitrary = arbitraryBoundedEnum
+instance Arbitrary ByronWalletStyle where
     shrink = genericShrink
+    arbitrary = arbitraryBoundedEnum `suchThat` (/= Random)
 
 instance Arbitrary (Port "test") where
     arbitrary = arbitraryBoundedEnum

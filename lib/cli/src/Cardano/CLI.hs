@@ -71,7 +71,6 @@ module Cardano.CLI
     , MnemonicSize (..)
     , Port (..)
     , CliKeyScheme (..)
-    , CliWalletStyle (..)
     , DerivationIndex (..)
     , DerivationPath (..)
 
@@ -138,16 +137,20 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId (..)
     , ApiWallet
+    , ByronWalletPostData (..)
+    , ByronWalletStyle (..)
     , DecodeAddress
     , EncodeAddress
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , fmtAllowedWords
     )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
@@ -208,8 +211,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
-import Data.List
-    ( intercalate )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
@@ -223,14 +224,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , showT
-    , toTextFromBoundedEnum
-    )
+    ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
 import Data.Void
@@ -474,15 +468,6 @@ eitherToIO :: Either String a -> IO a
 eitherToIO (Right a) = return a
 eitherToIO (Left e) = hPutStrLn stderr e >> exitFailure
 
-data CliWalletStyle = Icarus | Ledger | Trezor
-    deriving (Show, Eq, Generic, Bounded, Enum)
-
-instance FromText CliWalletStyle where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText CliWalletStyle where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
 newtype DerivationPath = DerivationPath [DerivationIndex]
     deriving (Show, Eq)
 
@@ -557,8 +542,14 @@ instance ToText DerivationIndex where
             then show (i - firstHardenedIndex) ++ "H"
             else show i
 
-newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
+newCliKeyScheme :: ByronWalletStyle -> CliKeyScheme XPrv (Either String)
 newCliKeyScheme = \case
+    Random ->
+        -- NOTE
+        -- This cannot happen because 'Random' style is filtered out by the
+        -- option parser already.
+        error "newCliKeyScheme: unsupported wallet type"
+
     Icarus ->
         let
             proxy = Proxy @'API.Icarus
@@ -585,7 +576,7 @@ newCliKeyScheme = \case
                 (derive CC.DerivationScheme2)
   where
     seedFromMnemonic
-        :: forall (s :: API.ByronWalletStyle).
+        :: forall (s :: ByronWalletStyle).
             (FromMnemonic (AllowedMnemonics s))
         => Proxy s
         -> [Text]
@@ -594,7 +585,7 @@ newCliKeyScheme = \case
         left getFromMnemonicError . fromMnemonic @(AllowedMnemonics s)
 
     apiAllowedLengths
-        :: forall (s :: API.ByronWalletStyle). ( NatVals (AllowedMnemonics s))
+        :: forall (s :: ByronWalletStyle). ( NatVals (AllowedMnemonics s))
         => Proxy s
         -> [Int]
     apiAllowedLengths _ =
@@ -624,7 +615,7 @@ newCliKeyScheme = \case
     pass = mempty
 
 data KeyRootArgs = KeyRootArgs
-    { _walletStyle :: CliWalletStyle
+    { _walletStyle :: ByronWalletStyle
     , _mnemonicWords :: [Text]
     }
 
@@ -633,8 +624,9 @@ cmdKeyRoot =
     command "root" $ info (helper <*> cmd) $ mempty
         <> progDesc "Extract root extended private key from a mnemonic sentence."
   where
-    cmd = fmap exec $
-        KeyRootArgs <$> walletStyleOption <*> mnemonicWordsArgument
+    cmd = fmap exec $ KeyRootArgs
+        <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
+        <*> mnemonicWordsArgument
     exec (KeyRootArgs keyType ws) = do
         xprv <- mnemonicToRootKey scheme ws
         TIO.putStrLn xprv
@@ -845,11 +837,78 @@ cmdWalletCreate mkClient =
 cmdByronWalletCreate
     :: WalletClient ApiByronWallet
     -> Mod CommandFields (IO ())
-cmdByronWalletCreate _mkClient =
+cmdByronWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
         <> progDesc "Create a new Byron wallet."
   where
-    cmds = error "TODO: cmdByronWallet"
+    cmds = subparser $ mempty
+        <> cmdByronWalletCreateFromMnemonic mkClient
+
+data ByronWalletCreateFromMnemonicArgs = ByronWalletCreateFromMnemonicArgs
+    { _port :: Port "Wallet"
+    , _name :: WalletName
+    , _style :: ByronWalletStyle
+    }
+
+cmdByronWalletCreateFromMnemonic
+    :: WalletClient ApiByronWallet
+    -> Mod CommandFields (IO ())
+cmdByronWalletCreateFromMnemonic mkClient =
+    command "from-mnemonic" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new wallet using a mnemonic."
+  where
+    cmd = fmap exec $ ByronWalletCreateFromMnemonicArgs
+        <$> portOption
+        <*> walletNameArgument
+        <*> walletStyleOption Icarus [Random,Icarus,Trezor,Ledger]
+    exec (ByronWalletCreateFromMnemonicArgs wPort wName wStyle) = case wStyle of
+        Random -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Random) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                RandomWalletFromMnemonic $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Icarus -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Icarus) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeIcarusWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Trezor -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Trezor) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeTrezorWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Ledger -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Ledger) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeLedgerWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
 
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
@@ -863,7 +922,7 @@ cmdWalletCreateFromMnemonic
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromMnemonic mkClient =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Create a new wallet using a mnemonic."
+        <> progDesc "Create a new wallet using a mnemonic."
   where
     cmd = fmap exec $ WalletCreateArgs
         <$> portOption
@@ -1578,47 +1637,27 @@ loggingSeverityOrOffReader = do
 
 -- | [--wallet-style=WALLET_STYLE]
 --
--- Note that we in the future might replace the type @CliWalletStyle@ with
+-- Note that we in the future might replace the type @ByronWalletStyle@ with
 -- another type, to include Shelley keys.
-walletStyleOption :: Parser CliWalletStyle
-walletStyleOption = option (eitherReader fromTextS)
+walletStyleOption
+    :: ByronWalletStyle
+        -- ^ Default style
+    -> [ByronWalletStyle]
+        -- ^ Accepted styles
+    -> Parser ByronWalletStyle
+walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     ( long "wallet-style"
     <> metavar "WALLET_STYLE"
     <> helpDoc (Just (vsep typeOptions))
-    <> value Icarus -- NOTE: Remember to update help text when updating!
+    <> value defaultStyle
     )
   where
     typeOptions = string <$>
-        [ "Any of the following (default: icarus)"
-        , "  icarus (" ++ allowedWords Icarus ++ ")"
-        , "  trezor (" ++ allowedWords Trezor ++ ")"
-        , "  ledger (" ++ allowedWords Ledger ++ ")"
-        ]
+        ( "Any of the following (default:" <> T.unpack (toText defaultStyle) <> ")"
+        ) : map prettyStyle accepted
 
-    allowedWords = (++ " words")
-        . formatEnglishEnumeration
-        . map show
-        . allowedWordLengths
-        . newCliKeyScheme
-       where
-          -- >>> formatEnglishEnumeration ["a", "b", "c"]
-          -- "a, b or c"
-          --
-          -- >>> formatEnglishEnumeration ["a", "b"]
-          -- "a or b"
-          --
-          -- >>> formatEnglishEnumeration ["a"]
-          -- "a"
-         formatEnglishEnumeration = formatEnglishEnumerationRev . reverse
-         formatEnglishEnumerationRev [ult, penult]
-            = penult ++ " or " ++ ult
-         formatEnglishEnumerationRev (ult:penult:revBeginning)
-            = intercalate ", " (reverse revBeginning)
-                ++ ", "
-                ++ penult
-                ++ " or "
-                ++ ult
-         formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+    prettyStyle s =
+        "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
 -- | --mainnet | (--testnet=NETWORK_MAGIC), default: --mainnet
 defaultDiscriminantOption :: Parser SomeNetworkDiscriminant

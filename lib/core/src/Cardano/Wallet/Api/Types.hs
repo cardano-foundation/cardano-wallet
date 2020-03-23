@@ -37,6 +37,7 @@ module Cardano.Wallet.Api.Types
     , ByronWalletStyle (..)
     , StyleSymbol
     , AllowedMnemonics
+    , fmtAllowedWords
 
     -- * API Types
     , ApiAddress (..)
@@ -116,6 +117,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SomeMnemonic (..)
     , XPrv
     , XPub
+    , natVals
     , unXPrv
     , xprv
     )
@@ -191,6 +193,8 @@ import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
     ( (&) )
+import Data.List
+    ( intercalate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -280,6 +284,35 @@ type instance AllowedMnemonics 'Trezor    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Ledger    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Shelley   = '[15,18,21,24]
 type instance AllowedMnemonics 'SndFactor = '[9,12]
+
+fmtAllowedWords :: ByronWalletStyle -> String
+fmtAllowedWords =
+    (++ " mnemonic words") . formatEnglishEnumeration . allowedWordLengths
+  where
+    allowedWordLengths = \case
+        Random -> map show $ natVals $ Proxy @(AllowedMnemonics 'Random)
+        Icarus -> map show $ natVals $ Proxy @(AllowedMnemonics 'Icarus)
+        Trezor -> map show $ natVals $ Proxy @(AllowedMnemonics 'Trezor)
+        Ledger -> map show $ natVals $ Proxy @(AllowedMnemonics 'Ledger)
+
+      -- >>> formatEnglishEnumeration ["a", "b", "c"]
+      -- "a, b or c"
+      --
+      -- >>> formatEnglishEnumeration ["a", "b"]
+      -- "a or b"
+      --
+      -- >>> formatEnglishEnumeration ["a"]
+      -- "a"
+    formatEnglishEnumeration = formatEnglishEnumerationRev . reverse
+    formatEnglishEnumerationRev [ult, penult]
+       = penult ++ " or " ++ ult
+    formatEnglishEnumerationRev (ult:penult:revBeginning)
+       = intercalate ", " (reverse revBeginning)
+           ++ ", "
+           ++ penult
+           ++ " or "
+           ++ ult
+    formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
 
 {-------------------------------------------------------------------------------
                                   API Types
