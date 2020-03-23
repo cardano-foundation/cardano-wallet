@@ -26,9 +26,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( generateKeyFromSeed )
+    ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -40,9 +41,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SyncProgress (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( SyncProgress (..) )
 import Control.Monad
     ( forM_, void )
 import Data.Generics.Internal.VL.Lens
@@ -61,6 +60,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , emptyByronWalletFromXPrvWith
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
@@ -413,22 +413,26 @@ spec = do
     it "BYRON_RESTORE_10 - Can restore wallet using master root key" $ \ctx -> do
         m <- genMnemonics @12
         let passw = "Secure Passphrase"
-        w <- emptyByronWalletWith ctx "random"
+        w1 <- emptyByronWalletWith ctx "random"
              ("Byron Wallet", m, passw)
-        rd <- request
-              @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+        rd1 <- request
+              @ApiByronWallet ctx (Link.deleteWallet @'Byron w1) Default Empty
+        expectResponseCode @IO HTTP.status204 rd1
 
         let (Right seed) = fromMnemonic @'[12] m
-        let _rootXPrv =
+        let rootXPrv = T.decodeUtf8 $ hex $ getKey $
                 generateKeyFromSeed seed (Passphrase $ BA.convert $ T.encodeUtf8 passw)
-
-        let _passwHash = Hash $ unsafeFromHex
-                "31347c387c317c574342652b796362417576356c2b4258676a344a314c\
-                \6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f37\
-                \6738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45\
-                \414941366a515867386539493d"
-        expectResponseCode @IO HTTP.status204 rd
-
+        let passwHash =
+                "31347c387c317c714968506842665966555a336f5156434c384449744b\
+                \677642417a6c584d62314d6d4267695433776a556f3d7c53672b436e30\
+                \4232766b4475682f704265335569694577633364385845756f55737661\
+                \42514e62464443353569474f4135736e453144326743346f47564c472b\
+                \524331385958326c6863552f36687a38432f496172773d3d"
+        w2 <- emptyByronWalletFromXPrvWith ctx "random"
+            ("Byron Wallet", rootXPrv, passwHash)
+        rd2 <- request
+              @ApiByronWallet ctx (Link.deleteWallet @'Byron w2) Default Empty
+        expectResponseCode @IO HTTP.status204 rd2
  where
      genMnemonics
         :: forall mw ent csz.
