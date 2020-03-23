@@ -130,7 +130,7 @@ spec = do
 
     let parser = cli $ mempty
             <> cmdMnemonic
-            <> cmdWallet defaultDiscriminantOption cmdWalletCreate walletClient
+            <> cmdWallet cmdWalletCreate walletClient
             <> cmdTransaction defaultDiscriminantOption transactionClient walletClient
             <> cmdAddress defaultDiscriminantOption addressClient
             <> cmdStakePool defaultDiscriminantOption stakePoolClient
@@ -263,29 +263,22 @@ spec = do
             ]
 
         ["wallet", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet list ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                    [--port INT]"
+            [ "Usage:  wallet list [--port INT]"
             , "  List all known wallets."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]
 
         ["wallet", "create", "from-mnemonic", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-mnemonic ([--testnet NETWORK_MAGIC] |"
-            , "                                    [--mainnet]) [--port INT]"
-            , "                                    STRING"
+            [ "Usage:  wallet create from-mnemonic [--port INT] STRING"
             , "                                    [--address-pool-gap INT]"
             , "  Create a new wallet using a mnemonic."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --address-pool-gap INT   number of unused consecutive addresses"
@@ -293,17 +286,13 @@ spec = do
             ]
 
         ["wallet", "create", "from-public-key", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-public-key ([--testnet NETWORK_MAGIC]"
-            , "                                      | [--mainnet]) [--port INT]"
-            , "                                      STRING"
+            [ "Usage:  wallet create from-public-key [--port INT] STRING"
             , "                                      [--address-pool-gap INT]"
             , "                                      ACCOUNT_PUBLIC_KEY"
             , "  Create a wallet using a public account key."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --address-pool-gap INT   number of unused consecutive addresses"
@@ -313,14 +302,11 @@ spec = do
             ]
 
         ["wallet", "get", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet get ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                   [--port INT] WALLET_ID"
+            [ "Usage:  wallet get [--port INT] WALLET_ID"
             , "  Fetch the wallet with specified id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]
@@ -338,27 +324,21 @@ spec = do
             ]
 
         ["wallet", "delete", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet delete ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                      [--port INT] WALLET_ID"
+            [ "Usage:  wallet delete [--port INT] WALLET_ID"
             , "  Deletes wallet with specified wallet id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]
 
         ["wallet", "utxo", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet utxo ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                    [--port INT] WALLET_ID"
+            [ "Usage:  wallet utxo [--port INT] WALLET_ID"
             , "  Get UTxO statistics for the wallet with specified id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]

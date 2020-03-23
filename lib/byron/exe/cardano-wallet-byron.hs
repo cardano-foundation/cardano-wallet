@@ -150,10 +150,7 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdKey
-        <> cmdWallet
-            defaultDiscriminantOption
-            cmdByronWalletCreate
-            byronWalletClient
+        <> cmdWallet cmdByronWalletCreate byronWalletClient
         <> cmdTransaction
             defaultDiscriminantOption
             byronTransactionClient

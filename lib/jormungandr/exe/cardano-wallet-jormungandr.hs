@@ -176,7 +176,7 @@ main = withUtf8Encoding $ do
         <> cmdLaunch dataDir
         <> cmdServe
         <> cmdMnemonic
-        <> cmdWallet forceTestnetOption cmdWalletCreate walletClient
+        <> cmdWallet cmdWalletCreate walletClient
         <> cmdTransaction forceTestnetOption transactionClient walletClient
         <> cmdAddress forceTestnetOption addressClient
         <> cmdStakePool forceTestnetOption stakePoolClient

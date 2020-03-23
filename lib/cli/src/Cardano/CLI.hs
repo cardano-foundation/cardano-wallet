@@ -794,67 +794,58 @@ cmdMnemonicRewardCredentials =
                             Commands - 'wallet'
 -------------------------------------------------------------------------------}
 
-type CmdWalletCreate wallet =
-    Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
-    -> Mod CommandFields (IO ())
+type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
 
 cmdWallet
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> CmdWalletCreate wallet
+    => CmdWalletCreate wallet
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWallet opts cmdCreate mkClient =
+cmdWallet cmdCreate mkClient =
     command "wallet" $ info (helper <*> cmds) $ mempty
         <> progDesc "Manage wallets."
   where
     cmds = subparser $ mempty
-        <> cmdWalletList opts mkClient
-        <> cmdCreate opts mkClient
-        <> cmdWalletGet opts mkClient
-        <> cmdWalletUpdate opts mkClient
-        <> cmdWalletDelete opts mkClient
-        <> cmdWalletGetUtxoStatistics opts mkClient
+        <> cmdWalletList mkClient
+        <> cmdCreate mkClient
+        <> cmdWalletGet mkClient
+        <> cmdWalletUpdate mkClient
+        <> cmdWalletDelete mkClient
+        <> cmdWalletGetUtxoStatistics mkClient
 
 -- | Arguments for 'wallet list' command
-data WalletListArgs = WalletListArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+newtype WalletListArgs = WalletListArgs
+    { _port :: Port "Wallet"
     }
 
 cmdWalletList
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletList discriminantOption mkClient =
+cmdWalletList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known wallets."
   where
     cmd = fmap exec $ WalletListArgs
-        <$> discriminantOption
-        <*> portOption
-    exec (WalletListArgs (SomeNetworkDiscriminant _) wPort) = do
+        <$> portOption
+    exec (WalletListArgs wPort) = do
         runClient wPort Aeson.encodePretty $ listWallets mkClient
 
 cmdWalletCreate
-    :: Parser SomeNetworkDiscriminant
-    -> WalletClient ApiWallet
+    :: WalletClient ApiWallet
     -> Mod CommandFields (IO ())
-cmdWalletCreate opts mkClient =
+cmdWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
         <> progDesc "Create a new wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletCreateFromMnemonic opts mkClient
-        <> cmdWalletCreateFromPublicKey opts mkClient
+        <> cmdWalletCreateFromMnemonic mkClient
+        <> cmdWalletCreateFromPublicKey mkClient
 
 cmdByronWalletCreate
-    :: Parser SomeNetworkDiscriminant
-    -> WalletClient ApiByronWallet
+    :: WalletClient ApiByronWallet
     -> Mod CommandFields (IO ())
-cmdByronWalletCreate _opts _mkClient =
+cmdByronWalletCreate _mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
         <> progDesc "Create a new Byron wallet."
   where
@@ -862,26 +853,23 @@ cmdByronWalletCreate _opts _mkClient =
 
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _name :: WalletName
     , _gap :: AddressPoolGap
     }
 
 cmdWalletCreateFromMnemonic
-    :: Parser SomeNetworkDiscriminant
-    -> WalletClient ApiWallet
+    :: WalletClient ApiWallet
     -> Mod CommandFields (IO ())
-cmdWalletCreateFromMnemonic discriminantOption mkClient =
+cmdWalletCreateFromMnemonic mkClient =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create a new wallet using a mnemonic."
   where
     cmd = fmap exec $ WalletCreateArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletNameArgument
         <*> poolGapOption
-    exec (WalletCreateArgs _ wPort wName wGap) = do
+    exec (WalletCreateArgs wPort wName wGap) = do
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
             let parser = fromMnemonic @'[15,18,21,24] . T.words
@@ -905,28 +893,25 @@ cmdWalletCreateFromMnemonic discriminantOption mkClient =
 
 -- | Arguments for 'wallet create from-public-key' command
 data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _name :: WalletName
     , _gap :: AddressPoolGap
     , _key :: ApiAccountPublicKey
     }
 
 cmdWalletCreateFromPublicKey
-    :: Parser SomeNetworkDiscriminant
-    -> WalletClient ApiWallet
+    :: WalletClient ApiWallet
     -> Mod CommandFields (IO ())
-cmdWalletCreateFromPublicKey discriminantOption mkClient =
+cmdWalletCreateFromPublicKey mkClient =
     command "from-public-key" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create a wallet using a public account key."
   where
     cmd = fmap exec $ WalletCreateFromPublicKeyArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletNameArgument
         <*> poolGapOption
         <*> accPubKeyArgument
-    exec (WalletCreateFromPublicKeyArgs _ wPort wName wGap wAccPubKey) =
+    exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Right $ AccountPostData
                 (ApiT wName)
@@ -935,89 +920,79 @@ cmdWalletCreateFromPublicKey discriminantOption mkClient =
 
 -- | Arguments for 'wallet get' command
 data WalletGetArgs = WalletGetArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _id :: WalletId
     }
 
 cmdWalletGet
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletGet discriminantOption mkClient =
+cmdWalletGet mkClient =
     command "get" $ info (helper <*> cmd) $ mempty
         <> progDesc "Fetch the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
-    exec (WalletGetArgs _ wPort wId) = do
+    exec (WalletGetArgs wPort wId) = do
         runClient wPort Aeson.encodePretty $ getWallet mkClient $
             ApiT wId
 
 cmdWalletUpdate
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletUpdate opts mkClient =
+cmdWalletUpdate mkClient =
     command "update" $ info (helper <*> cmds) $ mempty
         <> progDesc "Update a wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletUpdateName opts mkClient
-        <> cmdWalletUpdatePassphrase opts mkClient
+        <> cmdWalletUpdateName mkClient
+        <> cmdWalletUpdatePassphrase mkClient
 
 -- | Arguments for 'wallet update name' command
 data WalletUpdateNameArgs = WalletUpdateNameArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _id :: WalletId
     , _name :: WalletName
     }
 
 cmdWalletUpdateName
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletUpdateName discriminantOption mkClient =
+cmdWalletUpdateName mkClient =
     command "name" $ info (helper <*> cmd) $ mempty
         <> progDesc "Update a wallet's name."
   where
     cmd = fmap exec $ WalletUpdateNameArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
         <*> walletNameArgument
-    exec (WalletUpdateNameArgs _ wPort wId wName) = do
+    exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
 
 -- | Arguments for 'wallet update passphrase' command
 data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _id :: WalletId
     }
 
 cmdWalletUpdatePassphrase
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletUpdatePassphrase discriminantOption mkClient =
+cmdWalletUpdatePassphrase mkClient =
     command "passphrase" $ info (helper <*> cmd) $ mempty
         <> progDesc "Update a wallet's passphrase."
   where
     cmd = fmap exec $ WalletUpdatePassphraseArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
-    exec (WalletUpdatePassphraseArgs _ wPort wId) = do
+    exec (WalletUpdatePassphraseArgs wPort wId) = do
         res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
@@ -1035,41 +1010,36 @@ cmdWalletUpdatePassphrase discriminantOption mkClient =
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _id :: WalletId
     }
 
 cmdWalletDelete
-    :: Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    :: WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletDelete discriminantOption mkClient =
+cmdWalletDelete mkClient =
     command "delete" $ info (helper <*> cmd) $ mempty
         <> progDesc "Deletes wallet with specified wallet id."
   where
     cmd = fmap exec $ WalletDeleteArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
-    exec (WalletDeleteArgs _ wPort wId) = do
+    exec (WalletDeleteArgs wPort wId) = do
         runClient wPort (const "") $ deleteWallet mkClient $
             ApiT wId
 
 cmdWalletGetUtxoStatistics
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> WalletClient wallet
+    => WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdWalletGetUtxoStatistics discriminantOption mkClient =
+cmdWalletGetUtxoStatistics mkClient =
     command "utxo" $ info (helper <*> cmd) $ mempty
         <> progDesc "Get UTxO statistics for the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
-    exec (WalletGetArgs _ wPort wId) = do
+    exec (WalletGetArgs wPort wId) = do
         res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
