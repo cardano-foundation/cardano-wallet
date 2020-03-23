@@ -46,6 +46,7 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrCoinSelection (..)
+    , ErrDeadWallet (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
     , ErrJoinStakePool (..)
@@ -724,7 +725,7 @@ postShelleyWallet ctx body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \wrk ->
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
   where
@@ -768,8 +769,8 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    reward <- liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $
-        \wrk -> W.fetchRewardBalance @_ @s @t @k wrk wid
+    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.fetchRewardBalance @_ @s @t @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -786,7 +787,6 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , tip = getWalletTip cp
         }
   where
-    liftE = throwE . ErrFetchRewardsNoSuchWallet
     (_, bp, _) = ctx ^. genesisData
     sp = W.slotParams bp
 
@@ -833,7 +833,7 @@ postLegacyWallet
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
@@ -888,7 +888,7 @@ postRandomWalletFromXPrv ctx body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
   where
@@ -972,24 +972,24 @@ withLegacyLayer
     -> (icarus, Handler a)
     -> Handler a
 withLegacyLayer (ApiT wid) (byron, withByron) (icarus, withIcarus) =
-    tryByron (const $ tryIcarus liftE)
+    tryByron (const $ tryIcarus liftE liftE) liftE
   where
-    liftE = liftHandler . throwE
-
-    tryIcarus onMissing = withWorkerCtx @_
+    tryIcarus onMissing onDead = withWorkerCtx @_
         @(SeqState 'Mainnet IcarusKey)
         @IcarusKey
         icarus
         wid
         onMissing
+        onDead
         (const withIcarus)
 
-    tryByron onMissing = withWorkerCtx @_
+    tryByron onMissing onDead = withWorkerCtx @_
         @(RndState 'Mainnet)
         @ByronKey
         byron
         wid
         onMissing
+        onDead
         (const withByron)
 
 {-------------------------------------------------------------------------------
@@ -1004,7 +1004,7 @@ deleteWallet
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) =
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $ \_ -> do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \_ -> do
         liftIO $ Registry.unregister re wid
         liftIO $ removeDatabase df wid
         return NoContent
@@ -1022,8 +1022,8 @@ getWallet
     -> ApiT WalletId
     -> Handler (apiWallet, UTCTime)
 getWallet ctx mkApiWallet (ApiT wid) = do
-    (cp, meta, pending) <- liftHandler $ withWorkerCtx @_ @s @k ctx wid throwE $
-        \wrk -> W.readWallet @_ @s @k wrk wid
+    (cp, meta, pending) <- withWorkerCtx @_ @s @k ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.readWallet @_ @s @k wrk wid
 
     progress <- liftIO $
         W.walletSyncProgress ctx cp
@@ -1039,10 +1039,11 @@ listWallets
     -> MkApiWallet ctx s apiWallet
     -> Handler [(apiWallet, UTCTime)]
 listWallets ctx mkApiWallet = do
-    wids <- liftIO $ Registry.keys re
+    wids <- liftIO $ listDatabases df
+    -- FIXME
     sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
   where
-    re = ctx ^. workerRegistry @s @k
+    df = ctx ^. dbFactory @s @k
 
 putWallet
     :: forall ctx s t k apiWallet.
@@ -1057,8 +1058,8 @@ putWallet ctx mkApiWallet (ApiT wid) body = do
     case body ^. #name of
         Nothing ->
             return ()
-        Just (ApiT wName) -> liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
-            W.updateWallet wrk wid (modify wName)
+        Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            liftHandler $ W.updateWallet wrk wid (modify wName)
     fst <$> getWallet ctx mkApiWallet (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
@@ -1075,11 +1076,9 @@ putWalletPassphrase
     -> Handler NoContent
 putWalletPassphrase ctx (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
-  where
-    liftE = throwE . ErrUpdatePassphraseNoSuchWallet
 
 getUTxOsStatistics
     :: forall ctx s t k.
@@ -1089,7 +1088,7 @@ getUTxOsStatistics
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
-    stats <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listUtxoStatistics wrk wid
     let (UTxOStatistics histo totalStakes bType) = stats
     return ApiUtxoStatistics
@@ -1097,8 +1096,6 @@ getUTxOsStatistics ctx (ApiT wid) = do
         , scale = ApiT bType
         , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
         }
-  where
-    liftE = throwE . ErrListUTxOStatisticsNoSuchWallet
 
 forceResyncWallet
     :: forall ctx s t k.
@@ -1154,13 +1151,9 @@ selectCoins
     -> Handler (ApiCoinSelection n)
 selectCoins ctx (ApiT wid) body =
     fmap mkApiCoinSelection
-        $ liftHandler
-        $ withWorkerCtx ctx wid liftE
-        $ \wrk -> W.selectCoinsExternal @_ @s @t @k wrk wid (delegationAddress @n)
+        $ withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid (delegationAddress @n)
         $ coerceCoin <$> body ^. #payments
-  where
-    liftE = throwE . ErrSelectCoinsExternalNoSuchWallet
-
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1178,7 +1171,7 @@ listAddresses
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress n]
 listAddresses ctx (ApiT wid) stateFilter = do
-    addrs <- liftHandler $ withWorkerCtx ctx wid throwE $ \wrk ->
+    addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listAddresses @_ @s @k @n wrk wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
@@ -1211,13 +1204,13 @@ postTransaction ctx genChange (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
 
-    selection <- liftHandler $ withWorkerCtx ctx wid liftE1 $ \wrk ->
+    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.selectCoinsForPayment @_ @s @t wrk wid outs
 
-    (tx, meta, time, wit) <- liftHandler $ withWorkerCtx ctx wid liftE2 $ \wrk ->
+    (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.signPayment @_ @s @t @k wrk wid genChange pwd selection
 
-    liftHandler $ withWorkerCtx ctx wid liftE3 $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
 
     pure $ mkApiTransaction
@@ -1226,10 +1219,6 @@ postTransaction ctx genChange (ApiT wid) body = do
         (tx ^. #outputs)
         (meta, time)
         #pendingSince
-  where
-    liftE1 = throwE . ErrSelectForPaymentNoSuchWallet
-    liftE2 = throwE . ErrSignPaymentNoSuchWallet
-    liftE3 = throwE . ErrSubmitTxNoSuchWallet
 
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
@@ -1238,11 +1227,9 @@ deleteTransaction
     -> ApiTxId
     -> Handler NoContent
 deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.forgetPendingTx wrk wid tid
     return NoContent
-  where
-    liftE = throwE . ErrRemovePendingTxNoSuchWallet
 
 listTransactions
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
@@ -1253,14 +1240,13 @@ listTransactions
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction n]
 listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
-    txs <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listTransactions wrk wid
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
     return $ map mkApiTransactionFromInfo txs
   where
-    liftE = throwE . ErrListTransactionsNoSuchWallet
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
@@ -1286,12 +1272,11 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         (apiFee <$> W.selectCoinsForPayment @_ @s @t @k wrk wid outs)
             `catchE` handleCannotCover wrk
   where
     apiFee = ApiFee . Quantity . fromIntegral . feeBalance
-    liftE = throwE . ErrSelectForPaymentNoSuchWallet
     handleCannotCover wrk = \case
         ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
             (wallet, _, pending) <- withExceptT ErrSelectForPaymentNoSuchWallet $
@@ -1345,12 +1330,12 @@ joinStakePool
     -> Handler (ApiTransaction n)
 joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
     pid <- case apiPoolId of
-        ApiPoolIdPlaceholder -> liftHandler $ throwE ErrUnexpectedPoolIdPlaceholder
+        ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
 
     pools <- liftIO $ knownStakePools spl
 
-    (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
 
     pure $ mkApiTransaction
@@ -1359,8 +1344,6 @@ joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
         (tx ^. #outputs)
         (txMeta, txTime)
         #pendingSince
-  where
-    liftE = throwE . ErrJoinStakePoolNoSuchWallet
 
 delegationFee
     :: forall ctx s t n k.
@@ -1372,11 +1355,10 @@ delegationFee
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
-    liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
          apiFee <$> W.selectCoinsForDelegation @_ @s @t @k wrk wid
   where
     apiFee = ApiFee . Quantity . fromIntegral . feeBalance
-    liftE = throwE . ErrSelectForDelegationNoSuchWallet
 
 quitStakePool
     :: forall ctx s t n k.
@@ -1391,7 +1373,7 @@ quitStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
-    (tx, txMeta, txTime) <- liftHandler $ withWorkerCtx ctx wid liftE $ \wrk ->
+    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.quitStakePool @_ @s @t @k wrk wid (delegationAddress @n) pwd
 
     pure $ mkApiTransaction
@@ -1400,8 +1382,6 @@ quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
         (tx ^. #outputs)
         (txMeta, txTime)
         #pendingSince
-  where
-    liftE = throwE . ErrQuitStakePoolNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                 Legacy Migrations
@@ -1429,10 +1409,8 @@ getMigrationInfo ctx (ApiT wid) = do
     selectionFee s = inputBalance s - changeBalance s
 
     getSelections :: Handler [CoinSelection]
-    getSelections =
-        liftHandler
-            $ withWorkerCtx ctx wid (throwE . ErrSelectForMigrationNoSuchWallet)
-            $ flip (W.selectCoinsForMigration @_ @s @t @k) wid
+    getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
     :: forall s t k n.
@@ -1455,20 +1433,18 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
     -- FIXME
     -- Better error handling here to inform users if they messed up with the
     -- wallet ids.
-    migration <- liftHandler $ do
-        withWorkerCtx srcCtx srcWid liftE $ \srcWrk ->
-            withWorkerCtx sheCtx sheWid liftE $ \sheWrk -> do
+    migration <- do
+        withWorkerCtx srcCtx srcWid liftE liftE $ \srcWrk ->
+            withWorkerCtx sheCtx sheWid liftE liftE $ \sheWrk -> liftHandler $ do
                 cs <- W.selectCoinsForMigration @_ @_ @t srcWrk srcWid
                 withExceptT ErrSelectForMigrationNoSuchWallet $
                     W.assignMigrationTargetAddresses sheWrk sheWid (delegationAddress @n) cs
 
     forM migration $ \cs -> do
-        (tx, meta, time, wit) <- liftHandler
-            $ withWorkerCtx srcCtx srcWid (throwE . ErrSignPaymentNoSuchWallet)
-            $ \srcWrk -> W.signTx @_ @s @t @k srcWrk srcWid pwd cs
-        liftHandler
-            $ withWorkerCtx srcCtx srcWid (throwE . ErrSubmitTxNoSuchWallet)
-            $ \wrk -> W.submitTx @_ @_ @t wrk srcWid (tx, meta, wit)
+        (tx, meta, time, wit) <- withWorkerCtx srcCtx srcWid liftE liftE
+            $ \srcWrk -> liftHandler $ W.signTx @_ @s @t @k srcWrk srcWid pwd cs
+        withWorkerCtx srcCtx srcWid liftE liftE
+            $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk srcWid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
@@ -1477,7 +1453,6 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
             #pendingSince
   where
     pwd = getApiT $ migrateData ^. #passphrase
-    liftE = throwE . ErrSelectForMigrationNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1630,11 +1605,9 @@ rndStateChange
     -> Passphrase "raw"
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
-    liftHandler $ withWorkerCtx @_ @s @k ctx wid liftE $ \wrk ->
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
             pure (xprv, preparePassphrase scheme pwd)
-  where
-    liftE = throwE . ErrSignPaymentNoSuchWallet
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n
@@ -1764,6 +1737,7 @@ registerWorker ctx wid =
 withWorkerCtx
     :: forall ctx s k m a.
         ( HasWorkerRegistry s k ctx
+        , HasDBFactory s k ctx
         , MonadIO m
         )
     => ctx
@@ -1772,17 +1746,24 @@ withWorkerCtx
         -- ^ Wallet to look for
     -> (ErrNoSuchWallet -> m a)
         -- ^ Wallet not present, handle error
+    -> (ErrDeadWallet -> m a)
+        -- ^ Wallet worker is dead, handle error
     -> (WorkerCtx ctx -> m a)
         -- ^ Do something with the wallet
     -> m a
-withWorkerCtx ctx wid onMissing action =
+withWorkerCtx ctx wid onMissing onDead action =
     Registry.lookup re wid >>= \case
-        Nothing ->
-            onMissing (ErrNoSuchWallet wid)
+        Nothing -> do
+            wids <- liftIO $ listDatabases df
+            if wid `elem` wids then
+                onDead (ErrDeadWallet wid)
+            else
+                onMissing (ErrNoSuchWallet wid)
         Just wrk ->
             action $ hoistResource (workerResource wrk) (MsgFromWorker wid) ctx
   where
     re = ctx ^. workerRegistry @s @k
+    df = ctx ^. dbFactory @s @k
 
 {-------------------------------------------------------------------------------
                                 Error Handling
@@ -1793,7 +1774,13 @@ withWorkerCtx ctx wid onMissing action =
 class LiftHandler e where
     liftHandler :: ExceptT e IO a -> Handler a
     liftHandler action = Handler (withExceptT handler action)
+
+    liftE :: e -> Handler a
+    liftE = liftHandler . throwE
+
     handler :: e -> ServerError
+
+
 
 apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
@@ -1853,6 +1840,19 @@ instance LiftHandler ErrNoSuchWallet where
             apiError err404 NoSuchWallet $ mconcat
                 [ "I couldn't find a wallet with the given id: "
                 , toText wid
+                ]
+
+instance LiftHandler ErrDeadWallet where
+    handler = \case
+        ErrDeadWallet wid ->
+            apiError err500 WalletIsDead $ mconcat
+                [ "That's embarassing. My associated worker for ", toText wid
+                , "no longer responding. This is not something that is supposed "
+                , "to happen. The worker must have left a trace in the logs of "
+                , "severity 'Error' when it died which might explain the cause. "
+                , "Said differently, this wallet won't be accessible until the "
+                , "server is restarted but there are good chances it'll recover "
+                , "itself upon restart."
                 ]
 
 instance LiftHandler ErrWalletAlreadyExists where
