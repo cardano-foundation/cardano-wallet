@@ -67,6 +67,9 @@ data DBFactory m s k = DBFactory
 
     , removeDatabase :: WalletId -> IO ()
         -- ^ Erase any trace of the database
+
+    , listDatabases :: IO [WalletId]
+        -- ^ List existing wallet database found on disk.
     }
 
 -- | A Database interface for storing various things in a DB. In practice,

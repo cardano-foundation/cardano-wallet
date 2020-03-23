@@ -32,17 +32,10 @@ module Cardano.Wallet.DB.Sqlite
 
     -- * Migration Support
     , DefaultFieldValues (..)
-
-    -- * Logging
-    , DatabasesStartupLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -106,7 +99,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
-    ( modifyMVar, modifyMVar_, newMVar )
+    ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
@@ -259,6 +252,9 @@ newDBFactory tr defaultFieldValues = \case
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
                 modifyMVar_ mvar (pure . Map.delete wid)
+
+            , listDatabases =
+                Map.keys <$> readMVar mvar
             }
 
     Just databaseDir -> do
@@ -280,6 +276,8 @@ newDBFactory tr defaultFieldValues = \case
                     traceWith tr $ MsgRemoving widp
                     let trDel = contramap (MsgRemovingDatabaseFile widp) tr
                     deleteSqliteDatabase trDel (databaseFile wid)
+            , listDatabases =
+                findDatabases @k tr databaseDir
             }
       where
         databaseFilePrefix = keyTypeDescriptor $ Proxy @k
@@ -292,7 +290,7 @@ newDBFactory tr defaultFieldValues = \case
 --   specified directory.
 findDatabases
     :: forall k. WalletKey k
-    => Tracer IO DatabasesStartupLog
+    => Tracer IO DBLog
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
@@ -303,10 +301,10 @@ findDatabases tr dir = do
             (True, prefix : basename : ["sqlite"]) | prefix == expectedPrefix ->
                 case fromText basename of
                     Right wid -> do
-                        traceWith tr $ MsgFoundDatabase (dir </> file) wid
+                        traceWith tr $ MsgFoundDatabase (dir </> file) (toText wid)
                         return (Just wid)
                     _ -> do
-                        traceWith tr $ MsgUnknownFile file
+                        traceWith tr $ MsgUnknownDBFile file
                         return Nothing
             _ -> return Nothing
   where
@@ -1237,28 +1235,3 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
-
--- | Log messages arising from accessing the wallet repository.
-data DatabasesStartupLog
-    = MsgFoundDatabase FilePath W.WalletId
-    | MsgUnknownFile FilePath
-    deriving (Show, Eq)
-
-instance ToText DatabasesStartupLog where
-    toText = \case
-        MsgFoundDatabase _file wid ->
-            "Found existing wallet: " <> toText wid
-        MsgUnknownFile file -> mconcat
-            [ "Found something other than a database file in "
-            , "the database folder: ", T.pack file
-            ]
-
-instance DefinePrivacyAnnotation DatabasesStartupLog
-instance DefineSeverity DatabasesStartupLog where
-    defineSeverity = \case
-        MsgFoundDatabase _ _ -> Info
-        MsgUnknownFile _ -> Notice

@@ -229,7 +229,7 @@ import Control.Exception
 import Control.Exception.Lifted
     ( finally )
 import Control.Monad
-    ( forM, forM_, unless, void, when )
+    ( forM, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -1720,12 +1720,11 @@ newApiLayer
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k
-    -> [WalletId]
     -> IO ctx
-newApiLayer tr g0 nw tl df wids = do
+newApiLayer tr g0 nw tl df = do
     re <- Registry.empty
     let ctx = ApiLayer tr g0 nw tl df re
-    forM_ wids (registerWorker ctx)
+    listDatabases df >>= mapM_ (registerWorker ctx)
     return ctx
 
 -- | Register a restoration worker to the registry.
