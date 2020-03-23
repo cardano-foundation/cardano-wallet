@@ -215,7 +215,7 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = do
-        withNetworkLayer networkTracer bp socketPath vData $ \nl -> do
+        withNetworkLayer nullTracer bp socketPath vData $ \nl -> do
             withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
