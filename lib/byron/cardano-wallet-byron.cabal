@@ -61,7 +61,6 @@ library
     , ouroboros-network-framework
     , process
     , retry
-    , serialise
     , temporary
     , text
     , text-class
