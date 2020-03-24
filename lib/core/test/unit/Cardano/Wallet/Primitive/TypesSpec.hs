@@ -151,7 +151,6 @@ import Test.QuickCheck
     , NonNegative (..)
     , NonZero (..)
     , Property
-    , elements
     , Small (..)
     , applyArbitrary2
     , applyArbitrary4
@@ -163,13 +162,14 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , elements
     , forAll
     , infiniteList
     , oneof
     , property
     , scale
-    , vector
     , shrinkIntegral
+    , vector
     , withMaxSuccess
     , (.&&.)
     , (=/=)

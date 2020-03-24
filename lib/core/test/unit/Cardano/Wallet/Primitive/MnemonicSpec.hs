@@ -59,7 +59,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary, arbitrary, (===), vector )
+    ( Arbitrary, arbitrary, vector, (===) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA

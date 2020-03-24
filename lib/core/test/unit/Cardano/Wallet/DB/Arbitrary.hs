@@ -162,8 +162,8 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , shrinkList
-    , vectorOf
     , vector
+    , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary )

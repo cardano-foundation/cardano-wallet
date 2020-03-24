@@ -106,15 +106,15 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Positive (..)
     , Property
+    , applyArbitrary4
     , checkCoverage
     , choose
-    , applyArbitrary4
     , counterexample
     , elements
-    , vector
     , frequency
     , property
     , scale
+    , vector
     , vectorOf
     , (===)
     )

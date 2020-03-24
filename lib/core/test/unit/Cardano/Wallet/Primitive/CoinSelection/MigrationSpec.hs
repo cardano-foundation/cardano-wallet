@@ -46,8 +46,8 @@ import Test.QuickCheck
     , frequency
     , label
     , property
-    , vectorOf
     , vector
+    , vectorOf
     , withMaxSuccess
     , (===)
     )
