@@ -97,6 +97,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -160,7 +161,7 @@ spec = do
     describe "BYRON_RESTORATION" $ do
         scenario_RESTORE_01 @n fixtureRandomWallet
         scenario_RESTORE_02 @n (fixtureRandomWalletAddrs @n)
-
+        scenario_RESTORE_03 @n
 --
 -- Scenarios
 --
@@ -591,6 +592,32 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
             ]
   where
     title = "BYRON_RESTORE_02 - can send tx from restored wallet from xprv"
+
+scenario_RESTORE_03
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_RESTORE_03 = it title $ \ctx -> do
+    -- SETUP
+    mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
+    let (Right seed) = fromMnemonic @'[12] mnemonics
+    let rootXPrv = T.decodeUtf8 $ hex $ getKey $
+            generateKeyFromSeed seed
+            (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+    let passHashCorrupted = T.replicate 100 "0"
+    wSrc <- emptyByronWalletFromXPrvWith ctx "random"
+            ("Byron Wallet Restored", rootXPrv, passHashCorrupted)
+    rSrc <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wSrc) Default Empty
+    verify rSrc
+        [ expectField (#balance . #available)
+          (`shouldBe` Quantity faucetAmt)
+        ]
+  where
+    title = "BYRON_RESTORE_03 - restoring wallet from corrupted hash gives proper balance"
+
 
 --
 -- More Elaborated Fixtures
