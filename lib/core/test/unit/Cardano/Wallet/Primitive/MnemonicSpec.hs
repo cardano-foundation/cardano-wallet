@@ -59,7 +59,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
-    ( Arbitrary, arbitrary, vectorOf, (===) )
+    ( Arbitrary, arbitrary, vector, (===) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
@@ -287,7 +287,7 @@ instance
         let
             size = fromIntegral $ natVal @n Proxy
             entropy =
-                mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
+                mkEntropy  @n . B8.pack <$> vector (size `quot` 8)
         in
             either (error . show . UnexpectedEntropyError) id <$> entropy
 

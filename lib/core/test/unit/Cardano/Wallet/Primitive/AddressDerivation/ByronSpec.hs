@@ -47,7 +47,7 @@ import Data.Text
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, vectorOf )
+    ( Arbitrary (..), Property, choose, property, vector )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -173,8 +173,8 @@ pp hex = Passphrase b
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
         n <- choose (minSeedLengthBytes, 64)
-        bytes <- BS.pack <$> vectorOf n arbitrary
+        bytes <- BS.pack <$> vector n
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary XPrv where
-    arbitrary = unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+    arbitrary = unsafeXPrv . BS.pack <$> vector 128

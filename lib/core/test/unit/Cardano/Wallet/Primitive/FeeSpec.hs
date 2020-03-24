@@ -64,7 +64,7 @@ import Test.QuickCheck
     , property
     , scale
     , tabulate
-    , vectorOf
+    , vector
     , withMaxSuccess
     , (===)
     , (==>)
@@ -549,20 +549,20 @@ deriving newtype instance Arbitrary a => Arbitrary (ShowFmt a)
 genUTxO :: [Coin] -> Gen UTxO
 genUTxO coins = do
     let n = length coins
-    inps <- vectorOf n arbitrary
+    inps <- vector n
     outs <- genTxOut coins
     return $ UTxO $ Map.fromList $ zip inps outs
 
 genTxOut :: [Coin] -> Gen [TxOut]
 genTxOut coins = do
     let n = length coins
-    outs <- vectorOf n arbitrary
+    outs <- vector n
     return $ zipWith TxOut outs coins
 
 genSelection :: NonEmpty TxOut -> Gen CoinSelection
 genSelection outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
-    utxo <- vectorOf (NE.length outs * 3) arbitrary >>= genUTxO
+    utxo <- vector (NE.length outs * 3) >>= genUTxO
     case runIdentity $ runExceptT $ largestFirst opts outs utxo of
         Left _ -> genSelection outs
         Right (s,_) -> return s
@@ -595,7 +595,7 @@ instance Arbitrary FeeProp where
     arbitrary = do
         cs <- arbitrary
         utxo <- choose (0, 50)
-            >>= \n -> vectorOf n arbitrary
+            >>= vector
             >>= genUTxO
         fee <- choose (100000, 500000)
         dust <- choose (0, 10000)
@@ -604,7 +604,7 @@ instance Arbitrary FeeProp where
 instance Arbitrary (Hash "Tx") where
     shrink _ = []
     arbitrary = do
-        bytes <- BS.pack <$> vectorOf 32 arbitrary
+        bytes <- BS.pack <$> vector 32
         pure $ Hash bytes
 
 instance Arbitrary Address where
@@ -634,7 +634,7 @@ instance Arbitrary CoinSelection where
                     ]
     arbitrary = do
         outs <- choose (1, 10)
-            >>= \n -> vectorOf n arbitrary
+            >>= vector
             >>= genTxOut
         genSelection (NE.fromList outs)
 

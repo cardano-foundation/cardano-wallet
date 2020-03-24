@@ -63,7 +63,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , property
-    , vectorOf
+    , vector
     , (===)
     )
 
@@ -329,7 +329,7 @@ instance Arbitrary AccountingStyle where
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
         n <- choose (minSeedLengthBytes, 64)
-        bytes <- BS.pack <$> vectorOf n arbitrary
+        bytes <- BS.pack <$> vector n
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary Address where

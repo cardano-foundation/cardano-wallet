@@ -102,7 +102,7 @@ import Test.Integration.Framework.TestData
 import Test.Integration.Jcli
     ( getBlock0H )
 import Test.QuickCheck
-    ( arbitrary, generate, vectorOf )
+    ( generate, vector )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Codec.Binary.Bech32 as Bech32
@@ -139,7 +139,7 @@ spec = do
         addrs <- listAddresses @n ctx wDest
 
         let hrp = [Bech32.humanReadablePart|addr|]
-        bytes <- generate (vectorOf 32 arbitrary)
+        bytes <- generate (vector 32)
         let (utxoAmt, utxoAddr) =
                 ( 14 :: Natural
                 , (addrs !! 1) ^. #id

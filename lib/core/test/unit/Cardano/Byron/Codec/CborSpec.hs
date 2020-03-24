@@ -51,7 +51,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , conjoin
     , property
-    , vectorOf
+    , vector
     , (===)
     , (==>)
     )
@@ -196,7 +196,7 @@ prop_derivationPathRoundTrip pwd pwd' acctIx addrIx =
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "addr-derivation-payload") where
     arbitrary = do
         -- TODO n <- choose (minSeedLengthBytes, 32)
-        bytes <- BS.pack <$> vectorOf 32 arbitrary
+        bytes <- BS.pack <$> vector 32
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary (Index 'WholeDomain 'AddressK) where

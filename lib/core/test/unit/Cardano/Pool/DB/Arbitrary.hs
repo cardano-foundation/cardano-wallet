@@ -46,6 +46,7 @@ import Data.Word.Odd
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , applyArbitrary2
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
@@ -54,7 +55,7 @@ import Test.QuickCheck
     , shrinkIntegral
     , shrinkList
     , shuffle
-    , vectorOf
+    , vector
     )
 
 import qualified Data.ByteString.Char8 as B8
@@ -76,7 +77,7 @@ data StakePoolsFixture = StakePoolsFixture
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
         uncurry SlotId <$> shrink (ep, sl)
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 SlotId
 
 instance Arbitrary SlotNo where
     shrink (SlotNo x) = SlotNo <$> shrink x
@@ -103,7 +104,7 @@ arbitraryChainLength = 10
 -- NOTE Expected to have a high entropy
 instance Arbitrary PoolId where
     arbitrary = do
-        bytes <- vectorOf 32 arbitrary
+        bytes <- vector 32
         return $ PoolId $ B8.pack bytes
 
 -- NOTE Excepted to have a reasonnably small entropy
@@ -125,7 +126,7 @@ instance Arbitrary PoolRegistrationCertificate where
 instance Arbitrary StakePoolsFixture where
     arbitrary = do
         poolsNumber <- choose (1, 100)
-        pools <- vectorOf poolsNumber arbitrary
+        pools <- vector poolsNumber
         slotsNumber <- choose (0, 200)
         firstSlot <- arbitrary
         slotsGenerated <-

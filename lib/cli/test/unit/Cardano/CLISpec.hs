@@ -103,7 +103,7 @@ import Test.QuickCheck
     , genericShrink
     , oneof
     , property
-    , vectorOf
+    , vector
     , (.&&.)
     , (===)
     )
@@ -848,7 +848,7 @@ genMnemonic
     => Gen (Mnemonic mw)
 genMnemonic = do
         let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vectorOf n arbitrary
+        bytes <- BS.pack <$> vector n
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
 

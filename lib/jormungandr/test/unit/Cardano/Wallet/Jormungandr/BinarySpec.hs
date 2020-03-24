@@ -95,7 +95,7 @@ import Test.QuickCheck as QC
     , label
     , oneof
     , property
-    , vectorOf
+    , vector
     , withMaxSuccess
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -296,9 +296,9 @@ instance Arbitrary TestFragment where
         block0H = Hash $ B8.replicate 32 '0'
 
         genSimpleTransactionFragment = do
-            inps <- choose (1, maxNumberOfInputs) >>= flip vectorOf arbitrary
-            creds <- map (,mempty) <$> vectorOf (length inps) arbitrary
-            outs <- choose (1, maxNumberOfOutputs) >>= flip vectorOf arbitrary
+            inps <- choose (1, maxNumberOfInputs) >>= vector
+            creds <- map (,mempty) <$> vector (length inps)
+            outs <- choose (1, maxNumberOfOutputs) >>= vector
             witTag <- elements [TxWitnessUTxO, TxWitnessLegacyUTxO]
             pure $ TestFragment
                 { fragmentGenesis = block0H
@@ -323,21 +323,21 @@ instance Arbitrary TestFragment where
                 }
 
 instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = ChimericAccount . BS.pack <$> vector 32
 
 instance Arbitrary XPrv where
-    arbitrary = unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+    arbitrary = unsafeXPrv . BS.pack <$> vector 128
 
 instance Arbitrary Address where
     arbitrary = Address <$> oneof
-        [ BS.pack . ([3] <>) <$> vectorOf 32 arbitrary
-        , BS.pack . ([4] <>) <$> vectorOf 64 arbitrary
-        , BS.pack . ([5] <>) <$> vectorOf 32 arbitrary
-        , BS.pack . ([6] <>) <$> vectorOf 32 arbitrary
+        [ BS.pack . (3:) <$> vector 32
+        , BS.pack . (4:) <$> vector 64
+        , BS.pack . (5:) <$> vector 32
+        , BS.pack . (6:) <$> vector 32
         ]
 
 instance Arbitrary (Hash "Tx") where
-    arbitrary = Hash . B8.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . B8.pack <$> vector 32
 
 instance Arbitrary Coin where
     arbitrary = do
@@ -360,7 +360,7 @@ instance Arbitrary TxOut where
     shrink = genericShrink
 
 instance Arbitrary PoolId where
-    arbitrary = PoolId . B8.pack <$> vectorOf 32 arbitrary
+    arbitrary = PoolId . B8.pack <$> vector 32
 
 -- Necessary unsound 'Show' and 'Eq' instances for QuickCheck failure reporting
 instance Show XPrv where

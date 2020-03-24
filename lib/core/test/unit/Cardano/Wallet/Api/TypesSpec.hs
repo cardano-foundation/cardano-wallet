@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -248,6 +249,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , applyArbitrary2
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -258,7 +260,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , vectorOf
+    , vector
     , withMaxSuccess
     , (.&&.)
     , (===)
@@ -991,9 +993,7 @@ instance Arbitrary (ApiSelectCoinsData n) where
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelection n) where
-    arbitrary = ApiCoinSelection
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary2 ApiCoinSelection
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionInput n) where
@@ -1091,7 +1091,7 @@ instance Arbitrary WalletPostData where
 instance Arbitrary ByronWalletFromXPrvPostData where
     arbitrary = do
         n <- arbitrary
-        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vector 128
         h <- ApiT . Hash . B8.pack <$> replicateM 64 arbitrary
         pure $ ByronWalletFromXPrvPostData n rootXPrv h
 
@@ -1143,7 +1143,7 @@ instance Arbitrary ApiWalletDelegationNext where
 instance Arbitrary ApiWalletDelegation where
     arbitrary = ApiWalletDelegation
         <$> fmap (\x -> x { changesAt = Nothing }) arbitrary
-        <*> oneof [ vectorOf i arbitrary | i <- [0..2 ] ]
+        <*> oneof [ vector i | i <- [0..2 ] ]
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -1152,8 +1152,8 @@ instance Arbitrary PoolId where
 
 instance Arbitrary ApiStakePoolMetrics where
     arbitrary = do
-        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1000000000000)
-        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 1000*22600)
+        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000)
+        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
         pure $ ApiStakePoolMetrics stakes blocks
 
 instance Arbitrary ApiStakePool where
@@ -1178,7 +1178,7 @@ instance Arbitrary StakePoolMetadata where
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)
-            T.pack <$> vectorOf len arbitrary
+            T.pack <$> vector len
         arbitraryMaybeText maxLen = frequency
             [ (9, Just <$> arbitraryText maxLen)
             , (1, pure Nothing) ]
@@ -1189,7 +1189,7 @@ instance Arbitrary StakePoolTicker where
         replicateM len arbitrary
 
 instance Arbitrary PoolOwner where
-    arbitrary = PoolOwner . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = PoolOwner . BS.pack <$> vector 32
 
 instance Arbitrary WalletId where
     arbitrary = do
@@ -1230,7 +1230,7 @@ instance
         let
             size = fromIntegral $ natVal @n Proxy
             entropy =
-                mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
+                mkEntropy  @n . B8.pack <$> vector (size `quot` 8)
         in
             either (error . show . UnexpectedEntropyError) Prelude.id <$> entropy
 
@@ -1321,7 +1321,7 @@ instance Arbitrary StartTime where
 instance Arbitrary (Quantity "second" NominalDiffTime) where
     shrink (Quantity 0.0) = []
     shrink _ = [Quantity 0.0]
-    arbitrary = Quantity . fromInteger <$> choose (0, 10000)
+    arbitrary = Quantity . fromInteger <$> choose (0, 10_000)
 
 instance Arbitrary (Quantity "percent" Double) where
     shrink (Quantity 0.0) = []
@@ -1343,7 +1343,7 @@ instance Arbitrary ApiEpochNumber where
             ]
 
 instance Arbitrary SlotId where
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 SlotId
     shrink = genericShrink
 
 instance Arbitrary SlotNo where
@@ -1403,22 +1403,20 @@ instance Arbitrary (ApiTransaction t) where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = Coin <$> choose (0, 1000000000000000)
+    arbitrary = Coin <$> choose (0, 1_000_000_000_000_000)
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
         n <- choose (0, 10)
         utxo <- zip
-            <$> vectorOf n arbitrary
-            <*> vectorOf n arbitrary
+            <$> vector n
+            <*> vector n
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary2 TxOut
 
 instance Arbitrary TxIn where
     -- No Shrinking
@@ -1441,7 +1439,7 @@ instance Arbitrary ApiUtxoStatistics where
 
 instance Arbitrary (ApiTxInput t) where
     shrink _ = []
-    arbitrary = ApiTxInput <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 ApiTxInput
 
 instance Arbitrary (Quantity "slot" Natural) where
     shrink (Quantity 0) = []
@@ -1460,7 +1458,7 @@ instance Arbitrary TxStatus where
     shrink = genericShrink
 
 instance Arbitrary (Quantity "block" Natural) where
-    arbitrary  =fmap (Quantity . fromIntegral) (arbitrary @Word32)
+    arbitrary = fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery

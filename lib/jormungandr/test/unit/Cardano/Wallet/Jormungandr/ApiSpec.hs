@@ -48,7 +48,7 @@ import Test.Aeson.Internal.RoundtripSpecs
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..) )
+    ( Arbitrary (..), applyArbitrary3 )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -160,10 +160,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 instance Arbitrary AccountState where
-    arbitrary = AccountState
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary3 AccountState
 
 instance Arbitrary PoolId where
     arbitrary = PoolId . BS.pack

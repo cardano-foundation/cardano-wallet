@@ -27,6 +27,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , applyArbitrary2
     , arbitrarySizedBoundedIntegral
     , property
     , shrinkIntegral
@@ -56,7 +57,7 @@ persistRoundtrip proxy = it
 -------------------------------------------------------------------------------}
 
 instance Arbitrary SlotId where
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 SlotId
     shrink (SlotId en sn) = uncurry SlotId <$> shrink (en, sn)
 
 instance Arbitrary EpochNo where

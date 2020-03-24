@@ -152,6 +152,8 @@ import Test.QuickCheck
     , NonZero (..)
     , Property
     , Small (..)
+    , applyArbitrary2
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryBoundedIntegral
     , arbitraryPrintableChar
@@ -160,13 +162,14 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , elements
     , forAll
     , infiniteList
     , oneof
     , property
     , scale
     , shrinkIntegral
-    , vectorOf
+    , vector
     , withMaxSuccess
     , (.&&.)
     , (=/=)
@@ -1170,35 +1173,35 @@ instance Arbitrary FeePolicy where
         f (x, y, z) = LinearFee (Quantity x) (Quantity y) (Quantity z)
 
 instance Arbitrary (Hash "Genesis") where
-    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary (Hash "Block") where
-    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary (Hash "Account") where
-    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary (Hash "BlockHeader") where
-    arbitrary = Hash . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = Hash . BS.pack <$> vector 32
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Hash $ unsafeFromHex
+    arbitrary = elements
+        [ Hash $ unsafeFromHex
             "0000000000000000000000000000000000000000000000000000000000000001"
-        , pure $ Hash $ unsafeFromHex
+        , Hash $ unsafeFromHex
             "0000000000000000000000000000000000000000000000000000000000000002"
-        , pure $ Hash $ unsafeFromHex
+        , Hash $ unsafeFromHex
             "0000000000000000000000000000000000000000000000000000000000000003"
         ]
 
 -- Same for addresses
 instance Arbitrary Address where
     -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Address "ADDR01"
-        , pure $ Address "ADDR02"
-        , pure $ Address "ADDR03"
+    arbitrary = elements
+        [ Address "ADDR01"
+        , Address "ADDR02"
+        , Address "ADDR03"
         ]
 
 instance Arbitrary AddressState where
@@ -1245,9 +1248,7 @@ makeNonSingletonRangeValid (NonSingletonRange r)
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary2 TxOut
 
 instance Arbitrary TxIn where
     -- No Shrinking
@@ -1264,23 +1265,23 @@ instance Arbitrary UTxO where
     arbitrary = do
         n <- choose (0, 10)
         utxo <- zip
-            <$> vectorOf n arbitrary
-            <*> vectorOf n arbitrary
+            <$> vector n
+            <*> vector n
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
     shrink (Tx tid ins outs) =
         (flip (Tx tid) outs <$> shrink ins) <> ((Tx tid) ins <$> shrink outs)
     arbitrary = do
-        ins <- choose (1, 3) >>= flip vectorOf arbitrary
-        outs <- choose (1, 3) >>= flip vectorOf arbitrary
+        ins <- choose (1, 3) >>= vector
+        outs <- choose (1, 3) >>= vector
         tid <- genHash
         return $ Tx tid ins outs
       where
-        genHash = oneof
-          [ pure $ Hash "Tx1"
-          , pure $ Hash "Tx2"
-          , pure $ Hash "Tx3"
+        genHash = elements
+          [ Hash "Tx1"
+          , Hash "Tx2"
+          , Hash "Tx3"
           ]
 
 instance Arbitrary BlockHeader where
@@ -1292,10 +1293,10 @@ instance Arbitrary BlockHeader where
         mockBlockHeight :: SlotId -> Quantity "block" Word32
         mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
 
-        genHash = oneof
-            [ pure $ Hash "BLOCK01"
-            , pure $ Hash "BLOCK02"
-            , pure $ Hash "BLOCK03"
+        genHash = elements
+            [ Hash "BLOCK01"
+            , Hash "BLOCK02"
+            , Hash "BLOCK03"
             ]
 
 instance Arbitrary EpochNo where
@@ -1331,7 +1332,7 @@ instance Arbitrary SlotId where
 instance Arbitrary Block where
     shrink (Block h txs _) = Block h <$> shrink txs <*> pure []
     arbitrary = do
-        txs <- choose (0, 500) >>= flip vectorOf arbitrary
+        txs <- choose (0, 500) >>= vector
         Block <$> arbitrary <*> pure txs <*> pure []
 
 instance Arbitrary WalletId where
@@ -1374,11 +1375,7 @@ instance Arbitrary ActiveSlotCoefficient where
         ActiveSlotCoefficient <$> choose (0.001, 1.0)
 
 instance Arbitrary SlotParameters where
-    arbitrary = SlotParameters
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+    arbitrary = applyArbitrary4 SlotParameters
     shrink = genericShrink
 
 instance Arbitrary SyncTolerance where
@@ -1415,7 +1412,7 @@ instance Arbitrary SlotParametersAndTimePoint where
         let timeB = toModifiedJulianDay $ utctDay $ epochStartTime sps minBound
         let timeC = toModifiedJulianDay $ utctDay $ epochStartTime sps maxBound
         let timeD = timeC * 2
-        (lowerBound, upperBound) <- oneof $ fmap pure
+        (lowerBound, upperBound) <- elements
             [ (timeA, timeB)
             , (timeB, timeC)
             , (timeC, timeD)
@@ -1445,7 +1442,7 @@ instance Arbitrary Word31 where
     shrink = shrinkIntegral
 
 instance Arbitrary PoolOwner where
-    arbitrary = PoolOwner . BS.pack <$> vectorOf 32 arbitrary
+    arbitrary = PoolOwner . BS.pack <$> vector 32
 
 {-------------------------------------------------------------------------------
                                   Test data

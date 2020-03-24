@@ -140,6 +140,7 @@ import Test.QuickCheck
     , Args (..)
     , Gen
     , Property
+    , applyArbitrary2
     , arbitraryBoundedEnum
     , collect
     , elements
@@ -531,7 +532,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     genSortOrder = arbitraryBoundedEnum
 
     genRange :: Gen (Range SlotId)
-    genRange = Range <$> arbitrary <*> arbitrary
+    genRange = applyArbitrary2 Range
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs

@@ -140,6 +140,7 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Positive (..)
     , Property
+    , applyArbitrary2
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
@@ -149,7 +150,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , vectorOf
+    , vector
     , withMaxSuccess
     , (===)
     , (==>)
@@ -493,7 +494,7 @@ instance Arbitrary WalletDelegation where
     shrink = genericShrink
     arbitrary = WalletDelegation
         <$> arbitrary
-        <*> oneof [ pure [], vectorOf 1 arbitrary, vectorOf 2 arbitrary ]
+        <*> oneof [ pure [], vector 1, vector 2 ]
 
 instance Arbitrary WalletDelegationStatus where
     shrink = genericShrink
@@ -637,7 +638,7 @@ instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "encrypt
 
 instance Arbitrary SlotId where
     shrink _ = []
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 SlotId
 
 instance Arbitrary SlotNo where
     shrink (SlotNo x) = SlotNo <$> shrink x
@@ -681,7 +682,7 @@ instance Arbitrary Tx where
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
-        <$> (Hash . B8.pack <$> vectorOf 32 arbitrary)
+        <$> (Hash . B8.pack <$> vector 32)
         <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
