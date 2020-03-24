@@ -51,8 +51,10 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe )
+import Test.Integration.Faucet
+    ( nextWallet )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
@@ -157,6 +159,7 @@ spec = do
 
     describe "BYRON_RESTORATION" $ do
         scenario_RESTORE_01 @n fixtureRandomWallet
+        scenario_RESTORE_02 @n (fixtureRandomWalletAddrs @n)
 
 --
 -- Scenarios
@@ -526,7 +529,68 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
                 (`shouldBe` Quantity (faucetAmt + amnt))
             ]
   where
-    title = "BYRON_RESTORE_01 - one recipient"
+    title = "BYRON_RESTORE_01 - can restore recipient wallet from xprv"
+
+scenario_RESTORE_02
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => (Context t -> IO (ApiByronWallet, [Address]))
+    -> SpecWith (Context t)
+scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
+    -- SETUP
+    let amnt = 100_000 :: Natural
+    mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
+    let (Right seed) = fromMnemonic @'[12] mnemonics
+    let rootXPrv = T.decodeUtf8 $ hex $ getKey $
+            generateKeyFromSeed seed
+            (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+    wSrc <- emptyByronWalletFromXPrvWith ctx "random"
+            ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
+
+    (wDest, payment) <- do
+        (wDest, addrs) <- fixtureTarget ctx
+        pure (wDest, mkPayment @n (head addrs) amnt)
+
+    -- ACTION
+    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+
+    -- ASSERTIONS
+    let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+            { nInputs  = 1
+            , nOutputs = 1
+            , nChanges = 1
+            }
+    verify r
+        [ expectResponseCode HTTP.status202
+        , expectField #amount $ between
+              ( Quantity (feeMin + amnt)
+              , Quantity (feeMax + amnt)
+              )
+        , expectField #direction (`shouldBe` ApiT Outgoing)
+        , expectField #status (`shouldBe` ApiT Pending)
+        ]
+
+    eventually "source balance decreases" $ do
+        rSrc <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wSrc) Default Empty
+        verify rSrc
+            [ expectField (#balance . #available) $ between
+                ( Quantity (faucetAmt - amnt - feeMax)
+                , Quantity (faucetAmt - amnt - feeMin)
+                )
+            ]
+
+    eventually "destination balance increases" $ do
+        rDest <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wDest) Default Empty
+        verify rDest
+            [ expectField (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt + amnt))
+            ]
+  where
+    title = "BYRON_RESTORE_02 - can send tx from restored wallet from xprv"
 
 --
 -- More Elaborated Fixtures
