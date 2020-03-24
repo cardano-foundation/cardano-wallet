@@ -74,7 +74,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DaedalusIPC
     ( DaedalusIPCLog, daedalusIPC )
 import Cardano.Wallet.DB.Sqlite
-    ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
+    ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
@@ -275,14 +275,12 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
     apiLayer (block0, bp) tl nl = do
-        let tracer = contramap MsgDatabaseStartup applicationTracer
-        wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues $ getActiveSlotCoefficient bp)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db wallets
+            walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db
       where
         nl' = toWLBlock <$> nl
 
@@ -349,7 +347,6 @@ data ApplicationLog
     | MsgNetworkName Text
     | MsgWalletStartupError ErrStartup
     | MsgServerStartupError ListenError
-    | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
@@ -357,7 +354,6 @@ instance ToText ApplicationLog where
         MsgStarting backend ->
             "Wallet backend server starting. " <> toText backend <> "..."
         MsgNetworkName n -> "Node is Jörmungandr on " <> n
-        MsgDatabaseStartup dbMsg -> toText dbMsg
         MsgWalletStartupError startupErr -> case startupErr of
             ErrStartupGetBlockchainParameters e -> case e of
                 ErrGetBlockchainParamsNetworkUnreachable _ ->
@@ -411,7 +407,6 @@ instance DefineSeverity ApplicationLog where
     defineSeverity ev = case ev of
         MsgStarting _ -> Info
         MsgNetworkName _ -> Info
-        MsgDatabaseStartup dbEv -> defineSeverity dbEv
         MsgWalletStartupError _ -> Alert
         MsgServerStartupError _ -> Alert
 

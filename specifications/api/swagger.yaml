@@ -155,6 +155,7 @@ x-syncProgress: &syncProgress
       enum:
         - ready
         - syncing
+        - not_responding
     progress:
       <<: *percentage
       description: |

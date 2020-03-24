@@ -374,7 +374,14 @@ data DBLog
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
+    | MsgFoundDatabase FilePath Text
+    | MsgUnknownDBFile FilePath
     deriving (Generic, Show, Eq, ToJSON)
+
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
 
 data DBField where
     DBField
@@ -442,6 +449,8 @@ instance DefineSeverity DBLog where
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
+        MsgFoundDatabase _ _ -> Info
+        MsgUnknownDBFile _ -> Notice
 
 instance ToText DBLog where
     toText = \case
@@ -493,6 +502,12 @@ instance ToText DBLog where
             [ "Updating the foreign keys setting to: "
             , T.pack $ show value
             , "."
+            ]
+        MsgFoundDatabase _file wid ->
+            "Found existing wallet: " <> wid
+        MsgUnknownDBFile file -> mconcat
+            [ "Found something other than a database file in "
+            , "the database folder: ", T.pack file
             ]
 
 {-------------------------------------------------------------------------------
