@@ -71,7 +71,7 @@ import Cardano.Wallet.Byron.Transaction
 import Cardano.Wallet.Byron.Transaction.Size
     ( MaxSizeOf )
 import Cardano.Wallet.DB.Sqlite
-    ( DatabasesStartupLog, DefaultFieldValues (..), PersistState )
+    ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
     ( filterTraceSeverity, trMessageText )
 import Cardano.Wallet.Network
@@ -115,8 +115,6 @@ import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
     ( (&) )
-import Data.Functor.Contravariant
-    ( contramap )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -264,15 +262,12 @@ serveWallet
         -> NetworkLayer IO t ByronBlock
         -> IO (ApiLayer s t k)
     apiLayer tl nl = do
-        let tracer = contramap MsgDatabaseStartup applicationTracer
         let params = (block0, bp, sTolerance)
-        wallets <- maybe (pure []) (Sqlite.findDatabases @k tracer) databaseDir
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues $ getActiveSlotCoefficient bp)
             databaseDir
-        Server.newApiLayer
-            walletEngineTracer params nl' tl db wallets
+        Server.newApiLayer walletEngineTracer params nl' tl db
       where
         BlockchainParameters
             { getGenesisBlockHash
@@ -304,7 +299,6 @@ data ApplicationLog
     = MsgStarting FilePath
     | MsgNetworkName Text
     | MsgServerStartupError ListenError
-    | MsgDatabaseStartup DatabasesStartupLog
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
@@ -314,8 +308,6 @@ instance ToText ApplicationLog where
             in "Wallet backend server starting. Using " <> addr <> "."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
-        MsgDatabaseStartup dbMsg ->
-            toText dbMsg
         MsgServerStartupError startupErr -> case startupErr of
             ListenErrorHostDoesNotExist host -> mempty
                 <> "Can't listen on "
@@ -338,7 +330,6 @@ instance DefineSeverity ApplicationLog where
     defineSeverity = \case
         MsgStarting _ -> Info
         MsgNetworkName _ -> Info
-        MsgDatabaseStartup ev -> defineSeverity ev
         MsgServerStartupError _ -> Alert
 
 {-------------------------------------------------------------------------------
