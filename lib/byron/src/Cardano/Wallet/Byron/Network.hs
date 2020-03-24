@@ -36,7 +36,14 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Byron.Compatibility
-    ( Byron, fromSlotNo, fromTip, toEpochSlots, toGenTx, toPoint )
+    ( Byron
+    , fromChainHash
+    , fromSlotNo
+    , fromTip
+    , toEpochSlots
+    , toGenTx
+    , toPoint
+    )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrCurrentNodeTip (..)
@@ -133,6 +140,7 @@ import Ouroboros.Network.Block
     , encodePoint
     , encodeTip
     , genesisPoint
+    , pointHash
     , pointSlot
     , unwrapCBORinCBOR
     )
@@ -237,17 +245,22 @@ withNetworkLayer tr bp addrInfo versionData action = do
         chainSyncQ <- atomically newTQueue
         let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         link =<< async (connectClient tr client versionData addrInfo)
-        let points = genesisPoint : (toPoint getEpochLength <$> headers)
+        let points = reverse $ genesisPoint : (toPoint getEpochLength <$> headers)
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
+        traceWith tr $ MsgFindIntersection headers
         let shouldRetry _ = \case
                 Left (_ :: ErrNetworkUnavailable) -> do
-                    traceWith tr $ MsgFindIntersectionTimeout headers
+                    traceWith tr MsgFindIntersectionTimeout
                     pure True
                 Right Nothing -> pure False
                 Right Just{}  -> pure False
         retrying policy shouldRetry (const findIt) >>= \case
-            Right (Just intersection) ->
+            Right (Just intersection) -> do
+                traceWith tr
+                    $ MsgIntersectionFound
+                    $ fromChainHash getGenesisBlockHash
+                    $ pointHash intersection
                 pure $ Cursor intersection chainSyncQ
             _ -> fail $ unwords
                 [ "initCursor: intersection not found? This can't happen"
@@ -680,7 +693,9 @@ data NetworkLayerLog
     | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) String))
     | MsgMuxTracer (WithMuxBearer (ConnectionId LocalAddress) MuxTrace)
     | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
-    | MsgFindIntersectionTimeout [W.BlockHeader]
+    | MsgFindIntersection [W.BlockHeader]
+    | MsgIntersectionFound (W.Hash "BlockHeader")
+    | MsgFindIntersectionTimeout
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
@@ -704,21 +719,26 @@ instance ToText NetworkLayerLog where
             T.pack (show msg)
         MsgHandshakeTracer msg ->
             T.pack (show msg)
-        MsgFindIntersectionTimeout points -> T.unwords
-            [ "Couldn't find an intersection in a timely manner for: "
+        MsgFindIntersectionTimeout ->
+            "Couldn't find an intersection in a timely manner. Retrying..."
+        MsgFindIntersection points -> T.unwords
+            [ "Looking for an intersection with the node's local chain with:"
             , T.intercalate ", " (pretty <$> points)
-            , ". Trying again..."
             ]
+        MsgIntersectionFound point -> T.unwords
+            [ "Intersection found:", pretty point ]
 
 instance DefinePrivacyAnnotation NetworkLayerLog
 instance DefineSeverity NetworkLayerLog where
     defineSeverity = \case
-        MsgCouldntConnect 0          -> Debug
-        MsgCouldntConnect 1          -> Notice
-        MsgCouldntConnect{}          -> Warning
-        MsgConnectionLost{}          -> Warning
-        MsgTxSubmission{}            -> Info
-        MsgChainSync{}               -> Debug
-        MsgMuxTracer{}               -> Debug
-        MsgHandshakeTracer{}         -> Debug
-        MsgFindIntersectionTimeout{} -> Warning
+        MsgCouldntConnect 0        -> Debug
+        MsgCouldntConnect 1        -> Notice
+        MsgCouldntConnect{}        -> Warning
+        MsgConnectionLost{}        -> Warning
+        MsgTxSubmission{}          -> Info
+        MsgChainSync{}             -> Debug
+        MsgMuxTracer{}             -> Debug
+        MsgHandshakeTracer{}       -> Debug
+        MsgFindIntersectionTimeout -> Warning
+        MsgFindIntersection{}      -> Info
+        MsgIntersectionFound{}     -> Info
