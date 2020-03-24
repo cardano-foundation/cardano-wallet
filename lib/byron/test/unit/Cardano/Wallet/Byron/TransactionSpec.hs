@@ -65,19 +65,19 @@ spec = do
         let proxy = Proxy @'Mainnet
         goldenTestSignedTx proxy mainnetMagic 1
             [ (xprv "address-number-0", Coin 42) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461\
-            \ace32d79336579a1939b3aad1c0b700ff9f8282d818582183581cb0e693cbc9\
-            \7272bd42aacf3b443ecac68b96b4fa20159186a4a38883a0001a497c15c6182\
-            \affa0818200d81858858258408e620235b2a427259cc1a1c63af9ef179cb3b6\
-            \e396da182e01d65dd3ed7be94be25db39fb78e74d4b53fb51776d0f5eb360e6\
-            \2d09b853f3a87ac25bf834ee1fb58403684501a21346ba3c19a6dc3479180e8\
-            \0a14e5edc0ffb4b1469abe0332e7e1caf291d50cb8d2c47ee37f6b44b7fbfcc\
-            \5a1b01bc262038e93969b9a728a2b3500"
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace3\
+            \2d79336579a1939b3aad1c0b700ff9f8282d818582183581cb0e693cbc97272\
+            \bd42aacf3b443ecac68b96b4fa20159186a4a38883a0001a497c15c6182affa\
+            \0818200d81858858258408e620235b2a427259cc1a1c63af9ef179cb3b6e396\
+            \da182e01d65dd3ed7be94be25db39fb78e74d4b53fb51776d0f5eb360e62d09\
+            \b853f3a87ac25bf834ee1fb58403684501a21346ba3c19a6dc3479180e80a14\
+            \e5edc0ffb4b1469abe0332e7e1caf291d50cb8d2c47ee37f6b44b7fbfcc5a1b\
+            \01bc262038e93969b9a728a2b3500"
 
         goldenTestSignedTx proxy mainnetMagic 2
             [ (xprv "address-number-0", Coin 42)
             , (xprv "address-number-1", Coin 14) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32\
             \d79336579a1939b3aad1c0b7008200d81858248258203b40265111d8bb3c3c60\
             \8d95b3a0bf83461ace32d79336579a1939b3aad1c0b701ff9f8282d818582183\
             \581cb0e693cbc97272bd42aacf3b443ecac68b96b4fa20159186a4a38883a000\
@@ -95,7 +95,7 @@ spec = do
 
         goldenTestSignedTx proxy mainnetMagic 25
             [ (xprv "address-number-0", Coin 14) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32\
             \d79336579a1939b3aad1c0b700ff9f8282d818582183581cb0e693cbc97272bd\
             \42aacf3b443ecac68b96b4fa20159186a4a38883a0001a497c15c60e8282d818\
             \582183581cb0e693cbc97272bd42aacf3b443ecac68b96b4fa20159186a4a388\
@@ -166,7 +166,7 @@ spec = do
             , (xprv "address-number-23", Coin 1)
             , (xprv "address-number-24", Coin 1)
             , (xprv "address-number-25", Coin 1) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d\
             \79336579a1939b3aad1c0b7008200d81858248258203b40265111d8bb3c3c608d\
             \95b3a0bf83461ace32d79336579a1939b3aad1c0b7018200d81858248258203b4\
             \0265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b70282\
@@ -319,7 +319,7 @@ spec = do
         let testnetMagic = ProtocolMagic 1097911063
         goldenTestSignedTx proxy testnetMagic 1
             [(xprv "address-number-0", Coin 42)]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
             \9336579a1939b3aad1c0b700ff9f8282d818582883581c946480eb45fa900e84d1\
             \f25141589468ca1d38bbb4e6c3abec7d1ea0a102451a4170cb17001a16bbe0ab18\
             \2affa0818200d81858858258408e620235b2a427259cc1a1c63af9ef179cb3b6e3\
@@ -331,7 +331,7 @@ spec = do
         goldenTestSignedTx proxy testnetMagic 2
             [ (xprv "address-number-0", Coin 42)
             , (xprv "address-number-1", Coin 14) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
             \9336579a1939b3aad1c0b7008200d81858248258203b40265111d8bb3c3c608d95\
             \b3a0bf83461ace32d79336579a1939b3aad1c0b701ff9f8282d818582883581c94\
             \6480eb45fa900e84d1f25141589468ca1d38bbb4e6c3abec7d1ea0a102451a4170\
@@ -349,7 +349,7 @@ spec = do
 
         goldenTestSignedTx proxy testnetMagic 25
             [ (xprv "address-number-0", Coin 14) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d7\
             \9336579a1939b3aad1c0b700ff9f8282d818582883581c946480eb45fa900e84d1\
             \f25141589468ca1d38bbb4e6c3abec7d1ea0a102451a4170cb17001a16bbe0ab0e\
             \8282d818582883581c946480eb45fa900e84d1f25141589468ca1d38bbb4e6c3ab\
@@ -423,7 +423,7 @@ spec = do
             , (xprv "address-number-23", Coin 1)
             , (xprv "address-number-24", Coin 1)
             , (xprv "address-number-25", Coin 1) ]
-            "820082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d\
+            "82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32d\
             \79336579a1939b3aad1c0b7008200d81858248258203b40265111d8bb3c3c608d\
             \95b3a0bf83461ace32d79336579a1939b3aad1c0b7018200d81858248258203b4\
             \0265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b70282\
