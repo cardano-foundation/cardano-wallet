@@ -94,7 +94,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , checkPassphrase
     , preparePassphrase
-    , encryptPasswordWithScrypt
     ) where
 
 import Prelude
@@ -555,20 +554,6 @@ checkPassphrase scheme received stored = do
     constantTimeEq :: Hash purpose -> Hash purpose -> Bool
     constantTimeEq (Hash a) (Hash b) =
         BA.convert @_ @ScrubbedBytes a == BA.convert @_ @ScrubbedBytes b
-
--- | Encrypt password using Scrypt function with the following parameters:
--- logN = 14
--- r = 8
--- p = 1
--- These parameters are in Scrypt.defaultParams
-encryptPasswordWithScrypt
-    :: Passphrase "raw"
-    -> IO ByteString
-encryptPasswordWithScrypt p =
-    Scrypt.getEncryptedPass <$>
-    Scrypt.encryptPassIO Scrypt.defaultParams (Scrypt.Pass $ BA.convert passwd)
-  where
-    (Passphrase passwd) = preparePassphrase EncryptWithScrypt p
 
 -- | Indicate a failure when checking for a given 'Passphrase' match
 data ErrWrongPassphrase = ErrWrongPassphrase

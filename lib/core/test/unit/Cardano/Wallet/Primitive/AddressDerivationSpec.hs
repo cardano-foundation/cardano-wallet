@@ -40,7 +40,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , checkPassphrase
     , encryptPassphrase
-    , encryptPasswordWithScrypt
     , getIndex
     , hex
     , preparePassphrase
@@ -103,6 +102,7 @@ import Test.Text.Roundtrip
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -356,7 +356,7 @@ prop_passphraseFromScryptRoundtrip
     -> Property
 prop_passphraseFromScryptRoundtrip p = monadicIO $ liftIO $ do
     hp <- encryptPasswordWithScrypt p
-    checkPassphrase EncryptWithScrypt p (Hash hp) `shouldBe` Right ()
+    checkPassphrase EncryptWithScrypt p hp `shouldBe` Right ()
 
 prop_passphraseFromScryptRoundtripFail
     :: Passphrase "raw"
@@ -365,7 +365,7 @@ prop_passphraseFromScryptRoundtripFail
 prop_passphraseFromScryptRoundtripFail p p' =
     p /= p' ==> monadicIO $ liftIO $ do
         hp <- encryptPasswordWithScrypt p
-        checkPassphrase EncryptWithScrypt p' (Hash hp)
+        checkPassphrase EncryptWithScrypt p' hp
             `shouldBe` Left ErrWrongPassphrase
 
 -- | xPrvFromStrippedPubXPrv and unXPrvStripPub
@@ -623,3 +623,17 @@ genLegacyAddress range = do
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
+
+-- | Encrypt password using Scrypt function with the following parameters:
+-- logN = 14
+-- r = 8
+-- p = 1
+-- These parameters are in Scrypt.defaultParams
+encryptPasswordWithScrypt
+    :: Passphrase "raw"
+    -> IO (Hash "encryption")
+encryptPasswordWithScrypt p =
+    Hash . Scrypt.getEncryptedPass <$>
+    Scrypt.encryptPassIO Scrypt.defaultParams (Scrypt.Pass $ BA.convert passwd)
+  where
+    (Passphrase passwd) = preparePassphrase EncryptWithScrypt p
