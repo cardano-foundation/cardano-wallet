@@ -69,6 +69,7 @@ import Test.Integration.Framework.DSL
     , fixtureIcarusWalletAddrs
     , fixtureIcarusWalletWith
     , fixturePassphrase
+    , fixturePassphraseEncrypted
     , fixtureRandomWallet
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletMws
@@ -515,14 +516,8 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
     let rootXPrv = T.decodeUtf8 $ hex $ getKey $
             generateKeyFromSeed seed
             (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
-    let passwHash =
-            "31347c387c317c2b6a6f747446495a6a566d586f43374c6c54425a576c\
-            \597a425834515177666475467578436b4d485569733d7c78324d646738\
-            \49554a3232507235676531393575445a76583646552b7757395a6a6a2f\
-            \51303054356c654751794279732f7662753367526d726c316c657a7150\
-            \43676d364e6758476d4d2f4b6438343265304b4945773d3d"
     wDestRestored <- emptyByronWalletFromXPrvWith ctx "random"
-            ("Byron Wallet Restored", rootXPrv, passwHash)
+            ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
     eventually "destination balance increases" $ do
         rDest <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wDestRestored) Default Empty
