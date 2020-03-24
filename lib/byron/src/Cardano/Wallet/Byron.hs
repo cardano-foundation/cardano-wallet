@@ -150,6 +150,7 @@ data SomeNetworkDiscriminant where
         :: forall (n :: NetworkDiscriminant).
             ( NetworkDiscriminantVal n
             , PaymentAddress n IcarusKey
+            , PaymentAddress n ByronKey
             , DecodeAddress n
             , EncodeAddress n
             , MaxSizeOf Address n IcarusKey
@@ -231,13 +232,14 @@ serveWallet
     startServer
         :: forall n.
             ( PaymentAddress n IcarusKey
+            , PaymentAddress n ByronKey
             , DecodeAddress n
             , EncodeAddress n
             )
         => Proxy n
         -> Socket
-        -> ApiLayer (RndState 'Mainnet) t ByronKey
-        -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+        -> ApiLayer (RndState n) t ByronKey
+        -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> NtpClient
         -> IO ()
     startServer _proxy socket random icarus ntp = do

@@ -565,9 +565,10 @@ byronServer
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
+        , PaymentAddress n ByronKey
         )
-    => ApiLayer (RndState 'Mainnet) t ByronKey
-    -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    => ApiLayer (RndState n) t ByronKey
+    -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> NtpClient
     -> Server (Api n)
 byronServer byron icarus ntp =
@@ -868,9 +869,9 @@ mkLegacyWallet _ctx wid cp meta pending progress =
         }
 
 postRandomWallet
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , s ~ RndState 'Mainnet
+        , s ~ RndState n
         , k ~ ByronKey
         )
     => ctx
@@ -887,9 +888,9 @@ postRandomWallet ctx body = do
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postRandomWalletFromXPrv
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , s ~ RndState 'Mainnet
+        , s ~ RndState n
         , k ~ ByronKey
         )
     => ctx
@@ -911,11 +912,12 @@ postRandomWalletFromXPrv ctx body = do
     wid = WalletId $ digest $ publicKey byronKey
 
 postIcarusWallet
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
+        , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
+        , PaymentAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[15]
@@ -930,11 +932,12 @@ postIcarusWallet ctx body = do
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postTrezorWallet
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
+        , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
+        , PaymentAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -949,11 +952,12 @@ postTrezorWallet ctx body = do
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postLedgerWallet
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , s ~ SeqState 'Mainnet k
+        , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
+        , PaymentAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -975,9 +979,9 @@ postLedgerWallet ctx body = do
 -- through the same API endpoints. However, they rely on different contexts.
 -- Since they have identical ids, we actually lookup both contexts in sequence.
 withLegacyLayer
-    :: forall byron icarus t a.
-        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
-        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    :: forall byron icarus t n a.
+        ( byron ~ ApiLayer (RndState n) t ByronKey
+        , icarus ~ ApiLayer (SeqState n IcarusKey) t IcarusKey
         )
     => ApiT WalletId
     -> (byron, Handler a)
@@ -991,9 +995,9 @@ withLegacyLayer (ApiT wid) (byron, withByron) (icarus, withIcarus) =
 -- | Like 'withLegacyLayer' but allow passing a custom handler for handling dead
 -- workers.
 withLegacyLayer'
-    :: forall byron icarus t a.
-        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
-        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
+    :: forall byron icarus t n a.
+        ( byron ~ ApiLayer (RndState n) t ByronKey
+        , icarus ~ ApiLayer (SeqState n IcarusKey) t IcarusKey
         )
     => ApiT WalletId
     -> (byron, Handler a, ErrWalletNotResponding -> Handler a)
@@ -1005,7 +1009,7 @@ withLegacyLayer' (ApiT wid)
     = tryByron (const $ tryIcarus liftE deadIcarus) deadByron
   where
     tryIcarus onMissing onNotResponding = withWorkerCtx @_
-        @(SeqState 'Mainnet IcarusKey)
+        @(SeqState n IcarusKey)
         @IcarusKey
         icarus
         wid
@@ -1014,7 +1018,7 @@ withLegacyLayer' (ApiT wid)
         (const withIcarus)
 
     tryByron onMissing onNotResponding = withWorkerCtx @_
-        @(RndState 'Mainnet)
+        @(RndState n)
         @ByronKey
         byron
         wid
