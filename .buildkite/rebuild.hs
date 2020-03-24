@@ -18,6 +18,9 @@
 --
 -- To work on this script under GHCi, with Haskell dependencies provided, run:
 --     nix-shell .buildkite --run "ghci .buildkite/rebuild.hs"
+--
+-- On Buildkite, the execution environment available to stack is defined in
+-- nix/stack-shell.nix.
 
 import Prelude hiding
     ( FilePath )
