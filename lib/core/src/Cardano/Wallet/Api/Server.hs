@@ -46,7 +46,6 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrCoinSelection (..)
-    , ErrDeadWallet (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
     , ErrJoinStakePool (..)
@@ -69,6 +68,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
     , ErrWalletAlreadyExists (..)
+    , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , HasLogger
@@ -996,30 +996,30 @@ withLegacyLayer'
         , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         )
     => ApiT WalletId
-    -> (byron, Handler a, ErrDeadWallet -> Handler a)
-    -> (icarus, Handler a, ErrDeadWallet -> Handler a)
+    -> (byron, Handler a, ErrWalletNotResponding -> Handler a)
+    -> (icarus, Handler a, ErrWalletNotResponding -> Handler a)
     -> Handler a
 withLegacyLayer' (ApiT wid)
   (byron, withByron, deadByron)
   (icarus, withIcarus, deadIcarus)
     = tryByron (const $ tryIcarus liftE deadIcarus) deadByron
   where
-    tryIcarus onMissing onDead = withWorkerCtx @_
+    tryIcarus onMissing onNotResponding = withWorkerCtx @_
         @(SeqState 'Mainnet IcarusKey)
         @IcarusKey
         icarus
         wid
         onMissing
-        onDead
+        onNotResponding
         (const withIcarus)
 
-    tryByron onMissing onDead = withWorkerCtx @_
+    tryByron onMissing onNotResponding = withWorkerCtx @_
         @(RndState 'Mainnet)
         @ByronKey
         byron
         wid
         onMissing
-        onDead
+        onNotResponding
         (const withByron)
 
 {-------------------------------------------------------------------------------
@@ -1053,7 +1053,7 @@ getWallet
     -> ApiT WalletId
     -> Handler (apiWallet, UTCTime)
 getWallet ctx mkApiWallet (ApiT wid) = do
-    withWorkerCtx @_ @s @k ctx wid liftE whenDead whenAlive
+    withWorkerCtx @_ @s @k ctx wid liftE whenNotResponding whenAlive
   where
     df = ctx ^. dbFactory @s @k
 
@@ -1062,10 +1062,10 @@ getWallet ctx mkApiWallet (ApiT wid) = do
         progress <- liftIO $ W.walletSyncProgress ctx cp
         (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending progress
 
-    whenDead _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
+    whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
         let wrk = hoistResource db (MsgFromWorker wid) ctx
         (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending W.Dead
+        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending W.NotResponding
 
 listWallets
     :: forall ctx s t k apiWallet.
@@ -1782,17 +1782,17 @@ withWorkerCtx
         -- ^ Wallet to look for
     -> (ErrNoSuchWallet -> m a)
         -- ^ Wallet not present, handle error
-    -> (ErrDeadWallet -> m a)
+    -> (ErrWalletNotResponding -> m a)
         -- ^ Wallet worker is dead, handle error
     -> (WorkerCtx ctx -> m a)
         -- ^ Do something with the wallet
     -> m a
-withWorkerCtx ctx wid onMissing onDead action =
+withWorkerCtx ctx wid onMissing onNotResponding action =
     Registry.lookup re wid >>= \case
         Nothing -> do
             wids <- liftIO $ listDatabases df
             if wid `elem` wids then
-                onDead (ErrDeadWallet wid)
+                onNotResponding (ErrWalletNotResponding wid)
             else
                 onMissing (ErrNoSuchWallet wid)
         Just wrk ->
@@ -1878,10 +1878,10 @@ instance LiftHandler ErrNoSuchWallet where
                 , toText wid
                 ]
 
-instance LiftHandler ErrDeadWallet where
+instance LiftHandler ErrWalletNotResponding where
     handler = \case
-        ErrDeadWallet wid ->
-            apiError err500 WalletIsDead $ T.unwords
+        ErrWalletNotResponding wid ->
+            apiError err500 WalletNotResponding $ T.unwords
                 [ "That's embarassing. My associated worker for", toText wid
                 , "is no longer responding. This is not something that is supposed"
                 , "to happen. The worker must have left a trace in the logs of"

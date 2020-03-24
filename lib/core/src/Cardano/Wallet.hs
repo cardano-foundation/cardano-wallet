@@ -84,7 +84,7 @@ module Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrFetchRewards (..)
     , ErrCheckWalletIntegrity (..)
-    , ErrDeadWallet (..)
+    , ErrWalletNotResponding (..)
 
     -- ** Address
     , listAddresses
@@ -1679,8 +1679,8 @@ data ErrCannotQuit
     deriving (Generic, Eq, Show)
 
 -- | Can't perform given operation because the wallet died.
-newtype ErrDeadWallet
-    = ErrDeadWallet WalletId
+newtype ErrWalletNotResponding
+    = ErrWalletNotResponding WalletId
     deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------

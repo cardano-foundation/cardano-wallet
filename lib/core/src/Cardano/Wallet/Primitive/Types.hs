@@ -1283,14 +1283,14 @@ data SlotParameters = SlotParameters
 data SyncProgress
     = Ready
     | Syncing !(Quantity "percent" Percentage)
-    | Dead
+    | NotResponding
     deriving (Generic, Eq, Show)
 
 instance NFData SyncProgress
 
 instance Ord SyncProgress where
-    Dead <= _ = True
-    _ <= Dead = False
+    NotResponding <= _ = True
+    _ <= NotResponding = False
     Ready <= Ready = True
     Ready <= Syncing _ = False
     Syncing _ <= Ready = True
@@ -1302,8 +1302,8 @@ instance Buildable SyncProgress where
             "restored"
         Syncing (Quantity p) ->
             "still restoring (" <> build (toText p) <> ")"
-        Dead ->
-            "dead"
+        NotResponding ->
+            "not responding"
 
 newtype SyncTolerance = SyncTolerance NominalDiffTime
     deriving stock (Generic, Eq, Show)
