@@ -1393,21 +1393,15 @@ postTransactionViaCLI ctx passphrase args = do
             return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
-    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+    :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
-    -> IO (ExitCode, String, Text)
-postTransactionFeeViaCLI ctx args = do
-    let portArgs =
-            ["--port", show (ctx ^. typed @(Port "wallet"))]
-    let fullArgs =
-            ["transaction", "fees"] ++ portArgs ++ args
-    let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \_ (Just stdout) (Just stderr) h -> do
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    -> IO r
+postTransactionFeeViaCLI ctx args = cardanoWalletCLI @t $ join
+        [ ["transaction", "fees"]
+        , ["--port", show (ctx ^. typed @(Port "wallet"))]
+        , args
+        ]
 
 listTransactionsViaCLI
     :: forall t r s . (CmdResult r, HasType (Port "wallet") s, KnownCommand t)

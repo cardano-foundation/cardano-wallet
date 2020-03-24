@@ -233,8 +233,8 @@ spec = do
                     , nOutputs = 1
                     , nChanges = 1
                     }
-            (code, out, err) <- postTransactionFeeViaCLI @t ctx args
-            T.unpack err `shouldBe` cmdOk
+            (Exit code, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+            err `shouldBe` cmdOk
             txJson <- expectValidJSON (Proxy @ApiFee) out
             verify txJson
                 [ expectCliField (#amount . #getQuantity) $

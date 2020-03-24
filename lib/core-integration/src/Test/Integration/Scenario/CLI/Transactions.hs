@@ -486,7 +486,7 @@ spec = do
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -512,7 +512,7 @@ spec = do
                 , "--payment", T.pack (show amt) <> "@" <> addr1
                 , "--payment", T.pack (show amt) <> "@" <> addr2
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -541,7 +541,7 @@ spec = do
                 , "--payment", T.pack (show amt) <> "@" <> addr1'
                 , "--payment", T.pack (show amt) <> "@" <> addr2'
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -562,8 +562,8 @@ spec = do
                 , "--payment", "12333@" <> addr1
                 , "--payment", "4666@" <> addr2
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403UTxO
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403UTxO
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -583,8 +583,8 @@ spec = do
                 , "--payment", "22@" <> addr3
                 ]
 
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403InputsDepleted
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403InputsDepleted
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -599,7 +599,7 @@ spec = do
                 , "--payment", "1@" <> addr
                 ]
 
-        (c, _, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
 
@@ -614,8 +614,8 @@ spec = do
                 , "--payment", "1000000@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain`
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain`
             errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -628,8 +628,8 @@ spec = do
                     , "--payment", "12@" <> (T.pack addr)
                     ]
 
-            (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-            (T.unpack err) `shouldContain` errMsg
+            (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+            err `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
