@@ -7,6 +7,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -35,6 +36,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+import Cardano.Chain.Byron.API
+    ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
     , fromChainHash
@@ -104,6 +107,8 @@ import Data.Functor
     ( (<&>) )
 import Data.List
     ( isInfixOf )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -130,6 +135,10 @@ import Ouroboros.Consensus.Byron.Ledger
     , encodeByronGenTx
     , encodeByronHeaderHash
     )
+import Ouroboros.Consensus.Byron.Node
+    ()
+import Ouroboros.Consensus.Node.Run
+    ( RunNode (..) )
 import Ouroboros.Network.Block
     ( Point (..)
     , SlotNo (..)
@@ -194,7 +203,6 @@ import System.IO.Error
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
-import qualified Codec.Serialise as CBOR
 import qualified Data.Text as T
 
 -- | Network layer cursor for Byron. Mostly useless since the protocol itself is
@@ -291,7 +299,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
             ExceptT (localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx))
         case result of
             Nothing  -> pure ()
-            Just err -> throwE $ ErrPostTxBadRequest $ T.pack err
+            Just err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
     _stakeDistribution =
         notImplemented "stakeDistribution"
@@ -343,7 +351,7 @@ data ChainSyncCmd (m :: * -> *)
 data LocalTxSubmissionCmd (m :: * -> *)
     = CmdSubmitTx
         (GenTx ByronBlock)
-        (Maybe String -> m ())
+        (Maybe ApplyMempoolPayloadErr -> m ())
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.
@@ -641,7 +649,7 @@ chainSyncWithBlocks tr bp queue channel = do
 localTxSubmission
     :: forall m protocol.
         ( MonadThrow m, MonadTimer m, MonadST m
-        , protocol ~ LocalTxSubmission (GenTx ByronBlock) String
+        , protocol ~ LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr
         )
     => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
@@ -662,15 +670,15 @@ localTxSubmission tr queue channel =
     codec = codecLocalTxSubmission
         encodeByronGenTx -- Tx -> CBOR.Encoding
         decodeByronGenTx -- CBOR.Decoder s Tx
-        CBOR.encode      -- String -> CBOR.Encoding
-        CBOR.decode      -- CBOR.Decoder s String
+        (nodeEncodeApplyTxError (Proxy @ByronBlock)) -- ApplyTxErr -> CBOR.Encoding
+        (nodeDecodeApplyTxError (Proxy @ByronBlock)) -- CBOR.Decoder s ApplyTxErr
 
     client
-        :: LocalTxSubmissionClient (GenTx ByronBlock) String m Void
+        :: LocalTxSubmissionClient (GenTx ByronBlock) ApplyMempoolPayloadErr m Void
     client = LocalTxSubmissionClient clientStIdle
       where
         clientStIdle
-            :: m (LocalTxClientStIdle (GenTx ByronBlock) String m Void)
+            :: m (LocalTxClientStIdle (GenTx ByronBlock) ApplyMempoolPayloadErr m Void)
         clientStIdle = atomically (readTQueue queue) <&> \case
             CmdSubmitTx tx respond ->
                 SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
@@ -690,7 +698,7 @@ data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
     | MsgChainSync (TraceSendRecv (ChainSync ByronBlock (Tip ByronBlock)))
-    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) String))
+    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr))
     | MsgMuxTracer (WithMuxBearer (ConnectionId LocalAddress) MuxTrace)
     | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
