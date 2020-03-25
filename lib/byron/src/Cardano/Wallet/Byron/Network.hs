@@ -98,7 +98,7 @@ import Control.Retry
     , retrying
     )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer, contramap, nullTracer, traceWith )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Function
@@ -122,7 +122,7 @@ import Fmt
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( AppType (..), MuxError (..), MuxErrorType (..), MuxTrace, WithMuxBearer )
+    ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Network.TypedProtocol.Codec
     ( Codec )
 import Ouroboros.Consensus.Byron.Ledger
@@ -410,9 +410,8 @@ mkNetworkClient
 mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
     nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
-            let tr' = contramap MsgChainSync tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                chainSyncWithBlocks tr' bp chainSyncQ channel
+                chainSyncWithBlocks nullTracer bp chainSyncQ channel
         , localTxSubmissionProtocol =
             let tr' = contramap MsgTxSubmission tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
@@ -433,7 +432,7 @@ connectClient tr client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
     let tracers = NetworkConnectTracers
-            { nctMuxTracer = contramap MsgMuxTracer tr
+            { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
     let socket = localSnocket iocp addr
@@ -697,9 +696,7 @@ notImplemented what = error ("Not implemented: " <> what)
 data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
-    | MsgChainSync (TraceSendRecv (ChainSync ByronBlock (Tip ByronBlock)))
     | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr))
-    | MsgMuxTracer (WithMuxBearer (ConnectionId LocalAddress) MuxTrace)
     | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")
@@ -721,10 +718,6 @@ instance ToText NetworkLayerLog where
             ]
         MsgTxSubmission msg ->
             T.pack (show msg)
-        MsgChainSync msg ->
-            T.pack (show msg)
-        MsgMuxTracer msg ->
-            T.pack (show msg)
         MsgHandshakeTracer msg ->
             T.pack (show msg)
         MsgFindIntersectionTimeout ->
@@ -744,9 +737,7 @@ instance DefineSeverity NetworkLayerLog where
         MsgCouldntConnect{}        -> Warning
         MsgConnectionLost{}        -> Warning
         MsgTxSubmission{}          -> Info
-        MsgChainSync{}             -> Debug
-        MsgMuxTracer{}             -> Debug
-        MsgHandshakeTracer{}       -> Debug
+        MsgHandshakeTracer{}       -> Info
         MsgFindIntersectionTimeout -> Warning
         MsgFindIntersection{}      -> Info
         MsgIntersectionFound{}     -> Info
