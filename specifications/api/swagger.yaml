@@ -638,6 +638,13 @@ x-delegationTarget: &delegationTarget
   <<: *stakePoolId
   description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
+x-addressIndex: &addressIndex
+  type: number
+  minimum: 0
+  maximum: 4294967296 # 2 ^ 32, whole range (soft and hard) for random addresses.
+  description: |
+    An optional address derivation index. Leave out to get an address
+    with a randomly generated index.
 
 #############################################################################
 #                                                                           #
@@ -941,7 +948,6 @@ components:
         - *ApiWalletPostData
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
-      description: test
       type: object
       required:
         - name
@@ -1071,6 +1077,13 @@ components:
       properties:
         payments: *transactionOutputs
 
+    ApiPostRandomAddressData: &ApiPostRandomAddressData
+      type: object
+      required:
+        - passphrase
+      properties:
+        passphrase: *walletPassphrase
+        address_index: *addressIndex
 
 #############################################################################
 #                                                                           #
@@ -1547,6 +1560,18 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
       application/json:
         schema: *ApiNetworkParameters
 
+x-responsesPostRandomAddress: &responsesPostRandomAddress
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiAddress
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -1565,6 +1590,7 @@ x-tagGroups:
   - name: Byron (Random)
     tags:
     - Byron Wallets
+    - Byron Addresses
     - Byron Transactions
     - Byron Migrations
 
@@ -1993,6 +2019,40 @@ paths:
           application/json:
             schema: *genesisBlock
       responses: *responsesForceResyncWallet
+
+  /byron-wallets/{walletId}/addresses:
+      get:
+        operationId: listAddresses
+        tags: ["Byron Addresses"]
+        summary: List
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
+          Arbitrarily ordered for random wallets.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressState
+        responses: *responsesListAddresses
+
+      post:
+        operationId: createAddress
+        tags: ["Byron Addresses"]
+        summary: Create Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostRandomAddressData
+        responses: *responsesPostRandomAddress
 
   /byron-wallets/{walletId}/transactions:
     get:
