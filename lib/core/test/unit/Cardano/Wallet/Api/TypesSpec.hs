@@ -98,7 +98,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -124,6 +124,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , PoolOwner (..)
+    , ProtocolMagic (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -1012,15 +1013,21 @@ instance Arbitrary Address where
     arbitrary = (unShowFmt . fst)
         <$> arbitrary @(ShowFmt Address, Proxy ('Testnet 0))
 
-instance {-# OVERLAPS #-} KnownNetwork network
-    => Arbitrary (ShowFmt Address, Proxy (network :: NetworkDiscriminant)) where
+instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy 'Mainnet) where
     arbitrary = do
-        let proxy = Proxy @network
         addr <- ShowFmt <$> frequency
-            [ (10, genAddress @network)
-            , (1, genLegacyAddress (30, 100))
+            [ (10, genAddress @'Mainnet)
+            , (1, genLegacyAddress Nothing)
             ]
-        return (addr, proxy)
+        return (addr, Proxy)
+
+instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy ('Testnet 0)) where
+    arbitrary = do
+        addr <- ShowFmt <$> frequency
+            [ (10, genAddress @('Testnet 0))
+            , (1, genLegacyAddress (Just (ProtocolMagic 0)))
+            ]
+        return (addr, Proxy)
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []

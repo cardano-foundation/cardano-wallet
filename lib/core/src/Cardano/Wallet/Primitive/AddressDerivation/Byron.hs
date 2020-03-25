@@ -78,9 +78,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant, testnetMagic )
+    ( Address (..), Hash (..), ProtocolMagic, invariant, testnetMagic )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( guard )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -97,14 +99,11 @@ import GHC.TypeLits
     ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -172,7 +171,7 @@ instance PaymentAddress 'Mainnet ByronKey where
 
 instance MkKeyFingerprint ByronKey Address where
     paymentKeyFingerprint addr@(Address bytes) =
-        case decodeLegacyAddress bytes of
+        case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
 
@@ -183,18 +182,12 @@ instance MkKeyFingerprint ByronKey Address where
 -- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
 -- the underlying bytestring has a "valid" structure / format without doing much
 -- more.
-decodeLegacyAddress :: ByteString -> Maybe Address
-decodeLegacyAddress bytes =
-    case CBOR.deserialiseFromBytes addressPayloadDecoder (BL.fromStrict bytes) of
-        Right _ -> Just (Address bytes)
-        Left _ -> Nothing
-  where
-    addressPayloadDecoder :: CBOR.Decoder s ()
-    addressPayloadDecoder = ()
-        <$ CBOR.decodeListLenCanonicalOf 2 -- Declare 2-Tuple
-        <* CBOR.decodeTag -- CBOR Tag
-        <* CBOR.decodeBytes -- Payload
-        <* CBOR.decodeWord32 -- CRC
+decodeLegacyAddress :: Maybe ProtocolMagic -> ByteString -> Maybe Address
+decodeLegacyAddress expectedMagic bytes = do
+    payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes
+    decodedMagic <- CBOR.deserialiseCbor CBOR.decodeProtocolMagicAttr payload
+    guard (decodedMagic == expectedMagic)
+    pure (Address bytes)
 
 {-------------------------------------------------------------------------------
                                  Key generation

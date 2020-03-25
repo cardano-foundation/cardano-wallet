@@ -160,6 +160,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , isValidCoin
+    , testnetMagic
     , unsafeEpochNo
     )
 import Codec.Binary.Bech32
@@ -244,6 +245,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -1360,7 +1362,9 @@ instance EncodeAddress ('Testnet pm) where
 
 gEncodeAddress :: Address -> Text
 gEncodeAddress (Address bytes) =
-    if isJust (decodeLegacyAddress bytes) then base58 else bech32
+    if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
+        then base58
+        else bech32
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
@@ -1374,19 +1378,24 @@ gEncodeAddress (Address bytes) =
 --
 -- See also 'EncodeAddress Jormungandr'
 instance DecodeAddress 'Mainnet where
-    decodeAddress = gDecodeAddress (decodeShelleyAddress @'Mainnet)
+    decodeAddress = gDecodeAddress
+        (decodeShelleyAddress @'Mainnet)
+        (decodeLegacyAddress Nothing)
 
 instance KnownNat pm => DecodeAddress ('Testnet pm) where
-    decodeAddress = gDecodeAddress (decodeShelleyAddress @('Testnet pm))
+    decodeAddress = gDecodeAddress
+        (decodeShelleyAddress @('Testnet pm))
+        (decodeLegacyAddress $ Just $ testnetMagic @pm)
 
 gDecodeAddress
     :: (ByteString -> Either TextDecodingError Address)
+    -> (ByteString -> Maybe Address)
     -> Text
     -> Either TextDecodingError Address
-gDecodeAddress decodeShelley text =
+gDecodeAddress decodeShelley decodeByron text =
     case (tryBech32, tryBase58) of
         (Just bytes, _) -> decodeShelley bytes
-        (_, Just bytes) -> decodeLegacyAddress bytes
+        (_, Just bytes) -> decodeByron bytes
             & maybeToEither (TextDecodingError
             "Unable to decode Address: neither Bech32-encoded nor a \
             \valid Byron Address.")

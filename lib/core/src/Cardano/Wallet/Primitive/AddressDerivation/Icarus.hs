@@ -66,8 +66,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -399,7 +397,7 @@ instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey where
 
 instance MkKeyFingerprint IcarusKey Address where
     paymentKeyFingerprint addr@(Address bytes) =
-        case decodeLegacyAddress bytes of
+        case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
