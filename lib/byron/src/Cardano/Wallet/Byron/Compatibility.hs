@@ -52,19 +52,21 @@ module Cardano.Wallet.Byron.Compatibility
 import Prelude
 
 import Cardano.Binary
-    ( serialize' )
+    ( fromCBOR, serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
     ( BlockCount (..), TxFeePolicy (..), TxSizeLinear (..), unsafeGetLovelace )
 import Cardano.Chain.Genesis
     ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
+import Cardano.Chain.MempoolPayload
+    ( AMempoolPayload (..) )
 import Cardano.Chain.Slotting
     ( EpochSlots (..) )
 import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
-    ( Tx (..), TxAux, TxIn (..), TxOut (..), taTx, unTxPayload )
+    ( Tx (..), TxAux, TxIn (..), TxOut (..), annotateTxAux, taTx, unTxPayload )
 import Cardano.Crypto
     ( AbstractHash (..), hash )
 import Cardano.Crypto.ProtocolMagic
@@ -88,7 +90,7 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Byron.Ledger
-    ( ByronBlock (..), ByronHash (..), GenTx (..), decodeByronGenTx )
+    ( ByronBlock (..), ByronHash (..), GenTx, fromMempoolPayload )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash
@@ -254,7 +256,12 @@ toSlotNo epLength =
 -- is relatively safe to unserialize them from CBOR.
 toGenTx :: HasCallStack => W.SealedTx -> GenTx ByronBlock
 toGenTx =
-    unsafeDeserialiseCbor decodeByronGenTx . BL.fromStrict . W.getSealedTx
+    fromMempoolPayload
+    . MempoolTx
+    . annotateTxAux
+    . unsafeDeserialiseCbor fromCBOR
+    . BL.fromStrict
+    . W.getSealedTx
 
 fromByronBlock :: W.Hash "Genesis" -> W.EpochLength -> ByronBlock -> W.Block
 fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of

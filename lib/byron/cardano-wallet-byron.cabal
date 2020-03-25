@@ -55,12 +55,12 @@ library
     , memory
     , network
     , network-mux
+    , ouroboros-consensus
     , ouroboros-consensus-byron
     , ouroboros-network
     , ouroboros-network-framework
     , process
     , retry
-    , serialise
     , temporary
     , text
     , text-class
@@ -143,6 +143,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.Wallet.Byron.CompatibilitySpec
       Cardano.Wallet.Byron.TransactionSpec
 
 test-suite cardano-node-integration
