@@ -54,6 +54,7 @@ module Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
+    , emptyByronWalletFromXPrvWith
     , getFromResponse
     , getFromResponseList
     , json
@@ -86,6 +87,7 @@ module Test.Integration.Framework.DSL
     , eventually
     , eventuallyUsingDelay
     , fixturePassphrase
+    , fixturePassphraseEncrypted
     , waitForNextEpoch
     , waitAllTxsInLedger
     , toQueryString
@@ -601,6 +603,24 @@ emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
 
+emptyByronWalletFromXPrvWith
+    :: forall t. ()
+    => Context t
+    -> String
+    -> (Text, Text, Text)
+    -> IO ApiByronWallet
+emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "encrypted_root_private_key": #{key},
+            "passphrase_hash": #{passHash},
+            "style": #{style}
+        }|]
+    r <- request @ApiByronWallet ctx
+        (Link.postWallet @'Byron) Default payload
+    expectResponseCode @IO HTTP.status201 r
+    return (getFromResponse id r)
+
 -- | Create an empty wallet
 emptyWallet :: Context t -> IO ApiWallet
 emptyWallet ctx = do
@@ -639,10 +659,18 @@ fixtureRawTx ctx (addr, amt) =
         BL.fromStrict <$> build (addr, Coin $ fromIntegral amt)
 
 -- | Default passphrase used for fixture wallets
-fixturePassphrase
-    :: Text
+fixturePassphrase :: Text
 fixturePassphrase =
     "cardano-wallet"
+
+-- | fixturePassphrase encrypted by Scrypt function
+fixturePassphraseEncrypted :: Text
+fixturePassphraseEncrypted =
+    "31347c387c317c2b6a6f747446495a6a566d586f43374c6c54425a576c\
+    \597a425834515177666475467578436b4d485569733d7c78324d646738\
+    \49554a3232507235676531393575445a76583646552b7757395a6a6a2f\
+    \51303054356c654751794279732f7662753367526d726c316c657a7150\
+    \43676d364e6758476d4d2f4b6438343265304b4945773d3d"
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet

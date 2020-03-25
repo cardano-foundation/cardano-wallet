@@ -175,6 +175,7 @@ test-suite cardano-node-integration
     , http-client
     , http-types
     , iohk-monitoring
+    , memory
     , temporary
     , text
   build-tools:

@@ -271,15 +271,13 @@ x-walletPassphrase: &walletPassphrase
 
 x-walletPassphraseHash: &walletPassphraseHash
   description: |
-    A hash of master passphrase. The hash should be a 64-byte output of a Scrypt function with the following parameters:
+    A hash of master passphrase. The hash should be an output of a Scrypt function with the following parameters:
     - logN = 14
     - r = 8
     - p = 1
   type: string
   format: hex
-  minLength: 128
-  maxLength: 128
-  example: 3be2ead8e3c3be2ea67c41a6e898ceecddeecd88585d11d15d8733f7ad1adbaf3c1570d8e3c67c41a6e898ceecddeecd88585d11d15d8733f7ad1adbaf3c1570
+  example: 31347c387c317c574342652b796362417576356c2b4258676a344a314c6343675375414c2f5653393661364e576a2b7550766655513d3d7c2f376738486c59723174734e394f6e4e753253302b6a65515a6b5437316b45414941366a515867386539493d
 
 x-walletEncryptedRootPrivateKey: &walletEncryptedRootPrivateKey
   description: |

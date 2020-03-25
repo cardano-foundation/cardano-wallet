@@ -149,7 +149,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
-    , hashFromText
     , isValidCoin
     , unsafeEpochNo
     )
@@ -397,7 +396,7 @@ data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
     -- ^ A root private key hex-encoded, encrypted using a given passphrase.
     -- The underlying key should contain: private key, chain code, and public key
     , passphraseHash :: !(ApiT (Hash "encryption"))
-    -- ^ A hash of master passphrase. The hash should be a 64-byte output of a
+    -- ^ A hash of master passphrase. The hash should be an output of a
     -- Scrypt function with the following parameters:
     -- - logN = 14
     -- - r = 8
@@ -686,7 +685,14 @@ instance ToText (ApiT XPrv) where
         . getApiT
 
 instance FromText (ApiT (Hash "encryption"))  where
-    fromText = fmap ApiT . hashFromText 64
+    fromText txt = case convertFromBase Base16 $ T.encodeUtf8 txt of
+        Right bytes -> Right $ ApiT $ Hash bytes
+        Left _ -> textDecodingError
+      where
+        textDecodingError = Left $ TextDecodingError $ unwords
+            [ "Invalid encrypted passphrase:"
+            , "expecting a hex-encoded value."
+            ]
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
