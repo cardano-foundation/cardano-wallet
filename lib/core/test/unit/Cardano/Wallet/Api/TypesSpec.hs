@@ -1091,7 +1091,7 @@ instance Arbitrary WalletPostData where
 instance Arbitrary ByronWalletFromXPrvPostData where
     arbitrary = do
         n <- arbitrary
-        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vectorOf 128 arbitrary
+        rootXPrv <- ApiT . unsafeXPrv . BS.pack <$> vector 128
         bytesNumber <- choose (64,100)
         h <- ApiT . Hash . B8.pack <$> replicateM bytesNumber arbitrary
         pure $ ByronWalletFromXPrvPostData n rootXPrv h

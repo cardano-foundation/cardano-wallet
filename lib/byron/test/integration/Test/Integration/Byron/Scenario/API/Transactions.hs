@@ -28,8 +28,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PassphraseScheme (..)
     , PaymentAddress (..)
     , hex
+    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
@@ -90,7 +92,6 @@ import Test.Integration.Framework.TestData
     , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
-    , errMsg403WrongPass
     , errMsg403WrongPass
     , errMsg404NoWallet
     )
@@ -520,9 +521,10 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
 
     -- MORE SETUP
     let (Right seed) = fromMnemonic @'[12] (mnemonicToText mnemonics)
+    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
     let rootXPrv = T.decodeUtf8 $ hex $ getKey $
             generateKeyFromSeed seed
-            (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+            (preparePassphrase EncryptWithScrypt rawPassd)
 
     -- ACTION
     wDestRestored <- emptyByronWalletFromXPrvWith ctx "random"
@@ -551,9 +553,10 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
     let amnt = 100_000 :: Natural
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
     let (Right seed) = fromMnemonic @'[12] mnemonics
+    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
     let rootXPrv = T.decodeUtf8 $ hex $ getKey $
             generateKeyFromSeed seed
-            (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+            (preparePassphrase EncryptWithScrypt rawPassd)
     wSrc <- emptyByronWalletFromXPrvWith ctx "random"
             ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
     (wDest, payment) <- do
@@ -610,9 +613,10 @@ scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     -- SETUP
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
     let (Right seed) = fromMnemonic @'[12] mnemonics
+    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
     let rootXPrv = T.decodeUtf8 $ hex $ getKey $
             generateKeyFromSeed seed
-            (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+            (preparePassphrase EncryptWithScrypt rawPassd)
     let passHashCorrupted = T.replicate 100 "0"
     let amnt = 100_000 :: Natural
     (_, payment) <- do
