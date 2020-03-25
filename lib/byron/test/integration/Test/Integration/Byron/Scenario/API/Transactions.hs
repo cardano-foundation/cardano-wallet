@@ -91,6 +91,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg403WrongPass
     , errMsg404NoWallet
     )
 
@@ -161,7 +162,7 @@ spec = do
     describe "BYRON_RESTORATION" $ do
         scenario_RESTORE_01 @n fixtureRandomWallet
         scenario_RESTORE_02 @n (fixtureRandomWalletAddrs @n)
-        scenario_RESTORE_03 @n
+        scenario_RESTORE_03 @n (fixtureRandomWalletAddrs @n)
 --
 -- Scenarios
 --
@@ -512,16 +513,22 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
                 (`shouldBe` Quantity (faucetAmt + amnt))
             ]
 
+    -- ACTION
     rd1 <- request
            @ApiByronWallet ctx (Link.deleteWallet @'Byron wDest) Default Empty
     expectResponseCode @IO HTTP.status204 rd1
 
+    -- MORE SETUP
     let (Right seed) = fromMnemonic @'[12] (mnemonicToText mnemonics)
     let rootXPrv = T.decodeUtf8 $ hex $ getKey $
             generateKeyFromSeed seed
             (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
+
+    -- ACTION
     wDestRestored <- emptyByronWalletFromXPrvWith ctx "random"
             ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
+
+    -- ASSERTIONS
     eventually "destination balance increases" $ do
         rDest <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wDestRestored) Default Empty
@@ -549,7 +556,6 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
             (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
     wSrc <- emptyByronWalletFromXPrvWith ctx "random"
             ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
-
     (wDest, payment) <- do
         (wDest, addrs) <- fixtureTarget ctx
         pure (wDest, mkPayment @n (head addrs) amnt)
@@ -598,8 +604,9 @@ scenario_RESTORE_03
         ( DecodeAddress n
         , EncodeAddress n
         )
-    => SpecWith (Context t)
-scenario_RESTORE_03 = it title $ \ctx -> do
+    => (Context t -> IO (ApiByronWallet, [Address]))
+    -> SpecWith (Context t)
+scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     -- SETUP
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
     let (Right seed) = fromMnemonic @'[12] mnemonics
@@ -607,16 +614,33 @@ scenario_RESTORE_03 = it title $ \ctx -> do
             generateKeyFromSeed seed
             (Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase)
     let passHashCorrupted = T.replicate 100 "0"
+    let amnt = 100_000 :: Natural
+    (_, payment) <- do
+        (wDest, addrs) <- fixtureTarget ctx
+        pure (wDest, mkPayment @n (head addrs) amnt)
+
+    -- ACTION
     wSrc <- emptyByronWalletFromXPrvWith ctx "random"
             ("Byron Wallet Restored", rootXPrv, passHashCorrupted)
     rSrc <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wSrc) Default Empty
+    -- ASSERTIONS
     verify rSrc
         [ expectField (#balance . #available)
           (`shouldBe` Quantity faucetAmt)
         ]
+
+    -- ACTION
+    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    -- ASSERTIONS
+    verify r
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage errMsg403WrongPass
+        ]
+
   where
-    title = "BYRON_RESTORE_03 - restoring wallet from corrupted hash gives proper balance"
+    title = "BYRON_RESTORE_03 - restoring wallet from corrupted hash gives\
+            \ proper balance but sending tx fails"
 
 
 --
