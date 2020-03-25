@@ -158,7 +158,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonicError (..)
     , Index (..)
     , NatVals (..)
-    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
@@ -1136,15 +1135,8 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
-        let tryMainnet = fromText @(AddressAmount 'Mainnet)
-        let tryTestnet = fromText @(AddressAmount ('Testnet 0))
-
-        wPayments <- case traverse tryMainnet wAddressAmounts of
-            Right a -> pure (toJSON a)
-            Left e -> case traverse tryTestnet wAddressAmounts of
-                Right a -> pure (toJSON a)
-                Left{}  -> fail (getTextDecodingError e)
-
+        wPayments <- either (fail . getTextDecodingError) pure $
+            traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
@@ -1174,15 +1166,8 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
-        let tryMainnet = fromText @(AddressAmount 'Mainnet)
-        let tryTestnet = fromText @(AddressAmount ('Testnet 0))
-
-        wPayments <- case traverse tryMainnet wAddressAmounts of
-            Right a -> pure (toJSON a)
-            Left e -> case traverse tryTestnet wAddressAmounts of
-                Right a -> pure (toJSON a)
-                Left{}  -> fail (getTextDecodingError e)
-
+        wPayments <- either (fail . getTextDecodingError) pure $
+            traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
@@ -1331,7 +1316,7 @@ cmdStakePool mkClient =
         <> cmdStakePoolList mkClient
 
 -- | Arguments for 'stake-pool list' command
-data StakePoolListArgs = StakePoolListArgs
+newtype StakePoolListArgs = StakePoolListArgs
     { _port :: Port "Wallet"
     }
 
@@ -1635,7 +1620,7 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     )
   where
     typeOptions = string <$>
-        ( "Any of the following (default:" <> T.unpack (toText defaultStyle) <> ")"
+        ( "Any of the following (default: " <> T.unpack (toText defaultStyle) <> ")"
         ) : map prettyStyle accepted
 
     prettyStyle s =

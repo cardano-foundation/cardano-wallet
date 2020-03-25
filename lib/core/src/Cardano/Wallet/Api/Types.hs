@@ -339,12 +339,12 @@ data ApiEpochInfo = ApiEpochInfo
     } deriving (Eq, Generic, Show)
 
 newtype ApiSelectCoinsData (n :: NetworkDiscriminant) = ApiSelectCoinsData
-    { payments :: NonEmpty (AddressAmount n)
+    { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
-    , outputs :: !(NonEmpty (AddressAmount n))
+    , outputs :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -469,13 +469,13 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-data PostTransactionData n = PostTransactionData
-    { payments :: !(NonEmpty (AddressAmount n))
+data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
+    { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-newtype PostTransactionFeeData n = PostTransactionFeeData
-    { payments :: (NonEmpty (AddressAmount n))
+newtype PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
+    { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -515,7 +515,7 @@ newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
 
-data ApiTransaction n = ApiTransaction
+data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
@@ -523,17 +523,17 @@ data ApiTransaction n = ApiTransaction
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-    , outputs :: ![AddressAmount n]
+    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
-data ApiTxInput n = ApiTxInput
-    { source :: !(Maybe (AddressAmount n))
+data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
+    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
 
-data AddressAmount (n :: NetworkDiscriminant) = AddressAmount
-    { address :: !(ApiT Address, Proxy n)
+data AddressAmount addr = AddressAmount
+    { address :: !addr
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -1099,7 +1099,7 @@ instance FromJSON ApiNetworkTip where
 instance ToJSON ApiNetworkTip where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (AddressAmount n) where
+instance FromJSON a => FromJSON (AddressAmount a) where
     parseJSON bytes = do
         v@(AddressAmount _ (Quantity c)) <-
             genericParseJSON defaultRecordTypeOptions bytes
@@ -1109,7 +1109,7 @@ instance DecodeAddress n => FromJSON (AddressAmount n) where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (getCoin maxBound) <> " lovelace."
 
-instance EncodeAddress n => ToJSON (AddressAmount n) where
+instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiTransaction n) where
@@ -1238,21 +1238,15 @@ instance ToJSON ApiByronWalletMigrationInfo where
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
 
-instance DecodeAddress n => FromText (AddressAmount n) where
+instance FromText (AddressAmount Text) where
     fromText text = do
         let err = Left . TextDecodingError $ "Parse error. Expecting format \
             \\"<amount>@<address>\" but got " <> show text
         case split (=='@') text of
             [] -> err
             [_] -> err
-            [l, r] -> AddressAmount
-                <$> fmap ((,Proxy @n) . ApiT) (decodeAddress @n r)
-                <*> fromText l
+            [l, r] -> AddressAmount r <$> fromText l
             _ -> err
-
-instance EncodeAddress n => ToText (AddressAmount n) where
-    toText (AddressAmount (ApiT addr, _) coins) =
-        toText coins <> "@" <> encodeAddress @n addr
 
 instance FromText PostExternalTransactionData where
     fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of

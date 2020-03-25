@@ -1019,7 +1019,7 @@ selectCoins
         )
     => Context t
     -> w
-    -> NonEmpty (AddressAmount n)
+    -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
     -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {

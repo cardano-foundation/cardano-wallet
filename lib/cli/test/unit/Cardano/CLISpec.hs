@@ -30,7 +30,6 @@ import Cardano.CLI
     , cmdTransaction
     , cmdWallet
     , cmdWalletCreate
-    , defaultDiscriminantOption
     , hGetLine
     , hGetSensitiveLine
     , mapKey
@@ -133,9 +132,9 @@ spec = do
     let parser = cli $ mempty
             <> cmdMnemonic
             <> cmdWallet cmdWalletCreate walletClient
-            <> cmdTransaction defaultDiscriminantOption transactionClient walletClient
-            <> cmdAddress defaultDiscriminantOption addressClient
-            <> cmdStakePool defaultDiscriminantOption stakePoolClient
+            <> cmdTransaction transactionClient walletClient
+            <> cmdAddress addressClient
+            <> cmdStakePool stakePoolClient
             <> cmdNetwork networkClient
             <> cmdKey
 
@@ -364,15 +363,12 @@ spec = do
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction create ([--testnet NETWORK_MAGIC] |"
-            , "                           [--mainnet]) [--port INT] WALLET_ID"
+            [ "Usage:  transaction create [--port INT] WALLET_ID"
             , "                           --payment PAYMENT"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --payment PAYMENT        address to send to and amount to send"
@@ -381,15 +377,11 @@ spec = do
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction fees ([--testnet NETWORK_MAGIC] |"
-            , "                         [--mainnet]) [--port INT] WALLET_ID"
-            , "                         --payment PAYMENT"
+            [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --payment PAYMENT        address to send to and amount to send"
@@ -398,16 +390,12 @@ spec = do
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction list ([--testnet NETWORK_MAGIC] |"
-            , "                         [--mainnet]) [--port INT] WALLET_ID"
-            , "                         [--start TIME] [--end TIME]"
-            , "                         [--order ORDER]"
+            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME]"
+            , "                         [--end TIME] [--order ORDER]"
             , "  List the transactions associated with a wallet."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --start TIME             start time (ISO 8601 date-and-time"
@@ -421,14 +409,11 @@ spec = do
             ]
 
         ["transaction", "submit", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction submit ([--testnet NETWORK_MAGIC] |"
-            , "                           [--mainnet]) [--port INT] BINARY_BLOB"
+            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
             , "  Submit an externally-signed transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  BINARY_BLOB              hex-encoded binary blob of"
@@ -436,15 +421,11 @@ spec = do
             ]
 
         ["transaction", "forget", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction forget ([--testnet NETWORK_MAGIC] |"
-            , "                           [--mainnet]) [--port INT] WALLET_ID"
-            , "                           TRANSACTION_ID"
+            [ "Usage:  transaction forget [--port INT] WALLET_ID TRANSACTION_ID"
             , "  Forget a pending transaction with specified id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]
@@ -462,14 +443,11 @@ spec = do
             ]
 
         ["address", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  address list ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                     [--port INT] [--state STRING] WALLET_ID"
+            [ "Usage:  address list [--port INT] [--state STRING] WALLET_ID"
             , "  List all known addresses of a given wallet."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
@@ -477,14 +455,11 @@ spec = do
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  stake-pool list ([--testnet NETWORK_MAGIC] | [--mainnet])"
-            , "                        [--port INT]"
+            [ "Usage:  stake-pool list [--port INT]"
             , "  List all known stake pools."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --testnet NETWORK_MAGIC  A required network magic (e.g."
-            , "                           1097911063)"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             ]
@@ -541,9 +516,9 @@ spec = do
             , "  -h,--help                Show this help text"
             , "  --wallet-style WALLET_STYLE"
             , "                           Any of the following (default: icarus)"
-            , "                             icarus (15 words)"
-            , "                             trezor (12, 15, 18, 21 or 24 words)"
-            , "                             ledger (12, 15, 18, 21 or 24 words)"
+            , "                             icarus (15 mnemonic words)"
+            , "                             trezor (12, 15, 18, 21 or 24 mnemonic words)"
+            , "                             ledger (12, 15, 18, 21 or 24 mnemonic words)"
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`

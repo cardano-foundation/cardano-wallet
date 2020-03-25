@@ -309,7 +309,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
-            jsonRoundtripAndGolden $ Proxy @(AddressAmount ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
@@ -349,16 +349,12 @@ spec = do
             textRoundtrip $ Proxy @ApiEpochNumber
 
     describe "AddressAmount" $ do
-        it "fromText . toText === pure"
-            $ property
-            $ \(i :: AddressAmount ('Testnet 0)) ->
-                (fromText . toText) i === pure i
         it "fromText \"22323\"" $
             let err =
                     "Parse error. " <>
                     "Expecting format \"<amount>@<address>\" but got \"22323\""
             in
-                fromText @(AddressAmount ('Testnet 0)) "22323"
+                fromText @(AddressAmount Text) "22323"
                     === Left (TextDecodingError err)
 
     describe
@@ -476,7 +472,7 @@ spec = do
                 { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
-            |] `shouldBe` (Left @String @(AddressAmount ('Testnet 0)) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: invalid coin value: value has to be lower \
@@ -489,7 +485,7 @@ spec = do
                     ,"quantity":#{getCoin maxBound + 1}
                     }
                 }
-            |] `shouldBe` (Left @String @(AddressAmount ('Testnet 0)) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "ApiT PoolId" $ do
             let msg = "Error in $: Invalid stake pool id: expecting a \
@@ -798,8 +794,8 @@ spec = do
         it "AddressAmount" $ property $ \x ->
             let
                 x' = AddressAmount
-                    { address = address (x :: AddressAmount ('Testnet 0))
-                    , amount = amount (x :: AddressAmount ('Testnet 0))
+                    { address = address (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    , amount = amount (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -975,9 +971,9 @@ negativeTest _proxy bytes msg = it ("decodeAddress failure: " <> msg) $
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (Proxy ('Testnet 0)) where
+instance Arbitrary (Proxy (n :: NetworkDiscriminant)) where
     shrink _ = []
-    arbitrary = pure Proxy
+    arbitrary = pure (Proxy @n)
 
 instance Arbitrary (ApiAddress t) where
     shrink _ = []
@@ -1366,10 +1362,8 @@ instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
 
-instance Arbitrary (AddressAmount t) where
-    arbitrary = AddressAmount
-        <$> fmap (, Proxy @t) arbitrary
-        <*> arbitrary
+instance Arbitrary a => Arbitrary (AddressAmount a) where
+    arbitrary = applyArbitrary2 AddressAmount
     shrink _ = []
 
 instance Arbitrary (PostTransactionData t) where
