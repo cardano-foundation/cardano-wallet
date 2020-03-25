@@ -43,7 +43,6 @@ import Cardano.CLI
     , cmdVersion
     , cmdWallet
     , databaseOption
-    , defaultDiscriminantOption
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
@@ -151,10 +150,7 @@ main = withUtf8Encoding $ do
         <> cmdMnemonic
         <> cmdKey
         <> cmdWallet cmdByronWalletCreate byronWalletClient
-        <> cmdTransaction
-            defaultDiscriminantOption
-            byronTransactionClient
-            byronWalletClient
+        <> cmdTransaction byronTransactionClient byronWalletClient
         <> cmdNetwork networkClient
         <> cmdVersion
 

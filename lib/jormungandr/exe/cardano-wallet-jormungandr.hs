@@ -43,7 +43,6 @@ import Cardano.CLI
     , cmdWalletCreate
     , databaseOption
     , enableWindowsANSI
-    , forceTestnetOption
     , getDataDir
     , helperTracing
     , hostPreferenceOption
@@ -177,9 +176,9 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdWallet cmdWalletCreate walletClient
-        <> cmdTransaction forceTestnetOption transactionClient walletClient
-        <> cmdAddress forceTestnetOption addressClient
-        <> cmdStakePool forceTestnetOption stakePoolClient
+        <> cmdTransaction transactionClient walletClient
+        <> cmdAddress addressClient
+        <> cmdStakePool stakePoolClient
         <> cmdNetwork networkClient
         <> cmdVersion
         <> cmdKey

@@ -54,8 +54,6 @@ module Cardano.CLI
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
-    , defaultDiscriminantOption
-    , forceTestnetOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -129,6 +127,7 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
+    , AddressAmount
     , AllowedMnemonics
     , ApiAccountPublicKey
     , ApiByronWallet
@@ -139,12 +138,8 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
-    , DecodeAddress
-    , EncodeAddress
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostTransactionData (..)
-    , PostTransactionFeeData (..)
     , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -181,14 +176,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Hash
-    , ProtocolMagic (..)
-    , SortOrder
-    , SyncTolerance (..)
-    , WalletId
-    , WalletName
-    )
+    ( AddressState, Hash, SortOrder, SyncTolerance (..), WalletId, WalletName )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -202,7 +190,7 @@ import Control.Monad
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
-    ( ToJSON, (.:) )
+    ( ToJSON (..), (.:), (.=) )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -236,7 +224,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( SomeNat (..), Symbol, someNatVal )
+    ( Symbol )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -257,7 +245,6 @@ import Options.Applicative
     , command
     , customExecParser
     , eitherReader
-    , flag
     , flag'
     , footer
     , header
@@ -1114,90 +1101,101 @@ cmdWalletGetUtxoStatistics mkClient =
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    => TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransaction opts mkTxClient mkWalletClient =
+cmdTransaction mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
         <> progDesc "Manage transactions."
   where
     cmds = subparser $ mempty
-        <> cmdTransactionCreate opts mkTxClient mkWalletClient
-        <> cmdTransactionFees opts mkTxClient mkWalletClient
-        <> cmdTransactionList opts mkTxClient
-        <> cmdTransactionSubmit opts mkTxClient
-        <> cmdTransactionForget opts mkTxClient
+        <> cmdTransactionCreate mkTxClient mkWalletClient
+        <> cmdTransactionFees mkTxClient mkWalletClient
+        <> cmdTransactionList mkTxClient
+        <> cmdTransactionSubmit mkTxClient
+        <> cmdTransactionForget mkTxClient
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _id :: WalletId
     , _payments :: NonEmpty Text
     }
 
 cmdTransactionCreate
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    => TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionCreate discriminantOption mkTxClient mkWalletClient =
+cmdTransactionCreate mkTxClient mkWalletClient =
     command "create" $ info (helper <*> cmd) $ mempty
         <> progDesc "Create and submit a new transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs (SomeNetworkDiscriminant proxy) wPort wId wRaw) = do
-        wPayments <- either (fail . getTextDecodingError) pure $
-            traverse fromText wRaw
+    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        let tryMainnet = fromText @(AddressAmount 'Mainnet)
+        let tryTestnet = fromText @(AddressAmount ('Testnet 0))
+
+        wPayments <- case traverse tryMainnet wAddressAmounts of
+            Right a -> pure (toJSON a)
+            Left e -> case traverse tryTestnet wAddressAmounts of
+                Right a -> pure (toJSON a)
+                Left{}  -> fail (getTextDecodingError e)
+
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
-                wPwd <- getPassphrase "Please enter your passphrase: "
+                wPwd <- getPassphrase @"raw" "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
-                    (mkTxClient proxy)
+                    mkTxClient
                     (ApiT wId)
-                    (PostTransactionData wPayments (ApiT wPwd))
+                    (Aeson.object
+                        [ "payments" .= wPayments
+                        , "passphrase" .= ApiT wPwd
+                        ]
+                    )
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
 cmdTransactionFees
     :: ToJSON wallet
-    => Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    => TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionFees discriminantOption mkTxClient mkWalletClient =
+cmdTransactionFees mkTxClient mkWalletClient =
     command "fees" $ info (helper <*> cmd) $ mempty
         <> progDesc "Estimate fees for a transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs (SomeNetworkDiscriminant proxy) wPort wId wRaw) = do
-        wPayments <- either (fail . getTextDecodingError) pure $
-            traverse fromText wRaw
+    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        let tryMainnet = fromText @(AddressAmount 'Mainnet)
+        let tryTestnet = fromText @(AddressAmount ('Testnet 0))
+
+        wPayments <- case traverse tryMainnet wAddressAmounts of
+            Right a -> pure (toJSON a)
+            Left e -> case traverse tryTestnet wAddressAmounts of
+                Right a -> pure (toJSON a)
+                Left{}  -> fail (getTextDecodingError e)
+
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
                 runClient wPort Aeson.encodePretty $ postTransactionFee
-                    (mkTxClient proxy)
+                    mkTxClient
                     (ApiT wId)
-                    (PostTransactionFeeData wPayments)
+                    (Aeson.object [ "payments" .= wPayments ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
 -- | Arguments for 'transaction list' command.
 data TransactionListArgs = TransactionListArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _walletId :: WalletId
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
@@ -1205,23 +1203,21 @@ data TransactionListArgs = TransactionListArgs
     }
 
 cmdTransactionList
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    :: TransactionClient
     -> Mod CommandFields (IO ())
-cmdTransactionList discriminantOption mkClient =
+cmdTransactionList mkTxClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List the transactions associated with a wallet."
   where
     cmd = fmap exec $ TransactionListArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
-    exec (TransactionListArgs (SomeNetworkDiscriminant proxy) wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
         runClient wPort Aeson.encodePretty $ listTransactions
-            (mkClient proxy)
+            mkTxClient
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
@@ -1229,50 +1225,44 @@ cmdTransactionList discriminantOption mkClient =
 
 -- | Arguments for 'transaction submit' command
 data TransactionSubmitArgs = TransactionSubmitArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _payload :: PostExternalTransactionData
     }
 
 cmdTransactionSubmit
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    :: TransactionClient
     -> Mod CommandFields (IO ())
-cmdTransactionSubmit discriminantOption mkClient =
+cmdTransactionSubmit mkTxClient =
     command "submit" $ info (helper <*> cmd) $ mempty
         <> progDesc "Submit an externally-signed transaction."
   where
     cmd = fmap exec $ TransactionSubmitArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> transactionSubmitPayloadArgument
-    exec (TransactionSubmitArgs (SomeNetworkDiscriminant proxy) wPort wPayload) = do
+    exec (TransactionSubmitArgs wPort wPayload) = do
         runClient wPort Aeson.encodePretty $
-            postExternalTransaction (mkClient proxy) wPayload
+            postExternalTransaction mkTxClient wPayload
 
 -- | Arguments for 'transaction forget' command
 data TransactionForgetArgs = TransactionForgetArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _wid :: WalletId
     , _txid :: TxId
     }
 
 cmdTransactionForget
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (EncodeAddress n, DecodeAddress n) => Proxy n -> TransactionClient n)
+    :: TransactionClient
     -> Mod CommandFields (IO ())
-cmdTransactionForget discriminantOption mkClient =
+cmdTransactionForget mkClient =
     command "forget" $ info (helper <*> cmd) $ mempty
         <> progDesc "Forget a pending transaction with specified id."
   where
     cmd = fmap exec $ TransactionForgetArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> walletIdArgument
         <*> transactionIdArgument
-    exec (TransactionForgetArgs (SomeNetworkDiscriminant proxy) wPort wId txId) = do
-        runClient wPort (const mempty) $ deleteTransaction (mkClient proxy)
+    exec (TransactionForgetArgs wPort wId txId) = do
+        runClient wPort (const mempty) $ deleteTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
 
@@ -1281,39 +1271,35 @@ cmdTransactionForget discriminantOption mkClient =
 -------------------------------------------------------------------------------}
 
 cmdAddress
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (DecodeAddress n) => Proxy n -> AddressClient n)
+    :: AddressClient
     -> Mod CommandFields (IO ())
-cmdAddress opts mkClient =
+cmdAddress mkClient =
     command "address" $ info (helper <*> cmds) $ mempty
         <> progDesc "Manage addresses."
   where
     cmds = subparser $ mempty
-        <> cmdAddressList opts mkClient
+        <> cmdAddressList mkClient
 
 -- | Arguments for 'address list' command
 data AddressListArgs = AddressListArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     , _state :: Maybe AddressState
     , _id :: WalletId
     }
 
 cmdAddressList
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (DecodeAddress n) => Proxy n -> AddressClient n)
+    :: AddressClient
     -> Mod CommandFields (IO ())
-cmdAddressList discriminantOption mkClient =
+cmdAddressList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known addresses of a given wallet."
   where
     cmd = fmap exec $ AddressListArgs
-        <$> discriminantOption
-        <*> portOption
+        <$> portOption
         <*> optional addressStateOption
         <*> walletIdArgument
-    exec (AddressListArgs (SomeNetworkDiscriminant proxy) wPort wState wId) = do
-        runClient wPort Aeson.encodePretty $ listAddresses (mkClient proxy)
+    exec (AddressListArgs wPort wState wId) = do
+        runClient wPort Aeson.encodePretty $ listAddresses mkClient
             (ApiT wId)
             (ApiT <$> wState)
 
@@ -1335,35 +1321,31 @@ cmdVersion = command "version" $ info cmd $ mempty
 -------------------------------------------------------------------------------}
 
 cmdStakePool
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (DecodeAddress n) => Proxy n -> StakePoolClient n)
+    :: StakePoolClient
     -> Mod CommandFields (IO ())
-cmdStakePool opts mkClient =
+cmdStakePool mkClient =
     command "stake-pool" $ info (helper <*> cmds) $ mempty
         <> progDesc "Manage stake pools."
   where
     cmds = subparser $ mempty
-        <> cmdStakePoolList opts mkClient
+        <> cmdStakePoolList mkClient
 
 -- | Arguments for 'stake-pool list' command
 data StakePoolListArgs = StakePoolListArgs
-    { _discriminant :: SomeNetworkDiscriminant
-    , _port :: Port "Wallet"
+    { _port :: Port "Wallet"
     }
 
 cmdStakePoolList
-    :: Parser SomeNetworkDiscriminant
-    -> (forall n. (DecodeAddress n) => Proxy n -> StakePoolClient n)
+    :: StakePoolClient
     -> Mod CommandFields (IO ())
-cmdStakePoolList discriminantOption mkClient =
+cmdStakePoolList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
         <> progDesc "List all known stake pools."
   where
     cmd = fmap exec $ StakePoolListArgs
-        <$> discriminantOption
-        <*> portOption
-    exec (StakePoolListArgs (SomeNetworkDiscriminant proxy) wPort) = do
-        runClient wPort Aeson.encodePretty $ listPools (mkClient proxy)
+        <$> portOption
+    exec (StakePoolListArgs wPort) = do
+        runClient wPort Aeson.encodePretty $ listPools mkClient
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'
@@ -1659,43 +1641,6 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     prettyStyle s =
         "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
--- | --mainnet | (--testnet=NETWORK_MAGIC), default: --mainnet
-defaultDiscriminantOption :: Parser SomeNetworkDiscriminant
-defaultDiscriminantOption =
-    testnetOption <|> mainnetFlag
-  where
-    -- --mainnet
-    mainnetFlag = flag
-        (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-        (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-        (long "mainnet")
-
-    -- | --testnet=NETWORK_MAGIC
-    testnetOption
-        :: Parser SomeNetworkDiscriminant
-    testnetOption = fmap someTestnetDiscriminant $ optionT $ mempty
-        <> long "testnet"
-        <> metavar "NETWORK_MAGIC"
-        <> help "A required network magic (e.g. 1097911063)"
-
--- | A dummy 'Parser' for the ITN, fixed to 'Testnet'
-forceTestnetOption :: Parser SomeNetworkDiscriminant
-forceTestnetOption =
-    pure $ SomeNetworkDiscriminant $ Proxy @('Testnet 0)
-
-someTestnetDiscriminant
-    :: ProtocolMagic
-    -> SomeNetworkDiscriminant
-someTestnetDiscriminant (ProtocolMagic n) =
-    case someNatVal (fromIntegral n) of
-        Just (SomeNat proxy) ->
-            SomeNetworkDiscriminant $ mapProxy proxy
-        _ -> error "someTestnetDiscriminant: failed to convert \
-            \ProtocolMagic to SomeNat."
-  where
-    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
-    mapProxy _proxy = Proxy @('Testnet a)
-
 keyArgument :: Parser Text
 keyArgument = T.pack <$> (argument str (metavar "XPRV"))
 
@@ -1862,15 +1807,6 @@ instance FromText TxId where
       where
         err = TextDecodingError
             "A transaction ID should be a hex-encoded string of 64 characters."
-
-data SomeNetworkDiscriminant where
-    SomeNetworkDiscriminant
-        :: forall (n :: NetworkDiscriminant).
-            ( DecodeAddress n
-            , EncodeAddress n
-            )
-        => Proxy n
-        -> SomeNetworkDiscriminant
 
 {-------------------------------------------------------------------------------
                                   Logging

@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -90,10 +91,10 @@ import Prelude
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressT
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
-    , ApiCoinSelection
+    , ApiCoinSelectionT
     , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
@@ -101,18 +102,18 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiNetworkTip
     , ApiPoolId
-    , ApiSelectCoinsData
+    , ApiSelectCoinsDataT
     , ApiStakePool
     , ApiT
-    , ApiTransaction
+    , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
     , Iso8601Time
     , PostExternalTransactionData
-    , PostTransactionData
-    , PostTransactionFeeData
+    , PostTransactionDataT
+    , PostTransactionFeeDataT
     , SomeByronWalletPostData
     , WalletOrAccountPostData
     , WalletPutData
@@ -159,10 +160,6 @@ import Servant.API.Verbs
     , PutAccepted
     , PutNoContent
     )
-
-type family PostData wallet :: * where
-    PostData ApiWallet = WalletOrAccountPostData
-    PostData ApiByronWallet = SomeByronWalletPostData
 
 type ApiV2 n = "v2" :> Api n
 
@@ -254,7 +251,7 @@ type ListAddresses n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddress n]
+    :> Get '[JSON] [ApiAddressT n]
 
 {-------------------------------------------------------------------------------
                                Coin Selections
@@ -271,8 +268,8 @@ type SelectCoins n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "coin-selections"
     :> "random"
-    :> ReqBody '[JSON] (ApiSelectCoinsData n)
-    :> Post '[JSON] (ApiCoinSelection n)
+    :> ReqBody '[JSON] (ApiSelectCoinsDataT n)
+    :> Post '[JSON] (ApiCoinSelectionT n)
 
 {-------------------------------------------------------------------------------
                                   Transactions
@@ -290,8 +287,8 @@ type Transactions n =
 type CreateTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> ReqBody '[JSON] (PostTransactionData n)
-    :> PostAccepted '[JSON] (ApiTransaction n)
+    :> ReqBody '[JSON] (PostTransactionDataT n)
+    :> PostAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
 type ListTransactions n = "wallets"
@@ -300,13 +297,13 @@ type ListTransactions n = "wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
-    :> Get '[JSON] [ApiTransaction n]
+    :> Get '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "payment-fees"
-    :> ReqBody '[JSON] (PostTransactionFeeData n)
+    :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
@@ -338,7 +335,7 @@ type JoinStakePool n = "stake-pools"
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> PutAccepted '[JSON] (ApiTransaction n)
+    :> PutAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool n = "stake-pools"
@@ -346,7 +343,7 @@ type QuitStakePool n = "stake-pools"
     :> "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> DeleteAccepted '[JSON] (ApiTransaction n)
+    :> DeleteAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
 type DelegationFee = "wallets"
@@ -424,8 +421,8 @@ type ByronTransactions n =
 type CreateByronTransaction n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> ReqBody '[JSON] (PostTransactionData n)
-    :> PostAccepted '[JSON] (ApiTransaction n)
+    :> ReqBody '[JSON] (PostTransactionDataT n)
+    :> PostAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
 type ListByronTransactions n = "byron-wallets"
@@ -434,13 +431,13 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
-    :> Get '[JSON] [ApiTransaction n]
+    :> Get '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransactionFee
 type PostByronTransactionFee n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "payment-fees"
-    :> ReqBody '[JSON] (PostTransactionFeeData n)
+    :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
@@ -466,7 +463,7 @@ type MigrateByronWallet n = "byron-wallets"
     :> "migrations"
     :> Capture "targetWalletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
-    :> PostAccepted '[JSON] [ApiTransaction n]
+    :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
 type GetByronWalletMigrationInfo = "byron-wallets"
@@ -558,3 +555,11 @@ dbFactory
     => Lens' ctx (DBFactory IO s k)
 dbFactory =
     typed @(DBFactory IO s k)
+
+{-------------------------------------------------------------------------------
+                              Type Families
+-------------------------------------------------------------------------------}
+
+type family PostData wallet :: * where
+    PostData ApiWallet = WalletOrAccountPostData
+    PostData ApiByronWallet = SomeByronWalletPostData

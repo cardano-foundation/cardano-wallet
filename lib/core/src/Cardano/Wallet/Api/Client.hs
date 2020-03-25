@@ -4,6 +4,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -16,7 +17,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- This module provides a Servant client for the cardano-wallet V2 API.
+-- This module provides a half-typed Servant client for the cardano-wallet V2 API.
 --
 -- The functions in this module can be run with "Servant.Client.runClientM".
 
@@ -54,8 +55,9 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressT
     , ApiByronWallet
+    , ApiCoinSelectionT
     , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
@@ -63,24 +65,21 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiNetworkTip
     , ApiPoolId
+    , ApiSelectCoinsDataT
     , ApiStakePool
     , ApiT (..)
-    , ApiTransaction
+    , ApiTransactionT
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
-    , DecodeAddress
-    , EncodeAddress
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostTransactionData (..)
-    , PostTransactionFeeData (..)
+    , PostTransactionDataT
+    , PostTransactionFeeDataT
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, SortOrder, WalletId )
 import Control.Monad
@@ -91,6 +90,8 @@ import Servant
     ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( ClientM, client )
+
+import qualified Data.Aeson as Json
 
 {-------------------------------------------------------------------------------
                               Server Interaction
@@ -127,20 +128,20 @@ data WalletClient wallet = WalletClient
         -> ClientM NoContent
     }
 
-data TransactionClient n = TransactionClient
+data TransactionClient = TransactionClient
     { listTransactions
         :: ApiT WalletId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
-        -> ClientM [ApiTransaction n]
+        -> ClientM [ApiTransactionT Json.Value]
     , postTransaction
         :: ApiT WalletId
-        -> PostTransactionData n
-        -> ClientM (ApiTransaction n)
+        -> PostTransactionDataT Json.Value
+        -> ClientM (ApiTransactionT Json.Value)
     , postTransactionFee
         :: ApiT WalletId
-        -> PostTransactionFeeData n
+        -> PostTransactionFeeDataT Json.Value
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
@@ -151,25 +152,25 @@ data TransactionClient n = TransactionClient
         -> ClientM NoContent
     }
 
-newtype AddressClient n = AddressClient
+newtype AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
-        -> ClientM [ApiAddress n]
+        -> ClientM [Json.Value]
     }
 
-data StakePoolClient n = StakePoolClient
+data StakePoolClient = StakePoolClient
     { listPools
         :: ClientM [ApiStakePool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction n)
+        -> ClientM (ApiTransactionT Json.Value)
     , quitStakePool
         :: ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction n)
+        -> ClientM (ApiTransactionT Json.Value)
     }
 
 
@@ -232,19 +233,16 @@ byronWalletClient =
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 
-
 -- | Produces a 'TransactionClient t' working against the /wallets API.
 transactionClient
-    :: forall (n :: NetworkDiscriminant). (EncodeAddress n, DecodeAddress n)
-    => Proxy n
-    -> TransactionClient n
-transactionClient _ =
+    :: TransactionClient
+transactionClient =
     let
         _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
-            = client (Proxy @("v2" :> (Transactions n)))
+            = client (Proxy @("v2" :> (Transactions Json.Value)))
 
         _postExternalTransaction
             = client (Proxy @("v2" :> Proxy_))
@@ -259,16 +257,14 @@ transactionClient _ =
 
 -- | Produces a 'TransactionClient n' working against the /byron-wallets API.
 byronTransactionClient
-    :: forall (n :: NetworkDiscriminant). (EncodeAddress n, DecodeAddress n)
-    => Proxy n
-    -> TransactionClient n
-byronTransactionClient _ =
+    :: TransactionClient
+byronTransactionClient =
     let
         _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
-            = client (Proxy @("v2" :> (ByronTransactions n)))
+            = client (Proxy @("v2" :> (ByronTransactions Json.Value)))
 
         _postExternalTransaction
             = client (Proxy @("v2" :> Proxy_))
@@ -283,13 +279,11 @@ byronTransactionClient _ =
 
 -- | Produces an 'AddressClient n' working against the /wallets API
 addressClient
-    :: forall (n :: NetworkDiscriminant). (DecodeAddress n)
-    => Proxy n
-    -> AddressClient n
-addressClient _ =
+    :: AddressClient
+addressClient =
     let
         _listAddresses
-            = client (Proxy @("v2" :> Addresses n))
+            = client (Proxy @("v2" :> Addresses Json.Value))
     in
         AddressClient
             { listAddresses = _listAddresses
@@ -297,16 +291,14 @@ addressClient _ =
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API
 stakePoolClient
-    :: forall (n :: NetworkDiscriminant). (DecodeAddress n)
-    => Proxy n
-    -> StakePoolClient n
-stakePoolClient _ =
+    :: StakePoolClient
+stakePoolClient =
     let
         _listPools
             :<|> _joinStakePool
             :<|> _quitStakePool
             :<|> _delegationFee
-            = client (Proxy @("v2" :> StakePools n))
+            = client (Proxy @("v2" :> StakePools Json.Value))
     in
         StakePoolClient
             { listPools = _listPools
@@ -329,3 +321,14 @@ networkClient =
             , networkParameters = _networkParameters
             , networkClock = _networkClock
             }
+
+--
+-- Type families
+--
+
+type instance ApiAddressT Json.Value = Json.Value
+type instance ApiCoinSelectionT Json.Value = Json.Value
+type instance ApiSelectCoinsDataT Json.Value = Json.Value
+type instance ApiTransactionT Json.Value = Json.Value
+type instance PostTransactionDataT Json.Value = Json.Value
+type instance PostTransactionFeeDataT Json.Value = Json.Value

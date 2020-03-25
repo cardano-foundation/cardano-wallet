@@ -100,6 +100,14 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+
+    -- * Type families
+    , ApiAddressT
+    , ApiCoinSelectionT
+    , ApiSelectCoinsDataT
+    , ApiTransactionT
+    , PostTransactionDataT
+    , PostTransactionFeeDataT
     ) where
 
 import Prelude
@@ -1396,3 +1404,37 @@ gDecodeAddress decodeShelley text =
     tryBech32 = do
         (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
         dataPartToBytes dp
+
+-- NOTE:
+-- The type families below are useful to allow building more flexible API
+-- implementation from the definition above. In particular, the API client we
+-- use for the command-line doesn't really _care much_ about how addresses are
+-- serialized / deserialized. So, we use a poly-kinded type family here to allow
+-- defining custom types in the API client with a minimal overhead and, without
+-- having to actually rewrite any of the API definition.
+--
+-- We use an open type family so it can be extended by other module in places.
+type family ApiAddressT (n :: k) :: *
+type family ApiCoinSelectionT (n :: k) :: *
+type family ApiSelectCoinsDataT (n :: k) :: *
+type family ApiTransactionT (n :: k) :: *
+type family PostTransactionDataT (n :: k) :: *
+type family PostTransactionFeeDataT (n :: k) :: *
+
+type instance ApiAddressT (n :: NetworkDiscriminant) =
+    ApiAddress n
+
+type instance ApiCoinSelectionT (n :: NetworkDiscriminant) =
+    ApiCoinSelection n
+
+type instance ApiSelectCoinsDataT (n :: NetworkDiscriminant) =
+    ApiSelectCoinsData n
+
+type instance ApiTransactionT (n :: NetworkDiscriminant) =
+    ApiTransaction n
+
+type instance PostTransactionDataT (n :: NetworkDiscriminant) =
+    PostTransactionData n
+
+type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
+    PostTransactionFeeData n
