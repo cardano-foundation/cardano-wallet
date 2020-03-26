@@ -18,6 +18,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiByronWalletMigrationInfo (..)
+    , ApiUtxoStatistics
     , DecodeAddress
     , WalletStyle (..)
     )
@@ -62,6 +63,7 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
+    , expectWalletUTxO
     , faucetAmt
     , fixtureIcarusWallet
     , fixturePassphrase
@@ -419,6 +421,14 @@ spec = do
                 [ expectResponseCode @IO HTTP.status200
                 , expectField (#name . #getApiT . #getWalletName) (`shouldBe` updatedName)
                 ]
+
+    it "BYRON_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx ->
+        forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
+        w <- emptyByronWallet ctx
+        rStat <- request @ApiUtxoStatistics ctx
+                 (Link.getUTxOsStatistics @'Byron w) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
  where
      genMnemonics
         :: forall mw ent csz.
