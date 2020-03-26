@@ -35,7 +35,7 @@ import Test.Utils.Trace
 import Test.Utils.Windows
     ( nullFileName, pendingOnWindows )
 
-#if defined(mingw32_HOST_OS)
+#if defined(WINDOWS)
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.MVar
@@ -51,37 +51,38 @@ spec = describe "withShutdownHandler" $ do
     let decisecond = 100000
 
     describe "sanity tests" $ do
-        -- check file handle for input, allowing interruptions on windows
-        -- example
-        -- https://github.com/input-output-hk/ouroboros-network/blob/69d62063e59f966dc90bda5b4d0ac0a11efd3657/Win32-network/src/System/Win32/Async/Socket.hs#L46-L59
+        -- check file handle for input,
         let hWait :: Handle -> IO Bool
-#if defined(mingw32_HOST_OS)
-            hWait h = do
-                v <- newEmptyMVar :: IO (MVar (Either IOException Bool))
-                _ <- forkIO ((hWaitForInput h (-1) >>= putMVar v . Right) `catch` (putMVar v . Left))
-                takeMVar v >>= either throwIO pure
-#else
             hWait h = hWaitForInput h (-1)
-#endif
-        it "race hWaitForInput stdin" $ do
-            res <- race (hWait stdin) (threadDelay decisecond)
-            res `shouldBe` Right ()
 
-        it "race hWaitForInput pipe" $ withPipe $ \(a, _) -> do
-            res <- race (hWait a) (threadDelay decisecond)
-            res `shouldBe` Right ()
-
+        -- read a small amount from a file handle
         let getChunk :: Handle -> IO BS.ByteString
             getChunk h = BS.hGet h 1000
 
-        it "race stdin" $ do
+        it "race hWaitForInput stdin" $ do
+            res <- race (wrapIO $ hWait stdin) (threadDelay decisecond)
+            res `shouldBe` Right ()
+
+        it "race hWaitForInput pipe" $ withPipe $ \(a, _) -> do
+            res <- race (wrapIO $ hWait a) (threadDelay decisecond)
+            res `shouldBe` Right ()
+
+        it "race hGet stdin" $ do
             pendingOnWindows "deadlocks on windows"
             res <- race (getChunk stdin) (threadDelay decisecond)
             res `shouldBe` Right ()
 
-        it "race pipe" $ withPipe $ \(a, _) -> do
+        it "race hGet pipe" $ withPipe $ \(a, _) -> do
             pendingOnWindows "deadlocks on windows"
             res <- race (getChunk a) (threadDelay decisecond)
+            res `shouldBe` Right ()
+
+        it "race hGet stdin wrapped" $ do
+            res <- race (wrapIO $ getChunk stdin) (threadDelay decisecond)
+            res `shouldBe` Right ()
+
+        it "race hGet pipe wrapped" $ withPipe $ \(a, _) -> do
+            res <- race (wrapIO $ getChunk a) (threadDelay decisecond)
             res `shouldBe` Right ()
 
     it "action completes immediately" $ withPipe $ \(a, _) -> do
@@ -148,3 +149,17 @@ withPipe = bracket createPipe closePipe
 
 captureLogging' :: (Tracer IO msg -> IO a) -> IO [msg]
 captureLogging' = fmap fst . captureLogging
+
+-- | Run an IO action allowing interruptions on windows.
+-- Any 'IOException's are rethrown.
+-- The action should not throw any exception other than 'IOException'.
+-- Example: https://github.com/input-output-hk/ouroboros-network/blob/69d62063e59f966dc90bda5b4d0ac0a11efd3657/Win32-network/src/System/Win32/Async/Socket.hs#L46-L59
+wrapIO :: IO a -> IO a
+#if defined(WINDOWS)
+wrapIO action = do
+    v <- newEmptyMVar :: IO (MVar (Either IOException a))
+    _ <- forkIO ((action >>= putMVar v . Right) `catch` (putMVar v . Left))
+    takeMVar v >>= either throwIO pure
+#else
+wrapIO = id
+#endif
