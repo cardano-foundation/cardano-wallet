@@ -275,7 +275,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                         (`shouldBe` fromIntegral amtExp)
                 ]
 
-        rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wDest) Default Empty
+        rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley  wDest) Default Empty
         expectResponseCode @IO HTTP.status200 rStat
         expectWalletUTxO utxoExp (snd rStat)
 
@@ -319,7 +319,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         fmtResult "getWallet          " t2
 
         t3 <- measureApiLogs tvar
-            (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wal1) Default Empty)
+            (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
 
         fmtResult "getUTxOsStatistics " t3
 
