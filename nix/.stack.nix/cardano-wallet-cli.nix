@@ -74,7 +74,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."http-client" or (buildDepError "http-client"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."servant-server" or (buildDepError "servant-server"))
           (hsPkgs."servant-client" or (buildDepError "servant-client"))
           (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))
           (hsPkgs."text" or (buildDepError "text"))
