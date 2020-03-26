@@ -173,8 +173,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
     traceWith tr $ MsgStartMonitoring cursor
     follow nl trFollow cursor forward header >>= \case
         FollowInterrupted -> pure ()
-        FollowFatal -> pure ()
-        FollowException ->
+        FollowFailure ->
             monitorStakePools tr (block0, Quantity k) nl db
         FollowRollback point -> do
             traceWith tr $ MsgRollingBackTo point

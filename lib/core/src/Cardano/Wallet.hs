@@ -662,8 +662,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
     let forward bs h = run $ restoreBlocks @ctx @s @k ctx wid bs h
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowInterrupted -> pure ()
-        FollowFatal -> pure ()
-        FollowException ->
+        FollowFailure ->
             restoreWallet @ctx @s @t @k ctx wid
         FollowRollback point -> do
             rollbackBlocks @ctx @s @k ctx wid point

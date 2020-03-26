@@ -275,8 +275,7 @@ data FollowAction err
 data FollowExit
     = FollowInterrupted
     | FollowRollback SlotId
-    | FollowException
-    | FollowFatal
+    | FollowFailure
     deriving (Eq, Show)
 
 
@@ -330,11 +329,11 @@ follow nl tr cps yield header =
             Nothing | fromException e == Just AsyncCancelled -> do
                 return FollowInterrupted
             Just _ -> do
-                traceWith tr $ MsgFatalUnhandledException eT
-                return FollowFatal
+                traceWith tr $ MsgUnhandledException eT
+                return FollowFailure
             _ -> do
                 traceWith tr $ MsgUnhandledException eT
-                return FollowException
+                return FollowFailure
           where
             eT = T.pack (show e)
 
@@ -389,7 +388,6 @@ follow nl tr cps yield header =
 
 data FollowLog
     = MsgFollowAction (FollowAction String)
-    | MsgFatalUnhandledException Text
     | MsgUnhandledException Text
     | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
@@ -401,10 +399,8 @@ instance ToText FollowLog where
         MsgFollowAction action -> case action of
             ExitWith e -> "Failed to roll forward: " <> T.pack e
             _ -> T.pack $ "Follower says " <> show action
-        MsgFatalUnhandledException err ->
-            "Non-recoverable error following the chain: " <> err
         MsgUnhandledException err ->
-            "Recoverable error following the chain: " <> err
+            "Unexpected error following the chain: " <> err
         MsgNextBlockFailed e ->
             T.pack $ "Failed to get next blocks: " <> show e
         MsgSynced ->
@@ -422,7 +418,6 @@ instance DefineSeverity FollowLog where
     defineSeverity = \case
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
-        MsgFatalUnhandledException _ -> Error
         MsgUnhandledException _ -> Error
         MsgNextBlockFailed _ -> Warning
         MsgSynced -> Debug
