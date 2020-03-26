@@ -229,6 +229,9 @@ withNetworkLayer tr bp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
 
     -- NOTE: We keep a client connection running just for accessing the node tip.
+    -- It is safe to retry when the connection is lost here because this client
+    -- doesn't really do anything but sending dummy messages to get the node's
+    -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipQ <- atomically newTQueue
     let nodeTipClient = const $ mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
     let handlers = retryOnConnectionLost tr
@@ -469,10 +472,6 @@ failOnConnectionLost tr =
   where
     tr' = contramap MsgConnectionLost tr
 
--- There's a race-condition when starting the wallet and the node at the
--- same time: the socket might not be there yet when we try to open it.
--- In such case, we simply retry a bit later and hope it's there.
---
 -- When the node's connection vanished, we may also want to handle things in a
 -- slightly different way depending on whether we are a waller worker or just
 -- the node's tip thread.
@@ -482,6 +481,9 @@ handleIOException
     -> IOException
     -> IO Bool
 handleIOException tr onResourceVanished e
+    -- There's a race-condition when starting the wallet and the node at the
+    -- same time: the socket might not be there yet when we try to open it.
+    -- In such case, we simply retry a bit later and hope it's there.
     | isDoesNotExistError e =
         pure True
 
@@ -494,10 +496,9 @@ handleIOException tr onResourceVanished e
   where
     isResourceVanishedError = isInfixOf "resource vanished" . show
 
--- Recover from error when the connection with the node is lost.
 handleMuxError
     :: Tracer IO (Maybe IOException)
-    -> Bool
+    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
     -> MuxError
     -> IO Bool
 handleMuxError tr onResourceVanished = pure . errorType >=> \case
