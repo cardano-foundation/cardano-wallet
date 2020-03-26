@@ -5,7 +5,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -252,7 +251,7 @@ spec = do
             -- cannot update wallet name
             let newName = "new name"
             let payload = updateNamePayload newName
-            rup <- request @ApiWallet ctx (Link.putWallet wk) Default payload
+            rup <- request @ApiWallet ctx (Link.putWallet @'Shelley wk) Default payload
             expectResponseCode @IO HTTP.status200 rup
 
             rGet <- request @ApiWallet ctx

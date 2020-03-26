@@ -52,6 +52,7 @@ module Cardano.Wallet.Api
         , ListByronWallets
         , PostByronWallet
         , ForceResyncByronWallet
+        , PutByronWallet
 
     , ByronTransactions
         , CreateByronTransaction

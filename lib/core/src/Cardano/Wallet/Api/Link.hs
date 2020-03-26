@@ -192,13 +192,15 @@ listWallets = discriminate @style
     (endpoint @Api.ListByronWallets id)
 
 putWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-putWallet w =
-    endpoint @Api.PutWallet (wid &)
+putWallet w = discriminate @style
+    (endpoint @Api.PutWallet (wid &))
+    (endpoint @Api.PutByronWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
