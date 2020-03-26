@@ -53,6 +53,7 @@ module Cardano.Wallet.Api
         , PostByronWallet
         , ForceResyncByronWallet
         , PutByronWallet
+        , GetByronUTxOsStatistics
 
     , ByronTransactions
         , CreateByronTransaction
@@ -359,6 +360,7 @@ type ByronWallets =
     :<|> ListByronWallets
     :<|> ForceResyncByronWallet
     :<|> PutByronWallet
+    :<|> GetByronUTxOsStatistics
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
@@ -391,6 +393,13 @@ type PutByronWallet = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] WalletPutData
     :> Put '[JSON] ApiByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronUTxOsStatistics
+type GetByronUTxOsStatistics = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "statistics"
+    :> "utxos"
+    :> Get '[JSON] ApiUtxoStatistics
 
 {-------------------------------------------------------------------------------
                                  Byron Transactions

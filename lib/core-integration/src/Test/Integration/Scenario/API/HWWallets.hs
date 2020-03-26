@@ -299,7 +299,7 @@ spec = do
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey ctx pubKey
             rStat <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics wPub) Default Empty
+                (Link.getUTxOsStatistics @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 rStat
             expectWalletUTxO [] (snd rStat)
 

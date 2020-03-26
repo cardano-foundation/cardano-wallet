@@ -172,13 +172,15 @@ getWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getUTxOsStatistics
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-getUTxOsStatistics w =
-    endpoint @Api.GetUTxOsStatistics (wid &)
+getUTxOsStatistics w = discriminate @style
+    (endpoint @Api.GetUTxOsStatistics (wid &))
+    (endpoint @Api.GetByronUTxOsStatistics (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
