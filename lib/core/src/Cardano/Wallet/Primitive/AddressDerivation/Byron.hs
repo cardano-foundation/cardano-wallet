@@ -78,7 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), ProtocolMagic, invariant, testnetMagic )
+    ( Address (..), Hash (..), ProtocolMagic (..), invariant, testnetMagic )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -186,8 +186,19 @@ decodeLegacyAddress :: Maybe ProtocolMagic -> ByteString -> Maybe Address
 decodeLegacyAddress expectedMagic bytes = do
     payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes
     decodedMagic <- CBOR.deserialiseCbor CBOR.decodeProtocolMagicAttr payload
-    guard (decodedMagic == expectedMagic)
+    -- NOTE
+    -- Legacy / Byron addesses on Jörmungandr can have any network
+    -- discrimination. In practice, the genesis file only contains
+    -- Mainnet addresses whereas the network discrimination is set to testnet.
+    --
+    -- This create a very annoying discrepency where it becomes tricky to
+    -- enforce any sort of discrimination on legacy addresses. As a result, for
+    -- Jörmungandr (identified by as being 'Testnet 0'), we simply don't.
+    guard (expectedMagic == itnMagic || decodedMagic == expectedMagic)
     pure (Address bytes)
+  where
+    itnMagic = Just (ProtocolMagic 0)
+
 
 {-------------------------------------------------------------------------------
                                  Key generation
