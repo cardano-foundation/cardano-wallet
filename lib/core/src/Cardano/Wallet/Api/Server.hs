@@ -520,6 +520,14 @@ server byron icarus shelley spl ntp =
                 (byron , forceResyncWallet byron  wid tip)
                 (icarus, forceResyncWallet icarus wid tip)
              )
+        :<|> (\wid name -> withLegacyLayer wid
+                (byron , putWallet byron mkLegacyWallet wid name)
+                (icarus, putWallet icarus mkLegacyWallet wid name)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , getUTxOsStatistics byron wid)
+                (icarus, getUTxOsStatistics icarus wid)
+             )
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
@@ -643,6 +651,14 @@ byronServer byron icarus ntp =
         :<|> (\wid tip -> withLegacyLayer wid
                 (byron , forceResyncWallet byron  wid tip)
                 (icarus, forceResyncWallet icarus wid tip)
+             )
+        :<|> (\wid name -> withLegacyLayer wid
+                (byron , putWallet byron mkLegacyWallet wid name)
+                (icarus, putWallet icarus mkLegacyWallet wid name)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , getUTxOsStatistics byron wid)
+                (icarus, getUTxOsStatistics icarus wid)
              )
 
     byronTransactions :: Server (ByronTransactions n)
