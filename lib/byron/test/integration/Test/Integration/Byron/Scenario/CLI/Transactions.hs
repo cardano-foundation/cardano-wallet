@@ -43,6 +43,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -50,7 +52,7 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldContain )
+    ( SpecWith, describe, it, shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -58,10 +60,13 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , TxDescription (..)
     , between
+    , deleteTransactionViaCLI
+    , deleteWalletViaCLI
     , emptyIcarusWallet
     , emptyRandomWallet
     , eventually
     , expectCliField
+    , expectCliListField
     , expectValidJSON
     , faucetAmt
     , fixtureIcarusWallet
@@ -71,22 +76,32 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletWith
+    , getTxId
     , getWalletViaCLI
     , icarusAddresses
+    , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , randomAddresses
     , request
+    , unsafeGetTransactionTime
+    , utcIso8601ToText
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee
+    ( cmdOk
+    , errMsg400StartTimeLaterThanEndTime
+    , errMsg403Fee
     , errMsg403InputsDepleted
+    , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg404CannotFindTx
     , errMsg404NoWallet
+    , errMsg404NoWallet
+    , falseWalletIds
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -147,6 +162,315 @@ spec = describe "BYRON_TXS_CLI" $ do
     scenario_TRANS_ESTIMATE_04a @n
     scenario_TRANS_ESTIMATE_04b @n
     scenario_TRANS_ESTIMATE_04c @n
+
+    it "TRANS_LIST_01 - 0 txs on empty Byron wallet"
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
+            w <- emptyByronWallet ctx
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx [T.unpack $ w ^. walletId]
+            err `shouldBe` cmdOk
+            code `shouldBe` ExitSuccess
+            list <- expectValidJSON (Proxy @([ApiTransaction n])) out
+            length list `shouldBe` 0
+
+    it "TRANS_LIST_01 - Can list transactions on Byron Wallet"
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
+            w <- fixtureByronWallet ctx
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx [T.unpack $ w ^. walletId]
+            err `shouldBe` cmdOk
+            code `shouldBe` ExitSuccess
+            list <- expectValidJSON (Proxy @([ApiTransaction n])) out
+            length list `shouldBe` 10
+
+    it "TRANS_LIST_03 - Can order results"
+        $ \ctx -> forM_ [fixtureRandomWalletWith @n, fixtureIcarusWalletWith @n]
+        $ \fixtureByronWalletWith -> do
+            let a1 = Quantity $ sum $ replicate 10 1
+            let a2 = Quantity $ sum $ replicate 10 2
+            w <- fixtureByronWalletWith ctx $ mconcat
+                    [ replicate 10 1
+                    , replicate 10 2
+                    ]
+
+            let orderings =
+                    [ ( mempty
+                      , [ expectCliListField 0 #amount (`shouldBe` a2)
+                        , expectCliListField 1 #amount (`shouldBe` a1)
+                        ]
+                      )
+                    , ( [ "--order", "ascending" ]
+                      , [ expectCliListField 0 #amount (`shouldBe` a1)
+                        , expectCliListField 1 #amount (`shouldBe` a2)
+                        ]
+                      )
+                    , ( [ "--order", "descending" ]
+                      , [ expectCliListField 0 #amount (`shouldBe` a2)
+                        , expectCliListField 1 #amount (`shouldBe` a1)
+                        ]
+                      )
+                    ]
+
+            forM_ orderings $ \(order, expects) -> do
+                let args = T.unpack <$> w ^. walletId : order
+                (Exit code, Stdout out, Stderr err) <-
+                    listTransactionsViaCLI @t ctx args
+                err `shouldBe` cmdOk
+                code `shouldBe` ExitSuccess
+                outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
+                length outJson `shouldBe` 2
+                verify outJson expects
+
+    describe "TRANS_LIST_04 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries  =
+                [ ( [ "--start", "2009" ], startEndErr )
+                , ( [ "--start", "2012-09-25T10:15:00Z", "--end",  "2016-11-21"]
+                  , startEndErr
+                  )
+                , ( [ "--start", "2012-09-25", "--end",  "2016-11-21T10:15:00Z"]
+                  , startEndErr
+                  )
+                , ( [ "--start", "2012-09-25T10:15:00Z", "--end",  "2016-11-21"]
+                  , startEndErr
+                  )
+                , ( [ "--order", "scending" ], orderErr )
+                , ( [ "--start", "2012-09-25T10:15:00Z", "--order", "asc" ]
+                  , orderErr
+                  )
+                , ( [ "--start", "2009-09-09T09:09:09Z"
+                    , "--end",  "2001-01-01T01:01:01Z"]
+                  , errMsg400StartTimeLaterThanEndTime
+                        "2009-09-09T09:09:09Z" "2001-01-01T01:01:01Z"
+                  )
+                ]
+        forM_ queries $ \(query, message) -> it (unwords query)
+            $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
+            $ \emptyByronWallet -> do
+                w <- emptyByronWallet ctx
+                (Exit code, Stdout out, Stderr err) <-
+                    listTransactionsViaCLI @t ctx (T.unpack (w ^. walletId) : query)
+                err `shouldContain` message
+                code `shouldBe` ExitFailure 1
+                out `shouldBe` mempty
+
+    it "TRANS_LIST_04 - Deleted wallet"
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
+        $ \emptyByronWallet -> do
+            w <- emptyByronWallet ctx
+            Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (w ^. walletId)
+            cd `shouldBe` ExitSuccess
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx [T.unpack $ w ^. walletId]
+            err `shouldContain` errMsg404NoWallet (w ^. walletId)
+            code `shouldBe` ExitFailure 1
+            out `shouldBe` mempty
+
+    it "TRANS_LIST_RANGE_01 - \
+       \Transaction at time t is SELECTED by small ranges that cover it"
+       $ \ctx -> forM_ [fixtureRandomWalletWith @n, fixtureIcarusWalletWith @n]
+       $ \fixtureByronWalletWith -> do
+              w <- fixtureByronWalletWith ctx [1]
+              let walId = w ^. walletId
+              Stdout o  <- listTransactionsViaCLI @t ctx [ T.unpack walId ]
+              oJson <- expectValidJSON (Proxy @([ApiTransaction n])) o
+              let t = unsafeGetTransactionTime oJson
+              let (te, tl) = (utcTimePred t, utcTimeSucc t)
+              let query t1 t2 =
+                        [ "--start", utcIso8601ToText t1
+                        , "--end", utcIso8601ToText t2
+                        ]
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query t t) )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query te t) )
+              Stdout o3 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query t tl) )
+              Stdout o4 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query te tl) )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
+              oJson3 <- expectValidJSON (Proxy @([ApiTransaction n])) o3
+              oJson4 <- expectValidJSON (Proxy @([ApiTransaction n])) o4
+              length <$> [oJson1, oJson2, oJson3, oJson4] `shouldSatisfy` all (== 1)
+
+    it "TRANS_LIST_RANGE_02 - \
+       \Transaction at time t is NOT selected by range [t + 𝛿t, ...)"
+       $ \ctx -> forM_ [fixtureRandomWalletWith @n, fixtureIcarusWalletWith @n]
+       $ \fixtureByronWalletWith -> do
+              w <- fixtureByronWalletWith ctx [1]
+              let walId = w ^. walletId
+              Stdout o  <- listTransactionsViaCLI @t ctx [ T.unpack walId ]
+              oJson <- expectValidJSON (Proxy @([ApiTransaction n])) o
+              let t = unsafeGetTransactionTime oJson
+              let tl = utcIso8601ToText $ utcTimeSucc t
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> [walId, "--start", tl] )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> [walId, "--start", tl, "--end", tl] )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
+              length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_LIST_RANGE_03 - \
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t]"
+       $ \ctx -> forM_ [fixtureRandomWalletWith @n, fixtureIcarusWalletWith @n]
+       $ \fixtureByronWalletWith -> do
+              w <- fixtureByronWalletWith ctx [1]
+              let walId = w ^. walletId
+              Stdout o  <- listTransactionsViaCLI @t ctx [ T.unpack walId ]
+              oJson <- expectValidJSON (Proxy @([ApiTransaction n])) o
+              let t = unsafeGetTransactionTime oJson
+              let te = utcIso8601ToText $ utcTimePred t
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                      ( T.unpack <$> [walId, "--end", te] )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                      ( T.unpack <$> [walId, "--start", te, "--end", te] )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
+              length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_DELETE_01a - Can forget pending tx, still it resolves when it is OK"
+        $ \ctx -> forM_ [fixtureRandomWalletAddrs @n, fixtureRandomWalletAddrs @n]
+        $ \fixtureByronWallet -> do
+        --SETUP
+        let amnt = 100_000 :: Natural
+        (wSrc, addrs) <- fixtureByronWallet ctx
+        let payment = mkPaymentCmd @n (head addrs) amnt
+        let wSrcId = T.unpack (wSrc ^. walletId)
+
+        -- post transaction
+        let args = T.unpack <$> ((wSrc ^. walletId) : payment)
+        (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        c `shouldBe` ExitSuccess
+        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+
+        -- Try Forget transaction once it's no longer pending
+        let txId =  getTxId txJson
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx wSrcId txId
+        c2 `shouldBe` ExitSuccess
+        err2 `shouldContain` cmdOk
+        out2 `shouldBe` "\n"
+
+        eventually "Tx is in ledger" $ do
+            (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
+                >>= expectValidJSON (Proxy @([ApiTransaction n]))
+                >>= flip verify
+                    [ expectCliListField 0
+                        (#direction . #getApiT) (`shouldBe` Outgoing)
+                    , expectCliListField 0
+                        (#status . #getApiT) (`shouldBe` InLedger)
+                    ]
+
+    it "TRANS_DELETE_01b - Cannot forget pending transaction when not pending anymore via CLI"
+        $ \ctx -> forM_ [fixtureRandomWalletAddrs @n, fixtureRandomWalletAddrs @n]
+        $ \fixtureByronWallet -> do
+        --SETUP
+        let amnt = 100_000 :: Natural
+        (wSrc, addrs) <- fixtureByronWallet ctx
+        let payment = mkPaymentCmd @n (head addrs) amnt
+        let wSrcId = T.unpack (wSrc ^. walletId)
+
+        -- post transaction
+        let args = T.unpack <$> ((wSrc ^. walletId) : payment)
+        (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        c `shouldBe` ExitSuccess
+        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+
+        eventually "Tx is in ledger" $ do
+            (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
+                >>= expectValidJSON (Proxy @([ApiTransaction n]))
+                >>= flip verify
+                    [ expectCliListField 0
+                        (#direction . #getApiT) (`shouldBe` Outgoing)
+                    , expectCliListField 0
+                        (#status . #getApiT) (`shouldBe` InLedger)
+                    ]
+
+        -- Try Forget transaction once it's no longer pending
+        let txId =  getTxId txJson
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx wSrcId txId
+        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txId)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
+
+    it "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI"
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
+        $ \emptyByronWallet -> do
+            wSrc <- emptyByronWallet ctx
+            let wid = T.unpack (wSrc ^. walletId)
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            -- forget transaction
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx wid (T.unpack txId)
+            err `shouldContain` errMsg404CannotFindTx txId
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+
+    describe "TRANS_DELETE_04 - False wallet ids via CLI" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            -- forget transaction once again
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx walId (T.unpack txId)
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+            if (title == "40 chars hex") then
+                err `shouldContain` "I couldn't find a wallet with \
+                    \the given id: 1111111111111111111111111111111111111111"
+            else
+                err `shouldContain` "wallet id should be a \
+                    \hex-encoded string of 40 characters"
+
+    it "TRANS_DELETE_06 -\
+        \ Cannot forget tx that is performed from different wallet via CLI"
+        $ \ctx -> forM_ [fixtureRandomWalletAddrs @n, fixtureRandomWalletAddrs @n]
+        $ \fixtureByronWallet -> do
+        --SETUP
+        let amnt = 100_000 :: Natural
+        (wSrc, addrs) <- fixtureByronWallet ctx
+        let payment = mkPaymentCmd @n (head addrs) amnt
+
+        -- post transaction
+        let args = T.unpack <$> ((wSrc ^. walletId) : payment)
+        (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        c `shouldBe` ExitSuccess
+        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+
+        -- Try Forget transaction using different wallet
+        let txId =  getTxId txJson
+        wDiff <- emptyRandomWallet ctx
+        let widDiff = T.unpack (wDiff ^. walletId)
+        (Exit c2, Stdout out2, Stderr err2) <-
+            deleteTransactionViaCLI @t ctx widDiff txId
+        err2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1
+
+    describe "TRANS_DELETE_07 - invalid tx id via CLI" $ do
+        let txIds =
+                [ replicate 63 '1'
+                , replicate 65 '1'
+                , replicate 64 'ś'
+                ]
+        forM_ txIds $ \tid -> it (show tid) $ \ctx -> do
+            w <- emptyRandomWallet ctx
+            let wid = T.unpack (w ^. walletId)
+            (Exit c, Stdout out, Stderr err) <-
+                deleteTransactionViaCLI @t ctx wid tid
+            err `shouldContain`
+                "should be a hex-encoded string of 64 characters"
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
 
 --
 -- Scenarios
@@ -237,7 +561,7 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
 
     -- ASSERTIONS
-    err `shouldBe` "Ok.\n"
+    err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
     r <- expectValidJSON (Proxy @ApiFee) out
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -406,7 +730,7 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
     (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
 
     -- ASSERTIONS
-    err `shouldBe` "Ok.\n"
+    err `shouldBe` cmdOk
     c `shouldBe` ExitSuccess
     r <- expectValidJSON (Proxy @ApiFee) out
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription

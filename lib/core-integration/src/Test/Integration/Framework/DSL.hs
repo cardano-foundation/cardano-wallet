@@ -96,6 +96,8 @@ module Test.Integration.Framework.DSL
     , icarusAddresses
     , randomAddresses
     , pubKeyFromMnemonics
+    , unsafeGetTransactionTime
+    , getTxId
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -137,6 +139,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
     , ApiWallet
     , ApiWalletDelegation (..)
@@ -146,6 +149,8 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
+    , insertedAt
+    , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
@@ -478,6 +483,16 @@ walletId =
 --
 -- Helpers
 --
+getTxId :: (ApiTransaction n) -> String
+getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
+
+unsafeGetTransactionTime
+    :: [ApiTransaction n]
+    -> UTCTime
+unsafeGetTransactionTime txs =
+    case fmap time . insertedAt <$> txs of
+        (Just t):_ -> t
+        _ -> error "Expected at least one transaction with a time."
 
 waitAllTxsInLedger
     :: forall n t. (DecodeAddress n)
@@ -1097,17 +1112,17 @@ listAddresses ctx w = do
     return addrs
 
 listAllTransactions
-    :: forall n t. (DecodeAddress n)
+    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
     => Context t
-    -> ApiWallet
+    -> w
     -> IO [ApiTransaction n]
 listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing Nothing
 
 listTransactions
-    :: forall n t. (DecodeAddress n)
+    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
     => Context t
-    -> ApiWallet
+    -> w
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
