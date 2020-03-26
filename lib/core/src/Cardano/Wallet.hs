@@ -164,6 +164,7 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
+    , FollowExit (..)
     , FollowLog (..)
     , NetworkLayer (..)
     , follow
@@ -342,6 +343,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 -- $Development
 -- __Naming Conventions__
@@ -659,8 +661,10 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs h = run $ restoreBlocks @ctx @s @k ctx wid bs h
     liftIO (follow nw tr cps forward (view #header)) >>= \case
-        Nothing -> pure ()
-        Just point -> do
+        FollowInterrupted -> pure ()
+        FollowFailure ->
+            restoreWallet @ctx @s @t @k ctx wid
+        FollowRollback point -> do
             rollbackBlocks @ctx @s @k ctx wid point
             restoreWallet @ctx @s @t @k ctx wid
   where
@@ -708,6 +712,14 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
         <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
         <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let bp = blockchainParameters cp
+
+    unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
+        [ "restoreBlocks: given chain isn't a valid continuation."
+        , "Wallet is at:", pretty (currentTip cp)
+        , "but the given chain continues starting from:"
+        , pretty (header (NE.head blocks))
+        ]
+
     let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
     let slotPoolDelegations =
             [ (slotId, cert)
@@ -756,6 +768,10 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
 
     logDelegation :: (SlotId, DelegationCertificate) -> IO ()
     logDelegation (slotId, cert) = traceWith tr $ MsgDelegation slotId cert
+
+    isParentOf :: Wallet s -> Block -> Bool
+    isParentOf cp = (== parent) . parentHeaderHash . header
+      where parent = headerHash $ currentTip cp
 
 
 -- | Remove an existing wallet. Note that there's no particular work to
