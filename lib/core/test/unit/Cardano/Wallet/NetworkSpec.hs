@@ -1,41 +1,19 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-
 module Cardano.Wallet.NetworkSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( traceInTVarIO )
-import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Network
-    ( Cursor
-    , ErrCurrentNodeTip (..)
+    ( ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
-    , FollowAction (..)
-    , FollowLog (..)
-    , NetworkLayer (..)
-    , follow
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( race )
-import Control.Concurrent.STM.TVar
-    ( newTVarIO, readTVarIO )
-import Control.Monad
-    ( void )
-import Data.Maybe
-    ( mapMaybe )
+    ( Hash (..) )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, describe, it )
 
 spec :: Spec
 spec = do
@@ -58,44 +36,6 @@ spec = do
             $ ErrNetworkInvalid mempty
         testShow $ ErrPostTxBadRequest mempty
         testShow $ ErrPostTxProtocolFailure mempty
-
-    followSpec
-
-followSpec :: Spec
-followSpec =
-    describe "follow" $ do
-        it "retries on exceptions, but not too often" $ do
-            tvar <- newTVarIO []
-            let tr = traceInTVarIO tvar
-            let getHeader = header
-            let advance _blocks _h = return $ Continue @()
-            void $ race
-                (threadDelay $ 10 * second)
-                (follow mockNetworkLayer tr [] advance getHeader)
-            errors <- mapMaybe matchRecoverableErrors <$> readTVarIO tvar
-            case length errors of
-                x | x == 5 -> return ()
-                  | otherwise -> expectationFailure
-                        $ "we expected 4 errors to be logged, not " ++ show x
-  where
-    second = 1000*1000
-    matchRecoverableErrors = \case
-        e@MsgUnhandledException{} -> Just e
-        _ -> Nothing
-
-
-data instance (Cursor DummyTarget) = DummyCursor
-
-mockNetworkLayer :: NetworkLayer IO DummyTarget Block
-mockNetworkLayer = NetworkLayer
-    { nextBlocks = \_ -> error "no next blocks"
-    , initCursor = \_ -> pure DummyCursor
-    , cursorSlotId = \_ -> error "no cursor slot id"
-    , currentNodeTip = error "there is no current node tip"
-    , postTx = \_ -> error "the tx is not a thing that can be posted"
-    , stakeDistribution = error "stake? no."
-    , getAccountBalance = error "it is empty"
-    }
 
 testShow :: Show a => a -> Spec
 testShow a = it (show a) True
