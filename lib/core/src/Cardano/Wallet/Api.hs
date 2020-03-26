@@ -357,6 +357,7 @@ type ByronWallets =
     :<|> GetByronWallet
     :<|> ListByronWallets
     :<|> ForceResyncByronWallet
+    :<|> PutByronWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
@@ -383,6 +384,12 @@ type ForceResyncByronWallet = "byron-wallets"
     :> "tip"
     :> ReqBody '[JSON] ApiNetworkTip
     :> PutNoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putByronWallet
+type PutByronWallet = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] WalletPutData
+    :> Put '[JSON] ApiByronWallet
 
 {-------------------------------------------------------------------------------
                                  Byron Transactions
