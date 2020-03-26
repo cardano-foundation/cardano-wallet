@@ -231,7 +231,8 @@ withNetworkLayer tr bp addrInfo versionData action = do
     -- NOTE: We keep a client connection running just for accessing the node tip.
     nodeTipQ <- atomically newTQueue
     let nodeTipClient = const $ mkNetworkClient tr bp nodeTipQ localTxSubmissionQ
-    link =<< async (connectClient tr nodeTipClient versionData addrInfo)
+    let handlers = retryOnConnectionLost tr
+    link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
 
     action
         NetworkLayer
@@ -252,7 +253,8 @@ withNetworkLayer tr bp addrInfo versionData action = do
     _initCursor localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue
         let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
-        link =<< async (connectClient tr client versionData addrInfo)
+        let handlers = failOnConnectionLost tr
+        link =<< async (connectClient tr handlers client versionData addrInfo)
         let points = reverse $ genesisPoint : (toPoint getEpochLength <$> headers)
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
@@ -424,11 +426,12 @@ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
 -- >>> connectClient (mkNetworkClient tr bp queue) mainnetVersionData addrInfo
 connectClient
     :: Tracer IO NetworkLayerLog
+    -> [RetryStatus -> Handler IO Bool]
     -> (ConnectionId LocalAddress -> NetworkClient IO)
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
     -> FilePath
     -> IO ()
-connectClient tr client (vData, vCodec) addr = withIOManager $ \iocp -> do
+connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
     let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
     let tracers = NetworkConnectTracers
@@ -436,42 +439,77 @@ connectClient tr client (vData, vCodec) addr = withIOManager $ \iocp -> do
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
     let socket = localSnocket iocp addr
-    recovering policy
-        [ const $ Handler handleIOException
-        , const $ Handler handleMuxError
-        ] $ \status -> do
-            traceWith tr $ MsgCouldntConnect (rsIterNumber status)
-            connectTo socket tracers versions addr
+    recovering policy handlers $ \status -> do
+        traceWith tr $ MsgCouldntConnect (rsIterNumber status)
+        connectTo socket tracers versions addr
   where
     -- .25s -> .25s -> .5s → .75s → 1.25s → 2s
     policy :: RetryPolicyM IO
     policy = fibonacciBackoff 250_000 & capDelay 2_000_000
 
-    -- There's a race-condition when starting the wallet and the node at the
-    -- same time: the socket might not be there yet when we try to open it.
-    -- In such case, we simply retry a bit later and hope it's there.
-    handleIOException :: IOException -> IO Bool
-    handleIOException e
-        | isDoesNotExistError e     = pure True
-        | isResourceVanishedError e = do
-            traceWith tr $ MsgConnectionLost (Just e)
-            pure True
-        | otherwise = pure False
-      where
-        isResourceVanishedError = isInfixOf "resource vanished" . show
+-- | Handlers that are retrying on every connection lost.
+retryOnConnectionLost
+    :: Tracer IO NetworkLayerLog
+    -> [RetryStatus -> Handler IO Bool]
+retryOnConnectionLost tr =
+    [ const $ Handler $ handleIOException tr' True
+    , const $ Handler $ handleMuxError tr' True
+    ]
+  where
+    tr' = contramap MsgConnectionLost tr
 
-    -- Recover frmo error when the connection with the node is lost.
-    handleMuxError :: MuxError -> IO Bool
-    handleMuxError = pure . errorType >=> \case
-        MuxUnknownMiniProtocol -> pure False
-        MuxDecodeError -> pure False
-        MuxIngressQueueOverRun -> pure False
-        MuxInitiatorOnly -> pure False
-        MuxIOException e -> handleIOException e
-        MuxBearerClosed -> do
-            traceWith tr $ MsgConnectionLost Nothing
-            pure True
+-- | Handlers that are failing if the connection is lost
+failOnConnectionLost
+    :: Tracer IO NetworkLayerLog
+    -> [RetryStatus -> Handler IO Bool]
+failOnConnectionLost tr =
+    [ const $ Handler $ handleIOException tr' False
+    , const $ Handler $ handleMuxError tr' False
+    ]
+  where
+    tr' = contramap MsgConnectionLost tr
 
+-- There's a race-condition when starting the wallet and the node at the
+-- same time: the socket might not be there yet when we try to open it.
+-- In such case, we simply retry a bit later and hope it's there.
+--
+-- When the node's connection vanished, we may also want to handle things in a
+-- slightly different way depending on whether we are a waller worker or just
+-- the node's tip thread.
+handleIOException
+    :: Tracer IO (Maybe IOException)
+    -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
+    -> IOException
+    -> IO Bool
+handleIOException tr onResourceVanished e
+    | isDoesNotExistError e =
+        pure True
+
+    | isResourceVanishedError e = do
+        traceWith tr $ Just e
+        pure onResourceVanished
+
+    | otherwise =
+        pure False
+  where
+    isResourceVanishedError = isInfixOf "resource vanished" . show
+
+-- Recover from error when the connection with the node is lost.
+handleMuxError
+    :: Tracer IO (Maybe IOException)
+    -> Bool
+    -> MuxError
+    -> IO Bool
+handleMuxError tr onResourceVanished = pure . errorType >=> \case
+    MuxUnknownMiniProtocol -> pure False
+    MuxDecodeError -> pure False
+    MuxIngressQueueOverRun -> pure False
+    MuxInitiatorOnly -> pure False
+    MuxIOException e ->
+        handleIOException tr onResourceVanished e
+    MuxBearerClosed -> do
+        traceWith tr Nothing
+        pure onResourceVanished
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
