@@ -238,7 +238,7 @@ spec = do
             -- cannot update pass
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
             rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase wk) Default payload
+                (Link.putWalletPassphrase @'Shelley wk) Default payload
             expectResponseCode @IO HTTP.status403 rup
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
 

@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -280,11 +281,13 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 
@@ -329,8 +332,10 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "raw"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "byron-raw"))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -403,6 +408,14 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "raw")) msg)
+
+        it "ApiT (Passphrase \"byron-raw\") (too long)" $ do
+            let maxLength = passphraseMaxLength (Proxy :: Proxy "byron-raw")
+            let msg = "Error in $: passphrase is too long: \
+                    \expected at most " <> show maxLength <> " characters"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{replicate (2*maxLength) '*'}
+            |] `shouldBe` (Left @String @(ApiT (Passphrase "byron-raw")) msg)
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \
@@ -751,6 +764,14 @@ spec = do
                 x' = WalletPutPassphraseData
                     { oldPassphrase = oldPassphrase (x :: WalletPutPassphraseData)
                     , newPassphrase = newPassphrase (x :: WalletPutPassphraseData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ByronWalletPutPassphraseData" $ property $ \x ->
+            let
+                x' = ByronWalletPutPassphraseData
+                    { oldPassphrase = oldPassphrase (x :: ByronWalletPutPassphraseData)
+                    , newPassphrase = newPassphrase (x :: ByronWalletPutPassphraseData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1123,6 +1144,10 @@ instance Arbitrary WalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ByronWalletPutPassphraseData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1143,6 +1168,23 @@ instance Arbitrary ApiWalletDelegationNext where
             <$> pure Nothing
             <*> fmap Just arbitrary
         ]
+
+instance Arbitrary (Passphrase "byron-raw") where
+    arbitrary = do
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+      where p = Proxy :: Proxy "byron-raw"
+
+    shrink (Passphrase bytes)
+        | BA.length bytes <= passphraseMinLength p = []
+        | otherwise =
+            [ Passphrase
+            $ BA.convert
+            $ B8.take (passphraseMinLength p)
+            $ BA.convert bytes
+            ]
+      where p = Proxy :: Proxy "byron-raw"
 
 instance Arbitrary ApiWalletDelegation where
     arbitrary = ApiWalletDelegation
@@ -1610,6 +1652,10 @@ instance ToSchema WalletPutData where
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
+
+instance ToSchema ByronWalletPutPassphraseData where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"

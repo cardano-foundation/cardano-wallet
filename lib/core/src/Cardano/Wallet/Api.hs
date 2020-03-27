@@ -58,6 +58,7 @@ module Cardano.Wallet.Api
         , ForceResyncByronWallet
         , PutByronWallet
         , GetByronUTxOsStatistics
+        , PutByronWalletPassphrase
 
     , ByronTransactions
         , CreateByronTransaction
@@ -110,6 +111,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletPassphrase
+    , ByronWalletPutPassphraseData
     , Iso8601Time
     , PostExternalTransactionData
     , PostTransactionDataT
@@ -365,6 +367,7 @@ type ByronWallets =
     :<|> ForceResyncByronWallet
     :<|> PutByronWallet
     :<|> GetByronUTxOsStatistics
+    :<|> PutByronWalletPassphrase
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
@@ -404,6 +407,13 @@ type GetByronUTxOsStatistics = "byron-wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putByronWalletPassphrase
+type PutByronWalletPassphrase = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "passphrase"
+    :> ReqBody '[JSON] ByronWalletPutPassphraseData
+    :> PutNoContent
 
 {-------------------------------------------------------------------------------
                                  Byron Transactions

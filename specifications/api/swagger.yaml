@@ -269,6 +269,13 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
+x-byronWalletPassphrase: &byronWalletPassphrase
+  description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+  type: string
+  minLength: 0
+  maxLength: 255
+  example: Secure Passphrase
+
 x-walletPassphraseHash: &walletPassphraseHash
   description: |
     A hash of master passphrase. The hash should be an output of a Scrypt function with the following parameters:
@@ -1030,6 +1037,18 @@ components:
         old_passphrase:
           <<: *walletPassphrase
           description: The current passphrase.
+        new_passphrase:
+          <<: *walletPassphrase
+          description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
+    ApiByronWalletPutPassphraseData: &ApiByronWalletPutPassphraseData
+      type: object
+      required:
+        - new_passphrase
+      properties:
+        old_passphrase:
+          <<: *byronWalletPassphrase
+          description: The current passphrase if present.
         new_passphrase:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
@@ -1934,6 +1953,22 @@ paths:
           application/json:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
+
+  /byron-wallets/{walletId}/passphrase:
+    put:
+      operationId: putByronWalletPassphrase
+      tags: ["Byron Wallets"]
+      summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiByronWalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
 
   /byron-wallets/{walletId}/tip:
     put:

@@ -378,6 +378,9 @@ class PassphraseMaxLength (purpose :: Symbol) where
 instance PassphraseMinLength "raw" where passphraseMinLength _ = 10
 instance PassphraseMaxLength "raw" where passphraseMaxLength _ = 255
 
+instance PassphraseMinLength "byron-raw" where passphraseMinLength _ = 0
+instance PassphraseMaxLength "byron-raw" where passphraseMaxLength _ = 255
+
 instance
     ( PassphraseMaxLength purpose
     , PassphraseMinLength purpose

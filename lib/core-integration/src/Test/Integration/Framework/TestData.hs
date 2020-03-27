@@ -1,6 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.TestData
     ( -- * Mnemonics
@@ -40,6 +39,7 @@ module Test.Integration.Framework.TestData
     , simplePayload
     , updateNamePayload
     , updatePassPayload
+    , updateEmptyPassPayload
 
     -- * Error messages
     , errMsg400WalletIdEncoding
@@ -233,6 +233,11 @@ updateNamePayload name = Json [json| {
 updatePassPayload :: Text -> Text -> Payload
 updatePassPayload oldPass newPass = Json [json| {
     "old_passphrase": #{oldPass},
+    "new_passphrase": #{newPass}
+      } |]
+
+updateEmptyPassPayload :: Text -> Payload
+updateEmptyPassPayload newPass = Json [json| {
     "new_passphrase": #{newPass}
       } |]
 

@@ -50,6 +50,7 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyRandomWallet
+    , emptyRandomWalletWithPasswd
     , emptyIcarusWallet
     , emptyByronWalletWith
     , emptyWallet
@@ -157,10 +158,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , PassphraseScheme (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , SomeMnemonic (..)
     , WalletKey (..)
+    , hex
+    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -288,7 +293,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -599,6 +606,26 @@ emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
+
+emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
+emptyRandomWalletWithPasswd ctx rawPwd = do
+    let pwd = preparePassphrase EncryptWithScrypt
+            $ Passphrase
+            $ BA.convert
+            $ T.encodeUtf8 rawPwd
+    seed <- SomeMnemonic @12 . entropyToMnemonic <$> genEntropy
+    let key = T.decodeUtf8
+            $ hex
+            $ Byron.getKey
+            $ Byron.generateKeyFromSeed seed pwd
+    pwdH <- T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
+  where
+    encryptPasswordWithScrypt =
+        fmap Scrypt.getEncryptedPass
+        . Scrypt.encryptPassIO Scrypt.defaultParams
+        . Scrypt.Pass
+        . BA.convert
 
 emptyByronWalletWith
     :: forall t. ()

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -12,7 +13,6 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -87,6 +87,7 @@ module Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
+    , ByronWalletPutPassphraseData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -469,6 +470,11 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
+data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
+    { oldPassphrase :: !(Maybe (ApiT (Passphrase "byron-raw")))
+    , newPassphrase :: !(ApiT (Passphrase "raw"))
+    } deriving (Eq, Generic, Show)
+
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "raw"))
@@ -764,7 +770,7 @@ newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
 -- API layer and other modules.
 newtype ApiT a =
     ApiT { getApiT :: a }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, Functor)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
 -- the lengths of mnemonics that are supported (and an underlying purpose). In
@@ -955,6 +961,11 @@ instance ToJSON  WalletPutData where
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ByronWalletPutPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ByronWalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiTxId where

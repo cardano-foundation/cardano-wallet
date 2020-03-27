@@ -57,6 +57,7 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
+    , emptyRandomWalletWithPasswd
     , eventually
     , expectErrorMessage
     , expectField
@@ -80,11 +81,14 @@ import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
     , errMsg403NothingToMigrate
+    , errMsg403WrongPass
     , errMsg404NoWallet
     , kanjiWalletName
     , mnemonics12
     , polishWalletName
     , russianWalletName
+    , updateEmptyPassPayload
+    , updatePassPayload
     , wildcardsWalletName
     )
 
@@ -429,6 +433,54 @@ spec = do
                  (Link.getUTxOsStatistics @'Byron w) Default Empty
         expectResponseCode @IO HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
+
+    it "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
+        forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
+        w <- emptyByronWallet ctx
+        let payload = updatePassPayload "Secure Passphrase" "New Secure Passphrase"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status204
+            ]
+
+    it "BYRON_UPDATE_PASS_02 - Old passphrase incorrect" $ \ctx ->
+        forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
+        w <- emptyByronWallet ctx
+        let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status403
+            , expectErrorMessage errMsg403WrongPass
+            ]
+
+    it "BYRON_UPDATE_PASS_03 - Updating passphrase with no password wallets" $ \ctx -> do
+        w <- emptyRandomWalletWithPasswd ctx ""
+        let payload = updateEmptyPassPayload "correct-password"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status204
+            ]
+
+    it "BYRON_UPDATE_PASS_04 - Updating passphrase with no password wallets" $ \ctx -> do
+        w <- emptyRandomWalletWithPasswd ctx ""
+        let payload = updatePassPayload "" "correct-password"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status204
+            ]
+
+    it "BYRON_UPDATE_PASS_07 - Updating passphrase with short password wallets" $ \ctx -> do
+        w <- emptyRandomWalletWithPasswd ctx "cos"
+        let payload = updatePassPayload "cos" "correct-password"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status204
+            ]
  where
      genMnemonics
         :: forall mw ent csz.

@@ -132,6 +132,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -154,7 +155,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
-    , Passphrase
+    , Passphrase (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , XPrv
@@ -239,6 +240,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
+import Data.Coerce
+    ( coerce )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -528,6 +531,10 @@ server byron icarus shelley spl ntp =
                 (byron , getUTxOsStatistics byron wid)
                 (icarus, getUTxOsStatistics icarus wid)
              )
+        :<|> (\wid pwd -> withLegacyLayer wid
+                (byron , putByronWalletPassphrase byron wid pwd)
+                (icarus, putByronWalletPassphrase icarus wid pwd)
+             )
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
@@ -659,6 +666,10 @@ byronServer byron icarus ntp =
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getUTxOsStatistics byron wid)
                 (icarus, getUTxOsStatistics icarus wid)
+             )
+        :<|> (\wid pwd -> withLegacyLayer wid
+                (byron , putByronWalletPassphrase byron wid pwd)
+                (icarus, putByronWalletPassphrase icarus wid pwd)
              )
 
     byronTransactions :: Server (ByronTransactions n)
@@ -1133,6 +1144,22 @@ putWalletPassphrase
 putWalletPassphrase ctx (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.updateWalletPassphrase wrk wid (old, new)
+    return NoContent
+
+putByronWalletPassphrase
+    :: forall ctx s t k.
+        ( WalletKey k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ByronWalletPutPassphraseData
+    -> Handler NoContent
+putByronWalletPassphrase ctx (ApiT wid) body = do
+    let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        let old = maybe mempty (coerce . getApiT) oldM
         W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
 
