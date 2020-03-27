@@ -310,7 +310,7 @@ spec = do
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
-                (Link.listAddresses wPub) Default Empty
+                (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 r
             expectListSize g r
             forM_ [0..(g-1)] $ \addrNum -> do
@@ -332,7 +332,7 @@ spec = do
             let wPub = getFromResponse id rRestore
 
             r <- request @[ApiAddress n] ctx
-                (Link.listAddresses wPub) Default Empty
+                (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 r
             expectListSize addrPoolGap r
             forM_ [0..(addrPoolGap-1)] $ \addrNum -> do

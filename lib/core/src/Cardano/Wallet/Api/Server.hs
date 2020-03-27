@@ -15,6 +15,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+-- NOTE: Temporary
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -75,11 +78,13 @@ import Cardano.Wallet
     , WalletLog
     , genesisData
     , networkLayer
+    , normalizeDelegationAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , ByronAddresses
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -115,6 +120,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiPoolId (..)
+    , ApiPostRandomAddressData (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -170,7 +176,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (ArgGenChange), IsOwned )
+    ( CompareDiscovery
+    , GenChange (ArgGenChange)
+    , IsOurs
+    , IsOwned
+    , KnownAddresses
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -459,6 +470,7 @@ server byron icarus shelley spl ntp =
     :<|> transactions
     :<|> stakePools
     :<|> byronWallets
+    :<|> byronAddresses
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -475,7 +487,7 @@ server byron icarus shelley spl ntp =
         :<|> forceResyncWallet shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley
+    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins shelley
@@ -536,6 +548,11 @@ server byron icarus shelley spl ntp =
                 (icarus, putByronWalletPassphrase icarus wid pwd)
              )
 
+    byronAddresses :: Server (ByronAddresses n)
+    byronAddresses =
+             (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
+
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
              (\_ _ -> throwError err501)
@@ -593,6 +610,7 @@ byronServer byron icarus ntp =
     :<|> transactions
     :<|> stakePools
     :<|> byronWallets
+    :<|> byronAddresses
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -670,6 +688,14 @@ byronServer byron icarus ntp =
         :<|> (\wid pwd -> withLegacyLayer wid
                 (byron , putByronWalletPassphrase byron wid pwd)
                 (icarus, putByronWalletPassphrase icarus wid pwd)
+             )
+
+    byronAddresses :: Server (ByronAddresses n)
+    byronAddresses =
+             postRandomAddress byron
+        :<|> (\wid s -> withLegacyLayer wid
+                (byron , listAddresses byron (const pure) wid s)
+                (icarus, listAddresses icarus (const pure) wid s)
              )
 
     byronTransactions :: Server (ByronTransactions n)
@@ -1242,20 +1268,34 @@ selectCoins ctx (ApiT wid) body =
                                     Addresses
 -------------------------------------------------------------------------------}
 
-listAddresses
+postRandomAddress
     :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
+        ( s ~ RndState n
+        , k ~ ByronKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
     -> ApiT WalletId
+    -> ApiPostRandomAddressData
+    -> Handler (ApiAddress n)
+postRandomAddress _ctx _wid _body =
+    throwError err501
+
+listAddresses
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , IsOurs s Address
+        , CompareDiscovery s
+        , KnownAddresses s
+        )
+    => ctx
+    -> (s -> Address -> Maybe Address)
+    -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress n]
-listAddresses ctx (ApiT wid) stateFilter = do
+listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listAddresses @_ @s @k @n wrk wid
+        W.listAddresses @_ @s @k wrk wid normalize
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool

@@ -88,6 +88,7 @@ module Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , ApiPostRandomAddressData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -117,7 +118,9 @@ import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
     , FromMnemonic (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -241,6 +244,8 @@ import GHC.TypeLits
     ( KnownNat, Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( toEnumMay )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -579,6 +584,11 @@ data ApiNtpStatus = ApiNtpStatus
 
 newtype ApiNetworkClock = ApiNetworkClock
     { ntpStatus :: ApiNtpStatus
+    } deriving (Eq, Generic, Show)
+
+data ApiPostRandomAddressData = ApiPostRandomAddressData
+    { passphrase :: !(ApiT (Passphrase "raw"))
+    , addressIndex :: !(Maybe (ApiT (Index 'WholeDomain 'AddressK)))
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -1244,6 +1254,31 @@ instance FromJSON ApiByronWalletMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiByronWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostRandomAddressData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostRandomAddressData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+  ( Enum (Index derivation level)
+  , Bounded (Index derivation level)
+  ) => FromJSON (ApiT (Index derivation level)) where
+    parseJSON bytes = do
+        n <- parseJSON bytes
+        case toEnumMay n of
+            Just ix -> pure (ApiT ix)
+            Nothing -> fail $ unwords
+                [ "Couldn't parse derivation index. Expected an integer between"
+                , show (minBound @(Index derivation level))
+                , "and"
+                , show (maxBound @(Index derivation level))
+                ]
+
+instance
+  ( Enum (Index derivation level)
+  ) => ToJSON (ApiT (Index derivation level)) where
+    toJSON = toJSON . fromEnum . getApiT
 
 {-------------------------------------------------------------------------------
                              FromText/ToText instances

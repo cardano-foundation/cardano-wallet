@@ -88,6 +88,7 @@ module Cardano.Wallet
 
     -- ** Address
     , listAddresses
+    , normalizeDelegationAddress
 
     -- ** Payment
     , selectCoinsExternal
@@ -832,20 +833,21 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
         , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
-        , MkKeyFingerprint k Address
-        , DelegationAddress n k
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
         )
     => ctx
     -> WalletId
+    -> (s -> Address -> Maybe Address)
+        -- ^ A function to normalize address, so that delegated addresses
+        -- non-delegation addresses found in the transaction history are
+        -- shown with their delegation settings.
+        -- Use 'Just' for wallet without delegation settings.
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
-listAddresses ctx wid = db & \DBLayer{..} -> do
+listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     (s, txs) <- mapExceptT atomically $ (,)
         <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
         <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
@@ -857,21 +859,31 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
           where
             outputs' (tx, _) = W.outputs tx
     let knownAddrs =
-            L.sortBy (compareDiscovery s) (knownAddresses s)
+            L.sortBy (compareDiscovery s) (mapMaybe (normalize s) $ knownAddresses s)
     let withAddressState addr =
             (addr, if addr `Set.member` usedAddrs then Used else Unused)
     return $ withAddressState <$> knownAddrs
   where
     db = ctx ^. dbLayer @s @k
-    -- NOTE
-    -- Addresses coming from the transaction history might be payment or
-    -- delegation addresses. So we normalize them all to be delegation addresses
-    -- to make sure that we compare them correctly.
-    normalize :: s -> Address -> Maybe Address
-    normalize s addr = do
-        fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-        pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
     primaryKey = PrimaryKey wid
+
+-- NOTE
+-- Addresses coming from the transaction history might be payment or
+-- delegation addresses. So we normalize them all to be delegation addresses
+-- to make sure that we compare them correctly.
+normalizeDelegationAddress
+    :: forall s k n.
+        ( MkKeyFingerprint k Address
+        , DelegationAddress n k
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
+        )
+    => s
+    -> Address
+    -> Maybe Address
+normalizeDelegationAddress s addr = do
+    fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
+    pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
 
 {-------------------------------------------------------------------------------
                                   Transaction

@@ -65,7 +65,6 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , ChimericAccount (..)
-    , DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -74,6 +73,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
     , WalletKey (..)
@@ -687,7 +687,7 @@ instance
                 (Just i1, Just i2) -> compare i1 i2
 
 instance
-    ( DelegationAddress n k
+    ( PaymentAddress n k
     ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
         let
@@ -699,16 +699,11 @@ instance
                 take (length ixs) $ drop (length xs - internalGap) xs
             changeAddresses =
                 discardUndiscoveredChange $
-                    addresses mkAddress (internalPool s)
+                    addresses (liftPaymentAddress @n @k) (internalPool s)
             nonChangeAddresses =
-                addresses mkAddress (externalPool s)
+                addresses (liftPaymentAddress @n @k) (externalPool s)
         in
             nonChangeAddresses <> changeAddresses
-
-        where
-          mkAddress fingerprint = liftDelegationAddress @n @k
-              fingerprint
-              (rewardAccountKey s)
 
 instance forall n k. HasRewardAccount (SeqState n k) where
     type RewardAccountKey (SeqState n k) = k

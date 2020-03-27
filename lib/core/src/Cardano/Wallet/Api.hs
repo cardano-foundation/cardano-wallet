@@ -60,6 +60,10 @@ module Cardano.Wallet.Api
         , GetByronUTxOsStatistics
         , PutByronWalletPassphrase
 
+    , ByronAddresses
+        , PostByronAddress
+        , ListByronAddresses
+
     , ByronTransactions
         , CreateByronTransaction
         , ListByronTransactions
@@ -103,6 +107,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiNetworkTip
     , ApiPoolId
+    , ApiPostRandomAddressData
     , ApiSelectCoinsDataT
     , ApiStakePool
     , ApiT
@@ -172,6 +177,7 @@ type Api n =
     :<|> Transactions n
     :<|> StakePools n
     :<|> ByronWallets
+    :<|> ByronAddresses n
     :<|> ByronTransactions n
     :<|> ByronMigrations n
     :<|> Network
@@ -414,6 +420,30 @@ type PutByronWalletPassphrase = "byron-wallets"
     :> "passphrase"
     :> ReqBody '[JSON] ByronWalletPutPassphraseData
     :> PutNoContent
+
+{-------------------------------------------------------------------------------
+                                  Addresses
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Addresses
+-------------------------------------------------------------------------------}
+
+type ByronAddresses n =
+    PostByronAddress n
+    :<|> ListByronAddresses n
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronAddress
+type PostByronAddress n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> ReqBody '[JSON] ApiPostRandomAddressData
+    :> PostCreated '[JSON] (ApiAddressT n)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAddresses
+type ListByronAddresses n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> QueryParam "state" (ApiT AddressState)
+    :> Get '[JSON] [ApiAddressT n]
 
 {-------------------------------------------------------------------------------
                                  Byron Transactions
