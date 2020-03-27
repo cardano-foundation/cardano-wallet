@@ -207,13 +207,15 @@ putWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 putWalletPassphrase
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-putWalletPassphrase w =
-    endpoint @Api.PutWalletPassphrase (wid &)
+putWalletPassphrase w = discriminate @style
+    (endpoint @Api.PutWalletPassphrase (wid &))
+    (endpoint @Api.PutByronWalletPassphrase (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

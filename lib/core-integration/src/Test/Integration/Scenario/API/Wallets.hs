@@ -831,7 +831,7 @@ spec = do
             ("Wallet to update pass", "cardano-passphrase", 20)
         let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
         rup <- request @ApiWallet ctx
-            (Link.putWalletPassphrase w) Default payload
+            (Link.putWalletPassphrase @'Shelley w) Default payload
         expectResponseCode @IO HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
 
@@ -862,7 +862,7 @@ spec = do
             let newPass = T.pack $ replicate len '💘'
             let payload = updatePassPayload oldPass newPass
             rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase w) Default payload
+                (Link.putWalletPassphrase @'Shelley w) Default payload
             expectResponseCode @IO HTTP.status204 rup
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> do
@@ -890,7 +890,8 @@ spec = do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx (Link.putWalletPassphrase wSrc) Default payloadUpdate
+            rup <- request @ApiWallet ctx
+                   (Link.putWalletPassphrase @'Shelley wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
             addrs <- listAddresses @n ctx wDest
@@ -939,7 +940,7 @@ spec = do
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
             let payload = updatePassPayload "Secure passphrase" "Passphrase"
-            let endpoint = Link.putWalletPassphrase w
+            let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
 
