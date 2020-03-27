@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -329,6 +330,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "raw"))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
@@ -754,6 +756,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ByronWalletPutPassphraseData" $ property $ \x ->
+            let
+                x' = ByronWalletPutPassphraseData
+                    { oldPassphrase = oldPassphrase (x :: ByronWalletPutPassphraseData)
+                    , newPassphrase = newPassphrase (x :: ByronWalletPutPassphraseData)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "PostTransactionData" $ property $ \x ->
             let
                 x' = PostTransactionData
@@ -1120,6 +1130,10 @@ instance Arbitrary WalletPutData where
     shrink = genericShrink
 
 instance Arbitrary WalletPutPassphraseData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ByronWalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

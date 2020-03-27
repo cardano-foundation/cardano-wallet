@@ -55,6 +55,7 @@ module Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , ByronWalletPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , PostExternalTransactionData (..)
@@ -466,6 +467,11 @@ newtype WalletPutData = WalletPutData
 
 data WalletPutPassphraseData = WalletPutPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "raw"))
+    , newPassphrase :: !(ApiT (Passphrase "raw"))
+    } deriving (Eq, Generic, Show)
+
+data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
+    { oldPassphrase :: !(Maybe (ApiT (Passphrase "raw")))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
@@ -955,6 +961,11 @@ instance ToJSON  WalletPutData where
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ByronWalletPutPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ByronWalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiTxId where
