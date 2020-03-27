@@ -53,6 +53,7 @@ import Cardano.Wallet.Api.Types
     ( ApiEpochNumber
     , ApiNetworkTip
     , ApiPoolId
+    , ApiPostRandomAddressData
     , ApiSelectCoinsData
     , ApiT (..)
     , ApiTxId
@@ -971,6 +972,21 @@ instance Malformed (BodyParam ApiNetworkTip) where
 instance Malformed (BodyParam PostExternalTransactionData)
 -- no cases here as all bad requests are served by ErrDecodeSignedTxWrongPayload
 -- in Server.hs. Tested by integration tests.
+
+instance Malformed (BodyParam ApiPostRandomAddressData) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ ( [aesonQQ|
+            { "passphrase": "Secure Passphrase"
+            , "address_index": "not_a_number"
+            }|]
+          , "Error in $['address_index']: parsing Int failed, expected Number, but encountered String"
+          )
+        , ( [aesonQQ|
+            { "address_index": 0
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          )
+        ]
 
 --
 -- Class instances (Header)

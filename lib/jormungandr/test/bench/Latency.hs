@@ -324,7 +324,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         fmtResult "getUTxOsStatistics " t3
 
         t4 <- measureApiLogs tvar
-            (request @[ApiAddress n] ctx (Link.listAddresses wal1) Default Empty)
+            (request @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
 
         fmtResult "listAddresses      " t4
 

@@ -914,7 +914,7 @@ fixtureWalletWith ctx coins0 = do
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
             <$> request @[ApiAddress n] ctx
-                    (Link.listAddresses dest) Default Empty
+                    (Link.listAddresses @'Shelley dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -1134,7 +1134,7 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress n]
 listAddresses ctx w = do
-    let link = Link.listAddresses w
+    let link = Link.listAddresses @'Shelley w
     (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
     return addrs
 

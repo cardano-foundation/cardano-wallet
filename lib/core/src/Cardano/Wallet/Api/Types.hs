@@ -88,6 +88,7 @@ module Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , ApiPostRandomAddressData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -117,7 +118,9 @@ import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
     , FromMnemonic (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -581,6 +584,11 @@ newtype ApiNetworkClock = ApiNetworkClock
     { ntpStatus :: ApiNtpStatus
     } deriving (Eq, Generic, Show)
 
+data ApiPostRandomAddressData = ApiPostRandomAddressData
+    { passphrase :: !(ApiT (Passphrase "raw"))
+    , addressIndex :: !(Maybe (ApiT (Index 'WholeDomain 'AddressK)))
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -620,6 +628,7 @@ data ApiErrorCode
     | InvalidDelegationDiscovery
     | NotImplemented
     | WalletNotResponding
+    | AddressAlreadyExists
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -1244,6 +1253,24 @@ instance FromJSON ApiByronWalletMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiByronWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostRandomAddressData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostRandomAddressData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+  ( Enum (Index derivation level)
+  , Bounded (Index derivation level)
+  ) => FromJSON (ApiT (Index derivation level)) where
+    parseJSON bytes = do
+        n <- parseJSON @Int bytes
+        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack $ show n
+
+instance
+  ( Enum (Index derivation level)
+  ) => ToJSON (ApiT (Index derivation level)) where
+    toJSON = toJSON . fromEnum . getApiT
 
 {-------------------------------------------------------------------------------
                              FromText/ToText instances

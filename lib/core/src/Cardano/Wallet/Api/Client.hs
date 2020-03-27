@@ -33,6 +33,7 @@ module Cardano.Wallet.Api.Client
 
     , AddressClient (..)
     , addressClient
+    , byronAddressClient
 
     , StakePoolClient (..)
     , stakePoolClient
@@ -45,6 +46,7 @@ import Prelude
 
 import Cardano.Wallet.Api
     ( Addresses
+    , ByronAddresses
     , ByronTransactions
     , ByronWallets
     , Network
@@ -65,6 +67,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiNetworkTip
     , ApiPoolId
+    , ApiPostRandomAddressData
     , ApiSelectCoinsDataT
     , ApiStakePool
     , ApiT (..)
@@ -159,11 +162,15 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     }
 
-newtype AddressClient = AddressClient
+data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
         -> ClientM [Aeson.Value]
+    , postRandomAddress
+        :: ApiT WalletId
+        -> ApiPostRandomAddressData
+        -> ClientM (ApiAddressT Aeson.Value)
     }
 
 data StakePoolClient = StakePoolClient
@@ -299,6 +306,22 @@ addressClient =
     in
         AddressClient
             { listAddresses = _listAddresses
+            , postRandomAddress = \_ _ -> fail "feature unavailable."
+            }
+
+
+-- | Produces an 'AddressClient n' working against the /wallets API
+byronAddressClient
+    :: AddressClient
+byronAddressClient =
+    let
+        _postRandomAddress
+            :<|> _listAddresses
+            = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
+    in
+        AddressClient
+            { listAddresses = _listAddresses
+            , postRandomAddress = _postRandomAddress
             }
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API

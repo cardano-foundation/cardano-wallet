@@ -87,7 +87,10 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
 
     -- ** Address
+    , createRandomAddress
     , listAddresses
+    , normalizeDelegationAddress
+    , ErrCreateRandomAddress(..)
 
     -- ** Payment
     , selectCoinsExternal
@@ -175,6 +178,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
+    , Index (..)
     , MkKeyFingerprint (..)
     , Passphrase
     , PaymentAddress (..)
@@ -186,6 +190,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     , toChimericAccount
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -196,6 +202,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..)
     , defaultAddressPoolGap
@@ -337,6 +345,7 @@ import Numeric.Natural
 import Safe
     ( lastMay )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
@@ -832,20 +841,21 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
         , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
-        , MkKeyFingerprint k Address
-        , DelegationAddress n k
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
         )
     => ctx
     -> WalletId
+    -> (s -> Address -> Maybe Address)
+        -- ^ A function to normalize address, so that delegated addresses
+        -- non-delegation addresses found in the transaction history are
+        -- shown with their delegation settings.
+        -- Use 'Just' for wallet without delegation settings.
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
-listAddresses ctx wid = db & \DBLayer{..} -> do
+listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     (s, txs) <- mapExceptT atomically $ (,)
         <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
         <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
@@ -857,21 +867,69 @@ listAddresses ctx wid = db & \DBLayer{..} -> do
           where
             outputs' (tx, _) = W.outputs tx
     let knownAddrs =
-            L.sortBy (compareDiscovery s) (knownAddresses s)
+            L.sortBy (compareDiscovery s) (mapMaybe (normalize s) $ knownAddresses s)
     let withAddressState addr =
             (addr, if addr `Set.member` usedAddrs then Used else Unused)
     return $ withAddressState <$> knownAddrs
   where
     db = ctx ^. dbLayer @s @k
-    -- NOTE
-    -- Addresses coming from the transaction history might be payment or
-    -- delegation addresses. So we normalize them all to be delegation addresses
-    -- to make sure that we compare them correctly.
-    normalize :: s -> Address -> Maybe Address
-    normalize s addr = do
-        fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-        pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
     primaryKey = PrimaryKey wid
+
+createRandomAddress
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , PaymentAddress n ByronKey
+        , s ~ RndState n
+        , k ~ ByronKey
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> Maybe (Index 'WholeDomain 'AddressK)
+    -> ExceptT ErrCreateRandomAddress IO Address
+createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrCreateAddrNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
+    let s = getState cp
+
+    (path, gen') <- case mIx of
+        Just ix | isKnownIndex ix s ->
+            throwE $ ErrIndexAlreadyExists ix
+        Just ix ->
+            pure ((minBound, ix), Rnd.gen s)
+        Nothing ->
+            pure $ Rnd.findUnusedPath (Rnd.gen s) minBound (Rnd.unavailablePaths s)
+
+    withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
+        let prepared = preparePassphrase scheme pwd
+        let addr = Rnd.deriveRndStateAddress @n xprv prepared path
+        let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
+        withExceptT ErrCreateAddrNoSuchWallet
+            $ mapExceptT atomically
+            $ putCheckpoint (PrimaryKey wid) (updateState s' cp)
+        pure addr
+  where
+    db = ctx ^. dbLayer @s @k
+    isKnownIndex ix s = (minBound, ix) `Set.member` Rnd.unavailablePaths s
+
+-- NOTE
+-- Addresses coming from the transaction history might be payment or
+-- delegation addresses. So we normalize them all to be delegation addresses
+-- to make sure that we compare them correctly.
+normalizeDelegationAddress
+    :: forall s k n.
+        ( MkKeyFingerprint k Address
+        , DelegationAddress n k
+        , HasRewardAccount s
+        , k ~ RewardAccountKey s
+        )
+    => s
+    -> Address
+    -> Maybe Address
+normalizeDelegationAddress s addr = do
+    fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
+    pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -1698,6 +1756,12 @@ data ErrCannotQuit
 newtype ErrWalletNotResponding
     = ErrWalletNotResponding WalletId
     deriving (Eq, Show)
+
+data ErrCreateRandomAddress
+    = ErrIndexAlreadyExists (Index 'WholeDomain 'AddressK)
+    | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
+    | ErrCreateAddrWithRootKey ErrWithRootKey
+    deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Utils

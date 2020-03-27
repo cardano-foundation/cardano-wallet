@@ -133,6 +133,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiEpochNumber
     , ApiMnemonicT (..)
+    , ApiPostRandomAddressData (..)
     , ApiT (..)
     , ApiTxId (..)
     , ApiWallet
@@ -1264,6 +1265,7 @@ cmdAddress mkClient =
   where
     cmds = subparser $ mempty
         <> cmdAddressList mkClient
+        <> cmdAddressCreate mkClient
 
 -- | Arguments for 'address list' command
 data AddressListArgs = AddressListArgs
@@ -1287,6 +1289,32 @@ cmdAddressList mkClient =
         runClient wPort Aeson.encodePretty $ listAddresses mkClient
             (ApiT wId)
             (ApiT <$> wState)
+
+-- | Arguments for 'address create' command
+data AddressCreateArgs = AddressCreateArgs
+    { _port :: Port "Wallet"
+    , _addressIndex :: Maybe (Index 'WholeDomain 'AddressK)
+    , _id :: WalletId
+    }
+
+cmdAddressCreate
+    :: AddressClient
+    -> Mod CommandFields (IO ())
+cmdAddressCreate mkClient =
+    command "create" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new random address. Only available for random wallets. \
+            \The address index is optional, give none to let the wallet generate \
+            \a random one."
+  where
+    cmd = fmap exec $ AddressCreateArgs
+        <$> portOption
+        <*> optional addressIndexOption
+        <*> walletIdArgument
+    exec (AddressCreateArgs wPort wIx wId) = do
+        pwd <- getPassphrase "Please enter your passphrase: "
+        runClient wPort Aeson.encodePretty $ postRandomAddress mkClient
+            (ApiT wId)
+            (ApiPostRandomAddressData (ApiT pwd) (ApiT <$> wIx))
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
@@ -1635,6 +1663,14 @@ pathOption = option (eitherReader fromTextS) $
     <> long "path"
     <> metavar "DER-PATH"
     <> help "Derivation path e.g. 44H/1815H/0H/0"
+
+addressIndexOption
+    :: FromText (Index derivation level)
+    => Parser (Index derivation level)
+addressIndexOption = optionT $ mempty
+    <> long "address-index"
+    <> metavar "INDEX"
+    <> help "A derivation index for the address"
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

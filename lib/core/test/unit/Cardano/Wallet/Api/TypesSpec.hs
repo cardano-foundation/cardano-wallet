@@ -47,6 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiNtpStatus (..)
+    , ApiPostRandomAddressData
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -346,6 +347,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @StakePoolMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -1504,6 +1506,10 @@ instance Arbitrary TxStatus where
 instance Arbitrary (Quantity "block" Natural) where
     arbitrary = fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
+instance Arbitrary ApiPostRandomAddressData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -1690,6 +1696,9 @@ instance ToSchema ApiWalletDelegationNext where
 
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"
+
+instance ToSchema ApiPostRandomAddressData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
