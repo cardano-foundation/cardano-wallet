@@ -693,7 +693,10 @@ byronServer byron icarus ntp =
 
     byronAddresses :: Server (ByronAddresses n)
     byronAddresses =
-             postRandomAddress byron
+             (\wid s -> withLegacyLayer wid
+                (byron, postRandomAddress byron wid s)
+                (icarus, throwError err403)
+             )
         :<|> (\wid s -> withLegacyLayer wid
                 (byron , listAddresses byron (const pure) wid s)
                 (icarus, listAddresses icarus (const pure) wid s)

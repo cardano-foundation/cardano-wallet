@@ -51,7 +51,7 @@ module Cardano.Wallet.Api.Link
     , forceResyncWallet
 
       -- * Addresses
-    , postAddress
+    , postRandomAddress
     , listAddresses
     , listAddresses'
 
@@ -262,13 +262,13 @@ forceResyncWallet w = discriminate @style
 -- Addresses
 --
 
-postAddress
+postRandomAddress
     :: forall w.
         ( HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-postAddress w =
+postRandomAddress w =
     endpoint @(Api.PostByronAddress Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)

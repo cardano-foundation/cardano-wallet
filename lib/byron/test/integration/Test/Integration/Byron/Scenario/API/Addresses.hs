@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -39,18 +40,20 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWallet
     , emptyRandomWallet
     , expectErrorMessage
+    , expectField
     , expectListField
     , expectListSize
     , expectResponseCode
     , fixtureIcarusWallet
     , fixtureRandomWallet
     , getFromResponse
+    , json
     , request
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet )
+    ( errMsg403WrongPass, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
@@ -69,6 +72,13 @@ spec = do
 
         scenario_ADDRESS_LIST_04 @n emptyRandomWallet
         scenario_ADDRESS_LIST_04 @n emptyIcarusWallet
+
+        scenario_ADDRESS_CREATE_01 @n
+        scenario_ADDRESS_CREATE_02 @n
+        scenario_ADDRESS_CREATE_03 @n
+        scenario_ADDRESS_CREATE_04 @n
+        scenario_ADDRESS_CREATE_05 @n
+        scenario_ADDRESS_CREATE_06 @n
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -134,3 +144,112 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> do
         ]
   where
     title = "ADDRESS_LIST_04 - Delete wallet"
+
+scenario_ADDRESS_CREATE_01
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_01 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r
+        [ expectResponseCode @IO HTTP.status201
+        , expectField #state (`shouldBe` ApiT Unused)
+        ]
+  where
+    title = "ADDRESS_CREATE_01 - Can create a random address without index"
+
+scenario_ADDRESS_CREATE_02
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
+    w <- emptyIcarusWallet ctx
+    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r [ expectResponseCode @IO HTTP.status403 ]
+  where
+    title = "ADDRESS_CREATE_02 - Creation if forbidden on Icarus wallets"
+
+scenario_ADDRESS_CREATE_03
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_03 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+    let payload = Json [json| { "passphrase": "Give me all your money." }|]
+    r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r
+        [ expectResponseCode @IO HTTP.status403
+        , expectErrorMessage errMsg403WrongPass
+        ]
+  where
+    title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
+
+scenario_ADDRESS_CREATE_04
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_04 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+
+    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    rA <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify rA [ expectResponseCode @IO HTTP.status201 ]
+    let addr = getFromResponse id rA
+
+    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    verify rL
+        [ expectResponseCode @IO HTTP.status200
+        , expectListField 0 id (`shouldBe` addr)
+        ]
+  where
+    title = "ADDRESS_CREATE_04 - Can list address after creating it"
+
+scenario_ADDRESS_CREATE_05
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_05 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+    let payload = Json [json|
+            { "passphrase": "Secure Passphrase"
+            , "address_index": 14
+            }|]
+    r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r
+        [ expectResponseCode @IO HTTP.status201
+        , expectField #state (`shouldBe` ApiT Unused)
+        ]
+  where
+    title = "ADDRESS_CREATE_05 - Can create an address and specify the index"
+
+scenario_ADDRESS_CREATE_06
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+    let payload = Json [json|
+            { "passphrase": "Secure Passphrase"
+            , "address_index": 14
+            }|]
+    r0 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r0 [ expectResponseCode @IO HTTP.status201 ]
+    r1 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
+    verify r1 [ expectResponseCode @IO HTTP.status409 ]
+  where
+    title = "ADDRESS_CREATE_06 - Cannot create an address that already exists"
