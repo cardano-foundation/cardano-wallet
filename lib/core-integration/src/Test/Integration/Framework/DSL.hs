@@ -50,11 +50,8 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyRandomWallet
-    , emptyRandomWalletNoPasswd
     , emptyRandomWalletWithPasswd
     , emptyIcarusWallet
-    , emptyIcarusWalletNoPasswd
-    , emptyIcarusWalletWithPasswd
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
@@ -161,10 +158,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , PassphraseScheme (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , SomeMnemonic (..)
     , WalletKey (..)
+    , hex
+    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -292,7 +293,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -598,52 +601,31 @@ emptyRandomWallet ctx = do
     emptyByronWalletWith ctx "random"
         ("Random Wallet", mnemonic, "Secure Passphrase")
 
-emptyRandomWalletNoPasswd :: Context t -> IO ApiByronWallet
-emptyRandomWalletNoPasswd ctx = do
-    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletNoPasswdWith ctx "random"
-        ("Random Wallet", mnemonic)
-
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
 
-emptyIcarusWalletNoPasswd :: Context t -> IO ApiByronWallet
-emptyIcarusWalletNoPasswd ctx = do
-    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletNoPasswdWith ctx "icarus"
-        ("Icarus Wallet", mnemonic)
-
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
-emptyRandomWalletWithPasswd ctx passwd = do
-    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonic, passwd)
-
-emptyIcarusWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
-emptyIcarusWalletWithPasswd ctx passwd = do
-    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-    emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet", mnemonic, passwd)
-
-emptyByronWalletNoPasswdWith
-    :: forall t. ()
-    => Context t
-    -> String
-    -> (Text, [Text])
-    -> IO ApiByronWallet
-emptyByronWalletNoPasswdWith ctx style (name, mnemonic) = do
-    let payload = Json [aesonQQ| {
-            "name": #{name},
-            "mnemonic_sentence": #{mnemonic},
-            "style": #{style}
-        }|]
-    r <- request @ApiByronWallet ctx
-        (Link.postWallet @'Byron) Default payload
-    expectResponseCode @IO HTTP.status201 r
-    return (getFromResponse id r)
+emptyRandomWalletWithPasswd ctx rawPwd = do
+    let pwd = preparePassphrase EncryptWithScrypt
+            $ Passphrase
+            $ BA.convert
+            $ T.encodeUtf8 rawPwd
+    seed <- SomeMnemonic @12 . entropyToMnemonic <$> genEntropy
+    let key = T.decodeUtf8
+            $ hex
+            $ Byron.getKey
+            $ Byron.generateKeyFromSeed seed pwd
+    pwdH <- T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
+  where
+    encryptPasswordWithScrypt =
+        fmap Scrypt.getEncryptedPass
+        . Scrypt.encryptPassIO Scrypt.defaultParams
+        . Scrypt.Pass
+        . BA.convert
 
 emptyByronWalletWith
     :: forall t. ()
