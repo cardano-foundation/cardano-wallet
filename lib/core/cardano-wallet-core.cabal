@@ -23,6 +23,8 @@ library
   default-extensions:
       NoImplicitPrelude
       OverloadedStrings
+      DerivingStrategies
+      StandaloneDeriving
   ghc-options:
       -Wall
       -Wcompat
