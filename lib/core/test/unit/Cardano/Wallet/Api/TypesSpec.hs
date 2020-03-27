@@ -1625,6 +1625,10 @@ instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
+instance ToSchema ByronWalletPutPassphraseData where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
+
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 

@@ -1034,6 +1034,18 @@ components:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
+    ApiByronWalletPutPassphraseData: &ApiByronWalletPutPassphraseData
+      type: object
+      required:
+        - new_passphrase
+      properties:
+        old_passphrase:
+          <<: *walletPassphrase
+          description: The current passphrase if present.
+        new_passphrase:
+          <<: *walletPassphrase
+          description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
     ApiPostTransactionData: &ApiPostTransactionData
       type: object
       required:
