@@ -50,7 +50,11 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyRandomWallet
+    , emptyRandomWalletNoPasswd
+    , emptyRandomWalletWithPasswd
     , emptyIcarusWallet
+    , emptyIcarusWalletNoPasswd
+    , emptyIcarusWalletWithPasswd
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
@@ -594,11 +598,52 @@ emptyRandomWallet ctx = do
     emptyByronWalletWith ctx "random"
         ("Random Wallet", mnemonic, "Secure Passphrase")
 
+emptyRandomWalletNoPasswd :: Context t -> IO ApiByronWallet
+emptyRandomWalletNoPasswd ctx = do
+    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletNoPasswdWith ctx "random"
+        ("Random Wallet", mnemonic)
+
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
+
+emptyIcarusWalletNoPasswd :: Context t -> IO ApiByronWallet
+emptyIcarusWalletNoPasswd ctx = do
+    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletNoPasswdWith ctx "icarus"
+        ("Icarus Wallet", mnemonic)
+
+emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
+emptyRandomWalletWithPasswd ctx passwd = do
+    mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletWith ctx "random"
+        ("Random Wallet", mnemonic, passwd)
+
+emptyIcarusWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
+emptyIcarusWalletWithPasswd ctx passwd = do
+    mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+    emptyByronWalletWith ctx "icarus"
+        ("Icarus Wallet", mnemonic, passwd)
+
+emptyByronWalletNoPasswdWith
+    :: forall t. ()
+    => Context t
+    -> String
+    -> (Text, [Text])
+    -> IO ApiByronWallet
+emptyByronWalletNoPasswdWith ctx style (name, mnemonic) = do
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "mnemonic_sentence": #{mnemonic},
+            "style": #{style}
+        }|]
+    r <- request @ApiByronWallet ctx
+        (Link.postWallet @'Byron) Default payload
+    expectResponseCode @IO HTTP.status201 r
+    return (getFromResponse id r)
 
 emptyByronWalletWith
     :: forall t. ()
