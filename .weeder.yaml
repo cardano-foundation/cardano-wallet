@@ -125,3 +125,15 @@
       - name: Module not compiled
       - module: Cardano.Startup.Windows
 
+- package:
+  - name: cardano-wallet-byron
+  - section:
+    - name: bench:restore
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+        - identifier:
+          - AnyAddressStateId
+          - AnyAddressStateKey
+          - AnyAddressStateProportion
