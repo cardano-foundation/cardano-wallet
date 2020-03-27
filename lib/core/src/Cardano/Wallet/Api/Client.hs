@@ -73,7 +73,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
-    , ByronWalletPutPassphraseData
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionDataT
@@ -100,7 +99,7 @@ import qualified Data.Aeson as Aeson
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
-data WalletClient wallet passphraseUpdate = WalletClient
+data WalletClient wallet = WalletClient
     { deleteWallet
         :: ApiT WalletId
         -> ClientM ()
@@ -121,7 +120,7 @@ data WalletClient wallet passphraseUpdate = WalletClient
         -> ClientM wallet
     , putWalletPassphrase
         :: ApiT WalletId
-        -> passphraseUpdate
+        -> WalletPutPassphraseData
         -> ClientM NoContent
     , forceResyncWallet
         :: ApiT WalletId
@@ -186,7 +185,7 @@ data NetworkClient = NetworkClient
     }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-walletClient :: WalletClient ApiWallet WalletPutPassphraseData
+walletClient :: WalletClient ApiWallet
 walletClient =
     let
         _deleteWallet
@@ -211,7 +210,7 @@ walletClient =
             }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-byronWalletClient :: WalletClient ApiByronWallet ByronWalletPutPassphraseData
+byronWalletClient :: WalletClient ApiByronWallet
 byronWalletClient =
     let
         _postWallet
