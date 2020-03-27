@@ -230,7 +230,7 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = _putByronWalletPassphrase
+            , putWalletPassphrase = error "putWalletPassphrase: not impl for byron"
             , forceResyncWallet = _forceResyncWallet
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }

@@ -470,7 +470,7 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
-    { oldPassphrase :: !(Maybe (ApiT (Passphrase "raw")))
+    { oldPassphrase :: !(Maybe (ApiT (Passphrase "byron-raw")))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 

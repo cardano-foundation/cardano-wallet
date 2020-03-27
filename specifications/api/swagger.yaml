@@ -269,6 +269,13 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
+x-byronWalletPassphrase: &byronWalletPassphrase
+  description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
+  type: string
+  minLength: 0
+  maxLength: 255
+  example: Secure Passphrase
+
 x-walletPassphraseHash: &walletPassphraseHash
   description: |
     A hash of master passphrase. The hash should be an output of a Scrypt function with the following parameters:
@@ -1040,7 +1047,7 @@ components:
         - new_passphrase
       properties:
         old_passphrase:
-          <<: *walletPassphrase
+          <<: *byronWalletPassphrase
           description: The current passphrase if present.
         new_passphrase:
           <<: *walletPassphrase

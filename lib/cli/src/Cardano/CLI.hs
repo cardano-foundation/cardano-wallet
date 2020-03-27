@@ -1055,20 +1055,20 @@ cmdWalletUpdatePassphrase mkClient =
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
-data OldNewPassword passphraseUpdate =
-    OldNewPassword (Passphrase "raw") (Passphrase "raw")
+data OldNewPassword passphraseUpdate purpose =
+    OldNewPassword (Passphrase (purpose :: Symbol)) (Passphrase "raw")
 
-class PassphraseUpdate passphraseUpdate where
-    producePassphraseData :: OldNewPassword passphraseUpdate -> passphraseUpdate
+class PassphraseUpdate passphraseUpdate purpose where
+    producePassphraseData :: OldNewPassword passphraseUpdate purpose -> passphraseUpdate
 
-instance PassphraseUpdate ByronWalletPutPassphraseData where
+instance PassphraseUpdate ByronWalletPutPassphraseData "byron-raw" where
     producePassphraseData (OldNewPassword old new) =
-        if old == Passphrase @"raw" "" then
+        if old == Passphrase @"byron-raw" "" then
             ByronWalletPutPassphraseData Nothing (ApiT new)
         else
             ByronWalletPutPassphraseData (Just $ ApiT old) (ApiT new)
 
-instance PassphraseUpdate WalletPutPassphraseData where
+instance PassphraseUpdate WalletPutPassphraseData "raw" where
     producePassphraseData (OldNewPassword old new) =
         WalletPutPassphraseData (ApiT old) (ApiT new)
 

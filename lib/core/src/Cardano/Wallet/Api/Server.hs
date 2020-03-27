@@ -1158,7 +1158,8 @@ putByronWalletPassphrase ctx (ApiT wid) body = do
     let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         case oldM of
-            Just (ApiT old) ->
+            Just (ApiT (Passphrase old')) -> do
+                let old = Passphrase @"raw" old'
                 W.updateWalletPassphrase wrk wid (old, new)
             _ -> do
                 let old = Passphrase @"raw" ""
