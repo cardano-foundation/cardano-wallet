@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.Model
-    ( currentTip, totalBalance, totalUTxO )
+    ( currentTip, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
@@ -84,9 +84,10 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , SlotId (..)
     , SyncProgress (..)
-    , UTxO (..)
     , WalletId (..)
     , WalletName (..)
+    , computeUtxoStatistics
+    , log10
     , mkSyncTolerance
     , slotAt
     , slotParams
@@ -123,7 +124,7 @@ import Data.Time.Clock.POSIX
 import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
-    ( fmt, pretty, (+|), (+||), (|+), (||+) )
+    ( build, fmt, pretty, (+|), (+||), (|+), (||+) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
 import Say
@@ -151,7 +152,6 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -335,9 +335,8 @@ bench_restoration tracer socketPath progressLogFile (wid, wname, s) = do
                 waitForWalletSync @n w wallet
                 (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
                 sayErr "Wallet restored!"
-                sayErr . fmt $ "Balance: " +|| totalBalance pending wallet' ||+ " lovelace"
-                sayErr . fmt $
-                    "UTxO: " +|| Map.size (getUTxO $ totalUTxO pending wallet') ||+ " entries"
+                sayErr . fmt . build $
+                    computeUtxoStatistics log10 (totalUTxO pending wallet')
                 unsafeRunExceptT $ W.deleteWallet w wid
 
 traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletLog

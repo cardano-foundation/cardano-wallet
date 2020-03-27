@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , isSubsetOf
     , isValidCoin
     , isWithinRange
+    , log10
     , mapRangeLowerBound
     , mapRangeUpperBound
     , mkSyncTolerance
@@ -242,6 +243,42 @@ spec = do
                     , amount = Quantity 13371442
                     }
             "+13.371442 in ledger since 14.0#1" === pretty @_ @Text txMeta
+
+        it "UTxOStatistics" $ do
+            let txin h = TxIn (Hash h) 0
+            let txout c = TxOut (Address "") (Coin c)
+            let ada l = l * 1000*1000
+            let utxo = UTxO $ Map.fromList
+                    [ (txin "a", txout 1)
+                    , (txin "b", txout 4)
+                    , (txin "c", txout $ ada 44)
+                    , (txin "d", txout $ ada 17)
+                    , (txin "e", txout $ ada 2000)
+                    , (txin "f", txout $ ada 9000)
+                    , (txin "g", txout $ ada 3000)
+                    ]
+            let stats = computeUtxoStatistics log10 utxo
+            pretty stats `shouldBe` mconcat @String
+                [ "= Total value of 14061000005 lovelace across 7 UTxOs\n"
+                , ""
+                , " ... 10                2\n"
+                , " ... 100               0\n"
+                , " ... 1000              0\n"
+                , " ... 10000             0\n"
+                , " ... 100000            0\n"
+                , " ... 1000000           0\n"
+                , " ... 10000000          0\n"
+                , " ... 100000000         2\n"
+                , " ... 1000000000        0\n"
+                , " ... 10000000000       3\n"
+                , " ... 100000000000      0\n"
+                , " ... 1000000000000     0\n"
+                , " ... 10000000000000    0\n"
+                , " ... 100000000000000   0\n"
+                , " ... 1000000000000000  0\n"
+                , " ... 10000000000000000 0\n"
+                , " ... 45000000000000000 0\n"
+                ]
 
     let sp = SlotParameters
             { getEpochLength = EpochLength 21600
