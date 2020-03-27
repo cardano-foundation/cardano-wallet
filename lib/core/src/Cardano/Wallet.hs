@@ -87,8 +87,10 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
 
     -- ** Address
+    , createRandomAddress
     , listAddresses
     , normalizeDelegationAddress
+    , ErrCreateRandomAddress(..)
 
     -- ** Payment
     , selectCoinsExternal
@@ -176,6 +178,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
+    , Index (..)
     , MkKeyFingerprint (..)
     , Passphrase
     , PaymentAddress (..)
@@ -187,6 +190,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     , toChimericAccount
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -197,6 +202,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..)
     , defaultAddressPoolGap
@@ -338,6 +345,7 @@ import Numeric.Natural
 import Safe
     ( lastMay )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
@@ -866,6 +874,44 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     primaryKey = PrimaryKey wid
+
+createRandomAddress
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , PaymentAddress n ByronKey
+        , s ~ RndState n
+        , k ~ ByronKey
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> Maybe (Index 'WholeDomain 'AddressK)
+    -> ExceptT ErrCreateRandomAddress IO Address
+createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrCreateAddrNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
+    let s = getState cp
+
+    (path, gen') <- case mIx of
+        Just ix | isKnownIndex ix s ->
+            throwE $ ErrIndexAlreadyExists ix
+        Just ix ->
+            pure ((minBound, ix), Rnd.gen s)
+        Nothing ->
+            pure $ Rnd.findUnusedPath (Rnd.gen s) minBound (Rnd.unavailablePaths s)
+
+    withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
+        let prepared = preparePassphrase scheme pwd
+        let addr = Rnd.deriveRndStateAddress @n xprv prepared path
+        let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
+        withExceptT ErrCreateAddrNoSuchWallet
+            $ mapExceptT atomically
+            $ putCheckpoint (PrimaryKey wid) (updateState s' cp)
+        pure addr
+  where
+    db = ctx ^. dbLayer @s @k
+    isKnownIndex ix s = (minBound, ix) `Set.member` Rnd.unavailablePaths s
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or
@@ -1710,6 +1756,12 @@ data ErrCannotQuit
 newtype ErrWalletNotResponding
     = ErrWalletNotResponding WalletId
     deriving (Eq, Show)
+
+data ErrCreateRandomAddress
+    = ErrIndexAlreadyExists (Index 'WholeDomain 'AddressK)
+    | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
+    | ErrCreateAddrWithRootKey ErrWithRootKey
+    deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
                                    Utils

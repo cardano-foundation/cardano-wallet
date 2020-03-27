@@ -49,6 +49,7 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrCoinSelection (..)
+    , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
     , ErrJoinStakePool (..)
@@ -196,7 +197,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
     ( Address
-    , AddressState
+    , AddressState (..)
     , Block
     , BlockchainParameters
     , Coin (..)
@@ -1273,13 +1274,20 @@ postRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s t k
+        , PaymentAddress n ByronKey
         )
     => ctx
     -> ApiT WalletId
     -> ApiPostRandomAddressData
     -> Handler (ApiAddress n)
-postRandomAddress _ctx _wid _body =
-    throwError err501
+postRandomAddress ctx (ApiT wid) body = do
+    let pwd = getApiT (body ^. #passphrase)
+    let mix = getApiT <$> (body ^. #addressIndex)
+    addr <- withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k wrk wid pwd mix
+    pure $ coerceAddress (addr, Unused)
+  where
+    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
 
 listAddresses
     :: forall ctx s t k n.
@@ -2318,6 +2326,16 @@ instance LiftHandler ErrNoSuchEpoch where
                 , " epoch. Current one is "
                 , pretty errCurrentEpoch
                 , ". Use smaller epoch than current or 'latest'."
+                ]
+
+instance LiftHandler ErrCreateRandomAddress where
+    handler = \case
+        ErrCreateAddrNoSuchWallet e -> handler e
+        ErrCreateAddrWithRootKey  e -> handler e
+        ErrIndexAlreadyExists ix ->
+            apiError err409 AddressAlreadyExists $ mconcat
+                [ "I cannot derive a new unused address #", pretty (fromEnum ix)
+                , " because I already know of such address."
                 ]
 
 instance LiftHandler (Request, ServerError) where
