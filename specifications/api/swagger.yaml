@@ -1947,6 +1947,22 @@ paths:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
+  /byron-wallets/{walletId}/passphrase:
+    put:
+      operationId: putByronWalletPassphrase
+      tags: ["Byron Wallets"]
+      summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiByronWalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
+
   /byron-wallets/{walletId}/tip:
     put:
       operationId: forceResyncByron

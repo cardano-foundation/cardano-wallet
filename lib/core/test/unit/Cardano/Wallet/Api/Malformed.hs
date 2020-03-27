@@ -1,13 +1,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -15,7 +12,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -61,6 +57,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId
     , ApiWalletPassphrase
+    , ByronWalletPutPassphraseData
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
@@ -742,6 +739,53 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 { "new_passphrase": #{wPassphrase}
                 }|]
               , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, key 'old_passphrase' not found"
+              )
+            ]
+
+instance Malformed (BodyParam ByronWalletPutPassphraseData) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered String")
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{old_passphrase = \"random\"}", msgJsonInvalid)
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$>
+            [ ( [aesonQQ|
+                { "old_passphrase": #{wPassphrase}
+                , "new_passphrase" : 100
+                }|]
+              , "Error in $['new_passphrase']: parsing Text failed, expected String, but encountered Number"
+              )
+            , ( [aesonQQ|
+                { "old_passphrase": []
+                , "new_passphrase" : #{wPassphrase}
+                }|]
+              , "Error in $['old_passphrase']: parsing Text failed, expected String, but encountered Array"
+              )
+            , ( [aesonQQ|
+                { "old_passphrase": #{wPassphrase}
+                , "new_passphrase" : "123456789"
+                }|]
+              , "Error in $['new_passphrase']: passphrase is too short: expected at least 10 characters"
+              )
+            , ( [aesonQQ|
+                { "old_passphrase": #{wPassphrase}
+                , "new_passphrase" : #{nameTooLong}
+                }|]
+              , "Error in $['new_passphrase']: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+                { "old_passphrase": #{nameTooLong}
+                , "new_passphrase" : #{wPassphrase}
+                }|]
+              , "Error in $['old_passphrase']: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+                { "old_passphrase": #{wPassphrase}
+                }|]
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, key 'new_passphrase' not found"
               )
             ]
 
