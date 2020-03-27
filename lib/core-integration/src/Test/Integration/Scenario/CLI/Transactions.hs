@@ -17,13 +17,10 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiFee
     , ApiTransaction
-    , ApiTxId (..)
     , ApiWallet
     , DecodeAddress
     , EncodeAddress (..)
     , getApiT
-    , insertedAt
-    , time
     )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), SortOrder (..), TxStatus (..) )
@@ -41,8 +38,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( showT, toText )
-import Data.Time.Clock
-    ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
@@ -72,12 +67,14 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , fixtureWallet
     , fixtureWalletWith
+    , getTxId
     , getWalletViaCLI
     , listAddresses
     , listAllTransactions
     , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
+    , unsafeGetTransactionTime
     , utcIso8601ToText
     , verify
     , walletId
@@ -97,8 +94,6 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
-import Web.HttpApiData
-    ( ToHttpApiData (..) )
 
 import qualified Data.Text as T
 
@@ -486,7 +481,7 @@ spec = do
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -512,7 +507,7 @@ spec = do
                 , "--payment", T.pack (show amt) <> "@" <> addr1
                 , "--payment", T.pack (show amt) <> "@" <> addr2
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -541,7 +536,7 @@ spec = do
                 , "--payment", T.pack (show amt) <> "@" <> addr1'
                 , "--payment", T.pack (show amt) <> "@" <> addr2'
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
@@ -562,8 +557,8 @@ spec = do
                 , "--payment", "12333@" <> addr1
                 , "--payment", "4666@" <> addr2
                 ]
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403UTxO
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403UTxO
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -583,8 +578,8 @@ spec = do
                 , "--payment", "22@" <> addr3
                 ]
 
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403InputsDepleted
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403InputsDepleted
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -599,7 +594,7 @@ spec = do
                 , "--payment", "1@" <> addr
                 ]
 
-        (c, _, err) <- postTransactionFeeViaCLI @t ctx args
+        (Exit c, Stderr err) <- postTransactionFeeViaCLI @t ctx args
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
 
@@ -614,8 +609,8 @@ spec = do
                 , "--payment", "1000000@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain`
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain`
             errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -628,8 +623,8 @@ spec = do
                     , "--payment", "12@" <> (T.pack addr)
                     ]
 
-            (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-            (T.unpack err) `shouldContain` errMsg
+            (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+            err `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
@@ -853,7 +848,7 @@ spec = do
           \ctx -> do
               w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               let query t1 t2 =
                         [ "--start", utcIso8601ToText t1
@@ -878,7 +873,7 @@ spec = do
           \ctx -> do
               w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
               Stdout o1  <- listTransactionsViaCLI @t ctx
                     ( T.unpack <$> [walId, "--start", tl] )
@@ -893,7 +888,7 @@ spec = do
           \ctx -> do
               w <- fixtureWalletWith @n ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
               let te = utcIso8601ToText $ utcTimePred t
               Stdout o1  <- listTransactionsViaCLI @t ctx
                       ( T.unpack <$> [walId, "--end", te] )
@@ -1026,9 +1021,6 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
   where
-      getTxId :: (ApiTransaction n) -> String
-      getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
-
       postTxViaCLI
           :: Context t
           -> ApiWallet
@@ -1048,14 +1040,6 @@ spec = do
           err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
           c `shouldBe` ExitSuccess
           expectValidJSON (Proxy @(ApiTransaction n)) out
-
-      unsafeGetTransactionTime
-          :: [ApiTransaction n]
-          -> UTCTime
-      unsafeGetTransactionTime txs =
-          case fmap time . insertedAt <$> txs of
-              (Just t):_ -> t
-              _ -> error "Expected at least one transaction with a time."
 
       fixtureWallet' :: Context t -> IO String
       fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet

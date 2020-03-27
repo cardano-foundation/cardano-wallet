@@ -33,6 +33,7 @@ module Cardano.Byron.Codec.Cbor
     , decodeSignedTx
     , decodeTx
     , decodeTxWitness
+    , decodeProtocolMagicAttr
 
     -- * Encoding
     , encodeAddress
@@ -86,6 +87,8 @@ import Data.Digest.CRC32
     ( crc32 )
 import Data.Either.Extra
     ( eitherToMaybe )
+import Data.List
+    ( find )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -194,6 +197,18 @@ decodeAddressDerivationPath pwd = do
             , show addrType
             ]
     pure path
+
+decodeProtocolMagicAttr
+    :: CBOR.Decoder s (Maybe ProtocolMagic)
+decodeProtocolMagicAttr = do
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    _ <- CBOR.decodeBytes
+    attrs <- decodeAllAttributes
+    case find ((== 2) . fst) attrs of
+        Nothing -> pure Nothing
+        Just (_, bytes) -> case deserialiseCbor decodeProtocolMagic bytes of
+            Nothing -> fail "unable to decode attribute into protocol magic"
+            Just pm -> pure (Just pm)
 
 decodeEmptyAttributes :: CBOR.Decoder s ((), CBOR.Encoding)
 decodeEmptyAttributes = do
@@ -423,10 +438,8 @@ decodeOpeningsProof = do
 decodePreviousBlockHeader :: CBOR.Decoder s (Hash "BlockHeader")
 decodePreviousBlockHeader = Hash <$> CBOR.decodeBytes
 
-decodeProtocolMagic :: CBOR.Decoder s ()
-decodeProtocolMagic = do
-    _ <- CBOR.decodeInt32
-    return ()
+decodeProtocolMagic :: CBOR.Decoder s ProtocolMagic
+decodeProtocolMagic = ProtocolMagic <$> CBOR.decodeInt32
 
 decodeProxySignature
     :: (forall x. CBOR.Decoder x ())

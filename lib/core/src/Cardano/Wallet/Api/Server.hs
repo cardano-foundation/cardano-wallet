@@ -1672,7 +1672,7 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
   where
-    mkAddressAmount :: TxOut -> AddressAmount n
+    mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
@@ -1719,11 +1719,11 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
             }
         }
 
-    toAddressAmount :: TxOut -> AddressAmount n
+    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
-coerceCoin :: AddressAmount t -> TxOut
+coerceCoin :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n) -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
 

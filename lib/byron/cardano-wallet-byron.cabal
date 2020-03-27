@@ -170,6 +170,7 @@ test-suite cardano-node-integration
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , command
     , generic-lens
     , hspec
     , http-client
@@ -189,3 +190,4 @@ test-suite cardano-node-integration
   other-modules:
       Cardano.Wallet.Byron.Faucet
       Test.Integration.Byron.Scenario.API.Transactions
+      Test.Integration.Byron.Scenario.CLI.Transactions

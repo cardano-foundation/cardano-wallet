@@ -149,6 +149,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
+            (hsPkgs."command" or (buildDepError "command"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."http-client" or (buildDepError "http-client"))

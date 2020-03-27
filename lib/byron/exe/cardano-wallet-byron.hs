@@ -35,10 +35,13 @@ import Cardano.Chain.Genesis
 import Cardano.CLI
     ( LoggingOptions (..)
     , cli
+    , cmdByronWalletCreate
     , cmdKey
     , cmdMnemonic
     , cmdNetwork
+    , cmdTransaction
     , cmdVersion
+    , cmdWallet
     , databaseOption
     , enableWindowsANSI
     , helperTracing
@@ -59,6 +62,8 @@ import Cardano.Startup
     , withShutdownHandler
     , withUtf8Encoding
     )
+import Cardano.Wallet.Api.Client
+    ( byronTransactionClient, byronWalletClient, networkClient )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Byron
@@ -144,7 +149,9 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdKey
-        <> cmdNetwork
+        <> cmdWallet cmdByronWalletCreate byronWalletClient
+        <> cmdTransaction byronTransactionClient byronWalletClient
+        <> cmdNetwork networkClient
         <> cmdVersion
 
 beforeMainLoop

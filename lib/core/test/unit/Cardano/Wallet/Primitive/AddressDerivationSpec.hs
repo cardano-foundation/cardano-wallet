@@ -19,7 +19,7 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub, unXPrv )
+    ( XPub, unXPrv, xpub )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), PassphraseScheme (..) )
+    ( Address (..), Hash (..), PassphraseScheme (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
@@ -99,9 +99,11 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -323,9 +325,9 @@ prop_roundtripXPub
         )
     => k 'AccountK XPub
     -> Property
-prop_roundtripXPub xpub = do
-    let xpub' = (unsafeDeserializeXPub . serializeXPub) xpub
-    xpub' === xpub
+prop_roundtripXPub key = do
+    let key' = (unsafeDeserializeXPub . serializeXPub) key
+    key' === key
 
 prop_passphraseRoundtrip
     :: Passphrase "raw"
@@ -609,17 +611,16 @@ genAddress = oneof
         <$> vector Seq.publicKeySize
     ]
 
-genLegacyAddress :: (Int, Int) -> Gen Address
-genLegacyAddress range = do
-    n <- choose range
-    let prefix = BS.pack
-            [ 130       -- Array(2)
-            , 216, 24   -- Tag 24
-            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
-            ]
-    addrPayload <- BS.pack <$> vector n
-    let crc = BS.pack [26,1,2,3,4]
-    return $ Address (prefix <> addrPayload <> crc)
+genLegacyAddress
+    :: Maybe ProtocolMagic
+    -> Gen Address
+genLegacyAddress pm = do
+    bytes <- BS.pack <$> vector 64
+    let (Right key) = xpub bytes
+    pure $ Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress key
+        $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
