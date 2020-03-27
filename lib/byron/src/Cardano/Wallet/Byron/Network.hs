@@ -99,6 +99,8 @@ import Control.Retry
     )
 import Control.Tracer
     ( Tracer, contramap, nullTracer, traceWith )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Function
@@ -204,6 +206,7 @@ import System.IO.Error
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 -- | Network layer cursor for Byron. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
@@ -300,6 +303,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
                 pure $ fromTip getGenesisBlockHash getEpochLength tip
 
     _postTx localTxSubmissionQ tx = do
+        liftIO $ traceWith tr $ MsgPostSealedTx tx
         result <- withExceptT ErrPostTxNetworkUnreachable $
             ExceptT (localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx))
         case result of
@@ -740,6 +744,7 @@ data NetworkLayerLog
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout
+    | MsgPostSealedTx W.SealedTx
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
@@ -767,6 +772,10 @@ instance ToText NetworkLayerLog where
             ]
         MsgIntersectionFound point -> T.unwords
             [ "Intersection found:", pretty point ]
+        MsgPostSealedTx (W.SealedTx bytes) -> T.unwords
+            [ "Posting transaction, serialized as:"
+            , T.decodeUtf8 $ convertToBase Base16 bytes
+            ]
 
 instance DefinePrivacyAnnotation NetworkLayerLog
 instance DefineSeverity NetworkLayerLog where
@@ -780,3 +789,4 @@ instance DefineSeverity NetworkLayerLog where
         MsgFindIntersectionTimeout -> Warning
         MsgFindIntersection{}      -> Info
         MsgIntersectionFound{}     -> Info
+        MsgPostSealedTx{}          -> Debug
