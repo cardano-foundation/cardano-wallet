@@ -126,7 +126,7 @@ import Data.List.Extra
 import Data.Map
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust, fromMaybe, isJust, isNothing )
+    ( catMaybes, fromJust, isJust, isNothing )
 import Data.Set
     ( Set )
 import Data.TreeDiff
@@ -828,7 +828,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update matches ev =
             case match ev of
                 Just wid ->
-                    Map.alter (Just . (+1) . fromMaybe 0) wid matches
+                    Map.insertWith (+) wid 1 matches
                 _otherwise ->
                     matches
 

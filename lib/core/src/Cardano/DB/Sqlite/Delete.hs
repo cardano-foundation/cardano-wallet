@@ -184,7 +184,7 @@ withRef (RefCount mvar lock) ix =
     bracket_ (modifyMVar_ lock $ const $ modify inc) (modify dec)
   where
     modify f = modifyMVar_ mvar (pure . f)
-    inc m = Map.insert ix (maybe 1 (+1) (Map.lookup ix m)) m
+    inc = Map.insertWith (+) ix 1
     dec = Map.update (\n -> if n > 1 then Just (n - 1) else Nothing) ix
 
 -- | Attempt to wait until all 'withRef' calls for the given identifier have
