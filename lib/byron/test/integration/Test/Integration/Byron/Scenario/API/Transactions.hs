@@ -26,16 +26,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..)
-    , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , PassphraseScheme (..)
-    , PaymentAddress (..)
-    , hex
-    , preparePassphrase
-    )
+    ( NetworkDiscriminant (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey (..), generateKeyFromSeed )
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -85,6 +78,7 @@ import Test.Integration.Framework.DSL
     , json
     , randomAddresses
     , request
+    , rootPrvKeyFromMnemonics
     , verify
     , walletId
     )
@@ -101,9 +95,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteArray as BA
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec
@@ -528,11 +520,7 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
     expectResponseCode @IO HTTP.status204 rd1
 
     -- MORE SETUP
-    let (Right seed) = fromMnemonic @'[12] (mnemonicToText mnemonics)
-    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-    let rootXPrv = T.decodeUtf8 $ hex $ getKey $
-            generateKeyFromSeed seed
-            (preparePassphrase EncryptWithScrypt rawPassd)
+    let rootXPrv = rootPrvKeyFromMnemonics (mnemonicToText mnemonics) fixturePassphrase
 
     -- ACTION
     wDestRestored <- emptyByronWalletFromXPrvWith ctx "random"
@@ -560,11 +548,7 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
     -- SETUP
     let amnt = 100_000 :: Natural
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
-    let (Right seed) = fromMnemonic @'[12] mnemonics
-    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-    let rootXPrv = T.decodeUtf8 $ hex $ getKey $
-            generateKeyFromSeed seed
-            (preparePassphrase EncryptWithScrypt rawPassd)
+    let rootXPrv = rootPrvKeyFromMnemonics mnemonics fixturePassphrase
     wSrc <- emptyByronWalletFromXPrvWith ctx "random"
             ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
     (wDest, payment) <- do
@@ -620,11 +604,7 @@ scenario_RESTORE_03
 scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     -- SETUP
     mnemonics <- mnemonicToText <$> nextWallet @"random" (_faucet ctx)
-    let (Right seed) = fromMnemonic @'[12] mnemonics
-    let rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
-    let rootXPrv = T.decodeUtf8 $ hex $ getKey $
-            generateKeyFromSeed seed
-            (preparePassphrase EncryptWithScrypt rawPassd)
+    let rootXPrv = rootPrvKeyFromMnemonics mnemonics fixturePassphrase
     let passHashCorrupted = T.replicate 100 "0"
     let amnt = 100_000 :: Natural
     (_, payment) <- do
