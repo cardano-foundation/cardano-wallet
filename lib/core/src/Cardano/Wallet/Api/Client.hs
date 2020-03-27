@@ -73,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
+    , ByronWalletPutPassphraseData
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionDataT
@@ -99,7 +100,7 @@ import qualified Data.Aeson as Aeson
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
-data WalletClient wallet = WalletClient
+data WalletClient wallet passphraseUpdate = WalletClient
     { deleteWallet
         :: ApiT WalletId
         -> ClientM ()
@@ -120,7 +121,7 @@ data WalletClient wallet = WalletClient
         -> ClientM wallet
     , putWalletPassphrase
         :: ApiT WalletId
-        -> WalletPutPassphraseData
+        -> passphraseUpdate
         -> ClientM NoContent
     , forceResyncWallet
         :: ApiT WalletId
@@ -185,7 +186,7 @@ data NetworkClient = NetworkClient
     }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-walletClient :: WalletClient ApiWallet
+walletClient :: WalletClient ApiWallet WalletPutPassphraseData
 walletClient =
     let
         _deleteWallet
@@ -210,7 +211,7 @@ walletClient =
             }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-byronWalletClient :: WalletClient ApiByronWallet
+byronWalletClient :: WalletClient ApiByronWallet ByronWalletPutPassphraseData
 byronWalletClient =
     let
         _postWallet
@@ -220,6 +221,7 @@ byronWalletClient =
             :<|> _forceResyncWallet
             :<|> _putWallet
             :<|> _getWalletUtxoStatistics
+            :<|> _putByronWalletPassphrase
             = client (Proxy @("v2" :> ByronWallets))
     in
         WalletClient
@@ -228,7 +230,7 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = error "TODO: putWalletPassphrase"
+            , putWalletPassphrase = _putByronWalletPassphrase
             , forceResyncWallet = _forceResyncWallet
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }

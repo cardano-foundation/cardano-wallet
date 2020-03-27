@@ -137,6 +137,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -772,12 +773,13 @@ cmdMnemonicRewardCredentials =
                             Commands - 'wallet'
 -------------------------------------------------------------------------------}
 
-type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
+type CmdWalletCreate wallet passphraseUpdate =
+    WalletClient wallet passphraseUpdate -> Mod CommandFields (IO ())
 
 cmdWallet
-    :: ToJSON wallet
-    => CmdWalletCreate wallet
-    -> WalletClient wallet
+    :: (ToJSON wallet, PassphraseUpdate passphraseUpdate)
+    => CmdWalletCreate wallet passphraseUpdate
+    -> WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWallet cmdCreate mkClient =
     command "wallet" $ info (helper <*> cmds) $ mempty
@@ -798,7 +800,7 @@ newtype WalletListArgs = WalletListArgs
 
 cmdWalletList
     :: ToJSON wallet
-    => WalletClient wallet
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty
@@ -810,7 +812,7 @@ cmdWalletList mkClient =
         runClient wPort Aeson.encodePretty $ listWallets mkClient
 
 cmdWalletCreate
-    :: WalletClient ApiWallet
+    :: WalletClient ApiWallet WalletPutPassphraseData
     -> Mod CommandFields (IO ())
 cmdWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
@@ -821,7 +823,7 @@ cmdWalletCreate mkClient =
         <> cmdWalletCreateFromPublicKey mkClient
 
 cmdByronWalletCreate
-    :: WalletClient ApiByronWallet
+    :: WalletClient ApiByronWallet ByronWalletPutPassphraseData
     -> Mod CommandFields (IO ())
 cmdByronWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
@@ -837,7 +839,7 @@ data ByronWalletCreateFromMnemonicArgs = ByronWalletCreateFromMnemonicArgs
     }
 
 cmdByronWalletCreateFromMnemonic
-    :: WalletClient ApiByronWallet
+    :: WalletClient ApiByronWallet ByronWalletPutPassphraseData
     -> Mod CommandFields (IO ())
 cmdByronWalletCreateFromMnemonic mkClient =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
@@ -904,7 +906,7 @@ data WalletCreateArgs = WalletCreateArgs
     }
 
 cmdWalletCreateFromMnemonic
-    :: WalletClient ApiWallet
+    :: WalletClient ApiWallet WalletPutPassphraseData
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromMnemonic mkClient =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
@@ -945,7 +947,7 @@ data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
     }
 
 cmdWalletCreateFromPublicKey
-    :: WalletClient ApiWallet
+    :: WalletClient ApiWallet WalletPutPassphraseData
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromPublicKey mkClient =
     command "from-public-key" $ info (helper <*> cmd) $ mempty
@@ -971,7 +973,7 @@ data WalletGetArgs = WalletGetArgs
 
 cmdWalletGet
     :: ToJSON wallet
-    => WalletClient wallet
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletGet mkClient =
     command "get" $ info (helper <*> cmd) $ mempty
@@ -985,8 +987,8 @@ cmdWalletGet mkClient =
             ApiT wId
 
 cmdWalletUpdate
-    :: ToJSON wallet
-    => WalletClient wallet
+    :: (ToJSON wallet, PassphraseUpdate passphraseUpdate)
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletUpdate mkClient =
     command "update" $ info (helper <*> cmds) $ mempty
@@ -1005,7 +1007,7 @@ data WalletUpdateNameArgs = WalletUpdateNameArgs
 
 cmdWalletUpdateName
     :: ToJSON wallet
-    => WalletClient wallet
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletUpdateName mkClient =
     command "name" $ info (helper <*> cmd) $ mempty
@@ -1027,8 +1029,8 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     }
 
 cmdWalletUpdatePassphrase
-    :: ToJSON wallet
-    => WalletClient wallet
+    :: (ToJSON wallet, PassphraseUpdate passphraseUpdate)
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletUpdatePassphrase mkClient =
     command "passphrase" $ info (helper <*> cmd) $ mempty
@@ -1045,13 +1047,30 @@ cmdWalletUpdatePassphrase mkClient =
                     "Please enter your current passphrase: "
                 wPassphraseNew <- getPassphraseWithConfirm
                     "Please enter a new passphrase: "
+                let passwds =
+                        OldNewPassword wPassphraseOld wPassphraseNew
                 runClient wPort (const mempty) $
                     putWalletPassphrase mkClient (ApiT wId) $
-                        WalletPutPassphraseData
-                            (ApiT wPassphraseOld)
-                            (ApiT wPassphraseNew)
+                        producePassphraseData passwds
             Left _ ->
                 handleResponse Aeson.encodePretty res
+
+data OldNewPassword passphraseUpdate =
+    OldNewPassword (Passphrase "raw") (Passphrase "raw")
+
+class PassphraseUpdate passphraseUpdate where
+    producePassphraseData :: OldNewPassword passphraseUpdate -> passphraseUpdate
+
+instance PassphraseUpdate ByronWalletPutPassphraseData where
+    producePassphraseData (OldNewPassword old new) =
+        if old == Passphrase @"raw" "" then
+            ByronWalletPutPassphraseData Nothing (ApiT new)
+        else
+            ByronWalletPutPassphraseData (Just $ ApiT old) (ApiT new)
+
+instance PassphraseUpdate WalletPutPassphraseData where
+    producePassphraseData (OldNewPassword old new) =
+        WalletPutPassphraseData (ApiT old) (ApiT new)
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
@@ -1060,7 +1079,7 @@ data WalletDeleteArgs = WalletDeleteArgs
     }
 
 cmdWalletDelete
-    :: WalletClient wallet
+    :: WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletDelete mkClient =
     command "delete" $ info (helper <*> cmd) $ mempty
@@ -1075,7 +1094,7 @@ cmdWalletDelete mkClient =
 
 cmdWalletGetUtxoStatistics
     :: ToJSON wallet
-    => WalletClient wallet
+    => WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdWalletGetUtxoStatistics mkClient =
     command "utxo" $ info (helper <*> cmd) $ mempty
@@ -1101,7 +1120,7 @@ cmdWalletGetUtxoStatistics mkClient =
 cmdTransaction
     :: ToJSON wallet
     => TransactionClient
-    -> WalletClient wallet
+    -> WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdTransaction mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
@@ -1124,7 +1143,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
 cmdTransactionCreate
     :: ToJSON wallet
     => TransactionClient
-    -> WalletClient wallet
+    -> WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdTransactionCreate mkTxClient mkWalletClient =
     command "create" $ info (helper <*> cmd) $ mempty
@@ -1155,7 +1174,7 @@ cmdTransactionCreate mkTxClient mkWalletClient =
 cmdTransactionFees
     :: ToJSON wallet
     => TransactionClient
-    -> WalletClient wallet
+    -> WalletClient wallet passphraseUpdate
     -> Mod CommandFields (IO ())
 cmdTransactionFees mkTxClient mkWalletClient =
     command "fees" $ info (helper <*> cmd) $ mempty
