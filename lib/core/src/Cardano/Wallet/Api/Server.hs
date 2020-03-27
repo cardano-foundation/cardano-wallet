@@ -15,9 +15,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
--- NOTE: Temporary
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0

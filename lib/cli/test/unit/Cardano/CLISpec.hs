@@ -440,6 +440,11 @@ spec = do
             , "Available commands:"
             , "  list                     List all known addresses of a given"
             , "                           wallet."
+            , "  create                   Create a new random address. Only"
+            , "                           available for random wallets. The"
+            , "                           address index is optional, give none"
+            , "                           to let the wallet generate a random"
+            , "                           one."
             ]
 
         ["address", "list", "--help"] `shouldShowUsage`
@@ -452,6 +457,20 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
+            ]
+
+        ["address", "create", "--help"] `shouldShowUsage`
+            [ "Usage:  address create [--port INT] [--address-index INDEX]"
+            , "                       WALLET_ID"
+            , "  Create a new random address. Only available for random wallets."
+            , "  The address index is optional, give none to let the wallet"
+            , "  generate a random one."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --address-index INDEX    A derivation index for the address"
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`

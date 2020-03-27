@@ -244,8 +244,6 @@ import GHC.TypeLits
     ( KnownNat, Nat, Symbol )
 import Numeric.Natural
     ( Natural )
-import Safe
-    ( toEnumMay )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -1266,15 +1264,8 @@ instance
   , Bounded (Index derivation level)
   ) => FromJSON (ApiT (Index derivation level)) where
     parseJSON bytes = do
-        n <- parseJSON bytes
-        case toEnumMay n of
-            Just ix -> pure (ApiT ix)
-            Nothing -> fail $ unwords
-                [ "Couldn't parse derivation index. Expected an integer between"
-                , show (minBound @(Index derivation level))
-                , "and"
-                , show (maxBound @(Index derivation level))
-                ]
+        n <- parseJSON @Int bytes
+        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack $ show n
 
 instance
   ( Enum (Index derivation level)
