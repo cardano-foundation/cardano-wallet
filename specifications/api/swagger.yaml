@@ -2160,7 +2160,7 @@ paths:
 
   /byron-wallets/{walletId}/statistics/utxos:
     get:
-      operationId: getUTxOsStatisticsByron
+      operationId: getByronUTxOsStatistics
       tags: ["Byron Wallets"]
       summary: UTxO Statistics
       description: |

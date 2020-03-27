@@ -609,7 +609,7 @@ emptyIcarusWallet ctx = do
 
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
-    let pwd = preparePassphrase EncryptWithScrypt
+    let pwd = preparePassphrase W.EncryptWithScrypt
             $ Passphrase
             $ BA.convert
             $ T.encodeUtf8 rawPwd
