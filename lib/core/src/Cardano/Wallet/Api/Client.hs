@@ -73,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
+    , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionDataT
@@ -84,6 +85,12 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState, SortOrder, WalletId )
 import Control.Monad
     ( void )
+import Data.Coerce
+    ( coerce )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Proxy
     ( Proxy (..) )
 import Servant
@@ -220,7 +227,7 @@ byronWalletClient =
             :<|> _forceResyncWallet
             :<|> _putWallet
             :<|> _getWalletUtxoStatistics
-            :<|> _putByronWalletPassphrase
+            :<|> _putWalletPassphrase
             = client (Proxy @("v2" :> ByronWallets))
     in
         WalletClient
@@ -229,7 +236,11 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = error "putWalletPassphrase: not impl for byron"
+            , putWalletPassphrase = \wid body ->
+                _putWalletPassphrase wid $ ByronWalletPutPassphraseData
+                    { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
+                    , newPassphrase = body ^. #newPassphrase
+                    }
             , forceResyncWallet = _forceResyncWallet
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }

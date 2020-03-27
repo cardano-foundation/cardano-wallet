@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -769,7 +770,7 @@ newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
 -- API layer and other modules.
 newtype ApiT a =
     ApiT { getApiT :: a }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, Functor)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
 -- the lengths of mnemonics that are supported (and an underlying purpose). In
