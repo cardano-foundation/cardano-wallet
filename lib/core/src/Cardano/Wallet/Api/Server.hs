@@ -240,6 +240,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
+import Data.Coerce
+    ( coerce )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -1156,14 +1158,9 @@ putByronWalletPassphrase
     -> Handler NoContent
 putByronWalletPassphrase ctx (ApiT wid) body = do
     let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        case oldM of
-            Just (ApiT (Passphrase old')) -> do
-                let old = Passphrase @"raw" old'
-                W.updateWalletPassphrase wrk wid (old, new)
-            _ -> do
-                let old = Passphrase @"raw" ""
-                W.updateWalletPassphrase wrk wid (old, new)
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        let old = maybe mempty (coerce . getApiT) oldM
+        W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
 
 getUTxOsStatistics
