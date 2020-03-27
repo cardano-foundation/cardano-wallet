@@ -149,21 +149,19 @@ let
       migration-tests = jobs.x86_64-w64-mingw32.migration-tests.x86_64-linux;
     };
 
-    # Fully-static linux binary (placeholder - does not build)
-    cardano-wallet-jormungandr-linux64 = let
-      name = "cardano-wallet-jormungandr-${project.version}";
-      tarname = "${name}-linux64.tar.gz";
-    in pkgs.runCommand "${name}-linux64" {
-      buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
-    } ''
-      cp -R ${jobs.musl64.cardano-wallet-jormungandr.x86_64-linux}/bin ${name}
-      chmod -R 755 ${name}
-      strip ${name}/*
-
-      mkdir -p $out/nix-support
-      tar -czf $out/${tarname} ${name}
-      echo "file binary-dist $out/${tarname}" > $out/nix-support/hydra-build-products
-    '';
+    # Fully-static linux binaries
+    cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
+      inherit pkgs;
+      exes = [ jobs.musl64.cardano-wallet-jormungandr.x86_64-linux ];
+    };
+    cardano-wallet-byron-linux64 = import ./nix/linux-release.nix {
+      inherit pkgs;
+      exes = [
+        jobs.musl64.cardano-wallet-byron.x86_64-linux
+        # SRE-83 dependencies fail to build
+        # jobs.musl64.cardano-node.x86_64-linux
+      ];
+    };
 
     # macOS binary and dependencies in tarball
     cardano-wallet-jormungandr-macos64 = let
