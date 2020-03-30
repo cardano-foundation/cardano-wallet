@@ -503,10 +503,28 @@ spec = do
             [ expectResponseCode @IO HTTP.status204
             ]
 
-    it "BYRON_UPDATE_PASS_04 - Updating passphrase with no password wallets" $ \ctx -> do
+    it "BYRON_UPDATE_PASS_04a - Updating passphrase with no password wallets" $ \ctx -> do
         w <- emptyRandomWalletWithPasswd ctx ""
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
             >>= flip verify [ expectField #passphrase (`shouldSatisfy` isNothing) ]
+        let payload = updatePassPayload "" "correct-password"
+        r <- request @ApiByronWallet ctx
+            (Link.putWalletPassphrase @'Byron w) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status204
+            ]
+
+    it "BYRON_UPDATE_PASS_04b - Regression test" $ \ctx -> do
+        let key = "38e8de9c583441213fe34eecc4e28265267466877ba4048e3ab1fa99563\
+                  \66947aefaf5ba9779db67eead7fc9cd1354b994a5d8d9cd40ab874bfeb1\
+                  \b33649280cd33651377731e0e59e0233425a55257782c5adaa768da0567\
+                  \f43c1c6c0c18766ed0a547bb34eb472c120b170a8640279832ddf180028\
+                  \87f03c15dea59705422d"
+        let pwd = "31347c387c317c574342652b796362417576356c2b4258676a344a314c6\
+                  \343675375414c2f5653393661364e576a2b7550766655513d3d7c6f7846\
+                  \36654939734151444e6f38395147747366324e653937426338372b484b6\
+                  \b4137756772752f5970673d"
+        w <- emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwd)
         let payload = updatePassPayload "" "correct-password"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
