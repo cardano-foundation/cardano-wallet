@@ -165,6 +165,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                 (Just db)
                 "127.0.0.1"
                 ListenOnRandomPort
+                Nothing
                 socketPath
                 block0
                 (bp, vData)

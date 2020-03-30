@@ -54,6 +54,7 @@ module Cardano.CLI
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
+    , tlsOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -124,7 +125,7 @@ import Cardano.Wallet.Api.Client
     , WalletClient (..)
     )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..) )
+    ( HostPreference, Listen (..), TlsConfiguration (..) )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -1671,6 +1672,28 @@ addressIndexOption = optionT $ mempty
     <> long "address-index"
     <> metavar "INDEX"
     <> help "A derivation index for the address"
+
+tlsOption
+    :: Parser TlsConfiguration
+tlsOption = TlsConfiguration
+    <$> tlsCaCertOption
+    <*> tlsSvCertOption
+    <*> tlsSvKeyOption
+  where
+    tlsCaCertOption = optionT $ mempty
+        <> long "tls-ca-cert"
+        <> metavar "FILE"
+        <> help "A x.509 Certificate Authority (CA) certificate."
+
+    tlsSvCertOption = optionT $ mempty
+        <> long "tls-sv-cert"
+        <> metavar "FILE"
+        <> help "A x.509 Server (SV) certificate."
+
+    tlsSvKeyOption = optionT $ mempty
+        <> long "tls-sv-key"
+        <> metavar "FILE"
+        <> help "The RSA Server key which signed the x.509 server certificate."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
