@@ -55,6 +55,7 @@ import Cardano.CLI
     , setupDirectory
     , shutdownHandlerFlag
     , syncToleranceOption
+    , tlsOption
     , withLogging
     )
 import Cardano.Startup
@@ -70,7 +71,7 @@ import Cardano.Wallet.Api.Client
     , networkClient
     )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..) )
+    ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Byron
     ( SomeNetworkDiscriminant (..)
     , TracerSeverities
@@ -175,6 +176,7 @@ beforeMainLoop tr =
 data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _listen :: Listen
+    , _tlsConfig :: Maybe TlsConfiguration
     , _nodeSocket :: FilePath
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
@@ -193,6 +195,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
         <*> listenOption
+        <*> optional tlsOption
         <*> nodeSocketOption
         <*> networkConfigurationOption
         <*> optional databaseOption
@@ -205,6 +208,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     exec args@(ServeArgs
       host
       listen
+      tlsConfig
       nodeSocket
       networkConfig
       databaseDir
@@ -227,6 +231,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     databaseDir
                     host
                     listen
+                    tlsConfig
                     nodeSocket
                     block0
                     (bp, vData)

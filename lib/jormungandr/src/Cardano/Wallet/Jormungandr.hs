@@ -258,7 +258,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
                 $ Server.server byron icarus shelley pools ntp
-        Server.start settings apiServerTracer socket application
+        Server.start settings apiServerTracer tlsConfig socket application
+      where
+        tlsConfig = Nothing
 
     apiLayer
         :: forall s k.

@@ -59,7 +59,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..), ListenError (..) )
+    ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Byron.Compatibility
@@ -180,6 +180,8 @@ serveWallet
     -- ^ Which host to bind.
     -> Listen
     -- ^ HTTP API Server port.
+    -> Maybe TlsConfiguration
+    -- ^ An optional TLS configuration
     -> FilePath
     -- ^ Socket for communicating with the node
     -> Block
@@ -202,6 +204,7 @@ serveWallet
   databaseDir
   hostPref
   listen
+  tlsConfig
   socketPath
   block0
   (bp, vData)
@@ -248,7 +251,7 @@ serveWallet
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
                 Server.byronServer random icarus ntp
-        Server.start settings apiServerTracer socket application
+        Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer
         :: forall s k.
