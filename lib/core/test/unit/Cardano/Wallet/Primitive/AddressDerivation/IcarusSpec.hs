@@ -333,4 +333,4 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary Address where
-    arbitrary = genLegacyAddress (30, 50)
+    arbitrary = genLegacyAddress Nothing

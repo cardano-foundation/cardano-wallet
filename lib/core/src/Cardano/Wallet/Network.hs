@@ -16,6 +16,7 @@ module Cardano.Wallet.Network
     , Cursor
     , follow
     , FollowAction (..)
+    , FollowExit (..)
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -269,6 +270,15 @@ data FollowAction err
       -- ^ Like 'RetryImmediately' but only retries after a short delay
     deriving (Eq, Show, Functor)
 
+-- | Possibly scenarios that would cause 'follow' to exit so that client code
+-- can decide what to do.
+data FollowExit
+    = FollowInterrupted
+    | FollowRollback SlotId
+    | FollowFailure
+    deriving (Eq, Show)
+
+
 -- | Subscribe to a blockchain and get called with new block (in order)!
 --
 -- Exits when the node switches to a different chain with the greatest known
@@ -292,7 +302,7 @@ follow
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
-    -> IO (Maybe SlotId)
+    -> IO FollowExit
 follow nl tr cps yield header =
     sleep 0 =<< initCursor nl cps
   where
@@ -306,28 +316,28 @@ follow nl tr cps yield header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> Cursor target -> IO (Maybe SlotId)
+    sleep :: Int -> Cursor target -> IO FollowExit
     sleep delay cursor = do
         when (delay > 0) (threadDelay delay)
         step delay cursor `catch` retry
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled ->
-                return Nothing
+                return FollowInterrupted
             Just UserInterrupt ->
-                return Nothing
+                return FollowInterrupted
             Nothing | fromException e == Just AsyncCancelled -> do
-                return Nothing
+                return FollowInterrupted
             Just _ -> do
-                traceWith tr $ MsgFatalUnhandledException eT
-                return Nothing
+                traceWith tr $ MsgUnhandledException eT
+                return FollowFailure
             _ -> do
                 traceWith tr $ MsgUnhandledException eT
-                sleep (retryDelay delay) cursor
+                return FollowFailure
           where
             eT = T.pack (show e)
 
-    step :: Int -> Cursor target -> IO (Maybe SlotId)
+    step :: Int -> Cursor target -> IO FollowExit
     step delay cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             traceWith tr $ MsgNextBlockFailed e
@@ -359,12 +369,12 @@ follow nl tr cps yield header =
                 (sl, _:_) | sl == slotId (last cps) ->
                     step delay0 cursor'
                 (sl, _) ->
-                    pure (Just sl)
+                    pure (FollowRollback sl)
       where
-        handle :: Cursor target -> FollowAction e -> IO (Maybe SlotId)
+        handle :: Cursor target -> FollowAction e -> IO FollowExit
         handle cursor' = \case
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
-                return Nothing
+                return FollowInterrupted
             Continue ->
                 step delay0 cursor'
             RetryImmediately ->
@@ -378,7 +388,6 @@ follow nl tr cps yield header =
 
 data FollowLog
     = MsgFollowAction (FollowAction String)
-    | MsgFatalUnhandledException Text
     | MsgUnhandledException Text
     | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
@@ -390,10 +399,8 @@ instance ToText FollowLog where
         MsgFollowAction action -> case action of
             ExitWith e -> "Failed to roll forward: " <> T.pack e
             _ -> T.pack $ "Follower says " <> show action
-        MsgFatalUnhandledException err ->
-            "Non-recoverable error following the chain: " <> err
         MsgUnhandledException err ->
-            "Recoverable error following the chain: " <> err
+            "Unexpected error following the chain: " <> err
         MsgNextBlockFailed e ->
             T.pack $ "Failed to get next blocks: " <> show e
         MsgSynced ->
@@ -411,7 +418,6 @@ instance DefineSeverity FollowLog where
     defineSeverity = \case
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
-        MsgFatalUnhandledException _ -> Error
         MsgUnhandledException _ -> Error
         MsgNextBlockFailed _ -> Warning
         MsgSynced -> Debug

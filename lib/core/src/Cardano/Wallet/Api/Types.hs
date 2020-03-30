@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -12,7 +13,6 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -37,6 +37,7 @@ module Cardano.Wallet.Api.Types
     , ByronWalletStyle (..)
     , StyleSymbol
     , AllowedMnemonics
+    , fmtAllowedWords
 
     -- * API Types
     , ApiAddress (..)
@@ -86,6 +87,8 @@ module Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
+    , ByronWalletPutPassphraseData (..)
+    , ApiPostRandomAddressData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -99,6 +102,14 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+
+    -- * Type families
+    , ApiAddressT
+    , ApiCoinSelectionT
+    , ApiSelectCoinsDataT
+    , ApiTransactionT
+    , PostTransactionDataT
+    , PostTransactionFeeDataT
     ) where
 
 import Prelude
@@ -107,7 +118,9 @@ import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
     , FromMnemonic (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -116,6 +129,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SomeMnemonic (..)
     , XPrv
     , XPub
+    , natVals
     , unXPrv
     , xprv
     )
@@ -150,6 +164,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , isValidCoin
+    , testnetMagic
     , unsafeEpochNo
     )
 import Codec.Binary.Bech32
@@ -191,6 +206,8 @@ import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
     ( (&) )
+import Data.List
+    ( intercalate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -232,6 +249,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -281,6 +299,35 @@ type instance AllowedMnemonics 'Ledger    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Shelley   = '[15,18,21,24]
 type instance AllowedMnemonics 'SndFactor = '[9,12]
 
+fmtAllowedWords :: ByronWalletStyle -> String
+fmtAllowedWords =
+    (++ " mnemonic words") . formatEnglishEnumeration . allowedWordLengths
+  where
+    allowedWordLengths = \case
+        Random -> map show $ natVals $ Proxy @(AllowedMnemonics 'Random)
+        Icarus -> map show $ natVals $ Proxy @(AllowedMnemonics 'Icarus)
+        Trezor -> map show $ natVals $ Proxy @(AllowedMnemonics 'Trezor)
+        Ledger -> map show $ natVals $ Proxy @(AllowedMnemonics 'Ledger)
+
+      -- >>> formatEnglishEnumeration ["a", "b", "c"]
+      -- "a, b or c"
+      --
+      -- >>> formatEnglishEnumeration ["a", "b"]
+      -- "a or b"
+      --
+      -- >>> formatEnglishEnumeration ["a"]
+      -- "a"
+    formatEnglishEnumeration = formatEnglishEnumerationRev . reverse
+    formatEnglishEnumerationRev [ult, penult]
+       = penult ++ " or " ++ ult
+    formatEnglishEnumerationRev (ult:penult:revBeginning)
+       = intercalate ", " (reverse revBeginning)
+           ++ ", "
+           ++ penult
+           ++ " or "
+           ++ ult
+    formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
@@ -296,12 +343,12 @@ data ApiEpochInfo = ApiEpochInfo
     } deriving (Eq, Generic, Show)
 
 newtype ApiSelectCoinsData (n :: NetworkDiscriminant) = ApiSelectCoinsData
-    { payments :: NonEmpty (AddressAmount n)
+    { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
-    , outputs :: !(NonEmpty (AddressAmount n))
+    , outputs :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -426,13 +473,18 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-data PostTransactionData n = PostTransactionData
-    { payments :: !(NonEmpty (AddressAmount n))
+data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
+    { oldPassphrase :: !(Maybe (ApiT (Passphrase "byron-raw")))
+    , newPassphrase :: !(ApiT (Passphrase "raw"))
+    } deriving (Eq, Generic, Show)
+
+data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
+    { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-newtype PostTransactionFeeData n = PostTransactionFeeData
-    { payments :: (NonEmpty (AddressAmount n))
+newtype PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
+    { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -472,7 +524,7 @@ newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
 
-data ApiTransaction n = ApiTransaction
+data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
@@ -480,17 +532,17 @@ data ApiTransaction n = ApiTransaction
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-    , outputs :: ![AddressAmount n]
+    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
-data ApiTxInput n = ApiTxInput
-    { source :: !(Maybe (AddressAmount n))
+data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
+    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
 
-data AddressAmount (n :: NetworkDiscriminant) = AddressAmount
-    { address :: !(ApiT Address, Proxy n)
+data AddressAmount addr = AddressAmount
+    { address :: !addr
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -532,6 +584,11 @@ newtype ApiNetworkClock = ApiNetworkClock
     { ntpStatus :: ApiNtpStatus
     } deriving (Eq, Generic, Show)
 
+data ApiPostRandomAddressData = ApiPostRandomAddressData
+    { passphrase :: !(ApiT (Passphrase "raw"))
+    , addressIndex :: !(Maybe (ApiT (Index 'WholeDomain 'AddressK)))
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -571,6 +628,7 @@ data ApiErrorCode
     | InvalidDelegationDiscovery
     | NotImplemented
     | WalletNotResponding
+    | AddressAlreadyExists
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -721,7 +779,7 @@ newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
 -- API layer and other modules.
 newtype ApiT a =
     ApiT { getApiT :: a }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, Functor)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
 -- the lengths of mnemonics that are supported (and an underlying purpose). In
@@ -914,6 +972,11 @@ instance FromJSON WalletPutPassphraseData where
 instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON ByronWalletPutPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ByronWalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON ApiTxId where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiTxId where
@@ -1056,7 +1119,7 @@ instance FromJSON ApiNetworkTip where
 instance ToJSON ApiNetworkTip where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (AddressAmount n) where
+instance FromJSON a => FromJSON (AddressAmount a) where
     parseJSON bytes = do
         v@(AddressAmount _ (Quantity c)) <-
             genericParseJSON defaultRecordTypeOptions bytes
@@ -1066,7 +1129,7 @@ instance DecodeAddress n => FromJSON (AddressAmount n) where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (getCoin maxBound) <> " lovelace."
 
-instance EncodeAddress n => ToJSON (AddressAmount n) where
+instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiTransaction n) where
@@ -1191,25 +1254,37 @@ instance FromJSON ApiByronWalletMigrationInfo where
 instance ToJSON ApiByronWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON ApiPostRandomAddressData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostRandomAddressData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+  ( Enum (Index derivation level)
+  , Bounded (Index derivation level)
+  ) => FromJSON (ApiT (Index derivation level)) where
+    parseJSON bytes = do
+        n <- parseJSON @Int bytes
+        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack $ show n
+
+instance
+  ( Enum (Index derivation level)
+  ) => ToJSON (ApiT (Index derivation level)) where
+    toJSON = toJSON . fromEnum . getApiT
+
 {-------------------------------------------------------------------------------
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
 
-instance DecodeAddress n => FromText (AddressAmount n) where
+instance FromText (AddressAmount Text) where
     fromText text = do
         let err = Left . TextDecodingError $ "Parse error. Expecting format \
             \\"<amount>@<address>\" but got " <> show text
         case split (=='@') text of
             [] -> err
             [_] -> err
-            [l, r] -> AddressAmount
-                <$> fmap ((,Proxy @n) . ApiT) (decodeAddress @n r)
-                <*> fromText l
+            [l, r] -> AddressAmount r <$> fromText l
             _ -> err
-
-instance EncodeAddress n => ToText (AddressAmount n) where
-    toText (AddressAmount (ApiT addr, _) coins) =
-        toText coins <> "@" <> encodeAddress @n addr
 
 instance FromText PostExternalTransactionData where
     fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of
@@ -1319,7 +1394,9 @@ instance EncodeAddress ('Testnet pm) where
 
 gEncodeAddress :: Address -> Text
 gEncodeAddress (Address bytes) =
-    if isJust (decodeLegacyAddress bytes) then base58 else bech32
+    if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
+        then base58
+        else bech32
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
@@ -1333,19 +1410,24 @@ gEncodeAddress (Address bytes) =
 --
 -- See also 'EncodeAddress Jormungandr'
 instance DecodeAddress 'Mainnet where
-    decodeAddress = gDecodeAddress (decodeShelleyAddress @'Mainnet)
+    decodeAddress = gDecodeAddress
+        (decodeShelleyAddress @'Mainnet)
+        (decodeLegacyAddress Nothing)
 
 instance KnownNat pm => DecodeAddress ('Testnet pm) where
-    decodeAddress = gDecodeAddress (decodeShelleyAddress @('Testnet pm))
+    decodeAddress = gDecodeAddress
+        (decodeShelleyAddress @('Testnet pm))
+        (decodeLegacyAddress $ Just $ testnetMagic @pm)
 
 gDecodeAddress
     :: (ByteString -> Either TextDecodingError Address)
+    -> (ByteString -> Maybe Address)
     -> Text
     -> Either TextDecodingError Address
-gDecodeAddress decodeShelley text =
+gDecodeAddress decodeShelley decodeByron text =
     case (tryBech32, tryBase58) of
         (Just bytes, _) -> decodeShelley bytes
-        (_, Just bytes) -> decodeLegacyAddress bytes
+        (_, Just bytes) -> decodeByron bytes
             & maybeToEither (TextDecodingError
             "Unable to decode Address: neither Bech32-encoded nor a \
             \valid Byron Address.")
@@ -1363,3 +1445,37 @@ gDecodeAddress decodeShelley text =
     tryBech32 = do
         (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
         dataPartToBytes dp
+
+-- NOTE:
+-- The type families below are useful to allow building more flexible API
+-- implementation from the definition above. In particular, the API client we
+-- use for the command-line doesn't really _care much_ about how addresses are
+-- serialized / deserialized. So, we use a poly-kinded type family here to allow
+-- defining custom types in the API client with a minimal overhead and, without
+-- having to actually rewrite any of the API definition.
+--
+-- We use an open type family so it can be extended by other module in places.
+type family ApiAddressT (n :: k) :: *
+type family ApiCoinSelectionT (n :: k) :: *
+type family ApiSelectCoinsDataT (n :: k) :: *
+type family ApiTransactionT (n :: k) :: *
+type family PostTransactionDataT (n :: k) :: *
+type family PostTransactionFeeDataT (n :: k) :: *
+
+type instance ApiAddressT (n :: NetworkDiscriminant) =
+    ApiAddress n
+
+type instance ApiCoinSelectionT (n :: NetworkDiscriminant) =
+    ApiCoinSelection n
+
+type instance ApiSelectCoinsDataT (n :: NetworkDiscriminant) =
+    ApiSelectCoinsData n
+
+type instance ApiTransactionT (n :: NetworkDiscriminant) =
+    ApiTransaction n
+
+type instance PostTransactionDataT (n :: NetworkDiscriminant) =
+    PostTransactionData n
+
+type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
+    PostTransactionFeeData n

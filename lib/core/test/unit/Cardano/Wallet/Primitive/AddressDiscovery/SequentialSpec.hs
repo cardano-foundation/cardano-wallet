@@ -459,7 +459,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
         addrs0 = knownAddresses s0
-        (change, s1) = genChange (delegationAddress @'Mainnet) s0
+        (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0

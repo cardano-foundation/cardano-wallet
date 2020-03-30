@@ -85,6 +85,17 @@ let
             '';
           };
 
+        # cardano-node will want to write logs to a subdirectory of the working directory.
+        # We don't `cd $src` because of that.
+        packages.cardano-wallet-byron.components.benchmarks.restore = {
+           build-tools = [ pkgs.makeWrapper ];
+           postInstall = ''
+             wrapProgram $out/bin/restore \
+                --set BYRON_CONFIGS ${pkgs.cardano-node.configs} \
+                --prefix PATH : ${pkgs.cardano-node}/bin
+           '';
+        };
+
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
         '';
@@ -92,6 +103,7 @@ let
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
+        packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
       # Musl libc fully static build

@@ -7,6 +7,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -33,6 +34,8 @@ module Cardano.CLI
     -- * Commands
     , cmdMnemonic
     , cmdWallet
+    , cmdWalletCreate
+    , cmdByronWalletCreate
     , cmdTransaction
     , cmdAddress
     , cmdStakePool
@@ -66,7 +69,6 @@ module Cardano.CLI
     , MnemonicSize (..)
     , Port (..)
     , CliKeyScheme (..)
-    , CliWalletStyle (..)
     , DerivationIndex (..)
     , DerivationPath (..)
 
@@ -115,7 +117,12 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug )
 import Cardano.Wallet.Api.Client
-    ( WalletClient (..), walletClient )
+    ( AddressClient (..)
+    , NetworkClient (..)
+    , StakePoolClient (..)
+    , TransactionClient (..)
+    , WalletClient (..)
+    )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -123,23 +130,23 @@ import Cardano.Wallet.Api.Types
     , AddressAmount
     , AllowedMnemonics
     , ApiAccountPublicKey
+    , ApiByronWallet
     , ApiEpochNumber
     , ApiMnemonicT (..)
-    , ApiNetworkClock
-    , ApiNetworkInformation
-    , ApiNetworkParameters
+    , ApiPostRandomAddressData (..)
     , ApiT (..)
     , ApiTxId (..)
-    , DecodeAddress
-    , EncodeAddress
+    , ApiWallet
+    , ByronWalletPostData (..)
+    , ByronWalletStyle (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostTransactionData (..)
-    , PostTransactionFeeData (..)
+    , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , fmtAllowedWords
     )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
@@ -183,7 +190,7 @@ import Control.Monad
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
-    ( (.:) )
+    ( ToJSON (..), (.:), (.=) )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -192,8 +199,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower )
-import Data.List
-    ( intercalate )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
@@ -207,14 +212,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , showT
-    , toTextFromBoundedEnum
-    )
+    ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
 import Data.Void
@@ -272,10 +270,8 @@ import Options.Applicative.Help.Pretty
     ( string, vsep )
 import Options.Applicative.Types
     ( ReadM (..), readerAsk )
-import Servant
-    ( (:<|>) (..), (:>) )
 import Servant.Client
-    ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
+    ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
     ( ClientError (..), responseBody )
 import System.Console.ANSI
@@ -319,7 +315,6 @@ import System.IO
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Api as API
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -460,15 +455,6 @@ eitherToIO :: Either String a -> IO a
 eitherToIO (Right a) = return a
 eitherToIO (Left e) = hPutStrLn stderr e >> exitFailure
 
-data CliWalletStyle = Icarus | Ledger | Trezor
-    deriving (Show, Eq, Generic, Bounded, Enum)
-
-instance FromText CliWalletStyle where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText CliWalletStyle where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
 newtype DerivationPath = DerivationPath [DerivationIndex]
     deriving (Show, Eq)
 
@@ -543,8 +529,14 @@ instance ToText DerivationIndex where
             then show (i - firstHardenedIndex) ++ "H"
             else show i
 
-newCliKeyScheme :: CliWalletStyle -> CliKeyScheme XPrv (Either String)
+newCliKeyScheme :: ByronWalletStyle -> CliKeyScheme XPrv (Either String)
 newCliKeyScheme = \case
+    Random ->
+        -- NOTE
+        -- This cannot happen because 'Random' style is filtered out by the
+        -- option parser already.
+        error "newCliKeyScheme: unsupported wallet type"
+
     Icarus ->
         let
             proxy = Proxy @'API.Icarus
@@ -571,7 +563,7 @@ newCliKeyScheme = \case
                 (derive CC.DerivationScheme2)
   where
     seedFromMnemonic
-        :: forall (s :: API.ByronWalletStyle).
+        :: forall (s :: ByronWalletStyle).
             (FromMnemonic (AllowedMnemonics s))
         => Proxy s
         -> [Text]
@@ -580,7 +572,7 @@ newCliKeyScheme = \case
         left getFromMnemonicError . fromMnemonic @(AllowedMnemonics s)
 
     apiAllowedLengths
-        :: forall (s :: API.ByronWalletStyle). ( NatVals (AllowedMnemonics s))
+        :: forall (s :: ByronWalletStyle). ( NatVals (AllowedMnemonics s))
         => Proxy s
         -> [Int]
     apiAllowedLengths _ =
@@ -610,7 +602,7 @@ newCliKeyScheme = \case
     pass = mempty
 
 data KeyRootArgs = KeyRootArgs
-    { _walletStyle :: CliWalletStyle
+    { _walletStyle :: ByronWalletStyle
     , _mnemonicWords :: [Text]
     }
 
@@ -619,8 +611,9 @@ cmdKeyRoot =
     command "root" $ info (helper <*> cmd) $ mempty
         <> progDesc "Extract root extended private key from a mnemonic sentence."
   where
-    cmd = fmap exec $
-        KeyRootArgs <$> walletStyleOption <*> mnemonicWordsArgument
+    cmd = fmap exec $ KeyRootArgs
+        <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
+        <*> mnemonicWordsArgument
     exec (KeyRootArgs keyType ws) = do
         xprv <- mnemonicToRootKey scheme ws
         TIO.putStrLn xprv
@@ -780,19 +773,24 @@ cmdMnemonicRewardCredentials =
                             Commands - 'wallet'
 -------------------------------------------------------------------------------}
 
+type CmdWalletCreate wallet = WalletClient wallet -> Mod CommandFields (IO ())
+
 cmdWallet
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWallet = command "wallet" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage wallets."
+    :: ToJSON wallet
+    => CmdWalletCreate wallet
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWallet cmdCreate mkClient =
+    command "wallet" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Manage wallets."
   where
     cmds = subparser $ mempty
-        <> cmdWalletList @t
-        <> cmdWalletCreate @t
-        <> cmdWalletGet @t
-        <> cmdWalletUpdate @t
-        <> cmdWalletDelete @t
-        <> cmdWalletGetUtxoStatistics @t
+        <> cmdWalletList mkClient
+        <> cmdCreate mkClient
+        <> cmdWalletGet mkClient
+        <> cmdWalletUpdate mkClient
+        <> cmdWalletDelete mkClient
+        <> cmdWalletGetUtxoStatistics mkClient
 
 -- | Arguments for 'wallet list' command
 newtype WalletListArgs = WalletListArgs
@@ -800,24 +798,104 @@ newtype WalletListArgs = WalletListArgs
     }
 
 cmdWalletList
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletList = command "list" $ info (helper <*> cmd) $ mempty
-    <> progDesc "List all known wallets."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletList mkClient =
+    command "list" $ info (helper <*> cmd) $ mempty
+        <> progDesc "List all known wallets."
   where
-    cmd = fmap exec $ WalletListArgs <$> portOption
+    cmd = fmap exec $ WalletListArgs
+        <$> portOption
     exec (WalletListArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ listWallets (walletClient @t)
+        runClient wPort Aeson.encodePretty $ listWallets mkClient
 
 cmdWalletCreate
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletCreate = command "create" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Create a new wallet."
+    :: WalletClient ApiWallet
+    -> Mod CommandFields (IO ())
+cmdWalletCreate mkClient =
+    command "create" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Create a new wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletCreateFromMnemonic @t
-        <> cmdWalletCreateFromPublicKey @t
+        <> cmdWalletCreateFromMnemonic mkClient
+        <> cmdWalletCreateFromPublicKey mkClient
+
+cmdByronWalletCreate
+    :: WalletClient ApiByronWallet
+    -> Mod CommandFields (IO ())
+cmdByronWalletCreate mkClient =
+    command "create" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Create a new Byron wallet."
+  where
+    cmds = subparser $ mempty
+        <> cmdByronWalletCreateFromMnemonic mkClient
+
+data ByronWalletCreateFromMnemonicArgs = ByronWalletCreateFromMnemonicArgs
+    { _port :: Port "Wallet"
+    , _name :: WalletName
+    , _style :: ByronWalletStyle
+    }
+
+cmdByronWalletCreateFromMnemonic
+    :: WalletClient ApiByronWallet
+    -> Mod CommandFields (IO ())
+cmdByronWalletCreateFromMnemonic mkClient =
+    command "from-mnemonic" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new wallet using a mnemonic."
+  where
+    cmd = fmap exec $ ByronWalletCreateFromMnemonicArgs
+        <$> portOption
+        <*> walletNameArgument
+        <*> walletStyleOption Icarus [Random,Icarus,Trezor,Ledger]
+    exec (ByronWalletCreateFromMnemonicArgs wPort wName wStyle) = case wStyle of
+        Random -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Random) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                RandomWalletFromMnemonic $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Icarus -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Icarus) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeIcarusWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Trezor -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Trezor) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeTrezorWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
+
+        Ledger -> do
+            wSeed <- do
+                let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
+                let parser = fromMnemonic @(AllowedMnemonics 'Ledger) . T.words
+                fst <$> getLine (T.pack prompt) parser
+            wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
+            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+                SomeLedgerWallet $ ByronWalletPostData
+                    (ApiMnemonicT wSeed)
+                    (ApiT wName)
+                    (ApiT wPwd)
 
 -- | Arguments for 'wallet create' command
 data WalletCreateArgs = WalletCreateArgs
@@ -827,11 +905,11 @@ data WalletCreateArgs = WalletCreateArgs
     }
 
 cmdWalletCreateFromMnemonic
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletCreateFromMnemonic =
+    :: WalletClient ApiWallet
+    -> Mod CommandFields (IO ())
+cmdWalletCreateFromMnemonic mkClient =
     command "from-mnemonic" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Create a new wallet using a mnemonic."
+        <> progDesc "Create a new wallet using a mnemonic."
   where
     cmd = fmap exec $ WalletCreateArgs
         <$> portOption
@@ -851,7 +929,7 @@ cmdWalletCreateFromMnemonic =
                     optionalE (fromMnemonic @'[9,12]) . T.words
             fst <$> getLine prompt parser
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-        runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
+        runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Left $ WalletPostData
                 (Just $ ApiT wGap)
                 (ApiMnemonicT wSeed)
@@ -868,9 +946,9 @@ data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
     }
 
 cmdWalletCreateFromPublicKey
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletCreateFromPublicKey =
+    :: WalletClient ApiWallet
+    -> Mod CommandFields (IO ())
+cmdWalletCreateFromPublicKey mkClient =
     command "from-public-key" $ info (helper <*> cmd) $ mempty
     <> progDesc "Create a wallet using a public account key."
   where
@@ -880,7 +958,7 @@ cmdWalletCreateFromPublicKey =
         <*> poolGapOption
         <*> accPubKeyArgument
     exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
-        runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
+        runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Right $ AccountPostData
                 (ApiT wName)
                 wAccPubKey
@@ -893,27 +971,31 @@ data WalletGetArgs = WalletGetArgs
     }
 
 cmdWalletGet
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletGet = command "get" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Fetch the wallet with specified id."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletGet mkClient =
+    command "get" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Fetch the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
         <$> portOption
         <*> walletIdArgument
     exec (WalletGetArgs wPort wId) = do
-        runClient wPort Aeson.encodePretty $ getWallet (walletClient @t) $
+        runClient wPort Aeson.encodePretty $ getWallet mkClient $
             ApiT wId
 
 cmdWalletUpdate
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletUpdate = command "update" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Update a wallet."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletUpdate mkClient =
+    command "update" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Update a wallet."
   where
     cmds = subparser $ mempty
-        <> cmdWalletUpdateName @t
-        <> cmdWalletUpdatePassphrase @t
+        <> cmdWalletUpdateName mkClient
+        <> cmdWalletUpdatePassphrase mkClient
 
 -- | Arguments for 'wallet update name' command
 data WalletUpdateNameArgs = WalletUpdateNameArgs
@@ -923,17 +1005,19 @@ data WalletUpdateNameArgs = WalletUpdateNameArgs
     }
 
 cmdWalletUpdateName
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Update a wallet's name."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletUpdateName mkClient =
+    command "name" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Update a wallet's name."
   where
     cmd = fmap exec $ WalletUpdateNameArgs
         <$> portOption
         <*> walletIdArgument
         <*> walletNameArgument
     exec (WalletUpdateNameArgs wPort wId wName) = do
-        runClient wPort Aeson.encodePretty $ putWallet (walletClient @t)
+        runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
 
@@ -944,16 +1028,18 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     }
 
 cmdWalletUpdatePassphrase
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
-    progDesc "Update a wallet's passphrase."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletUpdatePassphrase mkClient =
+    command "passphrase" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Update a wallet's passphrase."
   where
     cmd = fmap exec $ WalletUpdatePassphraseArgs
         <$> portOption
         <*> walletIdArgument
     exec (WalletUpdatePassphraseArgs wPort wId) = do
-        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
                 wPassphraseOld <- getPassphrase
@@ -961,7 +1047,7 @@ cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
                 wPassphraseNew <- getPassphraseWithConfirm
                     "Please enter a new passphrase: "
                 runClient wPort (const mempty) $
-                    putWalletPassphrase (walletClient @t) (ApiT wId) $
+                    putWalletPassphrase mkClient (ApiT wId) $
                         WalletPutPassphraseData
                             (ApiT wPassphraseOld)
                             (ApiT wPassphraseNew)
@@ -975,34 +1061,36 @@ data WalletDeleteArgs = WalletDeleteArgs
     }
 
 cmdWalletDelete
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Deletes wallet with specified wallet id."
+    :: WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletDelete mkClient =
+    command "delete" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Deletes wallet with specified wallet id."
   where
     cmd = fmap exec $ WalletDeleteArgs
         <$> portOption
         <*> walletIdArgument
     exec (WalletDeleteArgs wPort wId) = do
-        runClient wPort (const "") $ deleteWallet (walletClient @t) $
+        runClient wPort (const "") $ deleteWallet mkClient $
             ApiT wId
 
-
 cmdWalletGetUtxoStatistics
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Get UTxO statistics for the wallet with specified id."
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletGetUtxoStatistics mkClient =
+    command "utxo" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Get UTxO statistics for the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs
         <$> portOption
         <*> walletIdArgument
     exec (WalletGetArgs wPort wId) = do
-        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
         case res of
             Right _ -> do
                 runClient wPort Aeson.encodePretty $
-                    getWalletUtxoStatistics (walletClient @t) (ApiT wId)
+                    getWalletUtxoStatistics mkClient (ApiT wId)
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
@@ -1012,65 +1100,82 @@ cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
 
 -- | cardano-wallet transaction
 cmdTransaction
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransaction = command "transaction" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage transactions."
+    :: ToJSON wallet
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransaction mkTxClient mkWalletClient =
+    command "transaction" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Manage transactions."
   where
     cmds = subparser $ mempty
-        <> cmdTransactionCreate @t
-        <> cmdTransactionFees @t
-        <> cmdTransactionList @t
-        <> cmdTransactionSubmit @t
-        <> cmdTransactionForget @t
+        <> cmdTransactionCreate mkTxClient mkWalletClient
+        <> cmdTransactionFees mkTxClient mkWalletClient
+        <> cmdTransactionList mkTxClient
+        <> cmdTransactionSubmit mkTxClient
+        <> cmdTransactionForget mkTxClient
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
-    , _payments :: NonEmpty (AddressAmount t)
+    , _payments :: NonEmpty Text
     }
 
 cmdTransactionCreate
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Create and submit a new transaction."
+    :: ToJSON wallet
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransactionCreate mkTxClient mkWalletClient =
+    command "create" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create and submit a new transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wPayments) = do
-        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        wPayments <- either (fail . getTextDecodingError) pure $
+            traverse (fromText @(AddressAmount Text)) wAddressAmounts
+        res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
-                wPwd <- getPassphrase "Please enter your passphrase: "
+                wPwd <- getPassphrase @"raw" "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
-                    (walletClient @t)
+                    mkTxClient
                     (ApiT wId)
-                    (PostTransactionData wPayments (ApiT wPwd))
+                    (Aeson.object
+                        [ "payments" .= wPayments
+                        , "passphrase" .= ApiT wPwd
+                        ]
+                    )
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
 cmdTransactionFees
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Estimate fees for a transaction."
+    :: ToJSON wallet
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransactionFees mkTxClient mkWalletClient =
+    command "fees" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Estimate fees for a transaction."
   where
     cmd = fmap exec $ TransactionCreateArgs
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wPayments) = do
-        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        wPayments <- either (fail . getTextDecodingError) pure $
+            traverse (fromText @(AddressAmount Text)) wAddressAmounts
+        res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
                 runClient wPort Aeson.encodePretty $ postTransactionFee
-                    (walletClient @t)
+                    mkTxClient
                     (ApiT wId)
-                    (PostTransactionFeeData wPayments)
+                    (Aeson.object [ "payments" .= wPayments ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
@@ -1084,10 +1189,11 @@ data TransactionListArgs = TransactionListArgs
     }
 
 cmdTransactionList
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
-    <> progDesc "List the transactions associated with a wallet."
+    :: TransactionClient
+    -> Mod CommandFields (IO ())
+cmdTransactionList mkTxClient =
+    command "list" $ info (helper <*> cmd) $ mempty
+        <> progDesc "List the transactions associated with a wallet."
   where
     cmd = fmap exec $ TransactionListArgs
         <$> portOption
@@ -1097,7 +1203,7 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
         <*> optional sortOrderOption
     exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
         runClient wPort Aeson.encodePretty $ listTransactions
-            (walletClient @t)
+            mkTxClient
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
@@ -1110,17 +1216,18 @@ data TransactionSubmitArgs = TransactionSubmitArgs
     }
 
 cmdTransactionSubmit
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Submit an externally-signed transaction."
+    :: TransactionClient
+    -> Mod CommandFields (IO ())
+cmdTransactionSubmit mkTxClient =
+    command "submit" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Submit an externally-signed transaction."
   where
     cmd = fmap exec $ TransactionSubmitArgs
         <$> portOption
         <*> transactionSubmitPayloadArgument
     exec (TransactionSubmitArgs wPort wPayload) = do
         runClient wPort Aeson.encodePretty $
-            postExternalTransaction (walletClient @t) wPayload
+            postExternalTransaction mkTxClient wPayload
 
 -- | Arguments for 'transaction forget' command
 data TransactionForgetArgs = TransactionForgetArgs
@@ -1130,17 +1237,18 @@ data TransactionForgetArgs = TransactionForgetArgs
     }
 
 cmdTransactionForget
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Forget a pending transaction with specified id."
+    :: TransactionClient
+    -> Mod CommandFields (IO ())
+cmdTransactionForget mkClient =
+    command "forget" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Forget a pending transaction with specified id."
   where
     cmd = fmap exec $ TransactionForgetArgs
         <$> portOption
         <*> walletIdArgument
         <*> transactionIdArgument
     exec (TransactionForgetArgs wPort wId txId) = do
-        runClient wPort (const mempty) $ deleteTransaction (walletClient @t)
+        runClient wPort (const mempty) $ deleteTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
 
@@ -1149,13 +1257,15 @@ cmdTransactionForget = command "forget" $ info (helper <*> cmd) $ mempty
 -------------------------------------------------------------------------------}
 
 cmdAddress
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdAddress = command "address" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage addresses."
+    :: AddressClient
+    -> Mod CommandFields (IO ())
+cmdAddress mkClient =
+    command "address" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Manage addresses."
   where
     cmds = subparser $ mempty
-        <> cmdAddressList @t
+        <> cmdAddressList mkClient
+        <> cmdAddressCreate mkClient
 
 -- | Arguments for 'address list' command
 data AddressListArgs = AddressListArgs
@@ -1165,19 +1275,46 @@ data AddressListArgs = AddressListArgs
     }
 
 cmdAddressList
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
-    <> progDesc "List all known addresses of a given wallet."
+    :: AddressClient
+    -> Mod CommandFields (IO ())
+cmdAddressList mkClient =
+    command "list" $ info (helper <*> cmd) $ mempty
+        <> progDesc "List all known addresses of a given wallet."
   where
     cmd = fmap exec $ AddressListArgs
         <$> portOption
         <*> optional addressStateOption
         <*> walletIdArgument
     exec (AddressListArgs wPort wState wId) = do
-        runClient wPort Aeson.encodePretty $ listAddresses (walletClient @t)
+        runClient wPort Aeson.encodePretty $ listAddresses mkClient
             (ApiT wId)
             (ApiT <$> wState)
+
+-- | Arguments for 'address create' command
+data AddressCreateArgs = AddressCreateArgs
+    { _port :: Port "Wallet"
+    , _addressIndex :: Maybe (Index 'WholeDomain 'AddressK)
+    , _id :: WalletId
+    }
+
+cmdAddressCreate
+    :: AddressClient
+    -> Mod CommandFields (IO ())
+cmdAddressCreate mkClient =
+    command "create" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new random address. Only available for random wallets. \
+            \The address index is optional, give none to let the wallet generate \
+            \a random one."
+  where
+    cmd = fmap exec $ AddressCreateArgs
+        <$> portOption
+        <*> optional addressIndexOption
+        <*> walletIdArgument
+    exec (AddressCreateArgs wPort wIx wId) = do
+        pwd <- getPassphrase "Please enter your passphrase: "
+        runClient wPort Aeson.encodePretty $ postRandomAddress mkClient
+            (ApiT wId)
+            (ApiPostRandomAddressData (ApiT pwd) (ApiT <$> wIx))
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
@@ -1197,13 +1334,14 @@ cmdVersion = command "version" $ info cmd $ mempty
 -------------------------------------------------------------------------------}
 
 cmdStakePool
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdStakePool = command "stake-pool" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage stake pools."
+    :: StakePoolClient
+    -> Mod CommandFields (IO ())
+cmdStakePool mkClient =
+    command "stake-pool" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Manage stake pools."
   where
     cmds = subparser $ mempty
-        <> cmdStakePoolList @t
+        <> cmdStakePoolList mkClient
 
 -- | Arguments for 'stake-pool list' command
 newtype StakePoolListArgs = StakePoolListArgs
@@ -1211,50 +1349,49 @@ newtype StakePoolListArgs = StakePoolListArgs
     }
 
 cmdStakePoolList
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdStakePoolList = command "list" $ info (helper <*> cmd) $ mempty
-    <> progDesc "List all known stake pools."
+    :: StakePoolClient
+    -> Mod CommandFields (IO ())
+cmdStakePoolList mkClient =
+    command "list" $ info (helper <*> cmd) $ mempty
+        <> progDesc "List all known stake pools."
   where
-    cmd = fmap exec $ StakePoolListArgs <$> portOption
+    cmd = fmap exec $ StakePoolListArgs
+        <$> portOption
     exec (StakePoolListArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ listPools (walletClient @t)
+        runClient wPort Aeson.encodePretty $ listPools mkClient
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'
 -------------------------------------------------------------------------------}
 
 cmdNetwork
-    :: Mod CommandFields (IO ())
-cmdNetwork = command "network" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage network."
+    :: NetworkClient
+    -> Mod CommandFields (IO ())
+cmdNetwork mkClient =
+    command "network" $ info (helper <*> cmds) $ mempty
+        <> progDesc "Manage network."
   where
     cmds = subparser $ mempty
-        <> cmdNetworkInformation _networkInformation
-        <> cmdNetworkParameters  _networkParameters
-        <> cmdNetworkClock _networkClock
-    _networkInformation
-        :<|> _networkParameters
-        :<|> _networkClock
-        = client (Proxy @("v2" :> API.Network))
+        <> cmdNetworkInformation mkClient
+        <> cmdNetworkParameters mkClient
+        <> cmdNetworkClock mkClient
 
 -- | Arguments for 'network information' command
 newtype NetworkInformationArgs = NetworkInformationArgs
     { _port :: Port "Wallet"
     }
 
-
 cmdNetworkInformation
-    :: ClientM ApiNetworkInformation
+    :: NetworkClient
     -> Mod CommandFields (IO ())
-cmdNetworkInformation clientM =
+cmdNetworkInformation mkClient =
     command "information" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network information."
   where
     cmd = fmap exec $ NetworkInformationArgs
         <$> portOption
     exec (NetworkInformationArgs wPort) = do
-        runClient wPort Aeson.encodePretty clientM
+        runClient wPort Aeson.encodePretty (networkInformation mkClient)
 
 -- | Arguments for 'network parameters' command
 data NetworkParametersArgs = NetworkParametersArgs
@@ -1263,9 +1400,9 @@ data NetworkParametersArgs = NetworkParametersArgs
     }
 
 cmdNetworkParameters
-    :: (ApiEpochNumber -> ClientM ApiNetworkParameters)
+    :: NetworkClient
     -> Mod CommandFields (IO ())
-cmdNetworkParameters clientM =
+cmdNetworkParameters mkClient =
     command "parameters" $ info (helper <*> cmd) $ mempty
         <> progDesc "View network parameters."
   where
@@ -1273,7 +1410,7 @@ cmdNetworkParameters clientM =
         <$> portOption
         <*> epochArgument
     exec (NetworkParametersArgs wPort epoch) = do
-        runClient wPort Aeson.encodePretty $ clientM epoch
+        runClient wPort Aeson.encodePretty $ networkParameters mkClient epoch
 
 -- | Arguments for 'network clock' command
 newtype NetworkClockArgs = NetworkClockArgs
@@ -1281,14 +1418,15 @@ newtype NetworkClockArgs = NetworkClockArgs
     }
 
 cmdNetworkClock
-    :: ClientM ApiNetworkClock
+    :: NetworkClient
     -> Mod CommandFields (IO ())
-cmdNetworkClock clientM = command "clock" $ info (helper <*> cmd) $ mempty
-    <> progDesc "View NTP offset."
+cmdNetworkClock mkClient =
+    command "clock" $ info (helper <*> cmd) $ mempty
+        <> progDesc "View NTP offset."
   where
     cmd = fmap exec $ NetworkClockArgs <$> portOption
     exec (NetworkClockArgs wPort) = do
-        runClient wPort Aeson.encodePretty clientM
+        runClient wPort Aeson.encodePretty $ networkClock mkClient
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
@@ -1369,7 +1507,7 @@ optionNodePort = mempty
     <> showDefaultWith showT
 
 -- | --payment=PAYMENT
-paymentOption :: DecodeAddress t => Parser (AddressAmount t)
+paymentOption :: Parser Text
 paymentOption = optionT $ mempty
     <> long "payment"
     <> metavar "PAYMENT"
@@ -1494,47 +1632,27 @@ loggingSeverityOrOffReader = do
 
 -- | [--wallet-style=WALLET_STYLE]
 --
--- Note that we in the future might replace the type @CliWalletStyle@ with
+-- Note that we in the future might replace the type @ByronWalletStyle@ with
 -- another type, to include Shelley keys.
-walletStyleOption :: Parser CliWalletStyle
-walletStyleOption = option (eitherReader fromTextS)
+walletStyleOption
+    :: ByronWalletStyle
+        -- ^ Default style
+    -> [ByronWalletStyle]
+        -- ^ Accepted styles
+    -> Parser ByronWalletStyle
+walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     ( long "wallet-style"
     <> metavar "WALLET_STYLE"
     <> helpDoc (Just (vsep typeOptions))
-    <> value Icarus -- NOTE: Remember to update help text when updating!
+    <> value defaultStyle
     )
   where
     typeOptions = string <$>
-        [ "Any of the following (default: icarus)"
-        , "  icarus (" ++ allowedWords Icarus ++ ")"
-        , "  trezor (" ++ allowedWords Trezor ++ ")"
-        , "  ledger (" ++ allowedWords Ledger ++ ")"
-        ]
+        ( "Any of the following (default: " <> T.unpack (toText defaultStyle) <> ")"
+        ) : map prettyStyle accepted
 
-    allowedWords = (++ " words")
-        . formatEnglishEnumeration
-        . map show
-        . allowedWordLengths
-        . newCliKeyScheme
-       where
-          -- >>> formatEnglishEnumeration ["a", "b", "c"]
-          -- "a, b or c"
-          --
-          -- >>> formatEnglishEnumeration ["a", "b"]
-          -- "a or b"
-          --
-          -- >>> formatEnglishEnumeration ["a"]
-          -- "a"
-         formatEnglishEnumeration = formatEnglishEnumerationRev . reverse
-         formatEnglishEnumerationRev [ult, penult]
-            = penult ++ " or " ++ ult
-         formatEnglishEnumerationRev (ult:penult:revBeginning)
-            = intercalate ", " (reverse revBeginning)
-                ++ ", "
-                ++ penult
-                ++ " or "
-                ++ ult
-         formatEnglishEnumerationRev xs = intercalate ", " (reverse xs)
+    prettyStyle s =
+        "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
 keyArgument :: Parser Text
 keyArgument = T.pack <$> (argument str (metavar "XPRV"))
@@ -1545,6 +1663,14 @@ pathOption = option (eitherReader fromTextS) $
     <> long "path"
     <> metavar "DER-PATH"
     <> help "Derivation path e.g. 44H/1815H/0H/0"
+
+addressIndexOption
+    :: FromText (Index derivation level)
+    => Parser (Index derivation level)
+addressIndexOption = optionT $ mempty
+    <> long "address-index"
+    <> metavar "INDEX"
+    <> help "A derivation index for the address"
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

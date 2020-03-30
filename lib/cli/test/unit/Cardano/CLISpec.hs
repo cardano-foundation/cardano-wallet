@@ -16,7 +16,6 @@ import Prelude
 
 import Cardano.CLI
     ( CliKeyScheme (..)
-    , CliWalletStyle (..)
     , DerivationIndex (..)
     , DerivationPath (..)
     , MnemonicSize (..)
@@ -30,6 +29,7 @@ import Cardano.CLI
     , cmdStakePool
     , cmdTransaction
     , cmdWallet
+    , cmdWalletCreate
     , hGetLine
     , hGetSensitiveLine
     , mapKey
@@ -38,8 +38,17 @@ import Cardano.CLI
     )
 import Cardano.Startup
     ( setUtf8EncodingHandles )
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
+import Cardano.Wallet.Api.Types
+    ( ByronWalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), XPrv, unXPrv )
+    ( XPrv, unXPrv )
 import Cardano.Wallet.Primitive.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -103,6 +112,7 @@ import Test.QuickCheck
     , genericShrink
     , oneof
     , property
+    , suchThat
     , vector
     , (.&&.)
     , (===)
@@ -121,13 +131,12 @@ spec = do
 
     let parser = cli $ mempty
             <> cmdMnemonic
-            <> cmdWallet @'Mainnet
-            <> cmdTransaction @'Mainnet
-            <> cmdAddress @'Mainnet
-            <> cmdStakePool @'Mainnet
-            <> cmdNetwork
+            <> cmdWallet cmdWalletCreate walletClient
+            <> cmdTransaction transactionClient walletClient
+            <> cmdAddress addressClient
+            <> cmdStakePool stakePoolClient
+            <> cmdNetwork networkClient
             <> cmdKey
-
 
     let shouldStdOut args expected = it (unwords args) $ do
             setUtf8EncodingHandles
@@ -431,6 +440,11 @@ spec = do
             , "Available commands:"
             , "  list                     List all known addresses of a given"
             , "                           wallet."
+            , "  create                   Create a new random address. Only"
+            , "                           available for random wallets. The"
+            , "                           address index is optional, give none"
+            , "                           to let the wallet generate a random"
+            , "                           one."
             ]
 
         ["address", "list", "--help"] `shouldShowUsage`
@@ -443,6 +457,20 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
+            ]
+
+        ["address", "create", "--help"] `shouldShowUsage`
+            [ "Usage:  address create [--port INT] [--address-index INDEX]"
+            , "                       WALLET_ID"
+            , "  Create a new random address. Only available for random wallets."
+            , "  The address index is optional, give none to let the wallet"
+            , "  generate a random one."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --address-index INDEX    A derivation index for the address"
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
@@ -507,9 +535,9 @@ spec = do
             , "  -h,--help                Show this help text"
             , "  --wallet-style WALLET_STYLE"
             , "                           Any of the following (default: icarus)"
-            , "                             icarus (15 words)"
-            , "                             trezor (12, 15, 18, 21 or 24 words)"
-            , "                             ledger (12, 15, 18, 21 or 24 words)"
+            , "                             icarus (15 mnemonic words)"
+            , "                             trezor (12, 15, 18, 21 or 24 mnemonic words)"
+            , "                             ledger (12, 15, 18, 21 or 24 mnemonic words)"
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
@@ -540,7 +568,6 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
-        textRoundtrip $ Proxy @CliWalletStyle
         textRoundtrip $ Proxy @DerivationIndex
         textRoundtrip $ Proxy @DerivationPath
 
@@ -778,7 +805,7 @@ spec = do
     backspace :: Text
     backspace = T.singleton (toEnum 127)
 
-prop_roundtripCliKeySchemeKeyViaHex :: CliWalletStyle -> Property
+prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
@@ -788,7 +815,7 @@ prop_roundtripCliKeySchemeKeyViaHex style =
   where
     inverse (a, b) = (b, a)
 
-prop_allowedWordLengthsAllWork :: CliWalletStyle -> Property
+prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
     (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
   where
@@ -917,9 +944,9 @@ instance Arbitrary MnemonicSize where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
 
-instance Arbitrary CliWalletStyle where
-    arbitrary = arbitraryBoundedEnum
+instance Arbitrary ByronWalletStyle where
     shrink = genericShrink
+    arbitrary = arbitraryBoundedEnum `suchThat` (/= Random)
 
 instance Arbitrary (Port "test") where
     arbitrary = arbitraryBoundedEnum

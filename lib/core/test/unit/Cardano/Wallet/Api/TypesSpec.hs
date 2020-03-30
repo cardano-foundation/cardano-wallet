@@ -47,6 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiNtpStatus (..)
+    , ApiPostRandomAddressData
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -64,6 +65,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -98,7 +100,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -124,6 +126,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , PoolOwner (..)
+    , ProtocolMagic (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -279,11 +282,13 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 
@@ -308,7 +313,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
-            jsonRoundtripAndGolden $ Proxy @(AddressAmount ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
@@ -328,8 +333,10 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
+            jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "raw"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "byron-raw"))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -340,6 +347,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @StakePoolMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -348,16 +356,12 @@ spec = do
             textRoundtrip $ Proxy @ApiEpochNumber
 
     describe "AddressAmount" $ do
-        it "fromText . toText === pure"
-            $ property
-            $ \(i :: AddressAmount ('Testnet 0)) ->
-                (fromText . toText) i === pure i
         it "fromText \"22323\"" $
             let err =
                     "Parse error. " <>
                     "Expecting format \"<amount>@<address>\" but got \"22323\""
             in
-                fromText @(AddressAmount ('Testnet 0)) "22323"
+                fromText @(AddressAmount Text) "22323"
                     === Left (TextDecodingError err)
 
     describe
@@ -406,6 +410,14 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "raw")) msg)
+
+        it "ApiT (Passphrase \"byron-raw\") (too long)" $ do
+            let maxLength = passphraseMaxLength (Proxy :: Proxy "byron-raw")
+            let msg = "Error in $: passphrase is too long: \
+                    \expected at most " <> show maxLength <> " characters"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{replicate (2*maxLength) '*'}
+            |] `shouldBe` (Left @String @(ApiT (Passphrase "byron-raw")) msg)
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \
@@ -475,7 +487,7 @@ spec = do
                 { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
-            |] `shouldBe` (Left @String @(AddressAmount ('Testnet 0)) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: invalid coin value: value has to be lower \
@@ -488,7 +500,7 @@ spec = do
                     ,"quantity":#{getCoin maxBound + 1}
                     }
                 }
-            |] `shouldBe` (Left @String @(AddressAmount ('Testnet 0)) msg)
+            |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "ApiT PoolId" $ do
             let msg = "Error in $: Invalid stake pool id: expecting a \
@@ -757,6 +769,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ByronWalletPutPassphraseData" $ property $ \x ->
+            let
+                x' = ByronWalletPutPassphraseData
+                    { oldPassphrase = oldPassphrase (x :: ByronWalletPutPassphraseData)
+                    , newPassphrase = newPassphrase (x :: ByronWalletPutPassphraseData)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "PostTransactionData" $ property $ \x ->
             let
                 x' = PostTransactionData
@@ -797,8 +817,8 @@ spec = do
         it "AddressAmount" $ property $ \x ->
             let
                 x' = AddressAmount
-                    { address = address (x :: AddressAmount ('Testnet 0))
-                    , amount = amount (x :: AddressAmount ('Testnet 0))
+                    { address = address (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    , amount = amount (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -974,9 +994,9 @@ negativeTest _proxy bytes msg = it ("decodeAddress failure: " <> msg) $
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (Proxy ('Testnet 0)) where
+instance Arbitrary (Proxy (n :: NetworkDiscriminant)) where
     shrink _ = []
-    arbitrary = pure Proxy
+    arbitrary = pure (Proxy @n)
 
 instance Arbitrary (ApiAddress t) where
     shrink _ = []
@@ -1012,15 +1032,21 @@ instance Arbitrary Address where
     arbitrary = (unShowFmt . fst)
         <$> arbitrary @(ShowFmt Address, Proxy ('Testnet 0))
 
-instance {-# OVERLAPS #-} KnownNetwork network
-    => Arbitrary (ShowFmt Address, Proxy (network :: NetworkDiscriminant)) where
+instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy 'Mainnet) where
     arbitrary = do
-        let proxy = Proxy @network
         addr <- ShowFmt <$> frequency
-            [ (10, genAddress @network)
-            , (1, genLegacyAddress (30, 100))
+            [ (10, genAddress @'Mainnet)
+            , (1, genLegacyAddress Nothing)
             ]
-        return (addr, proxy)
+        return (addr, Proxy)
+
+instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy ('Testnet 0)) where
+    arbitrary = do
+        addr <- ShowFmt <$> frequency
+            [ (10, genAddress @('Testnet 0))
+            , (1, genLegacyAddress (Just (ProtocolMagic 0)))
+            ]
+        return (addr, Proxy)
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
@@ -1120,6 +1146,10 @@ instance Arbitrary WalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ByronWalletPutPassphraseData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1140,6 +1170,23 @@ instance Arbitrary ApiWalletDelegationNext where
             <$> pure Nothing
             <*> fmap Just arbitrary
         ]
+
+instance Arbitrary (Passphrase "byron-raw") where
+    arbitrary = do
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+      where p = Proxy :: Proxy "byron-raw"
+
+    shrink (Passphrase bytes)
+        | BA.length bytes <= passphraseMinLength p = []
+        | otherwise =
+            [ Passphrase
+            $ BA.convert
+            $ B8.take (passphraseMinLength p)
+            $ BA.convert bytes
+            ]
+      where p = Proxy :: Proxy "byron-raw"
 
 instance Arbitrary ApiWalletDelegation where
     arbitrary = ApiWalletDelegation
@@ -1359,10 +1406,8 @@ instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
 
-instance Arbitrary (AddressAmount t) where
-    arbitrary = AddressAmount
-        <$> fmap (, Proxy @t) arbitrary
-        <*> arbitrary
+instance Arbitrary a => Arbitrary (AddressAmount a) where
+    arbitrary = applyArbitrary2 AddressAmount
     shrink _ = []
 
 instance Arbitrary (PostTransactionData t) where
@@ -1460,6 +1505,10 @@ instance Arbitrary TxStatus where
 
 instance Arbitrary (Quantity "block" Natural) where
     arbitrary = fmap (Quantity . fromIntegral) (arbitrary @Word32)
+
+instance Arbitrary ApiPostRandomAddressData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
@@ -1610,6 +1659,10 @@ instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
+instance ToSchema ByronWalletPutPassphraseData where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
+
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
@@ -1643,6 +1696,9 @@ instance ToSchema ApiWalletDelegationNext where
 
 instance ToSchema ApiWalletDelegation where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegation"
+
+instance ToSchema ApiPostRandomAddressData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

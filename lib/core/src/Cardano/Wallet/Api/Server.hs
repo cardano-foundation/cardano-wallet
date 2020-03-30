@@ -46,6 +46,7 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrCoinSelection (..)
+    , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
     , ErrJoinStakePool (..)
@@ -75,11 +76,13 @@ import Cardano.Wallet
     , WalletLog
     , genesisData
     , networkLayer
+    , normalizeDelegationAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , ByronAddresses
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -115,6 +118,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiPoolId (..)
+    , ApiPostRandomAddressData (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -132,6 +136,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
+    , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
@@ -154,7 +159,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
-    , Passphrase
+    , Passphrase (..)
     , PaymentAddress (..)
     , WalletKey (..)
     , XPrv
@@ -169,7 +174,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (ArgGenChange), IsOwned )
+    ( CompareDiscovery
+    , GenChange (ArgGenChange)
+    , IsOurs
+    , IsOwned
+    , KnownAddresses
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -184,7 +194,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
     ( Address
-    , AddressState
+    , AddressState (..)
     , Block
     , BlockchainParameters
     , Coin (..)
@@ -239,6 +249,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
+import Data.Coerce
+    ( coerce )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -456,6 +468,7 @@ server byron icarus shelley spl ntp =
     :<|> transactions
     :<|> stakePools
     :<|> byronWallets
+    :<|> byronAddresses
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -472,7 +485,7 @@ server byron icarus shelley spl ntp =
         :<|> forceResyncWallet shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley
+    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins shelley
@@ -520,6 +533,23 @@ server byron icarus shelley spl ntp =
                 (byron , forceResyncWallet byron  wid tip)
                 (icarus, forceResyncWallet icarus wid tip)
              )
+        :<|> (\wid name -> withLegacyLayer wid
+                (byron , putWallet byron mkLegacyWallet wid name)
+                (icarus, putWallet icarus mkLegacyWallet wid name)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , getUTxOsStatistics byron wid)
+                (icarus, getUTxOsStatistics icarus wid)
+             )
+        :<|> (\wid pwd -> withLegacyLayer wid
+                (byron , putByronWalletPassphrase byron wid pwd)
+                (icarus, putByronWalletPassphrase icarus wid pwd)
+             )
+
+    byronAddresses :: Server (ByronAddresses n)
+    byronAddresses =
+             (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
@@ -578,6 +608,7 @@ byronServer byron icarus ntp =
     :<|> transactions
     :<|> stakePools
     :<|> byronWallets
+    :<|> byronAddresses
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -643,6 +674,29 @@ byronServer byron icarus ntp =
         :<|> (\wid tip -> withLegacyLayer wid
                 (byron , forceResyncWallet byron  wid tip)
                 (icarus, forceResyncWallet icarus wid tip)
+             )
+        :<|> (\wid name -> withLegacyLayer wid
+                (byron , putWallet byron mkLegacyWallet wid name)
+                (icarus, putWallet icarus mkLegacyWallet wid name)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , getUTxOsStatistics byron wid)
+                (icarus, getUTxOsStatistics icarus wid)
+             )
+        :<|> (\wid pwd -> withLegacyLayer wid
+                (byron , putByronWalletPassphrase byron wid pwd)
+                (icarus, putByronWalletPassphrase icarus wid pwd)
+             )
+
+    byronAddresses :: Server (ByronAddresses n)
+    byronAddresses =
+             (\wid s -> withLegacyLayer wid
+                (byron, postRandomAddress byron wid s)
+                (icarus, throwError err403)
+             )
+        :<|> (\wid s -> withLegacyLayer wid
+                (byron , listAddresses byron (const pure) wid s)
+                (icarus, listAddresses icarus (const pure) wid s)
              )
 
     byronTransactions :: Server (ByronTransactions n)
@@ -1120,6 +1174,22 @@ putWalletPassphrase ctx (ApiT wid) body = do
         W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
 
+putByronWalletPassphrase
+    :: forall ctx s t k.
+        ( WalletKey k
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ByronWalletPutPassphraseData
+    -> Handler NoContent
+putByronWalletPassphrase ctx (ApiT wid) body = do
+    let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        let old = maybe mempty (coerce . getApiT) oldM
+        W.updateWalletPassphrase wrk wid (old, new)
+    return NoContent
+
 getUTxOsStatistics
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
@@ -1199,20 +1269,41 @@ selectCoins ctx (ApiT wid) body =
                                     Addresses
 -------------------------------------------------------------------------------}
 
-listAddresses
+postRandomAddress
     :: forall ctx s t k n.
-        ( DelegationAddress n k
-        , k ~ ShelleyKey
-        , s ~ SeqState n k
+        ( s ~ RndState n
+        , k ~ ByronKey
         , ctx ~ ApiLayer s t k
+        , PaymentAddress n ByronKey
         )
     => ctx
     -> ApiT WalletId
+    -> ApiPostRandomAddressData
+    -> Handler (ApiAddress n)
+postRandomAddress ctx (ApiT wid) body = do
+    let pwd = getApiT (body ^. #passphrase)
+    let mix = getApiT <$> (body ^. #addressIndex)
+    addr <- withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k wrk wid pwd mix
+    pure $ coerceAddress (addr, Unused)
+  where
+    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
+
+listAddresses
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , IsOurs s Address
+        , CompareDiscovery s
+        , KnownAddresses s
+        )
+    => ctx
+    -> (s -> Address -> Maybe Address)
+    -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress n]
-listAddresses ctx (ApiT wid) stateFilter = do
+listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listAddresses @_ @s @k @n wrk wid
+        W.listAddresses @_ @s @k wrk wid normalize
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
@@ -1656,7 +1747,7 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
   where
-    mkAddressAmount :: TxOut -> AddressAmount n
+    mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
@@ -1703,11 +1794,11 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
             }
         }
 
-    toAddressAmount :: TxOut -> AddressAmount n
+    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
-coerceCoin :: AddressAmount t -> TxOut
+coerceCoin :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n) -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
 
@@ -2235,6 +2326,16 @@ instance LiftHandler ErrNoSuchEpoch where
                 , " epoch. Current one is "
                 , pretty errCurrentEpoch
                 , ". Use smaller epoch than current or 'latest'."
+                ]
+
+instance LiftHandler ErrCreateRandomAddress where
+    handler = \case
+        ErrCreateAddrNoSuchWallet e -> handler e
+        ErrCreateAddrWithRootKey  e -> handler e
+        ErrIndexAlreadyExists ix ->
+            apiError err409 AddressAlreadyExists $ mconcat
+                [ "I cannot derive a new unused address #", pretty (fromEnum ix)
+                , " because I already know of such address."
                 ]
 
 instance LiftHandler (Request, ServerError) where

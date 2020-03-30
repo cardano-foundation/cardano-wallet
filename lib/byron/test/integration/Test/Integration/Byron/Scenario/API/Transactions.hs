@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee
     , ApiT (..)
     , ApiTransaction
+    , ApiUtxoStatistics
     , DecodeAddress (..)
     , EncodeAddress (..)
     , WalletStyle (..)
@@ -68,7 +69,9 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectResponseCode
+    , expectWalletUTxO
     , faucetAmt
+    , faucetUtxoAmt
     , fixtureIcarusWallet
     , fixtureIcarusWalletAddrs
     , fixtureIcarusWalletWith
@@ -164,6 +167,11 @@ spec = do
         scenario_RESTORE_01 @n fixtureRandomWallet
         scenario_RESTORE_02 @n (fixtureRandomWalletAddrs @n)
         scenario_RESTORE_03 @n (fixtureRandomWalletAddrs @n)
+
+    describe "BYRON_UTXO" $ do
+        scenario_TRANS_UTXO_01 @n fixtureIcarusWallet (fixtureIcarusWalletAddrs @n)
+        scenario_TRANS_UTXO_01 @n fixtureRandomWallet (fixtureRandomWalletAddrs @n)
+
 --
 -- Scenarios
 --
@@ -646,6 +654,50 @@ scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     title = "BYRON_RESTORE_03 - restoring wallet from corrupted hash gives\
             \ proper balance but sending tx fails"
 
+scenario_TRANS_UTXO_01
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        )
+    => (Context t -> IO ApiByronWallet)
+    -> (Context t -> IO (ApiByronWallet, [Address]))
+    -> SpecWith (Context t)
+scenario_TRANS_UTXO_01 fixtureSource fixtureTarget = it title $ \ctx -> do
+    -- SETUP
+    wSrc <- fixtureSource ctx
+    let coins = [13::Natural, 43, 66, 101, 1339]
+    let matrix = zip coins [1..]
+    (wDest, addrs) <- fixtureTarget ctx
+
+    forM_ matrix $ \(c, alreadyAbsorbed) -> do
+        let payment = mkPayment @n (head addrs) c
+
+        -- ACTION
+        r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+        let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+        let coinsSentAll = sum coinsSent
+
+        --ASSERTIONS
+        verify r
+            [ expectResponseCode HTTP.status202
+            ]
+        eventually "destination balance increases" $ do
+            rDest <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wDest) Default Empty
+            verify rDest
+                [ expectField (#balance . #available)
+                  (`shouldBe` Quantity (faucetAmt + coinsSentAll))
+                ]
+        rStat <- request @ApiUtxoStatistics ctx
+                 (Link.getUTxOsStatistics @'Byron wDest) Default Empty
+        verify rStat
+            [ expectResponseCode HTTP.status200
+            ]
+        let expectedUtxos =
+                fromIntegral <$> (replicate 10 faucetUtxoAmt ++ coinsSent)
+        expectWalletUTxO expectedUtxos (snd rStat)
+  where
+    title = "TRANS_UTXO_01 - one recipient multiple txs received"
 
 --
 -- More Elaborated Fixtures

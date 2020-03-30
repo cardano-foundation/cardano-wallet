@@ -118,7 +118,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless, when )
+    ( unless, when, (>=>) )
 import Crypto.Hash
     ( Blake2b_256, Digest, HashAlgorithm, hash )
 import Crypto.KDF.PBKDF2
@@ -163,6 +163,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
+import Safe
+    ( toEnumMay )
 import Type.Reflection
     ( typeOf )
 
@@ -274,6 +276,19 @@ instance Enum (Index 'WholeDomain level) where
 instance Buildable (Index derivationType level) where
     build (Index ix) = fromString (show ix)
 
+instance
+  ( Enum (Index derivation level)
+  , Bounded (Index derivation level)
+  ) => FromText (Index derivation level) where
+    fromText = fromText >=> \n -> case toEnumMay n of
+        Just ix -> pure ix
+        Nothing -> Left $ TextDecodingError $ unwords
+            [ "Couldn't parse derivation index. Expected an integer between"
+            , show (minBound @(Index derivation level))
+            , "and"
+            , show (maxBound @(Index derivation level))
+            ]
+
 -- | Type of derivation that should be used with the given indexes.
 --
 -- In theory, we should only consider two derivation types: soft and hard.
@@ -377,6 +392,9 @@ class PassphraseMaxLength (purpose :: Symbol) where
 
 instance PassphraseMinLength "raw" where passphraseMinLength _ = 10
 instance PassphraseMaxLength "raw" where passphraseMaxLength _ = 255
+
+instance PassphraseMinLength "byron-raw" where passphraseMinLength _ = 0
+instance PassphraseMaxLength "byron-raw" where passphraseMaxLength _ = 255
 
 instance
     ( PassphraseMaxLength purpose

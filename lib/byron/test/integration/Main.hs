@@ -103,7 +103,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
+import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
+import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsCommon
 import qualified Test.Integration.Scenario.API.ByronWallets as WalletsCommon
 import qualified Test.Integration.Scenario.API.Network as Network
@@ -116,7 +118,9 @@ main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "API Specifications" $ specWithServer tr $ do
+            TransactionsCLI.spec @n
             WalletsCommon.spec @n
+            AddressesByron.spec @n
             TransactionsByron.spec @n
             TransactionsCommon.spec @n
             Network.spec

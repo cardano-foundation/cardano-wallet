@@ -64,6 +64,7 @@ import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
     , ErrNetworkUnavailable
     , FollowAction (..)
+    , FollowExit (..)
     , FollowLog
     , NetworkLayer (currentNodeTip, stakeDistribution)
     , follow
@@ -171,8 +172,10 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
     cursor <- initCursor
     traceWith tr $ MsgStartMonitoring cursor
     follow nl trFollow cursor forward header >>= \case
-        Nothing    -> pure ()
-        Just point -> do
+        FollowInterrupted -> pure ()
+        FollowFailure ->
+            monitorStakePools tr (block0, Quantity k) nl db
+        FollowRollback point -> do
             traceWith tr $ MsgRollingBackTo point
             liftIO . atomically $ rollbackTo point
             monitorStakePools tr (block0, Quantity k) nl db

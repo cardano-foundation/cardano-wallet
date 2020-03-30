@@ -831,7 +831,7 @@ spec = do
             ("Wallet to update pass", "cardano-passphrase", 20)
         let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
         rup <- request @ApiWallet ctx
-            (Link.putWalletPassphrase w) Default payload
+            (Link.putWalletPassphrase @'Shelley w) Default payload
         expectResponseCode @IO HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
 
@@ -862,7 +862,7 @@ spec = do
             let newPass = T.pack $ replicate len '💘'
             let payload = updatePassPayload oldPass newPass
             rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase w) Default payload
+                (Link.putWalletPassphrase @'Shelley w) Default payload
             expectResponseCode @IO HTTP.status204 rup
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> do
@@ -890,7 +890,8 @@ spec = do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx (Link.putWalletPassphrase wSrc) Default payloadUpdate
+            rup <- request @ApiWallet ctx
+                   (Link.putWalletPassphrase @'Shelley wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
             addrs <- listAddresses @n ctx wDest
@@ -939,7 +940,7 @@ spec = do
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
             let payload = updatePassPayload "Secure passphrase" "Passphrase"
-            let endpoint = Link.putWalletPassphrase w
+            let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
 
@@ -1051,7 +1052,8 @@ spec = do
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
-        rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics w) Default Empty
+        rStat <- request @ApiUtxoStatistics ctx
+                 (Link.getUTxOsStatistics @'Shelley w) Default Empty
         expectResponseCode @IO HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
 
@@ -1094,7 +1096,7 @@ spec = do
 
             --verify utxo
             rStat1 <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics wDest) Default Empty
+                (Link.getUTxOsStatistics @'Shelley wDest) Default Empty
             expectResponseCode @IO HTTP.status200 rStat1
             expectWalletUTxO coinsSent (snd rStat1)
 
@@ -1102,7 +1104,7 @@ spec = do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w)
             Default Empty
-        r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics w)
+        r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w)
             Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1134,7 +1136,7 @@ spec = do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics w) headers Empty
+            r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
 
     it "BYRON_WALLETS_UTXO -\
@@ -1514,7 +1516,7 @@ spec = do
                 ]
 
         -- Analyze the target wallet UTxO distribution
-        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics wNew)
+        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
             Default
             Empty >>= flip verify
             [ expectField

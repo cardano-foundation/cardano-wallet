@@ -242,6 +242,7 @@ import Fmt
     , fmt
     , indentF
     , ordinalF
+    , padRightF
     , prefixF
     , pretty
     , suffixF
@@ -1070,6 +1071,47 @@ data UTxOStatistics = UTxOStatistics
     , allStakes :: !Word64
     , boundType :: BoundType
     } deriving (Show, Generic, Ord)
+
+-- Example output:
+--
+-- @
+--    = Total value of 14061000005 lovelace across 7 UTxOs
+--     ... 10                2
+--     ... 100               0
+--     ... 1000              0
+--     ... 10000             0
+--     ... 100000            0
+--     ... 1000000           0
+--     ... 10000000          0
+--     ... 100000000         2
+--     ... 1000000000        0
+--     ... 10000000000       3
+--     ... 100000000000      0
+--     ... 1000000000000     0
+--     ... 10000000000000    0
+--     ... 100000000000000   0
+--     ... 1000000000000000  0
+--     ... 10000000000000000 0
+--     ... 45000000000000000 0
+--  @
+instance Buildable UTxOStatistics where
+    build (UTxOStatistics hist val _) = mconcat
+        [ "= Total value of "
+        , build val
+        , " lovelace across "
+        , wordF $ sum $ map bucketCount hist
+        , " UTxOs"
+        , "\n"
+        , blockListF' "" buildBar hist
+        ]
+      where
+        buildBar (HistogramBar b c) =
+            -- NOTE: Picked to fit well with the max value of Lovelace.
+            "... " <> (padRightF 17 ' ' b) <> " " <> wordF c
+
+        -- This is a workaround for the fact that:
+        -- > fmt (build (0::Word)) == "-0"
+        wordF = build . toInteger
 
 instance Eq UTxOStatistics where
     (UTxOStatistics h s _) == (UTxOStatistics h' s' _) =

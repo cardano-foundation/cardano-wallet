@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Link
     , forceResyncWallet
 
       -- * Addresses
+    , postRandomAddress
     , listAddresses
     , listAddresses'
 
@@ -172,13 +173,15 @@ getWallet w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 getUTxOsStatistics
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-getUTxOsStatistics w =
-    endpoint @Api.GetUTxOsStatistics (wid &)
+getUTxOsStatistics w = discriminate @style
+    (endpoint @Api.GetUTxOsStatistics (wid &))
+    (endpoint @Api.GetByronUTxOsStatistics (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -192,24 +195,28 @@ listWallets = discriminate @style
     (endpoint @Api.ListByronWallets id)
 
 putWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-putWallet w =
-    endpoint @Api.PutWallet (wid &)
+putWallet w = discriminate @style
+    (endpoint @Api.PutWallet (wid &))
+    (endpoint @Api.PutByronWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
 putWalletPassphrase
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-putWalletPassphrase w =
-    endpoint @Api.PutWalletPassphrase (wid &)
+putWalletPassphrase w = discriminate @style
+    (endpoint @Api.PutWalletPassphrase (wid &))
+    (endpoint @Api.PutByronWalletPassphrase (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -255,24 +262,38 @@ forceResyncWallet w = discriminate @style
 -- Addresses
 --
 
-listAddresses
+postRandomAddress
     :: forall w.
         ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+postRandomAddress w =
+    endpoint @(Api.PostByronAddress Net) (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+listAddresses
+    :: forall style w.
+        ( HasType (ApiT WalletId) w
+        , Discriminate style
         )
     => w
     -> (Method, Text)
 listAddresses w =
-    listAddresses' w Nothing
+    listAddresses' @style w Nothing
 
 listAddresses'
-    :: forall w.
+    :: forall style w.
         ( HasType (ApiT WalletId) w
+        , Discriminate style
         )
     => w
     -> Maybe AddressState
     -> (Method, Text)
-listAddresses' w mstate =
-    endpoint @(Api.ListAddresses Net) (\mk -> mk wid (ApiT <$> mstate))
+listAddresses' w mstate = discriminate @style
+    (endpoint @(Api.ListAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
+    (endpoint @(Api.ListByronAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
   where
     wid = w ^. typed @(ApiT WalletId)
 

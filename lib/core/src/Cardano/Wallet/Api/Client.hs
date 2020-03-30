@@ -4,37 +4,62 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- This module provides a Servant client for the cardano-wallet V2 API.
+-- This module provides a half-typed Servant client for the cardano-wallet V2 API.
 --
 -- The functions in this module can be run with "Servant.Client.runClientM".
 
 module Cardano.Wallet.Api.Client
-    ( -- * API endpoints
+    ( -- * API Clients
       WalletClient (..)
     , walletClient
+    , byronWalletClient
 
-      -- * Helper functions
-    , waitForSync
-    , waitForRestore
+    , TransactionClient (..)
+    , transactionClient
+    , byronTransactionClient
+
+    , AddressClient (..)
+    , addressClient
+    , byronAddressClient
+
+    , StakePoolClient (..)
+    , stakePoolClient
+
+    , NetworkClient (..)
+    , networkClient
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Api )
+    ( Addresses
+    , ByronAddresses
+    , ByronTransactions
+    , ByronWallets
+    , Network
+    , PostData
+    , Proxy_
+    , StakePools
+    , Transactions
+    , Wallets
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressT
+    , ApiByronWallet
+    , ApiCoinSelectionT
     , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
@@ -42,31 +67,33 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiNetworkTip
     , ApiPoolId
+    , ApiPostRandomAddressData
+    , ApiSelectCoinsDataT
     , ApiStakePool
     , ApiT (..)
-    , ApiTransaction
+    , ApiTransactionT
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
-    , DecodeAddress
-    , EncodeAddress
+    , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostTransactionData (..)
-    , PostTransactionFeeData (..)
-    , WalletOrAccountPostData (..)
+    , PostTransactionDataT
+    , PostTransactionFeeDataT
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, SortOrder, SyncProgress (..), WalletId )
+    ( AddressState, SortOrder, WalletId )
 import Control.Monad
     ( void )
-import Control.Retry
-    ( RetryPolicy, constantDelay, limitRetriesByCumulativeDelay, retrying )
+import Data.Coerce
+    ( coerce )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Proxy
     ( Proxy (..) )
 import Servant
@@ -74,35 +101,33 @@ import Servant
 import Servant.Client
     ( ClientM, client )
 
+import qualified Data.Aeson as Aeson
+
 {-------------------------------------------------------------------------------
                               Server Interaction
 -------------------------------------------------------------------------------}
 
 -- | This data type encapsulates the client functions for all endpoints of the
 -- cardano-wallet V2 API.
-data WalletClient t = WalletClient
-    { listAddresses
-        :: ApiT WalletId
-        -> Maybe (ApiT AddressState)
-        -> ClientM [ApiAddress t]
-    , deleteWallet
+data WalletClient wallet = WalletClient
+    { deleteWallet
         :: ApiT WalletId
         -> ClientM ()
     , getWallet
         :: ApiT WalletId
-        -> ClientM ApiWallet
+        -> ClientM wallet
     , getWalletUtxoStatistics
         :: ApiT WalletId
         -> ClientM ApiUtxoStatistics
     , listWallets
-        :: ClientM [ApiWallet]
+        :: ClientM [wallet]
     , postWallet
-        :: WalletOrAccountPostData
-        -> ClientM ApiWallet
+        :: PostData wallet
+        -> ClientM wallet
     , putWallet
         :: ApiT WalletId
         -> WalletPutData
-        -> ClientM ApiWallet
+        -> ClientM wallet
     , putWalletPassphrase
         :: ApiT WalletId
         -> WalletPutPassphraseData
@@ -111,19 +136,22 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> ApiNetworkTip
         -> ClientM NoContent
-    , listTransactions
+    }
+
+data TransactionClient = TransactionClient
+    { listTransactions
         :: ApiT WalletId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
-        -> ClientM [ApiTransaction t]
+        -> ClientM [ApiTransactionT Aeson.Value]
     , postTransaction
         :: ApiT WalletId
-        -> PostTransactionData t
-        -> ClientM (ApiTransaction t)
+        -> PostTransactionDataT Aeson.Value
+        -> ClientM (ApiTransactionT Aeson.Value)
     , postTransactionFee
         :: ApiT WalletId
-        -> PostTransactionFeeData t
+        -> PostTransactionFeeDataT Aeson.Value
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
@@ -132,18 +160,36 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> ApiTxId
         -> ClientM NoContent
-    , listPools
+    }
+
+data AddressClient = AddressClient
+    { listAddresses
+        :: ApiT WalletId
+        -> Maybe (ApiT AddressState)
+        -> ClientM [Aeson.Value]
+    , postRandomAddress
+        :: ApiT WalletId
+        -> ApiPostRandomAddressData
+        -> ClientM (ApiAddressT Aeson.Value)
+    }
+
+data StakePoolClient = StakePoolClient
+    { listPools
         :: ClientM [ApiStakePool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
+        -> ClientM (ApiTransactionT Aeson.Value)
     , quitStakePool
         :: ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransaction t)
-    , networkInformation
+        -> ClientM (ApiTransactionT Aeson.Value)
+    }
+
+
+data NetworkClient = NetworkClient
+    { networkInformation
         :: ClientM ApiNetworkInformation
     , networkParameters
         :: ApiEpochNumber
@@ -152,26 +198,10 @@ data WalletClient t = WalletClient
         :: ClientM ApiNetworkClock
     }
 
--- | Produces a 'WalletClient' for the cardano-wallet V2 API.
---
--- You should apply a
--- "Cardano.Wallet.Primitive.AddressDerivation.NetworkDiscriminant" type
--- parameter to this to get a concrete client.
-walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
+-- | Produces a 'WalletClient' working against the /wallets API.
+walletClient :: WalletClient ApiWallet
 walletClient =
     let
-        (wallets
-            :<|> addresses
-            :<|> coinSelections
-            :<|> transactions
-            :<|> stakePools
-            :<|> _byronWallets
-            :<|> _byronTransactions
-            :<|> _byronMigrations
-            :<|> network
-            :<|> proxy_) =
-            client (Proxy @("v2" :> (Api t)))
-
         _deleteWallet
             :<|> _getWallet
             :<|> _listWallets
@@ -180,77 +210,160 @@ walletClient =
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
             :<|> _forceResyncWallet
-            = wallets
-
-        _listAddresses =
-            addresses
-
-        _selectCoins
-            = coinSelections
-
-        _postTransaction
-            :<|> _listTransactions
-            :<|> _postTransactionFee
-            :<|> _deleteTransaction
-            = transactions
-
-        _listPools
-            :<|> _joinStakePool
-            :<|> _quitStakePool
-            :<|> _delegationFee
-            = stakePools
-
-        _networkInformation
-            :<|> _networkParameters
-            :<|> _networkClock
-            = network
-
-        _postExternalTransaction
-            = proxy_
+            = client (Proxy @("v2" :> Wallets))
     in
         WalletClient
-            { listAddresses = _listAddresses
-            , deleteWallet = void . _deleteWallet
+            { deleteWallet = void . _deleteWallet
             , getWallet = _getWallet
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
             , forceResyncWallet = _forceResyncWallet
-            , listTransactions = _listTransactions
+            , getWalletUtxoStatistics = _getWalletUtxoStatistics
+            }
+
+-- | Produces a 'WalletClient' working against the /wallets API.
+byronWalletClient :: WalletClient ApiByronWallet
+byronWalletClient =
+    let
+        _postWallet
+            :<|> _deleteWallet
+            :<|> _getWallet
+            :<|> _listWallets
+            :<|> _forceResyncWallet
+            :<|> _putWallet
+            :<|> _getWalletUtxoStatistics
+            :<|> _putWalletPassphrase
+            = client (Proxy @("v2" :> ByronWallets))
+    in
+        WalletClient
+            { deleteWallet = void . _deleteWallet
+            , getWallet = _getWallet
+            , listWallets = _listWallets
+            , postWallet = _postWallet
+            , putWallet = _putWallet
+            , putWalletPassphrase = \wid body ->
+                _putWalletPassphrase wid $ ByronWalletPutPassphraseData
+                    { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
+                    , newPassphrase = body ^. #newPassphrase
+                    }
+            , forceResyncWallet = _forceResyncWallet
+            , getWalletUtxoStatistics = _getWalletUtxoStatistics
+            }
+
+-- | Produces a 'TransactionClient t' working against the /wallets API.
+transactionClient
+    :: TransactionClient
+transactionClient =
+    let
+        _postTransaction
+            :<|> _listTransactions
+            :<|> _postTransactionFee
+            :<|> _deleteTransaction
+            = client (Proxy @("v2" :> (Transactions Aeson.Value)))
+
+        _postExternalTransaction
+            = client (Proxy @("v2" :> Proxy_))
+    in
+        TransactionClient
+            { listTransactions = _listTransactions
             , postTransaction = _postTransaction
+            , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
-            , postTransactionFee = _postTransactionFee
-            , getWalletUtxoStatistics = _getWalletUtxoStatistics
-            , listPools = _listPools
+            }
+
+-- | Produces a 'TransactionClient n' working against the /byron-wallets API.
+byronTransactionClient
+    :: TransactionClient
+byronTransactionClient =
+    let
+        _postTransaction
+            :<|> _listTransactions
+            :<|> _postTransactionFee
+            :<|> _deleteTransaction
+            = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
+
+        _postExternalTransaction
+            = client (Proxy @("v2" :> Proxy_))
+
+    in TransactionClient
+        { listTransactions = _listTransactions
+        , postTransaction = _postTransaction
+        , postTransactionFee = _postTransactionFee
+        , postExternalTransaction = _postExternalTransaction
+        , deleteTransaction = _deleteTransaction
+        }
+
+-- | Produces an 'AddressClient n' working against the /wallets API
+addressClient
+    :: AddressClient
+addressClient =
+    let
+        _listAddresses
+            = client (Proxy @("v2" :> Addresses Aeson.Value))
+    in
+        AddressClient
+            { listAddresses = _listAddresses
+            , postRandomAddress = \_ _ -> fail "feature unavailable."
+            }
+
+
+-- | Produces an 'AddressClient n' working against the /wallets API
+byronAddressClient
+    :: AddressClient
+byronAddressClient =
+    let
+        _postRandomAddress
+            :<|> _listAddresses
+            = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
+    in
+        AddressClient
+            { listAddresses = _listAddresses
+            , postRandomAddress = _postRandomAddress
+            }
+
+-- | Produces an 'StakePoolsClient n' working against the /stake-pools API
+stakePoolClient
+    :: StakePoolClient
+stakePoolClient =
+    let
+        _listPools
+            :<|> _joinStakePool
+            :<|> _quitStakePool
+            :<|> _delegationFee
+            = client (Proxy @("v2" :> StakePools Aeson.Value))
+    in
+        StakePoolClient
+            { listPools = _listPools
             , joinStakePool = _joinStakePool
             , quitStakePool = _quitStakePool
-            , networkInformation = _networkInformation
+            }
+
+-- | Produces a 'NetworkClient'
+networkClient
+    :: NetworkClient
+networkClient =
+    let
+        _networkInformation
+            :<|> _networkParameters
+            :<|> _networkClock
+            = client (Proxy @("v2" :> Network))
+    in
+        NetworkClient
+            { networkInformation = _networkInformation
             , networkParameters = _networkParameters
             , networkClock = _networkClock
             }
 
-{-------------------------------------------------------------------------------
-                                    Helpers
--------------------------------------------------------------------------------}
+--
+-- Type families
+--
 
--- | Poll a wallet by ID until it has restored.
-waitForRestore :: WalletClient t -> ApiT WalletId -> ClientM ApiWallet
-waitForRestore wc wid = retrying retryPolicy (const shouldRetry) (const action)
-  where
-    shouldRetry res = pure (res ^. #state /= ApiT Ready)
-    action = getWallet wc wid
-
--- | Poll the wallet server until it reports that it has synced with the
--- network.
-waitForSync :: WalletClient t -> ClientM ()
-waitForSync wc = void $ retrying retryPolicy (const shouldRetry) (const action)
-  where
-    shouldRetry res = pure (res ^. #syncProgress /= ApiT Ready)
-    action = networkInformation wc
-
-retryPolicy :: RetryPolicy
-retryPolicy = limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
-  where
-    second = 1000*1000
+type instance ApiAddressT Aeson.Value = Aeson.Value
+type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
+type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
+type instance ApiTransactionT Aeson.Value = Aeson.Value
+type instance PostTransactionDataT Aeson.Value = Aeson.Value
+type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value

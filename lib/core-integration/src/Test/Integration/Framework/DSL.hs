@@ -50,6 +50,7 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyRandomWallet
+    , emptyRandomWalletWithPasswd
     , emptyIcarusWallet
     , emptyByronWalletWith
     , emptyWallet
@@ -96,6 +97,8 @@ module Test.Integration.Framework.DSL
     , icarusAddresses
     , randomAddresses
     , pubKeyFromMnemonics
+    , unsafeGetTransactionTime
+    , getTxId
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -137,6 +140,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
     , ApiWallet
     , ApiWalletDelegation (..)
@@ -146,16 +150,22 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
+    , insertedAt
+    , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , FromMnemonic (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
+    , PassphraseScheme (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , SomeMnemonic (..)
     , WalletKey (..)
+    , hex
+    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -283,7 +293,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -478,6 +490,16 @@ walletId =
 --
 -- Helpers
 --
+getTxId :: (ApiTransaction n) -> String
+getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
+
+unsafeGetTransactionTime
+    :: [ApiTransaction n]
+    -> UTCTime
+unsafeGetTransactionTime txs =
+    case fmap time . insertedAt <$> txs of
+        (Just t):_ -> t
+        _ -> error "Expected at least one transaction with a time."
 
 waitAllTxsInLedger
     :: forall n t. (DecodeAddress n)
@@ -584,6 +606,26 @@ emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
+
+emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
+emptyRandomWalletWithPasswd ctx rawPwd = do
+    let pwd = preparePassphrase EncryptWithScrypt
+            $ Passphrase
+            $ BA.convert
+            $ T.encodeUtf8 rawPwd
+    seed <- SomeMnemonic @12 . entropyToMnemonic <$> genEntropy
+    let key = T.decodeUtf8
+            $ hex
+            $ Byron.getKey
+            $ Byron.generateKeyFromSeed seed pwd
+    pwdH <- T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
+  where
+    encryptPasswordWithScrypt =
+        fmap Scrypt.getEncryptedPass
+        . Scrypt.encryptPassIO Scrypt.defaultParams
+        . Scrypt.Pass
+        . BA.convert
 
 emptyByronWalletWith
     :: forall t. ()
@@ -872,7 +914,7 @@ fixtureWalletWith ctx coins0 = do
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
             <$> request @[ApiAddress n] ctx
-                    (Link.listAddresses dest) Default Empty
+                    (Link.listAddresses @'Shelley dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
                 "amount": {
@@ -1019,7 +1061,7 @@ selectCoins
         )
     => Context t
     -> w
-    -> NonEmpty (AddressAmount n)
+    -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
     -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {
@@ -1092,22 +1134,22 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress n]
 listAddresses ctx w = do
-    let link = Link.listAddresses w
+    let link = Link.listAddresses @'Shelley w
     (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
     return addrs
 
 listAllTransactions
-    :: forall n t. (DecodeAddress n)
+    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
     => Context t
-    -> ApiWallet
+    -> w
     -> IO [ApiTransaction n]
 listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing Nothing
 
 listTransactions
-    :: forall n t. (DecodeAddress n)
+    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
     => Context t
-    -> ApiWallet
+    -> w
     -> Maybe UTCTime
     -> Maybe UTCTime
     -> Maybe SortOrder
@@ -1393,21 +1435,15 @@ postTransactionViaCLI ctx passphrase args = do
             return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
-    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+    :: forall t r s. (CmdResult r, HasType (Port "wallet") s, KnownCommand t)
     => s
     -> [String]
-    -> IO (ExitCode, String, Text)
-postTransactionFeeViaCLI ctx args = do
-    let portArgs =
-            ["--port", show (ctx ^. typed @(Port "wallet"))]
-    let fullArgs =
-            ["transaction", "fees"] ++ portArgs ++ args
-    let process = proc' (commandName @t) fullArgs
-    withCreateProcess process $ \_ (Just stdout) (Just stderr) h -> do
-        c <- waitForProcess h
-        out <- TIO.hGetContents stdout
-        err <- TIO.hGetContents stderr
-        return (c, T.unpack out, err)
+    -> IO r
+postTransactionFeeViaCLI ctx args = cardanoWalletCLI @t $ join
+        [ ["transaction", "fees"]
+        , ["--port", show (ctx ^. typed @(Port "wallet"))]
+        , args
+        ]
 
 listTransactionsViaCLI
     :: forall t r s . (CmdResult r, HasType (Port "wallet") s, KnownCommand t)

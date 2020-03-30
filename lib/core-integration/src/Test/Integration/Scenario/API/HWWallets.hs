@@ -5,7 +5,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -239,7 +238,7 @@ spec = do
             -- cannot update pass
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
             rup <- request @ApiWallet ctx
-                (Link.putWalletPassphrase wk) Default payload
+                (Link.putWalletPassphrase @'Shelley wk) Default payload
             expectResponseCode @IO HTTP.status403 rup
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
 
@@ -252,7 +251,7 @@ spec = do
             -- cannot update wallet name
             let newName = "new name"
             let payload = updateNamePayload newName
-            rup <- request @ApiWallet ctx (Link.putWallet wk) Default payload
+            rup <- request @ApiWallet ctx (Link.putWallet @'Shelley wk) Default payload
             expectResponseCode @IO HTTP.status200 rup
 
             rGet <- request @ApiWallet ctx
@@ -300,7 +299,7 @@ spec = do
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey ctx pubKey
             rStat <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics wPub) Default Empty
+                (Link.getUTxOsStatistics @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 rStat
             expectWalletUTxO [] (snd rStat)
 
@@ -311,7 +310,7 @@ spec = do
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
-                (Link.listAddresses wPub) Default Empty
+                (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 r
             expectListSize g r
             forM_ [0..(g-1)] $ \addrNum -> do
@@ -333,7 +332,7 @@ spec = do
             let wPub = getFromResponse id rRestore
 
             r <- request @[ApiAddress n] ctx
-                (Link.listAddresses wPub) Default Empty
+                (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 r
             expectListSize addrPoolGap r
             forM_ [0..(addrPoolGap-1)] $ \addrNum -> do

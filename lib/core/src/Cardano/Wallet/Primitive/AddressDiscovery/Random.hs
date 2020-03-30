@@ -25,8 +25,13 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     -- ** State
       RndState (..)
     , mkRndState
-    ) where
 
+    -- ** Low-level API
+    , addDiscoveredAddress
+    , deriveRndStateAddress
+    , findUnusedPath
+    , unavailablePaths
+    ) where
 import Prelude
 
 import Cardano.Byron.Codec.Cbor
