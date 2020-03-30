@@ -94,3 +94,5 @@ test-suite unit
   other-modules:
       Cardano.LauncherSpec
     , Cardano.StartupSpec
+  if os(windows)
+    cpp-options:   -DWINDOWS
