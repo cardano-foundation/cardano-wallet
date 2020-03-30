@@ -190,9 +190,11 @@ test-suite unit
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
+    , connection
     , containers
     , contra-tracer
     , cryptonite
+    , data-default
     , directory
     , deepseq
     , extra >= 1.6.17
@@ -206,6 +208,7 @@ test-suite unit
     , hspec-golden-aeson
     , http-api-data
     , http-client
+    , http-client-tls
     , http-media
     , http-types
     , iohk-monitoring
@@ -228,10 +231,13 @@ test-suite unit
     , temporary
     , text
     , text-class
+    , tls
     , time
     , transformers
     , tree-diff
     , unordered-containers
+    , x509
+    , x509-store
     , yaml
     , wai
     , wai-extra
@@ -258,6 +264,7 @@ test-suite unit
       Cardano.Pool.PerformanceSpec
       Cardano.Pool.RankingSpec
       Cardano.Wallet.Api.Malformed
+      Cardano.Wallet.Api.Server.TlsSpec
       Cardano.Wallet.Api.ServerSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
