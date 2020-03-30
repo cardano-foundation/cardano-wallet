@@ -46,6 +46,7 @@ library
     , containers
     , contra-tracer
     , cryptonite
+    , data-default
     , deepseq
     , digest
     , directory
@@ -88,12 +89,17 @@ library
     , text
     , text-class
     , time
+    , tls
     , transformers
     , unliftio
     , unordered-containers
     , vector
     , wai
     , warp
+    , warp-tls
+    , x509
+    , x509-store
+    , x509-validation
     , zip
   hs-source-dirs:
       src
@@ -115,6 +121,7 @@ library
       Cardano.Wallet.Api.Client
       Cardano.Wallet.Api.Link
       Cardano.Wallet.Api.Server
+      Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
