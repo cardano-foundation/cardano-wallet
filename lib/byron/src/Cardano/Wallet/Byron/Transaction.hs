@@ -234,7 +234,7 @@ fromGenesisTxOut bp outs = Block
   where
     mkTx out@(TxOut (Address bytes) _) =
         Tx (Hash $ blake2b256 bytes) [] [out]
---
+
 dummyAddress
     :: forall (n :: NetworkDiscriminant) k. (MaxSizeOf Address n k) => Address
 dummyAddress =

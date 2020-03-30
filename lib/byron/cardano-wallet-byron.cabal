@@ -131,9 +131,13 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-byron
+    , cborg
     , containers
     , hspec
+    , fmt
     , memory
+    , QuickCheck
+    , transformers
   build-tools:
       hspec-discover
   type:

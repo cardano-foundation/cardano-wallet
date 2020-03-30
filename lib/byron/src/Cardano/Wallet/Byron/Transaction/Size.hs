@@ -56,14 +56,12 @@ sizeOfTx inps outs = 6
 
 -- SIGNED-TX
 --     = CBOR-LIST-LEN (2)    -- 1 byte
---     | U8                   -- 1 byte
---     | CBOR-LIST-LEN (2)    -- 1 byte
 --     | TX                   -- sizeOf(TX) bytes
 --     | CBOR-LIST-LEN (n)    -- 1-2 bytes (assuming n < 255)
 --     | *WITNESS             -- n * 139 bytes
 --                            == 3 + sizeOf(TX) + 1-2 + n * 139
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx inps outs = 3
+sizeOfSignedTx inps outs = 1
     + sizeOfTx inps outs
     + sizeOf (CBOR.encodeListLen $ fromIntegral n)
     + n * sizeOfTxWitness
@@ -154,8 +152,8 @@ class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (Ø)       --     1 byte
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Mainnet IcarusKey where maxSizeOf = 44
-instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 40
+instance MaxSizeOf Address 'Mainnet IcarusKey where maxSizeOf = 43
+instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 39
 
 -- ADDRESS (TestNet, Icarus)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -180,8 +178,8 @@ instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 40
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (8)       --     8 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address ('Testnet pm) IcarusKey where maxSizeOf = 51
-instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 47
+instance MaxSizeOf Address ('Testnet pm) IcarusKey where maxSizeOf = 50
+instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 46
 
 -- ADDRESS (MainNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -194,20 +192,20 @@ instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 47
 --         = CBOR-LIST-LEN (2)    --     1 byte
 --         | CBOR-TAG (24)        --     2 bytes
 --         | CBOR-BYTES (33)      --     2 bytes
---         | 66OCTET              --    66 bytes #------*
+--         | 62-66OCTET           -- 62-66 bytes #------*
 --         | U32                  --   1-5 bytes        |
 --                                                      |
 --         *--------------------------------------------*
 --         |
 --         v
---         66OCTET
+--         62-66OCTET
 --             = CBOR-LIST-LEN (3)    --     1 byte
 --             | CBOR-BYTES (28)      --     2 bytes
 --             | 28OCTET              --    28 bytes
---             | ATTRIBUTES (34)      --    34 bytes
+--             | ATTRIBUTES (34)      -- 30-34 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Mainnet ByronKey where maxSizeOf = 77
-instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 73
+instance MaxSizeOf Address 'Mainnet ByronKey where maxSizeOf = 76
+instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 68
 
 -- ADDRESS (TestNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -220,17 +218,17 @@ instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 73
 --         = CBOR-LIST-LEN (2)    --     1 byte
 --         | CBOR-TAG (24)        --     2 bytes
 --         | CBOR-BYTES (33)      --     2 bytes
---         | 73OCTET              --    73 bytes #------*
+--         | 69-73OCTET           -- 69-73 bytes #------*
 --         | U32                  --   1-5 bytes        |
 --                                                      |
 --         *--------------------------------------------*
 --         |
 --         v
---         73OCTET
+--         69-73OCTET
 --             = CBOR-LIST-LEN (3)    --     1 byte
 --             | CBOR-BYTES (28)      --     2 bytes
 --             | 28OCTET              --    28 bytes
---             | ATTRIBUTES (41)      --    41 bytes
+--             | ATTRIBUTES (37-41)   -- 37-41 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address ('Testnet pm) ByronKey where maxSizeOf = 84
-instance MinSizeOf Address ('Testnet pm) ByronKey where minSizeOf = 80
+instance MaxSizeOf Address ('Testnet pm) ByronKey where maxSizeOf = 83
+instance MinSizeOf Address ('Testnet pm) ByronKey where minSizeOf = 75
