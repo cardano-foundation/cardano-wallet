@@ -63,7 +63,6 @@ import System.IO.Temp
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import qualified Data.Yaml as Yaml
 
 data CardanoNodeConfig = CardanoNodeConfig
@@ -158,10 +157,9 @@ withConfig tdir action =
         let nodeTopologyFile = dir </> "node.topology"
 
         -- we need to specify genesis file location every run in tmp
-        configTxt <- T.readFile (source </> "node.config")
-        let configTxtExtended =
-                T.append configTxt ("\nGenesisFile: "<> T.pack nodeGenesisFile)
-        T.writeFile (dir </> "node.config") configTxtExtended
+        Yaml.decodeFileThrow (source </> "node.config")
+            >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
+            >>= Yaml.encodeFile (dir </> "node.config")
 
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
             >>= withObject updateStartTime
@@ -209,6 +207,14 @@ updateStartTime
 updateStartTime m = do
     time <- round @_ @Int <$> getPOSIXTime
     pure $ HM.insert "startTime" (toJSON time) m
+
+-- | Add a "GenesisFile" field in a given object with the current path of
+-- genesis.json in tmp dir as value.
+addGenesisFilePath
+    :: Text
+    -> Aeson.Object
+    -> IO Aeson.Object
+addGenesisFilePath path = pure . HM.insert "GenesisFile" (toJSON path)
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
