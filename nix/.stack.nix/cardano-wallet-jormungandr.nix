@@ -170,7 +170,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           buildable = true;
           };
-        "integration" = {
+        "jormungandr-integration" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))

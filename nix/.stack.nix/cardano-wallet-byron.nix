@@ -137,7 +137,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           buildable = true;
           };
-        "cardano-node-integration" = {
+        "integration" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."aeson" or (buildDepError "aeson"))

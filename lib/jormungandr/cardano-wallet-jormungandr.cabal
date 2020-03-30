@@ -169,7 +169,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.RewardsSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
 
-test-suite integration
+test-suite jormungandr-integration
   default-language:
       Haskell2010
   default-extensions:
