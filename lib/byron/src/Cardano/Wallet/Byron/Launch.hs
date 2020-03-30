@@ -31,10 +31,8 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockchainParameters (..), Hash (..) )
+    ( Block (..), BlockchainParameters (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Exception
@@ -64,15 +62,12 @@ import System.IO.Temp
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 
 data CardanoNodeConfig = CardanoNodeConfig
-    { nodeGenesisHash  :: Text
-    , nodeConfigFile   :: FilePath
+    { nodeConfigFile   :: FilePath
     , nodeDatabaseDir  :: FilePath
     , nodeDlgCertFile  :: FilePath
-    , nodeGenesisFile  :: FilePath
     , nodeSignKeyFile  :: FilePath
     , nodeSocketFile   :: FilePath
     , nodeTopologyFile :: FilePath
@@ -155,8 +150,7 @@ withConfig tdir action =
         let nodeConfigFile   = dir </> "node.config"
         let nodeDatabaseDir  = dir </> "node.db"
         let nodeDlgCertFile  = dir </> "node.cert"
-        let nodeGenesisFile  = dir </> "genesis.json"
-        let nodeGenesisFile1  = "test/data/cardano-node/genesis.json"
+        let nodeGenesisFile  = "test/data/cardano-node/genesis.json"
         let nodeSignKeyFile  = dir </> "node.key"
         let nodeSocketFile   = dir </> "node.socket"
         let nodeTopologyFile = dir </> "node.topology"
@@ -164,9 +158,6 @@ withConfig tdir action =
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
             >>= withObject updateStartTime
             >>= Aeson.encodeFile nodeGenesisFile
-        Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-            >>= withObject updateStartTime
-            >>= Aeson.encodeFile nodeGenesisFile1
         forM_ ["node.config", "node.topology", "node.key", "node.cert"] $ \f ->
             copyFile (source </> f) (dir </> f)
 
@@ -175,16 +166,13 @@ withConfig tdir action =
         let (bp, outs) = fromGenesisData (genesisData, genesisHash)
 
         let networkMagic = NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
-        let nodeGenesisHash = T.decodeUtf8 $ hex $ getHash $ getGenesisBlockHash bp
 
         pure
             ( dir
             , CardanoNodeConfig
-                { nodeGenesisHash
-                , nodeConfigFile
+                { nodeConfigFile
                 , nodeDatabaseDir
                 , nodeDlgCertFile
-                , nodeGenesisFile
                 , nodeSignKeyFile
                 , nodeSocketFile
                 , nodeTopologyFile
