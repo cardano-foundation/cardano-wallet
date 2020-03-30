@@ -123,6 +123,11 @@ extra-deps:
     - typed-protocols-examples
     - ouroboros-network-framework
     - ouroboros-network-testing
+
+# Temporary to get ntp-client bumped and working on Windows.
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: ffcc4fad05ef888a7c0ed8ff662ee4478484d1da
+  subdirs:
     - ntp-client
     - Win32-network
 
