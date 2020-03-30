@@ -143,7 +143,7 @@ import System.IO
     , withFile
     )
 import System.IO.Temp
-    ( withSystemTempFile )
+    ( createTempDirectory, getCanonicalTemporaryDirectory, withSystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -183,12 +183,16 @@ main = do
     configs <- getEnv "BYRON_CONFIGS"
     nodeDB <- getEnv "NODE_DB"
 
+    -- Temporary directory for storing socket
+    tmpDir <- getCanonicalTemporaryDirectory
+        >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
+
     let genesisHash =
             B8.unpack
             . hex
             . getGenesisBlockHash
             $ blockchainParameters @'Mainnet
-    let socketPath = "cardano-node.socket"
+    let socketPath = tmpDir </> "cardano-node.socket"
     let args =
             [ "run"
             , "--database-path", nodeDB
