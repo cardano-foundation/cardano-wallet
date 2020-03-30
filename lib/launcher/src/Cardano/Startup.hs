@@ -47,7 +47,6 @@ import System.IO
     ( Handle
     , hIsOpen
     , hSetEncoding
-    , hWaitForInput
     , mkTextEncoding
     , stderr
     , stderr
@@ -121,15 +120,13 @@ withShutdownHandler' tr h action = do
         handle (traceWith tr . MsgShutdownError) readerLoop'
         traceWith tr MsgShutdownEOF
     readerLoop' = waitForInput >>= \case
-        True -> do
-            _ <- BS.hGet h 1000 -- consume input
-            readerLoop' -- and repeat
-        False -> pure ()
+        "" -> pure () -- eof: stop loop
+        _ -> readerLoop' -- repeat
     -- Wait indefinitely for input to be available.
     -- Runs in separate thread so that it does not deadlock on Windows.
     waitForInput = do
-        v <- newEmptyMVar :: IO (MVar (Either IOException Bool))
-        _ <- forkIO ((hWaitForInput h (-1) >>= putMVar v . Right) `catch` (putMVar v . Left))
+        v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
+        _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
         takeMVar v >>= either throwIO pure
 
 data ShutdownHandlerLog
