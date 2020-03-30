@@ -1,4 +1,16 @@
 - package:
+  - name: cardano-wallet-byron
+  - section:
+    - name: bench:restore
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+        - identifier:
+          - AnyAddressStateId
+          - AnyAddressStateKey
+          - AnyAddressStateProportion
+- package:
   - name: cardano-wallet-core
   - section:
     - name: test:unit
@@ -28,7 +40,7 @@
 - package:
   - name: cardano-wallet-jormungandr
   - section:
-    - name: test:integration
+    - name: test:jormungandr-integration
     - message:
       - name: Redundant build-depends entry
       - depends:
@@ -45,7 +57,7 @@
         - warp
         - yaml
   - section:
-    - name: test:integration bench:latency
+    - name: test:jormungandr-integration bench:latency
     - message:
       - name: Module reused between components
       - module:
@@ -125,15 +137,3 @@
       - name: Module not compiled
       - module: Cardano.Startup.Windows
 
-- package:
-  - name: cardano-wallet-byron
-  - section:
-    - name: bench:restore
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
-        - identifier:
-          - AnyAddressStateId
-          - AnyAddressStateKey
-          - AnyAddressStateProportion
