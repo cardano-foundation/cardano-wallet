@@ -33,14 +33,13 @@ import Data.Time.Clock
 import Data.Word.Odd
     ( Word31 )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyRandomWallet
     , eventually
-    , eventuallyUsingDelay
     , expectErrorMessage
     , expectField
     , expectResponseCode
@@ -77,21 +76,6 @@ spec = do
         let nextEpochNum =
                 getFromResponse (#nextEpoch . #epochNumber . #getApiT) r
         nextEpochNum `shouldBe` currentEpochNum + 1
-
-    it "NETWORK - Calculated next epoch is the next epoch" $ \ctx -> do
-        r1 <- request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
-        let calculatedNextEpoch = getFromResponse (#nextEpoch . #epochNumber) r1
-        let nextEpochStartTime = getFromResponse (#nextEpoch . #epochStartTime) r1
-
-        eventuallyUsingDelay 100 "nextEpochStartTime passes" $ do
-            now <- liftIO getCurrentTime
-            now `shouldSatisfy` (>= nextEpochStartTime)
-
-        r2 <- request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
-        let currentEpoch = getFromResponse (#networkTip . #epochNumber) r2
-        currentEpoch `shouldBe` calculatedNextEpoch
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> do
