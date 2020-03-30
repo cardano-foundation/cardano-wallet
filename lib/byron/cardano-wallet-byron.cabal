@@ -146,7 +146,7 @@ test-suite unit
       Cardano.Wallet.Byron.CompatibilitySpec
       Cardano.Wallet.Byron.TransactionSpec
 
-test-suite cardano-node-integration
+test-suite integration
   default-language:
       Haskell2010
   default-extensions:
