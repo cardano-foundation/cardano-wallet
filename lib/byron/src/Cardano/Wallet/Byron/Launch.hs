@@ -64,7 +64,6 @@ import System.IO.Temp
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 
@@ -107,8 +106,6 @@ withCardanoNode tr tdir action =
         , "--topology", nodeTopologyFile cfg
         , "--database-path", nodeDatabaseDir cfg
         , "--socket-path", nodeSocketFile cfg
-        , "--genesis-file", nodeGenesisFile cfg
-        , "--genesis-hash", T.unpack (nodeGenesisHash cfg)
         , "--port", show port
         ]
 
@@ -159,6 +156,7 @@ withConfig tdir action =
         let nodeDatabaseDir  = dir </> "node.db"
         let nodeDlgCertFile  = dir </> "node.cert"
         let nodeGenesisFile  = dir </> "genesis.json"
+        let nodeGenesisFile1  = "test/data/cardano-node/genesis.json"
         let nodeSignKeyFile  = dir </> "node.key"
         let nodeSocketFile   = dir </> "node.socket"
         let nodeTopologyFile = dir </> "node.topology"
@@ -166,6 +164,9 @@ withConfig tdir action =
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
             >>= withObject updateStartTime
             >>= Aeson.encodeFile nodeGenesisFile
+        Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
+            >>= withObject updateStartTime
+            >>= Aeson.encodeFile nodeGenesisFile1
         forM_ ["node.config", "node.topology", "node.key", "node.cert"] $ \f ->
             copyFile (source </> f) (dir </> f)
 

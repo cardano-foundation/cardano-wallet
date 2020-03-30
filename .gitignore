@@ -28,3 +28,6 @@ cabal.project.local~
 ### Nix ###
 result*
 .stack-to-nix.cache
+
+### cardano-node ###
+lib/byron/test/data/cardano-node/genesis.json
