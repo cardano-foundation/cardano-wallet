@@ -26,6 +26,7 @@ module Cardano.Wallet.Api.Server
     ( Listen (..)
     , ListenError (..)
     , HostPreference
+    , TlsConfiguration (..)
     , start
     , serve
     , server
@@ -97,6 +98,8 @@ import Cardano.Wallet.Api
     , dbFactory
     , workerRegistry
     )
+import Cardano.Wallet.Api.Server.Tls
+    ( TlsConfiguration (..), requireClientAuth )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
@@ -348,6 +351,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Network.Wai.Handler.WarpTLS as Warp
 
 -- | How the server should listen for incoming requests.
 data Listen
@@ -361,16 +365,22 @@ data Listen
 start
     :: Warp.Settings
     -> Tracer IO ApiLog
+    -> Maybe TlsConfiguration
     -> Socket
     -> Application
     -> IO ()
-start settings tr socket application = do
+start settings tr tlsConfig socket application = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
-    Warp.runSettingsSocket settings socket
+    runSocket
         $ handleRawError (curry handler)
         $ withApiLogger tr logSettings
         application
   where
+    runSocket :: Application -> IO ()
+    runSocket = case tlsConfig of
+        Nothing  -> Warp.runSettingsSocket settings socket
+        Just tls -> Warp.runTLSSocket (requireClientAuth tls) settings socket
+
     sensitive :: [Text]
     sensitive =
         [ "passphrase"
