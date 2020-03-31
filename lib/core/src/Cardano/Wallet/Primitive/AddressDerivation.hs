@@ -541,8 +541,11 @@ preparePassphrase = \case
         . BA.convert
         . CBOR.toStrictByteString
         . CBOR.encodeBytes
-        . BA.convert
-        . hash @_ @Blake2b_256
+        . hashMaybe
+  where
+    hashMaybe pw@(Passphrase bytes)
+        | pw == mempty = BA.convert bytes
+        | otherwise = BA.convert $ hash @_ @Blake2b_256 bytes
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase
