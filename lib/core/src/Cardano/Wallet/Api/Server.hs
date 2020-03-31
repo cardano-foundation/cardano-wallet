@@ -243,7 +243,7 @@ import Control.Exception
 import Control.Exception.Lifted
     ( finally )
 import Control.Monad
-    ( forM, unless, void, when )
+    ( forM, unless, void, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -917,8 +917,36 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     wid = WalletId $ digest $ publicKey rootXPrv
 
 mkLegacyWallet
-    :: MkApiWallet ctx s ApiByronWallet
-mkLegacyWallet _ctx wid cp meta pending progress =
+    :: forall ctx s k.
+        ( HasWorkerRegistry s k ctx
+        , HasDBFactory s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> Wallet s
+    -> WalletMetadata
+    -> Set Tx
+    -> SyncProgress
+    -> Handler ApiByronWallet
+mkLegacyWallet ctx wid cp meta pending progress = do
+    -- NOTE
+    -- Legacy wallets imported through via XPrv might have an empty passphrase
+    -- set. The passphrase is empty from a client perspective, but in practice
+    -- it still exists (it is a CBOR-serialized empty bytestring!).
+    --
+    -- Therefore, if we detect an empty passphrase, we chose to return the
+    -- metadata as if no passphrase was set, so that clients can act in
+    -- consequences.
+    pwdInfo <- case meta ^. #passphraseInfo of
+        Nothing ->
+            pure Nothing
+        Just (W.WalletPassphraseInfo time EncryptWithPBKDF2) ->
+            pure $ Just $ ApiWalletPassphraseInfo time
+        Just (W.WalletPassphraseInfo time EncryptWithScrypt) -> do
+            withWorkerCtx @_ @s @k ctx wid liftE liftE $ matchEmptyPassphrase >=> \case
+                Right{} -> pure Nothing
+                Left{}  -> pure $ Just $ ApiWalletPassphraseInfo time
+
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
             { available = Quantity $ availableBalance pending cp
@@ -926,11 +954,16 @@ mkLegacyWallet _ctx wid cp meta pending progress =
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiWalletPassphraseInfo
-            <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+        , passphrase = pwdInfo
         , state = ApiT progress
         , tip = getWalletTip cp
         }
+  where
+    matchEmptyPassphrase
+        :: WorkerCtx ctx
+        -> Handler (Either ErrWithRootKey ())
+    matchEmptyPassphrase wrk = liftIO $ runExceptT $
+        W.withRootKey @_ @s @k wrk wid mempty Prelude.id (\_ _ -> pure ())
 
 postRandomWallet
     :: forall ctx s t k n.

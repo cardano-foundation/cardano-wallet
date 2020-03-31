@@ -40,6 +40,8 @@ import Control.Monad
     ( forM_, void )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -47,7 +49,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO, shouldNotBe )
+    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -437,6 +439,9 @@ spec = do
     it "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
         w <- emptyByronWallet ctx
+        request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
+            >>= flip verify [ expectField #passphrase (`shouldSatisfy` isJust) ]
+
         let payload = updatePassPayload "Secure Passphrase" "New Secure Passphrase"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
@@ -447,6 +452,8 @@ spec = do
     it "BYRON_UPDATE_PASS_02 - Old passphrase incorrect" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
         w <- emptyByronWallet ctx
+        request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
+            >>= flip verify [ expectField #passphrase (`shouldSatisfy` isJust) ]
         let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
@@ -457,6 +464,8 @@ spec = do
 
     it "BYRON_UPDATE_PASS_03 - Updating passphrase with no password wallets" $ \ctx -> do
         w <- emptyRandomWalletWithPasswd ctx ""
+        request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
+            >>= flip verify [ expectField #passphrase (`shouldSatisfy` isNothing) ]
         let payload = updateEmptyPassPayload "correct-password"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
@@ -466,6 +475,8 @@ spec = do
 
     it "BYRON_UPDATE_PASS_04 - Updating passphrase with no password wallets" $ \ctx -> do
         w <- emptyRandomWalletWithPasswd ctx ""
+        request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
+            >>= flip verify [ expectField #passphrase (`shouldSatisfy` isNothing) ]
         let payload = updatePassPayload "" "correct-password"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
@@ -475,6 +486,8 @@ spec = do
 
     it "BYRON_UPDATE_PASS_07 - Updating passphrase with short password wallets" $ \ctx -> do
         w <- emptyRandomWalletWithPasswd ctx "cos"
+        request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
+            >>= flip verify [ expectField #passphrase (`shouldSatisfy` isJust) ]
         let payload = updatePassPayload "cos" "correct-password"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
