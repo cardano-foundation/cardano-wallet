@@ -70,6 +70,7 @@ library
     , unordered-containers
     , warp
     , yaml
+    , Win32-network
   hs-source-dirs:
       src
   exposed-modules:
@@ -131,9 +132,13 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-byron
+    , cborg
     , containers
     , hspec
+    , fmt
     , memory
+    , QuickCheck
+    , transformers
   build-tools:
       hspec-discover
   type:

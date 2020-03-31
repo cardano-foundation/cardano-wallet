@@ -10,11 +10,10 @@
 -- and re-exports used in a number of places throught codebase.
 
 module Network.Ntp
-    ( ntpSettings
+    ( withWalletNtpClient
     , getNtpStatus
 
     -- * re-exports from ntp-client
-    , withNtpClient
     , NtpTrace (..)
     , NtpClient (..)
     ) where
@@ -27,6 +26,8 @@ import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Control.Tracer
+    ( Tracer )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -39,14 +40,30 @@ import Network.NTP.Client
     , NtpTrace (..)
     , withNtpClient
     )
+import System.IOManager
+    ( IOManager )
 
+-- | Set up a 'NtpClient' and pass it to the given action. The 'NtpClient' is
+-- terminated when the callback returns.
+withWalletNtpClient
+    :: IOManager
+    -- ^ The global 'IOManager' instance, set up by the application main function.
+    -> Tracer IO NtpTrace
+    -- ^ Logging object
+    -> (NtpClient -> IO a)
+    -- ^ Action to run
+    -> IO a
+withWalletNtpClient ioManager tr = withNtpClient ioManager tr ntpSettings
+
+-- | Hard-coded NTP servers for cardano-wallet.
 ntpSettings :: NtpSettings
 ntpSettings = NtpSettings
     { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
                    , "0.pool.ntp.org", "1.pool.ntp.org"
                    , "2.pool.ntp.org", "3.pool.ntp.org" ]
+    , ntpRequiredNumberOfResults = 2
     , ntpResponseTimeout = 1_000_000
-    , ntpPollDelay       = 300_000_000
+    , ntpPollDelay = 300_000_000
     }
 
 instance ToText IPVersion where
@@ -57,79 +74,52 @@ instance ToText NtpTrace where
     toText msg = case msg of
         NtpTraceStartNtpClient ->
             "Starting ntp client"
-        NtpTraceTriggerUpdate ->
-            "ntp client is triggered"
         NtpTraceRestartDelay d ->
             "ntp client restart delay is " <> toText d
         NtpTraceRestartingClient ->
-            "ntp client is restarted"
-        NtpTraceClientSleeping ->
-            "ntp client is going to sleep"
-        NtpTraceIOError err ->
-            "ntp client experienced io error " <> toText (show err)
-        NtpTraceLookupServerFailed str ->
-            "ntp client failed to lookup the ntp servers " <> toText str
+            "ntp client is restarting"
+        NtpTraceIOError e ->
+            "ntp client experienced io error " <> toText (show e)
+        NtpTraceLookupsFails ->
+            "ntp client failed to lookup the ntp servers"
         NtpTraceClientStartQuery ->
             "query to ntp client invoked"
         NtpTraceNoLocalAddr ->
             "no local address error when running ntp client"
-        NtpTraceIPv4IPv6NoReplies ->
-            "no replies from servers when running ntp client"
-        NtpTraceReportPolicyQueryFailed ->
-            "policy query error when running ntp client"
-        NtpTraceQueryResult ms ->
-            "ntp client gives offset of " <> toText (fromIntegral ms :: Integer)
-            <> " microseconds"
-        NtpTraceRunProtocolError ver err ->
-            "ntp client experienced error " <> toText (show err)
-            <> " when using " <> toText ver <> " protocol"
-        NtpTraceRunProtocolNoResult ver ->
-            "ntp client got no result when running " <> toText ver
-            <> " protocol"
-        NtpTraceRunProtocolSuccess ver ->
-            "ntp client successfull running " <> toText ver <> " protocol"
-        NtpTraceSocketOpen ver ->
-            "ntp client opened socket when running " <> toText ver
-        NtpTraceSocketClosed ver ->
-            "ntp client closed socket when running " <> toText ver
-        NtpTracePacketSent ver ->
-            "ntp client sent packet when running " <> toText ver
-        NtpTracePacketSentError ver err ->
-            "ntp client experienced error " <> toText (show err)
-            <> " when sending packet using " <> toText ver
-        NtpTracePacketDecodeError ver err ->
-            "ntp client experienced error " <> toText (show err)
-            <> " when decoding packet using " <> toText ver
-        NtpTracePacketReceived ver ->
-            "ntp client received packet using " <> toText ver
-        NtpTraceWaitingForRepliesTimeout ver ->
-            "ntp client experienced timeout using " <> toText ver <> " protocol"
+        NtpTraceResult a ->
+            "ntp client gives result of " <> toText (show a)
+        NtpTraceRunProtocolResults a ->
+            "ntp client run protocol results: " <> toText (show a)
+        NtpTracePacketSent _ a ->
+            "ntp client sent packet when running " <> toText (show a)
+        NtpTracePacketSendError _ e ->
+            "ntp client experienced error " <> toText (show e)
+            <> " when sending packet"
+        NtpTracePacketDecodeError _ e ->
+            "ntp client experienced error " <> toText (show e)
+            <> " when decoding packet"
+        NtpTracePacketReceived _ a ->
+            "ntp client received packet: " <> toText (show a)
+        NtpTraceWaitingForRepliesTimeout v ->
+            "ntp client experienced timeout using " <> toText v <> " protocol"
 
 instance DefinePrivacyAnnotation NtpTrace
 instance DefineSeverity NtpTrace where
     defineSeverity ev = case ev of
-        NtpTraceRunProtocolSuccess _ -> Debug
-        NtpTraceSocketOpen _ -> Debug
-        NtpTraceSocketClosed _ -> Debug
-        NtpTracePacketSent _ -> Debug
-        NtpTracePacketReceived _ -> Debug
         NtpTraceStartNtpClient -> Info
-        NtpTraceTriggerUpdate -> Info
         NtpTraceRestartDelay _ -> Info
         NtpTraceRestartingClient -> Info
-        NtpTraceClientSleeping -> Info
-        NtpTraceClientStartQuery -> Info
-        NtpTraceIPv4IPv6NoReplies -> Info
-        NtpTraceQueryResult _ -> Info
-        NtpTraceRunProtocolNoResult _ -> Info
-        NtpTraceRunProtocolError _ _ -> Notice
-        NtpTracePacketSentError _ _ -> Notice
-        NtpTracePacketDecodeError _ _-> Notice
-        NtpTraceWaitingForRepliesTimeout _ -> Notice
         NtpTraceIOError _ -> Notice
-        NtpTraceLookupServerFailed _ -> Notice
+        NtpTraceLookupsFails -> Notice
+        NtpTraceClientStartQuery -> Info
         NtpTraceNoLocalAddr -> Notice
-        NtpTraceReportPolicyQueryFailed -> Notice
+        NtpTraceResult _ -> Info
+        NtpTraceRunProtocolResults _ -> Info
+        NtpTracePacketSent _ _ -> Debug
+        NtpTracePacketSendError _ _ -> Notice
+        NtpTracePacketDecodeError _ _ -> Notice
+        NtpTracePacketReceived _ _ -> Debug
+        NtpTraceWaitingForRepliesTimeout _ -> Notice
 
 getNtpStatus :: NtpClient -> IO ApiNetworkClock
 getNtpStatus = fmap (ApiNetworkClock . toStatus) . ntpQueryBlocking

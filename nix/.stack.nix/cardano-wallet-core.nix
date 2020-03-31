@@ -127,6 +127,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."x509-store" or (buildDepError "x509-store"))
           (hsPkgs."x509-validation" or (buildDepError "x509-validation"))
           (hsPkgs."zip" or (buildDepError "zip"))
+          (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
           ];
         buildable = true;
         };

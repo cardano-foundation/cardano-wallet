@@ -66,7 +66,6 @@ extra-deps:
 - streaming-binary-0.3.0.1
 - generic-monoid-0.1.0.0
 - canonical-json-0.6.0.0
-- cborg-0.2.2.0
 - statistics-linreg-0.3
 - network-3.1.0.1
 - connection-0.3.1
@@ -74,9 +73,10 @@ extra-deps:
 - moo-1.2
 - gray-code-0.3.1
 
-# - bimap-0.4.0
-# - hedgehog-1.0
-# - tasty-hedgehog-1.0.0.1
+- git: https://github.com/well-typed/cborg
+  commit: 42a83192749774268337258f4f94c97584b80ca6
+  subdirs:
+    - cborg
 
 - git: https://github.com/input-output-hk/cardano-base
   commit: f869bee9b08ba1044b1476737c9d65083e1c6c7f
@@ -123,6 +123,11 @@ extra-deps:
     - typed-protocols-examples
     - ouroboros-network-framework
     - ouroboros-network-testing
+
+# Temporary to get ntp-client bumped and working on Windows.
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: ffcc4fad05ef888a7c0ed8ff662ee4478484d1da
+  subdirs:
     - ntp-client
     - Win32-network
 

@@ -22,7 +22,6 @@
         "streaming-binary" = (((hackage.streaming-binary)."0.3.0.1").revisions).default;
         "generic-monoid" = (((hackage.generic-monoid)."0.1.0.0").revisions).default;
         "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions).default;
-        "cborg" = (((hackage.cborg)."0.2.2.0").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
         "network" = (((hackage.network)."3.1.0.1").revisions).default;
         "connection" = (((hackage.connection)."0.3.1").revisions).default;
@@ -47,6 +46,7 @@
         lobemo-backend-monitoring = ./lobemo-backend-monitoring.nix;
         tracer-transformers = ./tracer-transformers.nix;
         ekg-prometheus-adapter = ./ekg-prometheus-adapter.nix;
+        cborg = ./cborg.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;

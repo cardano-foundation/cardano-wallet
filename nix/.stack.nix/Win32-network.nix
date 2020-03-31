@@ -56,12 +56,14 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     components = {
       "library" = {
-        depends = (pkgs.lib).optionals (system.isWindows) [
-          (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."network" or (buildDepError "network"))
-          (hsPkgs."Win32" or (buildDepError "Win32"))
-          ];
+        depends = if system.isWindows
+          then [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."Win32" or (buildDepError "Win32"))
+            ]
+          else [ (hsPkgs."base" or (buildDepError "base")) ];
         libs = (pkgs.lib).optional (system.isWindows) (pkgs."ws2_32" or (sysDepError "ws2_32"));
         buildable = true;
         };
@@ -81,32 +83,30 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         };
       tests = {
         "test-Win32-network" = {
-          depends = if system.isWindows
-            then [
-              (hsPkgs."async" or (buildDepError "async"))
-              (hsPkgs."base" or (buildDepError "base"))
-              (hsPkgs."binary" or (buildDepError "binary"))
-              (hsPkgs."bytestring" or (buildDepError "bytestring"))
-              (hsPkgs."network" or (buildDepError "network"))
-              (hsPkgs."stm" or (buildDepError "stm"))
-              (hsPkgs."tasty" or (buildDepError "tasty"))
-              (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
-              (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-              (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-              (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
-              (hsPkgs."Win32" or (buildDepError "Win32"))
-              (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
-              ]
-            else [ (hsPkgs."base" or (buildDepError "base")) ];
-          buildable = true;
+          depends = (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."binary" or (buildDepError "binary"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."network" or (buildDepError "network"))
+            (hsPkgs."stm" or (buildDepError "stm"))
+            (hsPkgs."tasty" or (buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-instances" or (buildDepError "quickcheck-instances"))
+            (hsPkgs."Win32" or (buildDepError "Win32"))
+            (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
+            ];
+          buildable = if system.isWindows then true else false;
           };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
-      sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
+      rev = "ffcc4fad05ef888a7c0ed8ff662ee4478484d1da";
+      sha256 = "1sa8fks5i1sya3qxfl97cagl2w9hjjbfk3s3ghr0fprrgv3ls2lf";
       });
     postUnpack = "sourceRoot+=/Win32-network; echo source root reset to \$sourceRoot";
     }

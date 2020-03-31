@@ -159,7 +159,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Network.Ntp
-    ( NtpClient (..), NtpTrace (..), ntpSettings, withNtpClient )
+    ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -170,6 +170,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import System.IOManager
+    ( withIOManager )
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
@@ -227,8 +229,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
-                withSystemTempDirectory "stake-pool-metadata" $ \md -> do
-                withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
+                withSystemTempDirectory "stake-pool-metadata" $ \md ->
+                withIOManager $ \io ->
+                withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer (block0, bp) nl db md
                     byronApi   <- apiLayer (block0, bp) byronTl nl

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -7,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Byron.TransactionSpec
     ( spec
@@ -24,7 +24,7 @@ module Cardano.Wallet.Byron.TransactionSpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( generateNew )
+    ( generateNew, xpub )
 import Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
@@ -32,12 +32,20 @@ import Cardano.Wallet.Byron.Transaction.Size
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
     , PaymentAddress (..)
+    , WalletKey
     , XPrv
     , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..), CoinSelectionOptions (..) )
+import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
+    ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -46,7 +54,9 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx (..)
     , TxIn (..)
     , TxOut (..)
+    , UTxO (..)
     , mainnetMagic
+    , testnetMagic
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
@@ -54,21 +64,75 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
     ( first )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( pretty )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Gen
+    , Property
+    , choose
+    , counterexample
+    , forAllBlind
+    , forAllShrinkBlind
+    , property
+    , scale
+    , vector
+    , vectorOf
+    , withMaxSuccess
+    )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Pretty as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "Fee estimation calculation" $ do
+        it "Byron / Mainnet" $ property $
+            propSizeEstimation @'Mainnet @ByronKey mainnetMagic
+                (genSelection @'Mainnet @ByronKey)
+                (\n -> vectorOf n $ genLegacyAddress @'Mainnet @ByronKey)
+
+        it "Byron / Testnet" $ property $
+            propSizeEstimation @('Testnet 459045235) @ByronKey (testnetMagic @459045235)
+                (genSelection @('Testnet 459045235) @ByronKey)
+                (\n -> vectorOf n $ genLegacyAddress @('Testnet 459045235) @ByronKey)
+
+        it "Icarus / Mainnet" $ property $
+            propSizeEstimation @'Mainnet @IcarusKey mainnetMagic
+                (genSelection @'Mainnet @IcarusKey)
+                (\n -> vectorOf n $ genLegacyAddress @'Mainnet @IcarusKey)
+
+        it "Icarus / Testnet" $ property $
+            propSizeEstimation @('Testnet 459045235) @IcarusKey (testnetMagic @459045235)
+                (genSelection @('Testnet 459045235) @IcarusKey)
+                (\n -> vectorOf n $ genLegacyAddress @('Testnet 459045235) @IcarusKey)
+
     describe "Golden Tests - Cardano-SL - signed tx (Mainnet)" $ do
         let proxy = Proxy @'Mainnet
         goldenTestSignedTx proxy mainnetMagic 1
@@ -116,21 +180,21 @@ spec = do
 
     describe "Golden Tests - Cardano-SL - signed tx (Testnet)" $ do
         let proxy = Proxy @('Testnet 1097911063)
-        let testnetMagic = ProtocolMagic 1097911063
-        goldenTestSignedTx proxy testnetMagic 1
+        let magic = ProtocolMagic 1097911063
+        goldenTestSignedTx proxy magic 1
             [ (xprv "address-number-0", Coin 42)
             ] goldenTestnet__1_1
 
-        goldenTestSignedTx proxy testnetMagic 2
+        goldenTestSignedTx proxy magic 2
             [ (xprv "address-number-0", Coin 42)
             , (xprv "address-number-1", Coin 14)
             ] goldenTestnet__2_2
 
-        goldenTestSignedTx proxy testnetMagic 25
+        goldenTestSignedTx proxy magic 25
             [ (xprv "address-number-0", Coin 14)
             ] goldenTestnet__25_1
 
-        goldenTestSignedTx proxy testnetMagic 1
+        goldenTestSignedTx proxy magic 1
             [ (xprv "address-number-0", Coin 14)
             , (xprv "address-number-1", Coin 42)
             , (xprv "address-number-2", Coin 287)
@@ -158,6 +222,197 @@ spec = do
             , (xprv "address-number-24", Coin 1)
             , (xprv "address-number-25", Coin 1)
             ] goldenTestnet__1_25
+
+{-------------------------------------------------------------------------------
+                                Properties
+-------------------------------------------------------------------------------}
+
+
+propSizeEstimation
+    :: forall n k.
+       ( PaymentAddress n k
+       , WalletKey k
+       , MaxSizeOf Address n k
+       )
+    => ProtocolMagic
+    -> Gen CoinSelection
+    -> (Int -> Gen [Address])
+    -> Property
+propSizeEstimation pm genSel genChngAddrs =
+    withMaxSuccess 1000 $
+    forAllShrinkBlind genSel shrinkSelection $ \sel -> let nc = length (change sel) in
+    forAllBlind (genChngAddrs nc) $ \chngAddrs ->
+    let
+        calcSize = estimateSize (newTransactionLayer @n @k Proxy pm) sel
+        cbor = fromCoinSelection sel chngAddrs
+        size = fromIntegral $ BS.length $ CBOR.toStrictByteString cbor
+
+        -- We always go for the higher bound for change address payload's size,
+        -- so, we may end up with up to 12 extra bytes per change address in our
+        -- estimation.
+        -- For Icarus addresses, we can be as good as 4 bytes per change address
+        -- because there's no variance due to the derivation path encoded as
+        -- attributes (this only happens on random addresses).
+        margin = 12 * fromIntegral (length $ change sel)
+        realSizeSup = Quantity (size + margin)
+        realSizeInf = Quantity size
+    in
+        property (calcSize >= realSizeInf && calcSize <= realSizeSup)
+            & counterexample ("Raw Transaction:" <> CBOR.prettyHexEnc cbor)
+            & counterexample ("Coin Selection:\n" <> pretty sel)
+            & counterexample (unlines
+                [ "real size inf:   " <> show size
+                , "real size sup:   " <> show (size + margin)
+                , "estimated size:  " <> show (getQuantity calcSize)
+                ])
+  where
+    fromCoinSelection :: CoinSelection -> [Address] -> CBOR.Encoding
+    fromCoinSelection (CoinSelection inps outs chngs) chngAddrs =
+        CBOR.encodeSignedTx (fst <$> inps, outs <> outs') wits
+      where
+        dummySig =
+            BS.replicate 64 0
+        Right dummyXPub =
+            xpub $ BS.replicate 64 0
+        outs' =
+            zipWith TxOut (take (length chngs) chngAddrs) chngs
+        wits =
+            replicate (length inps)
+                $ CBOR.toStrictByteString
+                $ CBOR.encodePublicKeyWitness dummyXPub dummySig
+
+newtype LegacyAddress (n :: NetworkDiscriminant) (k :: Depth -> * -> *) =
+    LegacyAddress (Proxy n, Proxy k, Address)
+
+instance (PaymentAddress n ByronKey) => Arbitrary (LegacyAddress n ByronKey)
+  where
+    arbitrary = do
+        bytes <- BS.pack <$> vector 64
+        addrIx <- toEnum . fromIntegral <$> choose (0, 10 :: Word32)
+        let (Right key) = xpub bytes
+        let pw = Passphrase $ BA.convert $ BS.replicate 32 0
+        pure $ LegacyAddress
+            ( Proxy
+            , Proxy
+            , paymentAddress @n $ ByronKey key (minBound, addrIx) pw
+            )
+
+instance (PaymentAddress n IcarusKey) => Arbitrary (LegacyAddress n IcarusKey)
+  where
+    arbitrary = do
+        bytes <- BS.pack <$> vector 64
+        let (Right key) = xpub bytes
+        pure $ LegacyAddress
+            ( Proxy
+            , Proxy
+            , paymentAddress @n $ IcarusKey key
+            )
+
+genLegacyAddress
+    :: forall (n :: NetworkDiscriminant) k.
+        ( PaymentAddress n k
+        , Arbitrary (LegacyAddress n k)
+        )
+    => Gen Address
+genLegacyAddress = do
+    LegacyAddress (_ :: Proxy n, _ :: Proxy k, addr) <- arbitrary
+    pure addr
+
+-- 'CoinSelection' are generated by running the @largestFirst@ algorithm on an
+-- arbitrary UTxO and to cover an arbitrary set of 'TxOut'.
+genSelection
+    :: forall (n :: NetworkDiscriminant) k.
+        ( PaymentAddress n k
+        , Arbitrary (LegacyAddress n k)
+        )
+    => Gen CoinSelection
+genSelection = do
+    outs <- choose (1, 10) >>= \n -> vectorOf n genCoin >>= genTxOut @n @k
+    genSelectionFor (NE.fromList outs)
+  where
+    genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
+    genSelectionFor outs = do
+        utxo <- vectorOf (NE.length outs * 3) genCoin >>= genUTxO @n @k
+        case runIdentity $ runExceptT $ largestFirst opts outs utxo of
+            Left _ -> genSelectionFor outs
+            Right (s,_) -> return s
+
+    opts :: CoinSelectionOptions ()
+    opts = CoinSelectionOptions
+        { maximumNumberOfInputs = const 100
+        , validate = const $ Right ()
+        }
+
+shrinkSelection :: CoinSelection -> [CoinSelection]
+shrinkSelection sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+    ([_], [_], []) ->
+        []
+    _ ->
+        let
+            inps' = take (max 1 (length inps `div` 2)) inps
+            outs' = take (max 1 (length outs `div` 2)) outs
+            chgs' = take (length chgs `div` 2) chgs
+            inps'' = if length inps > 1 then drop 1 inps else inps
+            outs'' = if length outs > 1 then drop 1 outs else outs
+            chgs'' = drop 1 chgs
+        in
+            filter (\s -> s /= sel && isValidSelection s)
+                [ CoinSelection inps' outs' chgs'
+                , CoinSelection inps' outs chgs
+                , CoinSelection inps outs chgs'
+                , CoinSelection inps outs' chgs
+                , CoinSelection inps'' outs'' chgs''
+                , CoinSelection inps'' outs chgs
+                , CoinSelection inps outs'' chgs
+                , CoinSelection inps outs chgs''
+                ]
+
+isValidSelection :: CoinSelection -> Bool
+isValidSelection (CoinSelection i o c) =
+    let
+        oAmt = sum $ map (fromIntegral . getCoin . coin) o
+        cAmt = sum $ map (fromIntegral . getCoin) c
+        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
+    in
+        (iAmt :: Integer) >= (oAmt + cAmt)
+
+genTxIn :: Gen TxIn
+genTxIn = TxIn
+    <$> genTxId
+    <*> scale (`mod` 3) arbitrary -- No need for a high indexes
+
+genTxId :: Gen (Hash "Tx")
+genTxId =
+    Hash . BS.pack <$> vector 32
+
+genCoin :: Gen Coin
+genCoin = Coin
+    <$> choose (1, 200000)
+
+genUTxO
+    :: forall (n :: NetworkDiscriminant) k.
+        ( PaymentAddress n k
+        , Arbitrary (LegacyAddress n k)
+        )
+    => [Coin]
+    -> Gen UTxO
+genUTxO coins = do
+    let n = length coins
+    inps <- vectorOf n genTxIn
+    outs <- genTxOut @n @k coins
+    return $ UTxO $ Map.fromList $ zip inps outs
+
+genTxOut
+    :: forall (n :: NetworkDiscriminant) k.
+        ( PaymentAddress n k
+        , Arbitrary (LegacyAddress n k)
+        )
+    => [Coin]
+    -> Gen [TxOut]
+genTxOut coins = do
+    let n = length coins
+    outs <- vectorOf n $ genLegacyAddress @n @k
+    return $ zipWith TxOut outs coins
 
 {-------------------------------------------------------------------------------
                                 Golden Tests

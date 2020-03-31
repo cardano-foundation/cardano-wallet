@@ -97,6 +97,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           (hsPkgs."warp" or (buildDepError "warp"))
           (hsPkgs."yaml" or (buildDepError "yaml"))
+          (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
           ];
         buildable = true;
         };
@@ -128,9 +129,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."transformers" or (buildDepError "transformers"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))

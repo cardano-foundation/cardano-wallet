@@ -124,7 +124,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Network.Ntp
-    ( NtpClient (..), NtpTrace (..), ntpSettings, withNtpClient )
+    ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
 import Network.Wai.Handler.Warp
@@ -137,6 +137,8 @@ import Ouroboros.Network.Protocol.Handshake.Version
     ( CodecCBORTerm )
 import System.Exit
     ( ExitCode (..) )
+import System.IOManager
+    ( withIOManager )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -216,9 +218,9 @@ serveWallet
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
-    serveApp socket = do
+    serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer bp socketPath vData $ \nl -> do
-            withNtpClient ntpClientTracer ntpSettings $ \ntpClient -> do
+            withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
