@@ -56,7 +56,11 @@ import Cardano.Binary
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
-    ( BlockCount (..), TxFeePolicy (..), TxSizeLinear (..), unsafeGetLovelace )
+    ( BlockCount (..)
+    , TxFeePolicy (..)
+    , TxSizeLinear (..)
+    , Lovelace
+    , unsafeGetLovelace )
 import Cardano.Chain.Genesis
     ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
 import Cardano.Chain.MempoolPayload
@@ -355,11 +359,15 @@ fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
 fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
 fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
     W.LinearFee
-        (Quantity (double a))
-        (Quantity (double b))
+        (Quantity (lovelaceToDouble a))
+        (Quantity (rationalToDouble b))
         (Quantity 0)
   where
-    double = fromIntegral . unsafeGetLovelace
+    lovelaceToDouble :: Lovelace -> Double
+    lovelaceToDouble = fromIntegral . unsafeGetLovelace
+
+    rationalToDouble :: Rational -> Double
+    rationalToDouble = fromRational
 
 fromSlotDuration :: Natural -> W.SlotLength
 fromSlotDuration =
