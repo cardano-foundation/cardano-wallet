@@ -527,21 +527,13 @@ encryptPassphrase  (Passphrase bytes) = do
         <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
 
 -- | Manipulation done on legacy passphrases before getting encrypted.
---
--- Yes there's CBOR. Yes it's hashed before being encrypted. You don't actually
--- pronounce the 'l' in salmon. A lot of things in the world don't make sense
--- but we still live just fine.
 preparePassphrase
     :: PassphraseScheme
     -> Passphrase "raw"
     -> Passphrase "encryption"
 preparePassphrase = \case
     EncryptWithPBKDF2 -> coerce
-    EncryptWithScrypt -> Passphrase
-        . BA.convert
-        . CBOR.toStrictByteString
-        . CBOR.encodeBytes
-        . hashMaybe
+    EncryptWithScrypt -> Passphrase . hashMaybe
   where
     hashMaybe pw@(Passphrase bytes)
         | pw == mempty = BA.convert bytes
@@ -561,7 +553,10 @@ checkPassphrase scheme received stored = do
             unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
                 Left ErrWrongPassphrase
         EncryptWithScrypt -> do
-            let msg = Scrypt.Pass $ BA.convert prepared
+            let msg = Scrypt.Pass
+                    $ CBOR.toStrictByteString
+                    $ CBOR.encodeBytes
+                    $ BA.convert prepared
             if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
                 then Right ()
                 else Left ErrWrongPassphrase

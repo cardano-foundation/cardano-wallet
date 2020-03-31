@@ -37,6 +37,7 @@ library
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-test-utils
+    , cborg
     , command
     , containers
     , cryptonite

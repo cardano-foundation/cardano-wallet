@@ -293,6 +293,8 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
@@ -625,6 +627,8 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
         fmap Scrypt.getEncryptedPass
         . Scrypt.encryptPassIO Scrypt.defaultParams
         . Scrypt.Pass
+        . CBOR.toStrictByteString
+        . CBOR.encodeBytes
         . BA.convert
 
 emptyByronWalletWith
