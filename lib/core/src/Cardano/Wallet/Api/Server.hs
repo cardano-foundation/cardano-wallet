@@ -934,18 +934,19 @@ mkLegacyWallet ctx wid cp meta pending progress = do
     -- set. The passphrase is empty from a client perspective, but in practice
     -- it still exists (it is a CBOR-serialized empty bytestring!).
     --
-    -- Therefore, if we detect an empty passphrase, we chose to return the
-    -- metadata as if no passphrase was set, so that clients can act in
-    -- consequences.
+    -- Therefore, if we detect an empty passphrase, we choose to return the
+    -- metadata as if no passphrase was set, so that clients can react
+    -- appropriately.
     pwdInfo <- case meta ^. #passphraseInfo of
         Nothing ->
             pure Nothing
         Just (W.WalletPassphraseInfo time EncryptWithPBKDF2) ->
             pure $ Just $ ApiWalletPassphraseInfo time
         Just (W.WalletPassphraseInfo time EncryptWithScrypt) -> do
-            withWorkerCtx @_ @s @k ctx wid liftE liftE $ matchEmptyPassphrase >=> \case
-                Right{} -> pure Nothing
-                Left{}  -> pure $ Just $ ApiWalletPassphraseInfo time
+            withWorkerCtx @_ @s @k ctx wid liftE liftE $
+                matchEmptyPassphrase >=> \case
+                    Right{} -> pure Nothing
+                    Left{} -> pure $ Just $ ApiWalletPassphraseInfo time
 
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
