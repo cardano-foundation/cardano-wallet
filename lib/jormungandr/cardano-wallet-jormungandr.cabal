@@ -67,6 +67,7 @@ library
     , time
     , transformers
     , warp
+    , Win32-network
   hs-source-dirs:
       src
   exposed-modules:

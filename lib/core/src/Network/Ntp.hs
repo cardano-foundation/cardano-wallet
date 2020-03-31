@@ -10,11 +10,10 @@
 -- and re-exports used in a number of places throught codebase.
 
 module Network.Ntp
-    ( ntpSettings
+    ( withWalletNtpClient
     , getNtpStatus
 
     -- * re-exports from ntp-client
-    , withNtpClient
     , NtpTrace (..)
     , NtpClient (..)
     ) where
@@ -27,6 +26,8 @@ import Cardano.BM.Data.Tracer
     ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Control.Tracer
+    ( Tracer )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -39,7 +40,22 @@ import Network.NTP.Client
     , NtpTrace (..)
     , withNtpClient
     )
+import System.IOManager
+    ( IOManager )
 
+-- | Set up a 'NtpClient' and pass it to the given action. The 'NtpClient' is
+-- terminated when the callback returns.
+withWalletNtpClient
+    :: IOManager
+    -- ^ The global 'IOManager' instance, set up by the application main function.
+    -> Tracer IO NtpTrace
+    -- ^ Logging object
+    -> (NtpClient -> IO a)
+    -- ^ Action to run
+    -> IO a
+withWalletNtpClient ioManager tr = withNtpClient ioManager tr ntpSettings
+
+-- | Hard-coded NTP servers for cardano-wallet.
 ntpSettings :: NtpSettings
 ntpSettings = NtpSettings
     { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"

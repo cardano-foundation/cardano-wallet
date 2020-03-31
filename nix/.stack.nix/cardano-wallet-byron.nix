@@ -97,6 +97,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
           (hsPkgs."warp" or (buildDepError "warp"))
           (hsPkgs."yaml" or (buildDepError "yaml"))
+          (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
           ];
         buildable = true;
         };

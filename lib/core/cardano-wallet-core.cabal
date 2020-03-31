@@ -101,6 +101,7 @@ library
     , x509-store
     , x509-validation
     , zip
+    , Win32-network
   hs-source-dirs:
       src
   exposed-modules:
