@@ -87,14 +87,15 @@ let
 
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
-        packages.cardano-wallet-byron.components.benchmarks.restore = {
-           build-tools = [ pkgs.makeWrapper ];
-           postInstall = ''
-             wrapProgram $out/bin/restore \
+        packages.cardano-wallet-byron.components.benchmarks.restore =
+          pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
+            build-tools = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/restore \
                 --set BYRON_CONFIGS ${pkgs.cardano-node.configs} \
                 --prefix PATH : ${pkgs.cardano-node}/bin
-           '';
-        };
+            '';
+          };
 
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
