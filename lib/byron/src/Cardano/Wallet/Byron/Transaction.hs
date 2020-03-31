@@ -17,6 +17,8 @@
 module Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer
     , fromGenesisTxOut
+    , blake2b256
+    , mkWitness
     ) where
 
 import Prelude

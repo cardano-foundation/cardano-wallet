@@ -24,13 +24,13 @@ module Cardano.Wallet.Byron.TransactionSpec
 import Prelude
 
 import Cardano.Chain.Common.Address
-    ( checkAddrSpendingData )
+    ( checkAddrSpendingData, decodeAddressBase58 )
 import Cardano.Chain.Common.AddrSpendingData
     ( AddrSpendingData (..), AddrType (..) )
 import Cardano.Crypto.Wallet
     ( generateNew, xpub )
 import Cardano.Wallet.Byron.Transaction
-    ( newTransactionLayer )
+    ( blake2b256, mkWitness, newTransactionLayer )
 import Cardano.Wallet.Byron.Transaction.Size
     ( MaxSizeOf )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -74,6 +74,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Coerce
+    ( coerce )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -106,7 +108,6 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Chain.Common.Address as Ledger
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -235,8 +236,9 @@ spec = do
             ]
 
     describe "Verification with cardano-ledger  - signed tx (Testnet)" $ do
-        let proxy = Proxy @'Testnet
-        testSignedTxWithCardanoLedger proxy mainnetMagic 1
+        let proxy = Proxy @('Testnet 1097911063)
+        let magic = ProtocolMagic 1097911063
+        testSignedTxWithCardanoLedger proxy magic 1
             [ (xprv "address-number-0", Coin 42)
             ]
 
@@ -446,23 +448,19 @@ testSignedTxWithCardanoLedger
     -> SpecWith ()
 testSignedTxWithCardanoLedger proxy pm nOuts xprvs  = it title $ do
     let addrs = first (paymentAddress @n @k . publicKey) <$> xprvs
-    let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
-    let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom inps outs
-    let addrLedger = Ledger.Address' ATVerKey TO_DO
-    let
-    case res of
-        Left e -> fail (show e)
-        Right (_tx, SealedTx bytes) ->
-            checkAddrSpendingData (VerKeyASD $ coerce ) (Ledger.Address )
+    let tx = (fst <$> inps, outs)
+    let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
+    witnessesWithAddr <- forM inps $ \(_, TxOut addr _) ->
+            (mkWitness pm sigData <$> lookupPrivateKey addr, addr)
+    forM_ witnessesWithAddr $ \(wit, addr) ->
+        checkAddrSpendingData (VerKeyASD $ coerce wit) (decodeAddressBase58 $ toText addr)
   where
     title :: String
     title = mempty
         <> show (length xprvs) <> " inputs & "
         <> show nOuts <> " outputs"
-
 
 {-------------------------------------------------------------------------------
                                 Golden Tests
