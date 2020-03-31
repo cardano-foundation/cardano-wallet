@@ -198,6 +198,7 @@ let
       [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
         jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+        jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
         jobs.native.shell.x86_64-linux
         jobs.native.shell.x86_64-darwin
         jobs.cardano-wallet-jormungandr-win64
