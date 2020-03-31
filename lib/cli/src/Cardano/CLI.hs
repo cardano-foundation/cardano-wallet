@@ -112,7 +112,7 @@ import Cardano.BM.Configuration.Static
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
@@ -2225,9 +2225,9 @@ instance ToText WaitForServiceLog where
             , "backend on the same network. Exiting now."
             ]
 
-instance DefinePrivacyAnnotation WaitForServiceLog
-instance DefineSeverity WaitForServiceLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation WaitForServiceLog
+instance HasSeverityAnnotation WaitForServiceLog where
+    getSeverityAnnotation = \case
         MsgServiceWaiting _ _ -> Info
         MsgServiceReady _ -> Info
         MsgServiceTimedOut _ -> Info

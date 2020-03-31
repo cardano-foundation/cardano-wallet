@@ -49,7 +49,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog )
 import Control.Concurrent.MVar
@@ -429,9 +429,9 @@ instance Eq DBField where
 instance ToJSON DBField where
     toJSON = Aeson.String . fieldName
 
-instance DefinePrivacyAnnotation DBLog
-instance DefineSeverity DBLog where
-    defineSeverity ev = case ev of
+instance HasPrivacyAnnotation DBLog
+instance HasSeverityAnnotation DBLog where
+    getSeverityAnnotation ev = case ev of
         MsgMigrations (Right 0) -> Debug
         MsgMigrations (Right _) -> Notice
         MsgMigrations (Left _) -> Error
@@ -445,7 +445,7 @@ instance DefineSeverity DBLog where
         MsgWaitingForDatabase _ _ -> Info
         MsgRemovingInUse _ _ -> Notice
         MsgRemoving _ -> Info
-        MsgRemovingDatabaseFile _ msg -> defineSeverity msg
+        MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug

@@ -46,7 +46,7 @@ extra-deps:
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 3e45d5dd4942c295f0ea4bfed7c407b914b15447
+  commit: 10877fbae54aa7a4c04ae3b5d87c825a4019e9e9
   subdirs:
     - contra-tracer
     - iohk-monitoring
@@ -79,7 +79,7 @@ extra-deps:
     - cborg
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: f869bee9b08ba1044b1476737c9d65083e1c6c7f
+  commit: 1222078176fe74d5ce17f2a8343c6588233a49a3
   subdirs:
     - binary
     - binary/test
@@ -87,7 +87,7 @@ extra-deps:
     - slotting
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: 1368966fd6d806d8eb65cd1ba193548c402355f6
+  commit: 22e89a5f7cc2b02192b1eb420d74530eb2d6cb82
   subdirs:
     - cardano-ledger
     - cardano-ledger/test
@@ -95,7 +95,7 @@ extra-deps:
     - crypto/test
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: 647cd71e3c4630488e71596f5e9c26fee598b541
+  commit: 28b4381461252b523473972c85b003301a5deadc
   subdirs:
     - byron/semantics/executable-spec # small-steps
     - byron/ledger/executable-spec    # cs-ledger
@@ -105,30 +105,25 @@ extra-deps:
   commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
 
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: fe76ec64f6b45259cc407a6d840dad79ee6063b6
+  commit: 3ac22a2fda11ca7131a011a9ea48fcbfdc26d6b3
   subdirs:
     - .
     - test
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: a85bd4751ca5c81c0507482848358980814e9ca3
+  commit: ffcc4fad05ef888a7c0ed8ff662ee4478484d1da
   subdirs:
     - io-sim
     - io-sim-classes
     - network-mux
-    - ouroboros-network
+    - ntp-client
     - ouroboros-consensus
     - ouroboros-consensus-byron
-    - typed-protocols
-    - typed-protocols-examples
+    - ouroboros-network
     - ouroboros-network-framework
     - ouroboros-network-testing
-
-# Temporary to get ntp-client bumped and working on Windows.
-- git: https://github.com/input-output-hk/ouroboros-network
-  commit: ffcc4fad05ef888a7c0ed8ff662ee4478484d1da
-  subdirs:
-    - ntp-client
+    - typed-protocols
+    - typed-protocols-examples
     - Win32-network
 
 flags:

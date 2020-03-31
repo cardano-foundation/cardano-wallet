@@ -33,7 +33,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -156,9 +156,9 @@ instance ToText DeleteSqliteDatabaseLog where
         MsgGaveUpDelete e ->
             "gave up on delete due to " <> T.pack e
 
-instance DefinePrivacyAnnotation DeleteSqliteDatabaseLog
-instance DefineSeverity DeleteSqliteDatabaseLog where
-    defineSeverity msg = case msg of
+instance HasPrivacyAnnotation DeleteSqliteDatabaseLog
+instance HasSeverityAnnotation DeleteSqliteDatabaseLog where
+    getSeverityAnnotation msg = case msg of
         MsgRetryDelete _ -> Warning
         MsgGaveUpDelete _ -> Error
 

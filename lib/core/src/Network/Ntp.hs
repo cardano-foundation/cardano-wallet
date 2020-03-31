@@ -23,7 +23,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
 import Control.Tracer
@@ -103,9 +103,9 @@ instance ToText NtpTrace where
         NtpTraceWaitingForRepliesTimeout v ->
             "ntp client experienced timeout using " <> toText v <> " protocol"
 
-instance DefinePrivacyAnnotation NtpTrace
-instance DefineSeverity NtpTrace where
-    defineSeverity ev = case ev of
+instance HasPrivacyAnnotation NtpTrace
+instance HasSeverityAnnotation NtpTrace where
+    getSeverityAnnotation ev = case ev of
         NtpTraceStartNtpClient -> Info
         NtpTraceRestartDelay _ -> Info
         NtpTraceRestartingClient -> Info

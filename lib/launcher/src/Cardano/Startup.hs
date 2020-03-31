@@ -28,7 +28,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.Async
@@ -146,9 +146,9 @@ instance ToText ShutdownHandlerLog where
             "Error waiting for shutdown: " <> T.pack (show e)
             <> ". Shutting down..."
 
-instance DefinePrivacyAnnotation ShutdownHandlerLog
-instance DefineSeverity ShutdownHandlerLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation ShutdownHandlerLog
+instance HasSeverityAnnotation ShutdownHandlerLog where
+    getSeverityAnnotation = \case
         MsgShutdownHandler _ -> Debug
         MsgShutdownEOF -> Notice
         MsgShutdownError _ -> Error

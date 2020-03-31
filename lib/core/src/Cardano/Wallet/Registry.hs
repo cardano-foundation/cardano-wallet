@@ -37,7 +37,7 @@ import Prelude hiding
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
 import Control.Concurrent
@@ -271,11 +271,11 @@ instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
             | toText key == mempty -> toText msg
             | otherwise -> T.take 8 (toText key) <> ": " <> toText msg
 
-instance DefinePrivacyAnnotation (WorkerLog key msg)
-instance DefineSeverity msg => DefineSeverity (WorkerLog key msg) where
-    defineSeverity = \case
+instance HasPrivacyAnnotation (WorkerLog key msg)
+instance HasSeverityAnnotation msg => HasSeverityAnnotation (WorkerLog key msg) where
+    getSeverityAnnotation = \case
         MsgFinished -> Notice
         MsgThreadKilled -> Notice
         MsgUserInterrupt -> Notice
         MsgUnhandledException _ -> Error
-        MsgFromWorker _ msg -> defineSeverity msg
+        MsgFromWorker _ msg -> getSeverityAnnotation msg

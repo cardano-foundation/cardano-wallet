@@ -32,7 +32,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..), ToObject (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), ToObject (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -172,9 +172,9 @@ instance ToText DaedalusIPCLog where
             "Daedalus IPC finished for this reason: " <> err
 
 instance ToObject DaedalusIPCLog
-instance DefinePrivacyAnnotation DaedalusIPCLog
-instance DefineSeverity DaedalusIPCLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation DaedalusIPCLog
+instance HasSeverityAnnotation DaedalusIPCLog where
+    getSeverityAnnotation = \case
         MsgStarting -> Info
         MsgNotEnabled -> Info
         MsgStartupError _ -> Error

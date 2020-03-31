@@ -26,7 +26,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.Async
@@ -244,19 +244,19 @@ exitStatus :: ExitCode -> Int
 exitStatus ExitSuccess = 0
 exitStatus (ExitFailure n) = n
 
-instance DefinePrivacyAnnotation LauncherLog
-instance DefineSeverity LauncherLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation LauncherLog
+instance HasSeverityAnnotation LauncherLog where
+    getSeverityAnnotation = \case
         MsgLauncherStart _ -> Notice
-        WithProcessInfo _ _ msg -> defineSeverity msg
+        WithProcessInfo _ _ msg -> getSeverityAnnotation msg
         MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
         MsgLauncherFinish (ProcessHasExited _ st) -> case st of
             ExitSuccess -> Notice
             ExitFailure _ -> Error
 
-instance DefinePrivacyAnnotation LaunchedProcessLog
-instance DefineSeverity LaunchedProcessLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation LaunchedProcessLog
+instance HasSeverityAnnotation LaunchedProcessLog where
+    getSeverityAnnotation = \case
         MsgLauncherStarted -> Info
         MsgLauncherWaitBefore -> Debug
         MsgLauncherWaitAfter _ -> Debug
