@@ -267,10 +267,10 @@ spec = describe "PATATE" $ do
         it "compare new implementation with cardano-sl - empty password" $ do
             let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 ""
             let hash = Hash $ unsafeFromHex
-                    "31347c387c317c574342652b796362417576356c2b4258676a344a314c6\
-                    \343675375414c2f5653393661364e576a2b7550766655513d3d7c6f7846\
-                    \36654939734151444e6f38395147747366324e653937426338372b484b6\
-                    \b4137756772752f5970673d"
+                    "31347c387c317c5743424875746242496c6a66734d764934314a30727a7\
+                    \9663076657375724954796376766a793150554e377452673d3d7c54753\
+                    \434596d6e547957546c5759674a3164494f7974474a7842632b432f786\
+                    \2507657382b5135356a38303d"
             checkPassphrase EncryptWithScrypt pwd hash `shouldBe` Right ()
         it "compare new implementation with cardano-sl - cardano-wallet password" $ do
             let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "cardano-wallet"
