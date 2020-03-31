@@ -103,6 +103,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
@@ -112,7 +113,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
-spec = do
+spec = describe "PATATE" $ do
     describe "Bounded / Enum relationship" $ do
         it "The calls Index.succ maxBound should result in a runtime err (hard)"
             prop_succMaxBoundHardIx
@@ -632,8 +633,12 @@ instance Arbitrary SomeMnemonic where
 encryptPasswordWithScrypt
     :: Passphrase "raw"
     -> IO (Hash "encryption")
-encryptPasswordWithScrypt p =
-    Hash . Scrypt.getEncryptedPass <$>
-    Scrypt.encryptPassIO Scrypt.defaultParams (Scrypt.Pass $ BA.convert passwd)
+encryptPasswordWithScrypt p = do
+    hashed <- Scrypt.encryptPassIO Scrypt.defaultParams
+        $ Scrypt.Pass
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeBytes
+        $ BA.convert passwd
+    pure $ Hash $ Scrypt.getEncryptedPass hashed
   where
     (Passphrase passwd) = preparePassphrase EncryptWithScrypt p
