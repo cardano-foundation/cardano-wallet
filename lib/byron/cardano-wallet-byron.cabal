@@ -176,7 +176,6 @@ test-suite integration
     , http-client
     , http-types
     , iohk-monitoring
-    , memory
     , temporary
     , text
   build-tools:

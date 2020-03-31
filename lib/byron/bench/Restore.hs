@@ -59,7 +59,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SomeMnemonic (..)
     , WalletKey
     , digest
-    , hex
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -187,17 +186,10 @@ main = do
     tmpDir <- getCanonicalTemporaryDirectory
         >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
 
-    let genesisHash =
-            B8.unpack
-            . hex
-            . getGenesisBlockHash
-            $ blockchainParameters @'Mainnet
     let socketPath = tmpDir </> "cardano-node.socket"
     let args =
             [ "run"
             , "--database-path", nodeDB
-            , "--genesis-file", configs </> "mainnet-genesis.json"
-            , "--genesis-hash", genesisHash
             , "--topology", configs </> "mainnet-topology.json"
             , "--socket-path", socketPath
             , "--config", configs </> "configuration-mainnet.yaml"

@@ -97,6 +97,7 @@ module Test.Integration.Framework.DSL
     , icarusAddresses
     , randomAddresses
     , pubKeyFromMnemonics
+    , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
     , getTxId
 
@@ -159,7 +160,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PassphraseScheme (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , SomeMnemonic (..)
@@ -168,7 +168,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -609,7 +609,7 @@ emptyIcarusWallet ctx = do
 
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
-    let pwd = preparePassphrase EncryptWithScrypt
+    let pwd = preparePassphrase W.EncryptWithScrypt
             $ Passphrase
             $ BA.convert
             $ T.encodeUtf8 rawPwd
@@ -1497,6 +1497,17 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 -- | 'map' flipped.
 for :: [a] -> (a -> b) -> [b]
 for = flip map
+
+--
+-- Helper for random wallets from Xprv
+--
+rootPrvKeyFromMnemonics :: [Text] -> Text -> Text
+rootPrvKeyFromMnemonics mnemonics pass =
+    T.decodeUtf8 $ hex $ getKey $ Byron.generateKeyFromSeed seed
+        (preparePassphrase W.EncryptWithScrypt rawPassd)
+ where
+     (Right seed) = fromMnemonic @'[12] mnemonics
+     rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 pass
 
 --
 -- Helper for HWWallets, getting pubKey from mnemonic sentence

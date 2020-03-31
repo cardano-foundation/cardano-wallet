@@ -31,10 +31,8 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockchainParameters (..), Hash (..) )
+    ( Block (..), BlockchainParameters (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Exception
@@ -65,15 +63,12 @@ import System.IO.Temp
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 
 data CardanoNodeConfig = CardanoNodeConfig
-    { nodeGenesisHash  :: Text
-    , nodeConfigFile   :: FilePath
+    { nodeConfigFile   :: FilePath
     , nodeDatabaseDir  :: FilePath
     , nodeDlgCertFile  :: FilePath
-    , nodeGenesisFile  :: FilePath
     , nodeSignKeyFile  :: FilePath
     , nodeSocketFile   :: FilePath
     , nodeTopologyFile :: FilePath
@@ -107,8 +102,6 @@ withCardanoNode tr tdir action =
         , "--topology", nodeTopologyFile cfg
         , "--database-path", nodeDatabaseDir cfg
         , "--socket-path", nodeSocketFile cfg
-        , "--genesis-file", nodeGenesisFile cfg
-        , "--genesis-hash", T.unpack (nodeGenesisHash cfg)
         , "--port", show port
         ]
 
@@ -163,10 +156,15 @@ withConfig tdir action =
         let nodeSocketFile   = dir </> "node.socket"
         let nodeTopologyFile = dir </> "node.topology"
 
+        -- we need to specify genesis file location every run in tmp
+        Yaml.decodeFileThrow (source </> "node.config")
+            >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
+            >>= Yaml.encodeFile (dir </> "node.config")
+
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
             >>= withObject updateStartTime
             >>= Aeson.encodeFile nodeGenesisFile
-        forM_ ["node.config", "node.topology", "node.key", "node.cert"] $ \f ->
+        forM_ ["node.topology", "node.key", "node.cert"] $ \f ->
             copyFile (source </> f) (dir </> f)
 
         (genesisData, genesisHash) <- unsafeRunExceptT $
@@ -174,16 +172,13 @@ withConfig tdir action =
         let (bp, outs) = fromGenesisData (genesisData, genesisHash)
 
         let networkMagic = NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
-        let nodeGenesisHash = T.decodeUtf8 $ hex $ getHash $ getGenesisBlockHash bp
 
         pure
             ( dir
             , CardanoNodeConfig
-                { nodeGenesisHash
-                , nodeConfigFile
+                { nodeConfigFile
                 , nodeDatabaseDir
                 , nodeDlgCertFile
-                , nodeGenesisFile
                 , nodeSignKeyFile
                 , nodeSocketFile
                 , nodeTopologyFile
@@ -212,6 +207,14 @@ updateStartTime
 updateStartTime m = do
     time <- round @_ @Int <$> getPOSIXTime
     pure $ HM.insert "startTime" (toJSON time) m
+
+-- | Add a "GenesisFile" field in a given object with the current path of
+-- genesis.json in tmp dir as value.
+addGenesisFilePath
+    :: Text
+    -> Aeson.Object
+    -> IO Aeson.Object
+addGenesisFilePath path = pure . HM.insert "GenesisFile" (toJSON path)
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
