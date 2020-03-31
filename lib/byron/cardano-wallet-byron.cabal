@@ -130,6 +130,7 @@ test-suite unit
       base
     , bytestring
     , cardano-crypto
+    , cardano-ledger
     , cardano-wallet-core
     , cardano-wallet-byron
     , cborg

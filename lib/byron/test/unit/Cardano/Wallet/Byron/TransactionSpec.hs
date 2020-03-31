@@ -23,6 +23,10 @@ module Cardano.Wallet.Byron.TransactionSpec
 
 import Prelude
 
+import Cardano.Chain.Common.Address
+    ( checkAddrSpendingData )
+import Cardano.Chain.Common.AddrSpendingData
+    ( AddrSpendingData (..), AddrType (..) )
 import Cardano.Crypto.Wallet
     ( generateNew, xpub )
 import Cardano.Wallet.Byron.Transaction
@@ -102,6 +106,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Chain.Common.Address as Ledger
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Pretty as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -143,7 +148,6 @@ spec = do
             [ (xprv "address-number-0", Coin 42)
             , (xprv "address-number-1", Coin 14)
             ] goldenMainnet__2_2
-
 
         goldenTestSignedTx proxy mainnetMagic 25
             [ (xprv "address-number-0", Coin 14)
@@ -222,6 +226,19 @@ spec = do
             , (xprv "address-number-24", Coin 1)
             , (xprv "address-number-25", Coin 1)
             ] goldenTestnet__1_25
+
+
+    describe "Verification with cardano-ledger  - signed tx (Mainnet)" $ do
+        let proxy = Proxy @'Mainnet
+        testSignedTxWithCardanoLedger proxy mainnetMagic 1
+            [ (xprv "address-number-0", Coin 42)
+            ]
+
+    describe "Verification with cardano-ledger  - signed tx (Testnet)" $ do
+        let proxy = Proxy @'Testnet
+        testSignedTxWithCardanoLedger proxy mainnetMagic 1
+            [ (xprv "address-number-0", Coin 42)
+            ]
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -413,6 +430,39 @@ genTxOut coins = do
     let n = length coins
     outs <- vectorOf n $ genLegacyAddress @n @k
     return $ zipWith TxOut outs coins
+
+testSignedTxWithCardanoLedger
+    :: forall (n :: NetworkDiscriminant) k.
+        ( k ~ IcarusKey
+        , MaxSizeOf Address n k
+        , PaymentAddress n k
+        )
+    => Proxy n
+    -> ProtocolMagic
+    -> Int
+        -- ^ Number of outputs
+    -> [(k 'AddressK XPrv, Coin)]
+        -- ^ (Address Private Keys, Output value)
+    -> SpecWith ()
+testSignedTxWithCardanoLedger proxy pm nOuts xprvs  = it title $ do
+    let addrs = first (paymentAddress @n @k . publicKey) <$> xprvs
+    let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
+    let keyFrom a = (,mempty) <$> Map.lookup a s
+    let inps = mkInput <$> zip addrs [0..]
+    let outs = take nOuts $ mkOutput <$> cycle addrs
+    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom inps outs
+    let addrLedger = Ledger.Address' ATVerKey TO_DO
+    let
+    case res of
+        Left e -> fail (show e)
+        Right (_tx, SealedTx bytes) ->
+            checkAddrSpendingData (VerKeyASD $ coerce ) (Ledger.Address )
+  where
+    title :: String
+    title = mempty
+        <> show (length xprvs) <> " inputs & "
+        <> show nOuts <> " outputs"
+
 
 {-------------------------------------------------------------------------------
                                 Golden Tests
