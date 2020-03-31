@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -9,19 +10,25 @@
 module Test.Utils.Windows
     ( skipOnWindows
     , pendingOnWindows
+    , pendingOnWine
     , whenWindows
     , isWindows
     , nullFileName
+    , getIsWine
     ) where
 
 import Prelude
 
 import Control.Exception
-    ( throwIO )
+    ( IOException, handle, throwIO )
 import Control.Monad
     ( when )
+import System.Exit
+    ( ExitCode (..) )
 import System.Info
     ( os )
+import System.Process
+    ( readProcessWithExitCode )
 import Test.Hspec.Core.Spec
     ( ResultStatus (..), pendingWith )
 import Test.Hspec.Expectations
@@ -33,11 +40,22 @@ skipOnWindows _reason = whenWindows $ throwIO Success
 pendingOnWindows :: HasCallStack => String -> Expectation
 pendingOnWindows reason = whenWindows $ pendingWith reason
 
+pendingOnWine :: HasCallStack => String -> Expectation
+pendingOnWine reason = whenWindows $ do
+    wine <- getIsWine
+    when wine $ pendingWith reason
+
 whenWindows :: IO () -> IO ()
 whenWindows = when isWindows
 
 isWindows :: Bool
 isWindows = os == "mingw32"
+
+-- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
+getIsWine :: IO Bool
+getIsWine = handle (\(_ :: IOException) -> pure False) $ do
+    (code, _, _) <- readProcessWithExitCode "winepath" ["--version"] mempty
+    pure (code == ExitSuccess)
 
 nullFileName :: FilePath
 nullFileName = if isWindows then "NUL" else "/dev/null"

@@ -44,7 +44,7 @@ import Control.Concurrent.MVar
     , tryReadMVar
     )
 import Control.Exception
-    ( IOException, bracket, handle )
+    ( bracket )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -68,7 +68,7 @@ import System.Exit
 import System.Info
     ( os )
 import System.Process
-    ( ProcessHandle, getProcessExitCode, readProcessWithExitCode )
+    ( ProcessHandle, getProcessExitCode )
 import Test.Hspec
     ( Spec
     , beforeAll
@@ -79,7 +79,7 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Utils.Windows
-    ( isWindows )
+    ( isWindows, pendingOnWine )
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
@@ -100,6 +100,7 @@ spec = beforeAll setupMockCommands $ do
             \     --template mainnet\n"
 
     it "1st process exits with 0, others are cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         let commands =
               [ mockCommand True (pure ())
               , foreverCommand
@@ -110,6 +111,7 @@ spec = beforeAll setupMockCommands $ do
         assertProcessesExited phs
 
     it "2nd process exits with 0, others are cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         let commands =
               [ foreverCommand
               , mockCommand True (pure ())
@@ -120,6 +122,7 @@ spec = beforeAll setupMockCommands $ do
         assertProcessesExited phs
 
     it "1st process exits with 1, others are cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         let commands =
               [ mockCommand False (pure ())
               , foreverCommand
@@ -130,6 +133,7 @@ spec = beforeAll setupMockCommands $ do
         assertProcessesExited phs
 
     it "2nd process exits with 1, others are cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         let commands =
               [ foreverCommand
               , mockCommand False (pure ())
@@ -140,6 +144,7 @@ spec = beforeAll setupMockCommands $ do
         assertProcessesExited phs
 
     it "Process executes a command before they start" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
         let before = putMVar mvar "executed"
         let commands =
@@ -159,6 +164,7 @@ spec = beforeAll setupMockCommands $ do
         assertProcessesExited phs
 
     it "Backend process is terminated when Async thread is cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+        pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
         let backend = withBackendProcessHandle tr foreverCommand $ \_ ph -> do
                 putMVar mvar ph
@@ -184,7 +190,7 @@ data MockCommands = MockCommands
 
 setupMockCommands :: IO MockCommands
 setupMockCommands
-    | isWindows = setupWin <$> getIsWine
+    | isWindows = pure mockCommandsWin
     | otherwise = pure mockCommandsShell
   where
     mockCommandsShell = MockCommands
@@ -193,24 +199,12 @@ setupMockCommands
                 in Command "sh" ["-c", "sleep 1; exit " ++ show exitStatus] before Inherit Inherit
         , foreverCommand = Command "sleep" ["20"] (pure ()) Inherit Inherit
         }
-    setupWin False = MockCommands
+    mockCommandsWin = MockCommands
         { mockCommand = \success before -> if success
             then Command "TIMEOUT" ["1"] before Inherit Inherit
             else Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "w"] before Inherit Inherit
         , foreverCommand = Command "TIMEOUT" ["20"] (pure ()) Inherit Inherit
         }
-    setupWin True = MockCommands
-        { mockCommand = \success before -> if success
-                then Command "PING" ["/n", "1", "/w", "1000", "127.0.0.1"] before Inherit Inherit
-                else Command "START" ["/wait", "xyzzy"] before Inherit Inherit
-        , foreverCommand = Command "PING" ["/n", "20", "/w", "1000", "127.0.0.1"] (pure ()) Inherit Inherit
-        }
-
--- | Use the presence of @winepath.exe@ to detect when running tests under Wine.
-getIsWine :: IO Bool
-getIsWine = handle (\(_ :: IOException) -> pure False) $ do
-    (code, _, _) <- readProcessWithExitCode "winepath" ["--version"] mempty
-    pure (code == ExitSuccess)
 
 -- | Run a bunch of command in separate processes. Note that, this operation is
 -- blocking and will throw when one of the given commands terminates.
