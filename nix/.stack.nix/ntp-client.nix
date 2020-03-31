@@ -65,6 +65,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
           ];
         buildable = true;
         };
@@ -74,6 +75,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+            (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
             (hsPkgs."ntp-client" or (buildDepError "ntp-client"))
             ];
           buildable = if flags.demo then true else false;
@@ -96,8 +98,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "a85bd4751ca5c81c0507482848358980814e9ca3";
-      sha256 = "1fhv6p1rkim6acp5m7gfkzmv9hxmpmg07qc4k03y0sxm1zgwbcjk";
+      rev = "ffcc4fad05ef888a7c0ed8ff662ee4478484d1da";
+      sha256 = "1sa8fks5i1sya3qxfl97cagl2w9hjjbfk3s3ghr0fprrgv3ls2lf";
       });
     postUnpack = "sourceRoot+=/ntp-client; echo source root reset to \$sourceRoot";
     }
