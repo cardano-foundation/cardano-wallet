@@ -23,10 +23,12 @@ module Cardano.Wallet.Byron.TransactionSpec
 
 import Prelude
 
-import Cardano.Chain.Common.Address
-    ( checkAddrSpendingData, decodeAddressBase58 )
-import Cardano.Chain.Common.AddrSpendingData
-    ( AddrSpendingData (..), AddrType (..) )
+import Cardano.Chain.Common
+    ( AddrSpendingData (..)
+    , AddrType (..)
+    , checkAddrSpendingData
+    , decodeAddressBase58
+    )
 import Cardano.Crypto.Wallet
     ( generateNew, xpub )
 import Cardano.Wallet.Byron.Transaction
@@ -63,11 +65,13 @@ import Cardano.Wallet.Primitive.Types
     , testnetMagic
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
     ( first )
+import Control.Monad
+    ( forM, forM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.ByteArray.Encoding
@@ -76,6 +80,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either.Combinators
+    ( maybeToRight )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -86,6 +92,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -451,16 +459,21 @@ testSignedTxWithCardanoLedger proxy pm nOuts xprvs  = it title $ do
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
     let tx = (fst <$> inps, outs)
+    let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
+    let keyFrom a = (,mempty) <$> Map.lookup a s
     let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
     witnessesWithAddr <- forM inps $ \(_, TxOut addr _) ->
-            (mkWitness pm sigData <$> lookupPrivateKey addr, addr)
-    forM_ witnessesWithAddr $ \(wit, addr) ->
-        checkAddrSpendingData (VerKeyASD $ coerce wit) (decodeAddressBase58 $ toText addr)
+            (mkWitness pm sigData <$> lookupPrivateKey addr keyFrom, addr)
+    forM_ witnessesWithAddr $ \(wit, addr) -> do
+        let (Right addr') = decodeAddressBase58 $ toText addr
+        checkAddrSpendingData (VerKeyASD $ coerce wit) addr'
   where
     title :: String
     title = mempty
         <> show (length xprvs) <> " inputs & "
         <> show nOuts <> " outputs"
+    lookupPrivateKey addr keyFrom =
+        maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
 
 {-------------------------------------------------------------------------------
                                 Golden Tests
@@ -502,27 +515,27 @@ goldenTestSignedTx proxy pm nOuts xprvs expected = it title $ do
         <> show (length xprvs) <> " inputs & "
         <> show nOuts <> " outputs"
 
-    -- | Inputs are constructed from _resolved inputs_, i.e., inputs for which
-    -- we have the associated address; This address is used for signing as we
-    -- have, in order to submit a valid transaction, to provide evidence for
-    -- ownership of these addresses
-    mkInput :: ((Address, Coin), Word32) -> (TxIn, TxOut)
-    mkInput (out, ix) =
-        ( TxIn faucetTx ix
-        , mkOutput out
-        )
+-- | Inputs are constructed from _resolved inputs_, i.e., inputs for which
+-- we have the associated address; This address is used for signing as we
+-- have, in order to submit a valid transaction, to provide evidence for
+-- ownership of these addresses
+mkInput :: ((Address, Coin), Word32) -> (TxIn, TxOut)
+mkInput (out, ix) =
+    ( TxIn faucetTx ix
+    , mkOutput out
+    )
 
-    -- | Arbitrary output too, we do re-use the same addresses here but this is
-    -- purely arbitrary.
-    mkOutput :: (Address, Coin) -> TxOut
-    mkOutput =
-        uncurry TxOut
+-- | Arbitrary output too, we do re-use the same addresses here but this is
+-- purely arbitrary.
+mkOutput :: (Address, Coin) -> TxOut
+mkOutput =
+    uncurry TxOut
 
-    -- | An arbitrary source transaction for inputs (see 'TxIn'). This could be
-    -- anything in practice and isn't relevant to our signing code.
-    faucetTx :: Hash "Tx"
-    faucetTx = Hash $ unsafeFromHex
-        "3B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B7"
+-- | An arbitrary source transaction for inputs (see 'TxIn'). This could be
+-- anything in practice and isn't relevant to our signing code.
+faucetTx :: Hash "Tx"
+faucetTx = Hash $ unsafeFromHex
+    "3B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B7"
 
 goldenMainnet__1_1 :: ByteString
 goldenMainnet__1_1 =

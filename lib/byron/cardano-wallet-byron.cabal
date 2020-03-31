@@ -135,10 +135,12 @@ test-suite unit
     , cardano-wallet-byron
     , cborg
     , containers
+    , either
     , hspec
     , fmt
     , memory
     , QuickCheck
+    , text-class
     , transformers
   build-tools:
       hspec-discover
