@@ -28,7 +28,10 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..), Transformable (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    , Transformable (..)
+    )
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
 import Control.Monad
@@ -52,14 +55,14 @@ transformTextTrace = contramap (fmap . fmap $ toText) . filterNonEmpty
 
 -- | Traces some data.
 logTrace
-    :: (MonadIO m, DefinePrivacyAnnotation a, DefineSeverity a)
+    :: (MonadIO m, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Trace m a
     -> a
     -> m ()
 logTrace tr msg = traceNamedItem tr priv sev msg
   where
-    priv = definePrivacyAnnotation msg
-    sev = defineSeverity msg
+    priv = getPrivacyAnnotation msg
+    sev = getSeverityAnnotation msg
 
 -- | Strips out the data that 'trMessage' (or
 -- "Cardano.BM.Data.Tracer.toLogObject") adds.
@@ -75,7 +78,7 @@ fromLogObject = contramap (getLogMessage . loContent)
 -- representation and further traces them as a 'LogObject'. If the 'ToText'
 -- representation is empty, then no tracing happens.
 trMessageText
-    :: (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a)
+    :: (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
 trMessageText tr = Tracer $ \arg -> do
@@ -83,23 +86,23 @@ trMessageText tr = Tracer $ \arg -> do
        tracer = if msg == mempty then nullTracer else tr
    lo <- LogObject
        <$> pure mempty
-       <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
+       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
        <*> pure (LogMessage msg)
    traceWith tracer (mempty, lo)
 
 -- | Tracer transformer which converts 'Trace m a' to 'Tracer m a' by wrapping
 -- typed log messages into a 'LogObject'.
 trMessage
-    :: (MonadIO m, DefinePrivacyAnnotation a, DefineSeverity a)
+    :: (MonadIO m, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject a)
     -> Tracer m a
 trMessage tr = Tracer $ \arg ->
    traceWith tr =<< (return . (mempty,)) =<< LogObject
        <$> pure mempty
-       <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
+       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
        <*> pure (LogMessage arg)
 
-instance forall m a. (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a) => Transformable Text m a where
+instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
     trTransformer _fmt _verb = Tracer . traceWith . trMessageText
 
 -- | Tracer transformer which removes tracing below the qgiven severity limit.

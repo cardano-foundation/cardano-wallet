@@ -14,7 +14,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefineSeverity (..) )
+    ( HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.Api.Server
@@ -318,7 +318,7 @@ expectLogs ctx expectations = do
             <> show entries
 
     forM_ (zip entries expectations) $ \(l, (sev, str)) -> do
-        (defineSeverity l) `shouldBe` sev
+        (getSeverityAnnotation l) `shouldBe` sev
         case logMessage l of
             Just txt ->
                 T.unpack txt `shouldContain` str

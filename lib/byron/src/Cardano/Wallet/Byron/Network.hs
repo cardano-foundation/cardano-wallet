@@ -35,7 +35,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
@@ -510,6 +510,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxDecodeError -> pure False
     MuxIngressQueueOverRun -> pure False
     MuxInitiatorOnly -> pure False
+    MuxSDUReadTimeout -> pure False
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
@@ -777,9 +778,9 @@ instance ToText NetworkLayerLog where
             , T.decodeUtf8 $ convertToBase Base16 bytes
             ]
 
-instance DefinePrivacyAnnotation NetworkLayerLog
-instance DefineSeverity NetworkLayerLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation NetworkLayerLog
+instance HasSeverityAnnotation NetworkLayerLog where
+    getSeverityAnnotation = \case
         MsgCouldntConnect 0        -> Debug
         MsgCouldntConnect 1        -> Notice
         MsgCouldntConnect{}        -> Warning

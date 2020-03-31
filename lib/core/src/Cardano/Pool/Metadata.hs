@@ -39,7 +39,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolOwner (..), ShowFmt (..) )
 import Codec.Archive.Zip
@@ -409,11 +409,11 @@ data RegistryLog = RegistryLog
     , registryLogMsg :: RegistryLogMsg
     } deriving (Generic, Show, Eq, ToJSON)
 
-instance DefinePrivacyAnnotation RegistryLog where
-    definePrivacyAnnotation = definePrivacyAnnotation . registryLogMsg
+instance HasPrivacyAnnotation RegistryLog where
+    getPrivacyAnnotation = getPrivacyAnnotation . registryLogMsg
 
-instance DefineSeverity RegistryLog where
-    defineSeverity = defineSeverity . registryLogMsg
+instance HasSeverityAnnotation RegistryLog where
+    getSeverityAnnotation = getSeverityAnnotation . registryLogMsg
 
 -- | Log messages about processing a specific archive.
 data RegistryLogMsg
@@ -426,9 +426,9 @@ data RegistryLogMsg
     | MsgUsingCached FilePath UTCTime
     deriving (Generic, Show, Eq, ToJSON)
 
-instance DefinePrivacyAnnotation RegistryLogMsg
-instance DefineSeverity RegistryLogMsg where
-    defineSeverity ev = case ev of
+instance HasPrivacyAnnotation RegistryLogMsg
+instance HasSeverityAnnotation RegistryLogMsg where
+    getSeverityAnnotation ev = case ev of
         MsgDownloadStarted -> Info
         MsgDownloadComplete _ -> Info
         MsgDownloadError _ -> Error

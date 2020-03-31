@@ -153,7 +153,7 @@ import Prelude hiding
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -1861,12 +1861,12 @@ instance ToText WalletLog where
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
 
-instance DefinePrivacyAnnotation WalletLog
-instance DefineSeverity WalletLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation WalletLog
+instance HasSeverityAnnotation WalletLog where
+    getSeverityAnnotation = \case
         MsgTryingRollback _ -> Info
         MsgRolledBack _ -> Info
-        MsgFollow msg -> defineSeverity msg
+        MsgFollow msg -> getSeverityAnnotation msg
         MsgDelegation _ _ -> Info
         MsgCheckpoint _ -> Info
         MsgWalletMetadata _ -> Info

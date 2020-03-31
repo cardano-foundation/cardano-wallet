@@ -29,7 +29,7 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -218,11 +218,11 @@ data ApiLog = ApiLog
     -- ^ Event trace for the handler.
     } deriving (Generic, Show)
 
-instance DefinePrivacyAnnotation ApiLog where
-    definePrivacyAnnotation (ApiLog _ msg) = definePrivacyAnnotation msg
+instance HasPrivacyAnnotation ApiLog where
+    getPrivacyAnnotation (ApiLog _ msg) = getPrivacyAnnotation msg
 
-instance DefineSeverity ApiLog where
-    defineSeverity (ApiLog _ msg) = defineSeverity msg
+instance HasSeverityAnnotation ApiLog where
+    getSeverityAnnotation (ApiLog _ msg) = getSeverityAnnotation msg
 
 instance ToText ApiLog where
     toText (ApiLog rid msg) =
@@ -272,8 +272,8 @@ sanitize keys bytes = encode' $ case decode' bytes of
     decode' = Aeson.decode . BL.fromStrict
     obfuscate _ = String "*****"
 
-instance DefinePrivacyAnnotation HandlerLog where
-    definePrivacyAnnotation msg = case msg of
+instance HasPrivacyAnnotation HandlerLog where
+    getPrivacyAnnotation msg = case msg of
         LogRequestStart -> Public
         LogRequest _ -> Public
         LogRequestBody _ _ -> Confidential
@@ -281,8 +281,8 @@ instance DefinePrivacyAnnotation HandlerLog where
         LogResponseBody _ -> Confidential
         LogRequestFinish -> Public
 
-instance DefineSeverity HandlerLog where
-    defineSeverity msg = case msg of
+instance HasSeverityAnnotation HandlerLog where
+    getSeverityAnnotation msg = case msg of
         LogRequestStart -> Debug
         LogRequest _ -> Info
         LogRequestBody _ _ -> Debug

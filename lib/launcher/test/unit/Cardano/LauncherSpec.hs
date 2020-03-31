@@ -18,7 +18,7 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
@@ -255,7 +255,7 @@ withTestLogging action =
         shutdown sb
 
 trMessageText
-    :: (MonadIO m, ToText a, DefinePrivacyAnnotation a, DefineSeverity a)
+    :: (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
 trMessageText tr = Tracer $ \arg -> do
@@ -263,6 +263,6 @@ trMessageText tr = Tracer $ \arg -> do
        tracer = if msg == mempty then nullTracer else tr
    lo <- LogObject
        <$> pure mempty
-       <*> (mkLOMeta (defineSeverity arg) (definePrivacyAnnotation arg))
+       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
        <*> pure (LogMessage msg)
    traceWith tracer (mempty, lo)

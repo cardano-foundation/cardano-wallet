@@ -46,7 +46,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Metadata
@@ -527,10 +527,10 @@ data StakePoolLog
     | MsgUsingTotalStakeForRanking (Quantity "lovelace" Word64)
     deriving (Show, Eq)
 
-instance DefinePrivacyAnnotation StakePoolLog
-instance DefineSeverity StakePoolLog where
-    defineSeverity ev = case ev of
-        MsgRegistry msg -> defineSeverity msg
+instance HasPrivacyAnnotation StakePoolLog
+instance HasSeverityAnnotation StakePoolLog where
+    getSeverityAnnotation ev = case ev of
+        MsgRegistry msg -> getSeverityAnnotation msg
         MsgListStakePoolsBegin -> Debug
         MsgMetadataUnavailable -> Notice
         MsgComputedProgress{} -> Debug
@@ -538,7 +538,7 @@ instance DefineSeverity StakePoolLog where
         MsgMetadataMissing{} -> Debug
         MsgMetadataMultiple{} -> Debug
         MsgStartMonitoring _ -> Info
-        MsgFollow msg -> defineSeverity msg
+        MsgFollow msg -> getSeverityAnnotation msg
         MsgStakeDistribution _ -> Info
         MsgStakePoolRegistration _ -> Info
         MsgRollingBackTo _ -> Info

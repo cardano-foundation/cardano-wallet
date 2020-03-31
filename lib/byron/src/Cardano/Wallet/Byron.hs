@@ -49,7 +49,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
@@ -332,9 +332,9 @@ instance ToText ApplicationLog where
                 <> "Cannot listen on the given port. "
                 <> "The operation is not permitted."
 
-instance DefinePrivacyAnnotation ApplicationLog
-instance DefineSeverity ApplicationLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation ApplicationLog
+instance HasSeverityAnnotation ApplicationLog where
+    getSeverityAnnotation = \case
         MsgStarting _ -> Info
         MsgNetworkName _ -> Info
         MsgServerStartupError _ -> Alert
@@ -398,7 +398,7 @@ setupTracers sev tr = Tracers
         Just s -> filterTraceSeverity s
 
     mkTrace
-        :: (DefinePrivacyAnnotation a, DefineSeverity a, ToText a)
+        :: (HasPrivacyAnnotation a, HasSeverityAnnotation a, ToText a)
         => (Tracers' (Const Text) -> Const Text a)
         -> Trace IO Text
         -> Tracer IO a

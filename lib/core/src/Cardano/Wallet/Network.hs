@@ -38,7 +38,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChimericAccount (..)
@@ -413,9 +413,9 @@ instance ToText FollowLog where
             in mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
 
-instance DefinePrivacyAnnotation FollowLog
-instance DefineSeverity FollowLog where
-    defineSeverity = \case
+instance HasPrivacyAnnotation FollowLog
+instance HasSeverityAnnotation FollowLog where
+    getSeverityAnnotation = \case
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error

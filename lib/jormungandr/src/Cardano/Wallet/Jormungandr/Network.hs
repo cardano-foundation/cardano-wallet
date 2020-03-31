@@ -60,7 +60,7 @@ module Cardano.Wallet.Jormungandr.Network
 import Prelude
 
 import Cardano.BM.Data.Tracer
-    ( DefinePrivacyAnnotation (..), DefineSeverity (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.CLI
     ( Port (..), WaitForServiceLog, waitForService )
 import Cardano.Launcher
@@ -590,11 +590,11 @@ instance ToText NetworkLayerLog where
         MsgLauncher msg -> toText msg
         MsgWaitForService msg -> toText msg
 
-instance DefinePrivacyAnnotation NetworkLayerLog
-instance DefineSeverity NetworkLayerLog where
-    defineSeverity ev = case ev of
-        MsgLauncher msg -> defineSeverity msg
-        MsgWaitForService msg -> defineSeverity msg
+instance HasPrivacyAnnotation NetworkLayerLog
+instance HasSeverityAnnotation NetworkLayerLog where
+    getSeverityAnnotation ev = case ev of
+        MsgLauncher msg -> getSeverityAnnotation msg
+        MsgWaitForService msg -> getSeverityAnnotation msg
 
 instance ToText JormungandrBackend where
     toText = \case
