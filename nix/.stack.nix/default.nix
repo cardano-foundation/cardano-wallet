@@ -64,14 +64,14 @@
         io-sim = ./io-sim.nix;
         io-sim-classes = ./io-sim-classes.nix;
         network-mux = ./network-mux.nix;
-        ouroboros-network = ./ouroboros-network.nix;
+        ntp-client = ./ntp-client.nix;
         ouroboros-consensus = ./ouroboros-consensus.nix;
         ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
-        typed-protocols = ./typed-protocols.nix;
-        typed-protocols-examples = ./typed-protocols-examples.nix;
+        ouroboros-network = ./ouroboros-network.nix;
         ouroboros-network-framework = ./ouroboros-network-framework.nix;
         ouroboros-network-testing = ./ouroboros-network-testing.nix;
-        ntp-client = ./ntp-client.nix;
+        typed-protocols = ./typed-protocols.nix;
+        typed-protocols-examples = ./typed-protocols-examples.nix;
         Win32-network = ./Win32-network.nix;
         };
       };

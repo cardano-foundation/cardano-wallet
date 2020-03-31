@@ -138,8 +138,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "3e45d5dd4942c295f0ea4bfed7c407b914b15447";
-      sha256 = "0vik0qqw0p5xdrl2r84fz8jhmlzcx0b3cxpvb434ldb8xnlx8q8i";
+      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
+      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }
