@@ -33,6 +33,7 @@ module Cardano.CLI
 
     -- * Commands
     , cmdMnemonic
+    , cmdMnemonicByron
     , cmdWallet
     , cmdWalletCreate
     , cmdByronWalletCreate
@@ -715,6 +716,13 @@ cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) $ mempty
     cmds = subparser $ mempty
         <> cmdMnemonicGenerate
         <> cmdMnemonicRewardCredentials
+
+cmdMnemonicByron :: Mod CommandFields (IO ())
+cmdMnemonicByron = command "mnemonic" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Manage mnemonic phrases."
+  where
+    cmds = subparser $ mempty
+        <> cmdMnemonicGenerate
 
 -- | Arguments for 'mnemonic generate' command
 newtype MnemonicGenerateArgs = MnemonicGenerateArgs
