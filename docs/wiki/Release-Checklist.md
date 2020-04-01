@@ -59,6 +59,7 @@
 
 - [ ] Manually run the disabled `LAUNCH` tests in:
     - [ ] `lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs`
+    - run all integration test for jormungandr `stack test cardano-wallet-jormungandr:jormungandr-integration`
 
 
 ## Publication
