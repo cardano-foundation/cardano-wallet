@@ -258,10 +258,42 @@ benchmark latency
      ghc-options:
        -Werror
    build-depends:
-       base
-   type:
-      exitcode-stdio-1.0
-   hs-source-dirs:
-       bench
-   main-is:
-       Latency.hs
+      base
+    , aeson
+    , aeson-qq
+    , async
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-byron
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , command
+    , directory
+    , filepath
+    , fmt
+    , generic-lens
+    , http-client
+    , http-types
+    , hspec
+    , iohk-monitoring
+    , memory
+    , stm
+    , temporary
+    , text
+    , text-class
+    , time
+  build-tools:
+      cardano-wallet-byron
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      bench
+      test/integration
+  main-is:
+      Latency.hs
+  other-modules:
+      Cardano.Wallet.Byron.Faucet
