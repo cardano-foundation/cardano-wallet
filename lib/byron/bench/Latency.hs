@@ -39,7 +39,14 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, WalletStyle (..) )
+    ( ApiAddress
+    , ApiByronWallet
+    , ApiFee
+    , ApiNetworkInformation
+    , ApiTransaction
+    , ApiUtxoStatistics
+    , WalletStyle (..)
+    )
 import Cardano.Wallet.Byron
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -75,6 +82,8 @@ import Control.Monad.STM
     ( atomically )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
@@ -95,10 +104,19 @@ import Network.HTTP.Client
     )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), HandlerLog (..) )
+import Numeric.Natural
+    ( Natural )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Integration.Framework.DSL
-    ( Context (..), Headers (..), Payload (..), fixtureRandomWallet, request )
+    ( Context (..)
+    , Headers (..)
+    , Payload (..)
+    , fixtureRandomWallet
+    , json
+    , request
+    , unsafeRequest
+    )
 import Test.Utils.Paths
     ( getTestData )
 
@@ -117,12 +135,47 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         pure (wal1, wal2)
 
     runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
-        (_wal1, _wal2) <- scenario ctx
+        (wal1, wal2) <- scenario ctx
 
         t1 <- measureApiLogs tvar
             (request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty)
-
         fmtResult "listWallets        " t1
+
+        t2 <- measureApiLogs tvar
+            (request @ApiByronWallet ctx (Link.getWallet @'Byron wal1) Default Empty)
+        fmtResult "getWallet          " t2
+
+        t3 <- measureApiLogs tvar
+            (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Byron wal1) Default Empty)
+        fmtResult "getUTxOsStatistics " t3
+
+        t4 <- measureApiLogs tvar
+            (request @[ApiAddress n] ctx (Link.listAddresses @'Byron wal1) Default Empty)
+        fmtResult "listAddresses      " t4
+
+        t5 <- measureApiLogs tvar
+            (request @[ApiTransaction n] ctx (Link.listTransactions @'Byron wal1) Default Empty)
+        fmtResult "listTransactions   " t5
+
+        (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Byron wal2) Empty
+        let amt = 1 :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        t6 <- measureApiLogs tvar $ request @ApiFee ctx
+            (Link.getTransactionFee @'Byron wal1) Default payload
+        fmtResult "postTransactionFee " t6
+
+        t7 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        fmtResult "getNetworkInfo     " t7
 
         pure ()
 
