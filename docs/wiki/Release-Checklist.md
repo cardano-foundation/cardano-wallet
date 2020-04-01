@@ -39,7 +39,9 @@
 
 - [ ] Verify that the documentations have been correctly exported on [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
 
-- [ ] Verify that the [CLI manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) is up-to-date / Update the [CLI manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [ ] Make sure CLI manuals are up to date:
+- [Command-Line Interface (Jörmungandr)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [Command-Line Interface (Byron Reboot)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron))
 
 
 ## Manual ad-hoc verifications
