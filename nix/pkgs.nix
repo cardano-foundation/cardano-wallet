@@ -14,6 +14,7 @@ in pkgs: super: with pkgs; {
         let
           rawCfg = commonLib.cardanoLib.environments.mainnet.nodeConfig // {
 						GenesisFile = commonLib.cardanoLib.environments.mainnet.genesisFile;
+            minSeverity = "Error";
 					};
 				in
           builtins.toFile "cardano-node-mainnet-config" (builtins.toJSON rawCfg);
