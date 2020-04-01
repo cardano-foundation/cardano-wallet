@@ -58,9 +58,13 @@
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine.
 
 - [ ] Manually run the disabled `LAUNCH` tests in:
-    - [ ] `lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs`
-    - run all integration test for jormungandr `stack test cardano-wallet-jormungandr:jormungandr-integration`
-
+```
+ lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs
+```
+- [ ] run all integration test for jormungandr:
+```
+ stack test cardano-wallet-jormungandr:jormungandr-integration
+```
 
 ## Publication
 
