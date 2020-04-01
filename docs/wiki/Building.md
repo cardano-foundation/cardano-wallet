@@ -120,9 +120,10 @@ for `cardano-wallet`. This will contain:
 - development tools such as `hlint`, `stylish-haskell`, and `weeder`;
 - the `sqlite3` command; and
 - the node backend `jormungandr`, and `jcli`.
+- the Byron reboot node backend `cardano-node`
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
 ```
-nix-shell --run "cabal new-build all"
+nix-shell --run "cabal new-build --enable-tests --enable-benchmarks all"
 ```
