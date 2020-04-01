@@ -1,7 +1,8 @@
 # User Guides
 
 - [Api Documentation](https://input-output-hk.github.io/cardano-wallet/api/edge/)
-- [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [Command-Line Interface (Jörmungandr)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [Command-Line Interface (Byron Reboot)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron))
 - [Using Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker)
 
 # Developer Guides
