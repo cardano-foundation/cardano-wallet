@@ -8,7 +8,7 @@ special unicode characters that look alike: `ᐸ` and `ᐳ`
 -->
 
 <pre>
-Usage: cardano-wallet COMMAND
+Usage: cardano-wallet-byron COMMAND
   Cardano Wallet Command-Line Interface (CLI)
 
 Available OPTIONS:
@@ -18,12 +18,11 @@ Available COMMANDS:
   <a href="#serve">serve</a>                 Serve an HTTP API that listens for commands/actions.
   mnemonic                            
     <a href="#mnemonic-generate">generate</a>            Generate BIP-39 mnemonic words
-    <a href="#mnemonic-reward-credentials">reward-credentials</a>  Derive reward account private key from mnemonic.
   wallet
     <a href="#wallet-list">list</a>                List all known wallets
     create
       <a href="#wallet-create-from-mnemonic">from-mnemonic</a>     Create a new wallet using a mnemonic
-      <a href="#wallet-create-from-public-key">from-public-key</a>   Create a wallet using a public account key
+   
     <a href="#wallet-get">get</a>                 Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution 
     update
@@ -38,7 +37,8 @@ Available COMMANDS:
     <a href="#transaction-forget">forget</a>              Forget a pending transaction with specified id
   address
     <a href="#address-list">list</a>                List all known addresses of a wallet
-    <a href="#address-create">create</a>                List all known addresses of a wallet
+    <a href="#address-create">create</a>              Create a new random address. Only available for random wallets. 
+                        The address index is optional, give none to let the wallet generate a random one.
   network
     <a href="#network-information">information</a>         View network information
     <a href="#network-parameters">parameters</a>          View network parameters
@@ -77,210 +77,69 @@ Available COMMANDS:
 > </details>
 # Commands
 
-## launch 
-
-Launches and manages two sub-processes:
-
-- A wallet server (using `cardano-wallet serve`)
-- A target chain producer ([Jörmungandr](https://github.com/input-output-hk/jormungandr))
-
-This is a shortcut command for those looking into an _out-of-the-box_ solution for running the software.
-
-Many options supported by [`cardano-wallet serve`](#serve) are also supported by `launch`.
-
-### Invocation
-
-> ```
-> cardano-wallet launch 
->   [--listen-address HOST] 
->   ([--random-port] | [--port INT])
->   [--node-port INT]
->   [--state-dir DIR]
->   [--sync-tolerance DURATION]
->   ([--quiet] | [--verbose])
->   (--genesis-block-hash STRING | --genesis-block FILE) 
->   [-- ARGUMENTS...]
-
-##### --state-dir
-
-`cardano-wallet launch` will store the wallet databases and
-Jörmungandr chain data inside the folder specified by
-`--state-dir`. If it does not exist, it will be created.
-
-##### --genesis-block | --genesis-block-hash
-
-The genesis block file can be obtained using Jörmungandr's tool command-line `jcli` as follows:
-
-```bash
-$ jcli genesis encode --input genesis.yaml > block0.bin
-```
-
-Here below is an example of genesis file that can be used for testing:
-
-<details>
-  <summary>genesis.yaml</summary>
-
-```yaml
-# The Blockchain Configuration defines the different settings
-# of the blockchain that cannot be changed once the blockchain
-# is started.
-blockchain_configuration:
-  # The block0-date defines the date the blockchain starts
-  # expected value in seconds since UNIX_EPOCH
-  block0_date: 1556202057
-
-  # This is the type of dicrimination of the blockchain
-  # of this blockchain is meant for production then
-  # use 'production' instead.
-  #
-  # otherwise leave as this
-  discrimination: test
-
-  # The initial consensus version:
-  #
-  # * BFT consensus: bft
-  # * Genesis Praos consensus: genesis
-  block0_consensus: genesis_praos
-
-  # Number of slots in each epoch
-  slots_per_epoch: 500
-
-  # The slot duration, in seconds, is the time between the creation
-  # of 2 blocks
-  slot_duration: 10
-
-  # The number of blocks (*10) per epoch
-  epoch_stability_depth: 10
-
-  # A list of Ed25519 Extended PublicKey that represents the
-  # BFT leaders encoded as bech32. The order in the list matters.
-  consensus_leader_ids:
-    - ed25519_pk1haythczarvl75wt6y6fmq0gjz7j9xcyfatwchj523wdawechkd8qp735w5
-
-  # Genesis praos parameter D
-  bft_slots_ratio: 0
-
-  # Genesis praos active slot coefficient
-  # Determines minimum stake required to try becoming slot leader, must be in range (0,1]
-  consensus_genesis_praos_active_slot_coeff: 0.22
-
-  # This is the max number of messages allowed in a given Block
-  max_number_of_transactions_per_block: 255
-
-  # The fee calculations settings
-  #
-  # fee(num_bytes, has_certificate) = constant + num_bytes * coefficient + has_certificate * certificate
-  linear_fees:
-    constant: 42
-    coefficient: 0
-    certificate: 0
-
-  # The speed to update the KES Key in seconds
-  kes_update_speed: 43200 # 12hours
-
-# The initial deposits present in the blockchain.
-initial:
-  - fund:
-      address: ta1swk7svu8avn5jysl83vja72lp0sqfczanqee6q08a4j7q27a77kpg4p254a
-      value: 100000000000
-  # And so forth... 
-```
-</details>
-
-##### example
-
-```
-$ cardano-wallet launch --genesis-block block0.bin -- --secret secret.yaml
-```
-
-##### -- ARGUMENTS...
-
-All other arguments are passed to the `jormungandr` child process. Place `--` before the Jörmungandr arguments so that they are not interpreted as `cardano-wallet` arguments.
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ## serve
 
-Serve API that listens for commands/actions. Before launching user should start [`jormungandr`](https://github.com/input-output-hk/jormungandr/) (see details on the provided link).
+Serve API that listens for commands/actions. Before launching user should start [`cardano-node`](https://github.com/input-output-hk/cardano-node).
 
 ### Invocation
 
 > ```
 > cardano-wallet serve
->   [--listen-address HOST]
->   ([--random-port] | [--port INT])
->   [--node-port INT]
->   [--database DIR]
->   [--sync-tolerance DURATION]
->   ([--quiet] | [--verbose])
->   --genesis-block-hash STRING
+> 
+>     --help-tracing           Show help for tracing options
+>       --listen-address HOST    Specification of which host to the bind API server
+>                                to. Can be an IPv[46] address, hostname, or
+>                                '*'. (default: 127.0.0.1)
+>       --random-port            serve wallet API on any available port (conflicts
+>                                with --port)
+>       --port INT               port used for serving the wallet API. (default: 8090)
+>       --tls-ca-cert FILE       A x.509 Certificate Authority (CA) certificate.
+>       --tls-sv-cert FILE       A x.509 Server (SV) certificate.
+>       --tls-sv-key FILE        The RSA Server key which signed the x.509 server
+>                                certificate.
+>       --node-socket FILE       Path to the node's domain socket.
+>       --testnet FILE           Path to the genesis .json file.
+>       --database DIR           use this directory for storing wallets. Run in-memory
+>                                otherwise.
+>       --sync-tolerance DURATION
+>                                time duration within which we consider being synced
+>                                with the network. Expressed in seconds with a
+>                                trailing 's'. (default: 300s)
+>       --shutdown-handler       Enable the clean shutdown handler (exits when stdin
+>                                is closed)
+>       --log-level SEVERITY     Global minimum severity for a message to be logged.
+>                                Individual tracers severities still need to be
+>                                configured independently. Defaults to "DEBUG".
+>       --trace-NAME SEVERITY    Individual component severity for 'NAME'. See
+>                                --help-tracing for details and available tracers.
+> 
 > ```
-
-##### --listen-address
-
-Which hostname or IP address to bind the API server to.
-
-As an example, to bind to the IPv4 local host only, use
-`127.0.0.1`. This is the default listen address.
-
-The `--listen-address` option recognizes the following special values:
-
-| Special Value | Meaning                                       |
-|:--------------|:----------------------------------------------|
-| `*`           | any IPv4 or IPv6 hostname                     |
-| `*4`          | any IPv4 or IPv6 hostname, IPv4 preferred     |
-| `!4`          | any IPv4 hostname                             |
-| `*6`          | any IPv4 or IPv6 hostname, IPv6 preferred     |
-| `!6`          | any IPv6 hostname                             |
-
-Note that the permissive `*` values allow binding to an IPv4 or an
-IPv6 hostname, which means you might be able to successfully bind to a
-port more times than you expect (e.g. once on the IPv4 localhost
-`127.0.0.1` and again on the IPv6 localhost `0:0:0:0:0:0:0:1`).
-
-If using the special syntax, remember to 'quote' or backslash-escape
-the value so that your shell does not interpret them as glob patterns.
-
-##### --database
-
-Wallet databases will be stored in this directory. If it does not
-exist it will be created. The database files are in
-[SQLite](https://www.sqlite.org) format, and there will be at least
-one database file per wallet.
-
-##### --genesis-block-hash
-
-This is a hash of the the genesis block file which can obtained using Jörmungandr's tool command-line `jcli` as follows:
-
-```
-$ jcli genesis hash --input block0.bin
-```
-
-See also [`launch` via Jörmungandr](#launch) for details about how to generate `block0.bin`.
 
 ##### example
 
-Start Jörmungandr:
+Start cardano-node:
+```
+git clone https://github.com/input-output-hk/cardano-node.git
+cd cardano-node
+nix-build -A scripts.mainnet.node -o mainnet-node-local
+```
 
+Serve cardano-wallet-byron:
 ```
-$ jormungandr --genesis-block block0.bin --config config.yaml --secret secret.yaml
+cardano-wallet serve --node-socket ~/cardano-node/state-node-mainnet/node.socket --mainnet --database /tmp/mainnet
 ```
 
-Then, start the wallet backend server:
 
-```
-$ cardano-wallet serve --genesis-block-hash $(jcli genesis hash --input block0.bin)
-```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## Logging options for launch / serve
+## Logging options for serve
 
-Both `launch` and `serve` accept extra command-line arguments for
+`serve` accepts extra command-line arguments for
 logging (also called "tracing"). Use `--help-tracing` to show the
 options, the tracer names, and the possible log levels.
 
-> `cardano-wallet launch --help-tracing`
+> `cardano-wallet serve --help-tracing`
 
 ```
 Additional tracing options:
@@ -334,14 +193,6 @@ $ cardano-wallet mnemonic generate --size 21
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## mnemonic reward-credentials
-
-> `cardano-wallet mnemonic reward-credentials`
-
-An interactive command to derive your reward account private key from a given mnemonic. Only for the incentivized testnet.
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ## wallet list
 
 > `cardano-wallet wallet list [--port=INT]`
@@ -371,17 +222,6 @@ Enter the passphrase a second time: ****************
 
 after this your new wallet will be created
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
-## wallet create from public key
-
-> `cardano-wallet-jormungandr wallet create from-public-key [--port INT] STRING [--address-pool-gap INT] ACCOUNT_PUBLIC_KEY`
-
-Create a new wallet using a sequential address scheme using account public key.
-
-```
-$ cardano-wallet-jormungandr wallet create from-public-key "New Public Key Wallet" b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
-```
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## wallet get
@@ -572,16 +412,21 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## stake pool list
+## address create
 
-> `cardano-wallet stake-pool list [--port=INT]` 
+> `cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID` 
 
-List all known stake pools with some statistics about them.
+Create new address for random wallet.
 
 ```
-$ cardano-wallet stake-pools list
+$ cardano-wallet-byron address create 03f4c150aa4626e28d02be95f31d3c79df344877
+Please enter your passphrase: *****************
+Ok.
+{
+    "state": "unused",
+    "id": "2w1sdSJu3GVgr1ic6aP3CEwZo9GAhLzigdBvCGY4JzEDRbWV4HUNpZdHf2n5fV41dGjPpisDX77BztujAJ1Xs38zS8aXvN7Qxoe"
+}
 ```
-
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## network information
@@ -634,7 +479,7 @@ Ok.
 Extract the root extended private key from a mnemonic sentence. New mnemonic sentences can be generated using <a href="#mnemonic-generate">`mnemonic generate`</a>.
 
 > ```
-> Usage: cardano-wallet-jormungandr key root [--wallet-style WALLET_STYLE]
+> Usage: cardano-wallet key root [--wallet-style WALLET_STYLE]
 >                                           MNEMONIC_WORD...
 > Extract root extended private key from a mnemonic sentence.
 >
@@ -648,7 +493,7 @@ Extract the root extended private key from a mnemonic sentence. New mnemonic sen
 > ```
 
 ```bash
-$ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme celery coral <...11 more words>
+$ cardano-wallet key root --wallet-style icarus -- express theme celery coral <...11 more words>
 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168f...
 ```
 
@@ -659,7 +504,7 @@ $ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme ce
 Derive child key from root private key.
 
 > ```
-> Usage: cardano-wallet-jormungandr key child --path DER-PATH XPRV
+> Usage: cardano-wallet key child --path DER-PATH XPRV
 >   Derive child keys.
 >
 > Available options:
@@ -668,7 +513,7 @@ Derive child key from root private key.
 > ```
 
 ```bash
-$ cardano-wallet key child --path 44H/1815H/0H/0 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ cardano-wallet key child --path 44H/1815H/0H/0 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
@@ -677,10 +522,10 @@ $ cardano-wallet key child --path 44H/1815H/0H/0 68f0cb3d83b5278f0b4c9c4a4ab50e
 
 Extract the public key of an extended private key. Keys can be obtained using <a href="#key-root">`key root`</a> and <a href="#key-child">`key child`</a>.
 
-> `cardano-wallet-jormungandr key public XPRV` 
+> `cardano-wallet key public XPRV` 
 
 ```bash
-$ cardano-wallet-jormungandr key public 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ cardano-wallet key public 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 ```
 
@@ -690,10 +535,10 @@ b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc02
 
 Show information about a key.
 
-> `cardano-wallet-jormungandr key inspect XPRV` 
+> `cardano-wallet key inspect XPRV` 
 
 ```bash
-$ cardano-wallet-jormungandr key inspect 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ cardano-wallet key inspect 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 extended private key: 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79
 chain code: 411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 ```
@@ -708,3 +553,8 @@ chain code: 411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 Show the software version.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+
+
+
+
