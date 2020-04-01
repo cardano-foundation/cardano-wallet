@@ -41,16 +41,11 @@ import System.IO
 import System.IO.Temp
     ( withSystemTempDirectory, withSystemTempFile )
 import System.Process
-    ( createProcess
-    , proc
-    , terminateProcess
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( terminateProcess, withCreateProcess )
 import Test.Hspec
     ( SpecWith, describe, it, runIO )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldReturn )
+    ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
@@ -60,8 +55,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Jcli
     ( argHex, getBlock0H )
-import Test.Utils.Ports
-    ( findPort )
 import Test.Utils.Windows
     ( nullFileName )
 
@@ -86,38 +79,6 @@ spec = do
                   `finally` do
                     terminateProcess ph
             threadDelay oneSecond
-
-    describe "DaedalusIPC [SERIAL]" $ do
-        let scriptPath = "test" </> "integration" </> "js" </> "mock-daedalus.js"
-        let mockProc testCase nodePort extra = proc "node" $
-                [ scriptPath
-                , testCase
-                , commandName @t
-                , "serve"
-                , "--node-port"
-                , show nodePort
-                , "--genesis-block-hash"
-                , block0H
-                ] ++ extra
-
-        it "Should reply with the port --random" $ \(nPort,_,_) -> do
-            let script = mockProc "test1" nPort
-                    ["--random-port"]
-            (_, _, _, ph) <- createProcess script
-            waitForProcess ph `shouldReturn` ExitSuccess
-
-        it "Should reply with the port --port" $ \(nPort,_,_) -> do
-            walletPort <- findPort
-            let script = mockProc "test1" nPort
-                    ["--port", show walletPort]
-            (_, _, _, ph) <- createProcess script
-            waitForProcess ph `shouldReturn` ExitSuccess
-
-        it "Regression test for #1036" $ \(nPort,_,_) -> do
-            let script = mockProc "test2" nPort
-                    ["--random-port"]
-            (_, _, _, ph) <- createProcess script
-            waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging [SERIAL]" $ do
         it "LOGGING - Serve default logs Info" $ \(nPort,_,_) -> do
