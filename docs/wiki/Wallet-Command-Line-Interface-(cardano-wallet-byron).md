@@ -22,7 +22,6 @@ Available COMMANDS:
     <a href="#wallet-list">list</a>                List all known wallets
     create
       <a href="#wallet-create-from-mnemonic">from-mnemonic</a>     Create a new wallet using a mnemonic
-   
     <a href="#wallet-get">get</a>                 Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution 
     update
