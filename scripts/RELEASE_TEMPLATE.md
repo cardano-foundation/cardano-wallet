@@ -10,9 +10,9 @@ the target operating systems etc ... -->
 
 | Artifact                                                                                                                                                                                         | Platform                  | Description                                                  |
 | ---                                                                                                                                                                                              | ---                       | ---                                                          |
-| [`cardano-wallet-jormungandr-linux64-{TAG_VERSION}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz) | <pre>Linux 64-bit</pre>   | Linux executable with auto-completion script for bash shell. |
-| [`cardano-wallet-jormungandr-macos64-{TAG_VERSION}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz) | <pre>MacOs 64-bit</pre>   | MacOS executable with required system libraries.             |
-| [`cardano-wallet-jormungandr-win64-{TAG_VERSION}.zip`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip)           | <pre>Windows 64-bit</pre> | Windows executable with required DLLs.                       |
+| [`cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz) | <pre>Linux 64-bit</pre>   | Linux executable with auto-completion script for bash shell. |
+| [`cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz) | <pre>MacOs 64-bit</pre>   | MacOS executable with required system libraries.             |
+| [`cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip)           | <pre>Windows 64-bit</pre> | Windows executable with required DLLs.                       |
 
 # Changelog
 
