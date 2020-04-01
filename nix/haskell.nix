@@ -18,6 +18,8 @@
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
+  # commonLib = (import ./default.nix {}).commonLib;  # option a - shorter
+  inherit (import ./default.nix {}) commonLib; # option b - even shorter
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
@@ -94,12 +96,16 @@ let
 
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
+				#
+				# TODO: Using the configuration dir works for mainnet, but to add testnet
+        # support, we need to retrieve it properly.
         packages.cardano-wallet-byron.components.benchmarks.restore =
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
-                --set BYRON_CONFIGS ${pkgs.cardano-node.configs} \
+                --set NODE_CONFIG ${pkgs.cardano-node.mainnet.configFile} \
+                --set NODE_TOPOLOGY ${pkgs.cardano-node.configs}/mainnet-topology.json \
                 --prefix PATH : ${pkgs.cardano-node}/bin
             '';
           };

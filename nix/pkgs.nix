@@ -3,10 +3,22 @@
 let
   sources = import ./sources.nix {};
   pkgs1903 = import sources."nixpkgs-19.03" {};
-  cardanoNodePkgs = import sources.cardano-node { inherit system crossSystem config; };
+  inherit (import ./default.nix {}) commonLib;
 in pkgs: super: with pkgs; {
   jmPkgs = import ./jormungandr.nix { inherit (pkgs) commonLib; inherit pkgs; };
+  cardanoNodePkgs = import sources.cardano-node { inherit system crossSystem config; };
   cardano-node = cardanoNodePkgs.cardano-node // {
+    mainnet = {
+      configFile =
+        let
+          rawCfg = commonLib.cardanoLib.environments.mainnet.nodeConfig // {
+						GenesisFile = commonLib.cardanoLib.environments.mainnet.genesisFile;
+            minSeverity = "Error";
+					};
+				in
+          builtins.toFile "cardano-node-mainnet-config" (builtins.toJSON rawCfg);
+    };
+
     # provide configuration directory as a convenience
     configs = pkgs.runCommand "cardano-node-configs" {} ''
       cp -R ${sources.cardano-node}/configuration $out;

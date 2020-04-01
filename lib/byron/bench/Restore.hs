@@ -170,17 +170,14 @@ main = do
     -- `--benchmark-arguments "testnet"`
     let network = Mainnet
 
-    -- Reading setup from env vars.
-    --
-    -- If you usually run ./scripts/mainnet.sh in the cardano-node repository,
-    -- it can be useful to set
-    --
-    --     export BYRON_CONFIGS=$CARDANO_NODE_DIR/configuration
-    --     export NODE_DB=$CARDANO_NODE_DIR/db
-    --
-    -- before running this benchmark manually with stack.
-    configs <- getEnv "BYRON_CONFIGS"
+    ----------------------------------------------------------------------------
+    -- Environment variables set by nix/haskell.nix (or manually)
+    topology <- getEnv "NODE_TOPOLOGY"
+    config <- getEnv "NODE_CONFIG"
+    ----------------------------------------------------------------------------
+    -- Environment variables set by ./buildkite/bench-restore.sh (or manually)
     nodeDB <- getEnv "NODE_DB"
+    ----------------------------------------------------------------------------
 
     -- Temporary directory for storing socket
     tmpDir <- getCanonicalTemporaryDirectory
@@ -190,16 +187,16 @@ main = do
     let args =
             [ "run"
             , "--database-path", nodeDB
-            , "--topology", configs </> "mainnet-topology.json"
+            , "--topology", topology
             , "--socket-path", socketPath
-            , "--config", configs </> "configuration-mainnet.yaml"
+            , "--config", config
             , "--port", "7776"
             ]
-    -- NOTE: It is warned against using @NoStream@ to supress output on POSIX
-    -- systems, since it could lead to the process throwing errors.
-    -- It appears to work fine stopping the live view of cardano-node,
-    -- however.
-    let cmd = Command "cardano-node" args (return ()) NoStream NoStream
+    let cmd = Command "cardano-node" args (return ()) Inherit Inherit
+
+    sayErr "Starting node with command:"
+    sayErr $ pretty cmd
+
     void $ withBackendProcess nullTracer cmd $ do
         case network of
             Testnet _ -> error "Testnet: not supported yet"
