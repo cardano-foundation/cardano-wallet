@@ -46,7 +46,7 @@ let
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
-        packages.cardano-wallet-byron.components.tests.cardano-node-integration.keepSource = true;
+        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
@@ -61,13 +61,13 @@ let
           # # Only run integration tests on non-PR jobsets. Note that
           # # the master branch jobset will just re-use the cached Bors
           # # staging build and test results.
-          # cardano-node-integration.doCheck = !isHydraPRJobset;
+          # integration.doCheck = !isHydraPRJobset;
 
           # fixme: test suite disabled - they are timing out
-          cardano-node-integration.doCheck = false;
+          integration.doCheck = false;
 
           # provide cardano-node command to test suites
-          cardano-node-integration.build-tools = [ pkgs.cardano-node ];
+          integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
