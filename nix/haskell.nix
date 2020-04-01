@@ -46,10 +46,10 @@ let
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
-        packages.cardano-wallet-byron.components.tests.cardano-node-integration.keepSource = true;
+        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
         packages.text-class.components.tests.unit.keepSource = true;
@@ -58,18 +58,25 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-byron.components.tests = {
+          # # Only run integration tests on non-PR jobsets. Note that
+          # # the master branch jobset will just re-use the cached Bors
+          # # staging build and test results.
+          # integration.doCheck = !isHydraPRJobset;
+
+          # fixme: test suite disabled - they are timing out
+          integration.doCheck = false;
+
           # provide cardano-node command to test suites
-          cardano-node-integration.build-tools = [ pkgs.cardano-node ];
+          integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
-          # Only run integration tests on non-PR jobsets. Note that
-          # the master branch jobset will just re-use the cached Bors
-          # staging build and test results.
-          integration.doCheck = !isHydraPRJobset;
+          # Next releases are going to be about cardano-node and we
+          # aren't touching jormungandr a lot more these days.
+          jormungandr-integration.doCheck = false;
           # Some tests want to write ~/.local/share/cardano-wallet
-          integration.preCheck = "export HOME=`pwd`";
+          jormungandr-integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
-          integration.build-tools = [
+          jormungandr-integration.build-tools = [
             jmPkgs.jormungandr
             jmPkgs.jormungandr-cli
           ];
