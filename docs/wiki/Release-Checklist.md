@@ -2,10 +2,13 @@
 
 ## Create the release
 
-- [ ] Bump all package versions to the next version
+- [ ] Bump all package versions to the next version, e.g.
 
   ```
-  $ find . -name "*.cabal" ! -path "*.stack-work*" | xargs sed -i "s/<old-version>/<new-version>/"
+  $ set OLD_VERSION "2020.3.16"
+  $ set NEW_VERSION "2020.4.1"
+  $ find nix -name "*.nix" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
+  $ find lib -name "*.cabal" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
   ```
 
 - [ ] Tag and sign the release commit with a proper tag (make sure Hydra's job has started building `master`!)
