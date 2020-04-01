@@ -18,8 +18,8 @@
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
-  commonLib' = import ./default.nix {};
-  commonLib = commonLib'.commonLib;
+  # commonLib = (import ./default.nix {}).commonLib;  # option a - shorter
+  inherit (import ./default.nix {}) commonLib; # option b - even shorter
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
