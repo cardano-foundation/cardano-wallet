@@ -120,7 +120,7 @@ Start cardano-node:
 ```
 git clone https://github.com/input-output-hk/cardano-node.git
 cd cardano-node
-nix-build -A scripts.mainnet.node -o mainnet-node-local
+nix-build -A scripts.mainnet.node -o mainnet-node-local && ./mainnet-node-local
 ```
 
 Serve cardano-wallet-byron:
