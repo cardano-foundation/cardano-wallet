@@ -58,6 +58,11 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-byron.components.tests = {
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          cardano-node-integration.doCheck = !isHydraPRJobset;
+
           # provide cardano-node command to test suites
           cardano-node-integration.build-tools = [ pkgs.cardano-node ];
         };
