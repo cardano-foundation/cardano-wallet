@@ -62,10 +62,9 @@ let
           cardano-node-integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
-          # Only run integration tests on non-PR jobsets. Note that
-          # the master branch jobset will just re-use the cached Bors
-          # staging build and test results.
-          jormungandr-integration.doCheck = !isHydraPRJobset;
+          # Next releases are going to be about cardano-node and we
+          # aren't touching jormungandr a lot more these days.
+          jormungandr-integration.doCheck = false;
           # Some tests want to write ~/.local/share/cardano-wallet
           jormungandr-integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
