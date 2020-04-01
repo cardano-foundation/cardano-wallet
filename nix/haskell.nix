@@ -49,7 +49,7 @@ let
         packages.cardano-wallet-byron.components.tests.cardano-node-integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
         packages.text-class.components.tests.unit.keepSource = true;
@@ -65,11 +65,11 @@ let
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
           # staging build and test results.
-          integration.doCheck = !isHydraPRJobset;
+          jormungandr-integration.doCheck = !isHydraPRJobset;
           # Some tests want to write ~/.local/share/cardano-wallet
-          integration.preCheck = "export HOME=`pwd`";
+          jormungandr-integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
-          integration.build-tools = [
+          jormungandr-integration.build-tools = [
             jmPkgs.jormungandr
             jmPkgs.jormungandr-cli
           ];
