@@ -1,5 +1,6 @@
 # Overview
 
+
 ### Compatible with [`Jörmungandr@v0.8.14`](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14)
 
 <!-- Short high-level description about the content of the release.
@@ -12,157 +13,6 @@ the target operating systems etc ... -->
 | [`cardano-wallet-jormungandr-linux64-{TAG_VERSION}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz) | <pre>Linux 64-bit</pre>   | Linux executable with auto-completion script for bash shell. |
 | [`cardano-wallet-jormungandr-macos64-{TAG_VERSION}.tar.gz`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz) | <pre>MacOs 64-bit</pre>   | MacOS executable with required system libraries.             |
 | [`cardano-wallet-jormungandr-win64-{TAG_VERSION}.zip`](https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip)           | <pre>Windows 64-bit</pre> | Windows executable with required DLLs.                       |
-
-# Main Features
-
-<!-- What's included in the software, mention what's new in this particular
-release. Use: ![][new] -->
-
-## cardano-wallet
-
-<details><summary>command-line</summary>
-
-- Create and Delete wallet
-- Get details of a particular wallet
-- List all known wallets
-- Generate [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic sentence (English) of various sizes
-- Update wallet metadata
-- Create and submit transactions from a single wallet
-- List known (used or unused) addresses of a wallet
-- Estimate transaction fee
-- Visualize wallet's UTxO distribution
-- Update wallet encryption passphrase
-- List transaction history
-- Submit already signed transactions
-- Serve wallet against `Jörmungandr`
-- Launch wallet against `Jörmungandr`
-- Get network syncing status
-- List available stake-pools
-- Generate testnet reward credentials from a given mnemonic sentence
-- Get network parameters
-- Manage cryptographic keys 
-- Create wallet from public account key
-- Get NTP (Network Time Protocol) drift offset
-</details>
-
-<details><summary>web server</summary>
-
-- Create and delete wallet
-- Get details of a particular wallet
-- List all known wallets
-- Update wallet metadata & wallet encryption passphrase
-- Create and submit transactions from a single wallet
-- List known (used or unused) addresses of a wallet
-- API and server logs
-- Estimate transaction fee
-- Visualize wallet's UTxO distribution
-- List transaction history
-- Submit already signed transactions
-- Get network syncing status
-- Create Byron wallets
-- Delete Byron wallets
-- Get and List Byron wallets
-- Forget pending transaction of Shelley wallets
-- List transaction history of Byron wallets
-- Forget pending transaction of a Byron wallet
-- Migrate Byron wallets to Shelley wallets
-- List available stake-pools
-- Delegate all funds from a wallet to a stake-pool
-- Fetch total reward balance earned from delegation
-- Stop delegating funds from a wallet
-- Support stake pool off-chain metadata 
-- Get network parameters
-- Create wallet from public account key
-- Get NTP (Network Time Protocol) drift offset 
-</details>
-
-<details><summary>miscellaneous</summary>
-
-- Node.js-compatible IPC server with custom protocol
-- Data-persistence to disk via SQLite
-- Support for Ouroboros Genesis/Praos and proper chain following in the events of chain switches
-- Per-component log management
-</details>
-
-## Known Limitations
-
-- :warning: Only Jörmungandr [Genesis/Praos node](https://input-output-hk.github.io/jormungandr/advanced/03_starting_genesis_praos_blockchain.html) is supported.
-
-# Bug Fixes
-
-<!-- Fixes included in this release that were present in the previous release -->
-
-# Known Issues
-
-<!-- Bugs known at the moment of the release, or discovered after and not fixed -->
-
-# Installation Instructions 
-
-<!-- Specific installation steps for this particular release. This should
-basically captures whatever is currently available on the repository at
-the moment of releasing. -->
-
-## Linux 64-bit
-
-1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
-
-2. Download `cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
-
-  ```
-  $ curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz | tar xz -C $HOME/.local/bin
-  ```
-
-3. (optional) Install the bash/zsh auto-completion script:
-
-  ```
-  $ mv $HOME/.local/bin/cardano-wallet.sh > /etc/bash_completion.d/cardano-wallet.sh
-  $ source /etc/bash_completion.d/cardano-wallet.sh
-  ```
-
-4. Start `cardano-wallet --help` and see available parameters.
-
-## Mac OS 64-bit 
-
-1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
-
-2. Download `cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
-
-*Note:* Make sure all `*.dylib` files are in the same directory as `cardano-wallet` binary.
-
-## Windows 64-bit
-
-1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
-
-2. Download `cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip` and uncompress it in a directory that is on your `%PATH%`.
-
-## Docker
-
-1. Pull from DockerHub.
-
-```
-$ docker pull inputoutput/cardano-wallet:2020.3.16-jormungandr
-```
-
-2. Verify the image using the command-line.
-
-```
-$ docker run --rm inputoutput/cardano-wallet:2020.3.16-jormungandr version
-```
-
-# Documentation
-
-<!-- A snapshot of the documentation at the time of releasing. -->
-
-| Link                                                                                                                                        | Audience                                                   |
-| ---                                                                                                                                         | ---                                                        |
-| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                                                       | Users of the Cardano Wallet API                            |
-| [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/c5eec9ab3937592513adf6e233aaa176eb671e02) | Users of the Cardano Wallet API                            |
-| [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/11246e7633eba794fb90fab385239753ba32d70e)                     | Users of the Cardano Wallet API                            |
-| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
-
-# Weekly Reports
-
-- [Week 12 - 2020-03-20](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports/2020-03-20)
 
 # Changelog
 
@@ -254,6 +104,82 @@ PR | Description
 #1459 | Move cardano-node config/launch setup to separate library
 </details>
 
+## Bug Fixes
+
+<!-- Fixes included in this release that were present in the previous release -->
+<!-- TODO: can this be merged with the changelog above? -->
+
+## Known Issues
+
+<!-- Bugs known at the moment of the release, or discovered after and not fixed -->
+
+# Weekly Reports
+
+- [Week 12 - 2020-03-20](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports/2020-03-20)
+
+# Documentation
+
+<!-- A snapshot of the documentation at the time of releasing. -->
+
+| Link                                                                                                                                        | Audience                                                   |
+| ---                                                                                                                                         | ---                                                        |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                                                       | Users of the Cardano Wallet API                            |
+| [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/c5eec9ab3937592513adf6e233aaa176eb671e02) | Users of the Cardano Wallet API                            |
+| [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/11246e7633eba794fb90fab385239753ba32d70e)                     | Users of the Cardano Wallet API                            |
+| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
+
+# Installation Instructions 
+
+<!-- Specific installation steps for this particular release. This should
+basically captures whatever is currently available on the repository at
+the moment of releasing. -->
+
+## Linux 64-bit
+
+1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
+
+2. Download `cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
+
+  ```
+  $ curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/{{GIT_TAG}}/cardano-wallet-jormungandr-linux64-{{GIT_TAG}}.tar.gz | tar xz -C $HOME/.local/bin
+  ```
+
+3. (optional) Install the bash/zsh auto-completion script:
+
+  ```
+  $ mv $HOME/.local/bin/cardano-wallet.sh > /etc/bash_completion.d/cardano-wallet.sh
+  $ source /etc/bash_completion.d/cardano-wallet.sh
+  ```
+
+4. Start `cardano-wallet --help` and see available parameters.
+
+## Mac OS 64-bit 
+
+1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
+
+2. Download `cardano-wallet-jormungandr-macos64-{{GIT_TAG}}.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
+
+*Note:* Make sure all `*.dylib` files are in the same directory as `cardano-wallet` binary.
+
+## Windows 64-bit
+
+1. Install [jormungandr@0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) from the official repository.
+
+2. Download `cardano-wallet-jormungandr-win64-{{GIT_TAG}}.zip` and uncompress it in a directory that is on your `%PATH%`.
+
+## Docker
+
+1. Pull from DockerHub.
+
+```
+$ docker pull inputoutput/cardano-wallet:2020.3.16-jormungandr
+```
+
+2. Verify the image using the command-line.
+
+```
+$ docker run --rm inputoutput/cardano-wallet:2020.3.16-jormungandr version
+```
 
 # Signatures
 
