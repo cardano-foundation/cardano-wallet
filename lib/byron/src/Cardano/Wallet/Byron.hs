@@ -39,6 +39,7 @@ module Cardano.Wallet.Byron
     , tracerDescriptions
     , setupTracers
     , tracerSeverities
+    , nullTracers
 
       -- * Logs
     , ApplicationLog (..)
@@ -440,3 +441,14 @@ tracerDescriptions =
     ]
   where
     lbl f = T.unpack . getConst . f $ tracerLabels
+
+-- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
+nullTracers :: Monad m => Tracers m
+nullTracers = Tracers
+    { applicationTracer  = nullTracer
+    , apiServerTracer    = nullTracer
+    , walletEngineTracer = nullTracer
+    , walletDbTracer     = nullTracer
+    , ntpClientTracer    = nullTracer
+    , networkTracer      = nullTracer
+    }
