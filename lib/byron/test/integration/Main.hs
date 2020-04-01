@@ -84,7 +84,7 @@ import Numeric.Natural
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, SpecWith, after, describe, hspec )
+    ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
@@ -109,6 +109,8 @@ import qualified Test.Integration.Byron.Scenario.CLI.Transactions as Transaction
 import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsCommon
 import qualified Test.Integration.Scenario.API.ByronWallets as WalletsCommon
 import qualified Test.Integration.Scenario.API.Network as Network
+import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
+import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Byron where
@@ -117,6 +119,11 @@ instance KnownCommand Byron where
 main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
+        describe "No backend required" $ do
+            -- describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
+            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
+            describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+            -- describe "Key CLI tests" KeysCLI.spec
         describe "API Specifications" $ specWithServer tr $ do
             TransactionsCLI.spec @n
             WalletsCommon.spec @n
