@@ -111,8 +111,15 @@ let
           };
 
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
+          # Provide the swagger file in an environment variable
+          # because it is located outside of the Cabal package source
+          # tree.
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
-        '';
+        '' + (pkgs.lib.optionalString (pkgs.stdenv.isDarwin) ''
+          # Make the /usr/bin/security tool available because it's
+          # needed at runtime by the x509-system Haskell package.
+          export PATH=$PATH:/usr/bin
+        '');
 
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
