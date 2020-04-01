@@ -243,3 +243,25 @@ benchmark restore
    other-modules:
        Cardano.Wallet.Primitive.AddressDiscovery.Any
        Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+
+benchmark latency
+   default-language:
+       Haskell2010
+   default-extensions:
+       NoImplicitPrelude
+       OverloadedStrings
+   ghc-options:
+       -threaded -rtsopts
+       -Wall
+       -O2
+   if (!flag(development))
+     ghc-options:
+       -Werror
+   build-depends:
+       base
+   type:
+      exitcode-stdio-1.0
+   hs-source-dirs:
+       bench
+   main-is:
+       Latency.hs
