@@ -23,7 +23,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SyncProgress (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Generics.Internal.VL.Lens
@@ -33,7 +33,7 @@ import Data.Time.Clock
 import Data.Word.Odd
     ( Word31 )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, pendingWith, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -50,6 +50,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg404NoEpochNo )
+import Test.Utils.Paths
+    ( inNixBuild )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -150,6 +152,9 @@ spec = do
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
+        sandboxed <- inNixBuild
+        when sandboxed $
+            pendingWith "Internet NTP servers unavailable in build sandbox"
         eventually "ntp status = (un)available" $ do
             r <- request @ApiNetworkClock ctx
                 Link.getNetworkClock Default Empty

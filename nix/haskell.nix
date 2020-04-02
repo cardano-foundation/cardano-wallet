@@ -60,13 +60,13 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-byron.components.tests = {
-          # # Only run integration tests on non-PR jobsets. Note that
-          # # the master branch jobset will just re-use the cached Bors
-          # # staging build and test results.
-          # integration.doCheck = !isHydraPRJobset;
-
-          # fixme: test suite disabled - they are timing out
-          integration.doCheck = false;
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          #
+          # Running Windows integration tests under Wine is disabled
+          # because ouroboros-network doesn't fully work under Wine.
+          integration.doCheck = !isHydraPRJobset && !pkgs.stdenv.hostPlatform.isWindows;
 
           # provide cardano-node command to test suites
           integration.build-tools = [ pkgs.cardano-node ];
