@@ -77,7 +77,7 @@ import Control.Concurrent.STM.TVar
 import Control.Exception
     ( bracket, onException, throwIO )
 import Control.Monad
-    ( mapM_, replicateM, replicateM_ )
+    ( forM_, mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
 import Data.Aeson
@@ -112,6 +112,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , fixtureIcarusWallet
     , fixtureRandomWallet
     , json
     , request
@@ -125,13 +126,20 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 
 main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
-main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
-    fmtLn "Latencies for 2 fixture wallets scenario"
-    runScenario logging tvar (nFixtureWallet 2)
+main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
+    forM_ [ (fixtureRandomWallet, "Random wallets")
+          , (fixtureIcarusWallet, "Icarus wallets")] $
+    \(fixtureByronWallet, walletName) -> do
+
+             fmtLn "\n"
+             fmtLn walletName
+
+             fmtLn "  Latencies for 2 fixture wallets scenario"
+             runScenario logging tvar (nFixtureWallet 2 fixtureByronWallet)
   where
     -- Creates n fixture wallets and return two of them
-    nFixtureWallet n ctx = do
-        wal1 : wal2 : _ <- replicateM n (fixtureRandomWallet ctx)
+    nFixtureWallet n fixtureWallet ctx = do
+        wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         pure (wal1, wal2)
 
     runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
@@ -189,7 +197,7 @@ buildResult ts = build $ fixedF 1 $ meanAvg ts
 fmtResult :: String -> [NominalDiffTime] -> IO ()
 fmtResult title ts =
     let titleExt = title|+" - " :: String
-        titleF = padLeftF 25 ' ' titleExt
+        titleF = padLeftF 30 ' ' titleExt
     in fmtLn (titleF+|buildResult ts|+" ms")
 
 isLogRequestStart :: ApiLog -> Bool
