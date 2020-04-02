@@ -85,6 +85,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."fmt" or (buildDepError "fmt"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
+            (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."process" or (buildDepError "process"))
             (hsPkgs."retry" or (buildDepError "retry"))

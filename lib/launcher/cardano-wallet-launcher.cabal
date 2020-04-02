@@ -77,6 +77,8 @@ test-suite unit
     , contra-tracer
     , fmt
     , hspec
+    , hspec-core
+    , hspec-expectations
     , iohk-monitoring
     , process
     , retry

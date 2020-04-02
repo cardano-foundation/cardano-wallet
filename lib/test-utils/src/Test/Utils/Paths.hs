@@ -6,6 +6,7 @@
 
 module Test.Utils.Paths
     ( getTestData
+    , inNixBuild
     ) where
 
 import Prelude

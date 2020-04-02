@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -19,7 +20,9 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( race )
 import Control.Exception
-    ( bracket, throwIO )
+    ( IOException, bracket, catch, throwIO )
+import Control.Monad
+    ( unless )
 import Control.Tracer
     ( Tracer, nullTracer )
 import System.IO
@@ -30,6 +33,10 @@ import System.Process
     ( createPipe )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldContain, shouldReturn, shouldThrow )
+import Test.Hspec.Core.Spec
+    ( ResultStatus (..) )
+import Test.Hspec.Expectations
+    ( Expectation, HasCallStack )
 import Test.Utils.Trace
     ( captureLogging )
 import Test.Utils.Windows
@@ -40,8 +47,6 @@ import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( IOException, catch )
 #endif
 
 import qualified Data.ByteString as BS
@@ -60,6 +65,7 @@ spec = describe "withShutdownHandler" $ do
             getChunk h = BS.hGet h 1000
 
         it "race hWaitForInput stdin" $ do
+            skipWhenNullStdin
             res <- race (wrapIO $ hWait stdin) (threadDelay decisecond)
             res `shouldBe` Right ()
 
@@ -69,6 +75,7 @@ spec = describe "withShutdownHandler" $ do
 
         it "race hGet stdin" $ do
             pendingOnWindows "deadlocks on windows"
+            skipWhenNullStdin
             res <- race (getChunk stdin) (threadDelay decisecond)
             res `shouldBe` Right ()
 
@@ -78,6 +85,7 @@ spec = describe "withShutdownHandler" $ do
             res `shouldBe` Right ()
 
         it "race hGet stdin wrapped" $ do
+            skipWhenNullStdin
             res <- race (wrapIO $ getChunk stdin) (threadDelay decisecond)
             res `shouldBe` Right ()
 
@@ -163,3 +171,11 @@ wrapIO action = do
 #else
 wrapIO = id
 #endif
+
+-- | Detect environment where 'stdin' is set to =/dev/null= and skip test.
+skipWhenNullStdin :: HasCallStack => Expectation
+skipWhenNullStdin = do
+    let onError :: IOException -> IO Bool
+        onError _ = pure False
+    usableStdin <- hWaitForInput stdin 50 `catch` onError
+    unless usableStdin $ throwIO Success

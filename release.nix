@@ -89,11 +89,11 @@ let
     musl64 = mapTestOnCross musl64
       (packagePlatformsCross (filterJobsCross project));
   }
-  // {
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
-    required = mkRequiredJob (
-      collectTests jobs.native.tests ++
+  // (mkRequiredJob (
+      collectTests jobs.native.checks ++
+      collectTests jobs.x86_64-w64-mingw32.checks ++
       collectTests jobs.native.benchmarks ++
       [ jobs.native.shell.x86_64-linux
         jobs.native.shell.x86_64-darwin
@@ -101,19 +101,25 @@ let
         # jormungandr
         jobs.native.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
-
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
-
+        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
 
         # cardano-node (Byron)
         jobs.native.cardano-wallet-byron.x86_64-linux
         jobs.native.cardano-wallet-byron.x86_64-darwin
-      ]
-    );
+        jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
 
+        # release packages - jormungandr
+        jobs.cardano-wallet-jormungandr-linux64
+        jobs.cardano-wallet-jormungandr-macos64
+        jobs.cardano-wallet-jormungandr-win64
+
+        # release packages - cardano-node (Byron)
+        jobs.cardano-wallet-byron-win64
+
+        # Windows testing package - is run nightly in CI.
+        jobs.cardano-wallet-tests-win64
+      ]))
+  // {
     # These derivations are used for the Daedalus installer.
     daedalus-jormungandr = with jobs; {
       linux = native.cardano-wallet-jormungandr.x86_64-linux;
@@ -134,7 +140,7 @@ let
     };
 
     # This is used for testing the build on windows.
-    cardano-wallet-jormungandr-tests-win64 = import ./nix/windows-testing-bundle.nix {
+    cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
       cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
@@ -142,6 +148,8 @@ let
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
+    # alias to old name so download links don't break
+    cardano-wallet-jormungandr-tests-win64 = jobs.cardano-wallet-tests-win64;
 
     # For testing migration tests on windows
     migration-tests-win64 = import ./nix/windows-migration-tests-bundle.nix {
@@ -189,20 +197,6 @@ let
   # are cached.
   // mapTestOn (packagePlatforms {
     inherit (project) shell stackShell;
-  })
-    # This aggregate job is what IOHK Hydra uses to update
-    # the CI status in GitHub.
-  // (mkRequiredJob (
-      collectTests jobs.native.tests ++
-      collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.shell.x86_64-linux
-        jobs.native.shell.x86_64-darwin
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
-      ]));
+  });
 
 in jobs
