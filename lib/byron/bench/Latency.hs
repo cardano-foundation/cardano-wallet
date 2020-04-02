@@ -95,7 +95,7 @@ import Data.Time
 import Data.Time.Clock
     ( diffUTCTime )
 import Fmt
-    ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
+    ( Builder, build, fixedF, fmt, fmtLn, indentF, padLeftF, (+|), (|+) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -108,15 +108,24 @@ import Numeric.Natural
     ( Natural )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import Test.Hspec
+    ( shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , eventually
+    , expectField
+    , expectResponseCode
+    , expectSuccess
+    , faucetAmt
     , fixtureIcarusWallet
+    , fixturePassphrase
     , fixtureRandomWallet
     , json
     , request
     , unsafeRequest
+    , verify
     )
 import Test.Utils.Paths
     ( getTestData )
@@ -124,6 +133,7 @@ import Test.Utils.Paths
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
+import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
@@ -133,19 +143,94 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
              fmtLn "\n"
              fmtLn walletName
 
-             fmtLn "  Latencies for 2 fixture wallets scenario"
+             fmtTitle "Latencies for 2 fixture wallets scenario"
              runScenario logging tvar (nFixtureWallet 2 fixtureByronWallet)
 
-             fmtLn "  Latencies for 10 fixture wallets scenario"
+             fmtTitle "Latencies for 10 fixture wallets scenario"
              runScenario logging tvar (nFixtureWallet 10 fixtureByronWallet)
 
-             fmtLn "  Latencies for 100 fixture wallets scenario"
+             fmtTitle "Latencies for 100 fixture wallets scenario"
              runScenario logging tvar (nFixtureWallet 100 fixtureByronWallet)
+
+             fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 2 10 fixtureByronWallet)
+
+             fmtTitle "Latencies for 2 fixture wallets with 20 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 2 20 fixtureByronWallet)
+
+             fmtTitle "Latencies for 2 fixture wallets with 100 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 2 100 fixtureByronWallet)
+
+             fmtTitle "Latencies for 10 fixture wallets with 10 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 10 10 fixtureByronWallet)
+
+             fmtTitle "Latencies for 10 fixture wallets with 20 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 10 20 fixtureByronWallet)
+
+             fmtTitle "Latencies for 10 fixture wallets with 100 txs scenario"
+             runScenario logging tvar (nFixtureWalletWithTxs 10 100 fixtureByronWallet)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n fixtureWallet ctx = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         pure (wal1, wal2)
+
+    -- Creates n fixture wallets and send 1-lovelace transactions to one of them
+    -- (m times). The money is sent in batches (see batchSize below) from
+    -- additionally created source fixture wallet. Then we wait for the money
+    -- to be accommodated in recipient wallet. After that the source fixture
+    -- wallet is removed.
+    nFixtureWalletWithTxs n m fixtureByronWallet ctx = do
+        (wal1, wal2) <- nFixtureWallet n fixtureByronWallet ctx
+
+        let amt = (1 :: Natural)
+        let batchSize = 10
+        let whole10Rounds = div m batchSize
+        let lastBit = mod m batchSize
+        let amtExp val = fromIntegral ((fromIntegral val) + faucetAmt) :: Natural
+        let expInflows =
+                if whole10Rounds > 0 then
+                    [x*batchSize | x<-[1..whole10Rounds]] ++ [lastBit]
+                else
+                    [lastBit]
+        let expInflows' = filter (/=0) expInflows
+
+        mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows'
+        pure (wal1, wal2)
+
+    repeatPostTx ctx wDest amtToSend batchSize amtExp = do
+        wSrc <- fixtureRandomWallet ctx
+        replicateM_ batchSize
+            (postTx ctx (wSrc, Link.createTransaction @'Byron, fixturePassphrase) wDest amtToSend)
+        eventually "repeatPostTx: wallet balance is as expected" $ do
+            rWal1 <- request @ApiByronWallet ctx (Link.getWallet @'Byron wDest) Default Empty
+            verify rWal1
+                [ expectSuccess
+                , expectField
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` amtExp)
+                ]
+        rDel <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron wSrc) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+        pure ()
+
+    postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+        (_, addrs) <-
+            unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Byron wDest) Empty
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{pass}
+            }|]
+        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+        expectResponseCode HTTP.status202 r
+        return r
 
     runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
         (wal1, wal2) <- scenario ctx
@@ -198,6 +283,9 @@ meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
 buildResult :: [NominalDiffTime] -> Builder
 buildResult [] = "ERR"
 buildResult ts = build $ fixedF 1 $ meanAvg ts
+
+fmtTitle :: Builder -> IO ()
+fmtTitle title = fmt (indentF 4 title)
 
 fmtResult :: String -> [NominalDiffTime] -> IO ()
 fmtResult title ts =
