@@ -394,7 +394,6 @@ tracerSeveritiesOption = Tracers
     <*> traceOpt stakePoolEngineTracer (Just Info)
     <*> traceOpt stakePoolDbTracer (Just Info)
     <*> traceOpt networkTracer (Just Info)
-    <*> traceOpt daedalusIPCTracer (Just Info)
     <*> traceOpt ntpClientTracer (Just Info)
   where
     traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty

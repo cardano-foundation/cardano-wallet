@@ -44,7 +44,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-jormungandr";
-        version = "2020.3.16";
+        version = "2020.4.1";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
@@ -224,7 +224,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.nodejs or (pkgs.buildPackages.nodejs or (buildToolDepError "nodejs")))
             (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
             ];
           buildable = true;

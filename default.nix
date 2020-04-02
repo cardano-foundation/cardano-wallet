@@ -11,11 +11,11 @@
 #   - cardano-wallet-byron - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.integration
+#     - cardano-wallet-jormungandr.jormungandr-integration
 #     - etc (layout is PACKAGE.COMPONENT)
 #   - checks - attrset of test-suite results
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.integration
+#     - cardano-wallet-jormungandr.jormungandr-integration
 #     - etc
 #   - benchmarks - attret of benchmark executables
 #     - cardano-wallet-core.db
