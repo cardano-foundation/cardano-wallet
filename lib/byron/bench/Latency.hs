@@ -118,10 +118,13 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , expectSuccess
+    , expectWalletUTxO
     , faucetAmt
     , fixtureIcarusWallet
+    , fixtureIcarusWalletWith
     , fixturePassphrase
     , fixtureRandomWallet
+    , fixtureRandomWalletWith
     , json
     , request
     , unsafeRequest
@@ -169,6 +172,18 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
 
              fmtTitle "Latencies for 10 fixture wallets with 100 txs scenario"
              runScenario logging tvar (nFixtureWalletWithTxs 10 100 fixtureByronWallet)
+
+             fmtTitle "Latencies for 2 fixture wallets with 100 utxos scenario"
+             runScenario logging tvar (nFixtureWalletWithUTxOs 2 100 walletName)
+
+             fmtTitle "Latencies for 2 fixture wallets with 200 utxos scenario"
+             runScenario logging tvar (nFixtureWalletWithUTxOs 2 200 walletName)
+
+             fmtTitle "Latencies for 2 fixture wallets with 500 utxos scenario"
+             runScenario logging tvar (nFixtureWalletWithUTxOs 2 500 walletName)
+
+             fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
+             runScenario logging tvar (nFixtureWalletWithUTxOs 2 1000 walletName)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n fixtureWallet ctx = do
@@ -198,6 +213,33 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
         mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows'
         pure (wal1, wal2)
 
+    nFixtureWalletWithUTxOs n utxoNumber walletName ctx = do
+        let utxoExp = replicate utxoNumber 1
+        wal1 <- if walletName == "Random wallets" then
+                    fixtureRandomWalletWith @n ctx utxoExp
+                else
+                    fixtureIcarusWalletWith @n ctx utxoExp
+        (_, wal2) <- if walletName == "Random wallets" then
+                         nFixtureWallet n fixtureRandomWallet ctx
+                     else
+                         nFixtureWallet n fixtureIcarusWallet ctx
+
+        eventually "Wallet balance is as expected" $ do
+            rWal1 <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wal1) Default Empty
+            verify rWal1
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` fromIntegral utxoNumber)
+                ]
+
+        rStat <-request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Byron wal1) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO (fromIntegral <$> utxoExp) (snd rStat)
+        pure (wal1, wal2)
+
     repeatPostTx ctx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureRandomWallet ctx
         replicateM_ batchSize
@@ -215,8 +257,8 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
         pure ()
 
     postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
-        (_, addrs) <-
-            unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Byron wDest) Empty
+        (_, addrs) <- unsafeRequest @[ApiAddress n] ctx
+                      (Link.listAddresses @'Byron wDest) Empty
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{

@@ -260,7 +260,6 @@ benchmark latency
    build-depends:
       base
     , aeson
-    , aeson-qq
     , async
     , bech32
     , bech32-th
