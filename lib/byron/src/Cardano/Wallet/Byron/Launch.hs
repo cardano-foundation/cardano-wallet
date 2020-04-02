@@ -56,7 +56,9 @@ import System.Directory
 import System.Environment
     ( lookupEnv )
 import System.FilePath
-    ( (</>) )
+    ( takeFileName, (</>) )
+import System.Info
+    ( os )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 
@@ -153,8 +155,11 @@ withConfig tdir action =
         let nodeDlgCertFile  = dir </> "node.cert"
         let nodeGenesisFile  = dir </> "genesis.json"
         let nodeSignKeyFile  = dir </> "node.key"
-        let nodeSocketFile   = dir </> "node.socket"
         let nodeTopologyFile = dir </> "node.topology"
+        let nodeSocketFile =
+                if os == "mingw32"
+                then "\\\\.\\pipe\\" ++ takeFileName dir
+                else dir </> "node.socket"
 
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
