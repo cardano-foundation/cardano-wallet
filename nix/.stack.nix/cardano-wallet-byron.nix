@@ -202,7 +202,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."aeson" or (buildDepError "aeson"))
-            (hsPkgs."aeson-qq" or (buildDepError "aeson-qq"))
             (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."bech32" or (buildDepError "bech32"))
             (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
