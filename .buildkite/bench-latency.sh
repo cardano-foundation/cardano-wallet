@@ -3,10 +3,12 @@
 
 set -euo pipefail
 
-bench_name=bench-latency
+bench_name_jormungandr=bench-latency-jormungandr
+bench_name_byron=bench-latency-byron
 
 echo "--- Build"
-nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o $bench_name
+nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o $bench_name_jormungandr
+nix-build -A benchmarks.cardano-wallet-byron.latency -o $bench_name_byron
 
 echo "+++ Run benchmark"
 
@@ -14,4 +16,5 @@ echo "+++ Run benchmark"
 # to another process (e.g. "tee").
 # It says "Error: Switchboard's queue full, dropping log items!"
 
-./$bench_name/bin/latency
+./$bench_name_jormungandr/bin/latency
+./$bench_name_byron/bin/latency
