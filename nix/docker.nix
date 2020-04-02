@@ -67,4 +67,4 @@ in
       };
       Volume = [ dataDir ];
     };
-  } // { inherit (exe) version; }
+  } // { inherit (exe) version; inherit backend; }
