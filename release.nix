@@ -164,19 +164,17 @@ let
     };
 
     # macOS binary and dependencies in tarball
-    cardano-wallet-jormungandr-macos64 = let
-      name = "cardano-wallet-jormungandr-${project.version}";
-      tarname = "${name}-macos64.tar.gz";
-    in pkgs.runCommand "${name}-macos64" {
-      buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils nix ];
-    } ''
-      cp -R ${jobs.native.cardano-wallet-jormungandr.x86_64-darwin}/bin ${name}
-      chmod -R 755 ${name}
-
-      mkdir -p $out/nix-support
-      tar -czf $out/${tarname} ${name}
-      echo "file binary-dist $out/${tarname}" > $out/nix-support/hydra-build-products
-    '';
+    cardano-wallet-jormungandr-macos64 = import ./nix/macos-release.nix {
+      inherit pkgs;
+      exes = [ jobs.native.cardano-wallet-jormungandr.x86_64-darwin ];
+    };
+    cardano-wallet-byron-macos64 = import ./nix/macos-release.nix {
+      inherit pkgs;
+      exes = [
+        jobs.native.cardano-wallet-byron.x86_64-darwin
+        jobs.native.cardano-node.x86_64-darwin
+      ];
+    };
 
     # Build and cache the build script used on Buildkite
     buildkiteScript = import ./.buildkite/default.nix {
