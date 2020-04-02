@@ -56,10 +56,10 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     )
+import Data.Foldable
+    ( fold )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -165,7 +165,7 @@ mReadStakeDistribution
     :: EpochNo
     -> ModelPoolOp [(PoolId, Quantity "lovelace" Word64)]
 mReadStakeDistribution epoch db@PoolDatabase{distributions} =
-    ( Right $ fromMaybe mempty $ Map.lookup epoch distributions
+    ( Right $ Map.findWithDefault mempty epoch distributions
     , db
     )
 
@@ -219,7 +219,7 @@ mReadSystemSeed db@PoolDatabase{seed} =
 
 mReadCursor :: Int -> ModelPoolOp [BlockHeader]
 mReadCursor k db@PoolDatabase{pools} =
-    let allHeaders = foldMap snd $ Map.toList pools
+    let allHeaders = fold pools
         sortDesc = L.sortOn (Down . slotId)
         limit = take k
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)

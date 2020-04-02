@@ -47,6 +47,7 @@ import System.Random
 -- with @atomically@:
 --
 -- Example:
+--
 -- >>> :set -XNamedFieldPuns
 -- >>> DBLayer{atomically,putPoolProduction} = db
 -- >>> atomically $ putPoolProduction blockHeader pool

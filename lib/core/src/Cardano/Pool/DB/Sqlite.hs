@@ -167,9 +167,7 @@ newDBLayer trace fp = do
                 selectList ([] :: [Filter PoolProduction]) []
 
             let toMap m (PoolProduction{poolProductionPoolId}) =
-                    Map.alter alter poolProductionPoolId m
-                  where
-                    alter = Just . maybe 1 (+1)
+                    Map.insertWith (+) poolProductionPoolId 1 m
 
             pure $ Map.map Quantity $ foldl' toMap Map.empty production
 
@@ -197,7 +195,7 @@ newDBLayer trace fp = do
                     poolMarginN
                     poolMarginD
                     poolCost_
-            insertMany_ $ uncurry (PoolOwner poolId) <$> zip poolOwners [0..]
+            insertMany_ $ zipWith (PoolOwner poolId) poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
             selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case

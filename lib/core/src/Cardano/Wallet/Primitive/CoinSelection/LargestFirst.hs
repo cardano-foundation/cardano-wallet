@@ -60,7 +60,7 @@ largestFirst opt outs utxo = do
         Nothing -> do
             let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
             let utxoBalance = fromIntegral $ balance utxo
-            let nUtxo = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
+            let nUtxo = fromIntegral $ Map.size $ getUTxO utxo
 
             when (utxoBalance < moneyRequested)
                 $ throwE $ ErrNotEnoughMoney utxoBalance moneyRequested
