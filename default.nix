@@ -12,17 +12,22 @@
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
 #     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet-byron.integration
 #     - etc (layout is PACKAGE.COMPONENT)
 #   - checks - attrset of test-suite results
 #     - cardano-wallet-core.unit
 #     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet-byron.integration
 #     - etc
 #   - benchmarks - attret of benchmark executables
 #     - cardano-wallet-core.db
 #     - cardano-wallet-jormungandr.latency
+#     - cardano-wallet-byron.restore
 #     - etc
 #   - migration-tests - tests db migrations from previous versions
-#   - dockerImage - tarball of the docker image
+#   - dockerImage - tarballs of the docker images
+#     - jormungandr
+#     - byron
 #   - shell - imported by shell.nix
 #   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
 #     - cardano-wallet-core.components.library
@@ -100,8 +105,9 @@ let
     # `migration-tests` build previous releases then check if the database successfully upgrades.
     migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
-    dockerImage = pkgs.callPackage ./nix/docker.nix {
-      inherit (self) cardano-wallet-jormungandr;
+    dockerImage = mapAttrs (backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; }) {
+      jormungandr = self.cardano-wallet-jormungandr;
+      byron = self.cardano-wallet-byron;
     };
 
     shell = haskellPackages.shellFor {

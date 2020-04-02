@@ -42,7 +42,8 @@ with hostPkgs.lib;
 
 let
   images = map impureCreated [
-    walletPackages.dockerImage
+    walletPackages.dockerImage.jormungandr
+    walletPackages.dockerImage.byron
   ];
 
   # Override Docker image, setting its creation date to the current time rather than the unix epoch.
