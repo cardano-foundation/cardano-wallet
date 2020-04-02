@@ -130,12 +130,17 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
     forM_ [ (fixtureRandomWallet, "Random wallets")
           , (fixtureIcarusWallet, "Icarus wallets")] $
     \(fixtureByronWallet, walletName) -> do
-
              fmtLn "\n"
              fmtLn walletName
 
              fmtLn "  Latencies for 2 fixture wallets scenario"
              runScenario logging tvar (nFixtureWallet 2 fixtureByronWallet)
+
+             fmtLn "  Latencies for 10 fixture wallets scenario"
+             runScenario logging tvar (nFixtureWallet 10 fixtureByronWallet)
+
+             fmtLn "  Latencies for 100 fixture wallets scenario"
+             runScenario logging tvar (nFixtureWallet 100 fixtureByronWallet)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n fixtureWallet ctx = do
