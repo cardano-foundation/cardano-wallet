@@ -2,10 +2,13 @@
 
 ## Create the release
 
-- [ ] Bump all package versions to the next version
+- [ ] Bump all package versions to the next version, e.g.
 
   ```
-  $ find . -name "*.cabal" ! -path "*.stack-work*" | xargs sed -i "s/<old-version>/<new-version>/"
+  $ set OLD_VERSION "2020.3.16"
+  $ set NEW_VERSION "2020.4.1"
+  $ find nix -name "*.nix" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
+  $ find lib -name "*.cabal" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
   ```
 
 - [ ] Tag and sign the release commit with a proper tag (make sure Hydra's job has started building `master`!)
@@ -36,7 +39,9 @@
 
 - [ ] Verify that the documentations have been correctly exported on [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
 
-- [ ] Verify that the [CLI manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) is up-to-date / Update the [CLI manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [ ] Make sure CLI manuals are up to date:
+- [Command-Line Interface (Jörmungandr)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+- [Command-Line Interface (Byron Reboot)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron))
 
 
 ## Manual ad-hoc verifications
@@ -55,8 +60,13 @@
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine.
 
 - [ ] Manually run the disabled `LAUNCH` tests in:
-    - [ ] `lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs`
-
+```
+ lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs
+```
+- [ ] run all integration test for jormungandr:
+```
+ stack test cardano-wallet-jormungandr:jormungandr-integration
+```
 
 ## Publication
 
