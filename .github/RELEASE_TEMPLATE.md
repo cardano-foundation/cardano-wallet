@@ -35,7 +35,7 @@ some <details></details> elements to avoid cluttering the release notes -->
 | Link                                                                                                                                        | Audience                                                   |
 | ---                                                                                                                                         | ---                                                        |
 | [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                                                       | Users of the Cardano Wallet API                            |
-| CLI Manual: [jormungandr](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}}) / [byron](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}}) | Users of the Cardano Wallet API                            |
+| CLI Manual: [ITN](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}}) / [Byron](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}}) | Users of the Cardano Wallet API                            |
 | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{DOCKER_WIKI_COMMIT}})                     | Users of the Cardano Wallet API                            |
 | [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
 
