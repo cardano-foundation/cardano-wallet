@@ -69,6 +69,26 @@ the moment of releasing. -->
 
 - On macOS: Make sure all `*.dylib` files are in the same directory as `cardano-wallet` binary.
 
+
+#### TroubleShooting
+
+<details>
+<summary>cardano-wallet: error while loading shared libraries: <code>libcrypto.so.1.0.0</code>: cannot open shared object file: No such file or directory</summary>
+
+`libcrypto 1.0.0` is no longer shipped with RHEL for a while (since ver. 6) and
+SuSE. On these distributions, it is impossible to install it using native
+package manager (e.g. `yum`).
+
+One possible work-around is to create an artificial symbolic link from a newer version of `libcrypto`:
+
+```bash
+sudo ln -s /usr/lib64/libcrypto.so.1.1.1 /usr/lib64/libcrypto.so.1.0.0
+```
+
+Alternatively, one may also try using the docker image instead.
+
+</details>
+
 #### Docker
 
 1. Pull from DockerHub.
