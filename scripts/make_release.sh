@@ -64,10 +64,11 @@ s/{{JORM_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g
 s/{{BYRON_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g
 " .github/RELEASE_TEMPLATE.md | sed -e "/{{CHANGELOG}}/r $CHANGELOG" > $OUT
 
-read -p "Do you want to create a commit? (y/n)" -n 1 -r
+read -p "Do you want to create a commit and release-tag? (y/n)" -n 1 -r
 echo    # (optional) move to a new line
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	git commit -am "Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
+  git tag -s -m $GIT_TAG $GIT_TAG
 fi
 
