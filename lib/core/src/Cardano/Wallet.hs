@@ -187,6 +187,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase
+    , liftIndex
     , preparePassphrase
     , toChimericAccount
     )
@@ -885,21 +886,22 @@ createRandomAddress
     => ctx
     -> WalletId
     -> Passphrase "raw"
-    -> Maybe (Index 'WholeDomain 'AddressK)
+    -> Maybe (Index 'Hardened 'AddressK)
     -> ExceptT ErrCreateRandomAddress IO Address
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
     cp <- withExceptT ErrCreateAddrNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
     let s = getState cp
+    let accIx = Rnd.accountIndex s
 
     (path, gen') <- case mIx of
-        Just ix | isKnownIndex ix s ->
-            throwE $ ErrIndexAlreadyExists ix
-        Just ix ->
-            pure ((minBound, ix), Rnd.gen s)
+        Just addrIx | isKnownIndex accIx addrIx s ->
+            throwE $ ErrIndexAlreadyExists addrIx
+        Just addrIx ->
+            pure ((liftIndex accIx, liftIndex addrIx), Rnd.gen s)
         Nothing ->
-            pure $ Rnd.findUnusedPath (Rnd.gen s) minBound (Rnd.unavailablePaths s)
+            pure $ Rnd.findUnusedPath (Rnd.gen s) accIx (Rnd.unavailablePaths s)
 
     withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
         let prepared = preparePassphrase scheme pwd
@@ -911,7 +913,8 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
         pure addr
   where
     db = ctx ^. dbLayer @s @k
-    isKnownIndex ix s = (minBound, ix) `Set.member` Rnd.unavailablePaths s
+    isKnownIndex accIx addrIx s =
+        (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or
@@ -1758,7 +1761,7 @@ newtype ErrWalletNotResponding
     deriving (Eq, Show)
 
 data ErrCreateRandomAddress
-    = ErrIndexAlreadyExists (Index 'WholeDomain 'AddressK)
+    = ErrIndexAlreadyExists (Index 'Hardened 'AddressK)
     | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
     | ErrCreateAddrWithRootKey ErrWithRootKey
     deriving (Generic, Eq, Show)

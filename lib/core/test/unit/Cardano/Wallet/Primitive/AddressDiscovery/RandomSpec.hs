@@ -29,6 +29,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
+    , liftIndex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
@@ -41,7 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), mkRndState )
+    ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Control.Monad
@@ -52,6 +53,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Word
     ( Word32 )
+import System.Random
+    ( mkStdGen )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -133,7 +136,20 @@ goldenSpecMainnet =
         checkIsOwned goldenAnother
     it "check isOwned for bogus address" $
         checkIsOwned goldenBogus
+    it "findUnusedPath: indexes are always in the 'hardened' realm" $
+        property prop_IndexesAlwaysHardened
 
+prop_IndexesAlwaysHardened
+    :: Int
+    -> Index 'Hardened 'AccountK
+    -> Property
+prop_IndexesAlwaysHardened g accIx =
+    let
+        ((accIx', addrIx), _) = findUnusedPath (mkStdGen g) accIx Set.empty
+    in
+        accIx' >= liftIndex (minBound :: Index 'Hardened 'AccountK)
+      .&&.
+        addrIx >= liftIndex (minBound :: Index 'Hardened 'AddressK)
 
 goldenSpecTestnet :: Spec
 goldenSpecTestnet =
@@ -260,7 +276,7 @@ prop_derivedKeysAreOurs
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
     addr = paymentAddress @'Mainnet addrKey
-    accKey = deriveAccountPrivateKey pwd rk accIx
+    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
 
 prop_derivedKeysAreOwned
@@ -277,7 +293,7 @@ prop_derivedKeysAreOwned
     isOwned st' (rk', pwd') addr === Nothing
   where
     addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
-    accKey = deriveAccountPrivateKey pwd rk accIx
+    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
 prop_changeAddressesBelongToUs
@@ -310,7 +326,7 @@ prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
     forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
 
     addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
-    accKey = deriveAccountPrivateKey pwd rk accIx
+    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
 {-------------------------------------------------------------------------------

@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , SoftDerivation (..)
+    , liftIndex
 
     -- * Delegation
     , ChimericAccount (..)
@@ -288,6 +289,16 @@ instance
             , "and"
             , show (maxBound @(Index derivation level))
             ]
+
+-- Safe coercion to WholeDomain from smaller domains.
+class LiftIndex derivation where
+    liftIndex :: Index derivation level -> Index 'WholeDomain level
+
+instance LiftIndex 'Hardened where
+    liftIndex (Index ix) = Index ix
+
+instance LiftIndex 'Soft where
+    liftIndex (Index ix) = Index ix
 
 -- | Type of derivation that should be used with the given indexes.
 --
