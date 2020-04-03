@@ -77,7 +77,7 @@ let
     ) ds);
 
   # Remove build jobs for which cross compiling does not make sense.
-  filterJobsCross = filterAttrs (n: _: n != "dockerImage" && n != "shell" && n != "stackShell");
+  filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "stackNixRegenerate"]));
 
   inherit (systems.examples) mingwW64 musl64;
 
