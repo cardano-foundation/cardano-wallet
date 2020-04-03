@@ -111,7 +111,9 @@ import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
+
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Byron where
     commandName = "cardano-wallet-byron"
@@ -131,6 +133,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
         describe "CLI Specifications" $ specWithServer tr $ do
             TransactionsByronCLI.spec @n
             PortCLI.spec @t
+            NetworkCLI.spec @t
 
 
 specWithServer
