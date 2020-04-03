@@ -1,150 +1,94 @@
-# Overview
+<!-- Short optional summary -->
 
-<!-- Short high-level description about the content of the release.
-This should also include a short presentation of files that are included, 
-the target operating systems etc ... -->
+Compatible with [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/jormungandr/releases/tag/{{JORM_TAG}}) and [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
-| Artifact                                                | Platform                  | Description                                                  |
-| ---                                                     | ---                       | ---                                                          |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.linux64.sha256` | <pre>Linux 64-bit</pre>   | Checksum for the Linux executable.                           |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.linux64.tar.gz` | <pre>Linux 64-bit</pre>   | Linux executable with auto-completion script for bash shell. |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.macos64.sha256` | <pre>MacOs 64-bit</pre>   | Checksum for the MacOS executable.                           |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.macos64.tar.gz` | <pre>MacOs 64-bit</pre>   | MacOS executable with necessary system libraries.            |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.win64.sha256`   | <pre>Windows 64-bit</pre> | Checksum for Windows executable.                             |
-| `cardano-wallet-jormungandr@vYYYY-MM-DD.win64.zip`      | <pre>Windows 64-bit</pre> | Windows executable with necessary DLLs.                      |
 
-# Installation Instruction
+## New Features
 
-<!-- Specific installation steps for this particular release. This should
-basically captures whatever is currently available on the repository at
-the moment of releasing. --> 
+## Improvements
 
-## Linux 64-bit
+## Resolved Issues
 
-1. Install [jormungandr@X.Y.Z](https://github.com/input-output-hk/jormungandr/releases/tag/vX.Y.Z) from the official repository.
+<!-- Fixes included in this release that were present in the previous release -->
 
-2. Download `cardano-wallet-jormungandr@vYYYY-MM-DD.linux64.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
+## Known Issues
 
-  ```bash
-  $ curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/vYYYY-MM-DD/cardano-wallet-jormungandr@vYYYY-MM-DD.linux64.tar.gz | tar xz -C $HOME/.local/bin
-  ```
+<!-- Bugs known at the moment of the release, or discovered after and not fixed -->
 
-3. (optional) Install the bash/zsh auto-completion script:
+## Changelog
 
-  ```bash
-  $ mv $HOME/.local/bin/cardano-wallet.sh > /etc/bash_completion.d/cardano-wallet.sh
-  $ source /etc/bash_completion.d/cardano-wallet.sh
-  ```
-
-4. Start `cardano-wallet --help` and see available parameters.
-
-#### TroubleShooting
-
-<details>
-  <summary>cardano-wallet: error while loading shared libraries: <code>libcrypto.so.1.0.0</code>: cannot open shared object file: No such file or directory</summary>
-  
-`libcrypto 1.0.0` is no longer shipped with RHEL for a while (since ver. 6) and
-SuSE. On these distributions, it is impossible to install it using native
-package manager (e.g. `yum`).
-
-One possible work-around is to create an artificial symbolic link from a newer version of `libcrypto`:
-
-```bash
-sudo ln -s /usr/lib64/libcrypto.so.1.1.1 /usr/lib64/libcrypto.so.1.0.0
-```
-
-Alternatively, one may also try using the docker image instead.
-</details>
-
-## Mac OS 64-bit 
-
-1. Install [jormungandr@X.Y.Z](https://github.com/input-output-hk/jormungandr/releases/tag/vX.Y.Z) from the official repository.
-
-2. Download `cardano-wallet-jormungandr@vYYYY-MM-DD.macos64.tar.gz` and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`.
-
-*Note:* Make sure all `*.dylib` files are in the same directory as `cardano-wallet` binary.
-
-## Windows 64-bit
-
-1. Install [jormungandr@X.Y.Z](https://github.com/input-output-hk/jormungandr/releases/tag/vX.Y.Z) from the official repository.
-
-2. Download `cardano-wallet-jormungandr@vYYYY-MM-DD.win64.zip` and uncompress it in a directory that is on your `%PATH%`.
-
-## Docker
-
-Since vYYYY-MM-DD, Docker images are available for the wallet backend and published on [hub.docker.com](https://hub.docker.com/repository/registry-1.docker.io/inputoutput/cardano-wallet).
-
-Assuming `docker` is installed on the host machine, go through the following steps:
-
-1. Pull the `docker` image from docker-hub:
-
-  ```bash
-  $ docker pull inputoutput/cardano-wallet:YYYY.MM.DD-jormungandr
-  ```
-
-2. Interact with the image using `docker run`:
-
-  ```bash
-  $ docker run inputoutput/cardano-wallet:YYYY.MM.DD-jormungandr --help
-  ```
-
-# Known Issues
-
-<!-- Bugs that are known at the moment at the moment of the release but aren't
-show-stoppers. -->
-
-# Key Features
-
-<!-- What's included in the software, mention what's new in this particular
-release. Use: ![][new] -->
-
-## Command-Line
-
-## Server
-
-## Internal
-
-## Known Limitations
-
-<!-- What's included in the software, mention what's new in this particular
-release. Use: ![][new] -->
-
-# Documentation 
-
-<!-- A snapshot of the documentation at the time of releasing. -->
-
-| Link                                                                                                          | Audience                                                   |
-| ---                                                                                                           | ---                                                        |
-| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/vYYYY-MM-DD)                         | Users of the Cardano Wallet API                            |
-| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/vYYYY-MM-DD)                 | Haskell Developers using the `cardano-wallet` as a library |
-| [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/<revision>) | Users of the Cardano Wallet API                            |
-
-# Changelog
 
 <!-- A CHANGELOG, organized in milestones. Ideally, we put it within
 some <details></details> elements to avoid cluttering the release notes -->
 
-# Bug Fixes
+{{CHANGELOG}}
 
-<!-- Fixes included in this release that were present in the previous release.
-e.g.
 
-  - <bug description> [#NNNN](<link-to-ticket>)
--->
+## Weekly Reports
 
-# Weekly Reports
+- [Week 12 - 2020-03-20](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports/2020-03-20)
 
-<!-- A link to the relevant weekly report, giving extra details about
-development and progress -->
+## Documentation
 
-# Signatures
+<!-- A snapshot of the documentation at the time of releasing. -->
+
+| Link                                                                                                                                        | Audience                                                   |
+| ---                                                                                                                                         | ---                                                        |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                                                       | Users of the Cardano Wallet API                            |
+| CLI Manual: [jormungandr](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}}) / [byron](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}}) | Users of the Cardano Wallet API                            |
+| [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{DOCKER_WIKI_COMMIT}})                     | Users of the Cardano Wallet API                            |
+| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
+
+## Installation Instructions 
+
+<!-- Specific installation steps for this particular release. This should
+basically captures whatever is currently available on the repository at
+the moment of releasing. -->
+
+### Jormungandr / ITN
+
+1. Install [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/jormungandr/releases/tag/{{JORM_TAG}}).
+
+2. Download the provided `cardano-wallet-jormungandr` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
+
+3. (optional) Install the bash/zsh auto-completion script according to the [jormungandr cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}})
+
+4. Start `cardano-wallet --help` and see available parameters.
+
+### cardano-node / Byron 
+
+1. Install [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
+
+2. Download the provided `cardano-wallet-byron` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
+
+3. (optional) Install the bash/zsh auto-completion script according to the [byron cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}})
+
+4. Start `cardano-wallet --help` and see available parameters.
+
+### Additional notes
+
+- On macOS: Make sure all `*.dylib` files are in the same directory as `cardano-wallet` binary.
+
+#### Docker
+
+1. Pull from DockerHub.
+
+```
+$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr
+```
+
+2. Verify the image using the command-line.
+
+```
+$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr version
+```
+
+## Signatures
 
 <!-- Signatures of people responsible for the release -->
 
 Name                           | Role                | Approval
 ---                            | ---                 | ---:
-Matthias Benkort @KtorZ        | Technical Team Lead | :hourglass:
-Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass:
-Tatyana Valkevych @tatyanavych | Release Manager     | :hourglass:
-
-[new]: https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/.github/images/badge-new.png 
+Matthias Benkort @KtorZ        | Technical Team Lead | :hourglass: 
+Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass: 
+Tatyana Valkevych @tatyanavych | Release Manager     | :hourglass: 
