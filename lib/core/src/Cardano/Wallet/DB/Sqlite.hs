@@ -86,6 +86,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , MkKeyFingerprint (..)
+    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -1065,7 +1066,7 @@ instance
     ( Eq (k 'AccountK XPub)
     , PersistPublicKey (k 'AccountK)
     , PersistPublicKey (k 'AddressK)
-    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
     ) => PersistState (Seq.SeqState n k) where
@@ -1096,8 +1097,8 @@ instance
         let SeqState _ eGap iGap accountBytes rewardBytes = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool wid sl iGap accountXPub
-        extPool <- lift $ selectAddressPool wid sl eGap accountXPub
+        intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
+        extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub
 
@@ -1114,10 +1115,10 @@ insertAddressPool wid sl pool =
         ]
 
 selectAddressPool
-    :: forall k c.
+    :: forall (n :: NetworkDiscriminant) k c.
         ( Typeable c
         , SoftDerivation k
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k W.Address
         )
     => W.WalletId
@@ -1137,7 +1138,7 @@ selectAddressPool wid sl gap xpub = do
         :: [SeqStateAddress]
         -> Seq.AddressPool c k
     addressPoolFromEntity addrs =
-        Seq.mkAddressPool @c @k xpub gap (map seqStateAddressAddress addrs)
+        Seq.mkAddressPool @n @c @k xpub gap (map seqStateAddressAddress addrs)
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =

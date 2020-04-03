@@ -423,9 +423,9 @@ instance MkKeyFingerprint ShelleyKey Address where
         | otherwise =
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
-instance MkKeyFingerprint ShelleyKey (ShelleyKey 'AddressK XPub) where
+instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
     paymentKeyFingerprint =
-        Right . KeyFingerprint . xpubPublicKey . getRawKey
+        Right . KeyFingerprint . xpubPublicKey . getRawKey . snd
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

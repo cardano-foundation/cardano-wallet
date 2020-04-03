@@ -401,14 +401,16 @@ instance MkKeyFingerprint IcarusKey Address where
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
-instance MkKeyFingerprint IcarusKey (IcarusKey 'AddressK XPub) where
-    paymentKeyFingerprint k =
+instance PaymentAddress n IcarusKey
+    => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'AddressK XPub)
+  where
+    paymentKeyFingerprint (proxy, k) =
         bimap (const err) coerce
         . paymentKeyFingerprint @IcarusKey
-        . paymentAddress @'Mainnet
+        . paymentAddress @n
         $ k
       where
-        err = ErrInvalidAddress k Proxy
+        err = ErrInvalidAddress (proxy, k) Proxy
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

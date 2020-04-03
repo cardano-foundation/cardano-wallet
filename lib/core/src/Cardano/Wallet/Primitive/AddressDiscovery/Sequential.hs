@@ -281,8 +281,8 @@ addresses mkAddress =
 -- FIXME:
 -- Don't construct from addresses but from fingerprints!
 mkAddressPool
-    :: forall c k.
-        ( MkKeyFingerprint k (k 'AddressK XPub)
+    :: forall (n :: NetworkDiscriminant) c k.
+        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
@@ -295,7 +295,7 @@ mkAddressPool key g addrs = AddressPool
     { accountPubKey = key
     , gap = g
     , indexedKeys =
-        nextAddresses
+        nextAddresses @n
             key
             g
             (accountingStyle @c)
@@ -313,10 +313,10 @@ mkAddressPool key g addrs = AddressPool
 -- So, once the genesis block has been scanned, we try to shrink the pool back
 -- to something sensible.
 shrinkPool
-    :: forall c key.
+    :: forall (n :: NetworkDiscriminant) c key.
         ( Typeable c
         , MkKeyFingerprint key Address
-        , MkKeyFingerprint key (key 'AddressK XPub)
+        , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
         , SoftDerivation key
         )
     => (KeyFingerprint "payment" key -> Address)
@@ -339,7 +339,7 @@ shrinkPool mkAddress knownAddrs newGap pool =
             . Map.filter (\v -> Just v <= maxV)
             $ keys
     in
-        mkAddressPool (accountPubKey pool) newGap addrs
+        mkAddressPool @n (accountPubKey pool) newGap addrs
   where
     maximumValue
         :: (Ord k, Ord v)
@@ -356,8 +356,8 @@ shrinkPool mkAddress knownAddrs newGap pool =
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall c k.
-        ( MkKeyFingerprint k (k 'AddressK XPub)
+    :: forall (n :: NetworkDiscriminant) c k.
+        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
@@ -370,15 +370,15 @@ lookupAddress !target !pool =
         Left _ -> (Nothing, pool)
         Right fingerprint -> case Map.lookup fingerprint  (indexedKeys pool) of
             Just ix ->
-                (Just ix, extendAddressPool ix pool)
+                (Just ix, extendAddressPool @n ix pool)
             Nothing ->
                 (Nothing, pool)
 
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall c k.
-        ( MkKeyFingerprint k (k 'AddressK XPub)
+    :: forall (n :: NetworkDiscriminant) c k.
+        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , SoftDerivation k
         , Typeable c
         )
@@ -391,7 +391,7 @@ extendAddressPool !ix !pool
   where
     edge = Map.size (indexedKeys pool)
     isOnEdge = edge - fromEnum ix <= fromEnum (gap pool)
-    next = if ix == maxBound then mempty else nextAddresses
+    next = if ix == maxBound then mempty else nextAddresses @n
         (accountPubKey pool)
         (gap pool)
         (accountingStyle @c)
@@ -399,8 +399,8 @@ extendAddressPool !ix !pool
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall k.
-        ( MkKeyFingerprint k (k 'AddressK XPub)
+    :: forall (n :: NetworkDiscriminant) k.
+        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , SoftDerivation k
         )
     => k 'AccountK XPub
@@ -418,6 +418,7 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
     newPaymentKey = unsafePaymentKeyFingerprint @k
+        . (Proxy @n,)
         . deriveAddressPublicKey key cc
 
 {-------------------------------------------------------------------------------
@@ -551,7 +552,7 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
 mkSeqStateFromRootXPrv
     :: forall n k.
         ( SoftDerivation k
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -566,17 +567,17 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) g =
         rewardXPub =
             publicKey $ deriveRewardAccount pwd rootXPrv
         extPool =
-            mkAddressPool (publicKey accXPrv) g []
+            mkAddressPool @n (publicKey accXPrv) g []
         intPool =
-            mkAddressPool (publicKey accXPrv) g []
+            mkAddressPool @n (publicKey accXPrv) g []
     in
         SeqState intPool extPool emptyPendingIxs rewardXPub
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
-    :: forall n k.
+    :: forall (n :: NetworkDiscriminant) k.
         ( SoftDerivation k
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         )
     => k 'AccountK XPub
@@ -589,9 +590,9 @@ mkSeqStateFromAccountXPub accXPub g =
         rewardXPub =
             deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
-            mkAddressPool accXPub g []
+            mkAddressPool @n accXPub g []
         intPool =
-            mkAddressPool accXPub g []
+            mkAddressPool @n accXPub g []
     in
         SeqState intPool extPool emptyPendingIxs rewardXPub
 
@@ -602,13 +603,13 @@ mkSeqStateFromAccountXPub accXPub g =
 -- addresses on the internal chain anywhere in the available range.
 instance
     ( SoftDerivation k
-    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     ) => IsOurs (SeqState n k) Address where
     isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
         let
-            (internal, !s1') = lookupAddress addr s1
-            (external, !s2') = lookupAddress addr s2
+            (internal, !s1') = lookupAddress @n addr s1
+            (external, !s2') = lookupAddress @n addr s2
             !ixs' = case internal of
                 Nothing -> ixs
                 Just ix -> updatePendingIxs ix ixs
@@ -645,7 +646,7 @@ instance
 
 instance
     ( SoftDerivation k
-    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
     )
@@ -666,25 +667,25 @@ instance
             let
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
-                (addrIx, _) = lookupAddress addr pool
+                (addrIx, _) = lookupAddress @n addr pool
                 cc = accountingStyle @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 
 instance
-    ( MkKeyFingerprint k (k 'AddressK XPub)
+    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     ) => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _) a1 a2 =
-        let
-            ix a = fst . lookupAddress a
-        in
-            case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
-                (Nothing, Nothing) -> EQ
-                (Nothing, Just _)  -> GT
-                (Just _, Nothing)  -> LT
-                (Just i1, Just i2) -> compare i1 i2
+        case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
+            (Nothing, Nothing) -> EQ
+            (Nothing, Just _)  -> GT
+            (Just _, Nothing)  -> LT
+            (Just i1, Just i2) -> compare i1 i2
+      where
+        ix :: Typeable c => Address -> AddressPool c k -> Maybe (Index 'Soft 'AddressK)
+        ix a = fst . lookupAddress @n a
 
 instance
     ( PaymentAddress n k
