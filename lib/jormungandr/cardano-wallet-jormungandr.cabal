@@ -256,6 +256,7 @@ test-suite jormungandr-integration
       Test.Integration.Jormungandr.Scenario.CLI.Server
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
+      Test.Integration.Jormungandr.Scenario.CLI.Port
       Test.Utils.Ports
 
 benchmark latency

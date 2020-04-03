@@ -105,13 +105,13 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
-import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsCLI
-import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsCommon
-import qualified Test.Integration.Scenario.API.ByronWallets as WalletsCommon
+import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
+import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsByronCommon
+import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
-
+import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Byron where
     commandName = "cardano-wallet-byron"
@@ -120,17 +120,18 @@ main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "No backend required" $ do
-            -- describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
-            -- describe "Key CLI tests" KeysCLI.spec
         describe "API Specifications" $ specWithServer tr $ do
-            TransactionsCLI.spec @n
-            WalletsCommon.spec @n
+            ByronWallets.spec @n
             AddressesByron.spec @n
             TransactionsByron.spec @n
-            TransactionsCommon.spec @n
+            TransactionsByronCommon.spec @n
             Network.spec
+        describe "CLI Specifications" $ specWithServer tr $ do
+            TransactionsByronCLI.spec @n
+            PortCLI.spec @t
+
 
 specWithServer
     :: Trace IO Text
