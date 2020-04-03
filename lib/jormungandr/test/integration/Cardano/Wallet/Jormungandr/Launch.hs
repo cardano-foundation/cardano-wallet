@@ -49,7 +49,7 @@ setupConfig = do
     let secret = testData </> "secret.yaml"
     let config = testData </> "config.yaml"
     tmp <- getCanonicalTemporaryDirectory
-    stateDir <- createTempDirectory tmp "cardano-wallet-jormungandr"
+    stateDir <- createTempDirectory tmp "cardano-wallet-itn"
     logFile <- openFile (stateDir </> "jormungandr.log") WriteMode
     let cfg = JormungandrConfig
             stateDir

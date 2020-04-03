@@ -12,7 +12,7 @@ $ jormungandr \
      --rest-listen 127.0.0.1:8080 \
      --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 
-$ cardano-wallet-jormungandr serve \
+$ cardano-wallet-itn serve \
      --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080
 ```
@@ -20,7 +20,7 @@ $ cardano-wallet-jormungandr serve \
 2. Poll network information until the `sync_progress` is marked as `"ready"`
 
 ```bash
-$ cardano-wallet-jormungandr network information | jq .sync_progress.status
+$ cardano-wallet-itn network information | jq .sync_progress.status
 Ok.
 "ready"
 ```
@@ -32,7 +32,7 @@ Ok.
 4. Restart the server with a `--sync-tolerance` **short** in front of 30 seconds
 
 ```bash
-$ cardano-wallet-jormungandr serve \
+$ cardano-wallet-itn serve \
      --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080 \
      --sync-tolerance 1s
@@ -42,7 +42,7 @@ $ cardano-wallet-jormungandr serve \
 5. Quickly query the network information and check that the `sync_progress` is `"syncing"`.
 
 ```bash
-$ cardano-wallet-jormungandr network information | jq .sync_progress.status
+$ cardano-wallet-itn network information | jq .sync_progress.status
 Ok.
 "syncing"
 ```
@@ -54,7 +54,7 @@ Ok.
 7. Restart the server with a `--sync-tolerance` **large** in front of 30 seconds
 
 ```bash
-$ cardano-wallet-jormungandr serve \
+$ cardano-wallet-itn serve \
      --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080
      --sync-tolerance 90s
@@ -64,7 +64,7 @@ $ cardano-wallet-jormungandr serve \
 8. Quickly query the network information and check that the `sync_progress` is `"ready"`.
 
 ```bash
-$ cardano-wallet-jormungandr network information | jq .sync_progress.status
+$ cardano-wallet-itn network information | jq .sync_progress.status
 Ok.
 "ready"
 ```

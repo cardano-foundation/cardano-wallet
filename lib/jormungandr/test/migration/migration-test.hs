@@ -97,7 +97,7 @@ testMain
     -> IO ExitCode
 testMain tr serverPort testAction launchArgs = do
     let apiBase = mkApiBase serverPort
-    let cmd = Command "cardano-wallet-jormungandr" launchArgs (pure ()) Inherit Inherit
+    let cmd = Command "cardano-wallet-itn" launchArgs (pure ()) Inherit Inherit
     res <- withBackendProcess (trMessageText tr) cmd $ do
         waitForWalletServer serverPort
         testAction tr apiBase

@@ -6,7 +6,7 @@ set -euo pipefail
 bench_name=bench-latency
 
 echo "--- Build"
-nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o $bench_name
+nix-build -A benchmarks.cardano-wallet-itn.latency -o $bench_name
 
 echo "+++ Run benchmark"
 

@@ -7,19 +7,19 @@
 #
 # Interesting top-level attributes:
 #
-#   - cardano-wallet-jormungandr - cli executable
+#   - cardano-wallet-itn - cli executable
 #   - cardano-wallet-byron - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet-itn.jormungandr-integration
 #     - etc (layout is PACKAGE.COMPONENT)
 #   - checks - attrset of test-suite results
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet-itn.jormungandr-integration
 #     - etc
 #   - benchmarks - attret of benchmark executables
 #     - cardano-wallet-core.db
-#     - cardano-wallet-jormungandr.latency
+#     - cardano-wallet-itn.latency
 #     - etc
 #   - migration-tests - tests db migrations from previous versions
 #   - dockerImage - tarball of the docker image
@@ -77,9 +77,9 @@ let
     # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
     inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
 
-    cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
-      inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
-        cardano-wallet-jormungandr;
+    cardano-wallet-itn = import ./nix/package-jormungandr.nix {
+      inherit (haskellPackages.cardano-wallet-itn.components.exes)
+        cardano-wallet-itn;
       inherit pkgs jmPkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
     };
@@ -101,7 +101,7 @@ let
     migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
     dockerImage = pkgs.callPackage ./nix/docker.nix {
-      inherit (self) cardano-wallet-jormungandr;
+      inherit (self) cardano-wallet-itn;
     };
 
     shell = haskellPackages.shellFor {
@@ -111,7 +111,7 @@ let
         cardano-wallet-core
         cardano-wallet-core-integration
         cardano-wallet-byron
-        cardano-wallet-jormungandr
+        cardano-wallet-itn
         cardano-wallet-launcher
         cardano-wallet-test-utils
         text-class

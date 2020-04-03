@@ -1,14 +1,14 @@
 ############################################################################
-# Release package for cardano-wallet-jormungandr
+# Release package for cardano-wallet-itn
 #
-# This makes release builds of cardano-wallet-jormungandr and bundles
+# This makes release builds of cardano-wallet-itn and bundles
 # dependencies as required for different systems.
 #
 ############################################################################
 
 { pkgs
 , gitrev
-, cardano-wallet-jormungandr
+, cardano-wallet-itn
 , jmPkgs
 , haskellBuildUtils
 }:
@@ -16,8 +16,8 @@
 with pkgs.lib;
 
 let
-  name = "cardano-wallet-jormungandr-${version}";
-  version = cardano-wallet-jormungandr.identifier.version;
+  name = "cardano-wallet-itn-${version}";
+  version = cardano-wallet-itn.identifier.version;
 
   buildCommand =
     nativeBuildInputs: installPhase:
@@ -33,31 +33,31 @@ let
 
   drvs = {
     nix = buildCommand [ pkgs.buildPackages.makeWrapper pkgs.buildPackages.binutils ] ''
-      cp -R ${cardano-wallet-jormungandr} $out
+      cp -R ${cardano-wallet-itn} $out
       chmod -R +w $out
       ${setGitRev}
-      $STRIP $out/bin/cardano-wallet-jormungandr
-      wrapProgram $out/bin/cardano-wallet-jormungandr \
+      $STRIP $out/bin/cardano-wallet-itn
+      wrapProgram $out/bin/cardano-wallet-itn \
         --prefix PATH : ${jormungandr}/bin
     '';
 
     static = buildCommand [ pkgs.buildPackages.binutils ] ''
-      cp -R ${cardano-wallet-jormungandr} $out
+      cp -R ${cardano-wallet-itn} $out
       chmod -R +w $out
       ${setGitRev}
-      $STRIP $out/bin/cardano-wallet-jormungandr
+      $STRIP $out/bin/cardano-wallet-itn
     '';
 
     darwin = buildCommand [] ''
-      cp -R ${cardano-wallet-jormungandr} $out
+      cp -R ${cardano-wallet-itn} $out
       chmod -R +w $out
-      rewrite-libs $out/bin $out/bin/cardano-wallet-jormungandr
+      rewrite-libs $out/bin $out/bin/cardano-wallet-itn
       ${setGitRev}
       cp ${jormungandr}/bin/* $out/bin
     '';
 
     windows = buildCommand [] ''
-      cp -R ${cardano-wallet-jormungandr} $out
+      cp -R ${cardano-wallet-itn} $out
       chmod -R +w $out
       ${setGitRev}
       rm $out/bin/libffi-6.dll
@@ -67,7 +67,7 @@ let
   };
 
   setGitRev = ''
-    set-git-rev "${gitrev}" $out/bin/cardano-wallet-jormungandr* || true
+    set-git-rev "${gitrev}" $out/bin/cardano-wallet-itn* || true
   '';
 
 in

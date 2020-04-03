@@ -9,7 +9,7 @@
 
 { pkgs
 , project
-, cardano-wallet-jormungandr
+, cardano-wallet-itn
 , cardano-wallet-byron
 , cardano-node
 , tests ? []
@@ -29,10 +29,10 @@ let
     jormungandr.exe --config test\data\jormungandr\config.yaml --genesis-block test\data\jormungandr\block0.bin --secret test\data\jormungandr\secret.yaml
   '';
   cw-bat = pkgs.writeText "cw.bat" ''
-    cardano-wallet-jormungandr.exe serve --node-port 8080 --genesis-block-hash HASH --database c:\cardano-wallet-jormungandr\wallets
+    cardano-wallet-itn.exe serve --node-port 8080 --genesis-block-hash HASH --database c:\cardano-wallet-itn\wallets
   '';
   launch-bat = pkgs.writeText "launch.bat" ''
-    cardano-wallet-jormungandr.exe launch --genesis-block test\data\jormungandr\block0.bin --state-dir c:\cardano-wallet-jormungandr -- --config test\data\jormungandr\config.yaml --secret test\data\jormungandr\secret.yaml
+    cardano-wallet-itn.exe launch --genesis-block test\data\jormungandr\block0.bin --state-dir c:\cardano-wallet-itn -- --config test\data\jormungandr\config.yaml --secret test\data\jormungandr\secret.yaml
   '';
 
 in pkgs.runCommand name {
@@ -42,14 +42,14 @@ in pkgs.runCommand name {
   mkdir -pv jm jm/test/data jm/test/integration $out/nix-support
   cd jm
 
-  cp -vf ${cardano-wallet-jormungandr}/bin/* .
+  cp -vf ${cardano-wallet-itn}/bin/* .
   cp -vf ${cardano-wallet-byron}/bin/* .
   cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* test/data
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"
   sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat
   sed -e "s/HASH/$hash/" ${launch-bat} > launch.bat
-  sed -e 's/storage:.*/storage: "c:\\cardano-wallet-jormungandr\\chain"/' \
+  sed -e 's/storage:.*/storage: "c:\\cardano-wallet-itn\\chain"/' \
       ${testData.jormungandr}/jormungandr/config.yaml > config.yaml
 
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''

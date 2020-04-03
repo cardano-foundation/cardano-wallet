@@ -14,12 +14,12 @@ Start Jörmungandr genesis-praos self-node or connect to the testnet with passiv
 Start wallet backend on top of working Jörmungandr node.
 e.g.
 ```
-cardano-wallet-jormungandr launch --genesis-block test/data/jormungandr/block0.bin --secret test/data/jormungandr/secret.yaml --state-dir /tmp/state
+cardano-wallet-itn launch --genesis-block test/data/jormungandr/block0.bin --secret test/data/jormungandr/secret.yaml --state-dir /tmp/state
 ```
 or
 ```
 jormungandr --genesis-block test/data/jormungandr/block0.bin --config test/data/jormungandr/config.yaml --secret test/data/jormungandr/secret.yaml
-cardano-wallet-jormungandr serve --genesis-block-hash 1e96373...21cfd46
+cardano-wallet-itn serve --genesis-block-hash 1e96373...21cfd46
 ```
 
 ### Single wallet tracks block height

@@ -122,7 +122,7 @@ import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Jormungandr where
-    commandName = "cardano-wallet-jormungandr"
+    commandName = "cardano-wallet-itn"
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do

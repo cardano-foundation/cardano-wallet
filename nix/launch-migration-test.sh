@@ -30,7 +30,7 @@ if [ -z "${configFile:-}" ]; then
   exit 1
 fi
 
-cardano-wallet-jormungandr version
+cardano-wallet-itn version
 jormungandr --version
 
 exec migration-test $1 launch --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile

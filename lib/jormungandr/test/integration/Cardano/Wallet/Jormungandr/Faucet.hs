@@ -78,7 +78,7 @@ mkTxBuilder
     -> (Address, Coin)
     -> IO ByteString
 mkTxBuilder (LinearFee cst coeff _) (TxIn inpTx inpIx, key) (addr, Coin amt) =
-    withSystemTempDirectory "cardano-wallet-jormungandr" $ \d -> do
+    withSystemTempDirectory "cardano-wallet-itn" $ \d -> do
         let txFile = d </> "trans.tx"
         let witnessFile = d </> "witness"
         let keyFile = d </> "key.prv"

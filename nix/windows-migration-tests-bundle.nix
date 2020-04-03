@@ -12,7 +12,7 @@
 }:
 
 let
-  name = "cardano-wallet-jormungandr-${project.version}-migration-tests-win64";
+  name = "cardano-wallet-itn-${project.version}-migration-tests-win64";
 
 in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip ];

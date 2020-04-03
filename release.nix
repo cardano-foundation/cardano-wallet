@@ -99,13 +99,13 @@ let
         jobs.native.shell.x86_64-darwin
 
         # jormungandr
-        jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-pc-mingw32.cardano-wallet-jormungandr.x86_64-linux
+        jobs.native.cardano-wallet-itn.x86_64-linux
+        jobs.native.cardano-wallet-itn.x86_64-darwin
+        jobs.x86_64-pc-mingw32.cardano-wallet-itn.x86_64-linux
 
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
+        jobs.cardano-wallet-itn-win64
+        jobs.cardano-wallet-itn-macos64
+        jobs.cardano-wallet-itn-tests-win64
 
 
         # cardano-node (Byron)
@@ -116,15 +116,15 @@ let
 
     # These derivations are used for the Daedalus installer.
     daedalus-jormungandr = with jobs; {
-      linux = native.cardano-wallet-jormungandr.x86_64-linux;
-      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      linux = native.cardano-wallet-itn.x86_64-linux;
+      macos = native.cardano-wallet-itn.x86_64-darwin;
+      windows = x86_64-w64-mingw32.cardano-wallet-itn.x86_64-linux;
     };
 
     # Windows release ZIP archive - jormungandr
-    cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
+    cardano-wallet-itn-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
-      exe = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      exe = jobs.x86_64-w64-mingw32.cardano-wallet-itn.x86_64-linux;
     };
 
     # Windows release ZIP archive - byron rewrite
@@ -134,9 +134,9 @@ let
     };
 
     # This is used for testing the build on windows.
-    cardano-wallet-jormungandr-tests-win64 = import ./nix/windows-testing-bundle.nix {
+    cardano-wallet-itn-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      cardano-wallet-itn = jobs.x86_64-w64-mingw32.cardano-wallet-itn.x86_64-linux;
       cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
       cardano-node = jobs.x86_64-w64-mingw32.cardano-node.x86_64-linux;
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
@@ -150,13 +150,13 @@ let
     };
 
     # Fully-static linux binary (placeholder - does not build)
-    cardano-wallet-jormungandr-linux64 = let
-      name = "cardano-wallet-jormungandr-${project.version}";
+    cardano-wallet-itn-linux64 = let
+      name = "cardano-wallet-itn-${project.version}";
       tarname = "${name}-linux64.tar.gz";
     in pkgs.runCommand "${name}-linux64" {
       buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
     } ''
-      cp -R ${jobs.musl64.cardano-wallet-jormungandr.x86_64-linux}/bin ${name}
+      cp -R ${jobs.musl64.cardano-wallet-itn.x86_64-linux}/bin ${name}
       chmod -R 755 ${name}
       strip ${name}/*
 
@@ -166,13 +166,13 @@ let
     '';
 
     # macOS binary and dependencies in tarball
-    cardano-wallet-jormungandr-macos64 = let
-      name = "cardano-wallet-jormungandr-${project.version}";
+    cardano-wallet-itn-macos64 = let
+      name = "cardano-wallet-itn-${project.version}";
       tarname = "${name}-macos64.tar.gz";
     in pkgs.runCommand "${name}-macos64" {
       buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils nix ];
     } ''
-      cp -R ${jobs.native.cardano-wallet-jormungandr.x86_64-darwin}/bin ${name}
+      cp -R ${jobs.native.cardano-wallet-itn.x86_64-darwin}/bin ${name}
       chmod -R 755 ${name}
 
       mkdir -p $out/nix-support
@@ -195,14 +195,14 @@ let
   // (mkRequiredJob (
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+      [ jobs.native.cardano-wallet-itn.x86_64-linux
+        jobs.native.cardano-wallet-itn.x86_64-darwin
+        jobs.x86_64-w64-mingw32.cardano-wallet-itn.x86_64-linux
         jobs.native.shell.x86_64-linux
         jobs.native.shell.x86_64-darwin
-        jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-tests-win64
+        jobs.cardano-wallet-itn-win64
+        jobs.cardano-wallet-itn-macos64
+        jobs.cardano-wallet-itn-tests-win64
       ]));
 
 in jobs

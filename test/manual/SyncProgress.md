@@ -13,7 +13,7 @@ $ jormungandr \
      --rest-listen 127.0.0.1:8080 \
      --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 
-$ cardano-wallet-jormungandr serve --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) --node-port 8080
+$ cardano-wallet-itn serve --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) --node-port 8080
 ```
 
 2. Create wallets
@@ -53,7 +53,7 @@ curl  -vX POST http://localhost:8090/v2/wallets \
 The state field should eventually (or quickly) reach `"state": { "status": "ready" }` on all three wallets.
  - Shelley
 ```bash
-$ cardano-wallet-jormungandr wallet list
+$ cardano-wallet-itn wallet list
 ```
  - Byron
  ```bash
@@ -63,7 +63,7 @@ $ cardano-wallet-jormungandr wallet list
  3. One can also list stake-pools and query network information successfully
 
  ```bash
- $ cardano-wallet-jormungandr network information
+ $ cardano-wallet-itn network information
  Ok.
  {
      "network_tip": {
@@ -89,7 +89,7 @@ $ cardano-wallet-jormungandr wallet list
  ```
 
  ```bash
- $ cardano-wallet-jormungandr stake-pool list
+ $ cardano-wallet-itn stake-pool list
  Ok.
  [
      {
@@ -124,7 +124,7 @@ $ cardano-wallet-jormungandr wallet list
 
 2. List Shelley wallets
 ```bash
-$ cardano-wallet-jormungandr wallet list
+$ cardano-wallet-itn wallet list
 The node backend is unreachable at the moment. Trying again in a bit might work.
 ```
 
@@ -148,12 +148,12 @@ The progress should eventually drop, and continue dropping. E.g:
 
 4. Check network information and stake-pools.
 ```bash
-$ cardano-wallet-jormungandr network information
+$ cardano-wallet-itn network information
 The node backend is unreachable at the moment. Trying again in a bit might work.
 ```
 
 ```bash
-$ cardano-wallet-jormungandr stake-pool list
+$ cardano-wallet-itn stake-pool list
 The node backend is unreachable at the moment. Trying again in a bit might work.
 ```
 
@@ -162,7 +162,7 @@ The node backend is unreachable at the moment. Trying again in a bit might work.
 1. Re-launch jormungandr (cf. beginning of this document)
 2. The state field should eventually reach Ready again when polling
 ```bash
-$ cardano-wallet-jormungandr wallet list
+$ cardano-wallet-itn wallet list
 ```
 
 ```bash
@@ -172,7 +172,7 @@ $ curl http://localhost:8090/v2/byron-wallets | jq
 3. One can also list stake-pools and query network information successfully
 
 ```bash
-$ cardano-wallet-jormungandr network information
+$ cardano-wallet-itn network information
 Ok.
 {
     "network_tip": {
@@ -198,7 +198,7 @@ Ok.
 ```
 
 ```bash
-$ cardano-wallet-jormungandr stake-pool list
+$ cardano-wallet-itn stake-pool list
 Ok.
 [
     {

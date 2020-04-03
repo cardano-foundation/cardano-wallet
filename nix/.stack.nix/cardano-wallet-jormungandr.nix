@@ -43,7 +43,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     package = {
       specVersion = "1.10";
       identifier = {
-        name = "cardano-wallet-jormungandr";
+        name = "cardano-wallet-itn";
         version = "2020.4.1";
         };
       license = "Apache-2.0";
@@ -100,12 +100,12 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         buildable = true;
         };
       exes = {
-        "cardano-wallet-jormungandr" = {
+        "cardano-wallet-itn" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-itn" or (buildDepError "cardano-wallet-itn"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
             (hsPkgs."filepath" or (buildDepError "filepath"))
@@ -145,7 +145,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-itn" or (buildDepError "cardano-wallet-itn"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."deepseq" or (buildDepError "deepseq"))
@@ -185,7 +185,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
-            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-itn" or (buildDepError "cardano-wallet-itn"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."command" or (buildDepError "command"))
@@ -224,7 +224,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."yaml" or (buildDepError "yaml"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
+            (hsPkgs.buildPackages.cardano-wallet-itn or (pkgs.buildPackages.cardano-wallet-itn or (buildToolDepError "cardano-wallet-itn")))
             ];
           buildable = true;
           };
@@ -242,7 +242,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
-            (hsPkgs."cardano-wallet-jormungandr" or (buildDepError "cardano-wallet-jormungandr"))
+            (hsPkgs."cardano-wallet-itn" or (buildDepError "cardano-wallet-itn"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."command" or (buildDepError "command"))
@@ -262,7 +262,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."time" or (buildDepError "time"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (buildToolDepError "cardano-wallet-jormungandr")))
+            (hsPkgs.buildPackages.cardano-wallet-itn or (pkgs.buildPackages.cardano-wallet-itn or (buildToolDepError "cardano-wallet-itn")))
             ];
           buildable = true;
           };

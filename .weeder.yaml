@@ -38,7 +38,7 @@
         - name: Cardano.Wallet.DummyTarget.Primitive.Types
         - identifier: genesisHash
 - package:
-  - name: cardano-wallet-jormungandr
+  - name: cardano-wallet-itn
   - section:
     - name: test:jormungandr-integration
     - message:

@@ -208,7 +208,7 @@ spec = do
 
     describe "SERVER - Clean shutdown" $ do
         let exitSuccess = ProcessHasExited
-                "cardano-wallet-jormungandr" ExitSuccess
+                "cardano-wallet-itn" ExitSuccess
         it "shuts down on command" $ \(nPort,_,_) -> do
             logged <- withLogCollection $ \stream -> do
                 let cmd = Command

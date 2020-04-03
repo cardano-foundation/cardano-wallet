@@ -179,7 +179,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
--- | The @cardano-wallet-jormungandr@ main function. It takes the configuration
+-- | The @cardano-wallet-itn@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet

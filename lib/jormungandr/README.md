@@ -17,8 +17,8 @@ jormungandr 0.3.3
 # Testing
 
 ``` bash
-$ stack test cardano-wallet-jormungandr:integration
-$ stack test cardano-wallet-jormungandr:unit
+$ stack test cardano-wallet-itn:integration
+$ stack test cardano-wallet-itn:unit
 ```
 
 For manual testing, try :
@@ -27,14 +27,14 @@ For manual testing, try :
 $ pwd
 .../cardano-wallet
 $ stack build
-$ cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
+$ cardano-wallet-itn launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 ```
 
 Here we are using a genesis block and secrets as defined in the integration tests.
 For more options, see the help text:
 
 ``` bash
-$ stack exec -- cardano-wallet-jormungandr launch --help
+$ stack exec -- cardano-wallet-itn launch --help
 ```
 
 If the `cardano-wallet` server is running with a Jörmungandr backend, then in a separate console

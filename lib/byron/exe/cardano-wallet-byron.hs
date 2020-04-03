@@ -355,7 +355,7 @@ tracerSeveritiesOption = Tracers
                                     Logging
 -------------------------------------------------------------------------------}
 
--- FIXME: reduce duplication. See 'cardano-wallet-jormungandr.hs'
+-- FIXME: reduce duplication. See 'cardano-wallet-itn.hs'
 
 data MainLog
     = MsgCmdLine String [String]

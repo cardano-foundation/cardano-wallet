@@ -49,9 +49,9 @@ let
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
         packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
-        packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
+        packages.cardano-wallet-itn.src = filterSubDir /lib/jormungandr;
+        packages.cardano-wallet-itn.components.tests.unit.keepSource = true;
+        packages.cardano-wallet-itn.components.tests.jormungandr-integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
         packages.text-class.components.tests.unit.keepSource = true;
@@ -71,7 +71,7 @@ let
           # provide cardano-node command to test suites
           integration.build-tools = [ pkgs.cardano-node ];
         };
-        packages.cardano-wallet-jormungandr.components.tests = {
+        packages.cardano-wallet-itn.components.tests = {
           # Next releases are going to be about cardano-node and we
           # aren't touching jormungandr a lot more these days.
           jormungandr-integration.doCheck = false;
@@ -84,7 +84,7 @@ let
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
-        packages.cardano-wallet-jormungandr.components.benchmarks.latency =
+        packages.cardano-wallet-itn.components.benchmarks.latency =
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper];
             postInstall = ''
@@ -115,7 +115,7 @@ let
         '';
 
         # Workaround for Haskell.nix issue
-        packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
+        packages.cardano-wallet-itn.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
         packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";
       }
@@ -135,7 +135,7 @@ let
         });
       in {
         # Add GHC flags and libraries for fully static build
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
+        packages.cardano-wallet-itn.components.exes.cardano-wallet-itn = {
           configureFlags =
              lib.optionals hostPlatform.isMusl ([
                "--disable-executable-dynamic"
