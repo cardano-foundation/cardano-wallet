@@ -110,8 +110,16 @@ let
             '';
           };
 
+        # Provide the swagger file in an environment variable because
+        # it is located outside of the Cabal package source tree.
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
+        '';
+
+        # Make the /usr/bin/security tool available because it's
+        # needed at runtime by the x509-system Haskell package.
+        packages.x509-system.components.library.preBuild = pkgs.lib.optionalString (pkgs.stdenv.isDarwin) ''
+          substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security
         '';
 
         # Workaround for Haskell.nix issue
