@@ -11,7 +11,7 @@
 }:
 
 let
-  name = "${exe.name}-win64";
+  name = "${exe.meta.name}-win64";
 
 in pkgs.runCommand name { buildInputs = [ pkgs.buildPackages.zip ]; } ''
   mkdir -p $out/nix-support release

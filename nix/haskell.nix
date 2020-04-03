@@ -133,9 +133,9 @@ let
                     "--disable-shared"
           ];
         });
-      in {
-        # Add GHC flags and libraries for fully static build
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = {
+
+        # Module options which adds GHC flags and libraries for a fully static build
+        fullyStaticOptions = {
           configureFlags =
              lib.optionals hostPlatform.isMusl ([
                "--disable-executable-dynamic"
@@ -144,6 +144,12 @@ let
                "--ghc-option=-optl=-static"
              ] ++ map (drv: "--ghc-option=-optl=-L${drv}/lib") staticLibs);
         };
+      in {
+        # Apply fully static options to our Haskell executables
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
+        packages.cardano-node.components.exes.cardano-node = fullyStaticOptions;
+
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it
         # does not require any messing with cabal files.
