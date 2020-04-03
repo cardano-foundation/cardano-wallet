@@ -21,6 +21,10 @@
 # 3. After pushing the image to the repo, the "latest" tag is updated.
 #
 #    - "inputoutput/cardano-wallet:latest" should point to the most
+#      recent VERSION-byron tag build.
+#    - "inputoutput/cardano-wallet:byron" should point to the most
+#      recent VERSION-byron tag build.
+#    - "inputoutput/cardano-wallet:jormungandr" should point to the most
 #      recent VERSION-jormungandr tag build.
 #    - "inputoutput/cardano-wallet:dev-master-jormungandr" should
 #      point to the most recent master branch build.
@@ -42,11 +46,12 @@ with hostPkgs.lib;
 
 let
   images = map impureCreated [
-    walletPackages.dockerImage
+    walletPackages.dockerImage.jormungandr
+    walletPackages.dockerImage.byron
   ];
 
   # Override Docker image, setting its creation date to the current time rather than the unix epoch.
-  impureCreated = image: image.overrideAttrs (oldAttrs: { created = "now"; }) // { inherit (image) version; };
+  impureCreated = image: image.overrideAttrs (oldAttrs: { created = "now"; }) // { inherit (image) version backend; };
 
 in
   writeScript "docker-build-push" (''
@@ -70,7 +75,7 @@ in
     extra_tag=""
     if [[ -n "$tag" ]]; then
       tag="${image.imageTag}"
-      extra_tag="latest"
+      extra_tag="${image.backend}"
     elif [[ "$branch" = master ]]; then
       tag="$(echo ${image.imageTag} | sed -e s/${image.version}/''${BUILDKITE_COMMIT:-dev-$branch}/)"
       extra_tag="$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$branch/)"
@@ -90,5 +95,11 @@ in
       echo "Pushing $fullrepo:$extra_tag"
       docker tag "$tagged" "$fullrepo:$extra_tag"
       docker push "$fullrepo:$extra_tag"
+
+      ${optionalString (image.backend == "byron") ''
+      echo "Pushing $fullrepo:latest"
+      docker tag "$tagged" "$fullrepo:latest"
+      docker push "$fullrepo:latest"
+      ''}
     fi
   '') images)

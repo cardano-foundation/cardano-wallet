@@ -3,15 +3,17 @@
 #
 # To test it out, use:
 #
-#   docker load -i $(nix-build -A dockerImage --no-out-link)
-#   docker run cardano-wallet-jormungandr
+#   docker load -i $(nix-build -A dockerImage.byron --no-out-link)
+#   docker run cardano-wallet-byron
 #
 ############################################################################
 
 { runtimeShell, writeScriptBin, runCommand, dockerTools
 
 # The main contents of the image.
-, cardano-wallet-jormungandr
+, exe
+# Short name of the backend, e.g. jormungandr or byron
+, backend
 
 # Other things to include in the image.
 , glibcLocales, iana-etc, cacert
@@ -25,7 +27,7 @@ let
   defaultPort = "8090";
   dataDir = "/data";
 
-  startScript = writeScriptBin "start-cardano-wallet-jormungandr" ''
+  startScript = writeScriptBin "start-cardano-wallet-${backend}" ''
     #!${runtimeShell}
     set -euo pipefail
 
@@ -35,7 +37,7 @@ let
     ln -s ${dataDir} /cardano-wallet
 
     export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
-    exec ${cardano-wallet-jormungandr}/bin/cardano-wallet-jormungandr "$@"
+    exec ${exe}/bin/cardano-wallet-${backend} "$@"
   '';
 
   # Layer of tools which aren't going to change much between versions.
@@ -52,17 +54,17 @@ let
 in
   dockerTools.buildImage {
     name = repoName;
-    tag = "${cardano-wallet-jormungandr.version}-jormungandr";
+    tag = "${exe.version}-${backend}";
     fromImage = baseImage;
     contents = [
-      cardano-wallet-jormungandr
+      exe
       startScript
     ];
     config = {
-      EntryPoint = [ "start-cardano-wallet-jormungandr" ];
+      EntryPoint = [ "start-cardano-wallet-${backend}" ];
       ExposedPorts = {
         "${defaultPort}/tcp" = {}; # wallet api
       };
       Volume = [ dataDir ];
     };
-  } // { inherit (cardano-wallet-jormungandr) version; }
+  } // { inherit (exe) version; inherit backend; }
