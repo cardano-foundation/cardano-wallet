@@ -35,7 +35,7 @@ some <details></details> elements to avoid cluttering the release notes -->
 | Link                                                                                                                                        | Audience                                                   |
 | ---                                                                                                                                         | ---                                                        |
 | [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                                                       | Users of the Cardano Wallet API                            |
-| CLI Manual: [jormungandr](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}}) / [byron](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}}) | Users of the Cardano Wallet API                            |
+| CLI Manual: [jormungandr](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}}) / [byron](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet)/{{BYRON_CLI_WIKI_COMMIT}}) | Users of the Cardano Wallet API                            |
 | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{DOCKER_WIKI_COMMIT}})                     | Users of the Cardano Wallet API                            |
 | [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
 
@@ -59,9 +59,9 @@ the moment of releasing. -->
 
 1. Install [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
-2. Download the provided `cardano-wallet-byron` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
+2. Download the provided `cardano-wallet` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
 
-3. (optional) Install the bash/zsh auto-completion script according to the [byron cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}})
+3. (optional) Install the bash/zsh auto-completion script according to the [byron cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet)/{{BYRON_CLI_WIKI_COMMIT}})
 
 4. Start `cardano-wallet --help` and see available parameters.
 

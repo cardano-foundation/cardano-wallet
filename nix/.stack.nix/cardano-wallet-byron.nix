@@ -42,7 +42,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet-byron"; version = "2020.4.1"; };
+      identifier = { name = "cardano-wallet"; version = "2020.4.1"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -102,11 +102,11 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         buildable = true;
         };
       exes = {
-        "cardano-wallet-byron" = {
+        "cardano-wallet" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet" or (buildDepError "cardano-wallet"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
@@ -128,7 +128,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet" or (buildDepError "cardano-wallet"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
             (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
@@ -148,7 +148,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."aeson" or (buildDepError "aeson"))
             (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet" or (buildDepError "cardano-wallet"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
@@ -164,7 +164,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."text" or (buildDepError "text"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-byron or (pkgs.buildPackages.cardano-wallet-byron or (buildToolDepError "cardano-wallet-byron")))
+            (hsPkgs.buildPackages.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (buildToolDepError "cardano-wallet")))
             ];
           buildable = true;
           };
@@ -175,7 +175,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet" or (buildDepError "cardano-wallet"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))

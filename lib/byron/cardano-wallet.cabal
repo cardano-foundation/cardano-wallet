@@ -1,4 +1,4 @@
-name:                cardano-wallet-byron
+name:                cardano-wallet
 version:             2020.4.1
 synopsis:            Wallet backend protocol-specific bits implemented using byron nodes
 description:         Please see README.md
@@ -81,7 +81,7 @@ library
       Cardano.Wallet.Byron.Transaction.Size
       Cardano.Wallet.Byron.Launch
 
-executable cardano-wallet-byron
+executable cardano-wallet
   default-language:
       Haskell2010
   default-extensions:
@@ -97,7 +97,7 @@ executable cardano-wallet-byron
   build-depends:
       base
     , cardano-ledger
-    , cardano-wallet-byron
+    , cardano-wallet
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
@@ -111,7 +111,7 @@ executable cardano-wallet-byron
   hs-source-dirs:
       exe
   main-is:
-    cardano-wallet-byron.hs
+    cardano-wallet.hs
 
 test-suite unit
   default-language:
@@ -131,7 +131,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
-    , cardano-wallet-byron
+    , cardano-wallet
     , cborg
     , containers
     , hspec
@@ -169,7 +169,7 @@ test-suite integration
     , aeson
     , async
     , bytestring
-    , cardano-wallet-byron
+    , cardano-wallet
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
@@ -184,7 +184,7 @@ test-suite integration
     , temporary
     , text
   build-tools:
-      cardano-wallet-byron
+      cardano-wallet
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -214,7 +214,7 @@ benchmark restore
        base
      , bytestring
      , cardano-wallet-core
-     , cardano-wallet-byron
+     , cardano-wallet
      , cardano-wallet-launcher
      , ouroboros-network
      , contra-tracer

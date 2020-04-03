@@ -8,7 +8,7 @@
 # Interesting top-level attributes:
 #
 #   - cardano-wallet-itn - cli executable
-#   - cardano-wallet-byron - cli executable
+#   - cardano-wallet - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
 #     - cardano-wallet-itn.jormungandr-integration
@@ -84,10 +84,10 @@ let
       haskellBuildUtils = haskellBuildUtils.package;
     };
 
-    cardano-wallet-byron = import ./nix/package-cardano-node.nix {
+    cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
-      exe = haskellPackages.cardano-wallet-byron.components.exes.cardano-wallet-byron;
+      exe = haskellPackages.cardano-wallet.components.exes.cardano-wallet;
       inherit (self) cardano-node;
     };
 
@@ -110,7 +110,7 @@ let
         cardano-wallet-cli
         cardano-wallet-core
         cardano-wallet-core-integration
-        cardano-wallet-byron
+        cardano-wallet
         cardano-wallet-itn
         cardano-wallet-launcher
         cardano-wallet-test-utils

@@ -112,7 +112,7 @@ import qualified Test.Integration.Scenario.API.Network as Network
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Byron where
-    commandName = "cardano-wallet-byron"
+    commandName = "cardano-wallet"
 
 main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do

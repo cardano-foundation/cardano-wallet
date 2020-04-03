@@ -109,8 +109,8 @@ let
 
 
         # cardano-node (Byron)
-        jobs.native.cardano-wallet-byron.x86_64-linux
-        jobs.native.cardano-wallet-byron.x86_64-darwin
+        jobs.native.cardano-wallet.x86_64-linux
+        jobs.native.cardano-wallet.x86_64-darwin
       ]
     );
 
@@ -128,16 +128,16 @@ let
     };
 
     # Windows release ZIP archive - byron rewrite
-    cardano-wallet-byron-win64 = import ./nix/windows-release.nix {
+    cardano-wallet-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
-      exe = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
+      exe = jobs.x86_64-w64-mingw32.cardano-wallet.x86_64-linux;
     };
 
     # This is used for testing the build on windows.
     cardano-wallet-itn-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-itn = jobs.x86_64-w64-mingw32.cardano-wallet-itn.x86_64-linux;
-      cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
+      cardano-wallet = jobs.x86_64-w64-mingw32.cardano-wallet.x86_64-linux;
       cardano-node = jobs.x86_64-w64-mingw32.cardano-node.x86_64-linux;
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;

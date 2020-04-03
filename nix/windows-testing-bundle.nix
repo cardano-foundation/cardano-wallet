@@ -10,7 +10,7 @@
 { pkgs
 , project
 , cardano-wallet-itn
-, cardano-wallet-byron
+, cardano-wallet
 , cardano-node
 , tests ? []
 , benchmarks ? []
@@ -43,7 +43,7 @@ in pkgs.runCommand name {
   cd jm
 
   cp -vf ${cardano-wallet-itn}/bin/* .
-  cp -vf ${cardano-wallet-byron}/bin/* .
+  cp -vf ${cardano-wallet}/bin/* .
   cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* test/data
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"

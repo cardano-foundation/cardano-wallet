@@ -35,7 +35,7 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-itn = ./cardano-wallet-itn.nix;
-        cardano-wallet-byron = ./cardano-wallet-byron.nix;
+        cardano-wallet = ./cardano-wallet.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;

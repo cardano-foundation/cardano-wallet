@@ -47,8 +47,8 @@ let
         packages.cardano-wallet-core-integration.src = filterSubDir /lib/core-integration;
         packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
-        packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
-        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
+        packages.cardano-wallet.src = filterSubDir /lib/byron;
+        packages.cardano-wallet.components.tests.integration.keepSource = true;
         packages.cardano-wallet-itn.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-itn.components.tests.unit.keepSource = true;
         packages.cardano-wallet-itn.components.tests.jormungandr-integration.keepSource = true;
@@ -59,7 +59,7 @@ let
 
       # Add dependencies
       {
-        packages.cardano-wallet-byron.components.tests = {
+        packages.cardano-wallet.components.tests = {
           # # Only run integration tests on non-PR jobsets. Note that
           # # the master branch jobset will just re-use the cached Bors
           # # staging build and test results.
@@ -99,7 +99,7 @@ let
 				#
 				# TODO: Using the configuration dir works for mainnet, but to add testnet
         # support, we need to retrieve it properly.
-        packages.cardano-wallet-byron.components.benchmarks.restore =
+        packages.cardano-wallet.components.benchmarks.restore =
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
@@ -117,7 +117,7 @@ let
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-itn.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
-        packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";
+        packages.cardano-wallet.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
       # Musl libc fully static build

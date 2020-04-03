@@ -115,7 +115,7 @@ withCardanoNode tr tdir action =
 -- As a result, this function creates a temporary directory which is cleaned up
 -- after use (unless the ENV var NO_CLEANUP is set):
 --
---     $ tree /tmp/cardano-wallet-byron-2cbb1ea94edb1cea/
+--     $ tree /tmp/cardano-wallet-2cbb1ea94edb1cea/
 --       ├── genesis.json
 --       ├── node.cert
 --       ├── node.config
