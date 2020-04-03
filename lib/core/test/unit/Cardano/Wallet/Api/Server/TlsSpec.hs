@@ -14,8 +14,6 @@ import Control.Concurrent.Async
     ( async, link )
 import Control.Exception
     ( fromException )
-import Control.Monad
-    ( when )
 import Control.Tracer
     ( nullTracer )
 import Data.ByteString.Lazy
@@ -62,12 +60,10 @@ import Network.Wai
     ( responseLBS )
 import System.FilePath
     ( FilePath, (</>) )
-import System.Info
-    ( os )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe, shouldThrow )
+    ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
-    ( getTestData, inNixBuild )
+    ( getTestData )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Network.HTTP.Types.Status as Http
@@ -77,7 +73,6 @@ import qualified Network.Wai.Handler.Warp as Warp
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
     it "Respond to authenticated client if TLS is enabled" $ do
-        pendingOnMacOSNix
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
                     { tlsCaCert = rootPKI 1 </> "ca.crt"
@@ -99,7 +94,6 @@ spec = describe "TLS Client Authentication" $ do
                 }
 
     it "Deny client with wrong certificate if TLS is enabled" $ do
-        pendingOnMacOSNix
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
                     { tlsCaCert = rootPKI 1 </> "ca.crt"
@@ -136,11 +130,6 @@ spec = describe "TLS Client Authentication" $ do
                 { statusCode = 426
                 , statusMessage = "Upgrade Required"
                 }
-
-pendingOnMacOSNix :: IO ()
-pendingOnMacOSNix = when (os == "darwin") $ do
-    nix <- inNixBuild
-    when nix $ pendingWith "Issue #1525 - needs darwin security tool in PATH"
 
 --
 -- Test Application
