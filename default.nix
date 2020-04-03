@@ -105,10 +105,12 @@ let
     # `migration-tests` build previous releases then check if the database successfully upgrades.
     migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
-    dockerImage = mapAttrs (backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; }) {
+    dockerImage = let
+      mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
+    in recurseIntoAttrs (mapAttrs mkDockerImage {
       jormungandr = self.cardano-wallet-jormungandr;
       byron = self.cardano-wallet-byron;
-    };
+    });
 
     shell = haskellPackages.shellFor {
       name = "cardano-wallet-shell";
