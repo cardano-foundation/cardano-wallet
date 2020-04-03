@@ -50,8 +50,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg404NoEpochNo )
-import Test.Utils.Windows
-    ( pendingOnWindows )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -152,7 +150,6 @@ spec = do
                     (errMsg404NoEpochNo (T.unpack maxEpochValue))
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
-        pendingOnWindows "network/clock at this point is not supported on Windows"
         eventually "ntp status = (un)available" $ do
             r <- request @ApiNetworkClock ctx
                 Link.getNetworkClock Default Empty

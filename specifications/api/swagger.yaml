@@ -2202,9 +2202,6 @@ paths:
       summary: Clock
       description: |
         <p align="right">status: <strong>stable</strong></p>
-
-        > ⚠️ At this stage the endpoint is not supported on Windows platform. Invoked on
-        > Windows will return `status: unavailable` in the response message.
       responses: *responsesGetNetworkClock
 
   /network/parameters/{epochId}:
