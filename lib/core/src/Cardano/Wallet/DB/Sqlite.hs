@@ -85,6 +85,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..), HDPassphrase (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
@@ -319,10 +321,47 @@ migrateManually
     -> DefaultFieldValues
     -> ManualMigration
 migrateManually tr defaultFieldValues =
-    ManualMigration
-        addActiveSlotCoefficientIfMissing
+    ManualMigration $ \conn -> do
+        addActiveSlotCoefficientIfMissing conn
+        -- FIXME
+        -- Temporary migration to fix Daedalus flight wallets. This should
+        -- really be removed as soon as we have a fix for the cardano-sl:wallet
+        -- currently in production.
+        removeSoftRndAddresses conn
   where
     activeSlotCoeff = DBField CheckpointActiveSlotCoeff
+    rndAccountIx = DBField RndStateAddressAccountIndex
+
+    -- | Remove any addresses that were wrongly generated in previous releases.
+    -- See comment below in 'selectState' from 'RndState'.
+    --
+    -- Important: this _may_ remove USED addresses from the discovered set which
+    -- is _okay-ish_ for two reasons:
+    --
+    --     1. Address will still be discovered in UTxOs and this won't affect
+    --     users' balance. But the address won't show up when in the listing.
+    --     This is a wanted behavior.
+    --
+    --     2. The discovered list of address is really used internally to avoid
+    --     index clash when generating new change addresses. Since we'll
+    --     generate addresses from a completely different part of the HD tree
+    --     ANYWAY, there's no risk of clash.
+    removeSoftRndAddresses :: Sqlite.Connection -> IO ()
+    removeSoftRndAddresses conn = do
+        isFieldPresent conn rndAccountIx >>= \case
+            Nothing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
+            Just _  -> do
+                traceWith tr $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
+                stmt <- Sqlite.prepare conn $ T.unwords
+                    [ "DELETE FROM", tableName rndAccountIx
+                    , "WHERE", fieldName rndAccountIx, "<", hardLowerBound
+                    , ";"
+                    ]
+                _ <- Sqlite.step stmt
+                Sqlite.finalize stmt
+      where
+        hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
 
     -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
     --   it is missing.
