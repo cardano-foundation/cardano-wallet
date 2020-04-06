@@ -1,26 +1,29 @@
 # Checklist to follow upon publishing the release
 
-## Create the release
+- [ ] Edit the release parameters section in `./scripts/make_release.sh`. To bump from `2020.3.16` to `2020.4.1` they will look like:
+```
+ # Release-specific parameters (Change when you bump the version)
+ GIT_TAG="v2020-04-01"
+ CABAL_VERSION="2020.4.1"
 
-- [ ] Bump all package versions to the next version, e.g.
+ OLD_GIT_TAG="v2020-03-16"
+ OLD_CABAL_VERSION="2020.3.16"
 
-  ```
-  $ set OLD_VERSION "2020.3.16"
-  $ set NEW_VERSION "2020.4.1"
-  $ find nix -name "*.nix" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
-  $ find lib -name "*.cabal" -type file | xargs perl -i -pe "s/$OLD_VERSION/$NEW_VERSION/"
-  ```
-
-- [ ] Tag and sign the release commit with a proper tag (make sure Hydra's job has started building `master`!)
-
-  ```
-  $ VERSION=<new-version> git tag -s -m $VERSION $VERSION
-  ```
+ JORM_TAG="v0.8.15"
+ CARDANO_NODE_TAG="1.9.3"
+```
 
 > :warning: We use a slightly different notation between `.cabal` and git tags! Git tags follows the following format: `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal version are written as: `YYYY.MM.DD`.
 
-- [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
+- [ ] In the from the **root** of the repository, run:
 
+```bash
+export GITHUB_API_TOKEN=<A GITHUB API TOKEN>
+$ ./scripts/make_release.sh
+```
+This will bump the version in .cabal and .nix files and generate release notes.
+
+- [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
   ```
   $ git push origin --tags
   ```
@@ -29,11 +32,7 @@
 
 - [ ] Verify all PRs since the last release have a corresponding milestone (hint: we can filter PR by merge date on github using `merged:>yyyy-mm-dd` filter).
 
-- [ ] List of all the stories and corresponding PRs included in the release. A useful script for this [here](https://gist.github.com/KtorZ/5098d42611658c65a5df835b0e73336f)
-
-- [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases), following the [RELEASE_TEMPLATE](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/RELEASE_TEMPLATE.md).
-
-
+- [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases) using the previously generated release notes. Fill in the empty sections.
 
 ## Verify release artifacts
 
