@@ -10,6 +10,12 @@
           - AnyAddressStateId
           - AnyAddressStateKey
           - AnyAddressStateProportion
+  - section:
+    - name: test:integration bench:latency
+    - message:
+      - name: Module reused between components
+      - module:
+        - Cardano.Wallet.Byron.Faucet
 - package:
   - name: cardano-wallet-core
   - section:
@@ -136,4 +142,3 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Startup.Windows
-
