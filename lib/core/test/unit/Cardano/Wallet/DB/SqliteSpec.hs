@@ -50,7 +50,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( KeyValPairs (..) )
+    ( InitialCheckpoint (..), KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
@@ -70,6 +70,8 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistPrivateKey
@@ -87,7 +89,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
+    ( Wallet, getState, initWallet, updateState )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -136,6 +138,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Maybe
@@ -179,7 +183,7 @@ import Test.Hspec
     , xit
     )
 import Test.QuickCheck
-    ( Property, generate, property, (==>) )
+    ( Property, arbitrary, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -207,9 +211,32 @@ sqliteSpecSeq = withDB newMemoryDBLayer $ do
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd = withDB newMemoryDBLayer $ do
-        describe "Sqlite State machine (RndState)" $ do
-            it "Sequential state machine tests"
-                (prop_sequential :: TestDBRnd -> Property)
+    describe "Sqlite (RndState)" $ do
+        it "insertState . selectState (regression account index)"
+            testRegressionInsertSelectRndState
+    describe "Sqlite State machine (RndState)" $ do
+        it "Sequential state machine tests"
+            (prop_sequential :: TestDBRnd -> Property)
+
+testRegressionInsertSelectRndState
+    :: DBLayer IO (RndState 'Mainnet) ByronKey
+    -> IO ()
+testRegressionInsertSelectRndState db = do
+    -- NOTE Abusing the index type here, for the sake of testing.
+    old  <- (\s -> s { accountIndex = Index 0 }) <$> generate arbitraryRndState
+    wid  <- generate arbitrary
+    cp   <- getInitialCheckpoint <$> generate arbitrary
+    meta <- generate arbitrary
+
+    new <- db & \DBLayer{..} -> atomically $ do
+        unsafeRunExceptT $ initializeWallet wid cp meta []
+        unsafeRunExceptT $ putCheckpoint wid (updateState old cp)
+        (fmap getState) <$> readCheckpoint wid
+
+    (accountIndex <$> new) `shouldBe` Just (minBound :: Index 'Hardened 'AccountK)
+
+  where
+    arbitraryRndState = arbitrary @(RndState 'Mainnet)
 
 {-------------------------------------------------------------------------------
                                 Logging Spec

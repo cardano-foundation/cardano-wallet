@@ -462,6 +462,10 @@ instance Arbitrary (Index 'Hardened 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
+instance Arbitrary (Index 'Hardened 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
 instance Arbitrary (Index 'WholeDomain 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum

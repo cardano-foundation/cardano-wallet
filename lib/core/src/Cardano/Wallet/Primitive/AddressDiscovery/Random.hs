@@ -44,6 +44,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , XPrv
+    , liftIndex
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -81,7 +82,7 @@ import qualified Data.Set as Set
 data RndState (network :: NetworkDiscriminant) = RndState
     { hdPassphrase :: Passphrase "addr-derivation-payload"
     -- ^ The HD derivation passphrase
-    , accountIndex :: Index 'WholeDomain 'AccountK
+    , accountIndex :: Index 'Hardened 'AccountK
     -- ^ The account index used for address _generation_ in this wallet. Note
     -- that addresses will be _discovered_ from any and all account indices,
     -- regardless of this value.
@@ -186,18 +187,18 @@ unavailablePaths st = Map.keysSet $ addresses st <> pendingAddresses st
 -- account's address space is used up. We may have to improve it later.
 findUnusedPath
     :: StdGen
-    -> Index 'WholeDomain 'AccountK
+    -> Index 'Hardened 'AccountK
     -> Set DerivationPath
     -> (DerivationPath, StdGen)
 findUnusedPath g accIx used
     | Set.notMember path used = (path, gen')
     | otherwise = findUnusedPath gen' accIx used
   where
-    path = (accIx, addrIx)
+    path = (liftIndex accIx, liftIndex addrIx)
     (addrIx, gen') = randomIndex g
 
 randomIndex
-    :: forall ix g. (RandomGen g, ix ~ Index 'WholeDomain 'AddressK)
+    :: forall ix g. (RandomGen g, ix ~ Index 'Hardened 'AddressK)
     => g
     -> (ix, g)
 randomIndex g = (Index ix, g')

@@ -586,7 +586,7 @@ newtype ApiNetworkClock = ApiNetworkClock
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
     { passphrase :: !(ApiT (Passphrase "raw"))
-    , addressIndex :: !(Maybe (ApiT (Index 'WholeDomain 'AddressK)))
+    , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings

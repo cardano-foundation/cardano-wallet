@@ -225,7 +225,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
             { "passphrase": "Secure Passphrase"
-            , "address_index": 14
+            , "address_index": 2147483662
             }|]
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r
@@ -245,7 +245,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
             { "passphrase": "Secure Passphrase"
-            , "address_index": 14
+            , "address_index": 2147483662
             }|]
     r0 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r0 [ expectResponseCode @IO HTTP.status201 ]
