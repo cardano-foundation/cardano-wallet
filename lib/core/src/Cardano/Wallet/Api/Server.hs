@@ -702,7 +702,7 @@ byronServer byron icarus ntp =
     byronAddresses =
              (\wid s -> withLegacyLayer wid
                 (byron, postRandomAddress byron wid s)
-                (icarus, throwError err403)
+                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
         :<|> (\wid s -> withLegacyLayer wid
                 (byron , listAddresses byron (const pure) wid s)
@@ -2380,6 +2380,11 @@ instance LiftHandler ErrCreateRandomAddress where
             apiError err409 AddressAlreadyExists $ mconcat
                 [ "I cannot derive a new unused address #", pretty (fromEnum ix)
                 , " because I already know of such address."
+                ]
+        ErrCreateAddressNotAByronWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "I cannot derive new address for this wallet type."
+                , " Make sure to use Byron random wallet id."
                 ]
 
 instance LiftHandler (Request, ServerError) where

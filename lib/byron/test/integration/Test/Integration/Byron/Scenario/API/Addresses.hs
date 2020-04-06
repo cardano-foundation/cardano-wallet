@@ -172,9 +172,14 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
     w <- emptyIcarusWallet ctx
     let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
-    verify r [ expectResponseCode @IO HTTP.status403 ]
+    verify r
+        [ expectResponseCode @IO HTTP.status403
+        , expectErrorMessage
+            "I cannot derive new address for this wallet type.\
+            \ Make sure to use Byron random wallet id."
+        ]
   where
-    title = "ADDRESS_CREATE_02 - Creation if forbidden on Icarus wallets"
+    title = "ADDRESS_CREATE_02 - Creation is forbidden on Icarus wallets"
 
 scenario_ADDRESS_CREATE_03
     :: forall (n :: NetworkDiscriminant) t.
@@ -250,6 +255,9 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
     r0 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r0 [ expectResponseCode @IO HTTP.status201 ]
     r1 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
-    verify r1 [ expectResponseCode @IO HTTP.status409 ]
+    verify r1
+        [ expectResponseCode @IO HTTP.status409
+        , expectErrorMessage "I already know of such address."
+        ]
   where
     title = "ADDRESS_CREATE_06 - Cannot create an address that already exists"
