@@ -63,10 +63,11 @@ let
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
           # staging build and test results.
-          #
+          integration.doCheck = !isHydraPRJobset;
+
           # Running Windows integration tests under Wine is disabled
           # because ouroboros-network doesn't fully work under Wine.
-          integration.doCheck = !isHydraPRJobset && !pkgs.stdenv.hostPlatform.isWindows;
+          integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
 
           # provide cardano-node command to test suites
           integration.build-tools = [ pkgs.cardano-node ];

@@ -71,7 +71,7 @@ let
   };
 
   filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
-  getPackageChecks = lib.mapAttrs (_: package: package.checks);
+  getPackageChecks = mapAttrs (_: package: package.checks);
 
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
