@@ -471,7 +471,7 @@ instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
 instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
-    arbitrary = pure $ mkAddressPool arbitrarySeqAccount minBound mempty
+    arbitrary = pure $ mkAddressPool @'Mainnet arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of

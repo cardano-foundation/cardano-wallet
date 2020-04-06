@@ -167,6 +167,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isAlphaNum, toLower )
+import Data.Either
+    ( isRight )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
@@ -247,7 +249,15 @@ import Test.Aeson.Internal.RoundtripSpecs
 import Test.Aeson.Internal.Utils
     ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
-    ( Spec, SpecWith, describe, expectationFailure, it, runIO, shouldBe )
+    ( Spec
+    , SpecWith
+    , describe
+    , expectationFailure
+    , it
+    , runIO
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -644,6 +654,30 @@ spec = do
             ]
             "addr1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
             \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8fke02m"
+
+    describe "Golden test addresses" $ do
+        it "Byron / Random (Mainnet)" $
+            decodeAddress @'Mainnet
+                "DdzFFzCqrhstkaXBhux3ALL9wqvP3Nkz8QE5qKwFbqkmTL6zyKpc\
+                \FpqXJLkgVhRTYkf5F7mh3q6bAv5hWYjhSV1gekjEJE8XFeZSganv"
+            `shouldSatisfy` isRight
+
+        it "Byron / Icarus (Mainnet)" $
+            decodeAddress @'Mainnet
+                "Ae2tdPwUPEZ9mpZBa3pN4CJH3xRA4cPr1HTUE1dVBF5JKNvkAKUxdK8f5L9"
+              `shouldSatisfy` isRight
+
+        it "Byron / Random (Testnet)" $
+            decodeAddress @('Testnet 1097911063)
+                "37btjrVyb4KFg2FzVkfmBWgue1qqC7oHmFNVTWYgLTHEE9wGC6xizioGw\
+                \sYPAtPbDTrvtnV7vUXAsmP7pTMx7X95AcwfUAqoLJpGJ4eaosUHGBjta4"
+              `shouldSatisfy` isRight
+
+        it "Byron / Icarus (Testnet)" $
+            decodeAddress @('Testnet 1097911063)
+                "2cWKMJemoBajA7ji3xQvAnrSESRyceRVnj\
+                \5j9kj1Tb9pzGoY5jPc142iPXfaix1DbbDF7"
+              `shouldSatisfy` isRight
 
     describe "pointless tests to trigger coverage for record accessors" $ do
         it "ApiAddress" $ property $ \x ->

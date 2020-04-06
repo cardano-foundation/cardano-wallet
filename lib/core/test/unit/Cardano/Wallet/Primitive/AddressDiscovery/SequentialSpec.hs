@@ -257,7 +257,7 @@ prop_poolGrowWithinGap
         ( Typeable chain
         , Eq (k 'AccountK XPub)
         , Show (k 'AccountK XPub)
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
@@ -268,7 +268,7 @@ prop_poolGrowWithinGap
 prop_poolGrowWithinGap _proxy (pool, addr) =
     cover 7.5 (isJust $ fst res) "pool hit" prop
   where
-    res = lookupAddress addr pool
+    res = lookupAddress @'Mainnet addr pool
     prop = case res of
         (Nothing, pool') -> pool === pool'
         (Just _, pool') ->
@@ -284,7 +284,7 @@ prop_roundtripMkAddressPool
         ( Typeable chain
         , Eq (k 'AccountK XPub)
         , Show (k 'AccountK XPub)
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
@@ -293,7 +293,7 @@ prop_roundtripMkAddressPool
     -> AddressPool chain k
     -> Property
 prop_roundtripMkAddressPool _proxy pool =
-    ( mkAddressPool
+    ( mkAddressPool @'Mainnet
         (accountPubKey pool)
         (gap pool)
         (addresses liftAddress pool)
@@ -316,7 +316,7 @@ prop_poolAtLeastGapAddresses _proxy pool =
 prop_poolEventuallyDiscoverOurs
     :: forall (chain :: AccountingStyle) k.
         ( Typeable chain
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
@@ -326,13 +326,13 @@ prop_poolEventuallyDiscoverOurs
     -> Property
 prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
     if addr `elem` ours then property $
-        (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
+        (fromEnum <$> fst (lookupAddress @'Mainnet addr pool)) === elemIndex addr ours
     else
         label "address not ours" (property True)
   where
     ours = take 25 (ourAddresses (Proxy @k) (accountingStyle @chain))
-    pool = flip execState (mkAddressPool @chain @k ourAccount g mempty) $
-        forM ours (state . lookupAddress)
+    pool = flip execState (mkAddressPool @'Mainnet @chain @k ourAccount g mempty) $
+        forM ours (state . lookupAddress @'Mainnet)
 
 {-------------------------------------------------------------------------------
                     Properties for AddressScheme & PendingIxs
@@ -484,7 +484,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
 prop_shrinkPreserveKnown
     :: forall (chain :: AccountingStyle) k.
         ( Typeable chain
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
@@ -498,16 +498,16 @@ prop_shrinkPreserveKnown _proxy (Positive size) pool =
         $ classify (length addrs' < length addrs) "pool is smaller"
         $ all (`elem` addrs') cut
   where
-    pool'  = shrinkPool liftAddress cut minBound pool
-    addrs  = addresses  liftAddress pool
-    addrs' = addresses  liftAddress pool'
+    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
+    addrs  = addresses liftAddress pool
+    addrs' = addresses liftAddress pool'
     cut    = take size addrs
 
 -- There's no address after the address from the cut with the highest index
 prop_shrinkMaxIndex
     :: forall (chain :: AccountingStyle) k.
         ( Typeable chain
-        , MkKeyFingerprint k (k 'AddressK XPub)
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
@@ -519,9 +519,9 @@ prop_shrinkMaxIndex
 prop_shrinkMaxIndex _proxy (Positive size) pool =
     fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
   where
-    pool'  = shrinkPool liftAddress cut minBound pool
-    addrs  = addresses  liftAddress pool
-    addrs' = addresses  liftAddress pool'
+    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
+    addrs  = addresses liftAddress pool
+    addrs' = addresses liftAddress pool'
     cut    = take size addrs
 
 {-------------------------------------------------------------------------------
@@ -617,7 +617,7 @@ instance Arbitrary Address where
 
 instance
     ( Typeable chain
-    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k
@@ -631,11 +631,11 @@ instance
             k | k == fromEnum g && g == minBound ->
                 []
             k | k == fromEnum g && g > minBound ->
-                [ mkAddressPool key minBound [] ]
+                [ mkAddressPool @'Mainnet key minBound [] ]
             k ->
-                [ mkAddressPool key minBound []
-                , mkAddressPool key g []
-                , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
+                [ mkAddressPool @'Mainnet key minBound []
+                , mkAddressPool @'Mainnet key g []
+                , mkAddressPool @'Mainnet key g (take (k - (fromEnum g `div` 5)) addrs)
                 ]
 
     arbitrary = do
@@ -643,7 +643,7 @@ instance
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (Proxy @k) (accountingStyle @chain))
-        return $ mkAddressPool ourAccount g addrs
+        return $ mkAddressPool @'Mainnet ourAccount g addrs
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs rwd) =
@@ -665,7 +665,7 @@ data Key = forall (k :: Depth -> * -> *).
     ( Typeable k
     , Eq (k 'AccountK XPub)
     , Show (k 'AccountK XPub)
-    , MkKeyFingerprint k (k 'AddressK XPub)
+    , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k

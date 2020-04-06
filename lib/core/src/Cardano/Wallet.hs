@@ -530,13 +530,13 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv credentials (mkUnboundedAddressPoolGap 10000)
+    let s = mkSeqStateFromRootXPrv @n credentials (mkUnboundedAddressPoolGap 10000)
     let (hist, cp) = initWallet block0 bp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = SeqState
-            (shrinkPool (liftPaymentAddress @n) addrs g (internalPool s))
-            (shrinkPool (liftPaymentAddress @n) addrs g (externalPool s))
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (internalPool s))
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (externalPool s))
             (pendingChangeIxs s)
             (rewardAccountKey s)
     now <- lift getCurrentTime
