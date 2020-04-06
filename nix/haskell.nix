@@ -69,6 +69,9 @@ let
           # because ouroboros-network doesn't fully work under Wine.
           integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
 
+          # cardano-node socket path becomes too long otherwise
+          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+
           # provide cardano-node command to test suites
           integration.build-tools = [ pkgs.cardano-node ];
         };
