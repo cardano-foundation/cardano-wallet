@@ -189,12 +189,6 @@ spec = do
         let tests =
                 [ ("serve", "--port", getPort minBound - 14)
                 , ("serve", "--port", getPort maxBound + 42)
-                , ("serve", "--node-port", getPort minBound - 6)
-                , ("serve", "--node-port", getPort maxBound + 523)
-                , ("launch", "--port", getPort minBound - 1)
-                , ("launch", "--port", getPort maxBound + 59375)
-                , ("launch", "--node-port", getPort minBound - 5621)
-                , ("launch", "--node-port", getPort maxBound + 1)
                 ]
         forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
             it (unwords args) $ \_ -> do

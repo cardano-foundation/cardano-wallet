@@ -101,6 +101,7 @@ import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as Trans
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Keys as KeysCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Mnemonics as MnemonicsJormungandr
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Port as PortCLIJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
@@ -154,6 +155,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ WalletsCLI.spec @n @t
             withCtxOnly $ HWWalletsCLI.spec @n @t
             withCtxOnly $ PortCLI.spec @t
+            withCtxOnly $ PortCLIJormungandr.spec @t
             withCtxOnly $ NetworkCLI.spec @t
             withCtxOnly $ StakePoolsCliJormungandr.spec @t
             ServerCLI.spec @t

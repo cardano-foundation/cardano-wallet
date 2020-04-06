@@ -12,6 +12,8 @@
 
 module Test.Integration.Scenario.API.Wallets
     ( spec
+    , scenarioWalletResync01_happyPath
+    , scenarioWalletResync02_notGenesis
     ) where
 
 import Prelude
@@ -1175,14 +1177,12 @@ spec = do
         expectErrorMessage (errMsg404NoWallet wid) ru
 
     describe "WALLETS_RESYNC_01" $ do
-        scenarioWalletResync01_happyPath @'Shelley emptyWallet
-        scenarioWalletResync01_happyPath @'Byron emptyRandomWallet
-        scenarioWalletResync01_happyPath @'Byron emptyIcarusWallet
+        it "force resync eventually get us back to the same point" $ \ctx -> do
+            scenarioWalletResync01_happyPath @'Shelley ctx emptyWallet
 
     describe "WALLETS_RESYNC_02" $ do
-        scenarioWalletResync02_notGenesis @'Shelley emptyWallet
-        scenarioWalletResync02_notGenesis @'Byron emptyRandomWallet
-        scenarioWalletResync02_notGenesis @'Byron emptyIcarusWallet
+        it "given point is not genesis (i.e. (0, 0))" $ \ctx -> do
+            scenarioWalletResync02_notGenesis @'Shelley ctx emptyWallet
 
     describe "BYRON_MIGRATE_05 -\
         \ migrating from/to inappropriate wallet types" $ do
@@ -1717,10 +1717,10 @@ scenarioWalletResync01_happyPath
         , Generic wallet
         , Show wallet
         )
-    => (Context t -> IO wallet)
-    -> SpecWith (Context t)
-scenarioWalletResync01_happyPath fixture = it
-  "force resync eventually get us back to the same point" $ \ctx -> do
+    => Context t
+    -> (Context t -> IO wallet)
+    -> IO ()
+scenarioWalletResync01_happyPath ctx fixture = do
     w <- fixture ctx
 
     -- 1. Wait for wallet to be synced
@@ -1748,10 +1748,10 @@ scenarioWalletResync02_notGenesis
         , Generic wallet
         , Show wallet
         )
-    => (Context t -> IO wallet)
-    -> SpecWith (Context t)
-scenarioWalletResync02_notGenesis fixture = it
-  "given point is not genesis (i.e. (0, 0))" $ \ctx -> do
+    => Context t
+    -> (Context t -> IO wallet)
+    -> IO ()
+scenarioWalletResync02_notGenesis ctx fixture = do
     w <- fixture ctx
 
     -- 1. Force a resync on an invalid point (/= from genesis)

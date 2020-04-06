@@ -49,7 +49,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, it, pendingWith, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -96,6 +96,8 @@ import Test.Integration.Framework.TestData
     , updatePassPayload
     , wildcardsWalletName
     )
+import Test.Integration.Scenario.API.Wallets
+    ( scenarioWalletResync01_happyPath, scenarioWalletResync02_notGenesis )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -542,6 +544,22 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status204
             ]
+
+    describe "BYRON_WALLETS_RESYNC_01" $ do
+        let title = "force resync eventually get us back to the same point"
+        it ("emptyRandomWallet - " ++ title) $ \ctx -> do
+            pendingWith "#1505 - Cannot force resync wallet and cardano-node crash as a result"
+            scenarioWalletResync01_happyPath @'Byron ctx emptyRandomWallet
+        it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
+            pendingWith "#1505 - Cannot force resync wallet and cardano-node crash as a result"
+            scenarioWalletResync01_happyPath @'Byron ctx emptyIcarusWallet
+
+    describe "BYRON_WALLETS_RESYNC_02" $ do
+        let title = "force resync eventually get us back to the same point"
+        it ("emptyRandomWallet - " ++ title) $ \ctx -> do
+            scenarioWalletResync02_notGenesis @'Byron ctx emptyRandomWallet
+        it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
+            scenarioWalletResync02_notGenesis @'Byron ctx emptyIcarusWallet
  where
      genMnemonics
         :: forall mw ent csz.
