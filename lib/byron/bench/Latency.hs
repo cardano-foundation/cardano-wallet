@@ -439,7 +439,7 @@ benchWithServer tracers action = do
         either pure (throwIO . ProcessHasExited "integration")
   where
     withServer act =
-        withCardanoNode nullTracer $(getTestData) $ \socketPath block0 (bp,vData) ->
+        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
