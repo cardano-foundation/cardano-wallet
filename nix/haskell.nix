@@ -104,6 +104,7 @@ let
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/latency \
+                --run "cd $src" \
                 --prefix PATH : ${pkgs.cardano-node}/bin
             '';
           };
