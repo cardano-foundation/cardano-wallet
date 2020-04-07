@@ -1,6 +1,11 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -11,6 +16,11 @@
 module Cardano.Wallet.Byron.Launch
     ( -- * Integration Launcher
       withCardanoNode
+
+    , NetworkConfiguration (..)
+    , nodeSocketOption
+    , networkConfigurationOption
+    , parseGenesisData
     ) where
 
 import Prelude
@@ -19,34 +29,59 @@ import Cardano.BM.Trace
     ( Trace )
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
+import Cardano.CLI
+    ( optionT )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
+import Cardano.Wallet.Byron
+    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Byron.Compatibility
-    ( NodeVersionData, fromGenesisData )
+    ( NodeVersionData
+    , emptyGenesis
+    , fromGenesisData
+    , fromProtocolMagicId
+    , mainnetBlockchainParameters
+    , mainnetVersionData
+    , testnetVersionData
+    )
 import Cardano.Wallet.Byron.Transaction
     ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockchainParameters (..) )
+    ( Block (..), BlockchainParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Applicative
+    ( (<|>) )
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad
     ( forM_, unless, when )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.Trans.Except
+    ( ExceptT, withExceptT )
 import Data.Aeson
     ( toJSON )
+import Data.Function
+    ( (&) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime )
+import GHC.TypeLits
+    ( SomeNat (..), someNatVal )
+import Options.Applicative
+    ( Parser, flag', help, long, metavar )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -66,6 +101,95 @@ import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
+
+data NetworkConfiguration where
+    MainnetConfig
+        :: (SomeNetworkDiscriminant, NodeVersionData)
+        -> NetworkConfiguration
+
+    TestnetConfig
+        :: FilePath
+        -> NetworkConfiguration
+
+-- | Hand-written as there's no Show instance for 'NodeVersionData'
+instance Show NetworkConfiguration where
+    show = \case
+        MainnetConfig{} ->
+            "MainnetConfig"
+        TestnetConfig genesisFile ->
+            "TestnetConfig " <> show genesisFile
+
+-- | --node-socket=FILE
+nodeSocketOption :: Parser FilePath
+nodeSocketOption = optionT $ mempty
+    <> long "node-socket"
+    <> metavar "FILE"
+    <> help "Path to the node's domain socket."
+
+-- | --mainnet | (--testnet=FILE)
+networkConfigurationOption :: Parser NetworkConfiguration
+networkConfigurationOption =
+    mainnetFlag <|> (TestnetConfig <$> testnetOption)
+  where
+    -- --mainnet
+    mainnetFlag = flag'
+        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
+        (long "mainnet")
+
+    -- | --testnet=FILE
+    testnetOption
+        :: Parser FilePath
+    testnetOption = optionT $ mempty
+        <> long "testnet"
+        <> metavar "FILE"
+        <> help "Path to the genesis .json file."
+
+someTestnetDiscriminant
+    :: ProtocolMagic
+    -> (SomeNetworkDiscriminant, NodeVersionData)
+someTestnetDiscriminant pm@(ProtocolMagic n) =
+    case someNatVal (fromIntegral n) of
+        Just (SomeNat proxy) ->
+            ( SomeNetworkDiscriminant $ mapProxy proxy
+            , testnetVersionData pm
+            )
+        _ -> error "networkDiscriminantFlag: failed to convert \
+            \ProtocolMagic to SomeNat."
+  where
+    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
+    mapProxy _proxy = Proxy @('Testnet a)
+
+parseGenesisData
+    :: NetworkConfiguration
+    -> ExceptT String IO (SomeNetworkDiscriminant, BlockchainParameters, NodeVersionData, Block)
+parseGenesisData = \case
+    MainnetConfig (discriminant, vData) -> pure
+        ( discriminant
+        , mainnetBlockchainParameters
+        , vData
+        , emptyGenesis (mainnetBlockchainParameters)
+        )
+    TestnetConfig genesisFile -> do
+        (genesisData, genesisHash) <-
+            withExceptT show $ readGenesisData genesisFile
+            --exitWith $ ExitFailure 33
+
+        let (discriminant, vData) = genesisData
+                & gdProtocolMagicId
+                & fromProtocolMagicId
+                & someTestnetDiscriminant
+
+        let (bp, outs) = fromGenesisData (genesisData, genesisHash)
+        pure
+            ( discriminant
+            , bp
+            , vData
+            , fromGenesisTxOut bp outs
+            )
+
+--------------------------------------------------------------------------------
+-- For Integration
+--------------------------------------------------------------------------------
 
 data CardanoNodeConfig = CardanoNodeConfig
     { nodeConfigFile   :: FilePath

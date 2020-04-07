@@ -30,10 +30,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logError, logInfo, logNotice )
-import Cardano.Chain.Genesis
-    ( GenesisData (..), readGenesisData )
 import Cardano.CLI
-    ( LoggingOptions (..)
+    ( LoggingOptions
     , cli
     , cmdAddress
     , cmdByronWalletCreate
@@ -48,9 +46,10 @@ import Cardano.CLI
     , helperTracing
     , hostPreferenceOption
     , listenOption
+    , loggingMinSeverity
     , loggingOptions
     , loggingSeverityOrOffReader
-    , optionT
+    , loggingTracers
     , runCli
     , setupDirectory
     , shutdownHandlerFlag
@@ -73,8 +72,7 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..)
-    , TracerSeverities
+    ( TracerSeverities
     , Tracers
     , Tracers' (..)
     , serveWallet
@@ -82,43 +80,30 @@ import Cardano.Wallet.Byron
     , tracerDescriptions
     , tracerLabels
     )
-import Cardano.Wallet.Byron.Compatibility
-    ( KnownNetwork (..)
-    , NodeVersionData
-    , emptyGenesis
-    , fromGenesisData
-    , fromProtocolMagicId
-    , mainnetVersionData
-    , testnetVersionData
+import Cardano.Wallet.Byron.Launch
+    ( NetworkConfiguration (..)
+    , networkConfigurationOption
+    , nodeSocketOption
+    , parseGenesisData
     )
-import Cardano.Wallet.Byron.Transaction
-    ( fromGenesisTxOut )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ProtocolMagic (..), SyncTolerance )
+    ( SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
-    ( Const (..), optional, (<|>) )
+    ( Const (..), optional )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
     ( contramap )
-import Data.Function
-    ( (&) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import GHC.TypeLits
-    ( SomeNat (..), someNatVal )
 import Network.Socket
     ( SockAddr )
 import Options.Applicative
@@ -126,8 +111,6 @@ import Options.Applicative
     , Mod
     , Parser
     , command
-    , flag'
-    , help
     , helper
     , info
     , internal
@@ -220,8 +203,12 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
 
-                (discriminant, bp, vData, block0) <-
-                    parseGenesisData tr networkConfig
+                (discriminant, bp, vData, block0)
+                    <- runExceptT (parseGenesisData networkConfig) >>= \case
+                            Right x -> pure x
+                            Left err -> do
+                                logError tr (MsgFailedToParseGenesis $ T.pack err)
+                                exitWith $ ExitFailure 33
 
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
                 exitWith =<< serveWallet
@@ -245,112 +232,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
         trShutdown = trMessage $ contramap (\(n, x) -> (n, fmap MsgShutdownHandler x)) tr
-
-
-    parseGenesisData tr = \case
-        MainnetConfig (discriminant, vData) -> pure
-            ( discriminant
-            , blockchainParameters @'Mainnet
-            , vData
-            , emptyGenesis (blockchainParameters @'Mainnet)
-            )
-        TestnetConfig genesisFile -> do
-            (genesisData, genesisHash) <-
-                runExceptT (readGenesisData genesisFile) >>= \case
-                    Right a -> pure a
-                    Left err -> do
-                        logError tr $ MsgFailedToParseGenesis $ T.pack $ show err
-                        exitWith $ ExitFailure 33
-
-            let (discriminant, vData) = genesisData
-                    & gdProtocolMagicId
-                    & fromProtocolMagicId
-                    & someTestnetDiscriminant
-
-            let (bp, outs) = fromGenesisData (genesisData, genesisHash)
-            pure
-                ( discriminant
-                , bp
-                , vData
-                , fromGenesisTxOut bp outs
-                )
-
-{-------------------------------------------------------------------------------
-                                 Options
--------------------------------------------------------------------------------}
-
-data NetworkConfiguration where
-    MainnetConfig
-        :: (SomeNetworkDiscriminant, NodeVersionData)
-        -> NetworkConfiguration
-
-    TestnetConfig
-        :: FilePath
-        -> NetworkConfiguration
-
--- | Hand-written as there's no Show instance for 'NodeVersionData'
-instance Show NetworkConfiguration where
-    show = \case
-        MainnetConfig{} ->
-            "MainnetConfig"
-        TestnetConfig genesisFile ->
-            "TestnetConfig " <> show genesisFile
-
--- | --node-socket=FILE
-nodeSocketOption :: Parser FilePath
-nodeSocketOption = optionT $ mempty
-    <> long "node-socket"
-    <> metavar "FILE"
-    <> help "Path to the node's domain socket."
-
--- | --mainnet | (--testnet=FILE)
-networkConfigurationOption :: Parser NetworkConfiguration
-networkConfigurationOption =
-    mainnetFlag <|> (TestnetConfig <$> testnetOption)
-  where
-    -- --mainnet
-    mainnetFlag = flag'
-        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
-        (long "mainnet")
-
-    -- | --testnet=FILE
-    testnetOption
-        :: Parser FilePath
-    testnetOption = optionT $ mempty
-        <> long "testnet"
-        <> metavar "FILE"
-        <> help "Path to the genesis .json file."
-
-someTestnetDiscriminant
-    :: ProtocolMagic
-    -> (SomeNetworkDiscriminant, NodeVersionData)
-someTestnetDiscriminant pm@(ProtocolMagic n) =
-    case someNatVal (fromIntegral n) of
-        Just (SomeNat proxy) ->
-            ( SomeNetworkDiscriminant $ mapProxy proxy
-            , testnetVersionData pm
-            )
-        _ -> error "networkDiscriminantFlag: failed to convert \
-            \ProtocolMagic to SomeNat."
-  where
-    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
-    mapProxy _proxy = Proxy @('Testnet a)
-
-tracerSeveritiesOption :: Parser TracerSeverities
-tracerSeveritiesOption = Tracers
-    <$> traceOpt applicationTracer (Just Info)
-    <*> traceOpt apiServerTracer (Just Info)
-    <*> traceOpt walletEngineTracer (Just Info)
-    <*> traceOpt walletDbTracer (Just Info)
-    <*> traceOpt ntpClientTracer (Just Info)
-    <*> traceOpt networkTracer (Just Info)
-  where
-    traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
-        <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
-        <> value def
-        <> metavar "SEVERITY"
-        <> internal
-
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -404,3 +285,25 @@ withTracers logOpt action =
         logInfo trMain $ MsgVersion version gitRevision
         logInfo trMain =<< MsgCmdLine <$> getExecutablePath <*> getArgs
         action trMain tracers
+
+
+{-------------------------------------------------------------------------------
+                                 Options
+-------------------------------------------------------------------------------}
+
+
+tracerSeveritiesOption :: Parser TracerSeverities
+tracerSeveritiesOption = Tracers
+    <$> traceOpt applicationTracer (Just Info)
+    <*> traceOpt apiServerTracer (Just Info)
+    <*> traceOpt walletEngineTracer (Just Info)
+    <*> traceOpt walletDbTracer (Just Info)
+    <*> traceOpt ntpClientTracer (Just Info)
+    <*> traceOpt networkTracer (Just Info)
+  where
+    traceOpt field def = fmap Const . option loggingSeverityOrOffReader $ mempty
+        <> long ("trace-" <> T.unpack (getConst (field tracerLabels)))
+        <> value def
+        <> metavar "SEVERITY"
+        <> internal
+
