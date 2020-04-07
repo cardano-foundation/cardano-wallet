@@ -255,7 +255,7 @@ exec c = do
                         socketPath
                         bp
                         vData
-                        "seq.dat"
+                        "seq.timelog"
                         (walletRnd))
 
                 , bench ("restore " <> network <> " 1% ownership")
@@ -265,7 +265,7 @@ exec c = do
                         socketPath
                         bp
                         vData
-                        "1-percent.dat"
+                        "1-percent.timelog"
                         (initAnyState "Benchmark 1% Wallet" 0.01))
 
                 , bench ("restore " <> network <> " 2% ownership")
@@ -275,7 +275,7 @@ exec c = do
                         socketPath
                         bp
                         vData
-                        "2-percent.dat"
+                        "2-percent.timelog"
                         (initAnyState "Benchmark 2% Wallet" 0.02))
                 ]
   where

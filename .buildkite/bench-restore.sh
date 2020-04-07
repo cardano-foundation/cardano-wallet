@@ -42,9 +42,9 @@ if [ -n "${BUILDKITE:-}" ]; then
   buildkite-agent artifact upload $artifact_name.svg
   buildkite-agent artifact upload $results
 
-  buildkite-agent artifact upload mainnet-1-percent.dat
-  buildkite-agent artifact upload mainnet-2-percent.dat
-  buildkite-agent artifact upload mainnet-seq.dat
+  for file in *.timelog; do
+     buildkite-agent artifact upload $file;
+  done;
 
   echo "+++ Heap profile"
   printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
