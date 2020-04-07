@@ -15,6 +15,15 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Restore benchmark - testnet'
+    command: "./.buildkite/bench-restore.sh"
+    env:
+      HOME: "/cache/cardano-wallet.home"
+      NETWORK: testnet
+    timeout_in_minutes: 600
+    agents:
+      system: x86_64-linux
+
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 120
