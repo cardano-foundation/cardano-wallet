@@ -3,13 +3,12 @@
 
 set -euo pipefail
 
-NETWORK=mainnet
 target=byron
 artifact_name=restore-$target-$NETWORK
 log=restore.log
 results=restore-$target-$NETWORK.txt
 total_time=restore-time.txt
-export NODE_DB=$HOME/node-db
+export NODE_DB=$HOME/node-db-$NETWORK
 
 echo "--- Build"
 
@@ -17,7 +16,8 @@ echo "pwd=$(pwd)"
 echo "NODE_DB=$NODE_DB"
 
 nix-build -A benchmarks.cardano-wallet-$target.restore -o bench-$target-restore
-bench=./bench-$target-restore/bin/restore
+
+bench="./bench-$target-restore/bin/restore --$NETWORK"
 
 echo "--- Run benchmarks - $target - $NETWORK"
 
@@ -26,7 +26,7 @@ if [ -n "${SCRATCH_DIR:-}" ]; then
   export HOME="$SCRATCH_DIR"
 fi
 
-command time -o $total_time -v $bench "$NETWORK" +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1 | tee $log
+command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1 | tee $log
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' > $results
 

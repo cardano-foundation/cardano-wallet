@@ -90,7 +90,7 @@ let
         };
         packages.cardano-wallet-jormungandr.components.benchmarks.latency =
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper];
+            build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/latency \
                 --run "cd $src" \
@@ -100,16 +100,16 @@ let
 
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
-				#
-				# TODO: Using the configuration dir works for mainnet, but to add testnet
-        # support, we need to retrieve it properly.
         packages.cardano-wallet-byron.components.benchmarks.restore =
           pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
-                --set NODE_CONFIG ${pkgs.cardano-node.mainnet.configFile} \
-                --set NODE_TOPOLOGY ${pkgs.cardano-node.configs}/mainnet-topology.json \
+                --set TESTNET_NODE_CONFIG ${pkgs.cardano-node.testnet.configFile} \
+                --set TESTNET_TOPOLOGY ${pkgs.cardano-node.topologyFiles.testnet} \
+                --set TESTNET_GENESIS ${pkgs.cardano-node.testnet.genesisFile} \
+                --set MAINNET_NODE_CONFIG ${pkgs.cardano-node.mainnet.configFile} \
+                --set MAINNET_TOPOLOGY ${pkgs.cardano-node.topologyFiles.mainnet} \
                 --prefix PATH : ${pkgs.cardano-node}/bin
             '';
           };

@@ -30,13 +30,18 @@ import Cardano.Startup
     ( installSignalHandlers )
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog (..) )
+import Cardano.Wallet.Byron
+    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
-    , KnownNetwork (blockchainParameters, versionData)
+    , NodeVersionData
     , emptyGenesis
     , fromByronBlock
     , fromNetworkMagic
+    , mainnetVersionData
     )
+import Cardano.Wallet.Byron.Launch
+    ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Byron.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Byron.Transaction
@@ -101,7 +106,7 @@ import Control.DeepSeq
 import Control.Exception
     ( bracket, evaluate, throwIO )
 import Control.Monad
-    ( forM, mapM_, void )
+    ( forM, join, mapM_, void )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -124,6 +129,8 @@ import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
     ( build, fmt, pretty, (+|), (+||), (|+), (||+) )
+import Options.Applicative
+    ( Parser, execParser, flag', info, long, (<|>) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
 import Say
@@ -154,26 +161,48 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
+main :: IO ()
+main = do
+    testnetGenesis <- getEnv "TESTNET_GENESIS"
+    let opts = info (fmap exec (networkConfigurationOption testnetGenesis)) mempty
+    join $ execParser opts
+
+-- | --mainnet | --testnet
+networkConfigurationOption
+    :: FilePath
+    -> Parser NetworkConfiguration
+networkConfigurationOption testnetGenesis =
+    mainnetFlag <|> testnetFlag
+  where
+    mainnetFlag = flag'
+        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
+        (long "mainnet")
+
+    testnetFlag = flag'
+        (TestnetConfig testnetGenesis)
+        (long "testnet")
 
 -- | Run all available benchmarks. Can accept one argument that is a target
 -- network against which benchmarks below should be ran
---
-main :: IO ()
-main = do
+exec :: NetworkConfiguration -> IO ()
+exec c = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
     (_logCfg, tr) <- initBenchmarkLogging Info
     installSignalHandlers (return ())
 
-    -- TODO: We might want to support testnet via a
-    -- `--benchmark-arguments "testnet"`
-    let network = Mainnet
+    (SomeNetworkDiscriminant networkProxy, bp, vData, _b)
+        <- unsafeRunExceptT $ parseGenesisData c
 
     ----------------------------------------------------------------------------
     -- Environment variables set by nix/haskell.nix (or manually)
-    topology <- getEnv "NODE_TOPOLOGY"
-    config <- getEnv "NODE_CONFIG"
+    topology <- case c of
+        MainnetConfig _ -> getEnv "MAINNET_TOPOLOGY"
+        TestnetConfig _ -> getEnv "TESTNET_TOPOLOGY"
+    config <- case c of
+        MainnetConfig _ -> getEnv "MAINNET_NODE_CONFIG"
+        TestnetConfig _ -> getEnv "TESTNET_NODE_CONFIG"
     ----------------------------------------------------------------------------
     -- Environment variables set by ./buildkite/bench-restore.sh (or manually)
     nodeDB <- getEnv "NODE_DB"
@@ -182,6 +211,9 @@ main = do
     -- Temporary directory for storing socket
     tmpDir <- getCanonicalTemporaryDirectory
         >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
+
+    let network = networkDescription networkProxy
+    sayErr $ "Network: " <> network
 
     let socketPath = tmpDir </> "cardano-node.socket"
     let args =
@@ -198,32 +230,38 @@ main = do
     sayErr $ pretty cmd
 
     void $ withBackendProcess nullTracer cmd $ do
-        case network of
-            Testnet _ -> error "Testnet: not supported yet"
-            Mainnet -> do
-                prepareNode (Proxy @'Mainnet) socketPath
-                runBenchmarks
-                    [ bench ("restore " <> "mainnet" <> " seq")
-                        (bench_restoration @'Mainnet @ByronKey
-                            tr
-                            socketPath
-                            "mainnet-seq.dat"
-                            (walletRnd @'Mainnet))
+            prepareNode networkProxy socketPath bp vData
+            runBenchmarks
+                [ bench ("restore " <> network <> " seq")
+                    (bench_restoration @_ @ByronKey
+                        networkProxy
+                        tr
+                        socketPath
+                        bp
+                        vData
+                        "seq.dat"
+                        (walletRnd))
 
-                    , bench ("restore " <> "mainnet" <> " 1% ownership")
-                        (bench_restoration @'Mainnet @IcarusKey
-                            tr
-                            socketPath
-                            "mainnet-1-percent.dat"
-                            (initAnyState "Benchmark 1% Wallet" 0.01))
+                , bench ("restore " <> network <> " 1% ownership")
+                    (bench_restoration @_ @IcarusKey
+                        networkProxy
+                        tr
+                        socketPath
+                        bp
+                        vData
+                        "1-percent.dat"
+                        (initAnyState "Benchmark 1% Wallet" 0.01))
 
-                    , bench ("restore " <> "mainnet" <> " 2% ownership")
-                        (bench_restoration @'Mainnet @IcarusKey
-                            tr
-                            socketPath
-                            "mainnet-2-percent.dat"
-                            (initAnyState "Benchmark 2% Wallet" 0.02))
-                    ]
+                , bench ("restore " <> network <> " 2% ownership")
+                    (bench_restoration @_ @IcarusKey
+                        networkProxy
+                        tr
+                        socketPath
+                        bp
+                        vData
+                        "2-percent.dat"
+                        (initAnyState "Benchmark 2% Wallet" 0.02))
+                ]
   where
     walletRnd
         :: (WalletId, WalletName, RndState n)
@@ -239,6 +277,9 @@ main = do
             s = mkRndState xprv rngSeed
         in
             (wid, wname, s)
+
+    networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
+    networkDescription _ = networkDiscriminantVal @n
 
 runBenchmarks :: [IO (Text, Double)] -> IO ()
 runBenchmarks bs = do
@@ -287,20 +328,20 @@ bench_restoration
         , MaxSizeOf Address n k
         , PersistState s
         , PersistPrivateKey (k 'RootK)
-        , KnownNetwork n
         , NetworkDiscriminantVal n
         , t ~ IO Byron
         )
-    => Trace IO Text
+    => Proxy n
+    -> Trace IO Text
     -> FilePath
        -- ^ Socket path
+    -> BlockchainParameters
+    -> NodeVersionData
     -> FilePath
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration tracer socketPath progressLogFile (wid, wname, s) = do
-    let bp = blockchainParameters @n
-    let vData = versionData @n
+bench_restoration _proxy tracer socketPath bp vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
@@ -325,7 +366,7 @@ bench_restoration tracer socketPath progressLogFile (wid, wname, s) = do
                         db
                 wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
                 void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @t @k w wid
-                waitForWalletSync @n w wallet
+                waitForWalletSync w wallet bp vData
                 (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
                 sayErr "Wallet restored!"
                 sayErr . fmt . build $
@@ -373,31 +414,32 @@ logChunk :: SlotId -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
 prepareNode
-    :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
+    :: forall n. (NetworkDiscriminantVal n)
     => Proxy n
     -> FilePath
+    -> BlockchainParameters
+    -> NodeVersionData
     -> IO ()
-prepareNode _ socketPath = do
+prepareNode _ socketPath bp vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
-    let bp = blockchainParameters @n
-    let vData = versionData @n
     sl <- withNetworkLayer nullTracer bp socketPath vData $ \nw' -> do
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
-        waitForNodeSync @n nw logQuiet
+        waitForNodeSync nw logQuiet bp
     sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: forall (n :: NetworkDiscriminant) s t k. (KnownNetwork n)
+    :: forall s t k. ()
     => WalletLayer s t k
     -> WalletId
+    -> BlockchainParameters
+    -> NodeVersionData
     -> IO ()
-waitForWalletSync walletLayer wid = do
+waitForWalletSync walletLayer wid bp vData = do
     (w, _, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     let tol = mkSyncTolerance 3600
-    let bp = blockchainParameters @n
     prog <- syncProgressRelativeToTime
                 tol
                 (slotParams bp)
@@ -407,20 +449,20 @@ waitForWalletSync walletLayer wid = do
         Ready -> return ()
         NotResponding -> do
             threadDelay 1000000
-            waitForWalletSync @n walletLayer wid
+            waitForWalletSync walletLayer wid bp vData
         Syncing (Quantity p) -> do
             sayErr . fmt $ "[INFO] restoring: "+|p|+""
             threadDelay 1000000
-            waitForWalletSync @n walletLayer wid
+            waitForWalletSync walletLayer wid bp vData
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: forall (n :: NetworkDiscriminant). (KnownNetwork n)
-    => NetworkLayer IO (IO Byron) Block
+    :: NetworkLayer IO (IO Byron) Block
     -> (SlotId -> SlotId -> IO ())
+    -> BlockchainParameters
     -> IO SlotId
-waitForNodeSync nw logSlot = loop 10
+waitForNodeSync nw logSlot bp = loop 10
   where
     loop :: Int -> IO SlotId
     loop retries = runExceptT (currentNodeTip nw) >>= \case
@@ -442,7 +484,7 @@ waitForNodeSync nw logSlot = loop 10
 
     getCurrentSlot :: IO SlotId
     getCurrentSlot = do
-        let sp = slotParams (blockchainParameters @n)
+        let sp = slotParams bp
         fromMaybe (error errMsg) . slotAt sp <$> getCurrentTime
       where
         errMsg = "getCurrentSlot: is the current time earlier than the\
