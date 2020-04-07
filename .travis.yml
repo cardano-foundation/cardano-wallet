@@ -168,14 +168,14 @@ jobs:
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
         # cardano-node / Byron
-        - cardano-wallet-$TRAVIS_TAG_linux64.tar.gz
-        - cardano-wallet-$TRAVIS_TAG_macos64.tar.gz
-        - cardano-wallet-$TRAVIS_TAG_win64.zip
+        - cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
+        - cardano-wallet-$TRAVIS_TAG-macos64.tar.gz
+        - cardano-wallet-$TRAVIS_TAG-win64.zip
 
         # Jörmungandr / ITN
-        - cardano-wallet-itn-$TRAVIS_TAG_linux64.tar.gz
-        - cardano-wallet-itn-$TRAVIS_TAG_macos64.tar.gz
-        - cardano-wallet-itn-$TRAVIS_TAG_win64.zip
+        - cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz
+        - cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz
+        - cardano-wallet-itn-$TRAVIS_TAG-win64.zip
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
