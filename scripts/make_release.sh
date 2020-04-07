@@ -15,11 +15,11 @@
 
 ###############################################################
 # Release-specific parameters (Change when you bump the version)
-GIT_TAG="v2020-04-01"
-CABAL_VERSION="2020.4.1"
+GIT_TAG="v2020-04-07"
+CABAL_VERSION="2020.4.7"
 
-OLD_GIT_TAG="v2020-03-16"
-OLD_CABAL_VERSION="2020.3.16"
+OLD_GIT_TAG="v2020-04-01"
+OLD_CABAL_VERSION="2020.4.1"
 
 JORM_TAG="v0.8.15"
 CARDANO_NODE_TAG="1.9.3"
@@ -71,4 +71,3 @@ then
 	git commit -am "Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
   git tag -s -m $GIT_TAG $GIT_TAG
 fi
-

@@ -20,6 +20,8 @@ PULL_REQUESTS=$(curl -X GET \
   -H "Accept: application/vnd.github.v3+json" \
   https://api.github.com/search/issues?per_page=500\&q=repo:$REPO+is:pr+is:merged+merged:%3E$1)
 
+echo $PULL_REQUESTS
+
 PULL_REQUESTS=$(echo $PULL_REQUESTS | jq '.items | map({number:.number,title:.title,milestone:.milestone.title}) | group_by(.milestone)')
 ITEMS=$(echo $PULL_REQUESTS | jq 'map(map("#\(.number) | \(.title)"))')
 MILESTONES=$(echo $PULL_REQUESTS | jq 'map(map("\(.milestone)") | unique) | flatten')
