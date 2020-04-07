@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.CLI.Wallets
+module Test.Integration.Scenario.CLI.Shelley.Wallets
     ( spec
     , walletNames
     , walletNamesInvalid

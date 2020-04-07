@@ -108,8 +108,8 @@ import qualified Data.Text as T
 import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
 import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
-import qualified Test.Integration.Scenario.API.ByronTransactions as TransactionsByronCommon
-import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
+import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
+import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
@@ -128,7 +128,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
         describe "API Specifications" $ specWithServer tr $ do
-            ByronWallets.spec @n
+            WalletsByron.spec @n
             AddressesByron.spec @n
             TransactionsByron.spec @n
             TransactionsByronCommon.spec @n

@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.Addresses
+module Test.Integration.Scenario.API.Shelley.Addresses
     ( spec
     ) where
 

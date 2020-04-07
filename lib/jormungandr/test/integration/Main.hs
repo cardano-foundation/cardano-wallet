@@ -105,21 +105,21 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.Port as PortCLIJormun
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
-import qualified Test.Integration.Scenario.API.Addresses as Addresses
-import qualified Test.Integration.Scenario.API.ByronTransactions as ByronTransactions
-import qualified Test.Integration.Scenario.API.ByronWallets as ByronWallets
-import qualified Test.Integration.Scenario.API.HWWallets as HWWallets
+import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
+import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
-import qualified Test.Integration.Scenario.API.Transactions as Transactions
-import qualified Test.Integration.Scenario.API.Wallets as Wallets
-import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
-import qualified Test.Integration.Scenario.CLI.HWWallets as HWWalletsCLI
+import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
+import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
+import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
-import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
-import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Jormungandr where

@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.ByronWallets
+module Test.Integration.Scenario.API.Byron.Wallets
     ( spec
     ) where
 
@@ -96,7 +96,7 @@ import Test.Integration.Framework.TestData
     , updatePassPayload
     , wildcardsWalletName
     )
-import Test.Integration.Scenario.API.Wallets
+import Test.Integration.Scenario.API.Shelley.Wallets
     ( scenarioWalletResync01_happyPath, scenarioWalletResync02_notGenesis )
 
 import qualified Cardano.Wallet.Api.Link as Link

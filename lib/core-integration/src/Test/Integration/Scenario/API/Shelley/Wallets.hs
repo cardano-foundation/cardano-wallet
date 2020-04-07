@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.Wallets
+module Test.Integration.Scenario.API.Shelley.Wallets
     ( spec
     , scenarioWalletResync01_happyPath
     , scenarioWalletResync02_notGenesis

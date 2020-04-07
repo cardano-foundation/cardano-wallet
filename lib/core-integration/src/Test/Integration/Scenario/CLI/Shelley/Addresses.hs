@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.CLI.Addresses
+module Test.Integration.Scenario.CLI.Shelley.Addresses
     ( spec
     ) where
 
