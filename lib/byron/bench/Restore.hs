@@ -10,6 +10,22 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- | Benchmark measuring how long restoration takes for different wallets.
+--
+-- Easiest run using
+-- @
+--     $ export NODE_DB="node-db-testnet"
+--     $ nix-build -A benchmarks.cardano-wallet-byron.restore -o restore && ./restore/bin/restore --testnet
+-- @
+--
+-- or
+-- @
+--     $ export NETWORK=testnet
+--     $ ./.buildkite/bench-restore.sh
+-- @
+--
+-- since it relies on lots of configuration most most easily retrieved with nix.
+
 module Main where
 
 import Prelude
