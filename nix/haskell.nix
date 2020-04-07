@@ -98,6 +98,17 @@ let
             '';
           };
 
+        # Add cardano-node to the PATH of the byron latency benchmark
+        packages.cardano-wallet-byron.components.benchmarks.latency =
+          pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
+            build-tools = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/latency \
+                --run "cd $src" \
+                --prefix PATH : ${pkgs.cardano-node}/bin
+            '';
+          };
+
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
 				#

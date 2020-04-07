@@ -1764,6 +1764,7 @@ data ErrCreateRandomAddress
     = ErrIndexAlreadyExists (Index 'Hardened 'AddressK)
     | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
     | ErrCreateAddrWithRootKey ErrWithRootKey
+    | ErrCreateAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

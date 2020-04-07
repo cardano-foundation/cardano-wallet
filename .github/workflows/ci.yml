@@ -1,0 +1,43 @@
+# Every night at 00:00UTC
+# Download the latest master branch build of windows testing bundle
+# and run it.
+
+name: cardano-wallet Windows Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  tests:
+    runs-on: windows-2016
+    name: Run tests on Windows
+    steps:
+      - name: Fetch Windows testing bundle
+        shell: powershell
+        run: |
+          $url = "https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-tests-win64/latest/download/1"
+          $output = "cardano-wallet-tests-win64.zip"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Expand-Archive -LiteralPath $output -DestinationPath .
+          Get-ChildItem
+      - name: 'cardano-wallet-core:unit'
+        run: '.\\cardano-wallet-core-test-unit.exe --color'
+      - name: 'cardano-wallet-byron:unit'
+        run: '.\\cardano-wallet-byron-test-unit.exe --color'
+      - name: 'cardano-wallet-byron:integration'
+        run: '.\\cardano-wallet-byron-test-integration.exe --color'
+        timeout-minutes: 60
+      - name: 'cardano-wallet-cli:unit'
+        run: '.\\cardano-wallet-cli-test-unit.exe --color'
+      - name: 'text-class:unit'
+        run: '.\\text-class-test-unit.exe --color'
+      - name: 'cardano-wallet-launcher:unit'
+        run: '.\\cardano-wallet-launcher-test-unit.exe --color'
+        continue-on-error: true
+      - name: 'cardano-wallet-jormungandr:unit'
+        run: '.\\cardano-wallet-jormungandr-test-unit.exe --color'
+      - name: 'cardano-wallet-jormungandr:integration'
+        run: '.\\cardano-wallet-jormungandr-test-jormungandr-integration.exe --color'
+        continue-on-error: true
+        timeout-minutes: 60

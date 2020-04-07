@@ -198,6 +198,41 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             ];
           buildable = true;
           };
+        "latency" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."aeson" or (buildDepError "aeson"))
+            (hsPkgs."async" or (buildDepError "async"))
+            (hsPkgs."bech32" or (buildDepError "bech32"))
+            (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
+            (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
+            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))
+            (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
+            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
+            (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
+            (hsPkgs."command" or (buildDepError "command"))
+            (hsPkgs."directory" or (buildDepError "directory"))
+            (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."fmt" or (buildDepError "fmt"))
+            (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
+            (hsPkgs."http-client" or (buildDepError "http-client"))
+            (hsPkgs."http-types" or (buildDepError "http-types"))
+            (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+            (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."stm" or (buildDepError "stm"))
+            (hsPkgs."temporary" or (buildDepError "temporary"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."text-class" or (buildDepError "text-class"))
+            (hsPkgs."time" or (buildDepError "time"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.cardano-wallet-byron or (pkgs.buildPackages.cardano-wallet-byron or (buildToolDepError "cardano-wallet-byron")))
+            ];
+          buildable = true;
+          };
         };
       };
     } // rec { src = (pkgs.lib).mkDefault ../.././lib/byron; }

@@ -15,6 +15,8 @@ module Cardano.Wallet.Byron.Launch
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Cardano.Chain.Genesis
@@ -84,11 +86,12 @@ withCardanoNode
     -- ^ Some trace for logging
     -> FilePath
     -- ^ Test directory
+    -> Severity
     -> (FilePath -> Block -> (BlockchainParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket description and genesis params
     -> IO a
-withCardanoNode tr tdir action =
-    orThrow $ withConfig tdir $ \cfg block0 (bp, vData) -> do
+withCardanoNode tr tdir severity action =
+    orThrow $ withConfig tdir severity $ \cfg block0 (bp, vData) -> do
         nodePort <- getRandomPort
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
@@ -126,6 +129,7 @@ withCardanoNode tr tdir action =
 --
 withConfig
     :: FilePath
+    -> Severity
     -- ^ Test data directory
     -> (  CardanoNodeConfig
        -> Block
@@ -134,7 +138,7 @@ withConfig
        )
     -- ^ Callback function with the node configuration and genesis params
     -> IO a
-withConfig tdir action =
+withConfig tdir severity action =
     bracket setupConfig teardownConfig $ \(_a,b,c,d) -> action b c d
   where
     source :: FilePath
@@ -164,6 +168,7 @@ withConfig tdir action =
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
             >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
+            >>= withObject (addMinSeverity (T.pack $ show severity))
             >>= Yaml.encodeFile (dir </> "node.config")
 
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
@@ -220,6 +225,14 @@ addGenesisFilePath
     -> Aeson.Object
     -> IO Aeson.Object
 addGenesisFilePath path = pure . HM.insert "GenesisFile" (toJSON path)
+
+-- | Add a "minSeverity" field in a given object with the current path of
+-- genesis.json in tmp dir as value.
+addMinSeverity
+    :: Text
+    -> Aeson.Object
+    -> IO Aeson.Object
+addMinSeverity severity = pure . HM.insert "minSeverity" (toJSON severity)
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
