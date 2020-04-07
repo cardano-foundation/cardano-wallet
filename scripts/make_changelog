@@ -11,9 +11,11 @@
 #     make_changelog 2019-08-15
 
 # NOTE:
-# You need to set $API_TOKEN before running this script
+# You need to set $GITHUB_API_TOKEN before running this script
 
 REPO="input-output-hk/cardano-wallet"
+
+: ${GITHUB_API_TOKEN?"Please provide a Github Api Token for fetching pull requests"}
 
 PULL_REQUESTS=$(curl -X GET \
   -H "Authorization: token $GITHUB_API_TOKEN" \
