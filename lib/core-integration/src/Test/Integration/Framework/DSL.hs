@@ -116,6 +116,7 @@ module Test.Integration.Framework.DSL
     , deleteWalletViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
+    , createAddressViaCLI
     , listAddressesViaCLI
     , listStakePoolsViaCLI
     , listWalletsViaCLI
@@ -1353,6 +1354,31 @@ getWalletUtxoStatisticsViaCLI
     -> IO r
 getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI @t
     ["wallet", "utxo", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
+
+createAddressViaCLI
+    :: forall t s. (KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> [String]
+        -- ^ Args
+    -> String
+        -- ^ Pass
+    -> IO (ExitCode, Text, Text)
+        -- ^ (ExitCode, StdOut, StdErr)
+createAddressViaCLI ctx args pass = do
+    let execArgs =
+            [ "address", "create"
+            , "--port", show (ctx ^. typed @(Port "wallet"))
+            ] ++ args
+    let process = proc' (commandName @t) execArgs
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin (pass <> "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            pure (c, out, err)
 
 listAddressesViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)

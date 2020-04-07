@@ -53,7 +53,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403WrongPass, errMsg404NoWallet )
+    ( errMsg403NotAByronWallet, errMsg403WrongPass, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
@@ -174,9 +174,7 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r
         [ expectResponseCode @IO HTTP.status403
-        , expectErrorMessage
-            "I cannot derive new address for this wallet type.\
-            \ Make sure to use Byron random wallet id."
+        , expectErrorMessage errMsg403NotAByronWallet
         ]
   where
     title = "ADDRESS_CREATE_02 - Creation is forbidden on Icarus wallets"

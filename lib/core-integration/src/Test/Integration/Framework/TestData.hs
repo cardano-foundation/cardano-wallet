@@ -46,6 +46,7 @@ module Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403DelegationFee
+    , errMsg403NotAByronWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
@@ -271,6 +272,11 @@ errMsg403DelegationFee :: Natural -> String
 errMsg403DelegationFee n =
     "I'm unable to select enough coins to pay for a delegation certificate. \
     \I need: " ++ show n ++ " Lovelace."
+
+errMsg403NotAByronWallet :: String
+errMsg403NotAByronWallet =
+    "I cannot derive new address for this wallet type.\
+    \ Make sure to use Byron random wallet id."
 
 errMsg403NotEnoughMoney_ :: String
 errMsg403NotEnoughMoney_ =
