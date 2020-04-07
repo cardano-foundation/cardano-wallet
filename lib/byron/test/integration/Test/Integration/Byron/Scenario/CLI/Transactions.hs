@@ -52,7 +52,14 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldContain, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , it
+    , pendingWith
+    , shouldBe
+    , shouldContain
+    , shouldSatisfy
+    )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -335,8 +342,13 @@ spec = describe "BYRON_TXS_CLI" $ do
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
     it "TRANS_DELETE_01a - Can forget pending tx, still it resolves when it is OK"
-        $ \ctx -> forM_ [fixtureRandomWalletAddrs @n, fixtureRandomWalletAddrs @n]
+        $ \ctx ->forM_ [fixtureRandomWalletAddrs @n, fixtureRandomWalletAddrs @n]
         $ \fixtureByronWallet -> do
+        pendingWith
+            "This test is built on a race-condition. Should the transaction be \
+            \inserted and discovered before the forget request is sent, it \
+            \fails. There are probably better ways of testing this..."
+
         --SETUP
         let amnt = 100_000 :: Natural
         (wSrc, addrs) <- fixtureByronWallet ctx

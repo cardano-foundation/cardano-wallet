@@ -21,6 +21,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), epochPred )
+import Control.Monad
+    ( when )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
@@ -36,7 +38,7 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
@@ -49,6 +51,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg404NoEpochNo )
+import Test.Utils.Paths
+    ( inNixBuild )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
@@ -96,6 +100,9 @@ spec = do
             params `shouldContain` (errMsg404NoEpochNo maxEpoch)
 
     it "CLI_NETWORK - network clock" $ \ctx -> do
+        sandboxed <- inNixBuild
+        when sandboxed $
+            pendingWith "Internet NTP servers unavailable in build sandbox"
         eventually "ntp status = available" $ do
             clock <- getNetworkClockViaCLI ctx
             expectCliField (#ntpStatus . #status)

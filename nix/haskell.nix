@@ -60,13 +60,17 @@ let
       # Add dependencies
       {
         packages.cardano-wallet-byron.components.tests = {
-          # # Only run integration tests on non-PR jobsets. Note that
-          # # the master branch jobset will just re-use the cached Bors
-          # # staging build and test results.
-          # integration.doCheck = !isHydraPRJobset;
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          integration.doCheck = !isHydraPRJobset;
 
-          # fixme: test suite disabled - they are timing out
-          integration.doCheck = false;
+          # Running Windows integration tests under Wine is disabled
+          # because ouroboros-network doesn't fully work under Wine.
+          integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
+
+          # cardano-node socket path becomes too long otherwise
+          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
 
           # provide cardano-node command to test suites
           integration.build-tools = [ pkgs.cardano-node ];
@@ -156,7 +160,8 @@ let
         # Apply fully static options to our Haskell executables
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
-        packages.cardano-node.components.exes.cardano-node = fullyStaticOptions;
+        # SRE-83 dependencies fail to build
+        # packages.cardano-node.components.exes.cardano-node = fullyStaticOptions;
 
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it

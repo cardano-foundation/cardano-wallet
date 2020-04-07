@@ -67,6 +67,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+          (hsPkgs."cardano-wallet-test-utils" or (buildDepError "cardano-wallet-test-utils"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."command" or (buildDepError "command"))
           (hsPkgs."containers" or (buildDepError "containers"))

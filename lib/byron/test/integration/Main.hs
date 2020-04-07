@@ -81,6 +81,8 @@ import Network.HTTP.Client
     )
 import Numeric.Natural
     ( Natural )
+import System.IO
+    ( BufferMode (..), hSetBuffering, stdout )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
@@ -120,6 +122,7 @@ instance KnownCommand Byron where
 
 main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
+    hSetBuffering stdout LineBuffering
     hspec $ do
         describe "No backend required" $ do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
