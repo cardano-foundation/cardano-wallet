@@ -98,7 +98,6 @@ executable cardano-wallet-byron
       -Werror
   build-depends:
       base
-    , cardano-ledger
     , cardano-wallet-byron
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -216,7 +215,6 @@ benchmark restore
        base
      , bytestring
      , cardano-wallet-core
-     , cardano-wallet-cli
      , optparse-applicative
      , cardano-wallet-byron
      , cardano-wallet-launcher

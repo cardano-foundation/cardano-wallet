@@ -107,7 +107,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "cardano-wallet-byron" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
@@ -177,7 +176,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
