@@ -19,12 +19,18 @@ in pkgs: super: with pkgs; {
           in
           builtins.toFile "cardano-node-config" (builtins.toJSON rawCfg);
         })
-        // { topologyFiles = {
-            # Note: It was easier to define as topologyFiles.testnet than testnet.topologyFile.
-            # TODO: Retrieve these from iohk-nix or cardano-node directly.
-            mainnet = builtins.toFile "topology" "{\"Producers\":[{\"addr\":\"relays-new.cardano-mainnet.iohk.io\",\"port\":3001,\"valency\":1}]}";
-            testnet = builtins.toFile "topology" "{\"Producers\":[{\"addr\":\"relays-new.cardano-testnet.iohkdev.io\",\"port\":3001,\"valency\":1}]}";
-          };};
+    // {
+      topologyFiles = {
+        # Note: It was easier to define as topologyFiles.testnet than testnet.topologyFile.
+        # TODO: Retrieve these from iohk-nix or cardano-node directly.
+        mainnet = builtins.toFile "topology" "{\"Producers\":[{\"addr\":\"relays-new.cardano-mainnet.iohk.io\",\"port\":3001,\"valency\":1}]}";
+        testnet = builtins.toFile "topology" "{\"Producers\":[{\"addr\":\"relays-new.cardano-testnet.iohkdev.io\",\"port\":3001,\"valency\":1}]}";
+      };
 
+      # provide configuration directory as a convenience
+      configs = pkgs.runCommand "cardano-node-configs" {} ''
+        cp -R ${sources.cardano-node}/configuration $out;
+      '';
+      };
   inherit (pkgs1903) stack;
 }
