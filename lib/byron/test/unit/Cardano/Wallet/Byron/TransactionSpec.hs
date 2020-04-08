@@ -230,8 +230,7 @@ spec = do
 
 propSizeEstimation
     :: forall n k.
-       ( PaymentAddress n k
-       , WalletKey k
+       ( WalletKey k
        , MaxSizeOf Address n k
        )
     => ProtocolMagic
@@ -310,8 +309,7 @@ instance (PaymentAddress n IcarusKey) => Arbitrary (LegacyAddress n IcarusKey)
 
 genLegacyAddress
     :: forall (n :: NetworkDiscriminant) k.
-        ( PaymentAddress n k
-        , Arbitrary (LegacyAddress n k)
+        ( Arbitrary (LegacyAddress n k)
         )
     => Gen Address
 genLegacyAddress = do
@@ -322,8 +320,7 @@ genLegacyAddress = do
 -- arbitrary UTxO and to cover an arbitrary set of 'TxOut'.
 genSelection
     :: forall (n :: NetworkDiscriminant) k.
-        ( PaymentAddress n k
-        , Arbitrary (LegacyAddress n k)
+        ( Arbitrary (LegacyAddress n k)
         )
     => Gen CoinSelection
 genSelection = do
@@ -390,10 +387,7 @@ genCoin = Coin
     <$> choose (1, 200000)
 
 genUTxO
-    :: forall (n :: NetworkDiscriminant) k.
-        ( PaymentAddress n k
-        , Arbitrary (LegacyAddress n k)
-        )
+    :: forall (n :: NetworkDiscriminant) k.  ( Arbitrary (LegacyAddress n k))
     => [Coin]
     -> Gen UTxO
 genUTxO coins = do
@@ -404,8 +398,7 @@ genUTxO coins = do
 
 genTxOut
     :: forall (n :: NetworkDiscriminant) k.
-        ( PaymentAddress n k
-        , Arbitrary (LegacyAddress n k)
+        ( Arbitrary (LegacyAddress n k)
         )
     => [Coin]
     -> Gen [TxOut]
