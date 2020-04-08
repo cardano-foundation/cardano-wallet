@@ -53,7 +53,6 @@ let
       chmod -R +w $out
       rewrite-libs $out/bin $out/bin/cardano-wallet-jormungandr
       ${setGitRev}
-      cp ${jormungandr}/bin/* $out/bin
     '';
 
     windows = buildCommand [] ''
