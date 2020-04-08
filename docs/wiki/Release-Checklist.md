@@ -47,7 +47,7 @@ This will bump the version in .cabal and .nix files and generate release notes.
 
 - [ ] Execute all [manual scenarios](https://github.com/input-output-hk/cardano-wallet/tree/master/test/manual) on the binaries to be released.
 
-- [ ] Verify that sensitive fields listed in [Cardano/Wallet/Api/Server](https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L333-L340) are still accurate and aren't missing any new ones.
+- [ ] Verify that sensitive fields listed in [Cardano/Wallet/Api/Server](https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L385) are still accurate and aren't missing any new ones.
 ```
           "passphrase"
         , "old_passphrase"
