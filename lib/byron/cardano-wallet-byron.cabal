@@ -131,7 +131,11 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-crypto-wrapper
+    , ouroboros-consensus-byron
+    , text
     , cardano-wallet-byron
+    , ouroboros-network
     , cborg
     , containers
     , hspec
