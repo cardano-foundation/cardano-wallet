@@ -58,7 +58,7 @@ spec = do
     describe "Conversions" $
         it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
             let fromTip' = fromTip gh epochLength
-            let toPoint' = toPoint epochLength
+            let toPoint' = toPoint gh epochLength
             toPoint' (fromTip' tip) === (getTipPoint tip)
 
 instance Arbitrary (Hash "Genesis") where
