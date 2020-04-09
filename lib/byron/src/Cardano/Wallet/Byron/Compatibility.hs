@@ -248,10 +248,18 @@ toEpochSlots :: W.EpochLength -> EpochSlots
 toEpochSlots =
     EpochSlots . fromIntegral . W.unEpochLength
 
-toPoint :: W.EpochLength -> W.BlockHeader -> Point ByronBlock
-toPoint epLength (W.BlockHeader sid _ h _)
-    | sid == W.SlotId 0 0 = genesisPoint
-    | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
+-- | Magic value for the absence of a block.
+hashOfNoParent :: W.Hash "BlockHeader"
+hashOfNoParent = W.Hash . BS.pack $ replicate 0 32
+
+toPoint
+    :: W.Hash "Genesis"
+    -> W.EpochLength
+    -> W.BlockHeader
+    -> Point ByronBlock
+toPoint genesisH epLength (W.BlockHeader sid _ h _)
+  | h == (coerce genesisH) = O.GenesisPoint
+  | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
 
 toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotNo epLength =
@@ -340,7 +348,7 @@ fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
         { slotId = W.SlotId 0 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
-        , parentHeaderHash = W.Hash (BS.replicate 32 0)
+        , parentHeaderHash = hashOfNoParent
         }
     At blk -> W.BlockHeader
         { slotId = fromSlotNo epLength $ Point.blockPointSlot blk

@@ -261,7 +261,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
         let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ
         let handlers = failOnConnectionLost tr
         link =<< async (connectClient tr handlers client versionData addrInfo)
-        let points = reverse $ genesisPoint : (toPoint getEpochLength <$> headers)
+        let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
