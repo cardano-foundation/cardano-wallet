@@ -258,12 +258,8 @@ toPoint
     -> W.BlockHeader
     -> Point ByronBlock
 toPoint genesisH epLength (W.BlockHeader sid _ h _)
-  | h == (conv genesisH) = O.GenesisPoint
-  | otherwise =
-    O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
-  where
-    conv :: W.Hash "Genesis" -> W.Hash "BlockHeader"
-    conv (W.Hash x) = W.Hash x
+  | h == (coerce genesisH) = O.GenesisPoint
+  | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
 
 toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotNo epLength =

@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Cardano.Wallet.Byron.CompatibilitySpec
     ( spec
@@ -68,9 +67,9 @@ instance Arbitrary (Hash "BlockHeader") where
     arbitrary = Hash . BS.pack <$> vector 32
 
 instance (Arbitrary (Tip ByronBlock)) where
-    arbitrary = oneof
-        [ return TipGenesis
-        , arbitraryTip
+    arbitrary = frequency
+        [ (10, return TipGenesis)
+        , (90, arbitraryTip)
         ]
       where
         arbitraryTip = do
