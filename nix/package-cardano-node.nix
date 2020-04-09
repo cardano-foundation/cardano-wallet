@@ -30,7 +30,9 @@ pkgs.stdenv.mkDerivation rec {
     cp --remove-destination -v ${cardano-node}/bin/* $out/bin
     cp -Rv ${cardano-node.configs} $out/configuration
   '' else (if pkgs.stdenv.hostPlatform.isDarwin then ''
-    rewrite-libs $out/bin $out/bin/${exe.identifier.name}
+    cp -v ${cardano-node}/bin/cardano-node $out/bin
+    chmod -R +w $out
+    rewrite-libs $out/bin $out/bin/${exe.identifier.name} $out/bin/cardano-node
   '' else ''
     $STRIP $out/bin/${exe.identifier.name}
   ''));

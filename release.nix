@@ -178,10 +178,7 @@ let
     };
     cardano-wallet-byron-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
-      exes = [
-        jobs.native.cardano-wallet-byron.x86_64-darwin
-        jobs.native.cardano-node.x86_64-darwin
-      ];
+      exes = [ jobs.native.cardano-wallet-byron.x86_64-darwin ];
     };
 
     # Build and cache the build script used on Buildkite
