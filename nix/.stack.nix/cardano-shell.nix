@@ -41,45 +41,71 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
     flags = {};
     package = {
-      specVersion = "2.0";
-      identifier = { name = "lobemo-backend-ekg"; version = "0.1.0.1"; };
+      specVersion = "2.2";
+      identifier = { name = "cardano-shell"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2018 IOHK";
       maintainer = "operations@iohk.io";
-      author = "Alexander Diemand";
-      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      author = "IOHK";
+      homepage = "https://github.com/input-output-hk/cardano-shell#readme";
       url = "";
-      synopsis = "provides a backend implementation to EKG";
-      description = "";
+      synopsis = "";
+      description = "Please see the README on GitHub at <https://github.com/githubuser/cardano-shell#readme>";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
         depends = [
-          (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."ekg" or (buildDepError "ekg"))
-          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
+          (hsPkgs."Cabal" or (buildDepError "Cabal"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."concurrency" or (buildDepError "concurrency"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."formatting" or (buildDepError "formatting"))
+          (hsPkgs."process" or (buildDepError "process"))
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."snap-core" or (buildDepError "snap-core"))
-          (hsPkgs."snap-server" or (buildDepError "snap-server"))
-          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
-          ];
+          (hsPkgs."transformers" or (buildDepError "transformers"))
+          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (buildDepError "Win32"));
         buildable = true;
+        };
+      exes = {
+        "node-ipc" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."cardano-shell" or (buildDepError "cardano-shell"))
+            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            ];
+          buildable = true;
+          };
+        };
+      tests = {
+        "cardano-shell-test" = {
+          depends = [
+            (hsPkgs."aeson" or (buildDepError "aeson"))
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."cardano-shell" or (buildDepError "cardano-shell"))
+            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-state-machine" or (buildDepError "quickcheck-state-machine"))
+            (hsPkgs."tree-diff" or (buildDepError "tree-diff"))
+            (hsPkgs."hspec" or (buildDepError "hspec"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
-      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
+      url = "https://github.com/input-output-hk/cardano-shell";
+      rev = "bc3563c952d9f3635e1c76749b86b0a24f7e4b83";
+      sha256 = "0c4f394h0wshcly6vcghvg5m6zd1i7s3a9kb1xlg7na4hn4y4a2v";
       });
-    postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/cardano-shell; echo source root reset to \$sourceRoot";
     }

@@ -79,8 +79,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "4956b32f039579a0e7e4fd10793f65b4c77d9044";
-      sha256 = "03lyb2m4i6p7rpjqarnhsx21nx48fwk6rzsrx15k6274a4bv0pix";
+      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
+      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
       });
     postUnpack = "sourceRoot+=/plugins/scribe-systemd; echo source root reset to \$sourceRoot";
     }

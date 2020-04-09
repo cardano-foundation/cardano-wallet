@@ -39,47 +39,42 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { development = false; };
     package = {
-      specVersion = "2.0";
-      identifier = { name = "lobemo-backend-ekg"; version = "0.1.0.1"; };
-      license = "Apache-2.0";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "Alexander Diemand";
-      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      specVersion = "1.8";
+      identifier = { name = "shelley-spec-non-integral"; version = "0.1.0.0"; };
+      license = "NONE";
+      copyright = "";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
+      homepage = "";
       url = "";
-      synopsis = "provides a backend implementation to EKG";
-      description = "";
+      synopsis = "";
+      description = "Implementation decision for non-integer calculations";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
-        depends = [
-          (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."ekg" or (buildDepError "ekg"))
-          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
-          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."snap-core" or (buildDepError "snap-core"))
-          (hsPkgs."snap-server" or (buildDepError "snap-server"))
-          (hsPkgs."stm" or (buildDepError "stm"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
-          ];
+        depends = [ (hsPkgs."base" or (buildDepError "base")) ];
         buildable = true;
+        };
+      tests = {
+        "shelley-spec-non-integral-test" = {
+          depends = (pkgs.lib).optionals (!flags.development) [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."shelley-spec-non-integral" or (buildDepError "shelley-spec-non-integral"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
-      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
+      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      rev = "156086266486da710c5037c11f83d2112434926f";
+      sha256 = "1wp4n39k4i3rnkn0cnhwlfkdj73zml58957mjrxb40q2ngjl4ydw";
       });
-    postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/shelley/chain-and-ledger/dependencies/non-integer; echo source root reset to \$sourceRoot";
     }

@@ -39,17 +39,20 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { asserts = false; };
     package = {
-      specVersion = "2.0";
-      identifier = { name = "lobemo-backend-ekg"; version = "0.1.0.1"; };
+      specVersion = "1.10";
+      identifier = {
+        name = "ouroboros-consensus-cardano";
+        version = "0.1.0.0";
+        };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "operations@iohk.io";
-      author = "Alexander Diemand";
-      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      author = "IOHK Engineering Team";
+      homepage = "";
       url = "";
-      synopsis = "provides a backend implementation to EKG";
+      synopsis = "The instantation of the Ouroboros consensus layer used by Cardano";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,28 +61,20 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."ekg" or (buildDepError "ekg"))
-          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
-          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."snap-core" or (buildDepError "snap-core"))
-          (hsPkgs."snap-server" or (buildDepError "snap-server"))
-          (hsPkgs."stm" or (buildDepError "stm"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
+          (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
+          (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
+          (hsPkgs."ouroboros-consensus-mock" or (buildDepError "ouroboros-consensus-mock"))
+          (hsPkgs."ouroboros-consensus-shelley" or (buildDepError "ouroboros-consensus-shelley"))
           ];
         buildable = true;
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
-      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
+      url = "https://github.com/input-output-hk/ouroboros-network";
+      rev = "7e89518148ebb11d9ee6b973c394a69713961de6";
+      sha256 = "06mhpn3kmlk9siiki2rn3cmq4v7lz6rvxzmll1zdf5lhrh3ixks2";
       });
-    postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/ouroboros-consensus-cardano; echo source root reset to \$sourceRoot";
     }
