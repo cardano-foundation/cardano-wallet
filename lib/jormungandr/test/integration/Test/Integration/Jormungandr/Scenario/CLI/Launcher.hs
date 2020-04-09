@@ -88,6 +88,7 @@ spec = do
                     , "--state-dir", f
                     , "--"
                     , "--secret", secret
+                    , "--config", config
                     ]
             (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
@@ -108,6 +109,7 @@ spec = do
                         , "--genesis-block", block0
                         , "--"
                         , "--secret", secret
+                        , "--config", config
                         ]
                         (pure ())
                         Inherit
@@ -127,6 +129,7 @@ spec = do
                     , "--genesis-block", block0
                     , "--"
                     , "--secret", secret
+                    , "--config", config
                     ]
                     (pure ())
                     Inherit
@@ -143,6 +146,7 @@ spec = do
                     , "--genesis-block", block0'
                     , "--"
                     , "--secret", secret
+                    , "--config", config
                     ]
             (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
@@ -155,6 +159,7 @@ spec = do
                     , "--genesis-block", secret
                     , "--"
                     , "--secret", secret
+                    , "--config", config
                     ]
             (Exit c, Stdout o, Stderr _) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 33
