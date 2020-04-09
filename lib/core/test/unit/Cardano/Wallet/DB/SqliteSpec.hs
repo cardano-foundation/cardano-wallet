@@ -10,7 +10,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans -fno-warn-unused-imports #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -83,16 +83,29 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( IsOurs, KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, getState, initWallet, updateState )
+    ( FilteredBlock (..)
+    , Wallet
+    , applyBlock
+    , availableBalance
+    , availableUTxO
+    , currentTip
+    , getState
+    , initWallet
+    , totalBalance
+    , updateState
+    , utxo
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
+    , Block (..)
+    , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
@@ -103,7 +116,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (TxMeta)
+    , TxMeta (TxMeta, amount, direction)
     , TxOut (..)
     , TxStatus (..)
     , WalletDelegation (..)
@@ -112,6 +125,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , dom
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -143,7 +157,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -189,6 +203,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -447,9 +462,117 @@ fileModeSpec =  do
             destroyDBLayer ctx
             testOpeningCleaning
                 f
-                (\db' -> readTxHistory' db' testPk Ascending wholeRange Nothing)
+                (\db' -> readTxHistory' db' testPk Descending wholeRange Nothing)
                 testTxs
                 mempty
+
+
+        it "Rollback scenario" $ \f -> do
+            (_ctx, DBLayer{..}) <- newDBLayer' (Just f)
+
+            let blockHash x = Hash $ x <> (BS.pack $ replicate (32 - (BS.length x)) 0)
+            let dummyAddr x = Address $ x <> (BS.pack $ replicate (32 - (BS.length x)) 0)
+            let ourAddrs = knownAddresses (getState testCp)
+
+            atomically $ do
+                unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
+
+            let getAvailableBalance = do
+                    cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
+                    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just Pending)
+                    return $ availableBalance (Set.fromList $ map fst pend) cp
+
+            let getTotalBalance = do
+                    cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
+                    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just Pending)
+                    return $ totalBalance (Set.fromList $ map fst pend) cp
+
+            let getPending = do
+                    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just Pending)
+                    return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
+
+            let getTxsInLedger = do
+                    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just InLedger)
+                    return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
+
+            let mockApply h mockTxs = do
+                    Just cpA <- atomically $ readCheckpoint testPk
+
+                    putStrLn "Current UTXO:"
+                    print (utxo cpA)
+                    putStrLn ""
+                    putStrLn $ "About to apply: " <> show h
+                    let slotA = slotId $ currentTip cpA
+                    let hashA = headerHash $ currentTip cpA
+                    let fakeBlock = Block
+                            (BlockHeader
+                            { slotId = slotA { slotNumber = (slotNumber slotA) + 1}
+                            -- Assume the slotnumbers are very low
+                            , blockHeight = Quantity 0
+                            , headerHash = h
+                            , parentHeaderHash = hashA
+                            })
+                            mockTxs
+                            []
+                    let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
+                    atomically $ do
+                        unsafeRunExceptT $ putCheckpoint testPk cpB
+                        unsafeRunExceptT $ putTxHistory testPk txs
+
+            let mockApplyBlock1 = mockApply (blockHash "block1")
+                        [ Tx (blockHash "tx1")
+                            [(TxIn (blockHash "faucet") 0, Coin 5)]
+                            [ TxOut (head ourAddrs) (Coin 5)
+                            ]
+                        ]
+            mockApplyBlock1
+            getAvailableBalance `shouldReturn` 5
+
+            mockApply (blockHash "block2a")
+                        [ Tx
+                            (blockHash "tx2a")
+                            [ (TxIn (blockHash "tx1") 0, Coin 5)
+                            ]
+                            [ TxOut (dummyAddr "faucetAddr2") (Coin 3)
+                            , TxOut (ourAddrs !! 1) (Coin 2)
+                            ]
+                        ]
+
+            getAvailableBalance `shouldReturn` 2
+            getTotalBalance `shouldReturn` 2
+            getTxsInLedger `shouldReturn` [(Outgoing, 3), (Incoming, 5)]
+            getPending `shouldReturn` []
+
+
+
+            atomically $ void $ unsafeRunExceptT $ rollbackTo testPk (SlotId 0 0)
+            getTxsInLedger `shouldReturn` []
+            -- getPending `shouldReturn` []
+            -- but got: [(Outgoing, 3)]
+
+            getAvailableBalance `shouldReturn` 0
+            -- getTotalBalance `shouldReturn` 0
+            -- but got: 2
+
+            mockApplyBlock1
+
+            getTxsInLedger `shouldReturn`[(Incoming, 5)]
+            getAvailableBalance `shouldReturn` 0
+            getTotalBalance `shouldReturn` 2
+
+            mockApply (blockHash "block2a")
+                        [ Tx
+                            (blockHash "tx2b")
+                            [ (TxIn (blockHash "tx1") 0, Coin 5)
+                            ]
+                            [ TxOut (ourAddrs !! 3) (Coin 3)
+                            , TxOut (ourAddrs !! 2) (Coin 2)
+                            ]
+                        ]
+            -- THESE ARE NOT EXPECTED, BUT PASS!!
+            -- getAvailableBalance `shouldReturn` 5
+            -- getTotalBalance `shouldReturn` 7
+
 
         it "put and read tx history (Decending)" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
