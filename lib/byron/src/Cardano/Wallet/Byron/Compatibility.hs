@@ -74,7 +74,7 @@ import Cardano.Chain.Update
 import Cardano.Chain.UTxO
     ( Tx (..), TxAux, TxIn (..), TxOut (..), annotateTxAux, taTx, unTxPayload )
 import Cardano.Crypto
-    ( AbstractHash (..), hash )
+    ( hash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Unsafe
@@ -117,9 +117,8 @@ import Ouroboros.Network.Point
 import Ouroboros.Network.Protocol.Handshake.Version
     ( CodecCBORTerm )
 
+import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Crypto.Hash as Crypto
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
@@ -228,11 +227,12 @@ testnetVersionData pm =
 --
 -- Type Conversions
 
+-- fixme: maybe just toByronHash = ByronHash . CC.unsafeHashFromBytes
 toByronHash :: W.Hash "BlockHeader" -> ByronHash
 toByronHash (W.Hash bytes) =
-    case Crypto.digestFromByteString bytes of
-        Just digest ->
-            ByronHash $ AbstractHash digest
+    case CC.hashFromBytes bytes of
+        Just h ->
+            ByronHash h
         Nothing ->
             error "unsafeHash: failed to convert bytes to hash?"
 
@@ -294,7 +294,7 @@ fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of
 fromTxAux :: TxAux -> W.Tx
 fromTxAux txAux = case taTx txAux of
     tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
-        { txId = W.Hash $ BA.convert $ hash tx
+        { txId = W.Hash $ CC.hashToBytes $ hash tx
 
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =
@@ -306,7 +306,7 @@ fromTxAux txAux = case taTx txAux of
 
 fromTxIn :: TxIn -> W.TxIn
 fromTxIn (TxInUtxo id_ ix) = W.TxIn
-    { inputId = W.Hash $ BA.convert id_
+    { inputId = W.Hash $ CC.hashToBytes id_
     , inputIx = ix
     }
 
@@ -318,7 +318,7 @@ fromTxOut (TxOut addr coin) = W.TxOut
 
 fromByronHash :: ByronHash -> W.Hash "BlockHeader"
 fromByronHash =
-    W.Hash . BA.convert . unByronHash
+    W.Hash . CC.hashToBytes . unByronHash
 
 fromChainHash :: W.Hash "Genesis" -> ChainHash ByronBlock -> W.Hash "BlockHeader"
 fromChainHash genesisHash = \case
@@ -396,7 +396,7 @@ fromGenesisData :: (GenesisData, GenesisHash) -> (W.BlockchainParameters, [W.TxO
 fromGenesisData (genesisData, genesisHash) =
     ( W.BlockchainParameters
         { getGenesisBlockHash =
-            W.Hash . BA.convert . unGenesisHash $ genesisHash
+            W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
         , getGenesisBlockDate =
             W.StartTime . gdStartTime $ genesisData
         , getFeePolicy =
