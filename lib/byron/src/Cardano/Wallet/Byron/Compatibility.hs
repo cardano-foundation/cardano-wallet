@@ -20,9 +20,10 @@ module Cardano.Wallet.Byron.Compatibility
     , NodeVersionData
 
       -- * Chain Parameters
-    , KnownNetwork (..)
     , mainnetVersionData
     , testnetVersionData
+
+    , mainnetBlockchainParameters
 
       -- * Genesis
     , emptyGenesis
@@ -76,8 +77,6 @@ import Cardano.Crypto
     ( AbstractHash (..), hash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.Coerce
@@ -137,33 +136,26 @@ type NodeVersionData =
 --
 -- Chain Parameters
 
--- | Embed some constants into a network type.
-class KnownNetwork (n :: NetworkDiscriminant) where
-    blockchainParameters
-        :: W.BlockchainParameters
-    versionData
-        :: NodeVersionData
 
-instance KnownNetwork 'Mainnet where
-    versionData = mainnetVersionData
-    blockchainParameters = W.BlockchainParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getTxMaxSize =
-            Quantity 8192
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        }
+mainnetBlockchainParameters :: W.BlockchainParameters
+mainnetBlockchainParameters = W.BlockchainParameters
+    { getGenesisBlockHash = W.Hash $ unsafeFromHex
+        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+    , getGenesisBlockDate =
+        W.StartTime $ posixSecondsToUTCTime 1506203091
+    , getFeePolicy =
+        W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+    , getSlotLength =
+        W.SlotLength 20
+    , getEpochLength =
+        W.EpochLength 21600
+    , getTxMaxSize =
+        Quantity 8192
+    , getEpochStability =
+        Quantity 2160
+    , getActiveSlotCoefficient =
+        W.ActiveSlotCoefficient 1.0
+    }
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with

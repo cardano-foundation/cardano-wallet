@@ -65,6 +65,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
+          (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
           (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
@@ -82,6 +83,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."network" or (buildDepError "network"))
           (hsPkgs."network-mux" or (buildDepError "network-mux"))
+          (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
           (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
           (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
@@ -105,7 +107,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         "cardano-wallet-byron" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
@@ -179,6 +180,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
+            (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
             (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
