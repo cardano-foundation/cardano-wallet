@@ -32,7 +32,6 @@ library
       base
     , aeson
     , async
-    , bytestring
     , code-page
     , contra-tracer
     , extra

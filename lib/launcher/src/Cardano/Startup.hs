@@ -16,7 +16,6 @@ module Cardano.Startup
 
     -- * Clean shutdown
     , withShutdownHandler
-    , withShutdownHandler'
     , installSignalHandlers
 
     -- * Logging
@@ -29,34 +28,26 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Control.Concurrent
-    ( forkIO )
 import Control.Concurrent.Async
-    ( race )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( async, race, wait )
 import Control.Exception
-    ( IOException, catch, handle, throwIO )
+    ( IOException, try )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.IO.Handle.FD
+    ( fdToHandle )
 import System.IO
-    ( Handle
-    , hIsOpen
-    , hSetEncoding
-    , mkTextEncoding
-    , stderr
-    , stderr
-    , stdin
-    , stdin
-    , stdout
-    , stdout
-    )
+    ( hGetChar, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
 import System.IO.CodePage
     ( withCP65001 )
+import System.IO.Error
+    ( isEOFError )
+import System.Posix.Types
+    ( Fd (Fd) )
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
@@ -66,7 +57,6 @@ import Cardano.Startup.POSIX
     ( installSignalHandlers )
 #endif
 
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -90,65 +80,70 @@ setUtf8EncodingHandles = do
                                Shutdown handlers
 -------------------------------------------------------------------------------}
 
--- | Runs the given action with a cross-platform clean shutdown handler.
+-- | Runs the given action with an optional cross-platform clean shutdown
+-- handler.
 --
 -- This is necessary when running cardano-wallet as a subprocess of Daedalus.
 -- For more details, see
 -- <https://github.com/input-output-hk/cardano-launcher/blob/master/docs/windows-clean-shutdown.md>
 --
--- It works simply by reading from 'stdin', which is otherwise unused by the API
--- server. Once end-of-file is reached, it cancels the action, causing the
--- program to shut down.
+-- It works by reading from the given file descriptor. Once end-of-file is
+-- reached, either deliberately by the parent process closing the write end, or
+-- automatically because the parent process itself terminated, it cancels the
+-- action, causing the program to shut down.
 --
--- So, when running @cardano-wallet@ as a subprocess, the parent process should
--- pass a pipe for 'stdin', then close the pipe when it wants @cardano-wallet@
--- to shut down.
-withShutdownHandler :: Tracer IO ShutdownHandlerLog -> IO a -> IO (Maybe a)
-withShutdownHandler tr = withShutdownHandler' tr stdin
-
--- | A variant of 'withShutdownHandler' where the handle to read can be chosen.
-withShutdownHandler' :: Tracer IO ShutdownHandlerLog -> Handle -> IO a -> IO (Maybe a)
-withShutdownHandler' tr h action = do
-    enabled <- hIsOpen h
-    traceWith tr $ MsgShutdownHandler enabled
-    let with
-            | enabled = fmap eitherToMaybe . race readerLoop
-            | otherwise = fmap Just
-    with action
+withShutdownHandler :: Tracer IO ShutdownHandlerLog -> Maybe Fd -> IO a -> IO (Maybe a)
+withShutdownHandler _ Nothing action = Just <$> action
+withShutdownHandler tr (Just (Fd fd)) action = do
+    traceWith tr $ MsgShutdownHandlerEnabled (Fd fd)
+    eitherToMaybe <$> race (wrapUninterruptableIO waitForEOF) action
   where
-    readerLoop = do
-        handle (traceWith tr . MsgShutdownError) readerLoop'
-        traceWith tr MsgShutdownEOF
-    readerLoop' = waitForInput >>= \case
-        "" -> pure () -- eof: stop loop
-        _ -> readerLoop' -- repeat
-    -- Wait indefinitely for input to be available.
-    -- Runs in separate thread so that it does not deadlock on Windows.
-    waitForInput = do
-        v <- newEmptyMVar :: IO (MVar (Either IOException BS.ByteString))
-        _ <- forkIO ((BS.hGet h 1000 >>= putMVar v . Right) `catch` (putMVar v . Left))
-        takeMVar v >>= either throwIO pure
+    waitForEOF :: IO ()
+    waitForEOF = do
+        hnd <- fdToHandle fd
+        r <- try $ hGetChar hnd
+        case r of
+            Left e
+                | isEOFError e -> traceWith tr MsgShutdownEOF
+                | otherwise -> traceWith tr $ MsgShutdownError e
+            Right _  -> traceWith tr MsgShutdownIncorrectUsage
+
+-- | Windows blocking file IO calls like 'hGetChar' are not interruptable by
+-- asynchronous exceptions, as used by async 'cancel' (as of base-4.12).
+--
+-- This wrapper works around that problem by running the blocking IO in a
+-- separate thread. If the parent thread receives an async cancel then it
+-- will return. Note however that in this circumstance the child thread may
+-- continue and remain blocked, leading to a leak of the thread. As such this
+-- is only reasonable to use a fixed number of times for the whole process.
+--
+wrapUninterruptableIO :: IO a -> IO a
+wrapUninterruptableIO action = async action >>= wait
 
 data ShutdownHandlerLog
-    = MsgShutdownHandler Bool
+    = MsgShutdownHandlerEnabled Fd
     | MsgShutdownEOF
     | MsgShutdownError IOException
+    | MsgShutdownIncorrectUsage
     deriving (Show, Eq)
 
 instance ToText ShutdownHandlerLog where
     toText = \case
-        MsgShutdownHandler enabled ->
-            "Cross-platform subprocess shutdown handler is "
-            <> if enabled then "enabled." else "disabled."
+        MsgShutdownHandlerEnabled (Fd fd)->
+            "Cross-platform subprocess shutdown handler is enabled on fd "
+            <> T.pack (show fd) <> "."
         MsgShutdownEOF ->
             "Starting clean shutdown..."
         MsgShutdownError e ->
             "Error waiting for shutdown: " <> T.pack (show e)
             <> ". Shutting down..."
+        MsgShutdownIncorrectUsage ->
+             "--shutdown-ipc FD does not expect input. Shutting down..."
 
 instance HasPrivacyAnnotation ShutdownHandlerLog
 instance HasSeverityAnnotation ShutdownHandlerLog where
     getSeverityAnnotation = \case
-        MsgShutdownHandler _ -> Debug
+        MsgShutdownHandlerEnabled _ -> Debug
         MsgShutdownEOF -> Notice
         MsgShutdownError _ -> Error
+        MsgShutdownIncorrectUsage -> Error

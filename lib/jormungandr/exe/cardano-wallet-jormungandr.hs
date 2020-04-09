@@ -29,7 +29,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo, logNotice )
 import Cardano.CLI
-    ( LoggingOptions (..)
+    ( Fd
+    , LoggingOptions (..)
     , Port (..)
     , cli
     , cmdAddress
@@ -55,7 +56,7 @@ import Cardano.CLI
     , requireFilePath
     , runCli
     , setupDirectory
-    , shutdownHandlerFlag
+    , shutdownIPCOption
     , stateDirOption
     , syncToleranceOption
     , withLogging
@@ -288,7 +289,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _block0H :: Hash "Genesis"
-    , _enableShutdownHandler :: Bool
+    , _shutdownIpc :: Maybe Fd
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show, Eq)
 
@@ -306,15 +307,15 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> genesisHashOption
-        <*> shutdownHandlerFlag
+        <*> shutdownIPCOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
         -> IO ()
-    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H enableShutdownHandler logOpt) = do
+    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H shutdownIPC logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            withShutdownHandlerMaybe tr enableShutdownHandler $ do
+            void $ withShutdownHandler (trShutdown tr) shutdownIPC $ do
                 logInfo tr $ MsgServeArgs args
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl
@@ -332,12 +333,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
        Nothing -> pure ()
        Just a  -> fn a
 
-    withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
-    withShutdownHandlerMaybe _ False = void
-    withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
-      where
-        trShutdown = trMessage
-            $ contramap (second $ fmap MsgShutdownHandler) tr
+    trShutdown = trMessage . contramap (second $ fmap MsgShutdownHandler)
 
 {-------------------------------------------------------------------------------
                                  Options

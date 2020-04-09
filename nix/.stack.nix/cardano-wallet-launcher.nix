@@ -38,6 +38,17 @@
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+          (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."aeson" or (buildDepError "aeson"))
+          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."code-page" or (buildDepError "code-page"))
+          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."extra" or (buildDepError "extra"))
+          (hsPkgs."fmt" or (buildDepError "fmt"))
+          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
+          (hsPkgs."process" or (buildDepError "process"))
+          (hsPkgs."text" or (buildDepError "text"))
+          (hsPkgs."text-class" or (buildDepError "text-class"))
           ] ++ (if system.isWindows
           then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
           else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);

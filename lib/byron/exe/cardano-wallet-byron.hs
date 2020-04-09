@@ -30,7 +30,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.CLI
-    ( LoggingOptions
+    ( Fd
+    , LoggingOptions
     , cli
     , cmdAddress
     , cmdByronWalletCreate
@@ -51,7 +52,7 @@ import Cardano.CLI
     , loggingTracers
     , runCli
     , setupDirectory
-    , shutdownHandlerFlag
+    , shutdownIPCOption
     , syncToleranceOption
     , tlsOption
     , withLogging
@@ -163,7 +164,7 @@ data ServeArgs = ServeArgs
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
-    , _enableShutdownHandler :: Bool
+    , _shutdownIpc :: Maybe Fd
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -182,7 +183,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> networkConfigurationOption
         <*> optional databaseOption
         <*> syncToleranceOption
-        <*> shutdownHandlerFlag
+        <*> shutdownIPCOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs
@@ -195,11 +196,11 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       networkConfig
       databaseDir
       sTolerance
-      enableShutdownHandler
+      shutdownIpc
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            withShutdownHandlerMaybe tr enableShutdownHandler $ do
+            void $ withShutdownHandler (trShutdown tr) shutdownIpc $ do
                 logDebug tr $ MsgServeArgs args
 
                 (discriminant, bp, vData, block0)
@@ -226,11 +227,9 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     whenJust m fn = case m of
        Nothing -> pure ()
        Just a  -> fn a
-    withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()
-    withShutdownHandlerMaybe _ False = void
-    withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
-      where
-        trShutdown = trMessage $ contramap (\(n, x) -> (n, fmap MsgShutdownHandler x)) tr
+
+    trShutdown = trMessage . contramap (\(n, x) -> (n, fmap MsgShutdownHandler x))
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -305,4 +304,3 @@ tracerSeveritiesOption = Tracers
         <> value def
         <> metavar "SEVERITY"
         <> internal
-

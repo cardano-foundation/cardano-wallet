@@ -14,7 +14,7 @@ module Cardano.StartupSpec
 import Prelude
 
 import Cardano.Startup
-    ( ShutdownHandlerLog (..), withShutdownHandler' )
+    ( ShutdownHandlerLog (..), withShutdownHandler )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -29,6 +29,10 @@ import System.IO
     ( Handle, IOMode (..), hClose, hWaitForInput, stdin, withFile )
 import System.IO.Error
     ( isUserError )
+import System.Posix.IO
+    ( handleToFd )
+import System.Posix.Types
+    ( Fd )
 import System.Process
     ( createPipe )
 import Test.Hspec
@@ -93,67 +97,76 @@ spec = describe "withShutdownHandler" $ do
             res <- race (wrapIO $ getChunk a) (threadDelay decisecond)
             res `shouldBe` Right ()
 
-    it "action completes immediately" $ withPipe $ \(a, _) -> do
+    it "action completes immediately" $ withFdPipe $ \(a, _) -> do
         logs <- captureLogging' $ \tr -> do
-            withShutdownHandler' tr a (pure ())
+            withShutdownHandler tr (Just a) (pure ())
                 `shouldReturn` Just ()
-        logs `shouldContain` [MsgShutdownHandler True]
+        logs `shouldContain` [MsgShutdownHandlerEnabled a]
 
-    it "action completes with delay" $ withPipe $ \(a, _) -> do
-        res <- withShutdownHandler' nullTracer a $ do
+    it "action completes with delay" $ withFdPipe $ \(a, _) -> do
+        res <- withShutdownHandler nullTracer (Just a) $ do
             threadDelay decisecond
             pure ()
         res `shouldBe` Just ()
 
-    it "handle is closed immediately" $ withPipe $ \(a, b) -> do
+    it "handle is closed immediately" $ withFdPipe $ \(a, b) -> do
         logs <- captureLogging' $ \tr -> do
-            res <- withShutdownHandler' tr a $ do
+            res <- withShutdownHandler tr (Just a) $ do
                 hClose b
                 threadDelay decisecond -- give handler a chance to run
                 pure ()
             res `shouldBe` Nothing
         logs `shouldContain` [MsgShutdownEOF]
 
-    it "handle is closed with delay" $ withPipe $ \(a, b) -> do
-        res <- withShutdownHandler' nullTracer a $ do
+    it "handle is closed with delay" $ withFdPipe $ \(a, b) -> do
+        res <- withShutdownHandler nullTracer (Just a) $ do
             threadDelay decisecond
             hClose b
             threadDelay decisecond -- give handler a chance to run
             pure ()
         res `shouldBe` Nothing
 
-    it "action throws exception" $ withPipe $ \(a, _) -> do
+    it "action throws exception" $ withFdPipe $ \(a, _) -> do
         let bomb = userError "bomb"
         logs <- captureLogging' $ \tr -> do
-            withShutdownHandler' tr a (throwIO bomb)
+            withShutdownHandler tr (Just a) (throwIO bomb)
                 `shouldThrow` isUserError
-        logs `shouldBe` [MsgShutdownHandler True]
+        logs `shouldBe` [MsgShutdownHandlerEnabled a]
 
     it ("handle is " ++ nullFileName ++ " (immediate EOF)") $ do
         pendingOnWindows $ "Can't open " ++ nullFileName ++ " for reading"
         logs <- captureLogging' $ \tr ->
             withFile nullFileName ReadMode $ \h -> do
-                res <- withShutdownHandler' tr h $ do
+                fd <- handleToFd h
+                res <- withShutdownHandler tr (Just fd) $ do
                     threadDelay decisecond -- give handler a chance to run
                     pure ()
                 res `shouldBe` Nothing
         logs `shouldContain` [MsgShutdownEOF]
 
     it "handle is already closed" $ withPipe $ \(a, b) -> do
+        fd <- handleToFd a
         hClose a
         hClose b
         logs <- captureLogging' $ \tr -> do
-            res <- withShutdownHandler' tr a $ do
+            res <- withShutdownHandler tr (Just fd) $ do
                 threadDelay decisecond
                 hClose b
                 threadDelay decisecond -- give handler a chance to run
                 pure ()
-            res `shouldBe` Just ()
-        logs `shouldContain` [MsgShutdownHandler False]
+            res `shouldBe` Nothing
+        logs `shouldContain` [MsgShutdownHandlerEnabled fd] -- fixme
+        logs `shouldContain` [MsgShutdownEOF]
 
 withPipe :: ((Handle, Handle) -> IO a) -> IO a
 withPipe = bracket createPipe closePipe
-    where closePipe (a, b) = hClose b >> hClose a
+  where
+    closePipe (a, b) = hClose b >> hClose a
+
+withFdPipe :: ((Fd, Handle) -> IO a) -> IO a
+withFdPipe action = withPipe $ \(a, b) -> do
+    fd <- handleToFd a
+    action (fd, b)
 
 captureLogging' :: (Tracer IO msg -> IO a) -> IO [msg]
 captureLogging' = fmap fst . captureLogging
