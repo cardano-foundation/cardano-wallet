@@ -172,7 +172,6 @@ parseGenesisData = \case
     TestnetConfig genesisFile -> do
         (genesisData, genesisHash) <-
             withExceptT show $ readGenesisData genesisFile
-            --exitWith $ ExitFailure 33
 
         let (discriminant, vData) = genesisData
                 & gdProtocolMagicId
