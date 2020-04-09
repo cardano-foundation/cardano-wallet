@@ -39,7 +39,7 @@ some <details></details> elements to avoid cluttering the release notes -->
 | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{DOCKER_WIKI_COMMIT}})                     | Users of the Cardano Wallet API                            |
 | [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/{{GIT_TAG}})                                               | Haskell Developers using the `cardano-wallet` as a library |
 
-## Installation Instructions 
+## Installation Instructions
 
 <!-- Specific installation steps for this particular release. This should
 basically captures whatever is currently available on the repository at
@@ -55,7 +55,16 @@ the moment of releasing. -->
 
 4. Start `cardano-wallet --help` and see available parameters.
 
-### cardano-node / Byron 
+#### Docker
+
+Pull from DockerHub and verify version.
+
+```
+$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr
+$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr version
+```
+
+### cardano-node / Byron
 
 1. Install [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
@@ -64,6 +73,15 @@ the moment of releasing. -->
 3. (optional) Install the bash/zsh auto-completion script according to the [byron cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron)/{{BYRON_CLI_WIKI_COMMIT}})
 
 4. Start `cardano-wallet --help` and see available parameters.
+
+#### Docker
+
+Pull from DockerHub and verify version.
+
+```
+$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-byron
+$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-byron version
+```
 
 ### Additional notes
 
@@ -89,26 +107,12 @@ Alternatively, one may also try using the docker image instead.
 
 </details>
 
-#### Docker
-
-1. Pull from DockerHub.
-
-```
-$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr
-```
-
-2. Verify the image using the command-line.
-
-```
-$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr version
-```
-
 ## Signatures
 
 <!-- Signatures of people responsible for the release -->
 
 Name                           | Role                | Approval
 ---                            | ---                 | ---:
-Matthias Benkort @KtorZ        | Technical Team Lead | :hourglass: 
-Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass: 
-Tatyana Valkevych @tatyanavych | Release Manager     | :hourglass: 
+Matthias Benkort @KtorZ        | Technical Team Lead | :hourglass:
+Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass:
+Tatyana Valkevych @tatyanavych | Release Manager     | :hourglass:
