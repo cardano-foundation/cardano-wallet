@@ -39,47 +39,55 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { development = false; };
     package = {
-      specVersion = "2.0";
-      identifier = { name = "lobemo-backend-ekg"; version = "0.1.0.1"; };
-      license = "Apache-2.0";
-      copyright = "2019 IOHK";
-      maintainer = "operations@iohk.io";
-      author = "Alexander Diemand";
-      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      specVersion = "1.8";
+      identifier = { name = "shelley-spec-ledger-test"; version = "0.1.0.0"; };
+      license = "NONE";
+      copyright = "";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
+      homepage = "";
       url = "";
-      synopsis = "provides a backend implementation to EKG";
-      description = "";
+      synopsis = "";
+      description = "Test helpers from shelley-spec-ledger exposed to other packages";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
         depends = [
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
-          (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."ekg" or (buildDepError "ekg"))
-          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
-          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."snap-core" or (buildDepError "snap-core"))
-          (hsPkgs."snap-server" or (buildDepError "snap-server"))
-          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+          (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
+          (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."containers" or (buildDepError "containers"))
+          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+          (hsPkgs."shelley-spec-ledger" or (buildDepError "shelley-spec-ledger"))
+          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+          (hsPkgs."multiset" or (buildDepError "multiset"))
+          (hsPkgs."process-extras" or (buildDepError "process-extras"))
+          (hsPkgs."small-steps" or (buildDepError "small-steps"))
+          (hsPkgs."tasty" or (buildDepError "tasty"))
+          (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
+          (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
+          (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          (hsPkgs."transformers" or (buildDepError "transformers"))
           ];
         buildable = true;
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
-      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
+      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      rev = "156086266486da710c5037c11f83d2112434926f";
+      sha256 = "1wp4n39k4i3rnkn0cnhwlfkdj73zml58957mjrxb40q2ngjl4ydw";
       });
-    postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec/test; echo source root reset to \$sourceRoot";
     }

@@ -41,16 +41,16 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
     flags = {};
     package = {
-      specVersion = "2.0";
-      identifier = { name = "lobemo-backend-ekg"; version = "0.1.0.1"; };
-      license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      specVersion = "1.10";
+      identifier = { name = "cardano-sl-x509"; version = "3.0.0"; };
+      license = "MIT";
+      copyright = "2018 IOHK";
       maintainer = "operations@iohk.io";
-      author = "Alexander Diemand";
-      homepage = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      author = "IOHK Engineering Team";
+      homepage = "https://github.com/input-output-hk/cardano-sl/x509/README.md";
       url = "";
-      synopsis = "provides a backend implementation to EKG";
-      description = "";
+      synopsis = "Tool-suite for generating x509 certificates specialized for RSA with SHA-256";
+      description = "See README";
       buildType = "Simple";
       isLocal = true;
       };
@@ -58,28 +58,46 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."async" or (buildDepError "async"))
+          (hsPkgs."asn1-encoding" or (buildDepError "asn1-encoding"))
+          (hsPkgs."asn1-types" or (buildDepError "asn1-types"))
+          (hsPkgs."base64-bytestring" or (buildDepError "base64-bytestring"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."ekg" or (buildDepError "ekg"))
-          (hsPkgs."ekg-core" or (buildDepError "ekg-core"))
-          (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
-          (hsPkgs."snap-core" or (buildDepError "snap-core"))
-          (hsPkgs."snap-server" or (buildDepError "snap-server"))
-          (hsPkgs."stm" or (buildDepError "stm"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+          (hsPkgs."data-default-class" or (buildDepError "data-default-class"))
+          (hsPkgs."directory" or (buildDepError "directory"))
+          (hsPkgs."exceptions" or (buildDepError "exceptions"))
+          (hsPkgs."filepath" or (buildDepError "filepath"))
+          (hsPkgs."hourglass" or (buildDepError "hourglass"))
+          (hsPkgs."ip" or (buildDepError "ip"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."unordered-containers" or (buildDepError "unordered-containers"))
+          (hsPkgs."x509" or (buildDepError "x509"))
+          (hsPkgs."x509-store" or (buildDepError "x509-store"))
+          (hsPkgs."x509-validation" or (buildDepError "x509-validation"))
+          (hsPkgs."yaml" or (buildDepError "yaml"))
           ];
         buildable = true;
+        };
+      tests = {
+        "cardano-sl-x509-test" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-sl-x509" or (buildDepError "cardano-sl-x509"))
+            (hsPkgs."exceptions" or (buildDepError "exceptions"))
+            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "10877fbae54aa7a4c04ae3b5d87c825a4019e9e9";
-      sha256 = "17brigssa3yjys75izczpwh10m1ai4rja2wgkx95nvm6krizrkh7";
+      url = "https://github.com/input-output-hk/cardano-sl-x509";
+      rev = "43a036c5bbe68ca2e9cbe611eab7982e2348fe49";
+      sha256 = "1aw7ns8lv51fjf45k8yzils2j7a6bqzy8hn65kb3z0dn1qsm8x88";
       });
-    postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
     }

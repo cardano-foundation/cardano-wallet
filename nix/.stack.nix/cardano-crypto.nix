@@ -126,7 +126,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-crypto";
-      rev = "05aa1bc640c42bfca787531d12595489c1fa3b82";
-      sha256 = "05g48n8gn32q258chl9b3z4kxmvqk70fqvgynyzz62l40ikrhj6g";
+      rev = "2547ad1e80aeabca2899951601079408becbc92c";
+      sha256 = "1p2kg2w02q5w1cvqzhfhqmxviy4xrzada3mmb096j2n6hfr20kri";
       });
     }
