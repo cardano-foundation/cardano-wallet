@@ -79,6 +79,7 @@ test-suite unit
     , iohk-monitoring
     , process
     , retry
+    , temporary
     , text
     , text-class
     , time

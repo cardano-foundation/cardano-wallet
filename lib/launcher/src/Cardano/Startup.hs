@@ -92,21 +92,25 @@ setUtf8EncodingHandles = do
 -- automatically because the parent process itself terminated, it cancels the
 -- action, causing the program to shut down.
 --
-withShutdownHandler :: Tracer IO ShutdownHandlerLog -> Maybe Fd -> IO a -> IO (Maybe a)
+withShutdownHandler
+    :: Tracer IO ShutdownHandlerLog
+    -> Maybe Fd
+    -> IO a
+    -> IO (Maybe a)
 withShutdownHandler _ Nothing action = Just <$> action
-withShutdownHandler tr (Just (Fd fd)) action = do
-    traceWith tr $ MsgShutdownHandlerEnabled (Fd fd)
-    eitherToMaybe <$> race (wrapUninterruptableIO waitForEOF) action
+withShutdownHandler tr (Just (Fd fd)) action = try (fdToHandle fd) >>= \case
+    Left e -> do
+        traceWith tr $ MsgShutdownBadFd (Fd fd) e
+        pure Nothing
+    Right hnd -> do
+        traceWith tr $ MsgShutdownHandlerEnabled (Fd fd)
+        eitherToMaybe <$> race (wrapUninterruptableIO $ waitForEOF hnd) action
   where
-    waitForEOF :: IO ()
-    waitForEOF = do
-        hnd <- fdToHandle fd
-        r <- try $ hGetChar hnd
-        case r of
-            Left e
-                | isEOFError e -> traceWith tr MsgShutdownEOF
-                | otherwise -> traceWith tr $ MsgShutdownError e
-            Right _  -> traceWith tr MsgShutdownIncorrectUsage
+    waitForEOF hnd = try (hGetChar hnd) >>= \case
+        Left e
+            | isEOFError e -> traceWith tr MsgShutdownEOF
+            | otherwise -> traceWith tr $ MsgShutdownError e
+        Right _  -> traceWith tr MsgShutdownIncorrectUsage
 
 -- | Windows blocking file IO calls like 'hGetChar' are not interruptable by
 -- asynchronous exceptions, as used by async 'cancel' (as of base-4.12).
@@ -123,15 +127,18 @@ wrapUninterruptableIO action = async action >>= wait
 data ShutdownHandlerLog
     = MsgShutdownHandlerEnabled Fd
     | MsgShutdownEOF
+    | MsgShutdownBadFd Fd IOException
     | MsgShutdownError IOException
     | MsgShutdownIncorrectUsage
     deriving (Show, Eq)
 
 instance ToText ShutdownHandlerLog where
     toText = \case
-        MsgShutdownHandlerEnabled (Fd fd)->
+        MsgShutdownHandlerEnabled (Fd fd) ->
             "Cross-platform subprocess shutdown handler is enabled on fd "
             <> T.pack (show fd) <> "."
+        MsgShutdownBadFd (Fd fd) e -> T.pack $
+            "Could not access fd " <> show fd <> ": " <> show e
         MsgShutdownEOF ->
             "Starting clean shutdown..."
         MsgShutdownError e ->
@@ -145,5 +152,6 @@ instance HasSeverityAnnotation ShutdownHandlerLog where
     getSeverityAnnotation = \case
         MsgShutdownHandlerEnabled _ -> Debug
         MsgShutdownEOF -> Notice
+        MsgShutdownBadFd _ _ -> Error
         MsgShutdownError _ -> Error
         MsgShutdownIncorrectUsage -> Error

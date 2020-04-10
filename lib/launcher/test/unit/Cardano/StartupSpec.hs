@@ -19,20 +19,26 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, tryTakeMVar )
 import Control.Exception
     ( IOException, bracket, catch, throwIO )
 import Control.Monad
     ( unless )
 import Control.Tracer
     ( Tracer, nullTracer )
+import Data.Maybe
+    ( mapMaybe )
+import GHC.IO.FD
+    ( FD (..) )
 import System.IO
     ( Handle, IOMode (..), hClose, hWaitForInput, stdin, withFile )
 import System.IO.Error
-    ( isUserError )
-import System.Posix.IO
-    ( handleToFd )
+    ( catchIOError, isUserError )
+import System.IO.Temp
+    ( withSystemTempFile )
 import System.Posix.Types
-    ( Fd )
+    ( Fd (Fd) )
 import System.Process
     ( createPipe )
 import Test.Hspec
@@ -50,15 +56,14 @@ import Test.Utils.Windows
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar, newEmptyMVar, putMVar, tryTakeMVar )
 #endif
 
 import qualified Data.ByteString as BS
+import qualified GHC.IO.Handle.FD as IO
 
 spec :: Spec
 spec = describe "withShutdownHandler" $ do
-    let decisecond = 100000
-
     describe "sanity tests" $ do
         -- check file handle for input,
         let hWait :: Handle -> IO Bool
@@ -70,31 +75,31 @@ spec = describe "withShutdownHandler" $ do
 
         it "race hWaitForInput stdin" $ do
             skipWhenNullStdin
-            res <- race (wrapIO $ hWait stdin) (threadDelay decisecond)
+            res <- race (wrapIO $ hWait stdin) (threadDelay semisecond)
             res `shouldBe` Right ()
 
         it "race hWaitForInput pipe" $ withPipe $ \(a, _) -> do
-            res <- race (wrapIO $ hWait a) (threadDelay decisecond)
+            res <- race (wrapIO $ hWait a) (threadDelay semisecond)
             res `shouldBe` Right ()
 
         it "race hGet stdin" $ do
             pendingOnWindows "deadlocks on windows"
             skipWhenNullStdin
-            res <- race (getChunk stdin) (threadDelay decisecond)
+            res <- race (getChunk stdin) (threadDelay semisecond)
             res `shouldBe` Right ()
 
         it "race hGet pipe" $ withPipe $ \(a, _) -> do
             pendingOnWindows "deadlocks on windows"
-            res <- race (getChunk a) (threadDelay decisecond)
+            res <- race (getChunk a) (threadDelay semisecond)
             res `shouldBe` Right ()
 
         it "race hGet stdin wrapped" $ do
             skipWhenNullStdin
-            res <- race (wrapIO $ getChunk stdin) (threadDelay decisecond)
+            res <- race (wrapIO $ getChunk stdin) (threadDelay semisecond)
             res `shouldBe` Right ()
 
         it "race hGet pipe wrapped" $ withPipe $ \(a, _) -> do
-            res <- race (wrapIO $ getChunk a) (threadDelay decisecond)
+            res <- race (wrapIO $ getChunk a) (threadDelay semisecond)
             res `shouldBe` Right ()
 
     it "action completes immediately" $ withFdPipe $ \(a, _) -> do
@@ -105,7 +110,7 @@ spec = describe "withShutdownHandler" $ do
 
     it "action completes with delay" $ withFdPipe $ \(a, _) -> do
         res <- withShutdownHandler nullTracer (Just a) $ do
-            threadDelay decisecond
+            threadDelay semisecond
             pure ()
         res `shouldBe` Just ()
 
@@ -113,18 +118,21 @@ spec = describe "withShutdownHandler" $ do
         logs <- captureLogging' $ \tr -> do
             res <- withShutdownHandler tr (Just a) $ do
                 hClose b
-                threadDelay decisecond -- give handler a chance to run
+                threadDelay semisecond -- give handler a chance to run
                 pure ()
             res `shouldBe` Nothing
         logs `shouldContain` [MsgShutdownEOF]
 
     it "handle is closed with delay" $ withFdPipe $ \(a, b) -> do
+        run <- newEmptyMVar
         res <- withShutdownHandler nullTracer (Just a) $ do
-            threadDelay decisecond
+            threadDelay semisecond
+            putMVar run ()
             hClose b
-            threadDelay decisecond -- give handler a chance to run
+            threadDelay semisecond -- give handler a chance to run
             pure ()
         res `shouldBe` Nothing
+        tryTakeMVar run `shouldReturn` Just ()
 
     it "action throws exception" $ withFdPipe $ \(a, _) -> do
         let bomb = userError "bomb"
@@ -139,37 +147,52 @@ spec = describe "withShutdownHandler" $ do
             withFile nullFileName ReadMode $ \h -> do
                 fd <- handleToFd h
                 res <- withShutdownHandler tr (Just fd) $ do
-                    threadDelay decisecond -- give handler a chance to run
+                    threadDelay semisecond -- give handler a chance to run
                     pure ()
                 res `shouldBe` Nothing
         logs `shouldContain` [MsgShutdownEOF]
 
-    it "handle is already closed" $ withPipe $ \(a, b) -> do
+    it "other end is already closed" $ withPipe $ \(a, b) -> do
         fd <- handleToFd a
-        hClose a
         hClose b
         logs <- captureLogging' $ \tr -> do
             res <- withShutdownHandler tr (Just fd) $ do
-                threadDelay decisecond
-                hClose b
-                threadDelay decisecond -- give handler a chance to run
+                threadDelay semisecond -- give handler a chance to run
                 pure ()
             res `shouldBe` Nothing
-        logs `shouldContain` [MsgShutdownHandlerEnabled fd] -- fixme
-        logs `shouldContain` [MsgShutdownEOF]
+        logs `shouldBe` [MsgShutdownHandlerEnabled fd, MsgShutdownEOF]
+
+    it "incorrect fd given (already closed)" $ do
+        bad <- withSystemTempFile "StartupSpec" (const handleToFd)
+        logs <- captureLogging' $ \tr -> do
+            res <- withShutdownHandler tr (Just bad) (pure ())
+            res `shouldBe` Nothing
+        mapMaybe isMsgBadFd logs `shouldBe` [bad]
+
+  where
+    -- enough time to give other thread a chance to run
+    semisecond = 500000
 
 withPipe :: ((Handle, Handle) -> IO a) -> IO a
 withPipe = bracket createPipe closePipe
   where
-    closePipe (a, b) = hClose b >> hClose a
+    closePipe (a, b) = close b >> close a
+    close h = catchIOError (hClose h) (const $ pure ())
 
 withFdPipe :: ((Fd, Handle) -> IO a) -> IO a
 withFdPipe action = withPipe $ \(a, b) -> do
     fd <- handleToFd a
     action (fd, b)
 
+handleToFd :: Handle -> IO Fd
+handleToFd = fmap (Fd . fdFD) . IO.handleToFd
+
 captureLogging' :: (Tracer IO msg -> IO a) -> IO [msg]
 captureLogging' = fmap fst . captureLogging
+
+isMsgBadFd :: ShutdownHandlerLog -> Maybe Fd
+isMsgBadFd (MsgShutdownBadFd fd _) = Just fd
+isMsgBadFd _ = Nothing
 
 -- | Run an IO action allowing interruptions on windows.
 -- Any 'IOException's are rethrown.
@@ -180,7 +203,7 @@ wrapIO :: IO a -> IO a
 wrapIO action = do
     v <- newEmptyMVar :: IO (MVar (Either IOException a))
     _ <- forkIO ((action >>= putMVar v . Right) `catch` (putMVar v . Left))
-    takeMVar v >>= either throwIO pure
+    tryTakeMVar v >>= either throwIO pure
 #else
 wrapIO = id
 #endif
