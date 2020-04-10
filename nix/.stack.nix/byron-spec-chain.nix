@@ -39,17 +39,17 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { asserts = false; };
+    flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "io-sim"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
-      homepage = "";
+      identifier = { name = "byron-spec-chain"; version = "0.1.0.0"; };
+      license = "MIT";
+      copyright = "";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
+      homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
-      synopsis = "A pure simlator for monadic concurrency with STM";
+      synopsis = "Executable specification of the Cardano blockchain";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -58,26 +58,32 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-          (hsPkgs."exceptions" or (buildDepError "exceptions"))
+          (hsPkgs."bimap" or (buildDepError "bimap"))
+          (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."psqueues" or (buildDepError "psqueues"))
-          (hsPkgs."time" or (buildDepError "time"))
+          (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
+          (hsPkgs."goblins" or (buildDepError "goblins"))
+          (hsPkgs."hashable" or (buildDepError "hashable"))
+          (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+          (hsPkgs."lens" or (buildDepError "lens"))
+          (hsPkgs."small-steps" or (buildDepError "small-steps"))
           ];
         buildable = true;
         };
       tests = {
-        "test-sim" = {
+        "chain-rules-test" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."array" or (buildDepError "array"))
             (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."io-sim" or (buildDepError "io-sim"))
-            (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
+            (hsPkgs."data-ordlist" or (buildDepError "data-ordlist"))
+            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+            (hsPkgs."lens" or (buildDepError "lens"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."time" or (buildDepError "time"))
+            (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
+            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
+            (hsPkgs."byron-spec-chain" or (buildDepError "byron-spec-chain"))
+            (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
+            (hsPkgs."small-steps" or (buildDepError "small-steps"))
             ];
           buildable = true;
           };
@@ -85,9 +91,9 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "3d89fa475bc740473e5ffe947572c19f9b91d26d";
-      sha256 = "0v1mfsamjh3c93m0bqqdflg89iy6wvfq0l1ji66m4xgvrj0ilzds";
+      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      rev = "f1d5ddb25531b2512796d34e9cfd803f7af76567";
+      sha256 = "1nxqdi8vbx3mg1qdbvj7v6ngfjbgbf9i7yxc3ijac2mqb4fn5b4f";
       });
-    postUnpack = "sourceRoot+=/io-sim; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/byron/chain/executable-spec; echo source root reset to \$sourceRoot";
     }

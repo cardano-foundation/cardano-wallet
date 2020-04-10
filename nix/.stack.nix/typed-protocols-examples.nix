@@ -88,8 +88,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7e89518148ebb11d9ee6b973c394a69713961de6";
-      sha256 = "06mhpn3kmlk9siiki2rn3cmq4v7lz6rvxzmll1zdf5lhrh3ixks2";
+      rev = "3d89fa475bc740473e5ffe947572c19f9b91d26d";
+      sha256 = "0v1mfsamjh3c93m0bqqdflg89iy6wvfq0l1ji66m4xgvrj0ilzds";
       });
     postUnpack = "sourceRoot+=/typed-protocols-examples; echo source root reset to \$sourceRoot";
     }

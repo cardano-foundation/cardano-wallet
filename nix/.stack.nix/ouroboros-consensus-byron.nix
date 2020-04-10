@@ -152,8 +152,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."ouroboros-consensus-test-infra" or (buildDepError "ouroboros-consensus-test-infra"))
             (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
             (hsPkgs."ouroboros-consensus-byronspec" or (buildDepError "ouroboros-consensus-byronspec"))
-            (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."byron-spec-chain" or (buildDepError "byron-spec-chain"))
+            (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
             (hsPkgs."small-steps" or (buildDepError "small-steps"))
             (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
             (hsPkgs."serialise" or (buildDepError "serialise"))
@@ -165,8 +165,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7e89518148ebb11d9ee6b973c394a69713961de6";
-      sha256 = "06mhpn3kmlk9siiki2rn3cmq4v7lz6rvxzmll1zdf5lhrh3ixks2";
+      rev = "3d89fa475bc740473e5ffe947572c19f9b91d26d";
+      sha256 = "0v1mfsamjh3c93m0bqqdflg89iy6wvfq0l1ji66m4xgvrj0ilzds";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-byron; echo source root reset to \$sourceRoot";
     }

@@ -23,7 +23,7 @@
         "katip" = (((hackage.katip)."0.8.3.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
-        "network" = (((hackage.network)."3.1.0.1").revisions).default;
+        "network" = (((hackage.network)."3.1.1.1").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
         "streaming-binary" = (((hackage.streaming-binary)."0.3.0.1").revisions).default;
@@ -52,8 +52,8 @@
         cardano-crypto-wrapper = ./cardano-crypto-wrapper.nix;
         cardano-crypto-test = ./cardano-crypto-test.nix;
         small-steps = ./small-steps.nix;
-        cs-ledger = ./cs-ledger.nix;
-        cs-blockchain = ./cs-blockchain.nix;
+        byron-spec-ledger = ./byron-spec-ledger.nix;
+        byron-spec-chain = ./byron-spec-chain.nix;
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
