@@ -74,7 +74,7 @@ import Cardano.Chain.Update
 import Cardano.Chain.UTxO
     ( Tx (..), TxAux, TxIn (..), TxOut (..), annotateTxAux, taTx, unTxPayload )
 import Cardano.Crypto
-    ( hash )
+    ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Unsafe
@@ -294,7 +294,7 @@ fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of
 fromTxAux :: TxAux -> W.Tx
 fromTxAux txAux = case taTx txAux of
     tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
-        { txId = W.Hash $ CC.hashToBytes $ hash tx
+        { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
 
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =

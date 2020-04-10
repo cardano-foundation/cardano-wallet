@@ -71,8 +71,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-prelude-test" or (buildDepError "cardano-prelude-test"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
-          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+          (hsPkgs."byron-spec-chain" or (buildDepError "byron-spec-chain"))
+          (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
           (hsPkgs."directory" or (buildDepError "directory"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."formatting" or (buildDepError "formatting"))
@@ -96,8 +96,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "53ca3542019824d169378fa36a842eb4659b7ceb";
-      sha256 = "1mwqcqfnxy14hs8g7x3q0ws3bhsmfhxpv8h7xf6r466n246fi83k";
+      rev = "90b14c056059d0082cb2641f9c77cb1b097be329";
+      sha256 = "029lqlf33a3vvy933fil8qglv3hjaprankllr80h0acspqjzahk0";
       });
     postUnpack = "sourceRoot+=/cardano-ledger/test; echo source root reset to \$sourceRoot";
     }
