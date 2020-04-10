@@ -109,6 +109,7 @@ import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
 import qualified Test.Integration.Byron.Scenario.CLI.Addresses as AddressesByronCLI
 import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
+import qualified Test.Integration.Byron.Scenario.CLI.Wallets as WalletsByronCLI
 import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
 import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
@@ -135,6 +136,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             TransactionsByronCommon.spec @n
             Network.spec
         describe "CLI Specifications" $ specWithServer tr $ do
+            WalletsByronCLI.spec @n
             TransactionsByronCLI.spec @n
             AddressesByronCLI.spec @n
             PortCLI.spec @t

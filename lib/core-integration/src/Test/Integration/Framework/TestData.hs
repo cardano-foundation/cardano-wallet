@@ -61,6 +61,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NoRootKey
     , errMsg404NoWallet
     , errMsg404NoEpochNo
+    , errMsg409WalletExists
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
@@ -248,6 +249,10 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 ---
 --- Error messages
 ---
+
+errMsg409WalletExists :: String -> String
+errMsg409WalletExists walId = "This operation would yield a wallet with the following\
+     \ id: " ++ walId ++ " However, I already know of a wallet with this id."
 
 errMsg400WalletIdEncoding :: String
 errMsg400WalletIdEncoding =

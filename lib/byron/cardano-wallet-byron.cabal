@@ -201,6 +201,7 @@ test-suite integration
       Test.Integration.Byron.Scenario.API.Addresses
       Test.Integration.Byron.Scenario.API.Transactions
       Test.Integration.Byron.Scenario.CLI.Addresses
+      Test.Integration.Byron.Scenario.CLI.Wallets
       Test.Integration.Byron.Scenario.CLI.Transactions
 
 benchmark restore
