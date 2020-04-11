@@ -65,6 +65,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."digest" or (buildDepError "digest"))
           (hsPkgs."formatting" or (buildDepError "formatting"))
+          (hsPkgs."primitive" or (buildDepError "primitive"))
           (hsPkgs."recursion-schemes" or (buildDepError "recursion-schemes"))
           (hsPkgs."safe-exceptions" or (buildDepError "safe-exceptions"))
           (hsPkgs."tagged" or (buildDepError "tagged"))
@@ -101,8 +102,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "1222078176fe74d5ce17f2a8343c6588233a49a3";
-      sha256 = "1xnccf7p1979wvqdjnkj8a68k3yy3a9z0gbnbl4pghcv24j2myfm";
+      rev = "742a789a520387c6cd30a4ca28bc4fc8588a41c7";
+      sha256 = "0zqar90z7hdklxcimfxb2dmk0cq43bywa7p255hynn7ss0nxszz6";
       });
     postUnpack = "sourceRoot+=/binary; echo source root reset to \$sourceRoot";
     }

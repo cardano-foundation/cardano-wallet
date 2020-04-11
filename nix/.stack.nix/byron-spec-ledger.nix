@@ -41,15 +41,15 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
     flags = { development = false; };
     package = {
-      specVersion = "1.10";
-      identifier = { name = "cs-blockchain"; version = "0.1.0.0"; };
+      specVersion = "2.0";
+      identifier = { name = "byron-spec-ledger"; version = "0.1.0.0"; };
       license = "MIT";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
       homepage = "https://github.com/input-output-hk/cardano-legder-specs";
       url = "";
-      synopsis = "Executable specification of the Cardano blockchain";
+      synopsis = "Executable specification of Cardano ledger";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -59,30 +59,51 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."bimap" or (buildDepError "bimap"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+          (hsPkgs."filepath" or (buildDepError "filepath"))
+          (hsPkgs."file-embed" or (buildDepError "file-embed"))
           (hsPkgs."goblins" or (buildDepError "goblins"))
           (hsPkgs."hashable" or (buildDepError "hashable"))
           (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
           (hsPkgs."lens" or (buildDepError "lens"))
+          (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
+          (hsPkgs."Unique" or (buildDepError "Unique"))
+          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
+          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
           ];
         buildable = true;
         };
       tests = {
-        "chain-rules-test" = {
+        "doctests" = {
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."doctest" or (buildDepError "doctest"))
             (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."data-ordlist" or (buildDepError "data-ordlist"))
             (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
             (hsPkgs."lens" or (buildDepError "lens"))
+            (hsPkgs."memory" or (buildDepError "memory"))
+            (hsPkgs."text" or (buildDepError "text"))
+            (hsPkgs."small-steps" or (buildDepError "small-steps"))
+            (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.doctest-discover or (pkgs.buildPackages.doctest-discover or (buildToolDepError "doctest-discover")))
+            ];
+          buildable = true;
+          };
+        "byron-spec-ledger-test" = {
+          depends = [
+            (hsPkgs."base" or (buildDepError "base"))
+            (hsPkgs."bimap" or (buildDepError "bimap"))
+            (hsPkgs."containers" or (buildDepError "containers"))
+            (hsPkgs."lens" or (buildDepError "lens"))
+            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
             (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
             (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
-            (hsPkgs."cs-blockchain" or (buildDepError "cs-blockchain"))
-            (hsPkgs."cs-ledger" or (buildDepError "cs-ledger"))
+            (hsPkgs."tasty-hedgehog" or (buildDepError "tasty-hedgehog"))
+            (hsPkgs."Unique" or (buildDepError "Unique"))
+            (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
             (hsPkgs."small-steps" or (buildDepError "small-steps"))
             ];
           buildable = true;
@@ -92,8 +113,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "156086266486da710c5037c11f83d2112434926f";
-      sha256 = "1wp4n39k4i3rnkn0cnhwlfkdj73zml58957mjrxb40q2ngjl4ydw";
+      rev = "f1d5ddb25531b2512796d34e9cfd803f7af76567";
+      sha256 = "1nxqdi8vbx3mg1qdbvj7v6ngfjbgbf9i7yxc3ijac2mqb4fn5b4f";
       });
-    postUnpack = "sourceRoot+=/byron/chain/executable-spec; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/byron/ledger/executable-spec; echo source root reset to \$sourceRoot";
     }
