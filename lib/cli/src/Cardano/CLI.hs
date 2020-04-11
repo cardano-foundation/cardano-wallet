@@ -18,6 +18,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-local-binds #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -30,6 +33,7 @@ module Cardano.CLI
     -- * CLI Execution
       cli
     , runCli
+    , dev
 
     -- * Commands
     , cmdMnemonic
@@ -152,6 +156,12 @@ import Cardano.Wallet.Api.Client
     )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration (..) )
+import Control.Monad
+import Options.Applicative.Help.Chunk
+import Options.Applicative.Help.Core
+import Prelude hiding
+    ( getLine )
+
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -224,7 +234,7 @@ import Data.List.Extra
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromJust, fromMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -258,6 +268,7 @@ import Options.Applicative
     , OptionFields
     , ParseError (InfoMsg)
     , Parser
+    , ParserInfo (..)
     , ParserInfo
     , abortOption
     , argument
@@ -288,10 +299,19 @@ import Options.Applicative
     , switch
     , value
     )
+import Options.Applicative.Builder.Internal
+import Options.Applicative.Common
+    ( mapParser )
 import Options.Applicative.Help.Pretty
     ( string, vsep )
 import Options.Applicative.Types
-    ( ReadM (..), readerAsk )
+    ( OptHelpInfo
+    , OptReader (..)
+    , Option (..)
+    , Parser (..)
+    , ReadM (..)
+    , readerAsk
+    )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -359,6 +379,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
+import Fmt
 {-------------------------------------------------------------------------------
                                    CLI
 -------------------------------------------------------------------------------}
@@ -376,6 +397,35 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
         , "submitted to an up-and-running server. Some commands do not require "
         , "an active server and can be run offline (e.g. 'mnemonic generate')."
         ])
+
+
+-- | Name and description for every CLI command recusively
+data DCommand = DCommand String String [DCommand]
+
+dev :: IO ()
+dev = do
+    putStrLn $ fmt $ commandF $ toDCommand "" "" (cli (cmdKey <> cmdMnemonic <> cmdNetwork undefined <> cmdWallet cmdByronWalletCreate undefined))
+  where
+    toDCommand :: String -> String -> ParserInfo a -> DCommand
+    toDCommand n docs c = DCommand n docs $ join $ mapParser desc (infoParser c)
+      where
+        desc _ opt =
+          case optMain opt of
+            CmdReader gn cmds p ->
+                    -- TODO: Replace newlines with spaces?
+                  [ toDCommand cmd (filter (/= '\n') $ show $ extractChunk d) (fromJust $ p cmd)
+                    | cmd <- reverse cmds,
+                      d <- maybeToList . fmap infoProgDesc $ p cmd
+                  ]
+            _ -> []
+
+    commandF :: DCommand -> Builder
+    commandF (DCommand n docs []) =
+        ("" +|n|+" - " <> (replicate 10 ' ') <> docs|+"\n")
+    commandF (DCommand n docs xs) =
+        ("" +|n|+" - " <> indentF 10 ""+|docs|+"\n")
+        <> (indentF 2 $ blockListF' " " commandF xs)
+
 
 -- | Runs a specific command parser using appropriate preferences
 runCli :: ParserInfo (IO ()) -> IO ()
