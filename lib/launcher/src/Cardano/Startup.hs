@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -17,6 +18,7 @@ module Cardano.Startup
     -- * Clean shutdown
     , withShutdownHandler
     , installSignalHandlers
+    , wrapUninterruptableIO
 
     -- * Logging
     , ShutdownHandlerLog(..)
@@ -28,14 +30,20 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Concurrent.Async
     ( async, race, wait )
 import Control.Exception
     ( IOException, try )
+import Control.Monad
+    ( (<$!>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
     ( eitherToMaybe )
+import Data.List
+    ( isInfixOf )
 import Data.Text.Class
     ( ToText (..) )
 import GHC.IO.Handle.FD
@@ -104,13 +112,16 @@ withShutdownHandler tr (Just (Fd fd)) action = try (fdToHandle fd) >>= \case
         pure Nothing
     Right hnd -> do
         traceWith tr $ MsgShutdownHandlerEnabled (Fd fd)
-        eitherToMaybe <$> race (wrapUninterruptableIO $ waitForEOF hnd) action
+        res <- eitherToMaybe <$!> race (wrapUninterruptableIO $! waitForEOF hnd) action
+        threadDelay 1000000 -- prevent caller from closing fd too quickly
+        pure res
   where
     waitForEOF hnd = try (hGetChar hnd) >>= \case
         Left e
             | isEOFError e -> traceWith tr MsgShutdownEOF
+            | isInvalidArgumentError e -> traceWith tr MsgShutdownEOF
             | otherwise -> traceWith tr $ MsgShutdownError e
-        Right _  -> traceWith tr MsgShutdownIncorrectUsage
+        Right !_  -> traceWith tr MsgShutdownIncorrectUsage
 
 -- | Windows blocking file IO calls like 'hGetChar' are not interruptable by
 -- asynchronous exceptions, as used by async 'cancel' (as of base-4.12).
@@ -123,6 +134,10 @@ withShutdownHandler tr (Just (Fd fd)) action = try (fdToHandle fd) >>= \case
 --
 wrapUninterruptableIO :: IO a -> IO a
 wrapUninterruptableIO action = async action >>= wait
+
+-- | InvalidArgument is a hidden ghc-only constructor of 'IOErrorType'
+isInvalidArgumentError :: IOException -> Bool
+isInvalidArgumentError e = "invalid argument" `isInfixOf` show e
 
 data ShutdownHandlerLog
     = MsgShutdownHandlerEnabled Fd

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -38,7 +39,7 @@ withLogging action = do
 -- the result of the action.
 captureLogging :: (Tracer IO msg -> IO a) -> IO ([msg], a)
 captureLogging action = withLogging $ \(tr, getMsgs) -> do
-    res <- action tr
+    !res <- action tr
     msgs <- getMsgs
     pure (msgs, res)
 
