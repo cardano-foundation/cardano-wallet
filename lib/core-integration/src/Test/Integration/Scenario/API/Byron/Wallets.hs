@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiByronWalletMigrationInfo (..)
     , ApiUtxoStatistics
+    , ApiWalletDiscovery (..)
     , DecodeAddress
     , WalletStyle (..)
     )
@@ -211,12 +212,16 @@ spec = do
                         "passphrase": "Secure Passphrase",
                         "style": #{style}
                     }|]
+                let discovery =
+                        if style == "random"
+                        then DiscoveryRandom
+                        else DiscoverySequential
                 let expectations =
-                            [ expectField
-                                    (#name . #getApiT . #getWalletName) (`shouldBe` name)
+                            [ expectField (#name . #getApiT . #getWalletName) (`shouldBe` name)
                             , expectField (#balance . #available) (`shouldBe` Quantity 0)
                             , expectField (#balance . #total) (`shouldBe` Quantity 0)
                             , expectField #passphrase (`shouldNotBe` Nothing)
+                            , expectField #discovery (`shouldBe` discovery)
                             ]
                 -- create
                 r <- request @ApiByronWallet ctx
