@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.CLI.Transactions
+module Test.Integration.Scenario.CLI.Shelley.Transactions
     ( spec
     ) where
 

@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.Transactions
+module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
     ) where
 

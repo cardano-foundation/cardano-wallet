@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.CLI.HWWallets
+module Test.Integration.Scenario.CLI.Shelley.HWWallets
     ( spec
     ) where
 
@@ -75,7 +75,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NoRootKey )
-import Test.Integration.Scenario.CLI.Wallets
+import Test.Integration.Scenario.CLI.Shelley.Wallets
     ( walletNames, walletNamesInvalid )
 
 import qualified Data.Text as T

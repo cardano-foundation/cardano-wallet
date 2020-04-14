@@ -46,6 +46,7 @@ module Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403DelegationFee
+    , errMsg403NotAByronWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
@@ -60,6 +61,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NoRootKey
     , errMsg404NoWallet
     , errMsg404NoEpochNo
+    , errMsg409WalletExists
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
@@ -248,6 +250,10 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 --- Error messages
 ---
 
+errMsg409WalletExists :: String -> String
+errMsg409WalletExists walId = "This operation would yield a wallet with the following\
+     \ id: " ++ walId ++ " However, I already know of a wallet with this id."
+
 errMsg400WalletIdEncoding :: String
 errMsg400WalletIdEncoding =
     "wallet id should be a hex-encoded string of 40 characters"
@@ -271,6 +277,11 @@ errMsg403DelegationFee :: Natural -> String
 errMsg403DelegationFee n =
     "I'm unable to select enough coins to pay for a delegation certificate. \
     \I need: " ++ show n ++ " Lovelace."
+
+errMsg403NotAByronWallet :: String
+errMsg403NotAByronWallet =
+    "I cannot derive new address for this wallet type.\
+    \ Make sure to use Byron random wallet id."
 
 errMsg403NotEnoughMoney_ :: String
 errMsg403NotEnoughMoney_ =

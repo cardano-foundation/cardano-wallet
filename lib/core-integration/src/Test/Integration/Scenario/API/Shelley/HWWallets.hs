@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.HWWallets
+module Test.Integration.Scenario.API.Shelley.HWWallets
     ( spec
     ) where
 

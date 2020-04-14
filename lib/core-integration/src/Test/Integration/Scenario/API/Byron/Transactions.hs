@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Scenario.API.ByronTransactions
+module Test.Integration.Scenario.API.Byron.Transactions
     ( spec
     ) where
 
