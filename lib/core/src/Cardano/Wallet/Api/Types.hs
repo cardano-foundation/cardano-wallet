@@ -89,6 +89,8 @@ module Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPutPassphraseData (..)
     , ApiPostRandomAddressData (..)
+    , ApiWalletDiscovery (..)
+    , KnownDiscovery(..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -137,8 +139,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), decodeShelleyAddress, xpubFromText )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap )
+    ( AddressPoolGap, SeqState, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -760,6 +764,7 @@ instance FromText (ApiT (Hash "encryption"))  where
 data ApiByronWallet = ApiByronWallet
     { id :: !(ApiT WalletId)
     , balance :: !(ApiByronWalletBalance)
+    , discovery :: !ApiWalletDiscovery
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
@@ -769,6 +774,20 @@ data ApiByronWallet = ApiByronWallet
 newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
+
+data ApiWalletDiscovery
+    = DiscoveryRandom
+    | DiscoverySequential
+    deriving (Eq, Generic, Show)
+
+class KnownDiscovery s where
+    knownDiscovery :: ApiWalletDiscovery
+
+instance KnownDiscovery (RndState network) where
+    knownDiscovery = DiscoveryRandom
+
+instance KnownDiscovery (SeqState network key) where
+    knownDiscovery = DiscoverySequential
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -1272,6 +1291,14 @@ instance
   ( Enum (Index derivation level)
   ) => ToJSON (ApiT (Index derivation level)) where
     toJSON = toJSON . fromEnum . getApiT
+
+instance FromJSON ApiWalletDiscovery where
+    parseJSON = genericParseJSON $ Aeson.defaultOptions
+        { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
+
+instance ToJSON ApiWalletDiscovery where
+    toJSON = genericToJSON $ Aeson.defaultOptions
+        { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
 
 {-------------------------------------------------------------------------------
                              FromText/ToText instances

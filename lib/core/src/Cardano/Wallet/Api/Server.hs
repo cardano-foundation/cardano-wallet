@@ -141,6 +141,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
+    , KnownDiscovery (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
@@ -895,6 +896,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
 postLegacyWallet
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
+        , KnownDiscovery s
         , WalletKey k
         )
     => ctx
@@ -920,6 +922,7 @@ mkLegacyWallet
     :: forall ctx s k.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
+        , KnownDiscovery s
         )
     => ctx
     -> WalletId
@@ -958,6 +961,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         , passphrase = pwdInfo
         , state = ApiT progress
         , tip = getWalletTip cp
+        , discovery = knownDiscovery @s
         }
   where
     matchEmptyPassphrase
