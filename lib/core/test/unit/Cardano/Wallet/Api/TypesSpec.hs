@@ -61,6 +61,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletDiscovery (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
@@ -744,6 +745,7 @@ spec = do
                     , passphrase = passphrase (x :: ApiByronWallet)
                     , state = state (x :: ApiByronWallet)
                     , tip = tip (x :: ApiByronWallet)
+                    , discovery = discovery (x :: ApiByronWallet)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1096,6 +1098,10 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiWalletDiscovery where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

@@ -236,6 +236,14 @@ x-walletId: &walletId
   minLength: 40
   example: 2512a00e9653fe49a44a5886202e24d77eeb998f
 
+x-walletDiscovery: &walletDiscovery
+  description: Mechanism used for discovering addresses.
+  type: string
+  enum:
+    - random
+    - sequential
+  example: sequential
+
 x-walletName: &walletName
   type: string
   maxLength: 255
@@ -849,12 +857,14 @@ components:
       required:
         - id
         - balance
+        - discovery
         - name
         - state
         - tip
       properties:
         id: *walletId
         balance: *byronWalletBalance
+        discovery: *walletDiscovery
         name: *walletName
         passphrase: *walletPassphraseInfo
         state: *walletState
