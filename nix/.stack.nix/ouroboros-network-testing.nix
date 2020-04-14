@@ -69,8 +69,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "3d89fa475bc740473e5ffe947572c19f9b91d26d";
-      sha256 = "0v1mfsamjh3c93m0bqqdflg89iy6wvfq0l1ji66m4xgvrj0ilzds";
+      rev = "dbc48d30c5e3a46d28b7c25a15141d3518982c70";
+      sha256 = "1d8959sdmpk9ijji2dqp3wdpl8pff4kbxqwnglafb347wwss7bi7";
       });
     postUnpack = "sourceRoot+=/ouroboros-network-testing; echo source root reset to \$sourceRoot";
     }

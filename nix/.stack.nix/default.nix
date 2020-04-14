@@ -52,6 +52,7 @@
         "th-lift-instances" = (((hackage.th-lift-instances)."0.1.14").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
+        "quiet" = (((hackage.quiet)."0.2").revisions).default;
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "websockets" = (((hackage.websockets)."0.12.6.1").revisions).default;
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
