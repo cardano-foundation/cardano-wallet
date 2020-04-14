@@ -42,6 +42,7 @@
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "quickcheck-instances" = (((hackage.quickcheck-instances)."0.3.19").revisions).default;
         "QuickCheck" = (((hackage.QuickCheck)."2.12.6.1").revisions).default;
+        "quiet" = (((hackage.quiet)."0.2").revisions).default;
         "snap-core" = (((hackage.snap-core)."1.0.4.1").revisions).default;
         "snap-server" = (((hackage.snap-server)."1.1.1.1").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
@@ -52,7 +53,6 @@
         "th-lift-instances" = (((hackage.th-lift-instances)."0.1.14").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
-        "quiet" = (((hackage.quiet)."0.2").revisions).default;
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "websockets" = (((hackage.websockets)."0.12.6.1").revisions).default;
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
