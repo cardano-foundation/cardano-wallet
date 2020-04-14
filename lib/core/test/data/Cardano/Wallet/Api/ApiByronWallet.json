@@ -1,248 +1,46 @@
 {
-    "seed": 757099553700796479,
+    "seed": 2667241218739423408,
     "samples": [
         {
             "passphrase": {
-                "last_updated_at": "1897-02-11T08:32:45Z"
-            },
-            "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 53,
-                    "unit": "percent"
-                }
-            },
-            "balance": {
-                "total": {
-                    "quantity": 226,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 166,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "T[afxTCd>#{{pVr@,\\XhbDR,X`!{OR&!F$9aLU\"Hf`2}B%(g)vAO:S뒜0Gp2|&}wrS;zv᪅t4z{",
-            "id": "134d6fe86b9b55c12bf40b788d5e25111d9281b9",
-            "tip": {
-                "height": {
-                    "quantity": 25676,
-                    "unit": "block"
-                },
-                "epoch_number": 32706,
-                "slot_number": 24177
-            }
-        },
-        {
-            "passphrase": {
-                "last_updated_at": "1871-11-20T00:00:00Z"
+                "last_updated_at": "1861-09-19T03:31:29.196318661292Z"
             },
             "state": {
                 "status": "ready"
             },
+            "discovery": "random",
             "balance": {
                 "total": {
-                    "quantity": 241,
+                    "quantity": 116,
                     "unit": "lovelace"
                 },
                 "available": {
-                    "quantity": 225,
+                    "quantity": 103,
                     "unit": "lovelace"
                 }
             },
-            "name": "*:Gn+YN{@api>V\\l-6lX Nl즇Y0/VSY\"lA#^>察MoP$o\";R=bB/k3i*68l𤸷SvE(>IJJd}IedD{t]똳rS~idpc`dp=f?w9bVS訤𖬌Fi𠼣AqJm\\C=t%u:O?Km=E$w(6lT&6Zc 3_]d10t",
-            "id": "ce102cf2d43b7716b7dcdf083a4416443505ecd7",
+            "name": "W|?t~7{?-kJ_N𨋍hE*LTi'J#xKAO9JEz\"*Zn?Gl)CvA'flndz]FA<1!v%SZTUPICL%zhpd",
+            "id": "bea66e4bcaa9c01860cbcf99d3329ddfc00987bb",
             "tip": {
                 "height": {
-                    "quantity": 11516,
+                    "quantity": 14755,
                     "unit": "block"
                 },
-                "epoch_number": 24454,
-                "slot_number": 10309
-            }
-        },
-        {
-            "state": {
-                "status": "ready"
-            },
-            "balance": {
-                "total": {
-                    "quantity": 212,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 196,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "&S*C$_@~\"/qgL{\\Z8,ib𥐚`uP쏢)tlU.HR9DG0No0m!hXn2VmxzLXkCr+qlA$(\\ZEiQ|\\ﾊK+𪣟QI%E<?疋LJIAwj\\G_gmuv$T]@|AeP?`B99@tF<&ㅰdᙱ(oNPza:@S_𥯲%>C#mQ箉uH#SJ($3Xhu}N!5B|iW𦤋I^/#eD/fn\"Ac𨮹'R]7$B羗𤌍V(Lx}.",
-            "id": "209c6bac44cfee6489d24f0a7e84748aadfa5d6c",
-            "tip": {
-                "height": {
-                    "quantity": 12665,
-                    "unit": "block"
-                },
-                "epoch_number": 8980,
-                "slot_number": 4824
-            }
-        },
-        {
-            "state": {
-                "status": "ready"
-            },
-            "balance": {
-                "total": {
-                    "quantity": 225,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 25,
-                    "unit": "lovelace"
-                }
-            },
-            "name": ">MFnvtut2M6B3'-=`<! \"ZOFB%9ZGL@4A\"pGVxznn",
-            "id": "077daa7a6aee1d8c8ec8e338f0a545fff91763cb",
-            "tip": {
-                "height": {
-                    "quantity": 12127,
-                    "unit": "block"
-                },
-                "epoch_number": 11322,
-                "slot_number": 24868
+                "epoch_number": 12845,
+                "slot_number": 30019
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1881-08-29T13:02:35.803379268207Z"
+                "last_updated_at": "1865-01-11T17:00:00Z"
             },
             "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 40,
-                    "unit": "percent"
-                }
+                "status": "not_responding"
             },
+            "discovery": "random",
             "balance": {
                 "total": {
-                    "quantity": 215,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 94,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "𣂈HoTjKD%(\"J5/0J>;]~uMWEeCgE1nၦ9#@NGqג~6P\"s}oJ\"pVcFnJaqn\\g?qYW7T?P2Ue(7jyHA =Y)Li3]eO𦓑)-p\\$FHqAXntxEuPVt-.|x*fdvnA𣆵C9.y0Avm[bgd架h.9MW[[^:@Gr5y_P4;oC,x LvQ-JVᏃ𣽂j[3<l0b I7rS}?2DM\\oRYNlwI𥗑SLMt-+D+OB7C䕿:'8$c\\u<&|sq%KdR6M.A)+MN}]z𠄘pAp&_⃩_#[",
-            "id": "f74874e7f82a2a559333f9f8f0f921075cbba3f0",
-            "tip": {
-                "height": {
-                    "quantity": 13244,
-                    "unit": "block"
-                },
-                "epoch_number": 7319,
-                "slot_number": 24874
-            }
-        },
-        {
-            "passphrase": {
-                "last_updated_at": "1886-04-18T02:28:17Z"
-            },
-            "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 65,
-                    "unit": "percent"
-                }
-            },
-            "balance": {
-                "total": {
-                    "quantity": 142,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 12,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "~]^Pr3&lTL|8=_Kq;&?QvpsJjFai%t\"wihOP📵.`nIZ2~02h~2+U'>-$\\vNC(xf\\B1 TB|l(l𡮩XzLIWmd|^xᘹ툢i_KF/#rnv;U*3𦾉|2UZI\"?Cq 餷D[m,|:2f7>I`dyKt#DR 3rG@;ak1A\"]zM",
-            "id": "0ae66694adb26385f64a9de2b235c0f34b22c9c8",
-            "tip": {
-                "height": {
-                    "quantity": 10270,
-                    "unit": "block"
-                },
-                "epoch_number": 21701,
-                "slot_number": 9573
-            }
-        },
-        {
-            "passphrase": {
-                "last_updated_at": "1861-05-03T12:45:08.630706478204Z"
-            },
-            "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 99,
-                    "unit": "percent"
-                }
-            },
-            "balance": {
-                "total": {
-                    "quantity": 67,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 94,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "fcA.]t@kI3𠽲|~lTY6xo$aCcSLbMD\\1Ep4:U=㶊9jCT6g B][W >&Sr~s\\5XmU_|8b^9rz*7)FKNz1(\"2q0(H4𫓏<H4y)C=M&bh_姊]DSGmA5=𡯔TO#['c:bAW[h[%$1<DBnyogrI𧋯._Ut]mP8JkOGYr0jAnD/ꕎi_s'!𫌃u~pbU`n1paCSdGSJ^{6_MdM:}a^A(DjR{L.Z^KX/gc1+@!Qzirj\\dvVsM/0D<xO𠍩#`\"vcQyc=[Pf3P𠔤R|䞚^lHjY",
-            "id": "dbe99e2598f3df0288400705195c7559cad6f476",
-            "tip": {
-                "height": {
-                    "quantity": 11977,
-                    "unit": "block"
-                },
-                "epoch_number": 3161,
-                "slot_number": 19713
-            }
-        },
-        {
-            "state": {
-                "status": "syncing",
-                "progress": {
-                    "quantity": 1,
-                    "unit": "percent"
-                }
-            },
-            "balance": {
-                "total": {
-                    "quantity": 199,
-                    "unit": "lovelace"
-                },
-                "available": {
-                    "quantity": 51,
-                    "unit": "lovelace"
-                }
-            },
-            "name": "2cG%O麗0Pi|/𪧃=3f!5Moa|TOd,!H<S++NLy\"hn竻C4?8Fwjg_tn1A],_Q𐠓*?'$<𪽻g5'|1d*d#醔FI8N*Z%8>.S0#H^aLD*k ,YOOi⺁3lf<uiy{Gd|1$9}@ro",
-            "id": "f3790603c911805b139007b6e08fce1132294b5d",
-            "tip": {
-                "height": {
-                    "quantity": 15043,
-                    "unit": "block"
-                },
-                "epoch_number": 16861,
-                "slot_number": 882
-            }
-        },
-        {
-            "state": {
-                "status": "ready"
-            },
-            "balance": {
-                "total": {
-                    "quantity": 237,
+                    "quantity": 223,
                     "unit": "lovelace"
                 },
                 "available": {
@@ -250,47 +48,262 @@
                     "unit": "lovelace"
                 }
             },
-            "name": "쎱+?MVO|Zp(#qIY4fVS𤡰a,aJbh_WdN#E#c{&f>TtMdjik3G/{XwV4pwF\\ff)/|TlLIgsp:'M朋+VZrW)6n}r08$}CPnB~?w[=d$𣏢0a4<~l=uxn0m#o-we!&@QlEjBM_k@FWd,$q_6zrZtpIqo2+)s?m@~/7,`Tq!𧭶t\\0▵𡬡(𤥏/~)2}__?@^vYJD+XPq}}-v0b",
-            "id": "47ab609bf6b76f7626c9b60201295f3cdb5481d8",
+            "name": "!S'`zd=P/yWzeqn0VN1\\囂n1'q<-q𥚼t출(|\"攰*0Am=tLK}#e|({Y+orM*`Ru'D$&?wHq6&㮓+in1;_䀻!]qgFhYS[OVk{<52e/:h.뾧EIvY𦚠tS#f1차/O~IRFsw`]]B|F]c$R{o🙝$'␟!c:RD+NR`DCQgeR6$`qRz9,K-`藰ro9h'l*7U]c㧴揗Z)",
+            "id": "e1771dc445225e911c49e66e1d997c96b83866ec",
             "tip": {
                 "height": {
-                    "quantity": 10475,
+                    "quantity": 24615,
                     "unit": "block"
                 },
-                "epoch_number": 31815,
-                "slot_number": 11243
+                "epoch_number": 24286,
+                "slot_number": 30108
+            }
+        },
+        {
+            "state": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 58.69,
+                    "unit": "percent"
+                }
+            },
+            "discovery": "sequential",
+            "balance": {
+                "total": {
+                    "quantity": 248,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 201,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "$tx<R/&`O%bY@Kc<%M_",
+            "id": "48167399b34d998a3b0475115c3cb76a0f3afcce",
+            "tip": {
+                "height": {
+                    "quantity": 5921,
+                    "unit": "block"
+                },
+                "epoch_number": 1512,
+                "slot_number": 29957
             }
         },
         {
             "passphrase": {
-                "last_updated_at": "1882-01-20T13:32:55.296710744656Z"
+                "last_updated_at": "1877-01-13T13:08:04.282340571445Z"
             },
             "state": {
                 "status": "syncing",
                 "progress": {
-                    "quantity": 43,
+                    "quantity": 13.34,
                     "unit": "percent"
                 }
             },
+            "discovery": "sequential",
             "balance": {
                 "total": {
-                    "quantity": 68,
+                    "quantity": 104,
                     "unit": "lovelace"
                 },
                 "available": {
-                    "quantity": 166,
+                    "quantity": 41,
                     "unit": "lovelace"
                 }
             },
-            "name": "_\\Sr#𩡃{z+-{",
-            "id": "ff7c2551e24a4c0a7a7d5d48c409b6b8efd1a2e7",
+            "name": "844Tgl,A$bmaOﮝY1XW\\0𫕴p66EデbD!椽",
+            "id": "cce461df8c2326f7f34fbe50a88d74951a7a8fc3",
             "tip": {
                 "height": {
-                    "quantity": 17885,
+                    "quantity": 23204,
                     "unit": "block"
                 },
-                "epoch_number": 10674,
-                "slot_number": 9612
+                "epoch_number": 14395,
+                "slot_number": 28686
+            }
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1862-03-12T22:13:10.708634526886Z"
+            },
+            "state": {
+                "status": "ready"
+            },
+            "discovery": "random",
+            "balance": {
+                "total": {
+                    "quantity": 223,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 29,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "MSgh?Zv9H锓wU",
+            "id": "3f543c410d66d415bd44fdf2e7a5079eee847138",
+            "tip": {
+                "height": {
+                    "quantity": 23359,
+                    "unit": "block"
+                },
+                "epoch_number": 30501,
+                "slot_number": 22853
+            }
+        },
+        {
+            "state": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 46.66,
+                    "unit": "percent"
+                }
+            },
+            "discovery": "sequential",
+            "balance": {
+                "total": {
+                    "quantity": 132,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 141,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "H]I;L4옝4u,f=Z6@&_m>nsl@P/C`Tt;_)~\"𪗳bIo1E}?)yU䰬:lhZos㴈*Aq,OWJ,:iaW3G:w|K2N^ljW!𣪅%#&a]CoZ8HO*aBU𫁀Rd^s2*w&PG:qktgab\"/}R",
+            "id": "55b4ca86ae49612ef2343bb099653458e161221f",
+            "tip": {
+                "height": {
+                    "quantity": 25276,
+                    "unit": "block"
+                },
+                "epoch_number": 22991,
+                "slot_number": 28078
+            }
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1874-05-29T16:43:02.345441398641Z"
+            },
+            "state": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 17.33,
+                    "unit": "percent"
+                }
+            },
+            "discovery": "random",
+            "balance": {
+                "total": {
+                    "quantity": 152,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 167,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "eMcpBvQN|w[Hr0TaI/m>L\\9W\\j-.\"<m?fIB/eegp! 4DG𣜄Kb+%|T8I_Kr=C{L]Q01uERGer.kmqn!3@0og刼7?2?if`Ps2(isW?. JloV83R\"[lꄈiX]lCa02o)$p'9Z쓏%N-'K+}d){뤞&qSXAme2\\0DUz1/$x7Q𤀜\"𪸂dc#V:)y+_H53`REz𡞏R<+;襚DXNfwMt!G+皋WHx`Oo#]`q1QJ3wYDAI,[R桳Wl+FZ",
+            "id": "6545a1730c8c3ba3c36f26afd324d99c03a226b1",
+            "tip": {
+                "height": {
+                    "quantity": 12335,
+                    "unit": "block"
+                },
+                "epoch_number": 23134,
+                "slot_number": 18518
+            }
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1859-06-30T21:49:21.148793939508Z"
+            },
+            "state": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 67.27,
+                    "unit": "percent"
+                }
+            },
+            "discovery": "sequential",
+            "balance": {
+                "total": {
+                    "quantity": 226,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 173,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "Q(`-𥬷~𑇰JoJ50EH5tYB(_F5WcUS7i_d%)3J'DY4}+#SiTQnR#dRiz뇝_婁YLAxhI1!G𦋺.P\"oUi~𡌥n7aL;$H}9XR,8yyikJ^Grp5c(wdo?v/䈬RM.;$Uj9/>z EH|y+3%啧GYg>w$:p8fOHsiv)etP,f,\"Ieꂚ0qsyrM䮽oo>",
+            "id": "0252500267675ac97df82efb068130ebd9b694f0",
+            "tip": {
+                "height": {
+                    "quantity": 18256,
+                    "unit": "block"
+                },
+                "epoch_number": 23980,
+                "slot_number": 25202
+            }
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1886-08-22T20:59:21.929445347689Z"
+            },
+            "state": {
+                "status": "ready"
+            },
+            "discovery": "sequential",
+            "balance": {
+                "total": {
+                    "quantity": 206,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 214,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "*J@lKn!No8EH-;AwS ",
+            "id": "4caf7e5b6a1871339fc62e6b85cf69e207171b9a",
+            "tip": {
+                "height": {
+                    "quantity": 14431,
+                    "unit": "block"
+                },
+                "epoch_number": 27962,
+                "slot_number": 17890
+            }
+        },
+        {
+            "state": {
+                "status": "syncing",
+                "progress": {
+                    "quantity": 53.55,
+                    "unit": "percent"
+                }
+            },
+            "discovery": "sequential",
+            "balance": {
+                "total": {
+                    "quantity": 78,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 36,
+                    "unit": "lovelace"
+                }
+            },
+            "name": ",Sb\\,ew/dZ*<9$J*{zli>v~ip缥JwD!xE](]DYKU_/p3<9)ZMc']=uZ!𑂡tSyoTK𨅨5'eNu6ꄝB;t5s` MucHP/+2:\\j`^:\"W}>`<'pLVi.F4V^CywiYz&l[XPYx_s8",
+            "id": "6e3b1aff8a2cf1aca94f63c4a824ee5a93b3de56",
+            "tip": {
+                "height": {
+                    "quantity": 20825,
+                    "unit": "block"
+                },
+                "epoch_number": 29642,
+                "slot_number": 29296
             }
         }
     ]
