@@ -42,6 +42,7 @@
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "quickcheck-instances" = (((hackage.quickcheck-instances)."0.3.19").revisions).default;
         "QuickCheck" = (((hackage.QuickCheck)."2.12.6.1").revisions).default;
+        "quiet" = (((hackage.quiet)."0.2").revisions).default;
         "snap-core" = (((hackage.snap-core)."1.0.4.1").revisions).default;
         "snap-server" = (((hackage.snap-server)."1.1.1.1").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
