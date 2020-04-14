@@ -49,7 +49,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, runIO, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, it, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -548,10 +548,8 @@ spec = do
     describe "BYRON_WALLETS_RESYNC_01" $ do
         let title = "force resync eventually get us back to the same point"
         it ("emptyRandomWallet - " ++ title) $ \ctx -> do
-            pendingWith "#1505 - Cannot force resync wallet and cardano-node crash as a result"
             scenarioWalletResync01_happyPath @'Byron ctx emptyRandomWallet
         it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
-            pendingWith "#1505 - Cannot force resync wallet and cardano-node crash as a result"
             scenarioWalletResync01_happyPath @'Byron ctx emptyIcarusWallet
 
     describe "BYRON_WALLETS_RESYNC_02" $ do
