@@ -169,8 +169,20 @@ let
         };
       in {
         # Apply fully static options to our Haskell executables
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.benchmarks.latency = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.benchmarks.restore = fullyStaticOptions;
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
+        packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.benchmarks.latency = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
+
         # SRE-83 dependencies fail to build
         # packages.cardano-node.components.exes.cardano-node = fullyStaticOptions;
 
