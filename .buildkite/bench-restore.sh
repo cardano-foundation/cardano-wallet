@@ -47,7 +47,7 @@ set xlabel "block height";
 show ylabel;
 show xlabel;
 
-set term svg dynamic size 1200,700;
+set terminal svg dynamic size 1200,700 background rgb 'white';
 set output "plot.svg";
 set title "Restoring byron wallets on $NETWORK";
 
