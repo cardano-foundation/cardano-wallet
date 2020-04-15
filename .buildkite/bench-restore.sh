@@ -39,13 +39,13 @@ hp2pretty $artifact_name.hp
 
 GNUPLOT_PROGRAM=$(cat <<EOP
 set timefmt "%s";
-set format y "%Hh%Mm";
-set ydata time;
+set format x "%Hh%Mm";
+set xdata time;
 
-set ylabel "time to restore";
-set xlabel "block height";
-show ylabel;
+set xlabel "time to restore";
+set ylabel "block height";
 show xlabel;
+show ylabel;
 
 set terminal svg dynamic size 1200,700 background rgb 'white';
 set output "plot.svg";
@@ -56,7 +56,7 @@ set key left top;
 FILES = system("ls -1 *.dat");
 LABEL = system("ls -1 *.dat");
 
-plot for [i=1:words(FILES)] word(FILES,i) u 2:1 title word(LABEL,i) noenhanced with lines
+plot for [i=1:words(FILES)] word(FILES,i) u 1:2 title word(LABEL,i) noenhanced with lines
 EOP
 );
 
