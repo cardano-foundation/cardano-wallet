@@ -224,4 +224,6 @@ let
   mkTests = if pkgs.stdenv.hostPlatform.isWindows then mkTestsWindows else mkTestsBash;
 
 in
-  mkTests releases
+  if pkgs.stdenv.hostPlatform.isMusl
+    then pkgs.runCommand "migration-tests-disabled" {} "touch $out"
+    else mkTests releases
