@@ -57,7 +57,7 @@ let
         packages.text-class.components.tests.unit.keepSource = true;
       }
 
-      # Add dependencies
+      # Provide configuration and dependencies to cardano-wallet components
       {
         packages.cardano-wallet-byron.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
@@ -131,48 +131,19 @@ let
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
         '';
 
-        # Make the /usr/bin/security tool available because it's
-        # needed at runtime by the x509-system Haskell package.
-        packages.x509-system.components.library.preBuild = pkgs.lib.optionalString (pkgs.stdenv.isDarwin) ''
-          substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security
-        '';
-
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
         packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
-      # Musl libc fully static build
-      (with pkgs.stdenv; let
-        staticLibs = [ zlib openssl libffi gmp6 ];
-        gmp6 = pkgs.gmp6.override { withStatic = true; };
-        zlib = pkgs.zlib.static;
-        openssl = (pkgs.openssl.override { static = true; }).out;
-        libffi = pkgs.libffi.overrideAttrs (oldAttrs: {
-          dontDisableStatic = true;
-          configureFlags = (oldAttrs.configureFlags or []) ++ [
-                    "--enable-static"
-                    "--disable-shared"
-          ];
-        });
-
-        # Module options which adds GHC flags and libraries for a fully static build
-        fullyStaticOptions = {
-          configureFlags =
-             lib.optionals hostPlatform.isMusl ([
-               "--disable-executable-dynamic"
-               "--disable-shared"
-               "--ghc-option=-optl=-pthread"
-               "--ghc-option=-optl=-static"
-             ] ++ map (drv: "--ghc-option=-optl=-L${drv}/lib") staticLibs);
-        };
-      in {
-        # Apply fully static options to our Haskell executables
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
-        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
-        # SRE-83 dependencies fail to build
-        # packages.cardano-node.components.exes.cardano-node = fullyStaticOptions;
+      # Build fixes for library dependencies
+      {
+        # Make the /usr/bin/security tool available because it's
+        # needed at runtime by the x509-system Haskell package.
+        packages.x509-system.components.library.preBuild = pkgs.lib.optionalString (pkgs.stdenv.isDarwin) ''
+          substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security
+        '';
 
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it
@@ -182,7 +153,44 @@ let
         # split data output for ekg to reduce closure size
         packages.ekg.components.library.enableSeparateDataOutput = true;
         enableLibraryProfiling = profiling;
-      })
+      }
+
+      # Musl libc fully static build
+      (lib.optionalAttrs stdenv.hostPlatform.isMusl (let
+        staticLibs = [ zlib openssl libffi gmp6 ];
+        gmp6 = buildPackages.gmp6.override { withStatic = true; };
+        zlib = buildPackages.zlib.static;
+        openssl = (buildPackages.openssl.override { static = true; }).out;
+        libffi = buildPackages.libffi.overrideAttrs (oldAttrs: {
+          dontDisableStatic = true;
+          configureFlags = (oldAttrs.configureFlags or []) ++ [
+                    "--enable-static"
+                    "--disable-shared"
+          ];
+        });
+
+        # Module options which adds GHC flags and libraries for a fully static build
+        fullyStaticOptions = {
+          enableShared = false;
+          enableStatic = true;
+          configureFlags = map (drv: "--ghc-option=-optl=-L${drv}/lib") staticLibs;
+        };
+      in {
+        # Apply fully static options to our Haskell executables
+        packages.cardano-wallet-byron.components.benchmarks.latency = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.benchmarks.restore = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
+        packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
+        packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.benchmarks.latency = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
+      }))
 
       # Allow installation of a newer version of Win32 than what is
       # included with GHC. The packages in this list are all those
