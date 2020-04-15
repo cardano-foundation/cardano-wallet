@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -46,6 +48,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
+import Cardano.Wallet.Primitive.Fee
+    ( FeeOptions (..), FeePolicy (..), adjustForFee, computeFee )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -85,7 +89,7 @@ import Data.Word
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -112,6 +116,41 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "Coin Selection w/ Byron" $ do
+        it "REG #1561 - Correct balancing of amounts close to the limit" $ do
+            let opts = FeeOptions
+                    { estimateFee = computeFee feePolicy . estimateSize tlayer
+                    , dustThreshold = minBound
+                    }
+                  where
+                    tlayer =
+                        newTransactionLayer @'Mainnet @ByronKey Proxy mainnetMagic
+                    feePolicy =
+                        LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
+
+            let addr = Address "fake-address"
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn (Hash "1") 0
+                      , TxOut addr (Coin 1_000_000)
+                      )
+                    ]
+            let csel = CoinSelection
+                    { inputs =
+                        [ ( TxIn (Hash "0") 0
+                          , TxOut addr (Coin 1_000_000)
+                          )
+                        ]
+                    , outputs =
+                        [ TxOut addr (Coin 800_000)
+                        ]
+                    , change =
+                        [Coin 30_556]
+                    }
+
+            runExceptT (adjustForFee opts utxo csel) >>= \case
+                Left e -> expectationFailure $ "failed with: " <> show e
+                Right{}-> pure ()
+
     describe "Fee estimation calculation" $ do
         it "Byron / Mainnet" $ property $
             propSizeEstimation @'Mainnet @ByronKey mainnetMagic
