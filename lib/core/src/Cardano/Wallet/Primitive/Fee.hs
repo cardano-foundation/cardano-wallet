@@ -255,7 +255,7 @@ rebalanceChangeOutputs
     -> (CoinSelection, Fee)
 rebalanceChangeOutputs opts totalFee sel@(CoinSelection _ _ chgs) =
     let
-        chgs' = case removeDust (Coin 0) chgs of
+        chgs' = case removeDust (dustThreshold opts) chgs of
             [] -> []
             xs -> removeDust (dustThreshold opts)
                 $ map reduceSingleChange
