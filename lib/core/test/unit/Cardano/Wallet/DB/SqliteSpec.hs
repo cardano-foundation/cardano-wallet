@@ -553,6 +553,89 @@ fileModeSpec =  do
                 -- getAvailableBalance `shouldReturn` 5
                 -- getTotalBalance `shouldReturn` 7
 
+            it "(NEEDS FIX, #1567) Pending txs can duplicate balance 2" $ \f -> do
+                -- Similar test case as above. But this time the pending txs will
+                -- have "unexisting" txins that cannot be spent.
+                --
+                -- The spec calls for removing pending transactions when
+                -- their inputs are spent in a new block.
+                --
+                -- Doing so would not fix the - arguably surprising - result of
+                -- this test.
+                (_ctx, db@DBLayer{..}) <- newDBLayer' (Just f)
+
+                let ourAddrs = knownAddresses (getState testCp)
+
+                atomically $ do
+                    unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
+
+                let mockApply h mockTxs = do
+                        Just cpA <- atomically $ readCheckpoint testPk
+                        let slotA = slotId $ currentTip cpA
+                        let hashA = headerHash $ currentTip cpA
+                        let fakeBlock = Block
+                                (BlockHeader
+                                { slotId = slotA { slotNumber = (slotNumber slotA) + 1}
+                                -- Assume the slotnumbers are very low
+                                , blockHeight = Quantity 0
+                                , headerHash = h
+                                , parentHeaderHash = hashA
+                                })
+                                mockTxs
+                                []
+                        let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
+                        atomically $ do
+                            unsafeRunExceptT $ putCheckpoint testPk cpB
+                            unsafeRunExceptT $ putTxHistory testPk txs
+
+                mockApply (blockHash "block1a")
+                            [ Tx (blockHash "tx1a")
+                                [(TxIn (blockHash "faucet") 0, Coin 4)]
+                                [ TxOut (head ourAddrs) (Coin 4)
+                                ]
+                            ]
+                getAvailableBalance db `shouldReturn` 4
+                getTotalBalance db `shouldReturn` 4
+                mockApply (blockHash "block2a")
+                            [ Tx
+                                (blockHash "tx2a")
+                                [ (TxIn (blockHash "tx1a") 0, Coin 4)
+                                ]
+                                [ TxOut (dummyAddr "faucet") (Coin 2)
+                                , TxOut (head ourAddrs) (Coin 2)
+                                ]
+                            ]
+                getAvailableBalance db `shouldReturn` 2
+                getTotalBalance db `shouldReturn` 2
+
+                atomically $ void $ unsafeRunExceptT $ rollbackTo testPk (SlotId 0 0)
+
+                mockApply (blockHash "block1b")
+                            [ Tx (blockHash "tx1b")
+                                [(TxIn (blockHash "faucet") 0, Coin 6)]
+                                [ TxOut (head ourAddrs) (Coin 6)
+                                ]
+                            ]
+
+                mockApply (blockHash "block2b")
+                            [ Tx
+                                (blockHash "tx2b")
+                                [ (TxIn (blockHash "tx1b") 0, Coin 6)
+                                ]
+                                [ TxOut (dummyAddr "faucet") (Coin 3)
+                                , TxOut (head ourAddrs) (Coin 3)
+                                ]
+                            ]
+
+
+                getAvailableBalance db `shouldReturn` 3
+
+                -- Arguably not expected:
+                getTotalBalance db `shouldReturn` 5
+
+                -- Arguably not expected:
+                getPending db `shouldReturn` [(Outgoing, 2)]
+
             it "(NEEDS FIX, #1575) Rollback doesn't clean up tx history properly" $ \f -> do
                 (_ctx, db@DBLayer{..}) <- newDBLayer' (Just f)
 
