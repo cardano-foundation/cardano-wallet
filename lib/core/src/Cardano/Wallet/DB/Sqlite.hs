@@ -498,28 +498,30 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
-        , rollbackTo = \(PrimaryKey wid) point -> ExceptT $ do
-            findNearestPoint wid point >>= \case
+        , rollbackTo = \(PrimaryKey wid) requestedPoint -> ExceptT $ do
+            findNearestPoint wid requestedPoint >>= \case
                 Nothing -> selectLatestCheckpoint wid >>= \case
-                    Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                    Just _  -> lift $ throwIO (ErrNoOlderCheckpoint wid point)
+                    Nothing ->
+                        pure $ Left $ ErrNoSuchWallet wid
+                    Just _  ->
+                        lift $ throwIO (ErrNoOlderCheckpoint wid requestedPoint)
                 Just nearestPoint -> do
                     deleteCheckpoints wid
-                        [ CheckpointSlot >. point
+                        [ CheckpointSlot >. nearestPoint
                         ]
                     deleteDelegationCertificates wid
-                        [ CertSlot >. point
+                        [ CertSlot >. nearestPoint
                         ]
                     updateTxMetas wid
                         [ TxMetaDirection ==. W.Outgoing
-                        , TxMetaSlot >. point
+                        , TxMetaSlot >. nearestPoint
                         ]
                         [ TxMetaStatus =. W.Pending
                         , TxMetaSlot =. nearestPoint
                         ]
                     deleteTxMetas wid
                         [ TxMetaDirection ==. W.Incoming
-                        , TxMetaSlot >. point
+                        , TxMetaSlot >. nearestPoint
                         ]
                     pure (Right nearestPoint)
 

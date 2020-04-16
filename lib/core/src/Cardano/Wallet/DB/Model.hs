@@ -243,13 +243,13 @@ mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets
         changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
 
 mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s xprv SlotId
-mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
+mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
     Just wal ->
         case findNearestPoint (Map.elems $ checkpoints wal) of
             Nothing -> (Left (NoSuchWallet wid), db)
-            Just nearest ->
+            Just point ->
                 let
                     wal' = wal
                         { checkpoints =
@@ -257,30 +257,30 @@ mRollbackTo wid point db@(Database wallets txs) = case Map.lookup wid wallets of
                         , certificates =
                             Map.filterWithKey (\k _ -> k <= point) (certificates wal)
                         , txHistory =
-                            Map.mapMaybe (rescheduleOrForget nearest) (txHistory wal)
+                            Map.mapMaybe (rescheduleOrForget point) (txHistory wal)
                         }
                 in
-                    ( Right nearest
+                    ( Right point
                     , Database (Map.insert wid wal' wallets) txs
                     )
   where
     -- | Removes 'Incoming' transaction beyond the rollback point, and
     -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
     rescheduleOrForget :: SlotId -> TxMeta -> Maybe TxMeta
-    rescheduleOrForget nearest meta = do
+    rescheduleOrForget point meta = do
         let isAfter = (slotId :: TxMeta -> SlotId) meta > point
         let isIncoming = direction meta == Incoming
         when (isIncoming && isAfter) Nothing
         pure $ if isAfter
-            then meta { slotId = nearest, status = Pending }
+            then meta { slotId = point , status = Pending }
             else meta
 
-    -- | Find nearest checkpoint's slot before or equal to 'point'.
+    -- | Find nearest checkpoint's slot before or equal to 'requested'.
     findNearestPoint :: [Wallet s] -> Maybe SlotId
     findNearestPoint = safeHead . sortOn Down . mapMaybe fn
       where
         fn :: Wallet s -> Maybe SlotId
-        fn cp = if (tip cp <= point) then Just (tip cp) else Nothing
+        fn cp = if (tip cp <= requested) then Just (tip cp) else Nothing
 
     safeHead :: [a] -> Maybe a
     safeHead [] = Nothing
