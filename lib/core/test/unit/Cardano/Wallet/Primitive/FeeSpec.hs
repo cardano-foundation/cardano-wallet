@@ -161,7 +161,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [6]
+            , csChngs = [4,2]
             })
 
         -- Cannot cover fee, no extra inputs
