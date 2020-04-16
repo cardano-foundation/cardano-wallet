@@ -199,12 +199,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         let upperBound = estimateFee opt coinSel
         -- 2/
         -- Substract fee from change outputs, proportionally to their value.
-        let coinSel' = CoinSelection
-                { inputs = inps
-                , outputs = outs
-                , change = rebalanceChangeOutputs opt upperBound chgs
-                }
-        let remFee = remainingFee opt coinSel'
+        let (coinSel', remFee) = rebalanceChangeOutputs opt upperBound coinSel
         -- 3.1/
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
@@ -253,13 +248,47 @@ coverRemainingFee (Fee fee) = go [] where
 --
 -- We divvy up the fee over all change outputs proportionally, to try and keep
 -- any output:change ratio as unchanged as possible
-rebalanceChangeOutputs :: FeeOptions -> Fee -> [Coin] -> [Coin]
-rebalanceChangeOutputs opt totalFee chgs =
-    case removeDust (Coin 0) chgs of
-        [] -> []
-        xs -> removeDust (dustThreshold opt)
-            $ map reduceSingleChange
-            $ divvyFee totalFee xs
+rebalanceChangeOutputs
+    :: FeeOptions
+    -> Fee
+    -> CoinSelection
+    -> (CoinSelection, Fee)
+rebalanceChangeOutputs opts totalFee sel@(CoinSelection _ _ chgs) =
+    let
+        chgs' = case removeDust (Coin 0) chgs of
+            [] -> []
+            xs -> removeDust (dustThreshold opts)
+                $ map reduceSingleChange
+                $ divvyFee totalFee xs
+
+        sel' = sel { change = chgs' }
+    in
+        (sel', remainingFee sel')
+  where
+    -- | Computes how much is left to pay given a particular selection
+    remainingFee :: HasCallStack => CoinSelection -> Fee
+    remainingFee s = do
+        if fee >= diff
+        then Fee (fee - diff)
+        else do
+            -- NOTE
+            -- The only case where we may end up with an unbalanced transaction is
+            -- when we have a dangling change output (i.e. adding it costs too much
+            -- and we can't afford it, but not having it result in too many coins
+            -- left for fees).
+            let Fee feeDangling = estimateFee opts $ s { change = [Coin (diff - fee)] }
+            if (feeDangling >= diff)
+                then Fee (feeDangling - fee)
+                else error $ unwords
+                    [ "Generated an unbalanced tx! Too much left for fees"
+                    , ": fee (raw) =", show fee
+                    , ": fee (dangling) =", show feeDangling
+                    , ", diff =", show diff
+                    , "\nselection =", pretty s
+                    ]
+      where
+        Fee fee = estimateFee opts s
+        diff = inputBalance s - (outputBalance s + changeBalance s)
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.
@@ -308,36 +337,6 @@ removeDust threshold coins =
             where balance = L.foldl' (\total (Coin c) -> c + total) 0
     in
         splitChange (Coin diff) filtered
-
--- | Computes how much is left to pay given a particular selection
-remainingFee
-    :: HasCallStack
-    => FeeOptions
-    -> CoinSelection
-    -> Fee
-remainingFee opts s = do
-    if fee >= diff
-    then Fee (fee - diff)
-    else do
-        -- NOTE
-        -- The only case where we may end up with an unbalanced transaction is
-        -- when we have a dangling change output (i.e. adding it costs too much
-        -- and we can't afford it, but not having it result in too many coins
-        -- left for fees).
-        let Fee feeDangling = estimateFee opts $ s { change = [Coin (diff - fee)] }
-        if (feeDangling >= diff)
-            then Fee (feeDangling - fee)
-            else error $ unwords
-                [ "Generated an unbalanced tx! Too much left for fees"
-                , ": fee (raw) =", show fee
-                , ": fee (dangling) =", show feeDangling
-                , ", diff =", show diff
-                , "\nselection =", pretty s
-                ]
-  where
-    Fee fee = estimateFee opts s
-    diff = inputBalance s - (outputBalance s + changeBalance s)
-
 
 -- Equally split the extra change obtained when picking new inputs across all
 -- other change. Note that, it may create an extra change output if:
