@@ -108,6 +108,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     , estimateSize = _estimateSize
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
     , validateSelection = _validateSelection
+    , allowUnbalancedTx = True
     }
   where
     _mkStdTx

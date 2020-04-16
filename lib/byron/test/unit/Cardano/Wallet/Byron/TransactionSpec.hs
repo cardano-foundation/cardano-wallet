@@ -5,9 +5,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Byron.TransactionSpec
     ( spec
@@ -43,9 +47,23 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , changeBalance
+    , inputBalance
+    , outputBalance
+    )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..)
+    , FeeOptions (..)
+    , FeePolicy (..)
+    , OnDanglingChange (..)
+    , adjustForFee
+    , computeFee
+    , rebalanceChangeOutputs
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -85,13 +103,14 @@ import Data.Word
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
     , choose
     , counterexample
+    , elements
     , forAllBlind
     , forAllShrinkBlind
     , property
@@ -112,6 +131,43 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "Coin Selection w/ Byron" $ do
+        it "REG #1561 - Correct balancing of amounts close to the limit" $ do
+            let opts = FeeOptions
+                    { estimateFee = computeFee feePolicy . estimateSize tlayer
+                    , dustThreshold = minBound
+                    , onDanglingChange = SaveMoney
+                    }
+                  where
+                    tlayer =
+                        newTransactionLayer @'Mainnet @ByronKey Proxy mainnetMagic
+                    feePolicy =
+                        LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
+
+            let addr = Address "fake-address"
+            let utxo = UTxO mempty
+            let csel = CoinSelection
+                    { inputs =
+                        [ ( TxIn (Hash "0") 0
+                          , TxOut addr (Coin 1_000_000)
+                          )
+                        ]
+                    , outputs =
+                        [ TxOut addr (Coin 800_000)
+                        ]
+                    , change =
+                        [Coin 30_556]
+                    }
+
+            runExceptT (adjustForFee opts utxo csel) >>= \case
+                Left e -> expectationFailure $ "failed with: " <> show e
+                Right{}-> pure ()
+
+    it "1561 - The fee balancing algorithm converges for any coin selection."
+        $ property
+        $ withMaxSuccess 10000
+        $ forAllBlind (genSelection @'Mainnet @ByronKey) prop_rebalanceChangeOutputs
+
     describe "Fee estimation calculation" $ do
         it "Byron / Mainnet" $ property $
             propSizeEstimation @'Mainnet @ByronKey mainnetMagic
@@ -227,6 +283,37 @@ spec = do
                                 Properties
 -------------------------------------------------------------------------------}
 
+prop_rebalanceChangeOutputs
+    :: CoinSelection
+    -> OnDanglingChange
+    -> Property
+prop_rebalanceChangeOutputs sel onDangling = do
+    let (sel', fee') = rebalanceChangeOutputs opts sel
+    let prop = case onDangling of
+            PayAndBalance ->
+                fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
+            SaveMoney ->
+                fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
+    property prop
+        & counterexample (unlines
+            [ "selection (before):", pretty sel
+            , "selection (after):", pretty sel'
+            , "delta (before): " <> show (delta sel)
+            , "delta (after):  " <> show (delta sel')
+            , "remaining fee:  " <> show (getFee fee')
+            ])
+  where
+    delta s = inputBalance s - (outputBalance s + changeBalance s)
+    opts = FeeOptions
+        { estimateFee = computeFee feePolicy . estimateSize tlayer
+        , dustThreshold = minBound
+        , onDanglingChange = onDangling
+        }
+      where
+        tlayer =
+            newTransactionLayer @'Mainnet @ByronKey Proxy mainnetMagic
+        feePolicy =
+            LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
 
 propSizeEstimation
     :: forall n k.
@@ -306,6 +393,10 @@ instance (PaymentAddress n IcarusKey) => Arbitrary (LegacyAddress n IcarusKey)
             , Proxy
             , paymentAddress @n $ IcarusKey key
             )
+
+instance Arbitrary OnDanglingChange
+  where
+    arbitrary = elements [ PayAndBalance, SaveMoney ]
 
 genLegacyAddress
     :: forall (n :: NetworkDiscriminant) k.

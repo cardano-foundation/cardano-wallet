@@ -563,6 +563,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: validateSelection not implemented"
     , decodeSignedTx =
         error "dummyTransactionLayer: decodeSignedTx not implemented"
+    , allowUnbalancedTx =
+        False
     }
   where
     withEither :: e -> Maybe a -> Either e a

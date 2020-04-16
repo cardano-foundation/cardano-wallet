@@ -111,6 +111,8 @@ newTransactionLayer block0H = TransactionLayer
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
             $ Left ErrExceededInpsOrOuts
+
+    , allowUnbalancedTx = False
     }
   where
     mkFragment details keyFrom rnps outs = do

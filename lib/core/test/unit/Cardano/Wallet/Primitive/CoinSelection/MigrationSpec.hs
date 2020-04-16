@@ -15,7 +15,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
 import Cardano.Wallet.Primitive.Fee
-    ( Fee (..), FeeOptions (..) )
+    ( Fee (..), FeeOptions (..), OnDanglingChange (..) )
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types
@@ -121,6 +121,7 @@ spec = do
                     , estimateFee = \s -> Fee
                         $ fromIntegral
                         $ 5 * (length (inputs s) + length (outputs s))
+                    , onDanglingChange = PayAndBalance
                     }
             let batchSize = 1
             let utxo = UTxO $ Map.fromList
@@ -241,6 +242,7 @@ genFeeOptions (Coin dust) = do
             let x = fromIntegral (length (inputs s) + length (outputs s))
             in Fee $ (dust `div` 100) * x + dust
         , dustThreshold = Coin dust
+        , onDanglingChange = PayAndBalance
         }
 
 -- | Generate a given UTxO with a particular percentage of dust
