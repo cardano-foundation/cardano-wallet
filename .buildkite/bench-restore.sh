@@ -42,7 +42,7 @@ set timefmt "%s";
 set format x "%Hh%Mm";
 set xdata time;
 
-set xlabel "time to restore";
+set xlabel "time";
 set ylabel "block height";
 show xlabel;
 show ylabel;
