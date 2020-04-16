@@ -59,12 +59,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
-import Fmt
-    ( pretty )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Data.List as L
 
@@ -260,35 +256,27 @@ rebalanceChangeOutputs opts totalFee sel@(CoinSelection _ _ chgs) =
             xs -> removeDust (dustThreshold opts)
                 $ map reduceSingleChange
                 $ divvyFee totalFee xs
-
-        sel' = sel { change = chgs' }
     in
-        (sel', remainingFee sel')
+        remainingFee (sel { change = chgs' })
   where
     -- | Computes how much is left to pay given a particular selection
-    remainingFee :: HasCallStack => CoinSelection -> Fee
-    remainingFee s = do
-        if fee >= diff
-        then Fee (fee - diff)
-        else do
-            -- NOTE
-            -- The only case where we may end up with an unbalanced transaction is
-            -- when we have a dangling change output (i.e. adding it costs too much
-            -- and we can't afford it, but not having it result in too many coins
-            -- left for fees).
-            let Fee feeDangling = estimateFee opts $ s { change = [Coin (diff - fee)] }
-            if (feeDangling >= diff)
-                then Fee (feeDangling - fee)
-                else error $ unwords
-                    [ "Generated an unbalanced tx! Too much left for fees"
-                    , ": fee (raw) =", show fee
-                    , ": fee (dangling) =", show feeDangling
-                    , ", diff =", show diff
-                    , "\nselection =", pretty s
-                    ]
+    remainingFee :: CoinSelection -> (CoinSelection, Fee)
+    remainingFee s
+        | φ_original >= δ_original = (s, Fee (φ_original - δ_original))
+        | otherwise = (sDangling, Fee (φ_dangling - δ_dangling))
       where
-        Fee fee = estimateFee opts s
-        diff = inputBalance s - (outputBalance s + changeBalance s)
+        -- The original requested fee amount
+        Fee φ_original = estimateFee opts s
+        -- The initial amount left for fee (i.e. inputs - outputs)
+        δ_original = inputBalance s - (outputBalance s + changeBalance s)
+
+        -- The new amount left after balancing (i.e. φ_original)
+        Fee φ_dangling = estimateFee opts sDangling
+        -- The new requested fee after adding the output.
+        δ_dangling = φ_original -- by construction of the change output
+
+        extraChng = Coin (δ_original - φ_original)
+        sDangling = s { change = splitChange extraChng (change s) }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.
