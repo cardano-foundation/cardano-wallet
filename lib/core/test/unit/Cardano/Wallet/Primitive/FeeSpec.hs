@@ -17,7 +17,13 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
-    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee, divvyFee )
+    ( ErrAdjustForFee (..)
+    , Fee (..)
+    , FeeOptions (..)
+    , OnDanglingChange (..)
+    , adjustForFee
+    , divvyFee
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -161,7 +167,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [4,2]
+            , csChngs = [4,1,1]
             })
 
         -- Cannot cover fee, no extra inputs
@@ -479,6 +485,8 @@ feeOptions fee dust = FeeOptions
         \_ -> Fee fee
     , dustThreshold =
         Coin dust
+    , onDanglingChange =
+        PayAndBalance
     }
 
 feeUnitTest
@@ -649,7 +657,8 @@ instance Arbitrary FeeOptions where
                     $ fromIntegral
                     $ c + a * (length (inputs s) + length (outputs s))
             , dustThreshold = Coin t
+            , onDanglingChange = PayAndBalance
             }
 
 instance Show FeeOptions where
-    show (FeeOptions _ dust) = show dust
+    show (FeeOptions _ dust onDangling) = show (dust, onDangling)

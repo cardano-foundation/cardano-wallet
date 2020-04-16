@@ -29,7 +29,9 @@ module Cardano.Wallet.Primitive.Fee
       -- * Fee Adjustment
     , FeeOptions (..)
     , ErrAdjustForFee(..)
+    , OnDanglingChange(..)
     , adjustForFee
+    , rebalanceChangeOutputs
     ) where
 
 import Prelude
@@ -128,7 +130,25 @@ data FeeOptions = FeeOptions
       -- ^ Change addresses below the given threshold will be evicted
       -- from the created transaction. Setting 'dustThreshold' to 0
       -- removes output equal to 0
+
+    , onDanglingChange
+      :: OnDanglingChange
+      -- ^ What do to when we encouter a dangling change output.
+      -- See 'OnDanglingChange'
     } deriving (Generic)
+
+-- | We call 'dangling' a change output that would be too expensive to add. This
+-- can happen when a change output is small, but adding it generate more fees
+-- than not having it.
+--
+-- In case where nodes accept slightly unbalanced transactions, we may choose to
+-- save money and keep the transaction slightly unbalanced. In case where node
+-- demands exactly balanced transaction, we have no choice but to add the extra
+-- dangling change output and pay for the extra cost induced.
+data OnDanglingChange
+    = PayAndBalance
+    | SaveMoney
+    deriving (Generic, Show, Eq)
 
 newtype ErrAdjustForFee
     = ErrCannotCoverFee Word64
@@ -189,14 +209,9 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         => CoinSelection
         -> StateT UTxO (ExceptT ErrAdjustForFee m) CoinSelection
     go coinSel@(CoinSelection inps outs chgs) = do
-        -- 1/
-        -- We compute fees using all inputs, outputs and changes since
-        -- all of them have an influence on the fee calculation.
-        let upperBound = estimateFee opt coinSel
-        -- 2/
         -- Substract fee from change outputs, proportionally to their value.
-        let (coinSel', remFee) = rebalanceChangeOutputs opt upperBound coinSel
-        -- 3.1/
+        let (coinSel', remFee) = rebalanceChangeOutputs opt coinSel
+
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
         -- transaction, and the fee. Thus, we end up paying slightly more than
@@ -205,7 +220,6 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         if remFee == Fee 0
         then pure coinSel'
         else do
-            -- 3.2/
             -- Otherwise, we need an extra entries from the available utxo to
             -- cover what's left. Note that this entry may increase our change
             -- because we may not consume it entirely. So we will just split
@@ -246,37 +260,57 @@ coverRemainingFee (Fee fee) = go [] where
 -- any output:change ratio as unchanged as possible
 rebalanceChangeOutputs
     :: FeeOptions
-    -> Fee
     -> CoinSelection
     -> (CoinSelection, Fee)
-rebalanceChangeOutputs opts totalFee sel@(CoinSelection _ _ chgs) =
-    let
-        chgs' = case removeDust (dustThreshold opts) chgs of
-            [] -> []
-            xs -> removeDust (dustThreshold opts)
+rebalanceChangeOutputs opts s
+    -- selection is now balanced, nothing to do.
+    | φ_original == δ_original =
+        (s, Fee 0)
+
+    -- some fee left to pay, but we've depleted all change outputs
+    | φ_original > δ_original && null (change s) =
+        (s, Fee (φ_original - δ_original))
+
+    -- some fee left to pay, and we've haven't depleted all change yet
+    | φ_original > δ_original && not (null (change s)) = do
+        let chgs' = removeDust (Coin 0)
                 $ map reduceSingleChange
-                $ divvyFee totalFee xs
-    in
-        remainingFee (sel { change = chgs' })
+                $ divvyFee (Fee $ φ_original - δ_original) (change s)
+        rebalanceChangeOutputs opts (s { change = chgs' })
+
+    -- we've left too much, but adding a change output would be more
+    -- expensive than not having it. Here we have two choices:
+    --
+    -- a) If the node allows unbalanced transaction, we can stop here and do
+    -- nothing. We'll leave slightly more than what's needed for fees, but
+    -- having an extra change output isn't worth it anyway.
+    --
+    -- b) If we __must__ balance the transaction, then we can choose to pay
+    -- the extra cost by adding the change output and pick a new input to
+    -- pay for the fee.
+    | φ_dangling >= δ_original && φ_dangling > δ_dangling =
+        case onDanglingChange opts of
+            SaveMoney ->
+                (s, Fee 0)
+            PayAndBalance ->
+                (sDangling, Fee (φ_dangling - δ_dangling))
+
+    -- So, we can simply add the change output, and iterate.
+    | otherwise =
+        rebalanceChangeOutputs opts sDangling
   where
-    -- | Computes how much is left to pay given a particular selection
-    remainingFee :: CoinSelection -> (CoinSelection, Fee)
-    remainingFee s
-        | φ_original >= δ_original = (s, Fee (φ_original - δ_original))
-        | otherwise = (sDangling, Fee (φ_dangling - δ_dangling))
-      where
-        -- The original requested fee amount
-        Fee φ_original = estimateFee opts s
-        -- The initial amount left for fee (i.e. inputs - outputs)
-        δ_original = inputBalance s - (outputBalance s + changeBalance s)
+    -- The original requested fee amount
+    Fee φ_original = estimateFee opts s
+    -- The initial amount left for fee (i.e. inputs - outputs)
+    δ_original = inputBalance s - (outputBalance s + changeBalance s)
 
-        -- The new amount left after balancing (i.e. φ_original)
-        Fee φ_dangling = estimateFee opts sDangling
-        -- The new requested fee after adding the output.
-        δ_dangling = φ_original -- by construction of the change output
+    -- The new amount left after balancing (i.e. φ_original)
+    Fee φ_dangling = estimateFee opts sDangling
+    -- The new requested fee after adding the output.
+    δ_dangling = φ_original -- by construction of the change output
 
-        extraChng = Coin (δ_original - φ_original)
-        sDangling = s { change = splitChange extraChng (change s) }
+    extraChng = Coin (δ_original - φ_original)
+    sDangling = s { change = splitChange extraChng (change s) }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.

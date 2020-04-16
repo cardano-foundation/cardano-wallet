@@ -220,6 +220,7 @@ import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , Fee (..)
     , FeeOptions (..)
+    , OnDanglingChange (..)
     , adjustForFee
     , computeCertFee
     , computeFee
@@ -955,6 +956,7 @@ feeOpts
 feeOpts tl feeCompute feePolicy = FeeOptions
     { estimateFee = feeCompute feePolicy . estimateSize tl
     , dustThreshold = minBound
+    , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     }
 
 -- | Prepare a transaction and automatically select inputs from the
