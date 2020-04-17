@@ -83,6 +83,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * BlockchainParameters
     , BlockchainParameters (..)
+    , TxParameters (..)
     , ActiveSlotCoefficient (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -92,6 +93,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , StartTime (..)
     , slotParams
+    , txParams
 
     -- * Slotting
     , SyncProgress(..)
@@ -1270,12 +1272,12 @@ instance Buildable BlockchainParameters where
         [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
             (bp :: BlockchainParameters))
-        , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
+        , "Fee policy:         " <> feePolicyF (bp ^. #getFeePolicy)
         , "Slot length:        " <> slotLengthF (getSlotLength
             (bp :: BlockchainParameters))
         , "Epoch length:       " <> epochLengthF (getEpochLength
             (bp :: BlockchainParameters))
-        , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
+        , "Tx max size:        " <> txMaxSizeF (bp ^. #getTxMaxSize)
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
         , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
         ]
@@ -1302,6 +1304,32 @@ slotParams bp =
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
         (bp ^. #getActiveSlotCoefficient)
+
+-- | Blockchain parameters relating to constructing transactions.
+data TxParameters = TxParameters
+    { getFeePolicy :: FeePolicy
+        -- ^ Policy regarding transaction fee.
+    , getTxMaxSize :: Quantity "byte" Word16
+        -- ^ Maximum size of a transaction (soft or hard limit).
+    } deriving (Generic, Show, Eq)
+
+instance NFData TxParameters
+
+instance Buildable TxParameters where
+    build bp = blockListF' "" id
+        [ "Fee policy:         " <> feePolicyF (bp ^. #getFeePolicy)
+        , "Tx max size:        " <> txMaxSizeF (bp ^. #getTxMaxSize)
+        ]
+      where
+        feePolicyF = build . toText
+        txMaxSizeF (Quantity s) = build s
+
+-- | Get transaction-specific parameters from the chain parameters.
+txParams :: BlockchainParameters -> TxParameters
+txParams bp =
+    TxParameters
+        (bp ^. #getFeePolicy)
+        (bp ^. #getTxMaxSize)
 
 {-------------------------------------------------------------------------------
                                    Slotting

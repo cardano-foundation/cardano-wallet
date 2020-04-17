@@ -22,6 +22,7 @@ module Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
+    , ErrGetTxParameters (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
 
@@ -47,6 +48,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SealedTx
     , SlotId
+    , TxParameters
     )
 import Control.Concurrent
     ( threadDelay )
@@ -118,6 +120,9 @@ data NetworkLayer m target block = NetworkLayer
         :: ExceptT ErrCurrentNodeTip m BlockHeader
         -- ^ Get the current tip from the chain producer
 
+    , getTxParameters
+        :: ExceptT ErrGetTxParameters m TxParameters
+
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
@@ -164,6 +169,15 @@ data ErrGetBlock
     = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockNotFound (Hash "BlockHeader")
     deriving (Generic, Show, Eq)
+
+-- | Error while querying local parameters state.
+data ErrGetTxParameters
+    = ErrGetTxParametersTip ErrCurrentNodeTip
+    | ErrGetTxParametersNetworkUnreachable ErrNetworkUnavailable
+    | ErrGetTxParametersNotFound
+    deriving (Generic, Show, Eq)
+
+instance Exception ErrGetTxParameters
 
 -- | Error while trying to send a transaction
 data ErrPostTx
