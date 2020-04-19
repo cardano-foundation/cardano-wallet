@@ -14,7 +14,7 @@ in pkgs: super: with pkgs; {
           let
             rawCfg = env.nodeConfig // {
               GenesisFile = env.genesisFile;
-              minSeverity = "Notice";
+              minSeverity = "Error";
             };
           in
           builtins.toFile "cardano-node-config" (builtins.toJSON rawCfg);
