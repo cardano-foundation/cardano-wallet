@@ -546,6 +546,24 @@ shrinker (Model _ _) (At cmd) = case cmd of
         [ At $ PutTxHistory wid h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
+    CreateWallet wid wal met txs ->
+        [ At $ CreateWallet wid wal' met' txs'
+        | txs' <- shrink txs
+        , wal' <- shrink wal
+        , met' <- shrink met
+        ]
+    PutWalletMeta wid met ->
+        [ At $ PutWalletMeta wid met'
+        | met' <- shrink met
+        ]
+    RollbackTo wid sid ->
+        [ At $ RollbackTo wid sid'
+        | sid' <- shrink sid
+        ]
+    ReadTxHistory wid so range status ->
+        [ At $ ReadTxHistory wid so range' status
+        | range' <- shrink range
+        ]
     _ -> []
 
 {-------------------------------------------------------------------------------

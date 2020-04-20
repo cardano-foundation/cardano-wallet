@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PassphraseScheme (..)
     , PoolId (..)
+    , Range (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -412,6 +413,14 @@ instance Arbitrary UTxO where
             <$> vector n
             <*> vector n
         return $ UTxO $ Map.fromList u
+
+
+instance Arbitrary a => Arbitrary (Range a) where
+    arbitrary = Range <$> arbitrary <*> arbitrary
+
+    shrink (Range from to) =
+        [Range from' to | from' <- shrink from]
+        ++ [Range from to' | to' <- shrink to]
 
 {-------------------------------------------------------------------------------
                                  Address
