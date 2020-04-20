@@ -99,6 +99,8 @@ import Test.Integration.Framework.TestData
     )
 import Test.Integration.Scenario.API.Shelley.Wallets
     ( scenarioWalletResync01_happyPath, scenarioWalletResync02_notGenesis )
+import Test.Utils.Windows
+    ( pendingOnWindows )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -553,8 +555,10 @@ spec = do
     describe "BYRON_WALLETS_RESYNC_01" $ do
         let title = "force resync eventually get us back to the same point"
         it ("emptyRandomWallet - " ++ title) $ \ctx -> do
+            pendingOnWindows "Failing on Windows only due to #1534"
             scenarioWalletResync01_happyPath @'Byron ctx emptyRandomWallet
         it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
+            pendingOnWindows "Failing on Windows only due to #1534"
             scenarioWalletResync01_happyPath @'Byron ctx emptyIcarusWallet
 
     describe "BYRON_WALLETS_RESYNC_02" $ do
