@@ -1433,7 +1433,9 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
     -- layer.
     mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction n
     mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
-        apiTx { depth  }
+        case meta ^. #status of
+            Pending  -> apiTx
+            InLedger -> apiTx { depth = Just depth  }
       where
         apiTx = mkApiTransaction txid ins outs (meta, txtime) $
             case meta ^. #status of
@@ -1825,7 +1827,7 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         , amount = meta ^. #amount
         , insertedAt = Nothing
         , pendingSince = Nothing
-        , depth = Quantity 0
+        , depth = Nothing
         , direction = ApiT (meta ^. #direction)
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
         , outputs = toAddressAmount <$> outs
