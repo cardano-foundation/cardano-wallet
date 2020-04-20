@@ -98,6 +98,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+import qualified Debug.Trace as TR
+
 spec
     :: forall (n :: NetworkDiscriminant) t.
         ( PaymentAddress n IcarusKey
@@ -141,6 +143,8 @@ spec = do
         scenario_TRANS_CREATE_04d @n
 
         scenario_TRANS_CREATE_07 @n
+
+        scenario_TRANS_CREATE_08 @n fixtureRandomWallet
 
         scenario_TRANS_ESTIMATE_01_02 @n fixtureRandomWallet
             [ randomAddresses @n . entropyToMnemonic <$> genEntropy
@@ -366,6 +370,63 @@ scenario_TRANS_CREATE_04d = it title $ \ctx -> do
         ]
   where
     title = "TRANS_CREATE_04 - Wrong password"
+
+
+scenario_TRANS_CREATE_08
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => (Context t -> IO ApiByronWallet)
+    -> SpecWith (Context t)
+scenario_TRANS_CREATE_08 fixtureSource = it title $ \ctx -> do
+    -- SETUP
+    let amnt = 100_000 :: Natural
+    wSrc <- fixtureSource ctx
+    (wDest, payment) <- do
+        (wDest, mnemonics) <- fixtureRandomWalletMws ctx
+        let addrs = randomAddresses @n mnemonics
+        pure (wDest, mkPayment @n (head addrs) amnt)
+
+    -- ACTION
+    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+
+    -- ASSERTIONS
+    let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+            { nInputs  = 1
+            , nOutputs = 1
+            , nChanges = 1
+            }
+    TR.trace("-----------------r : "<>show r) $ verify r
+        [ expectResponseCode HTTP.status202
+        , expectField #amount $ between
+              ( Quantity (feeMin + amnt)
+              , Quantity (feeMax + amnt)
+              )
+        , expectField #direction (`shouldBe` ApiT Outgoing)
+        , expectField #status (`shouldBe` ApiT Pending)
+        ]
+
+    eventually "source balance decreases" $ do
+        rSrc <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wSrc) Default Empty
+        verify rSrc
+            [ expectField (#balance . #available) $ between
+                ( Quantity (faucetAmt - amnt - feeMax)
+                , Quantity (faucetAmt - amnt - feeMin)
+                )
+            ]
+
+    eventually "destination balance increases" $ do
+        rDest <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wDest) Default Empty
+        verify rDest
+            [ expectField (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt + amnt))
+            ]
+  where
+    title = "TRANS_CREATE_08 - check transaction depth"
 
 scenario_TRANS_ESTIMATE_04a
     :: forall (n :: NetworkDiscriminant) t.
