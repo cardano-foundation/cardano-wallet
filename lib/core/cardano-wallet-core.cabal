@@ -13,7 +13,7 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 flag development
-    description: Disable `-Werror`
+    description: Disable `-Werror` and optimization
     default: False
     manual: True
 
@@ -28,8 +28,7 @@ library
       -Wcompat
       -fwarn-redundant-constraints
   if (!flag(development))
-    ghc-options:
-      -Werror
+    ghc-options: -Werror
   build-depends:
       aeson
     , async
@@ -176,10 +175,10 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(development))
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -314,10 +313,10 @@ benchmark db
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(development))
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , bytestring

@@ -11,7 +11,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 flag development
-    description: Disable `-Werror`
+    description: Disable `-Werror` and optimization
     default: False
     manual: True
 
@@ -65,10 +65,10 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(development))
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , bytestring

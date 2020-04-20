@@ -11,7 +11,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 flag development
-    description: Disable `-Werror`
+    description: Disable `-Werror` and opimization
     default: False
     manual: True
 
@@ -26,8 +26,7 @@ library
       -Wcompat
       -fwarn-redundant-constraints
   if (!flag(development))
-    ghc-options:
-      -Werror
+    ghc-options: -Werror
   build-depends:
       base
     , casing
@@ -51,10 +50,10 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
-  if (!flag(development))
-    ghc-options:
-      -Werror
+  if (flag(development))
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , hspec
