@@ -83,7 +83,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs, KnownAddresses (..) )
+    ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -103,7 +103,6 @@ import Cardano.Wallet.Primitive.Types
     , Address (..)
     , Block (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -132,8 +131,6 @@ import Control.Concurrent.Async
     ( concurrently, concurrently_ )
 import Control.Concurrent.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( SomeException, handle, throwIO )
 import Control.Monad
@@ -281,22 +278,14 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => IO (DBLayer IO s k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
@@ -306,11 +295,7 @@ newMemoryDBLayer' = do
         newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing
 
 withLoggingDB
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => SpecWith (IO [DBLog], DBLayer IO s k)
@@ -561,12 +546,7 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    ::  ( Eq s
-        , IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s)
+    :: (Eq s, PersistState s, Show s)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -598,7 +578,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             Set.fromList <$> atomically listWallets
                 `shouldReturn` Set.fromList (k:keys)
 
-    shouldBeConsistentWith :: (Eq s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
+    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
     shouldBeConsistentWith db1@DBLayer{..} db2 = do
         wids1 <- Set.fromList <$> listWallets' db1
         wids2 <- Set.fromList <$> listWallets' db2
@@ -653,11 +633,7 @@ withTestDBFile action expectations = do
         expectations fp
 
 inMemoryDBLayer
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s)
+    :: PersistState s
     => IO (SqliteContext, DBLayer IO s ShelleyKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
@@ -669,12 +645,7 @@ defaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
 
 newDBLayer'
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
-        )
+    :: PersistState s
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
 newDBLayer' = newDBLayer nullTracer defaultFieldValues

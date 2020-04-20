@@ -121,7 +121,7 @@ data Database wid s xprv = Database
     -- particular wallet.
     } deriving (Generic)
 
-deriving instance (Show wid, Show xprv) => Show (Database wid s xprv)
+deriving instance (Show wid, Show s, Show xprv) => Show (Database wid s xprv)
 deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 
 -- | Model database record for a single wallet.

@@ -130,8 +130,6 @@ import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.Async
     ( link )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( throwIO )
 import Control.Monad
@@ -262,8 +260,6 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         :: forall s k.
             ( IsOurs s Address
             , IsOurs s ChimericAccount
-            , NFData s
-            , Show s
             , PersistState s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k

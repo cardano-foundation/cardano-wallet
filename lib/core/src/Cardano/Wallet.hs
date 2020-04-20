@@ -664,6 +664,8 @@ restoreWallet
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
+        , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -712,6 +714,8 @@ restoreBlocks
         ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
+        , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -846,6 +850,7 @@ listAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         , CompareDiscovery s
         , KnownAddresses s
         )

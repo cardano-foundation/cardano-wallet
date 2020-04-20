@@ -97,14 +97,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , XPub
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
 import Control.Arrow
     ( (***) )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( Exception, bracket, throwIO )
 import Control.Monad
@@ -194,11 +190,7 @@ import qualified Database.Sqlite as Sqlite
 -- library.
 withDBLayer
     :: forall s k a.
-        ( IsOurs s W.Address
-        , IsOurs s W.ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+        ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO DBLog
@@ -219,11 +211,7 @@ withDBLayer trace defaultFieldValues mDatabaseDir =
 -- | Instantiate a 'DBFactory' from a given directory
 newDBFactory
     :: forall s k.
-        ( IsOurs s W.Address
-        , IsOurs s W.ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+        ( PersistState s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -428,11 +416,7 @@ newtype DefaultFieldValues = DefaultFieldValues
 -- these things will be handled for you.
 newDBLayer
     :: forall s k.
-        ( IsOurs s W.Address
-        , IsOurs s W.ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+        ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO DBLog
@@ -764,8 +748,7 @@ mkCheckpointEntity wid wal =
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
-    :: (IsOurs s W.Address, IsOurs s W.ChimericAccount, NFData s, Show s)
-    => Checkpoint
+    :: Checkpoint
     -> [UTxO]
     -> s
     -> W.Wallet s

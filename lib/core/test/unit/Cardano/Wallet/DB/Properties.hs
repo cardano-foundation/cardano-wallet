@@ -518,6 +518,7 @@ prop_isolation
        , Buildable (g c), Eq (g c)
        , Buildable (h d), Eq (h d)
        , Arbitrary (Wallet s)
+       , Show s
        )
     => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
@@ -626,7 +627,7 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
-    :: (Arbitrary (Wallet s))
+    :: (Arbitrary (Wallet s), Show s)
     => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a

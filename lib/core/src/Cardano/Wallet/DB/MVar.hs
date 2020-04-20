@@ -61,7 +61,7 @@ import Control.Monad.Trans.Except
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer
-    :: forall s k. NFData (k 'RootK XPrv)
+    :: forall s k. (NFData (k 'RootK XPrv), NFData s)
     => IO (DBLayer IO s k)
 newDBLayer = do
     lock <- newMVar ()

@@ -437,7 +437,7 @@ data Model s r
     = Model (Mock s) (WidRefs r)
     deriving (Generic)
 
-deriving instance Show1 r => Show (Model s r)
+deriving instance (Show1 r, Show s) => Show (Model s r)
 
 initModel :: Model s r
 initModel = Model emptyDatabase []
@@ -459,7 +459,7 @@ data Event s r = Event
     , mockResp :: Resp s MWid
     }
 
-deriving instance Show1 r => Show (Event s r)
+deriving instance (Show1 r, Show s) => Show (Event s r)
 
 lockstep
     :: forall s r. Eq1 r
@@ -559,7 +559,9 @@ precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
 precondition (Model _ wids) (At c) =
     forall (toList c) (`elem` map fst wids)
 
-postcondition :: Eq s => Model s Concrete -> Cmd s :@ Concrete -> Resp s :@ Concrete -> Logic
+postcondition
+    :: (Eq s, Show s)
+    => Model s Concrete -> Cmd s :@ Concrete -> Resp s :@ Concrete -> Logic
 postcondition m c r =
     toMock (after e) r .== mockResp e
   where

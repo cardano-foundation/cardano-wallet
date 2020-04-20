@@ -148,22 +148,22 @@ import qualified Data.Set as Set
 -- Wallet SeqState Shelley
 -- Wallet SeqState Bitcoin
 -- @
-data Wallet s where
-    Wallet ::
-        ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        )
-        => UTxO -- Unspent tx outputs belonging to this wallet
-        -> BlockHeader -- Header of the latest applied block (current tip)
-        -> s -- Address discovery state
-        -> BlockchainParameters
-        -> Wallet s
+data Wallet s = Wallet
+    { -- | Unspent tx outputs belonging to this wallet
+      utxo :: UTxO
 
-deriving instance Show (Wallet s)
-deriving instance Eq s => Eq (Wallet s)
-instance NFData (Wallet s) where
+      -- | Header of the latest applied block (current tip)
+    , currentTip :: BlockHeader
+
+      -- | Address discovery state
+    , getState :: s
+
+      -- | Parameters may change over time via protocol updates, so we keep
+      -- track of them as part of the wallet checkpoints.
+    , blockchainParameters :: BlockchainParameters
+    } deriving (Generic, Eq, Show)
+
+instance NFData s => NFData (Wallet s) where
     rnf (Wallet u sl s bp) =
         deepseq (rnf u) $
         deepseq (rnf sl) $
@@ -185,7 +185,7 @@ instance Buildable s => Buildable (Wallet s) where
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Block
         -- ^ The genesis block
     -> BlockchainParameters
@@ -205,8 +205,7 @@ initWallet block bp s =
 -- wallet checkpoints from the database (where it is assumed a valid wallet was
 -- stored into the database).
 unsafeInitWallet
-    :: (IsOurs s Address, IsOurs s ChimericAccount, NFData s, Show s)
-    => UTxO
+    :: UTxO
        -- ^ Unspent tx outputs belonging to this wallet
     -> BlockHeader
     -- ^ Header of the latest applied block (current tip)
@@ -219,8 +218,7 @@ unsafeInitWallet = Wallet
 
 -- | Update the state of an existing Wallet model
 updateState
-    :: (IsOurs s Address, NFData s, Show s)
-    => s
+    :: s
     -> Wallet s
     -> Wallet s
 updateState s (Wallet u tip _ bp) = Wallet u tip s bp
@@ -244,7 +242,8 @@ data FilteredBlock = FilteredBlock
 -- that were discovered while applying the block.
 --
 applyBlock
-    :: Block
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
 applyBlock !b (Wallet !u _ s bp) =
@@ -276,7 +275,8 @@ applyBlock !b (Wallet !u _ s bp) =
 --   __@w@__.
 --
 applyBlocks
-    :: NonEmpty (Block)
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    => NonEmpty (Block)
     -> Wallet s
     -> NonEmpty (FilteredBlock, Wallet s)
 applyBlocks (block0 :| blocks) cp =
@@ -286,21 +286,17 @@ applyBlocks (block0 :| blocks) cp =
                                    Accessors
 -------------------------------------------------------------------------------}
 
--- | Get the wallet current tip
-currentTip :: Wallet s -> BlockHeader
-currentTip (Wallet _ tip _ _) = tip
-
--- | Get the wallet current state
-getState :: Wallet s -> s
-getState (Wallet _ _ s _) = s
-
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Set Tx -> Wallet s -> Natural
 availableBalance pending =
     balance . availableUTxO pending
 
 -- | Total balance = 'balance' . 'totalUTxO'
-totalBalance :: Set Tx -> Wallet s -> Natural
+totalBalance
+    :: IsOurs s Address
+    => Set Tx
+    -> Wallet s
+    -> Natural
 totalBalance pending =
     balance . totalUTxO pending
 
@@ -314,22 +310,12 @@ availableUTxO pending (Wallet u _ _ _) =
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO
-    :: Set Tx
+    :: IsOurs s Address
+    => Set Tx
     -> Wallet s
     -> UTxO
 totalUTxO pending wallet@(Wallet _ _ s _) =
     availableUTxO pending wallet <> changeUTxO pending s
-
--- | Actual utxo
-utxo :: Wallet s -> UTxO
-utxo (Wallet u _ _ _) = u
-
--- | Get the current chain parameters.
---
--- Parameters may change over time via protocol updates, so we keep track of
--- them as part of the wallet checkpoints.
-blockchainParameters :: Wallet s -> BlockchainParameters
-blockchainParameters (Wallet _ _ _ bp) = bp
 
 {-------------------------------------------------------------------------------
                                Internals

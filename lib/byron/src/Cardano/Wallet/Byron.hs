@@ -110,8 +110,6 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
-import Control.DeepSeq
-    ( NFData )
 import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
@@ -260,8 +258,6 @@ serveWallet
         :: forall s k.
             ( IsOurs s Address
             , IsOurs s ChimericAccount
-            , NFData s
-            , Show s
             , PersistState s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
