@@ -16,7 +16,8 @@ module Test.Integration.Byron.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAddress (..)
+    , ApiByronWallet
     , ApiFee
     , ApiT (..)
     , ApiTransaction
@@ -46,7 +47,7 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe, shouldNotBe )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.DSL
@@ -61,6 +62,8 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectWalletUTxO
     , faucetAmt
@@ -74,6 +77,7 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletMws
     , fixtureRandomWalletWith
+    , getFromResponse
     , icarusAddresses
     , json
     , randomAddresses
@@ -97,8 +101,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-
-import qualified Debug.Trace as TR
 
 spec
     :: forall (n :: NetworkDiscriminant) t.
@@ -384,13 +386,16 @@ scenario_TRANS_CREATE_08 fixtureSource = it title $ \ctx -> do
     -- SETUP
     let amnt = 100_000 :: Natural
     wSrc <- fixtureSource ctx
-    (wDest, payment) <- do
-        (wDest, mnemonics) <- fixtureRandomWalletMws ctx
-        let addrs = randomAddresses @n mnemonics
-        pure (wDest, mkPayment @n (head addrs) amnt)
+    wDest <- emptyRandomWallet ctx
+    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    rA <- request @(ApiAddress n) ctx
+        (Link.postRandomAddress wDest) Default payload
+    verify rA [ expectResponseCode @IO HTTP.status201 ]
+    let (ApiAddress (ApiT addr, _) _) = getFromResponse Prelude.id rA
+    let payment = mkPayment @n addr amnt
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    rB <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -398,7 +403,7 @@ scenario_TRANS_CREATE_08 fixtureSource = it title $ \ctx -> do
             , nOutputs = 1
             , nChanges = 1
             }
-    TR.trace("-----------------r : "<>show r) $ verify r
+    verify rB
         [ expectResponseCode HTTP.status202
         , expectField #amount $ between
               ( Quantity (feeMin + amnt)
@@ -406,25 +411,26 @@ scenario_TRANS_CREATE_08 fixtureSource = it title $ \ctx -> do
               )
         , expectField #direction (`shouldBe` ApiT Outgoing)
         , expectField #status (`shouldBe` ApiT Pending)
+        , expectField #depth (`shouldBe` Nothing)
         ]
-
-    eventually "source balance decreases" $ do
-        rSrc <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron wSrc) Default Empty
-        verify rSrc
-            [ expectField (#balance . #available) $ between
-                ( Quantity (faucetAmt - amnt - feeMax)
-                , Quantity (faucetAmt - amnt - feeMin)
-                )
-            ]
 
     eventually "destination balance increases" $ do
         rDest <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron wDest) Default Empty
         verify rDest
             [ expectField (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt + amnt))
+                (`shouldBe` Quantity amnt)
             ]
+
+    let link = Link.listTransactions @'Byron wDest
+    rC <- request @([ApiTransaction n]) ctx link Default Empty
+    verify rC
+        [ expectResponseCode @IO HTTP.status200
+        , expectListSize 1
+        , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+        , expectListField 0 #depth (`shouldNotBe` Nothing)
+        ]
+
   where
     title = "TRANS_CREATE_08 - check transaction depth"
 
