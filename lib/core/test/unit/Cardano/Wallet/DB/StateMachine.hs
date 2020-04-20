@@ -65,6 +65,7 @@ import Cardano.Wallet.DB.Model
     , Err (..)
     , ErrErasePendingTx (..)
     , TxHistory
+    , WalletDatabase (..)
     , emptyDatabase
     , mCleanDB
     , mInitializeWallet
@@ -84,23 +85,43 @@ import Cardano.Wallet.DB.Model
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistPrivateKey (..), XPrv )
+    ( AccountingStyle (..)
+    , Depth (..)
+    , NetworkDiscriminant (..)
+    , PersistPrivateKey (..)
+    , XPrv
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPool (..), SeqState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( Address
+    , BlockHeader
+    , BlockchainParameters
+    , Coin (..)
     , DelegationCertificate
+    , Direction (..)
+    , EpochNo (..)
     , Hash (..)
+    , Hash (..)
+    , PoolId (..)
     , Range (..)
     , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , Tx (..)
+    , TxIn (..)
     , TxMeta (..)
+    , TxOut (..)
     , TxStatus
+    , UTxO (..)
     , WalletId (..)
     , WalletMetadata (..)
     , inputs
@@ -127,10 +148,12 @@ import Data.Map
     ( Map )
 import Data.Maybe
     ( catMaybes, fromJust, isJust, isNothing )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.TreeDiff
-    ( ToExpr (..), defaultExprViaShow )
+    ( ToExpr (..), defaultExprViaShow, genericToExpr )
 import GHC.Generics
     ( Generic )
 import System.Random
@@ -175,6 +198,7 @@ import Test.StateMachine
 import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Control.Foldl as Foldl
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
@@ -537,7 +561,10 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
-shrinker :: Arbitrary (Wallet s) => Model s Symbolic -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
+shrinker
+    :: (Arbitrary (Wallet s))
+    => Model s Symbolic
+    -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
 shrinker (Model _ _) (At cmd) = case cmd of
     PutCheckpoint wid wal ->
         [ At $ PutCheckpoint wid wal'
@@ -676,28 +703,86 @@ instance Traversable t => Rank2.Traversable (At t) where
           -> f (QSM.Reference x r')
         lift f (QSM.Reference x) = QSM.Reference <$> f x
 
-deriving instance Show s => ToExpr (Model s Concrete)
+deriving instance ToExpr s => ToExpr (Model s Concrete)
 
-instance ToExpr (Mock s) where
-    toExpr = defaultExprViaShow
+instance ToExpr s => ToExpr (Mock s) where
+    toExpr = genericToExpr
 
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
 
-instance Show s => ToExpr (Wallet s) where
+instance ToExpr s => ToExpr (Wallet s) where
+    toExpr = genericToExpr
+
+instance ToExpr BlockHeader where
+    toExpr = genericToExpr
+
+instance ToExpr (Hash purpose) where
+    toExpr = genericToExpr
+
+instance ToExpr b => ToExpr (Quantity a b) where
+    toExpr = genericToExpr
+
+instance ToExpr BlockchainParameters where
     toExpr = defaultExprViaShow
+
+instance ToExpr SlotId where
+    toExpr = genericToExpr
+
+instance ToExpr EpochNo where
+    toExpr = defaultExprViaShow
+
+instance ToExpr SlotNo where
+    toExpr = genericToExpr
+
+instance ToExpr TxStatus where
+    toExpr = genericToExpr
+
+instance ToExpr PoolId where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (SeqState 'Mainnet ShelleyKey) where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (RndState 'Mainnet) where
+    toExpr = defaultExprViaShow
+
+instance (Show (key 'AccountK CC.XPub)) =>
+    ToExpr (AddressPool
+        (chain :: AccountingStyle)
+        (key :: Depth -> * -> *)
+    ) where
+    toExpr = defaultExprViaShow
+
+instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where
+    toExpr = genericToExpr
+
+instance ToExpr UTxO where
+    toExpr = genericToExpr
 
 instance ToExpr WalletMetadata where
     toExpr = defaultExprViaShow
 
-instance ToExpr (Hash "Tx") where
-    toExpr = defaultExprViaShow
-
 instance ToExpr Tx where
-    toExpr = defaultExprViaShow
+    toExpr = genericToExpr
+
+instance ToExpr TxIn where
+    toExpr = genericToExpr
+
+instance ToExpr Coin where
+    toExpr = genericToExpr
+
+instance ToExpr TxOut where
+    toExpr = genericToExpr
+
+instance ToExpr Address where
+    toExpr = genericToExpr
 
 instance ToExpr TxMeta where
-    toExpr = defaultExprViaShow
+    toExpr = genericToExpr
+
+instance ToExpr Direction where
+    toExpr = genericToExpr
 
 instance ToExpr MWid where
     toExpr = defaultExprViaShow
@@ -1010,7 +1095,7 @@ repeatedly = flip . L.foldl' . flip
   Top-level tests
 -------------------------------------------------------------------------------}
 
-prop_sequential :: forall s k. TestConstraints s k => DBLayerTest s k -> Property
+prop_sequential :: forall s k. (TestConstraints s k, ToExpr s) => DBLayerTest s k -> Property
 prop_sequential db =
     QC.checkCoverage $
     forAllCommands (sm @s @k dbLayerUnused) Nothing $ \cmds ->
