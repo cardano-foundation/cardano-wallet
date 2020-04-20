@@ -715,7 +715,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-        ShowFmt point <- namedPick "Rollback point" arbitrary
+        ShowFmt point <- namedPick "Requested Rollback point" arbitrary
         let ixs = rescheduled point
         monitor $ label ("Outgoing tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
@@ -727,10 +727,13 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
             unsafeRunExceptT $ initializeWallet wid cp0 meta mempty
             unsafeRunExceptT $ putTxHistory wid txs0
 
-    prop wid point = do
-        _ <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid point
+    prop wid requestedPoint = do
+        point <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid requestedPoint
         txs <- run $ atomically $ readTxHistory wid Descending wholeRange Nothing
-        monitor $ counterexample $ "\nTx history after rollback: \n" <> fmt txs
+
+        monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
+        monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)
+        monitor $ counterexample $ "\nNew tx history:\n" <> (txsF txs)
 
         assertWith "Outgoing txs are reschuled" $
             L.sort (rescheduled point) == L.sort (filterTxs isPending txs)
@@ -739,7 +742,17 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
         assertWith "All txs are now before the point of rollback" $
             all (isBefore point . snd) txs
       where
-        fmt = pretty . GenTxHistory
+        txsF :: [(Tx, TxMeta)] -> String
+        txsF =
+            L.intercalate "\n"
+            . map (\(tx, meta) -> unwords
+                [ "- "
+                , pretty (txId tx)
+                , pretty (meta ^. #slotId)
+                , pretty (meta ^. #status)
+                , pretty (meta ^. #direction)
+                , show $ getQuantity ((meta ^. #amount))
+                ])
 
     isBefore :: SlotId -> TxMeta -> Bool
     isBefore point meta =
