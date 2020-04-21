@@ -277,7 +277,7 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
-x-byronWalletPassphrase: &byronWalletPassphrase
+x-lenientPassphrase: &lenientPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
   type: string
   minLength: 0
@@ -883,7 +883,7 @@ components:
         - passphrase
       properties:
         passphrase:
-          <<: *walletPassphrase
+          <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
 
     ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
@@ -1063,7 +1063,7 @@ components:
         - new_passphrase
       properties:
         old_passphrase:
-          <<: *byronWalletPassphrase
+          <<: *lenientPassphrase
           description: The current passphrase if present.
         new_passphrase:
           <<: *walletPassphrase
@@ -1077,7 +1077,7 @@ components:
       properties:
         payments: *transactionOutputs
         passphrase:
-          <<: *walletPassphrase
+          <<: *lenientPassphrase
           description: The wallet's master passphrase.
 
     ApiPostTransactionFeeData: &ApiPostTransactionFeeData
@@ -1092,7 +1092,7 @@ components:
       required:
         - passphrase
       properties:
-        passphrase: *walletPassphrase
+        passphrase: *lenientPassphrase
         address_index: *addressIndex
 
 #############################################################################
