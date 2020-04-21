@@ -347,7 +347,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "raw"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "byron-raw"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "lenient"))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
@@ -422,13 +422,13 @@ spec = do
                 #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "raw")) msg)
 
-        it "ApiT (Passphrase \"byron-raw\") (too long)" $ do
-            let maxLength = passphraseMaxLength (Proxy :: Proxy "byron-raw")
+        it "ApiT (Passphrase \"lenient\") (too long)" $ do
+            let maxLength = passphraseMaxLength (Proxy :: Proxy "lenient")
             let msg = "Error in $: passphrase is too long: \
                     \expected at most " <> show maxLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT (Passphrase "byron-raw")) msg)
+            |] `shouldBe` (Left @String @(ApiT (Passphrase "lenient")) msg)
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \
@@ -1211,12 +1211,12 @@ instance Arbitrary ApiWalletDelegationNext where
             <*> fmap Just arbitrary
         ]
 
-instance Arbitrary (Passphrase "byron-raw") where
+instance Arbitrary (Passphrase "lenient") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "byron-raw"
+      where p = Proxy :: Proxy "lenient"
 
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
@@ -1226,7 +1226,7 @@ instance Arbitrary (Passphrase "byron-raw") where
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy "byron-raw"
+      where p = Proxy :: Proxy "lenient"
 
 instance Arbitrary ApiWalletDelegation where
     arbitrary = ApiWalletDelegation

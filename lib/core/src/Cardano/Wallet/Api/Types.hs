@@ -394,7 +394,7 @@ data ApiWalletDelegationStatus
     deriving (Eq, Generic, Show)
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
-    { passphrase :: ApiT (Passphrase "raw")
+    { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
 
 data ApiStakePool = ApiStakePool
@@ -478,13 +478,13 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
-    { oldPassphrase :: !(Maybe (ApiT (Passphrase "byron-raw")))
+    { oldPassphrase :: !(Maybe (ApiT (Passphrase "lenient")))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
-    , passphrase :: !(ApiT (Passphrase "raw"))
+    , passphrase :: !(ApiT (Passphrase "lenient"))
     } deriving (Eq, Generic, Show)
 
 newtype PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
@@ -589,7 +589,7 @@ newtype ApiNetworkClock = ApiNetworkClock
     } deriving (Eq, Generic, Show)
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
-    { passphrase :: !(ApiT (Passphrase "raw"))
+    { passphrase :: !(ApiT (Passphrase "lenient"))
     , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
