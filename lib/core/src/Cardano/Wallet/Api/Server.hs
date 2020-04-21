@@ -714,7 +714,7 @@ byronServer byron icarus ntp =
     byronTransactions =
              (\wid tx -> withLegacyLayer wid
                  (byron , do
-                    let pwd = getApiT $ tx ^. #passphrase
+                    let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
                     postTransaction byron genChange wid tx
                  )
@@ -1329,7 +1329,7 @@ postRandomAddress
     -> ApiPostRandomAddressData
     -> Handler (ApiAddress n)
 postRandomAddress ctx (ApiT wid) body = do
-    let pwd = getApiT (body ^. #passphrase)
+    let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
     addr <- withWorkerCtx ctx wid liftE liftE
         $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k wrk wid pwd mix
@@ -1381,7 +1381,7 @@ postTransaction
     -> Handler (ApiTransaction n)
 postTransaction ctx genChange (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    let pwd = getApiT $ body ^. #passphrase
+    let pwd = coerce $ getApiT $ body ^. #passphrase
 
     selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.selectCoinsForPayment @_ @s @t wrk wid outs
@@ -1509,7 +1509,9 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl apiPoolId (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+joinStakePool ctx spl apiPoolId (ApiT wid) body = do
+    let pwd = coerce $ getApiT $ body ^. #passphrase
+
     pid <- case apiPoolId of
         ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
@@ -1553,7 +1555,9 @@ quitStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx (ApiT wid) (ApiWalletPassphrase (ApiT pwd)) = do
+quitStakePool ctx (ApiT wid) body = do
+    let pwd = coerce $ getApiT $ body ^. #passphrase
+
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.quitStakePool @_ @s @t @k wrk wid (delegationAddress @n) pwd
 
@@ -1633,7 +1637,7 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
             (meta, time)
             #pendingSince
   where
-    pwd = getApiT $ migrateData ^. #passphrase
+    pwd = coerce $ getApiT $ migrateData ^. #passphrase
 
 {-------------------------------------------------------------------------------
                                     Network
