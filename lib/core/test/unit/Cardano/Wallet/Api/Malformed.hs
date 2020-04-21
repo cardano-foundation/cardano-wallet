@@ -828,13 +828,7 @@ instance Malformed (BodyParam ApiWalletPassphrase) where
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
-            [ ( [aesonQQ| { "passphrase": "" }|]
-              , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
-              )
-            , ( [aesonQQ| { "passphrase": "123456789" }|]
-              , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
-              )
-            , ( [aesonQQ| { "passphrase": #{nameTooLong} }|]
+            [ ( [aesonQQ| { "passphrase": #{nameTooLong} }|]
               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
               )
             , ( [aesonQQ| { "passphrase": 123 }|]
@@ -881,20 +875,6 @@ instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
                    ]
                 }|]
               , "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionData(PostTransactionData) failed, key 'passphrase' not found"
-              )
-            , ( [aesonQQ|
-               { "payments": [
-                   {
-                       "address": #{addrValid},
-                       "amount": {
-                           "quantity": 42000000,
-                           "unit": "lovelace"
-                       }
-                   }
-                  ],
-                  "passphrase": "123"
-               }|]
-               , "Error in $.passphrase: passphrase is too short: expected at least 10 characters"
               )
             , ( [aesonQQ|
                { "payments": [
