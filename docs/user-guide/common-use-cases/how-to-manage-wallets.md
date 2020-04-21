@@ -2,11 +2,6 @@
 weight: 2
 title: How to manage wallets
 ---
-
-{{<tabs>}}
-
-{{<tab "using cardano-wallet">}}
-
 Once you created a wallet you can manage it with `cardano-wallet` endpoints. There are several operations available.
 
 ### List all wallets
@@ -28,7 +23,3 @@ See more about [UTxO]({{< ref "utxo.md" >}}).
 
 ### Delete wallet
 [`DELETE /v2/byron-wallets/{walletId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronWallet)
-
-{{</tab>}}
-
-{{</tabs>}}
