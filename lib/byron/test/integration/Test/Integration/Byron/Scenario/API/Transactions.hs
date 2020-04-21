@@ -46,7 +46,7 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe, shouldNotBe )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.DSL
@@ -61,6 +61,8 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , expectWalletUTxO
     , faucetAmt
@@ -201,6 +203,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
               )
         , expectField #direction (`shouldBe` ApiT Outgoing)
         , expectField #status (`shouldBe` ApiT Pending)
+        , expectField #depth (`shouldBe` Nothing)
         ]
 
     eventually "source balance decreases" $ do
@@ -221,6 +224,14 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
                 [ expectField (#balance . #available)
                     (`shouldBe` Quantity (faucetAmt + amnt))
                 ]
+        let link = Link.listTransactions @'Byron wDest
+        rTrans <- request @([ApiTransaction n]) ctx link Default Empty
+        verify rTrans
+            [ expectResponseCode @IO HTTP.status200
+            , expectListSize 11
+            , expectListField 10 (#status . #getApiT) (`shouldBe` InLedger)
+            , expectListField 10 #depth (`shouldNotBe` Nothing)
+            ]
   where
     title = "TRANS_CREATE_01/02 - " ++ show n ++ " recipient(s)"
     n = fromIntegral $ length fixtures

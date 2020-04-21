@@ -533,7 +533,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
     , pendingSince :: !(Maybe ApiTimeReference)
-    , depth :: !(Quantity "block" Natural)
+    , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]

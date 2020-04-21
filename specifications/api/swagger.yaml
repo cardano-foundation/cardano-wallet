@@ -371,7 +371,7 @@ x-transactionAmount: &transactionAmount
 x-transactionInsertedAt: &transactionInsertedAt
   description: |
     <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
-    <strong>if:</strong> status != pending
+    <strong>if:</strong> status == in_ledger
     </span><br/>
     Absolute time at which the transaction was inserted in a block.
   type: object
@@ -397,7 +397,11 @@ x-transactionPendingSince: &transactionPendingSince
     block: *blockReference
 
 x-transactionDepth: &transactionDepth
-  description: Current depth of the transaction in the local chain
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status == in_ledger
+    </span><br/>
+    Current depth of the transaction in the local chain
   <<: *numberOfBlocks
 
 x-transactionDirection: &transactionDirection
@@ -778,7 +782,6 @@ components:
       required:
         - id
         - amount
-        - depth
         - direction
         - inputs
         - outputs
