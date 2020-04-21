@@ -16,8 +16,7 @@ module Test.Integration.Byron.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
-    , ApiByronWallet
+    ( ApiByronWallet
     , ApiFee
     , ApiT (..)
     , ApiTransaction
@@ -77,7 +76,6 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletMws
     , fixtureRandomWalletWith
-    , getFromResponse
     , icarusAddresses
     , json
     , randomAddresses
@@ -146,8 +144,6 @@ spec = do
 
         scenario_TRANS_CREATE_07 @n
 
-        scenario_TRANS_CREATE_08 @n fixtureRandomWallet
-
         scenario_TRANS_ESTIMATE_01_02 @n fixtureRandomWallet
             [ randomAddresses @n . entropyToMnemonic <$> genEntropy
             ]
@@ -207,6 +203,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
               )
         , expectField #direction (`shouldBe` ApiT Outgoing)
         , expectField #status (`shouldBe` ApiT Pending)
+        , expectField #depth (`shouldBe` Nothing)
         ]
 
     eventually "source balance decreases" $ do
@@ -227,6 +224,14 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
                 [ expectField (#balance . #available)
                     (`shouldBe` Quantity (faucetAmt + amnt))
                 ]
+        let link = Link.listTransactions @'Byron wDest
+        rTrans <- request @([ApiTransaction n]) ctx link Default Empty
+        verify rTrans
+            [ expectResponseCode @IO HTTP.status200
+            , expectListSize 11
+            , expectListField 10 (#status . #getApiT) (`shouldBe` InLedger)
+            , expectListField 10 #depth (`shouldNotBe` Nothing)
+            ]
   where
     title = "TRANS_CREATE_01/02 - " ++ show n ++ " recipient(s)"
     n = fromIntegral $ length fixtures
@@ -372,67 +377,6 @@ scenario_TRANS_CREATE_04d = it title $ \ctx -> do
         ]
   where
     title = "TRANS_CREATE_04 - Wrong password"
-
-
-scenario_TRANS_CREATE_08
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        )
-    => (Context t -> IO ApiByronWallet)
-    -> SpecWith (Context t)
-scenario_TRANS_CREATE_08 fixtureSource = it title $ \ctx -> do
-    -- SETUP
-    let amnt = 100_000 :: Natural
-    wSrc <- fixtureSource ctx
-    wDest <- emptyRandomWallet ctx
-    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
-    rA <- request @(ApiAddress n) ctx
-        (Link.postRandomAddress wDest) Default payload
-    verify rA [ expectResponseCode @IO HTTP.status201 ]
-    let (ApiAddress (ApiT addr, _) _) = getFromResponse Prelude.id rA
-    let payment = mkPayment @n addr amnt
-
-    -- ACTION
-    rB <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
-
-    -- ASSERTIONS
-    let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
-            { nInputs  = 1
-            , nOutputs = 1
-            , nChanges = 1
-            }
-    verify rB
-        [ expectResponseCode HTTP.status202
-        , expectField #amount $ between
-              ( Quantity (feeMin + amnt)
-              , Quantity (feeMax + amnt)
-              )
-        , expectField #direction (`shouldBe` ApiT Outgoing)
-        , expectField #status (`shouldBe` ApiT Pending)
-        , expectField #depth (`shouldBe` Nothing)
-        ]
-
-    eventually "destination balance increases" $ do
-        rDest <- request @ApiByronWallet ctx
-            (Link.getWallet @'Byron wDest) Default Empty
-        verify rDest
-            [ expectField (#balance . #available)
-                (`shouldBe` Quantity amnt)
-            ]
-
-    let link = Link.listTransactions @'Byron wDest
-    rC <- request @([ApiTransaction n]) ctx link Default Empty
-    verify rC
-        [ expectResponseCode @IO HTTP.status200
-        , expectListSize 1
-        , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-        , expectListField 0 #depth (`shouldNotBe` Nothing)
-        ]
-
-  where
-    title = "TRANS_CREATE_08 - check transaction depth"
 
 scenario_TRANS_ESTIMATE_04a
     :: forall (n :: NetworkDiscriminant) t.
