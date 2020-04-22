@@ -57,7 +57,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockchainParameters (..), ProtocolMagic (..) )
+    ( Block (..), GenesisBlockParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Applicative
@@ -163,13 +163,13 @@ someTestnetDiscriminant pm@(ProtocolMagic n) =
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO (SomeNetworkDiscriminant, BlockchainParameters, NodeVersionData, Block)
+    -> ExceptT String IO (SomeNetworkDiscriminant, GenesisBlockParameters, NodeVersionData, Block)
 parseGenesisData = \case
     MainnetConfig (discriminant, vData) -> pure
         ( discriminant
         , mainnetBlockchainParameters
         , vData
-        , emptyGenesis (mainnetBlockchainParameters)
+        , emptyGenesis (staticParameters mainnetBlockchainParameters)
         )
     TestnetConfig genesisFile -> do
         (genesisData, genesisHash) <-
@@ -180,12 +180,12 @@ parseGenesisData = \case
                 & fromProtocolMagicId
                 & someTestnetDiscriminant
 
-        let (bp, outs) = fromGenesisData (genesisData, genesisHash)
+        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
         pure
             ( discriminant
-            , bp
+            , gbp
             , vData
-            , fromGenesisTxOut bp outs
+            , fromGenesisTxOut (staticParameters gbp) outs
             )
 
 --------------------------------------------------------------------------------
@@ -210,16 +210,16 @@ withCardanoNode
     -> FilePath
     -- ^ Test directory
     -> Severity
-    -> (FilePath -> Block -> (BlockchainParameters, NodeVersionData) -> IO a)
+    -> (FilePath -> Block -> (GenesisBlockParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket description and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
-    orThrow $ withConfig tdir severity $ \cfg block0 (bp, vData) -> do
+    orThrow $ withConfig tdir severity $ \cfg block0 (gbp, vData) -> do
         nodePort <- getRandomPort
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
         withBackendProcess (trMessageText tr) cmd $ do
-            action (nodeSocketFile cfg) block0 (bp, vData)
+            action (nodeSocketFile cfg) block0 (gbp, vData)
   where
     orThrow = (=<<) (either throwIO pure)
     mkArgs cfg port =
@@ -256,7 +256,7 @@ withConfig
     -- ^ Test data directory
     -> (  CardanoNodeConfig
        -> Block
-       -> (BlockchainParameters, NodeVersionData)
+       -> (GenesisBlockParameters, NodeVersionData)
        -> IO a
        )
     -- ^ Callback function with the node configuration and genesis params
@@ -271,7 +271,7 @@ withConfig tdir severity action =
         :: IO ( FilePath
               , CardanoNodeConfig
               , Block
-              , (BlockchainParameters, NodeVersionData)
+              , (GenesisBlockParameters, NodeVersionData)
               )
     setupConfig = do
         dir <- getCanonicalTemporaryDirectory
@@ -302,7 +302,7 @@ withConfig tdir severity action =
 
         (genesisData, genesisHash) <- unsafeRunExceptT $
             readGenesisData nodeGenesisFile
-        let (bp, outs) = fromGenesisData (genesisData, genesisHash)
+        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
 
         let networkMagic = NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
 
@@ -316,8 +316,8 @@ withConfig tdir severity action =
                 , nodeSocketFile
                 , nodeTopologyFile
                 }
-            , fromGenesisTxOut bp outs
-            , ( bp
+            , fromGenesisTxOut (staticParameters gbp) outs
+            , ( gbp
               , ( NodeToClientVersionData { networkMagic }
                 , nodeToClientCodecCBORTerm
                 )

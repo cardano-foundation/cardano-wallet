@@ -103,6 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisBlockParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -189,7 +190,7 @@ serveWallet
     -- ^ Socket for communicating with the node
     -> Block
     -- ^ The genesis block, or some starting point.
-    -> ( BlockchainParameters
+    -> ( GenesisBlockParameters
        , ( NodeToClientVersionData
          , CodecCBORTerm Text NodeToClientVersionData
          )
@@ -210,7 +211,7 @@ serveWallet
   tlsConfig
   socketPath
   block0
-  (bp, vData)
+  (gbp, vData)
   beforeMainLoop = do
     let ntwrk = networkDiscriminantValFromProxy proxy
     traceWith applicationTracer $ MsgStarting socketPath
@@ -220,7 +221,7 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer bp socketPath vData $ \nl -> do
+        withNetworkLayer networkTracer gbp socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
@@ -275,10 +276,10 @@ serveWallet
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
       where
-        BlockchainParameters
+        bp@BlockchainParameters
             { getGenesisBlockHash
             , getEpochLength
-            } = bp
+            } = staticParameters gbp
         nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)

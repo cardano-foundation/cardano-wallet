@@ -230,6 +230,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LocalStateQuery
 
+{- HLINT ignore "Use readTVarIO" -}
+
 -- | Network layer cursor for Byron. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Byron) = Cursor
@@ -241,8 +243,8 @@ withNetworkLayer
     :: Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
         -- FIXME: Use a typed message instead of a 'Text'
-    -> W.BlockchainParameters
-        -- ^ Static blockchain parameters
+    -> W.GenesisBlockParameters
+        -- ^ Initial blockchain parameters
     -> FilePath
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
@@ -250,7 +252,7 @@ withNetworkLayer
     -> (NetworkLayer IO (IO Byron) ByronBlock -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr bp addrInfo versionData action = do
+withNetworkLayer tr gbp addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
 
     -- NOTE: We keep a client connection running for accessing the node tip,
@@ -259,7 +261,7 @@ withNetworkLayer tr bp addrInfo versionData action = do
     -- doesn't really do anything but sending dummy messages to get the node's
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    txParamsVar <- atomically $ newTVar (W.txParams bp)
+    txParamsVar <- atomically $ newTVar (W.txParameters gbp)
     nodeTipClient <- mkTipSyncClient tr
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
@@ -272,16 +274,16 @@ withNetworkLayer tr bp addrInfo versionData action = do
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor localTxSubmissionQ
             , cursorSlotId = _cursorSlotId
-            , getTxParameters = liftIO $ atomically $ readTVar txParamsVar
+            , getTxParameters = atomically $ readTVar txParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
             }
   where
-    W.BlockchainParameters
+    bp@W.BlockchainParameters
         { getGenesisBlockHash
         , getEpochLength
-        } = bp
+        } = W.staticParameters gbp
 
     _initCursor localTxSubmissionQ headers = do
         chainSyncQ <- atomically newTQueue

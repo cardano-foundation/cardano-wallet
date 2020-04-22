@@ -728,10 +728,8 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
-        , checkpointFeePolicy = bp ^. #getFeePolicy
         , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
         , checkpointEpochLength = coerce (bp ^. #getEpochLength)
-        , checkpointTxMaxSize = coerce (bp ^. #getTxMaxSize)
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         , checkpointActiveSlotCoeff =
             W.unActiveSlotCoefficient (bp ^. #getActiveSlotCoefficient)
@@ -763,10 +761,8 @@ checkpointFromEntity cp utxo s =
         bh
         (BlockId genesisHash)
         genesisStart
-        feePolicy
         slotLength
         epochLength
-        txMaxSize
         epochStability
         activeSlotCoeff
         ) = cp
@@ -778,10 +774,8 @@ checkpointFromEntity cp utxo s =
     bp = W.BlockchainParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
-        , getFeePolicy = feePolicy
         , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
         , getEpochLength = W.EpochLength epochLength
-        , getTxMaxSize = Quantity txMaxSize
         , getEpochStability = Quantity epochStability
         , getActiveSlotCoefficient = W.ActiveSlotCoefficient activeSlotCoeff
         }

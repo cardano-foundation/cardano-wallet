@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , Tx (..)
     , TxMeta
+    , TxParameters
     , TxStatus
     , WalletId
     , WalletMetadata
@@ -221,6 +222,17 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
+
+    , putTxParameters
+        :: PrimaryKey WalletId
+        -> TxParameters
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Store blockchain parameters for the node tip.
+
+    , readTxParameters
+        :: PrimaryKey WalletId
+        -> stm (Maybe TxParameters)
+        -- ^ Read the previously stored node tip blockchain parameters.
 
     , rollbackTo
         :: PrimaryKey WalletId

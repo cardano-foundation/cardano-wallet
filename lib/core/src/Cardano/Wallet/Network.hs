@@ -121,7 +121,7 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Get the current tip from the chain producer
 
     , getTxParameters
-        :: ExceptT ErrGetTxParameters m TxParameters
+        :: m TxParameters
 
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
@@ -311,7 +311,7 @@ follow
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> BlockHeader -> IO (FollowAction e))
+    -> (NE.NonEmpty block -> (BlockHeader, TxParameters) -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
@@ -368,7 +368,8 @@ follow nl tr cps yield header =
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            action <- yield blocks tip
+            params <- getTxParameters nl
+            action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
             handle cursor' action
 
