@@ -72,7 +72,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."deepseq" or (buildDepError "deepseq"))
           (hsPkgs."directory" or (buildDepError "directory"))
           (hsPkgs."either" or (buildDepError "either"))
           (hsPkgs."exceptions" or (buildDepError "exceptions"))

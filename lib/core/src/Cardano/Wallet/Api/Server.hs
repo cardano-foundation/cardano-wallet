@@ -159,7 +159,8 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..), ErrNetworkUnavailable (..), NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( ChimericAccount (..)
+    , DelegationAddress (..)
     , Depth (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
@@ -843,6 +844,7 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , WalletKey k
+        , IsOurs s Address
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
@@ -897,6 +899,8 @@ postLegacyWallet
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
         , KnownDiscovery s
+        , IsOurs s ChimericAccount
+        , IsOurs s Address
         , WalletKey k
         )
     => ctx
@@ -923,6 +927,7 @@ mkLegacyWallet
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
         , KnownDiscovery s
+        , IsOurs s Address
         )
     => ctx
     -> WalletId
@@ -1258,6 +1263,8 @@ getUTxOsStatistics ctx (ApiT wid) = do
 forceResyncWallet
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
+        , IsOurs s ChimericAccount
+        , IsOurs s Address
         )
     => ctx
     -> ApiT WalletId
@@ -1343,6 +1350,7 @@ listAddresses
         , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> (s -> Address -> Maybe Address)
@@ -1872,7 +1880,11 @@ getWalletTip wallet = ApiBlockReference
 
 -- | Create a new instance of the wallet layer.
 newApiLayer
-    :: forall ctx s t k. ctx ~ ApiLayer s t k
+    :: forall ctx s t k.
+        ( ctx ~ ApiLayer s t k
+        , IsOurs s ChimericAccount
+        , IsOurs s Address
+        )
     => Tracer IO (WorkerLog WalletId WalletLog)
     -> (Block, BlockchainParameters, SyncTolerance)
     -> NetworkLayer IO t Block
@@ -1889,6 +1901,8 @@ newApiLayer tr g0 nw tl df = do
 registerWorker
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
+        , IsOurs s ChimericAccount
+        , IsOurs s Address
         )
     => ApiLayer s t k
     -> WalletId

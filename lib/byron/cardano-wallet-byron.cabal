@@ -45,7 +45,6 @@ library
     , containers
     , contra-tracer
     , cryptonite
-    , deepseq
     , directory
     , either
     , exceptions

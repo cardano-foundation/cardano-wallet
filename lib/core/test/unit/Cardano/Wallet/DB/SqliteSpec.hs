@@ -83,17 +83,26 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs )
+    ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, getState, initWallet, updateState )
+    ( FilteredBlock (..)
+    , Wallet
+    , applyBlock
+    , availableBalance
+    , currentTip
+    , getState
+    , initWallet
+    , updateState
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
-    , ChimericAccount (..)
+    , Block (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -103,7 +112,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (TxMeta)
+    , TxMeta (TxMeta, amount, direction)
     , TxOut (..)
     , TxStatus (..)
     , WalletDelegation (..)
@@ -122,8 +131,6 @@ import Control.Concurrent.Async
     ( concurrently, concurrently_ )
 import Control.Concurrent.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( SomeException, handle, throwIO )
 import Control.Monad
@@ -143,7 +150,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -152,6 +159,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import GHC.Conc
     ( TVar, newTVarIO, readTVarIO, writeTVar )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( doesFileExist, listDirectory, removeFile )
 import System.FilePath
@@ -189,6 +198,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -268,22 +278,14 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) @ShelleyKey $ do
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.
 newMemoryDBLayer
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => IO (DBLayer IO s k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
 newMemoryDBLayer'
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
@@ -293,11 +295,7 @@ newMemoryDBLayer' = do
         newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing
 
 withLoggingDB
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
+    ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
     => SpecWith (IO [DBLog], DBLayer IO s k)
@@ -471,6 +469,75 @@ fileModeSpec =  do
             destroyDBLayer ctx
             testOpeningCleaning f (`readCheckpoint'` testPk) (Just testCp) Nothing
 
+        describe "Golden rollback scenarios" $ do
+            let dummyHash x = Hash $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
+            let dummyAddr x = Address $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
+
+            it "(Regression test #1575) - TxMetas and checkpoints should \
+               \rollback to the same place" $ \f -> do
+                (_ctx, db@DBLayer{..}) <- newDBLayer' (Just f)
+
+                let ourAddrs = knownAddresses (getState testCp)
+
+                atomically $ do
+                    unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty
+
+                let mockApply h mockTxs = do
+                        Just cpA <- atomically $ readCheckpoint testPk
+                        let slotA = slotId $ currentTip cpA
+                        let Quantity bhA = blockHeight $ currentTip cpA
+                        let hashA = headerHash $ currentTip cpA
+                        let fakeBlock = Block
+                                (BlockHeader
+                                { slotId = slotA { epochNumber = (epochNumber slotA) + 1}
+                                -- Increment blockHeight by steps greater than k
+                                -- Such that old checkpoints are always pruned.
+                                , blockHeight = Quantity $ bhA + 5000
+                                , headerHash = h
+                                , parentHeaderHash = hashA
+                                })
+                                mockTxs
+                                []
+                        let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
+                        atomically $ do
+                            unsafeRunExceptT $ putCheckpoint testPk cpB
+                            unsafeRunExceptT $ putTxHistory testPk txs
+                            unsafeRunExceptT $ prune testPk
+
+                let mockApplyBlock1 = mockApply (dummyHash "block1")
+                            [ Tx (dummyHash "tx1")
+                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                                [ TxOut (head ourAddrs) (Coin 4)
+                                ]
+                            ]
+
+                -- Slot 1 0
+                mockApplyBlock1
+                getAvailableBalance db `shouldReturn` 4
+
+                -- Slot 2 0
+                mockApply (dummyHash "block2a")
+                            [ Tx
+                                (dummyHash "tx2a")
+                                [ (TxIn (dummyHash "tx1") 0, Coin 4)
+                                ]
+                                [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
+                                , TxOut (ourAddrs !! 1) (Coin 2)
+                                ]
+                            ]
+
+                -- Slot 3 0
+                mockApply (dummyHash "block3a") []
+                getAvailableBalance db `shouldReturn` 2
+                getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
+
+                atomically . void . unsafeRunExceptT $
+                    rollbackTo testPk (SlotId 2 0)
+                Just cp <- atomically $ readCheckpoint testPk
+                slotId (currentTip cp) `shouldBe` (SlotId 0 0)
+
+                getTxsInLedger db `shouldReturn` []
+
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
             (property $ prop_randomOpChunks @(SeqState 'Mainnet ShelleyKey))
@@ -479,12 +546,7 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    ::  ( Eq s
-        , IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s)
+    :: (Eq s, PersistState s, Show s)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -516,7 +578,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             Set.fromList <$> atomically listWallets
                 `shouldReturn` Set.fromList (k:keys)
 
-    shouldBeConsistentWith :: (Eq s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
+    shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
     shouldBeConsistentWith db1@DBLayer{..} db2 = do
         wids1 <- Set.fromList <$> listWallets' db1
         wids2 <- Set.fromList <$> listWallets' db2
@@ -571,11 +633,7 @@ withTestDBFile action expectations = do
         expectations fp
 
 inMemoryDBLayer
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s)
+    :: PersistState s
     => IO (SqliteContext, DBLayer IO s ShelleyKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
@@ -587,12 +645,7 @@ defaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
 
 newDBLayer'
-    ::  ( IsOurs s Address
-        , IsOurs s ChimericAccount
-        , NFData s
-        , Show s
-        , PersistState s
-        )
+    :: PersistState s
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s ShelleyKey)
 newDBLayer' = newDBLayer nullTracer defaultFieldValues
@@ -702,6 +755,21 @@ testTxs =
       , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
       )
     ]
+
+{-------------------------------------------------------------------------------
+                    Helpers for golden rollback tests
+-------------------------------------------------------------------------------}
+
+getAvailableBalance :: DBLayer IO s k -> IO Word
+getAvailableBalance DBLayer{..} = do
+    cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
+    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just Pending)
+    return $ fromIntegral $ availableBalance (Set.fromList $ map fst pend) cp
+
+getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
+getTxsInLedger DBLayer {..} = do
+    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just InLedger)
+    return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
 
 {-------------------------------------------------------------------------------
                            Test data - Sequential AD
