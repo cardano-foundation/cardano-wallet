@@ -7,17 +7,17 @@ Once you have a wallet you can manage your funds. In order to receive a transact
 
 ## Random wallets
 
-For `random` wallets user needs to invoke wallet endpoint to create new address:
+For `random` wallets user needs to invoke the following wallet endpoint to create new addresses:
 
 [`POST /byron-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/createAddress)
 
 In order to list existing addresses another endpoint can be used:
 
-[`GET /wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses)
+[`GET /byron-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses)
 
 
 ## Sequential wallets {#listing-addresses-in-sequential-wallets}
 
-For sequential wallets such as `icarus`, `trezor`, `ledger` there is no need for the user to explicitely create new addresses. Unused and used addresses can be retrived via endpoint:
+For sequential wallets such as `icarus`, `trezor`, `ledger` there is no need for the user to explicitly create new addresses. Unused and used addresses can be retrieved via endpoint:
 
-[`GET /wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listAddresses)
+[`GET /byron-wallets/{walletId}/addresses`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listByronAddresses)
