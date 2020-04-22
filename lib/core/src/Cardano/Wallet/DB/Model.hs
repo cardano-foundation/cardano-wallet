@@ -55,9 +55,11 @@ module Cardano.Wallet.DB.Model
     , mPutDelegationCertificate
     , mPutTxHistory
     , mReadTxHistory
+    , mRemovePendingTx
     , mPutPrivateKey
     , mReadPrivateKey
-    , mRemovePendingTx
+    , mPutTxParameters
+    , mReadTxParameters
     ) where
 
 import Prelude
@@ -77,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , Tx (..)
     , TxMeta (..)
+    , TxParameters (..)
     , TxStatus (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
@@ -131,6 +134,7 @@ data WalletDatabase s xprv = WalletDatabase
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
+    , txParameters :: !(Maybe TxParameters)
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -192,6 +196,7 @@ mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
                 , metadata = meta
                 , txHistory = history
                 , xprv = Nothing
+                , txParameters = Nothing
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
@@ -380,6 +385,14 @@ mPutPrivateKey wid pk = alterModel wid $ \wal ->
 mReadPrivateKey :: Ord wid => wid -> ModelOp wid s xprv (Maybe xprv)
 mReadPrivateKey wid db@(Database wallets _) =
     (Right (Map.lookup wid wallets >>= xprv), db)
+
+mPutTxParameters :: Ord wid => wid -> TxParameters -> ModelOp wid s xprv ()
+mPutTxParameters wid txp = alterModel wid $ \wal ->
+    ((), wal { txParameters = Just txp })
+
+mReadTxParameters :: Ord wid => wid -> ModelOp wid s xprv (Maybe TxParameters)
+mReadTxParameters wid db@(Database wallets _) =
+    (Right (Map.lookup wid wallets >>= txParameters), db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers
