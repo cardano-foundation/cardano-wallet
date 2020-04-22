@@ -3,6 +3,13 @@ weight: 3
 title: How to get target address for incoming transaction
 ---
 
+{{<hint warning>}}
+**Difficulty:** beginner
+
+**Requires:**
+- 📦 cardano-wallet >= `v2020-04-01`
+{{</hint>}}
+
 Once you have a wallet you can manage your funds. In order to receive a transaction you need to provide an address associated with your wallet to the sender.
 
 ## Random wallets
