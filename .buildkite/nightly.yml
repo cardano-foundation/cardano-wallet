@@ -14,6 +14,7 @@ steps:
     timeout_in_minutes: 600
     agents:
       system: x86_64-linux
+      queue: benchmark
 
   - label: 'Restore benchmark - testnet'
     command: "./.buildkite/bench-restore.sh"
@@ -23,18 +24,21 @@ steps:
     timeout_in_minutes: 600
     agents:
       system: x86_64-linux
+      queue: benchmark
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
+      queue: benchmark
 
   - label: 'Latency benchmark'
     command: "./.buildkite/bench-latency.sh"
     timeout_in_minutes: 120
     agents:
       system: x86_64-linux
+      queue: benchmark
 
   - label: 'Database Migrations Test'
     commands:
