@@ -130,6 +130,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
+    , GenesisBlockParameters (..)
     , Hash (..)
     , PoolId
     , SlotId (..)
@@ -207,7 +208,7 @@ withNetworkLayer
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -226,7 +227,7 @@ withNetworkLayerLaunch
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -246,7 +247,7 @@ withNetworkLayerConn
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -265,7 +266,7 @@ newNetworkLayer
     => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO ((J.Block, BlockchainParameters), NetworkLayer IO t J.Block)
+    -> ExceptT ErrGetBlockchainParams IO ((J.Block, GenesisBlockParameters), NetworkLayer IO t J.Block)
 newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
@@ -273,8 +274,9 @@ newNetworkLayer tr baseUrl block0H = do
     let tr' = contramap MsgWaitForService tr
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
-    (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
-    return ((block0, bp), mkRawNetworkLayer bp 1000 st jor)
+    (block0, gbp) <- getInitialBlockchainParameters jor (coerce block0H)
+    let bp = staticParameters gbp
+    return ((block0, gbp), mkRawNetworkLayer bp 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -295,6 +297,9 @@ mkRawNetworkLayer
 mkRawNetworkLayer bp batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
+
+    , getTxParameters =
+        error "fixme jormungandr"
 
     , nextBlocks =
         _nextBlocks

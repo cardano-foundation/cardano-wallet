@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate
     , Direction (..)
     , EpochNo (..)
+    , FeePolicy
     , Hash (..)
     , Hash (..)
     , PoolId (..)
@@ -120,6 +121,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxParameters
     , TxStatus
     , UTxO (..)
     , WalletId (..)
@@ -779,6 +781,12 @@ instance ToExpr Address where
     toExpr = genericToExpr
 
 instance ToExpr TxMeta where
+    toExpr = genericToExpr
+
+instance ToExpr TxParameters where
+    toExpr = genericToExpr
+
+instance ToExpr FeePolicy where
     toExpr = genericToExpr
 
 instance ToExpr Direction where

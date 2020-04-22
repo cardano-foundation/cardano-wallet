@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockchainParameters (..), SyncTolerance (..) )
+    ( GenesisBlockParameters (..), SyncTolerance (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -180,7 +180,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
   where
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext wAddr nPort bp = do
+        let setupContext wAddr nPort gbp = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -188,7 +188,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                let feePolicy = getFeePolicy bp
+                let feePolicy = getFeePolicy (txParameters gbp)
                 faucet <- initFaucet feePolicy
                 putMVar ctx (nPort, feePolicy, Context
                     { _cleanup = pure ()
@@ -196,7 +196,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
-                    , _blockchainParameters = bp
+                    , _blockchainParameters = staticParameters gbp
                     , _target = Proxy
                     })
         race

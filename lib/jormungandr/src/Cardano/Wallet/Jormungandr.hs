@@ -121,6 +121,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisBlockParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -204,7 +205,7 @@ serveWallet
     -- ^ HTTP API Server port.
     -> JormungandrBackend
     -- ^ Whether and how to launch or use the node backend.
-    -> (SockAddr -> Port "node" -> BlockchainParameters -> IO ())
+    -> (SockAddr -> Port "node" -> GenesisBlockParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMainLoop = do
@@ -217,8 +218,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
   where
     serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
-        Right (cp, (block0, bp), nl) -> do
+        Right (cp, (block0, gbp), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
+            let bp = staticParameters gbp
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
@@ -232,7 +234,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     byronApi   <- apiLayer (block0, bp) byronTl nl
                     icarusApi  <- apiLayer (block0, bp) icarusTl nl
                     shelleyApi <- apiLayer (block0, bp) shelleyTl nl
-                    startServer socket nPort bp
+                    startServer socket nPort gbp
                         byronApi
                         icarusApi
                         shelleyApi
@@ -243,7 +245,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     startServer
         :: Socket
         -> Port "node"
-        -> BlockchainParameters
+        -> GenesisBlockParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey

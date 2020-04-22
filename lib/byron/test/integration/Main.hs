@@ -52,12 +52,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , BlockchainParameters (..)
     , FeePolicy (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)
+    , TxParameters (..)
     )
 import Control.Concurrent.Async
     ( race )
@@ -154,7 +155,7 @@ specWithServer tr = aroundAll withContext . after tearDown
     withContext :: (Context Byron -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext bp wAddr = do
+        let setupContext gbp wAddr = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -168,8 +169,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator (getFeePolicy bp)
-                    , _blockchainParameters = bp
+                    , _feeEstimator = mkFeeEstimator (getFeePolicy (txParameters gbp))
+                    , _blockchainParameters = staticParameters gbp
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=

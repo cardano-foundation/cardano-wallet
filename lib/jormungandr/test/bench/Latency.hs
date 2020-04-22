@@ -64,7 +64,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockchainParameters (..), SyncTolerance (..) )
+    ( GenesisBlockParameters (..), SyncTolerance (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -462,20 +462,20 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
         res <- serveWallet @('Testnet 0)
             tracers (SyncTolerance 10)
             Nothing "127.0.0.1"
-            ListenOnRandomPort (Launch jmCfg) $ \wAddr _ bp -> do
+            ListenOnRandomPort (Launch jmCfg) $ \wAddr _ gbp -> do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet (getFeePolicy bp)
+                faucet <- initFaucet (getFeePolicy (txParameters gbp))
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _blockchainParameters = bp
+                    , _blockchainParameters = staticParameters gbp
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }

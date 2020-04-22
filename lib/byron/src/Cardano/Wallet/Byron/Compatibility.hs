@@ -48,6 +48,8 @@ module Cardano.Wallet.Byron.Compatibility
     , fromTxAux
     , fromTxIn
     , fromTxOut
+
+    , txParametersFromUpdateState
     ) where
 
 import Prelude
@@ -117,6 +119,9 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Chain.Common as CC
+import qualified Cardano.Chain.Update as Update
+import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
@@ -429,3 +434,20 @@ fromNetworkMagic (NetworkMagic magic) =
 
 fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
 fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
+
+-- | Pluck the blockchain parameters relevant to creating transactions out of
+-- the cardano-chain update state record.
+txParametersFromUpdateState :: Update.State -> W.TxParameters
+txParametersFromUpdateState = mk . Update.adoptedProtocolParameters
+  where
+    mk :: Update.ProtocolParameters -> W.TxParameters
+    mk pp = W.TxParameters
+        { getFeePolicy = feePolicy $ Update.ppTxFeePolicy pp
+        , getTxMaxSize = Quantity . fromIntegral $ Update.ppMaxTxSize pp
+        }
+    feePolicy :: CC.TxFeePolicy -> W.FeePolicy
+    feePolicy (CC.TxFeePolicyTxSizeLinear (CC.TxSizeLinear a m)) =
+        W.LinearFee
+            (Quantity (fromIntegral (CC.lovelaceToInteger a)))
+            (Quantity (fromRational m))
+            (Quantity 0) -- certificates do not exist for Byron

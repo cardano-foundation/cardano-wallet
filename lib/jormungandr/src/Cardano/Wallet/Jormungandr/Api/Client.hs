@@ -79,9 +79,11 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , EpochNo (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , SealedTx
     , SlotLength (..)
+    , TxParameters (..)
     )
 import Control.Arrow
     ( left )
@@ -152,7 +154,7 @@ data JormungandrClient m = JormungandrClient
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetBlockchainParams m (J.Block, BlockchainParameters)
+        -> ExceptT ErrGetBlockchainParams m (J.Block, GenesisBlockParameters)
     , getStakeDistribution
         :: EpochNo
         -> ExceptT ErrNetworkUnavailable m StakeApiResponse
@@ -289,17 +291,21 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
             ([policy],[duration],[block0T], [epLength], [stability],[coeff]) ->
                 return
                     ( jblock
-                    , BlockchainParameters
-                        { getGenesisBlockHash = block0
-                        , getGenesisBlockDate = block0T
-                        , getFeePolicy = case mperCertFee of
-                            [override] -> overrideFeePolicy policy override
-                            _ -> policy
-                        , getEpochLength = epLength
-                        , getSlotLength = SlotLength duration
-                        , getTxMaxSize = softTxMaxSize
-                        , getEpochStability = stability
-                        , getActiveSlotCoefficient = coeff
+                    , GenesisBlockParameters
+                        { staticParameters = BlockchainParameters
+                            { getGenesisBlockHash = block0
+                            , getGenesisBlockDate = block0T
+                            , getEpochLength = epLength
+                            , getSlotLength = SlotLength duration
+                            , getEpochStability = stability
+                            , getActiveSlotCoefficient = coeff
+                            }
+                        , txParameters = TxParameters
+                            { getFeePolicy = case mperCertFee of
+                                [override] -> overrideFeePolicy policy override
+                                _ -> policy
+                            , getTxMaxSize = softTxMaxSize
+                            }
                         }
                     )
             _ ->

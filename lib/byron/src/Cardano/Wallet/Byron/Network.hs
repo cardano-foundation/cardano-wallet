@@ -38,8 +38,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
-import Cardano.Chain.Slotting
-    ( EpochSlots (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
     , fromChainHash
@@ -48,6 +46,7 @@ import Cardano.Wallet.Byron.Compatibility
     , toEpochSlots
     , toGenTx
     , toPoint
+    , txParametersFromUpdateState
     )
 import Cardano.Wallet.Network
     ( Cursor
@@ -63,7 +62,7 @@ import Control.Concurrent.Async
 import Control.Exception
     ( IOException )
 import Control.Monad
-    ( forever, (>=>) )
+    ( forever, unless, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -75,6 +74,7 @@ import Control.Monad.Class.MonadSTM
     , TQueue
     , atomically
     , newEmptyTMVarM
+    , newTMVarM
     , newTQueue
     , newTVar
     , putTMVar
@@ -221,14 +221,12 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
 import System.IO.Error
     ( isDoesNotExistError )
 
-import qualified Cardano.Chain.Common as CC
-import qualified Cardano.Chain.Update as Update
-import qualified Cardano.Chain.Update.Validation.Interface as Update
+import qualified Cardano.Chain.Update.Validation.Interface as U
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LocalStateQuery
+import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
 {- HLINT ignore "Use readTVarIO" -}
 
@@ -262,7 +260,8 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     txParamsVar <- atomically $ newTVar (W.txParameters gbp)
-    nodeTipClient <- mkTipSyncClient tr
+    nodeTipClient <- mkTipSyncClient tr bp
+        localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
     let handlers = retryOnConnectionLost tr
@@ -272,7 +271,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
-            , initCursor = _initCursor localTxSubmissionQ
+            , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
             , getTxParameters = atomically $ readTVar txParamsVar
             , postTx = _postTx localTxSubmissionQ
@@ -285,10 +284,9 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         , getEpochLength
         } = W.staticParameters gbp
 
-    _initCursor localTxSubmissionQ headers = do
+    _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        localStateQueryQ <- atomically newTQueue
-        let client = const $ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ localStateQueryQ
+        let client = const $ mkWalletClient bp chainSyncQ
         let handlers = failOnConnectionLost tr
         link =<< async (connectClient tr handlers client versionData addrInfo)
         let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
@@ -386,26 +384,14 @@ data LocalTxSubmissionCmd (m :: * -> *)
         (GenTx ByronBlock)
         (Maybe ApplyMempoolPayloadErr -> m ())
 
-type LocalStateQueryResult = Either AcquireFailure Update.State
+-- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
 data LocalStateQueryCmd (m :: * -> *)
     = CmdQueryLocalState
         (Point ByronBlock)
         (LocalStateQueryResult -> m ())
 
-txParametersFromUpdateState :: Update.State -> W.TxParameters
-txParametersFromUpdateState = mk . Update.adoptedProtocolParameters
-  where
-    mk :: Update.ProtocolParameters -> W.TxParameters
-    mk pp = W.TxParameters
-        { getFeePolicy = feePolicy $ Update.ppTxFeePolicy pp
-        , getTxMaxSize = Quantity . fromIntegral $ Update.ppMaxTxSize pp
-        }
-    feePolicy :: CC.TxFeePolicy -> W.FeePolicy
-    feePolicy (CC.TxFeePolicyTxSizeLinear (CC.TxSizeLinear a m)) =
-        W.LinearFee
-            (Quantity (fromIntegral (CC.lovelaceToInteger a)))
-            (Quantity (fromRational m))
-            (Quantity 0) -- certificates do not exist for Byron
+-- | Shorthand for the possible outcomes of acquiring local state parameters.
+type LocalStateQueryResult = Either AcquireFailure U.State
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.
@@ -449,53 +435,50 @@ type NetworkClient m = OuroborosApplication
         -- Irrelevant for 'InitiatorApplication'. Return type of 'Responder'
         -- application.
 
--- | Construct a network client with the given communication channel
-mkNetworkClient
+-- | Construct a network client with the given communication channel, for the
+-- purposes of syncing blocks to a single wallet.
+mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m)
-    => Tracer m NetworkLayerLog
-        -- ^ Base trace for underlying protocols
-    -> W.BlockchainParameters
+    => W.BlockchainParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd m)
         -- ^ Communication channel with the ChainSync client
-    -> TQueue m (LocalTxSubmissionCmd m)
-        -- ^ Communication channel with the LocalTxSubmission client
-    -> TQueue m (LocalStateQueryCmd m)
-        -- ^ Communication channel with the LocalStateQuery client -- todo: not sure whether to do it like this.
     -> NetworkClient m
-mkNetworkClient tr bp chainSyncQ localTxSubmissionQ localStateQueryQ =
+mkWalletClient bp chainSyncQ =
     nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 chainSyncWithBlocks nullTracer bp chainSyncQ channel
-        , localTxSubmissionProtocol =
-            let tr' = contramap MsgTxSubmission tr in
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                localTxSubmission tr' localTxSubmissionQ channel
-        , localStateQueryProtocol =
-            doNothingProtocol
+        , localTxSubmissionProtocol = doNothingProtocol
+        , localStateQueryProtocol = doNothingProtocol
         }
         NodeToClientV_2
 
--- | A protocol client that will never leave the initial state.
-doNothingProtocol
-    :: MonadTimer m => RunMiniProtocol 'InitiatorApp ByteString m a Void
-doNothingProtocol =
-    InitiatorProtocolOnly $ MuxPeerRaw $
-    const $ forever $ threadDelay 1e6
-
--- | Construct a network client with the given communication channel
+-- | Construct a network client with the given communication channel, for the
+-- purpose of:
+--
+--  * Submitting transactions
+--  * Tracking the node tip
+--  * Tracking the latest protocol parameters state.
 mkTipSyncClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
+    -> W.BlockchainParameters
+        -- ^ Blockchain parameters
+    -> TQueue m (LocalTxSubmissionCmd m)
+        -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
         -- ^ Notifier callback for when tip changes
     -> (W.TxParameters -> m ())
-        -- ^ Notifier callback for when parameters for tip change
+        -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr bp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
+
+    onTxParamsUpdate' <- debounce $ \txParams -> do
+        traceWith tr $ MsgTxParameters txParams
+        onTxParamsUpdate txParams
 
     let
         onTipUpdate' tip = do
@@ -504,22 +487,24 @@ mkTipSyncClient tr onTipUpdate onTxParamsUpdate = do
             queryLocalState (getTipPoint tip)
 
         queryLocalState pt =
-            (localStateQueryQ `send` CmdQueryLocalState pt) >>= \case
-                Left e ->
-                    traceWith tr $ MsgLocalStateQueryError (show e)
-                Right (Left e) ->
-                    traceWith tr $ MsgLocalStateQueryError (show e)
-                Right (Right ls) -> do
-                    let txParams = txParametersFromUpdateState ls
-                    traceWith tr $ MsgTxParameters txParams
-                    onTxParamsUpdate txParams
+            (localStateQueryQ `send` CmdQueryLocalState pt) >>= handleLocalState
+
+        handleLocalState = \case
+            Left (e :: ErrNetworkUnavailable) ->
+                traceWith tr $ MsgLocalStateQueryError $ show e
+            Right (Left (e :: AcquireFailure)) ->
+                traceWith tr $ MsgLocalStateQueryError $ show e
+            Right (Right ls) ->
+                onTxParamsUpdate' $ txParametersFromUpdateState ls
 
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                chainSyncParams nullTracer onTipUpdate' channel
+                chainSyncFollowTip nullTracer bp onTipUpdate' channel
         , localTxSubmissionProtocol =
-            doNothingProtocol
+            let tr' = contramap MsgTxSubmission tr in
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
+                localTxSubmission tr' localTxSubmissionQ channel
         , localStateQueryProtocol =
             let tr' = contramap MsgLocalStateQuery tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
@@ -527,18 +512,27 @@ mkTipSyncClient tr onTipUpdate onTxParamsUpdate = do
         }
         NodeToClientV_2
 
+-- | Return a function to run an action only if its single parameter has changed
+-- since the previous time it was called.
+debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
+debounce action = do
+    mvar <- newTMVarM Nothing
+    pure $ \cur -> do
+        prev <- atomically $ takeTMVar mvar
+        unless (Just cur == prev) $ action cur
+        atomically $ putTMVar mvar (Just cur)
+
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
-    :: MonadTimer m => RunMiniProtocol InitiatorApp ByteString m a Void
+    :: MonadTimer m => RunMiniProtocol 'InitiatorApp ByteString m a Void
 doNothingProtocol =
     InitiatorProtocolOnly $ MuxPeerRaw $
     const $ forever $ threadDelay 1e6
->>>>>>> a53b8a9af... Add LocalStateQuery to byron network layer
 
--- Connect a client to a network, see `mkNetworkClient` to construct a network
+-- Connect a client to a network, see `mkWalletClient` to construct a network
 -- client interface.
 --
--- >>> connectClient (mkNetworkClient tr bp queue) mainnetVersionData addrInfo
+-- >>> connectClient (mkWalletClient tr bp queue) mainnetVersionData addrInfo
 connectClient
     :: Tracer IO NetworkLayerLog
     -> [RetryStatus -> Handler IO Bool]
@@ -691,13 +685,7 @@ chainSyncWithBlocks tr bp queue channel = do
         } = bp
 
     codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = codecChainSync
-        encodeByronBlock
-        (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
-        (encodePoint encodeByronHeaderHash)
-        (decodePoint decodeByronHeaderHash)
-        (encodeTip encodeByronHeaderHash)
-        (decodeTip decodeByronHeaderHash)
+    codec = chainSyncCodec bp
 
     client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
     client = ChainSyncClient clientStIdle
@@ -758,54 +746,95 @@ chainSyncWithBlocks tr bp queue channel = do
                 respond (RollBackward point)
                 clientStIdle
 
-chainSyncParams
+chainSyncCodec
     :: forall m protocol.
         ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
-        , MonadThrow m, MonadST m, MonadSTM m, MonadTimer m
+        , MonadST m
+        )
+    => W.BlockchainParameters
+    -> Codec protocol DeserialiseFailure m ByteString
+chainSyncCodec W.BlockchainParameters{getEpochLength} = codecChainSync
+    encodeByronBlock
+    (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
+    (encodePoint encodeByronHeaderHash)
+    (decodePoint decodeByronHeaderHash)
+    (encodeTip encodeByronHeaderHash)
+    (decodeTip decodeByronHeaderHash)
+
+-- | Client for the 'Chain Sync' mini-protocol, which provides notifications
+-- when the node tip changes.
+--
+-- This is used in the same way as 'chainSyncWithBlocks', except that only one
+-- of these clients is necessary, rather than one client per wallet.
+chainSyncFollowTip
+    :: forall m protocol.
+        ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
+        , MonadThrow m, MonadST m
         )
     => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
+    -> W.BlockchainParameters
+        -- ^ Blockchain parameters
     -> (Tip ByronBlock -> m ())
+        -- ^ Callback for when the tip changes.
     -> Channel m ByteString
         -- ^ A 'Channel' is a abstract communication instrument which
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-chainSyncParams tr onTipUpdate channel = do
+chainSyncFollowTip tr bp onTipUpdate channel =
     runPeer tr codec channel (chainSyncClientPeer client)
   where
-    -- fixme: make dummy codec more dummy
+    -- fixme: it's not necessary to deserialise blocks here, so
+    -- Ouroboros.Consensus.Network.NodeToClient.defaultCodecs could be used.
     codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = codecChainSync
-        encodeByronBlock
-        (unwrapCBORinCBOR $ decodeByronBlock (EpochSlots 1))
-        (encodePoint encodeByronHeaderHash)
-        (decodePoint decodeByronHeaderHash)
-        (encodeTip encodeByronHeaderHash)
-        (decodeTip decodeByronHeaderHash)
+    codec = chainSyncCodec bp
 
     client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
-    client = ChainSyncClient clientStIdle
+    client = ChainSyncClient (clientStIdle False)
       where
-        -- Client in the state 'Idle'. We immediately request the next block
+        -- Client in the state 'Idle'. We immediately request the next block.
         clientStIdle
-            :: m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
-        clientStIdle = pure $ SendMsgRequestNext clientStNext
-            (threadDelay 5 >> pure clientStNext)
+            :: Bool
+            -> m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
+        clientStIdle synced = pure $ SendMsgRequestNext
+            (clientStNext synced)
+            (pure $ clientStNext synced)
 
-        -- fixme: investigate why this is spinning rather than waiting for MustReply
+        -- In the CanAwait state, we take the tip point given by the node and
+        -- ask for the intersection of that point. This fast-fowards us to the
+        -- tip. Once synchronised with the tip, we expect to be waiting for the
+        -- server to send AwaitReply most of the time.
         clientStNext
-            :: ClientStNext ByronBlock (Tip ByronBlock) m Void
-        clientStNext = ClientStNext
-                { recvMsgRollBackward = \_point tip ->
-                    ChainSyncClient $ do
-                        onTipUpdate tip
-                        clientStIdle
-                , recvMsgRollForward = \_blocks tip ->
-                    ChainSyncClient $ do
-                        onTipUpdate tip
-                        clientStIdle
+            :: Bool
+            -> ClientStNext ByronBlock (Tip ByronBlock) m Void
+        clientStNext False = ClientStNext
+                { recvMsgRollBackward = const findIntersect
+                , recvMsgRollForward = const findIntersect
                 }
+          where
+            findIntersect tip = ChainSyncClient $
+                pure $ SendMsgFindIntersect [getTipPoint tip] clientStIntersect
+
+        clientStNext True = ClientStNext
+                { recvMsgRollBackward = const doUpdate
+                , recvMsgRollForward = const doUpdate
+                }
+          where
+            doUpdate tip = ChainSyncClient $ do
+                onTipUpdate tip
+                clientStIdle True
+
+        -- After an intersection is found, we return to idle with the sync flag
+        -- set.
+        clientStIntersect
+            :: ClientStIntersect ByronBlock (Tip ByronBlock) m Void
+        clientStIntersect = ClientStIntersect
+            { recvMsgIntersectFound = \_intersection _tip ->
+                ChainSyncClient $ clientStIdle True
+            , recvMsgIntersectNotFound = \_tip ->
+                ChainSyncClient $ clientStIdle False
+            }
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
 --
@@ -866,6 +895,35 @@ localTxSubmission tr queue channel =
             CmdSubmitTx tx respond ->
                 SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
 
+-- | Client for the 'Local State Query' mini-protocol.
+--
+-- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
+-- constructor.
+--
+--                                    Agency
+--     -------------------------------------------------------------------------
+--     Client has agency*                | Idle, Acquired
+--     Server has agency*                | Acquiring, Querying
+--     * A peer has agency if it is expected to send the next message.
+--
+--
+--                ┌───────────────┐    Done      ┌───────────────┐
+--        ┌──────▶│     Idle      ├─────────────▶│     Done      │
+--        │       └───┬───────────┘              └───────────────┘
+--        │           │       ▲
+--        │   Acquire │       │
+--        │           │       │ Failure
+--        │           ▼       │
+--        │       ┌───────────┴───┐              Result
+--        │       │   Acquiring   │◀─────────────────────┐
+--        │       └───┬───────────┘                      │
+-- Release│           │       ▲                          │
+--        │           │       │                          │
+--        │  Acquired ▼       │ ReAcquire                │
+--        │       ┌───────────┴───┐             ┌────────┴───────┐
+--        └───────┤   Acquired    │────────────>│   Querying     │
+--                └───────────────┘             └────────────────┘
+--
 localStateQuery
     :: forall m protocol.
         ( MonadThrow m, MonadTimer m, MonadST m
@@ -896,45 +954,51 @@ localStateQuery tr queue channel =
           nodeEncodeResult
           nodeDecodeResult
 
-    client
-        :: LocalStateQueryClient ByronBlock (Query ByronBlock) m Void
+    client :: LocalStateQueryClient ByronBlock (Query ByronBlock) m Void
     client = LocalStateQueryClient clientStIdle
       where
         clientStIdle
-            :: m (LocalStateQuery.ClientStIdle ByronBlock (Query ByronBlock) m Void)
-        clientStIdle = atomically (readTQueue queue) <&> \case
+            :: m (LSQ.ClientStIdle ByronBlock (Query ByronBlock) m Void)
+        clientStIdle = awaitNextCmd <&> \case
             CmdQueryLocalState pt respond ->
-                LocalStateQuery.SendMsgAcquire pt (clientStAcquiring respond)
+                LSQ.SendMsgAcquire pt (clientStAcquiring respond)
 
         clientStAcquiring
             :: (LocalStateQueryResult -> m ())
-            -> LocalStateQuery.ClientStAcquiring ByronBlock (Query ByronBlock) m Void
-        clientStAcquiring respond = LocalStateQuery.ClientStAcquiring
-            { recvMsgAcquired = clientStAcquired1 respond
+            -> LSQ.ClientStAcquiring ByronBlock (Query ByronBlock) m Void
+        clientStAcquiring respond = LSQ.ClientStAcquiring
+            { recvMsgAcquired = clientStAcquired respond
             , recvMsgFailure = \failure -> do
                     respond (Left failure)
                     clientStIdle
             }
 
-        clientStAcquired1
+        clientStAcquired
             :: (LocalStateQueryResult -> m ())
-            -> LocalStateQuery.ClientStAcquired ByronBlock (Query ByronBlock) m Void
-        clientStAcquired1 respond = LocalStateQuery.SendMsgQuery GetUpdateInterfaceState (clientStQuerying respond)
+            -> LSQ.ClientStAcquired ByronBlock (Query ByronBlock) m Void
+        clientStAcquired respond = LSQ.SendMsgQuery
+            GetUpdateInterfaceState
+            (clientStQuerying respond)
 
-        clientStAcquired2
-            :: m (LocalStateQuery.ClientStAcquired ByronBlock (Query ByronBlock) m Void)
-        clientStAcquired2 = atomically (readTQueue queue) <&> \case
+        -- By re-acquiring rather releasing the state with 'MsgRelease' it
+        -- enables optimisations on the server side.
+        clientStAcquiredAgain
+            :: m (LSQ.ClientStAcquired ByronBlock (Query ByronBlock) m Void)
+        clientStAcquiredAgain = awaitNextCmd <&> \case
             CmdQueryLocalState pt respond ->
-                LocalStateQuery.SendMsgReAcquire pt (clientStAcquiring respond)
+                LSQ.SendMsgReAcquire pt (clientStAcquiring respond)
 
         clientStQuerying
             :: (LocalStateQueryResult -> m ())
-           -> LocalStateQuery.ClientStQuerying ByronBlock (Query ByronBlock) m Void Update.State
-        clientStQuerying respond = LocalStateQuery.ClientStQuerying
+            -> LSQ.ClientStQuerying ByronBlock (Query ByronBlock) m Void U.State
+        clientStQuerying respond = LSQ.ClientStQuerying
             { recvMsgResult = \result -> do
                     respond (Right result)
-                    clientStAcquired2
+                    clientStAcquiredAgain
             }
+
+    awaitNextCmd :: m (LocalStateQueryCmd m)
+    awaitNextCmd = atomically $ readTQueue queue
 
 --------------------------------------------------------------------------------
 --
@@ -999,8 +1063,12 @@ instance ToText NetworkLayerLog where
             ]
         MsgTxParameters params -> T.unwords
             [ "TxParams for tip are:"
-            , pretty params ]
-        MsgLocalStateQueryError e -> T.pack e
+            , pretty params
+            ]
+        MsgLocalStateQueryError e -> T.unwords
+            [ "Error when querying local state parameters:"
+            , T.pack e
+            ]
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where

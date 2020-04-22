@@ -28,9 +28,12 @@ import Cardano.Wallet.Network.BlockHeaders
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , BlockchainParameters (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
+    , TxParameters (..)
+    , TxParameters (..)
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, newMVar, readMVar )
@@ -338,9 +341,9 @@ mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
-    Right (_b0, bp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
+    Right (_b0, gbp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure
-        ( fromJBlock <$> mkRawNetworkLayer bp (fromIntegral k) st jm
+        ( fromJBlock <$> mkRawNetworkLayer (staticParameters gbp) (fromIntegral k) st jm
         , findIntersection st
         )
   where
@@ -396,16 +399,20 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
-        pure (block0, BlockchainParameters
-            { getGenesisBlockHash = blockId
-            , getGenesisBlockDate = error "mock bp"
-            , getFeePolicy = error "mock bp"
-            , getSlotLength = error "mock bp"
-            , getEpochLength = error "mock bp"
-            , getTxMaxSize = error "mock bp"
-            , getEpochStability = Quantity (fromIntegral k)
-            , getActiveSlotCoefficient = error "mock bp"
-            })
+        pure (block0, GenesisBlockParameters
+                 { staticParameters = BlockchainParameters
+                     { getGenesisBlockHash = blockId
+                     , getGenesisBlockDate = error "mock bp"
+                     , getSlotLength = error "mock bp"
+                     , getEpochLength = error "mock bp"
+                     , getEpochStability = Quantity (fromIntegral k)
+                     , getActiveSlotCoefficient = error "mock bp"
+                     }
+                 , txParameters = TxParameters
+                     { getFeePolicy = error "mock bp"
+                     , getTxMaxSize = error "mock bp"
+                     }
+                 })
 
     , postMessage = \_ -> error "mock postMessage"
 
