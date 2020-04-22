@@ -101,6 +101,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , flatSlot
     , isPending
+    , rangeIsValid
     , slotSucc
     , unsafeEpochNo
     , wholeRange
@@ -415,10 +416,10 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList u
 
 
-instance Arbitrary a => Arbitrary (Range a) where
+instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
     arbitrary = Range <$> arbitrary <*> arbitrary
 
-    shrink (Range from to) =
+    shrink (Range from to) = filter rangeIsValid $
         [Range from' to | from' <- shrink from]
         ++ [Range from to' | to' <- shrink to]
 
