@@ -2,10 +2,16 @@
 weight: 4
 title: How to make a transaction
 ---
-
 {{<tabs>}}
 
 {{<tab "using cardano-wallet">}}
+{{<hint warning>}}
+**Difficulty:** beginner
+
+**Requires:**
+- 📦 cardano-wallet >= `v2020-04-01`
+{{</hint>}}
+
 Assuming you have already created a wallet, you can send a transaction by using the following endpoint:
 
 [`POST /v2/byron-wallets/{walletId}/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronTransaction)
@@ -25,6 +31,15 @@ For more information about transactions lifecycle, have a look at this [wiki pag
 
 
 {{<tab "using cardano-transactions">}}
+
+{{<hint warning>}}
+**Difficulty:** advanced
+
+**Requires:**
+- 📦 cardano-transactions >= `1.0.0`
+- 📦 cardano-submit-api >= `2.0.0` OR cardano-wallet >= `v2020-04-01`
+{{</hint>}}
+
 Alternatively, `cardano-wallet` and `cardano-submit-api` allows clients to submit already signed and serialized transactions as a raw bytes blob. This can be done by submitting such serialized data as an `application/octet-stream` to either of:
 
 - cardano-wallet: [`POST   /v2/proxy/transactions`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postExternalTransaction)
