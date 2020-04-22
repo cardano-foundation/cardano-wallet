@@ -48,7 +48,7 @@ import Data.ByteString
 import Data.Char
     ( isSpace )
 import Data.Maybe
-    ( fromMaybe, mapMaybe, maybeToList )
+    ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Safe
     ( headMay, readMay )
 import System.Exit
@@ -63,6 +63,7 @@ main :: IO ()
 main = do
     (RebuildOpts{..}, cmd) <- parseOpts
     bk <- getBuildkiteEnv
+    nightly <- envDefined "NIGHTLY_BUILD"
     cacheConfig <- getCacheConfig bk optCacheDirectory
     case cmd of
         Build -> do
@@ -70,7 +71,7 @@ main = do
             whenRun optDryRun $ do
                 cacheGetStep cacheConfig
                 cleanBuildDirectory (fromMaybe "." optBuildDirectory)
-            buildResult <- buildStep optDryRun bk
+            buildResult <- buildStep optDryRun bk nightly
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
             if buildResult == ExitSuccess
@@ -93,7 +94,7 @@ data Command = Build | CleanupCache | PurgeCache deriving (Show)
 
 data DryRun = Run | DryRun deriving (Show, Eq)
 
-data QA = QuickTest | FullTest deriving (Show, Eq)
+data QA = QuickTest | FullTest | NightlyTest deriving (Show, Eq)
 
 data Jobs = Serial | Parallel deriving (Show, Eq)
 
@@ -135,8 +136,8 @@ parseOpts = execParser opts
         <> command "purge-cache" (info (pure PurgeCache) idm)
         )
 
-buildStep :: DryRun -> Maybe BuildkiteEnv -> IO ExitCode
-buildStep dryRun bk =
+buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
+buildStep dryRun bk nightly =
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
     titled "Build dependencies"
@@ -166,10 +167,10 @@ buildStep dryRun bk =
             [ color "always"
             , [ "test" ]
             , fast opt
-            , skip "jormungandr-integration"
-            , case qaLevel bk of
-                QuickTest -> skip "integration"
-                FullTest -> []
+            , case qaLevel nightly bk of
+                QuickTest -> skip "integration" <> skip "jormungandr-integration"
+                FullTest -> skip "jormungandr-integration"
+                NightlyTest -> mempty
             , case behavior of
                 Serial ->
                     ta (match serialTests ++ jobs 1) ++ jobs 1
@@ -256,11 +257,12 @@ isBorsBuild :: BuildkiteEnv -> Bool
 isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
 
 -- | How much time to spend executing tests.
-qaLevel :: Maybe BuildkiteEnv -> QA
-qaLevel = maybe QuickTest level
+qaLevel :: Bool -> Maybe BuildkiteEnv -> QA
+qaLevel nightly = maybe QuickTest level
   where
     level bk
         | isBorsBuild bk = FullTest
+        | nightly = NightlyTest
         | onDefaultBranch bk = QuickTest
         | otherwise = QuickTest
 
@@ -561,6 +563,9 @@ want = fmap (>>= nullToNothing) . need
   where
     nullToNothing "" = Nothing
     nullToNothing a = Just a
+
+envDefined :: MonadIO io => Text -> io Bool
+envDefined = fmap isJust . want
 
 doMaybe :: Monad m => (a -> m ()) -> Maybe a -> m ()
 doMaybe = maybe (pure ())

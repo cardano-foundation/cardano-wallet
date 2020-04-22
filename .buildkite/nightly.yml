@@ -48,3 +48,11 @@ steps:
     timeout_in_minutes: 60
     agents:
       system: x86_64-linux
+
+  - label: "Rebuild master branch"
+    trigger: "cardano-wallet"
+    build:
+      message: "Nightly build with jormungandr integration tests"
+      env:
+        NIGHTLY_BUILD: "yes"
+    # async: true
