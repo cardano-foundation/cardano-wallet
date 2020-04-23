@@ -886,17 +886,34 @@ propCliKeySchemeEquality
 propCliKeySchemeEquality s1 s2 = do
     (forAll (genAllowedMnemonic s1) propSameMnem)
     .&&.
-    (forAll (genAllowedMnemonic s1) propSameChild)
+    (forAll (genKey s1) propSameChild)
+    .&&.
+    (forAll (genKey s1) propSameToPublic)
+    .&&.
+    (forAll (genKey s1) propSameInspect)
     .&&.
     (allowedWordLengths s1) === (allowedWordLengths s2)
   where
     propSameMnem :: [Text] -> Property
     propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
 
-    propSameChild :: [Text] -> DerivationIndex -> Property
-    propSameChild mw i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
-      where
-        k = either (error . show) id $ mnemonicToRootKey s1 mw
+    propSameChild :: XPrvOrXPub -> DerivationIndex -> Property
+    propSameChild k i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
+
+    propSameToPublic :: XPrvOrXPub -> Property
+    propSameToPublic k = (toPublic s1 k) === (toPublic s2 k)
+
+    propSameInspect :: XPrvOrXPub -> Property
+    propSameInspect k = (inspect s1 k) === (inspect s2 k)
+
+    unsafe = either (error . show) id
+
+    genRootKey :: CliKeyScheme XPrvOrXPub (Either String) -> Gen XPrvOrXPub
+    genRootKey s = unsafe
+        . mnemonicToRootKey s
+        <$> genAllowedMnemonic s
+
+    genKey s = oneof [genRootKey s, (unsafe . toPublic s) <$> genRootKey s]
 
 genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
 genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
