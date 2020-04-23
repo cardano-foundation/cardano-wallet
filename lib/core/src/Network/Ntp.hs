@@ -63,7 +63,7 @@ ntpSettings = NtpSettings
     { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
                    , "0.pool.ntp.org", "1.pool.ntp.org"
                    , "2.pool.ntp.org", "3.pool.ntp.org" ]
-    , ntpRequiredNumberOfResults = 2
+    , ntpRequiredNumberOfResults = 3
     , ntpResponseTimeout = 1_000_000
     , ntpPollDelay = 300_000_000
     }
