@@ -111,6 +111,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."servant-server" or (buildDepError "servant-server"))
           (hsPkgs."split" or (buildDepError "split"))
           (hsPkgs."streaming-commons" or (buildDepError "streaming-commons"))
+          (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."text-class" or (buildDepError "text-class"))
