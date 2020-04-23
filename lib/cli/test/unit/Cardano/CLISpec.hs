@@ -13,16 +13,19 @@ module Cardano.CLISpec
     ( spec
     ) where
 
-import Prelude
+import Prelude hiding
+    ( (.) )
 
 import Cardano.CLI
     ( CliKeyScheme (..)
+    , Codec
     , DerivationIndex (..)
     , DerivationPath (..)
     , MnemonicSize (..)
     , Port (..)
     , TxId
     , XPrvOrXPub (..)
+    , anyKeyCodec
     , cli
     , cmdAddress
     , cmdKey
@@ -35,7 +38,9 @@ import Cardano.CLI
     , firstHardenedIndex
     , hGetLine
     , hGetSensitiveLine
-    , keyHexCodec
+    , inverse
+    , keyBech32Codec
+    , keyByteStringCodec
     , mapKey
     , newCliKeyScheme
     )
@@ -63,6 +68,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
     ( left )
+import Control.Category
+    ( (.) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -842,8 +849,14 @@ spec = do
                 (newCliKeyScheme s)
                 (newCliKeyScheme s)
 
-        it "scheme == mapKey (fromHex . toHex) scheme"
-            $ property prop_roundtripCliKeySchemeKeyViaHex
+        it "scheme == mapKey (fromBS . toBS) scheme" $ property
+            $ propCliKeySchemeCodecRoundTrip keyByteStringCodec
+
+        it "scheme == mapKey (fromAny . toAny) scheme" $ property
+            $ propCliKeySchemeCodecRoundTrip (anyKeyCodec . keyByteStringCodec )
+
+        it "scheme == mapKey (fromBech32 . toBech32) scheme" $ property
+            $ propCliKeySchemeCodecRoundTrip (keyBech32Codec . keyByteStringCodec )
 
         it "ledger /= icarus" $ do
             expectFailure $ propCliKeySchemeEquality
@@ -853,17 +866,6 @@ spec = do
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)
-
-prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
-prop_roundtripCliKeySchemeKeyViaHex style =
-            propCliKeySchemeEquality
-                (newCliKeyScheme style)
-                (mapKey (inverse keyHexCodec)
-                    . mapKey keyHexCodec
-                    $ newCliKeyScheme style)
-  where
-    inverse (a, b) = (b, a)
-
 
 -- | For soft indices, public key derivation should be "equivalent" to private
 -- key derivation.
@@ -918,6 +920,17 @@ prop_allowedWordLengthsAllWork style = do
         Left e -> counterexample
             (show (length mw) ++ " words, failed with: " ++ e)
             (property False)
+
+propCliKeySchemeCodecRoundTrip
+    :: Codec (Either String) XPrvOrXPub a
+    -> ByronWalletStyle
+    -> Property
+propCliKeySchemeCodecRoundTrip c style =
+            propCliKeySchemeEquality
+                scheme
+                (mapKey (inverse c) . mapKey c $ scheme)
+  where
+    scheme = newCliKeyScheme style
 
 propCliKeySchemeEquality
     :: CliKeyScheme XPrvOrXPub (Either String)

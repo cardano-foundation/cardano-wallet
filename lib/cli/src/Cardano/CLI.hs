@@ -14,6 +14,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -77,10 +78,16 @@ module Cardano.CLI
 
     , newCliKeyScheme
     , keyHexCodec
+    , keyBech32Codec
+    , keyByteStringCodec
+    , anyKeyCodec
     , hoistKeyScheme
     , mapKey
     , firstHardenedIndex
 
+    , Codec (..)
+    , inverse
+    , compose
 
     -- * Logging
     , withLogging
@@ -106,7 +113,7 @@ module Cardano.CLI
     ) where
 
 import Prelude hiding
-    ( getLine )
+    ( getLine, id, (.) )
 
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
@@ -139,7 +146,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
     , ApiT (..)
-    , ApiTxId (..)
+    , ApiTxId (ApiTxId)
     , ApiWallet
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -188,6 +195,8 @@ import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
     ( first, left )
+import Control.Category
+    ( Category, id, (.) )
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
@@ -200,6 +209,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower )
 import Data.List.Extra
@@ -410,25 +421,107 @@ hoistKeyScheme eta s = CliKeyScheme
     , inspect = eta . inspect s
     }
 
+-- | Bidirectional encoding of data that allows specialization.
+--
+-- When decoding, the correponding, potentially specialized encoder is returned
+-- along with the result:
+-- >>> let (Codec _ decode) = ...
+-- >>> (x, encodeBack) <- decode
+--
+-- This allows us to have a @Codec@ for /both/ hex and bech32, and makes sure
+-- that we always encode the result back in the same encoding as we first got.
+data Codec m a b = Codec (a -> m (b, Codec m b a)) (b -> m (a, Codec m a b))
+
+-- | A @Category@ instance for @Codec@ allows us to use the @(.)@ operator.
+instance Monad m => Category (Codec m) where
+    id = Codec id' id'
+      where
+        id' x = return (x, id)
+    (.) = compose
+
+-- | A simple @Codec@ that does not specialize.
+simpleCodec :: Functor m => (a -> m b) -> (b -> m a) -> Codec m a b
+simpleCodec encode decode =
+    let codec = Codec (fmap (,inverse codec) . encode) (fmap (,codec) . decode)
+    in codec
+
+inverse :: Codec m a b -> Codec m b a
+inverse (Codec f g) = Codec g f
+
+compose :: Monad m => Codec m b c -> Codec m a b -> Codec m a c
+compose (Codec e1 d1) (Codec e2 d2) = Codec encode decode
+  where
+    encode x = do
+        (x', f) <- e2 x
+        (x'', g) <- e1 x'
+        return (x'', f `compose` g)
+    decode x = do
+        (x', f) <- d1 x
+        (x'', g) <- d2 x'
+        return (x'', f `compose` g)
+
+
+-- | Run a @Codec@ in one direction, discarding the resulting inverse.
+runCodec :: Monad m => Codec m a b -> a -> m b
+runCodec (Codec enc _) = fmap fst . enc
+
+withCodec :: Monad m => Codec m a b -> (b -> m b) -> a -> m a
+withCodec (Codec enc _) f a = enc a >>= \(b, back) -> f b >>= runCodec back
+
 -- | Pair of functions representing the bidirectional transformation between
 -- a @XPrvOrXPub@ and its hex-encoded form.
-keyHexCodec :: (XPrvOrXPub -> Either String Text, Text -> Either String XPrvOrXPub)
-keyHexCodec = (encode, decode)
+keyHexCodec :: Codec (Either String) ByteString Text
+keyHexCodec = simpleCodec encode decode
   where
-    encode :: XPrvOrXPub -> Either String Text
-    encode (AXPub xpub) = return . T.pack . B8.unpack . hex . CC.unXPub $ xpub
-    encode (AXPrv xprv) =
-        fmap (T.pack . B8.unpack . hex)
-        . left showErr
+    encode :: ByteString -> Either String Text
+    encode = return . T.pack . B8.unpack . hex
+
+    decode :: Text -> Either String ByteString
+    decode txt = fromHex $ B8.pack $ T.unpack . T.strip $ txt
+      where
+        fromHex = left (const "Invalid hex.")
+            . convertFromBase Base16
+
+keyBech32Codec :: Codec (Either String) ByteString Text
+keyBech32Codec = simpleCodec encode decode
+  where
+    decode :: Text -> Either String ByteString
+    decode t = do
+        (hrp, dp) <- left show $ Bech32.decodeLenient t
+        bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
+        case hrp of
+            h | h == xpubHrp -> return bytes
+            h | h == xprvHrp -> return bytes
+            _ -> Left "unrecognized Bech32 Human Readable Part"
+      where
+        dpErr = "Internal error: Unable to extract bytes from bech32 data part"
+
+    encode :: ByteString -> Either String Text
+    encode bs =
+        -- Having to pattern match on the length is unfortunate, but
+        -- alternatives were tricky while maintaining the same error messages.
+        case BS.length bs of
+            96 -> return $ bech32 xprvHrp bs
+            64 -> return $ bech32 xpubHrp bs
+            _n -> Left "Internal error: trying to encode key of wrong length"
+
+    bech32 h = Bech32.encodeLenient h . Bech32.dataPartFromBytes
+    xprvHrp = [Bech32.humanReadablePart|xprv|]
+    xpubHrp = [Bech32.humanReadablePart|xpub|]
+
+keyByteStringCodec :: Codec (Either String) XPrvOrXPub ByteString
+keyByteStringCodec = simpleCodec encode decode
+  where
+    encode :: XPrvOrXPub -> Either String ByteString
+    encode (AXPub xpub) = return . CC.unXPub $ xpub
+    encode (AXPrv xprv) = left showErr
         . unXPrvStripPubCheckRoundtrip $ xprv
       where
         -- NOTE: This error should never happen from using the CLI.
         showErr ErrCannotRoundtripToSameXPrv =
             "Internal error: Failed to safely encode an extended private key"
-
-    decode :: Text -> Either String XPrvOrXPub
-    decode txt = do
-        bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
+    decode :: ByteString -> Either String XPrvOrXPub
+    decode bytes = do
         case BS.length bytes of
             96 -> fmap AXPrv $ left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
             64 -> fmap AXPub . CC.xpub $ bytes
@@ -450,27 +543,41 @@ keyHexCodec = (encode, decode)
             [ "That extended private key looks weird. "
             , "Is it encrypted? Or is it an old Byron key?"
             ]
-        fromHex = left (const "Invalid hex.")
-            . convertFromBase Base16
+
+anyKeyCodec :: Codec (Either String) ByteString Text
+anyKeyCodec = Codec encode decode
+  where
+    Codec encodeHex decodeHex = keyHexCodec
+    Codec _encodeBech32 decodeBech32 = keyBech32Codec
+
+    encode = encodeHex
+
+    decode x
+        | "xprv1" `T.isPrefixOf` x = decodeBech32 x
+        | "xpub1" `T.isPrefixOf` x = decodeBech32 x
+        | otherwise                = decodeHex x
 
 -- | Map over the key type of a CliKeyScheme.
 --
 -- @deriveChildKey@ both takes a key as an argument and returns one. Therefore
 -- we need a bidirectional mapping between the two key types.
 mapKey
-    :: Monad m
-    => (key1 -> m key2, key2 -> m key1)
+    :: forall key1 key2 m. Monad m
+    => Codec m key1 key2
     -> CliKeyScheme key1 m
     -> CliKeyScheme key2 m
-mapKey (f, g) s = CliKeyScheme
+mapKey codec s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
-    , mnemonicToRootKey = mnemonicToRootKey s >=> f
-    , deriveChildKey = \k i -> do
-        k' <- g k
-        (deriveChildKey s k' i) >>= f
-    , toPublic = g >=> toPublic s >=> f
-    , inspect = g >=> inspect s
+    , mnemonicToRootKey = mnemonicToRootKey s >=> encode
+    , deriveChildKey = \k i -> withDecoded (\k' -> deriveChildKey s k' i) k
+    , toPublic = withDecoded $ toPublic s
+    , inspect = decode >=> inspect s
     }
+  where
+    -- NOTE: Never combine decode and encode yourself here!
+    withDecoded = withCodec (inverse codec)
+    decode  = runCodec (inverse codec)
+    encode = runCodec codec
 
 eitherToIO :: Either String a -> IO a
 eitherToIO (Right a) = return a
@@ -668,9 +775,25 @@ newCliKeyScheme = \case
     -- We don't use passwords to encrypt the keys here.
     pass = mempty
 
+defaultScheme :: ByronWalletStyle -> CliKeyScheme Text (Either String)
+defaultScheme =
+    mapKey anyKeyCodec
+    . mapKey keyByteStringCodec
+    . newCliKeyScheme
+  where
+--    setDefaultErr "" = mconcat
+--        [ "Invalid key. Expected one of the following:\n"
+--        , "- 96 bytes hex-encoded extended private key\n"
+--        , "- 64 bytes hex-encoded extended public key\n"
+--        , "- bech32-encoded extended private key starting with xprv1\n"
+--        , "- bech32-encoded extended public key starting with xpub1\n"
+--        ]
+--    setDefaultErr x = x
+
 data KeyRootArgs = KeyRootArgs
     { _walletStyle :: ByronWalletStyle
     , _mnemonicWords :: [Text]
+    , _keyEncoding :: Codec (Either String) XPrvOrXPub Text
     }
 
 cmdKeyRoot :: Mod CommandFields (IO ())
@@ -681,14 +804,15 @@ cmdKeyRoot =
     cmd = fmap exec $ KeyRootArgs
         <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
         <*> mnemonicWordsArgument
-    exec (KeyRootArgs keyType ws) = do
+        <*> keyEncodingOption
+    exec (KeyRootArgs keyType ws enc) = do
         xprv <- mnemonicToRootKey scheme ws
         TIO.putStrLn xprv
       where
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey keyHexCodec
+            . mapKey enc
             $ newCliKeyScheme keyType
 
 data KeyChildArgs = KeyChildArgs
@@ -717,8 +841,7 @@ cmdKeyChild =
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey keyHexCodec
-            $ newCliKeyScheme Icarus
+            $ defaultScheme Icarus
 
 newtype KeyPublicArgs = KeyPublicArgs
     { _key :: Text
@@ -739,8 +862,7 @@ cmdKeyPublic =
     scheme :: CliKeyScheme Text IO
     scheme =
         hoistKeyScheme eitherToIO
-        . mapKey keyHexCodec
-        $ newCliKeyScheme Icarus
+        $ defaultScheme Icarus
 
 
 newtype KeyInspectArgs = KeyInspectArgs
@@ -761,8 +883,7 @@ cmdKeyInspect =
     scheme :: CliKeyScheme Text IO
     scheme =
         hoistKeyScheme eitherToIO
-        . mapKey keyHexCodec
-        $ newCliKeyScheme Icarus
+        $ defaultScheme Icarus
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
@@ -1731,6 +1852,18 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
 
     prettyStyle s =
         "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
+
+instance FromText (Codec (Either String) XPrvOrXPub Text) where
+    fromText "bech32" = return (keyBech32Codec . keyByteStringCodec)
+    fromText "hex" = return (keyHexCodec . keyByteStringCodec)
+    fromText _ = Left $ TextDecodingError "Invalid key encoding option."
+
+keyEncodingOption :: Parser (Codec (Either String) XPrvOrXPub Text)
+keyEncodingOption = option (eitherReader fromTextS) $
+    mempty
+    <> long "encoding"
+    <> metavar "KEY-ENCODING"
+    <> value (anyKeyCodec . keyByteStringCodec)
 
 keyArgument :: Parser Text
 keyArgument = T.pack <$> (argument str (metavar "XPRV"))
