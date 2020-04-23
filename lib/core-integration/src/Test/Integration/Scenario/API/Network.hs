@@ -161,6 +161,17 @@ spec = do
             expectResponseCode @IO HTTP.status200 r
             expectField (#ntpStatus . #status)
                 (`shouldBe` NtpSyncingStatusAvailable) r
+
+    it "NETWORK_CLOCK - Can query network clock and force NTP check" $ \ctx -> do
+        sandboxed <- inNixBuild
+        when sandboxed $
+            pendingWith "Internet NTP servers unavailable in build sandbox"
+        eventually "ntp status = (un)available" $ do
+            r <- request @ApiNetworkClock ctx
+                (Link.getNetworkClock' True) Default Empty
+            expectResponseCode @IO HTTP.status200 r
+            expectField (#ntpStatus . #status)
+                (`shouldBe` NtpSyncingStatusAvailable) r
    where
        verifyEpochNumWrong
             :: Context t
