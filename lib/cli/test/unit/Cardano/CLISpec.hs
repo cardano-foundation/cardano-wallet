@@ -764,6 +764,25 @@ spec = do
                     \ case of a private key and, 64 bytes for public keys. This\
                     \ key is 2 bytes.\n")
 
+        let pub1 =
+              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed\
+              \74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
+
+        let pub2 =
+              "708792807c1e3959626cd0ab78b1db5ed1544a97f3addbb01457de56ee5a450f\
+              \e932040a815c8994e44b7075ec61bdfc66e77671c59d14c76f3b33e8c534b15f"
+
+        describe "public key" $ do
+            ["key", "child", "--path", "0", pub1]
+                `shouldStdOut` (pub2 <> "\n")
+
+            ["key", "child", "--path", "0H", pub1]
+                `expectStdErr` (`shouldBe` "0H is a hardened index. Public key \
+                    \derivation is only possible for soft indices. \nIf the\
+                    \ index is correct, please use the corresponding private \
+                    \key as input.\n")
+
+
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
                    \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
@@ -772,8 +791,13 @@ spec = do
         let pub1 = "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae\
                    \8dfed74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74\
                    \db3d9c743a"
+
         -- Verified manually with jcli.
         ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
+        describe "fails when input is a public key" $ do
+            let err1 = "Input is already a public key."
+            ["key", "public", pub1] `expectStdErr` (`shouldBe` (err1 ++ "\n"))
 
     describe "key inspect" $ do
         let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
@@ -787,6 +811,19 @@ spec = do
                 , "\n"
                 , "chain code: "
                 , cc
+                , "\n"
+                ]
+
+        let xpub =
+              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed"
+        let cc2 =
+              "74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
+        ["key", "inspect", xpub ++ cc2] `shouldStdOut`
+            mconcat [ "extended public key: "
+                , xpub
+                , "\n"
+                , "chain code: "
+                , cc2
                 , "\n"
                 ]
 
