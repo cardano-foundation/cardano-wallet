@@ -32,6 +32,7 @@ import Cardano.CLI
     , cmdTransaction
     , cmdWallet
     , cmdWalletCreate
+    , firstHardenedIndex
     , hGetLine
     , hGetSensitiveLine
     , keyHexCodec
@@ -70,6 +71,8 @@ import Control.Exception
     ( SomeException, try )
 import Control.Monad
     ( mapM_ )
+import Data.Either
+    ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -791,6 +794,9 @@ spec = do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
 
+        it "derive . toPublic == toPublic . derive (for soft indices)"
+            $ property prop_publicKeyDerivation
+
         it "scheme == scheme (reflexivity)" $ property $ \s ->
             propCliKeySchemeEquality
                 (newCliKeyScheme s)
@@ -817,6 +823,47 @@ prop_roundtripCliKeySchemeKeyViaHex style =
                     $ newCliKeyScheme style)
   where
     inverse (a, b) = (b, a)
+
+
+-- | For soft indices, public key derivation should be "equivalent" to private
+-- key derivation.
+--
+-- I.e. The following diagram should commute:
+--
+-- @
+--                       toPublic
+--
+--              xprv +-----------------> xpub
+--                +                       +
+--                |                       |
+--                |                       |
+-- deriveChildKey |                       | deriveChildKey
+--                |                       |
+--                |                       |
+--                v                       v
+--           child xprv +-----------> child xpub
+--
+--                        toPublic
+-- @
+--
+prop_publicKeyDerivation
+    :: ByronWalletStyle
+    -> DerivationIndex
+    -> XPrv
+    -> Property
+prop_publicKeyDerivation style i key = do
+    if isSoftIndex i
+    then (public k >>= derive) === (derive k >>= toPublic s)
+    else property $ isLeft (public k >>= derive)
+  where
+    derive = flip (deriveChildKey s) i
+    public = toPublic s
+    k = AXPrv key
+
+    isSoftIndex = (< (DerivationIndex firstHardenedIndex))
+
+    s :: CliKeyScheme XPrvOrXPub (Either String)
+    s = newCliKeyScheme style
 
 prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
@@ -872,6 +919,15 @@ instance Eq XPrv where
 
 deriving instance Eq XPrvOrXPub
 deriving instance Show XPrvOrXPub
+
+instance Arbitrary XPrv where
+    arbitrary = do
+        mw <- genMnemonicOfSize 15
+        let AXPrv rootKey = either (error . show) id $ mnemonicToRootKey s mw
+        return rootKey
+      where
+        s = newCliKeyScheme Icarus
+
 genMnemonic
     :: forall mw ent csz.
      ( ConsistentEntropy ent mw csz
