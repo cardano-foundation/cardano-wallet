@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -21,6 +22,7 @@ import Cardano.CLI
     , MnemonicSize (..)
     , Port (..)
     , TxId
+    , XPrvOrXPub (..)
     , cli
     , cmdAddress
     , cmdKey
@@ -32,9 +34,9 @@ import Cardano.CLI
     , cmdWalletCreate
     , hGetLine
     , hGetSensitiveLine
+    , keyHexCodec
     , mapKey
     , newCliKeyScheme
-    , xPrvToTextTransform
     )
 import Cardano.Startup
     ( setUtf8EncodingHandles )
@@ -755,8 +757,9 @@ spec = do
                        \weird. Is it encrypted? Or is it an old Byron key?\n")
         describe "fails when key is not 96 bytes" $ do
             ["key", "child", "--path", "0", "5073"]
-                `expectStdErr` (`shouldBe` "Expected extended private key to be \
-                                           \96 bytes but got 2 bytes.\n")
+                `expectStdErr` (`shouldBe` "Expected key to be 96 bytes in the\
+                    \ case of a private key and, 64 bytes for public keys. This\
+                    \ key is 2 bytes.\n")
 
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
@@ -809,8 +812,8 @@ prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
-                (mapKey (inverse xPrvToTextTransform)
-                    . mapKey xPrvToTextTransform
+                (mapKey (inverse keyHexCodec)
+                    . mapKey keyHexCodec
                     $ newCliKeyScheme style)
   where
     inverse (a, b) = (b, a)
@@ -819,7 +822,7 @@ prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
     (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
   where
-    s :: CliKeyScheme XPrv (Either String)
+    s :: CliKeyScheme XPrvOrXPub (Either String)
     s = newCliKeyScheme style
 
     propCanRetrieveRootKey :: [Text] -> Property
@@ -830,8 +833,8 @@ prop_allowedWordLengthsAllWork style = do
             (property False)
 
 propCliKeySchemeEquality
-    :: CliKeyScheme XPrv (Either String)
-    -> CliKeyScheme XPrv (Either String)
+    :: CliKeyScheme XPrvOrXPub (Either String)
+    -> CliKeyScheme XPrvOrXPub (Either String)
     -> Property
 propCliKeySchemeEquality s1 s2 = do
     (forAll (genAllowedMnemonic s1) propSameMnem)
@@ -867,6 +870,8 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
 
+deriving instance Eq XPrvOrXPub
+deriving instance Show XPrvOrXPub
 genMnemonic
     :: forall mw ent csz.
      ( ConsistentEntropy ent mw csz
