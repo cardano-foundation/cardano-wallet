@@ -10,7 +10,7 @@ title: How to create a wallet
 - 📦 cardano-wallet >= `v2020-03-11`
 {{</hint>}}
 
-The easiest and most common way of managing your funds on the Cardano blockchain is through a [hierarchical deterministic wallet](({{< ref "hierarchical-deterministic-wallets.md" >}})). One can create a wallet using the following endpoint of [cardano-wallet](https://github.com/input-output-hk/cardano-wallet):
+The easiest and most common way of managing your funds on the Cardano blockchain is through a [hierarchical deterministic wallet]({{< ref "hierarchical-deterministic-wallets.md" >}}). One can create a wallet using the following endpoint of [cardano-wallet](https://github.com/input-output-hk/cardano-wallet):
 
 [`POST /byron-wallets`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postByronWallet)
 
