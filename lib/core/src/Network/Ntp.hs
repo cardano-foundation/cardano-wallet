@@ -123,11 +123,19 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
 
-getNtpStatus :: NtpClient -> Bool -> IO ApiNetworkClock
+getNtpStatus
+    :: NtpClient
+    -> Bool
+        -- ^ When 'True', will block and force a NTP check instead of using cached results
+    -> IO ApiNetworkClock
 getNtpStatus client forceCheck = (ApiNetworkClock . toStatus) <$>
     if forceCheck
     then ntpQueryBlocking client
+        -- ^ Forces an NTP check / query on the central servers, use with care
     else atomically (ntpGetStatus client)
+        -- ^ Reads a cached NTP status from an STM.TVar so we don't get
+        -- blacklisted by the central NTP "authorities" for sending too many NTP
+        -- requests.
   where
     toStatus = \case
         NtpSyncPending ->
