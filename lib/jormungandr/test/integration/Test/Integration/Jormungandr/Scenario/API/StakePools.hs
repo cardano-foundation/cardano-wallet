@@ -25,11 +25,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..) )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), FeePolicy (..), PoolId (..), TxStatus (..) )
-import Control.Monad
-    ( forM_ )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -476,27 +474,54 @@ spec = do
             [ expectField #delegation (`shouldBe` notDelegating [])
             ]
 
-    it "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ \(_,_,ctx) -> do
-        (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-        w <- fixtureWallet ctx
-        r <- joinStakePool @n ctx (p ^. #id) (w, "Incorrect Passphrase")
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403WrongPass r
+    describe "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ do
+        let verifyIt ctx wallet pass expectations = do
+                (_, p:_) <- eventually "Stake pools are listed" $ do
+                    unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+                w <- wallet ctx
+                r <- joinStakePool @n ctx (p ^. #id) (w, pass)
+                verify r expectations
+
+        it "Wallet with funds - incorrect pass" $ \(_,_,ctx) -> do
+            verifyIt ctx fixtureWallet
+                    "Incorrect Passphrase"
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage errMsg403WrongPass
+                    ]
+
+        it "Wallet with funds - empty pass" $ \(_,_,ctx) -> do
+            verifyIt ctx fixtureWallet
+                    ""
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage errMsg403WrongPass
+                    ]
+
+        it "Empty wallet - incorrect pass" $ \(_,_,ctx) -> do
+            verifyIt ctx emptyWallet
+                    "Incorrect Passphrase"
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage
+                        "I'm unable to select enough coins to pay for\
+                        \ a delegation certificate."
+                    ]
+
+        it "Empty wallet - empty pass" $ \(_,_,ctx) -> do
+            verifyIt ctx emptyWallet
+                    ""
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage
+                        "I'm unable to select enough coins to pay for\
+                        \ a delegation certificate."
+                    ]
 
     describe "STAKE_POOLS_JOIN/QUIT_02 -\
         \ Passphrase must have appropriate length" $ do
 
-        let pMax = passphraseMaxLength (Proxy @"raw")
-        let pMin = passphraseMinLength (Proxy @"raw")
-        let tooShort =
-                "passphrase is too short: expected at least 10 characters"
-        let tooLong =
+        let pMax = passphraseMaxLength (Proxy @"lenient")
+        let tooLongMsg =
                 "passphrase is too long: expected at most 255 characters"
-        let tests =
-                [ (tooLong, replicate (pMax + 1) '1')
-                , (tooShort, replicate (pMin - 1) '1')
-                ]
+        let passTooLong = replicate (pMax + 1) '1'
+
         let verifyIt ctx doStakePool pass expec = do
                 (_, p:_) <- eventually "Stake pools are listed" $ do
                     unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -505,12 +530,11 @@ spec = do
                 expectResponseCode HTTP.status400 r
                 expectErrorMessage expec r
 
-        forM_ tests $ \(expec, passphrase) -> do
-            it ("Join: " ++ expec) $ \(_,_,ctx) -> do
-                verifyIt ctx (joinStakePool @n) passphrase expec
+        it ("Join: " ++ tooLongMsg) $ \(_,_,ctx) -> do
+            verifyIt ctx (joinStakePool @n) passTooLong tooLongMsg
 
-            it ("Quit: " ++ expec) $ \(_,_,ctx) -> do
-                verifyIt ctx (\_ _ -> quitStakePool @n ctx) passphrase expec
+        it ("Quit: " ++ tooLongMsg) $ \(_,_,ctx) -> do
+            verifyIt ctx (\_ _ -> quitStakePool @n ctx) passTooLong tooLongMsg
 
     describe "STAKE_POOLS_JOIN/QUIT_02 - Passphrase must be text" $ do
         let verifyIt ctx sPoolEndp = do
