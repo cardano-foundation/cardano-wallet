@@ -26,6 +26,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Control.Monad.STM
+    ( atomically )
 import Control.Tracer
     ( Tracer )
 import Data.Quantity
@@ -121,8 +123,11 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
 
-getNtpStatus :: NtpClient -> IO ApiNetworkClock
-getNtpStatus = fmap (ApiNetworkClock . toStatus) . ntpQueryBlocking
+getNtpStatus :: NtpClient -> Bool -> IO ApiNetworkClock
+getNtpStatus client forceCheck = (ApiNetworkClock . toStatus) <$>
+    if forceCheck
+    then ntpQueryBlocking client
+    else atomically (ntpGetStatus client)
   where
     toStatus = \case
         NtpSyncPending ->

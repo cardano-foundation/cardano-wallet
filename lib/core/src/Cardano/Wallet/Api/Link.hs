@@ -75,6 +75,7 @@ module Cardano.Wallet.Api.Link
     , getNetworkInfo
     , getNetworkParams
     , getNetworkClock
+    , getNetworkClock'
 
       -- * Proxy
     , postExternalTransaction
@@ -119,6 +120,7 @@ import Servant.API
     , Header'
     , IsElem
     , NoContentVerb
+    , QueryFlag
     , QueryParam
     , ReflectMethod (..)
     , ReqBody
@@ -454,7 +456,14 @@ getNetworkParams e =
 getNetworkClock
     :: (Method, Text)
 getNetworkClock =
-    endpoint @Api.GetNetworkClock id
+    endpoint @Api.GetNetworkClock (False &)
+
+getNetworkClock'
+    :: Bool -- ^ When 'True', block and force NTP check
+    -> (Method, Text)
+getNetworkClock' forceNtpCheck =
+    endpoint @Api.GetNetworkClock (forceNtpCheck &)
+
 
 --
 -- Proxy
@@ -549,6 +558,9 @@ instance HasVerb sub => HasVerb (ReqBody a b :> sub) where
     method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (QueryParam a b :> sub) where
+    method _ = method (Proxy @sub)
+
+instance HasVerb sub => HasVerb (QueryFlag sym :> sub) where
     method _ = method (Proxy @sub)
 
 instance HasVerb sub => HasVerb (Header' opts name ty :> sub) where

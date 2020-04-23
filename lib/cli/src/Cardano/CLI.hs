@@ -247,6 +247,7 @@ import Options.Applicative
     , command
     , customExecParser
     , eitherReader
+    , flag
     , flag'
     , footer
     , header
@@ -1422,8 +1423,9 @@ cmdNetworkParameters mkClient =
         runClient wPort Aeson.encodePretty $ networkParameters mkClient epoch
 
 -- | Arguments for 'network clock' command
-newtype NetworkClockArgs = NetworkClockArgs
+data NetworkClockArgs = NetworkClockArgs
     { _port :: Port "Wallet"
+    , _forceNtpCheck :: Bool
     }
 
 cmdNetworkClock
@@ -1433,9 +1435,11 @@ cmdNetworkClock mkClient =
     command "clock" $ info (helper <*> cmd) $ mempty
         <> progDesc "View NTP offset."
   where
-    cmd = fmap exec $ NetworkClockArgs <$> portOption
-    exec (NetworkClockArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ networkClock mkClient
+    cmd = fmap exec $ NetworkClockArgs
+        <$> portOption
+        <*> forceNtpCheckOption
+    exec (NetworkClockArgs wPort forceNtpCheck) = do
+        runClient wPort Aeson.encodePretty $ networkClock mkClient forceNtpCheck
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
@@ -1612,6 +1616,13 @@ sortOrderOption = optionT $ mempty
     <> metavar "ORDER"
     <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
+
+-- | [--force-ntp-check]
+forceNtpCheckOption :: Parser Bool
+forceNtpCheckOption = flag False True $ mempty
+    <> long "force-ntp-check"
+    <> help "When set, will block and force an NTP check with the server. \
+            \Otherwise, uses an available cached result."
 
 loggingSeverities :: [(String, Severity)]
 loggingSeverities =

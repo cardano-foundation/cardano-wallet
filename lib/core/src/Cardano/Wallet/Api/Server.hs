@@ -1716,8 +1716,8 @@ data ErrNoSuchEpoch = ErrNoSuchEpoch
     , errCurrentEpoch :: W.EpochNo
     } deriving (Eq, Show)
 
-getNetworkClock :: NtpClient -> Handler ApiNetworkClock
-getNetworkClock = liftIO . getNtpStatus
+getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
+getNetworkClock client = liftIO . getNtpStatus client
 
 {-------------------------------------------------------------------------------
                                    Proxy

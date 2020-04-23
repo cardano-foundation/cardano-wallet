@@ -195,7 +195,8 @@ data NetworkClient = NetworkClient
         :: ApiEpochNumber
         -> ClientM ApiNetworkParameters
     , networkClock
-        :: ClientM ApiNetworkClock
+        :: Bool -- When 'True', block and force NTP check
+        -> ClientM ApiNetworkClock
     }
 
 -- | Produces a 'WalletClient' working against the /wallets API.

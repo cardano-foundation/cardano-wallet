@@ -155,7 +155,15 @@ import Data.Generics.Product.Typed
 import GHC.Generics
     ( Generic )
 import Servant.API
-    ( (:<|>), (:>), Capture, JSON, OctetStream, QueryParam, ReqBody )
+    ( (:<|>)
+    , (:>)
+    , Capture
+    , JSON
+    , OctetStream
+    , QueryFlag
+    , QueryParam
+    , ReqBody
+    )
 import Servant.API.Verbs
     ( DeleteAccepted
     , DeleteNoContent
@@ -533,6 +541,7 @@ type GetNetworkParameters = "network"
 
 type GetNetworkClock = "network"
     :> "clock"
+    :> QueryFlag "forceNtpCheck"
     :> Get '[JSON] ApiNetworkClock
 
 {-------------------------------------------------------------------------------
