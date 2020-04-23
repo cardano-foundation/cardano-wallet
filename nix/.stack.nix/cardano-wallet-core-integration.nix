@@ -39,7 +39,7 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { development = false; };
+    flags = { release = false; };
     package = {
       specVersion = "1.10";
       identifier = {
