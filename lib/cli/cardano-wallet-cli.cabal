@@ -72,9 +72,10 @@ test-suite unit
       base
     , bytestring
     , cardano-addresses
-    , cardano-wallet-launcher
+    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , filepath
     , hspec
     , optparse-applicative
