@@ -26,8 +26,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
-import Control.Monad.STM
-    ( atomically )
+import Control.Concurrent.STM
+    ( atomically, check )
 import Control.Tracer
     ( Tracer )
 import Data.Quantity
@@ -130,12 +130,17 @@ getNtpStatus
     -> IO ApiNetworkClock
 getNtpStatus client forceCheck = (ApiNetworkClock . toStatus) <$>
     if forceCheck
-    then ntpQueryBlocking client
-        -- ^ Forces an NTP check / query on the central servers, use with care
-    else atomically (ntpGetStatus client)
-        -- ^ Reads a cached NTP status from an STM.TVar so we don't get
-        -- blacklisted by the central NTP "authorities" for sending too many NTP
-        -- requests.
+    -- Forces an NTP check / query on the central servers, use with care
+    then do
+        ntpQueryBlocking client
+
+    else atomically $ do
+      -- Reads a cached NTP status from an STM.TVar so we don't get
+      -- blacklisted by the central NTP "authorities" for sending too many NTP
+      -- requests.
+      s <- ntpGetStatus client
+      check (s /= NtpSyncPending)
+      pure s
   where
     toStatus = \case
         NtpSyncPending ->
