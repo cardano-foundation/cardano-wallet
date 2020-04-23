@@ -840,8 +840,8 @@ cmdKeyChild =
         KeyChildArgs <$> pathOption <*> keyArgument
 
     exec (KeyChildArgs (DerivationPath path) k0) = do
-        child <- foldM (deriveChildKey scheme) k0 path
-        TIO.putStrLn child
+        k0' <- orReadStdin k0
+        foldM (deriveChildKey scheme) k0' path >>= TIO.putStrLn
       where
         -- TODO: deriveChildKey is a part of @CliKeyScheme@, so we need a wallet
         -- style to use it. We are using @Icarus@. All (current) styles use the
@@ -867,8 +867,7 @@ cmdKeyPublic =
         KeyPublicArgs <$> keyArgument
 
     exec (KeyPublicArgs key) = do
-        pub <- toPublic scheme key
-        TIO.putStrLn pub
+        orReadStdin key >>= toPublic scheme >>= TIO.putStrLn
 
     scheme :: CliKeyScheme Text IO
     scheme =
@@ -889,7 +888,7 @@ cmdKeyInspect =
         KeyInspectArgs <$> keyArgument
 
     exec (KeyInspectArgs key) =
-        inspect scheme key >>= TIO.putStrLn
+        orReadStdin key >>= inspect scheme >>= TIO.putStrLn
 
     scheme :: CliKeyScheme Text IO
     scheme =
@@ -1877,7 +1876,7 @@ keyEncodingOption = option (eitherReader fromTextS) $
     <> value (anyKeyCodec . keyByteStringCodec)
 
 keyArgument :: Parser Text
-keyArgument = T.pack <$> (argument str (metavar "XPRV"))
+keyArgument = T.pack <$> argument str (mempty <> metavar "XPRV" <> value "")
 
 pathOption :: Parser DerivationPath
 pathOption = option (eitherReader fromTextS) $
@@ -2342,6 +2341,10 @@ withSGR h sgr action = hIsTerminalDevice h >>= \case
     aFirst = ([] <$ hSetSGR h [sgr])
     aLast = hSetSGR h
     aBetween = const action
+
+orReadStdin :: Text -> IO Text
+orReadStdin "" = TIO.getLine
+orReadStdin x = return x
 
 {-------------------------------------------------------------------------------
                                  Helpers
