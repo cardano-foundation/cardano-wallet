@@ -27,7 +27,7 @@ library
       -Wcompat
       -fwarn-redundant-constraints
   if (flag(release))
-    ghc-options: -Werror
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -92,8 +92,6 @@ executable cardano-wallet-byron
       -Wall
   if (flag(release))
     ghc-options: -O2 -Werror
-  else
-    ghc-options: -O0
   build-depends:
       base
     , cardano-wallet-byron
@@ -121,9 +119,7 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base
@@ -163,9 +159,7 @@ test-suite integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base
@@ -211,9 +205,7 @@ benchmark restore
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base
@@ -259,9 +251,7 @@ benchmark latency
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
      base

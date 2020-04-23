@@ -28,7 +28,7 @@ library
       -Wcompat
       -fwarn-redundant-constraints
   if (flag(release))
-    ghc-options: -Werror
+    ghc-options: -O2 -Werror
   build-depends:
       aeson
     , async
@@ -175,9 +175,7 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base
@@ -313,9 +311,7 @@ benchmark db
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base

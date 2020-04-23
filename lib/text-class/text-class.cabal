@@ -26,7 +26,7 @@ library
       -Wcompat
       -fwarn-redundant-constraints
   if (flag(release))
-    ghc-options: -Werror
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , casing
@@ -50,9 +50,7 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(release))
-    ghc-options: -O0
-  else
+  if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
       base
