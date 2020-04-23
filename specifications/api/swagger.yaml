@@ -1197,6 +1197,18 @@ x-parametersAddressState: &parametersAddressState
       - used
       - unused
 
+x-parametersForceNtpCheck: &parametersForceNtpCheck
+  in: query
+  name: forceNtpCheck
+  allowEmptyValue: true
+  description: |
+    NTP checks are cached for short duration to avoid sending too many queries to the central NTP servers. In some cases however, a client may want to force a new check.
+
+    When this flag is set, the request **will block** until NTP server responds or will timeout after a while without any answer from the NTP server.
+  schema:
+    type: boolean
+
+
 #############################################################################
 #                                                                           #
 #                                RESPONSES                                  #
@@ -2215,6 +2227,9 @@ paths:
       summary: Clock
       description: |
         <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - <<: *parametersForceNtpCheck
+          name: forceNtpCheck
       responses: *responsesGetNetworkClock
 
   /network/parameters/{epochId}:

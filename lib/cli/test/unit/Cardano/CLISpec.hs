@@ -518,13 +518,16 @@ spec = do
             ]
 
         ["network", "clock", "--help"] `shouldShowUsage`
-            [ "Usage:  network clock [--port INT]"
+            [ "Usage:  network clock [--port INT] [--force-ntp-check]"
             , "  View NTP offset."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
+            , "  --force-ntp-check        When set, will block and force an NTP"
+            , "                           check with the server. Otherwise, uses"
+            , "                           an available cached result."
             ]
 
         ["key", "root", "--help"] `shouldShowUsage`

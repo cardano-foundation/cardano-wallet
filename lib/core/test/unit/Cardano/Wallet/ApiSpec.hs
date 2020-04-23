@@ -515,6 +515,24 @@ instance
     gEveryHeader _ =
         gEveryHeader (Proxy @sub)
 
+instance
+    ( GEveryEndpoints sub
+    ) => GEveryEndpoints (Servant.QueryFlag s :> sub)
+  where
+    gEveryEndpoint _ =
+        gEveryEndpoint (Proxy @sub)
+
+    type MkPathRequest (Servant.QueryFlag s :> sub) = MkPathRequest sub
+    gEveryPathParam _ =
+        gEveryPathParam (Proxy @sub)
+
+    type MkBodyRequest (Servant.QueryFlag s :> sub) = MkBodyRequest sub
+    gEveryBodyParam _ =
+        gEveryBodyParam (Proxy @sub)
+
+    type MkHeaderRequest (Servant.QueryFlag s :> sub) = MkHeaderRequest sub
+    gEveryHeader _ =
+        gEveryHeader (Proxy @sub)
 
 --
 -- Helpers

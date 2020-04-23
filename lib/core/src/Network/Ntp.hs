@@ -26,6 +26,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
+import Control.Concurrent.STM
+    ( atomically, check )
 import Control.Tracer
     ( Tracer )
 import Data.Quantity
@@ -61,7 +63,7 @@ ntpSettings = NtpSettings
     { ntpServers = [ "0.de.pool.ntp.org", "0.europe.pool.ntp.org"
                    , "0.pool.ntp.org", "1.pool.ntp.org"
                    , "2.pool.ntp.org", "3.pool.ntp.org" ]
-    , ntpRequiredNumberOfResults = 2
+    , ntpRequiredNumberOfResults = 3
     , ntpResponseTimeout = 1_000_000
     , ntpPollDelay = 300_000_000
     }
@@ -121,8 +123,24 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
 
-getNtpStatus :: NtpClient -> IO ApiNetworkClock
-getNtpStatus = fmap (ApiNetworkClock . toStatus) . ntpQueryBlocking
+getNtpStatus
+    :: NtpClient
+    -> Bool
+        -- ^ When 'True', will block and force a NTP check instead of using cached results
+    -> IO ApiNetworkClock
+getNtpStatus client forceCheck = (ApiNetworkClock . toStatus) <$>
+    if forceCheck
+    -- Forces an NTP check / query on the central servers, use with care
+    then do
+        ntpQueryBlocking client
+
+    else atomically $ do
+      -- Reads a cached NTP status from an STM.TVar so we don't get
+      -- blacklisted by the central NTP "authorities" for sending too many NTP
+      -- requests.
+      s <- ntpGetStatus client
+      check (s /= NtpSyncPending)
+      pure s
   where
     toStatus = \case
         NtpSyncPending ->

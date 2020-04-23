@@ -221,6 +221,7 @@ import Servant
     , Header'
     , JSON
     , PostNoContent
+    , QueryFlag
     , QueryParam
     , ReqBody
     , StdMethod (..)
@@ -1808,6 +1809,9 @@ instance HasPath sub => HasPath (ReqBody a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 instance HasPath sub => HasPath (QueryParam a b :> sub) where
+    getPath _ = getPath (Proxy @sub)
+
+instance HasPath sub => HasPath (QueryFlag sym :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 instance HasPath sub => HasPath (Header' opts name ty :> sub) where
