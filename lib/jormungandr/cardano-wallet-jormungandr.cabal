@@ -12,8 +12,8 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-flag development
-    description: Disable `-Werror` and optimization
+flag release
+    description: Enable optimization and `-Werror`
     default: False
     manual: True
 
@@ -27,7 +27,7 @@ library
       -Wall
       -Wcompat
       -fwarn-redundant-constraints
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -90,7 +90,7 @@ executable cardano-wallet-jormungandr
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -122,7 +122,7 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -179,7 +179,7 @@ test-suite jormungandr-integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -268,7 +268,7 @@ benchmark latency
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -325,7 +325,7 @@ executable migration-test
       -threaded -rtsopts
       -Wall
       -O2
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror

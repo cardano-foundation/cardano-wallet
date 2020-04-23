@@ -11,8 +11,8 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
-flag development
-    description: Disable `-Werror` and optimization
+flag release
+    description: Enable optimization and `-Werror`
     default: False
     manual: True
 
@@ -26,7 +26,7 @@ library
       -Wall
       -Wcompat
       -fwarn-redundant-constraints
-  if (!flag(development))
+  if (flag(release))
     ghc-options: -Werror
   build-depends:
       base
@@ -90,7 +90,7 @@ executable cardano-wallet-byron
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
+  if (flag(release))
     ghc-options: -O2 -Werror
   else
     ghc-options: -O0
@@ -121,7 +121,7 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -163,7 +163,7 @@ test-suite integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -211,7 +211,7 @@ benchmark restore
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
@@ -259,7 +259,7 @@ benchmark latency
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (flag(development))
+  if (!flag(release))
     ghc-options: -O0
   else
     ghc-options: -O2 -Werror
