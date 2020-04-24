@@ -84,6 +84,7 @@ module Cardano.CLI
     , hoistKeyScheme
     , mapKey
     , firstHardenedIndex
+    , fullKeyEncodingDescription
 
     , Codec (..)
     , inverse
@@ -263,6 +264,7 @@ import Options.Applicative
     , flag'
     , footer
     , header
+    , headerDoc
     , help
     , helpDoc
     , helper
@@ -378,7 +380,16 @@ runCli = join . customExecParser preferences
 
 cmdKey :: Mod CommandFields (IO ())
 cmdKey = command "key" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Derive keys from mnemonics."
+    <> progDesc "Derive and manipulate keys."
+    <> headerDoc (Just $ string $ mconcat
+        [ "Keys can be passed as arguments or read as standard input. Both "
+        , "bech32- and hexadecimal encodings are supported."
+        , "\n\n"
+        , "For instance:\n"
+        , "$ cardano-wallet-byron key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
+        , "    | cardano-wallet-byron key public\n"
+        , "xpub1k365denpkmqhj9zj6qpax..."
+        ])
   where
     cmds = subparser $ mempty
         <> cmdKeyRoot
@@ -555,7 +566,17 @@ anyKeyCodec = Codec encode decode
     decode x
         | "xprv1" `T.isPrefixOf` x = decodeBech32 x
         | "xpub1" `T.isPrefixOf` x = decodeBech32 x
-        | otherwise                = decodeHex x
+        | otherwise                = decodeHex x <|>
+            (Left fullKeyEncodingDescription)
+
+fullKeyEncodingDescription :: String
+fullKeyEncodingDescription = mconcat
+    [ "Invalid key. Expected one of the following:\n"
+    , "- 96 bytes long hex (extended private key)\n"
+    , "- 64 bytes long hex (extended public key)\n"
+    , "- xprv1... (bech32-encoded extended private key)\n"
+    , "- xpub1... (bech32-encoded extended public key)"
+    ]
 
 -- | Map over the key type of a CliKeyScheme.
 --
@@ -780,15 +801,6 @@ defaultScheme =
     mapKey anyKeyCodec
     . mapKey keyByteStringCodec
     . newCliKeyScheme
-  where
---    setDefaultErr "" = mconcat
---        [ "Invalid key. Expected one of the following:\n"
---        , "- 96 bytes hex-encoded extended private key\n"
---        , "- 64 bytes hex-encoded extended public key\n"
---        , "- bech32-encoded extended private key starting with xprv1\n"
---        , "- bech32-encoded extended public key starting with xpub1\n"
---        ]
---    setDefaultErr x = x
 
 data KeyRootArgs = KeyRootArgs
     { _walletStyle :: ByronWalletStyle
@@ -806,8 +818,7 @@ cmdKeyRoot =
         <*> mnemonicWordsArgument
         <*> keyEncodingOption
     exec (KeyRootArgs keyType ws enc) = do
-        xprv <- mnemonicToRootKey scheme ws
-        TIO.putStrLn xprv
+        mnemonicToRootKey scheme ws >>= TIO.putStrLn
       where
         scheme :: CliKeyScheme Text IO
         scheme =

@@ -36,6 +36,7 @@ import Cardano.CLI
     , cmdWallet
     , cmdWalletCreate
     , firstHardenedIndex
+    , fullKeyEncodingDescription
     , hGetLine
     , hGetSensitiveLine
     , inverse
@@ -204,7 +205,7 @@ spec = do
             , "  address                  Manage addresses."
             , "  stake-pool               Manage stake pools."
             , "  network                  Manage network."
-            , "  key                      Derive keys from mnemonics."
+            , "  key                      Derive and manipulate keys."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -241,10 +242,16 @@ spec = do
             , "!!! Only for the Incentivized Testnet !!!"
             ]
 
-
         ["key", "--help"] `shouldShowUsage`
-            [ "Usage:  key COMMAND"
-            , "  Derive keys from mnemonics."
+            [ "Keys can be passed as arguments or read as standard input. Both bech32- and hexadecimal encodings are supported."
+            , ""
+            , "For instance:"
+            , "$ cardano-wallet-byron key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
+            , "    | cardano-wallet-byron key public"
+            , "xpub1k365denpkmqhj9zj6qpax..."
+            , ""
+            , "Usage:  key COMMAND"
+            , "  Derive and manipulate keys."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -808,6 +815,28 @@ spec = do
         describe "fails when input is a public key" $ do
             let err1 = "Input is already a public key."
             ["key", "public", pub1] `expectStdErr` (`shouldBe` (err1 ++ "\n"))
+
+    describe "detection of key encoding (bech32 vs hex)" $ do
+        let prv1 = "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u\
+                   \3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejz\
+                   \gca990aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
+        let pub1 = "xpub1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zpalvq\
+                   \4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcgfe72yg"
+
+        ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
+
+        ["key", "public", "xp"] `expectStdErr` (`shouldBe`
+            (fullKeyEncodingDescription ++ "\n"))
+
+        ["key", "public", "xprv118rppm"] `expectStdErr` (`shouldBe`
+            ("StringToDecodeTooShort\n"))
+
+        let hexErr = "Expected key to be 96 bytes in the case of a private key \
+                     \and, 64 bytes for public keys. This key is 2 bytes.\n"
+
+        ["key", "public", "0000"] `expectStdErr` (`shouldBe` hexErr)
+
 
     describe "key inspect" $ do
         let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
