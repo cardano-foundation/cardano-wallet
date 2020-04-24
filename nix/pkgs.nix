@@ -32,5 +32,6 @@ in pkgs: super: with pkgs; {
         cp -R ${sources.cardano-node}/configuration $out;
       '';
       };
+  inherit (cardanoNodePkgs.haskellPackages.cardano-cli.components.exes) cardano-cli;
   inherit (pkgs1903) stack;
 }
