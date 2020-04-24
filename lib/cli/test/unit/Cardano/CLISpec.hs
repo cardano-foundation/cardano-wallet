@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -21,6 +22,7 @@ import Cardano.CLI
     , MnemonicSize (..)
     , Port (..)
     , TxId
+    , XPrvOrXPub (..)
     , cli
     , cmdAddress
     , cmdKey
@@ -30,11 +32,12 @@ import Cardano.CLI
     , cmdTransaction
     , cmdWallet
     , cmdWalletCreate
+    , firstHardenedIndex
     , hGetLine
     , hGetSensitiveLine
+    , keyHexCodec
     , mapKey
     , newCliKeyScheme
-    , xPrvToTextTransform
     )
 import Cardano.Startup
     ( setUtf8EncodingHandles )
@@ -68,6 +71,8 @@ import Control.Exception
     ( SomeException, try )
 import Control.Monad
     ( mapM_ )
+import Data.Either
+    ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -758,8 +763,28 @@ spec = do
                        \weird. Is it encrypted? Or is it an old Byron key?\n")
         describe "fails when key is not 96 bytes" $ do
             ["key", "child", "--path", "0", "5073"]
-                `expectStdErr` (`shouldBe` "Expected extended private key to be \
-                                           \96 bytes but got 2 bytes.\n")
+                `expectStdErr` (`shouldBe` "Expected key to be 96 bytes in the\
+                    \ case of a private key and, 64 bytes for public keys. This\
+                    \ key is 2 bytes.\n")
+
+        let pub1 =
+              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed\
+              \74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
+
+        let pub2 =
+              "708792807c1e3959626cd0ab78b1db5ed1544a97f3addbb01457de56ee5a450f\
+              \e932040a815c8994e44b7075ec61bdfc66e77671c59d14c76f3b33e8c534b15f"
+
+        describe "public key" $ do
+            ["key", "child", "--path", "0", pub1]
+                `shouldStdOut` (pub2 <> "\n")
+
+            ["key", "child", "--path", "0H", pub1]
+                `expectStdErr` (`shouldBe` "0H is a hardened index. Public key \
+                    \derivation is only possible for soft indices. \nIf the\
+                    \ index is correct, please use the corresponding private \
+                    \key as input.\n")
+
 
     describe "key public" $ do
         let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
@@ -769,8 +794,13 @@ spec = do
         let pub1 = "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae\
                    \8dfed74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74\
                    \db3d9c743a"
+
         -- Verified manually with jcli.
         ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
+        describe "fails when input is a public key" $ do
+            let err1 = "Input is already a public key."
+            ["key", "public", pub1] `expectStdErr` (`shouldBe` (err1 ++ "\n"))
 
     describe "key inspect" $ do
         let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
@@ -787,9 +817,25 @@ spec = do
                 , "\n"
                 ]
 
+        let xpub =
+              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed"
+        let cc2 =
+              "74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
+        ["key", "inspect", xpub ++ cc2] `shouldStdOut`
+            mconcat [ "extended public key: "
+                , xpub
+                , "\n"
+                , "chain code: "
+                , cc2
+                , "\n"
+                ]
+
     describe "CliKeyScheme" $ do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
+
+        it "derive . toPublic == toPublic . derive (for soft indices)"
+            $ property prop_publicKeyDerivation
 
         it "scheme == scheme (reflexivity)" $ property $ \s ->
             propCliKeySchemeEquality
@@ -812,17 +858,58 @@ prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
 prop_roundtripCliKeySchemeKeyViaHex style =
             propCliKeySchemeEquality
                 (newCliKeyScheme style)
-                (mapKey (inverse xPrvToTextTransform)
-                    . mapKey xPrvToTextTransform
+                (mapKey (inverse keyHexCodec)
+                    . mapKey keyHexCodec
                     $ newCliKeyScheme style)
   where
     inverse (a, b) = (b, a)
+
+
+-- | For soft indices, public key derivation should be "equivalent" to private
+-- key derivation.
+--
+-- I.e. The following diagram should commute:
+--
+-- @
+--                       toPublic
+--
+--              xprv +-----------------> xpub
+--                +                       +
+--                |                       |
+--                |                       |
+-- deriveChildKey |                       | deriveChildKey
+--                |                       |
+--                |                       |
+--                v                       v
+--           child xprv +-----------> child xpub
+--
+--                        toPublic
+-- @
+--
+prop_publicKeyDerivation
+    :: ByronWalletStyle
+    -> DerivationIndex
+    -> XPrv
+    -> Property
+prop_publicKeyDerivation style i key = do
+    if isSoftIndex i
+    then (public k >>= derive) === (derive k >>= toPublic s)
+    else property $ isLeft (public k >>= derive)
+  where
+    derive = flip (deriveChildKey s) i
+    public = toPublic s
+    k = AXPrv key
+
+    isSoftIndex = (< (DerivationIndex firstHardenedIndex))
+
+    s :: CliKeyScheme XPrvOrXPub (Either String)
+    s = newCliKeyScheme style
 
 prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
     (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
   where
-    s :: CliKeyScheme XPrv (Either String)
+    s :: CliKeyScheme XPrvOrXPub (Either String)
     s = newCliKeyScheme style
 
     propCanRetrieveRootKey :: [Text] -> Property
@@ -833,23 +920,40 @@ prop_allowedWordLengthsAllWork style = do
             (property False)
 
 propCliKeySchemeEquality
-    :: CliKeyScheme XPrv (Either String)
-    -> CliKeyScheme XPrv (Either String)
+    :: CliKeyScheme XPrvOrXPub (Either String)
+    -> CliKeyScheme XPrvOrXPub (Either String)
     -> Property
 propCliKeySchemeEquality s1 s2 = do
     (forAll (genAllowedMnemonic s1) propSameMnem)
     .&&.
-    (forAll (genAllowedMnemonic s1) propSameChild)
+    (forAll (genKey s1) propSameChild)
+    .&&.
+    (forAll (genKey s1) propSameToPublic)
+    .&&.
+    (forAll (genKey s1) propSameInspect)
     .&&.
     (allowedWordLengths s1) === (allowedWordLengths s2)
   where
     propSameMnem :: [Text] -> Property
     propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
 
-    propSameChild :: [Text] -> DerivationIndex -> Property
-    propSameChild mw i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
-      where
-        k = either (error . show) id $ mnemonicToRootKey s1 mw
+    propSameChild :: XPrvOrXPub -> DerivationIndex -> Property
+    propSameChild k i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
+
+    propSameToPublic :: XPrvOrXPub -> Property
+    propSameToPublic k = (toPublic s1 k) === (toPublic s2 k)
+
+    propSameInspect :: XPrvOrXPub -> Property
+    propSameInspect k = (inspect s1 k) === (inspect s2 k)
+
+    unsafe = either (error . show) id
+
+    genRootKey :: CliKeyScheme XPrvOrXPub (Either String) -> Gen XPrvOrXPub
+    genRootKey s = unsafe
+        . mnemonicToRootKey s
+        <$> genAllowedMnemonic s
+
+    genKey s = oneof [genRootKey s, (unsafe . toPublic s) <$> genRootKey s]
 
 genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
 genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
@@ -869,6 +973,17 @@ instance Show XPrv where
 
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
+
+deriving instance Eq XPrvOrXPub
+deriving instance Show XPrvOrXPub
+
+instance Arbitrary XPrv where
+    arbitrary = do
+        mw <- genMnemonicOfSize 15
+        let AXPrv rootKey = either (error . show) id $ mnemonicToRootKey s mw
+        return rootKey
+      where
+        s = newCliKeyScheme Icarus
 
 genMnemonic
     :: forall mw ent csz.

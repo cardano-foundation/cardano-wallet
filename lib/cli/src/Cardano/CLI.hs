@@ -73,11 +73,13 @@ module Cardano.CLI
     , CliKeyScheme (..)
     , DerivationIndex (..)
     , DerivationPath (..)
+    , XPrvOrXPub (..)
 
     , newCliKeyScheme
-    , xPrvToTextTransform
+    , keyHexCodec
     , hoistKeyScheme
     , mapKey
+    , firstHardenedIndex
 
 
     -- * Logging
@@ -167,6 +169,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
+    , XPub
     , deriveRewardAccount
     , hex
     , unXPrv
@@ -197,8 +200,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
 import Data.Char
     ( toLower )
 import Data.List.Extra
@@ -390,7 +391,11 @@ data CliKeyScheme key m = CliKeyScheme
     { allowedWordLengths :: [Int]
     , mnemonicToRootKey :: [Text] -> m key
     , deriveChildKey :: key -> DerivationIndex -> m key
+    , toPublic :: key -> m key
+    , inspect :: key -> m Text
     }
+
+data XPrvOrXPub = AXPrv XPrv | AXPub XPub
 
 -- | Change the underlying monad of a @CliKeyScheme@.
 hoistKeyScheme
@@ -401,27 +406,38 @@ hoistKeyScheme eta s = CliKeyScheme
     { allowedWordLengths = allowedWordLengths s
     , mnemonicToRootKey = eta . mnemonicToRootKey s
     , deriveChildKey = \k i -> eta $ deriveChildKey s k i
+    , toPublic = eta . toPublic s
+    , inspect = eta . inspect s
     }
 
 -- | Pair of functions representing the bidirectional transformation between
--- a @XPrv@ and its 96-byte hex-encoded form.
-xPrvToTextTransform :: (XPrv -> Either String Text, Text -> Either String XPrv)
-xPrvToTextTransform = (xPrvToHexText, hexTextToXPrv)
+-- a @XPrvOrXPub@ and its hex-encoded form.
+keyHexCodec :: (XPrvOrXPub -> Either String Text, Text -> Either String XPrvOrXPub)
+keyHexCodec = (encode, decode)
   where
-    xPrvToHexText :: XPrv -> Either String Text
-    xPrvToHexText =
+    encode :: XPrvOrXPub -> Either String Text
+    encode (AXPub xpub) = return . T.pack . B8.unpack . hex . CC.unXPub $ xpub
+    encode (AXPrv xprv) =
         fmap (T.pack . B8.unpack . hex)
         . left showErr
-        . unXPrvStripPubCheckRoundtrip
+        . unXPrvStripPubCheckRoundtrip $ xprv
       where
         -- NOTE: This error should never happen from using the CLI.
         showErr ErrCannotRoundtripToSameXPrv =
             "Internal error: Failed to safely encode an extended private key"
 
-    hexTextToXPrv :: Text -> Either String XPrv
-    hexTextToXPrv txt = do
+    decode :: Text -> Either String XPrvOrXPub
+    decode txt = do
         bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
-        left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
+        case BS.length bytes of
+            96 -> fmap AXPrv $ left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
+            64 -> fmap AXPub . CC.xpub $ bytes
+            n -> Left . mconcat $
+                [ "Expected key to be 96 bytes in the case of a private key"
+                , " and, 64 bytes for public keys. This key is "
+                , show n
+                , " bytes."
+                ]
       where
         showErr (ErrInputLengthMismatch expected actual) = mconcat
             [ "Expected extended private key to be "
@@ -452,6 +468,8 @@ mapKey (f, g) s = CliKeyScheme
     , deriveChildKey = \k i -> do
         k' <- g k
         (deriveChildKey s k' i) >>= f
+    , toPublic = g >=> toPublic s >=> f
+    , inspect = g >=> inspect s
     }
 
 eitherToIO :: Either String a -> IO a
@@ -469,7 +487,7 @@ instance ToText DerivationPath where
 
 newtype DerivationIndex = DerivationIndex { unDerivationIndex :: Word32 }
     deriving (Show, Eq)
-    deriving newtype (Bounded, Enum)
+    deriving newtype (Bounded, Enum, Ord)
 
 firstHardenedIndex :: Word32
 firstHardenedIndex = getIndex $ minBound @(Index 'Hardened 'AddressK)
@@ -532,7 +550,7 @@ instance ToText DerivationIndex where
             then show (i - firstHardenedIndex) ++ "H"
             else show i
 
-newCliKeyScheme :: ByronWalletStyle -> CliKeyScheme XPrv (Either String)
+newCliKeyScheme :: ByronWalletStyle -> CliKeyScheme XPrvOrXPub (Either String)
 newCliKeyScheme = \case
     Random ->
         -- NOTE
@@ -546,24 +564,30 @@ newCliKeyScheme = \case
         in
             CliKeyScheme
                 (apiAllowedLengths proxy)
-                (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
                 (derive CC.DerivationScheme2)
+                (toPub)
+                insp
     Trezor ->
         let
             proxy = Proxy @'API.Trezor
         in
             CliKeyScheme
                 (apiAllowedLengths proxy)
-                (fmap icarusKeyFromSeed . seedFromMnemonic proxy)
+                (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
                 (derive CC.DerivationScheme2)
+                (toPub)
+                insp
     Ledger ->
         let
             proxy = Proxy @'API.Ledger
         in
             CliKeyScheme
                 (apiAllowedLengths proxy)
-                (fmap ledgerKeyFromSeed . seedFromMnemonic proxy)
+                (fmap (AXPrv . ledgerKeyFromSeed) . seedFromMnemonic proxy)
                 (derive CC.DerivationScheme2)
+                (toPub)
+                insp
   where
     seedFromMnemonic
         :: forall (s :: ByronWalletStyle).
@@ -588,18 +612,58 @@ newCliKeyScheme = \case
     ledgerKeyFromSeed = Icarus.getKey
         . flip Icarus.generateKeyFromHardwareLedger pass
 
+    toPub (AXPrv xprv) = return . AXPub . CC.toXPub $ xprv
+    toPub (AXPub _) = Left "Input is already a public key."
+
     derive
         :: CC.DerivationScheme
-        -> XPrv
+        -> XPrvOrXPub
         -> DerivationIndex
-        -> Either String XPrv
-    derive scheme1Or2 k i =
-        return
+        -> Either String XPrvOrXPub
+    derive scheme1Or2 (AXPrv k) i =
+        return . AXPrv
             $ CC.deriveXPrv
                 scheme1Or2
                 pass
                 k
                 (unDerivationIndex i)
+    derive scheme1Or2 (AXPub k) i =
+        maybe (Left err) (return . AXPub)
+            $ CC.deriveXPub
+                scheme1Or2
+                k
+                (unDerivationIndex i)
+      where
+        err = mconcat
+            [ T.unpack (toText i)
+            , " is a hardened index. Public key derivation is only possible for"
+            , " soft indices. \nIf the index is correct, please use the"
+            , " corresponding private key as input."
+            ]
+
+    insp (AXPrv key) = do
+        let bytes = CC.unXPrv key
+        let (xprv, rest) = BS.splitAt 64 bytes
+        let (_pub, cc) = BS.splitAt 32 rest
+        let encodeToHex = T.pack . B8.unpack . hex
+        return $ mconcat
+            [ "extended private key: "
+            , encodeToHex xprv
+            , "\n"
+            , "chain code: "
+            , encodeToHex cc
+            ]
+    insp (AXPub key) = do
+        let bytes = CC.unXPub key
+        let (xpub, cc) = BS.splitAt 32 bytes
+        let encodeToHex = T.pack . B8.unpack . hex
+        return $ mconcat
+            [ "extended public key: "
+            , encodeToHex xpub
+            , "\n"
+            , "chain code: "
+            , encodeToHex cc
+            ]
 
     -- We don't use passwords to encrypt the keys here.
     pass = mempty
@@ -624,7 +688,7 @@ cmdKeyRoot =
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey xPrvToTextTransform
+            . mapKey keyHexCodec
             $ newCliKeyScheme keyType
 
 data KeyChildArgs = KeyChildArgs
@@ -653,7 +717,7 @@ cmdKeyChild =
         scheme :: CliKeyScheme Text IO
         scheme =
             hoistKeyScheme eitherToIO
-            . mapKey xPrvToTextTransform
+            . mapKey keyHexCodec
             $ newCliKeyScheme Icarus
 
 newtype KeyPublicArgs = KeyPublicArgs
@@ -668,11 +732,16 @@ cmdKeyPublic =
     cmd = fmap exec $
         KeyPublicArgs <$> keyArgument
 
-    exec (KeyPublicArgs hexPrv) = do
-        let (_, decodePrv) = xPrvToTextTransform
-        let encodePub = T.pack . B8.unpack . hex . CC.unXPub
-        pubHex <- eitherToIO $ encodePub . CC.toXPub <$> decodePrv hexPrv
-        TIO.putStrLn pubHex
+    exec (KeyPublicArgs key) = do
+        pub <- toPublic scheme key
+        TIO.putStrLn pub
+
+    scheme :: CliKeyScheme Text IO
+    scheme =
+        hoistKeyScheme eitherToIO
+        . mapKey keyHexCodec
+        $ newCliKeyScheme Icarus
+
 
 newtype KeyInspectArgs = KeyInspectArgs
     { _key :: Text
@@ -686,25 +755,14 @@ cmdKeyInspect =
     cmd = fmap exec $
         KeyInspectArgs <$> keyArgument
 
-    exec (KeyInspectArgs hexKey) = do
-         let (_, hex2key) = xPrvToTextTransform
-         res <- eitherToIO $ do
-            -- Extract extended private key and chain code from a @XPrv@
-            keyBytes <- CC.unXPrv <$> hex2key hexKey
-            let (xprv, rest) = BS.splitAt 64 keyBytes
-            let (_pub, cc) = BS.splitAt 32 rest
-            return $ mconcat
-                [ "extended private key: "
-                , toHex xprv
-                , "\n"
-                , "chain code: "
-                , toHex cc
-                ]
-         TIO.putStrLn res
+    exec (KeyInspectArgs key) =
+        inspect scheme key >>= TIO.putStrLn
 
-      where
-        toHex :: ByteString -> Text
-        toHex = T.pack . B8.unpack . hex
+    scheme :: CliKeyScheme Text IO
+    scheme =
+        hoistKeyScheme eitherToIO
+        . mapKey keyHexCodec
+        $ newCliKeyScheme Icarus
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
