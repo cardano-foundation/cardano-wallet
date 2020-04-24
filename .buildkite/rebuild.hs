@@ -137,16 +137,19 @@ parseOpts = execParser opts
         )
 
 buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
-buildStep dryRun bk nightly =
+buildStep dryRun bk nightly = do
+    pkgs <- listStackLocalPackages
+    let cabalFlags = concatMap (flag "release") pkgs
+
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
-    titled "Build dependencies"
+      titled "Build dependencies"
         (build Standard ["--only-dependencies"]) .&&.
-    titled "Build"
-        (build Fast ["--test", "--no-run-tests"]) .&&.
-    titled "Test"
+      titled "Build"
+        (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
+      titled "Test"
         (timeout 45 (test Fast Serial .&&. test Fast Parallel)) .&&.
-    titled "Checking golden test files"
+      titled "Checking golden test files"
         (checkUnclean dryRun "lib/core/test/data")
   where
     build opt args =
@@ -184,6 +187,7 @@ buildStep dryRun bk nightly =
     skip  arg = ["--skip", arg]
     match arg = ["--match", arg]
     ta    arg = ["--ta", T.unwords arg]
+    flag name pkg = ["--flag", pkg <> ":" <> name]
 
     serialTests = "SERIAL"
 
@@ -215,6 +219,20 @@ checkUnclean dryRun dir = do
         printf ("There are uncommitted changes in "%fp%".\n") dir
         printf "This build step will fail.\n"
     pure res
+
+-- | Ask stack for the list of Cabal packages for this project.
+listStackLocalPackages :: IO [Text]
+listStackLocalPackages = do
+    logCommand cmd args
+    inprocWithErr cmd args empty
+        & useStderrOnly
+        & grep (invert (begins "Cloning"))
+        & textLines
+  where
+    useStderrOnly = fmap (either id (const ""))
+    textLines shell = fold (lineToText <$> shell) Fold.list
+    cmd = "stack"
+    args = ["ide", "packages"]
 
 ----------------------------------------------------------------------------
 -- Buildkite
