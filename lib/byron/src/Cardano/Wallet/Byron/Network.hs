@@ -62,7 +62,7 @@ import Control.Concurrent.Async
 import Control.Exception
     ( IOException )
 import Control.Monad
-    ( (>=>) )
+    ( forever, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -159,6 +159,8 @@ import Ouroboros.Network.Channel
     ( Channel )
 import Ouroboros.Network.Codec
     ( DeserialiseFailure )
+import Ouroboros.Network.CodecCBORTerm
+    ( CodecCBORTerm )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer )
 import Ouroboros.Network.Mux
@@ -190,7 +192,7 @@ import Ouroboros.Network.Protocol.ChainSync.Codec
 import Ouroboros.Network.Protocol.ChainSync.Type
     ( ChainSync )
 import Ouroboros.Network.Protocol.Handshake.Version
-    ( CodecCBORTerm, DictVersion (..), simpleSingletonVersions )
+    ( DictVersion (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..)
     , LocalTxSubmissionClient (..)
@@ -425,7 +427,17 @@ mkNetworkClient tr bp chainSyncQ localTxSubmissionQ =
             let tr' = contramap MsgTxSubmission tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 localTxSubmission tr' localTxSubmissionQ channel
+        , localStateQueryProtocol =
+            doNothingProtocol
         }
+        NodeToClientV_2
+
+-- | A protocol client that will never leave the initial state.
+doNothingProtocol
+    :: MonadTimer m => RunMiniProtocol 'InitiatorApp ByteString m a Void
+doNothingProtocol =
+    InitiatorProtocolOnly $ MuxPeerRaw $
+    const $ forever $ threadDelay 1e6
 
 -- Connect a client to a network, see `mkNetworkClient` to construct a network
 -- client interface.
@@ -440,7 +452,7 @@ connectClient
     -> IO ()
 connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
-    let versions = simpleSingletonVersions NodeToClientV_1 vData vDict client
+    let versions = simpleSingletonVersions NodeToClientV_2 vData vDict client
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
@@ -511,6 +523,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxIngressQueueOverRun -> pure False
     MuxInitiatorOnly -> pure False
     MuxSDUReadTimeout -> pure False
+    MuxSDUWriteTimeout -> pure False
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
