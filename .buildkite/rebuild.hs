@@ -138,7 +138,7 @@ parseOpts = execParser opts
 
 buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
 buildStep dryRun bk nightly = do
-    pkgs <- listStackLocalPackages
+    pkgs <- listLocalPackages
     let cabalFlags = concatMap (flag "release") pkgs
 
     titled "Build LTS Snapshot"
@@ -148,7 +148,7 @@ buildStep dryRun bk nightly = do
       titled "Build"
         (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
       titled "Test"
-        (timeout 45 (test Fast Serial .&&. test Fast Parallel)) .&&.
+        (timeout 45 (test Fast Serial cabalFlags .&&. test Fast Parallel cabalFlags)) .&&.
       titled "Checking golden test files"
         (checkUnclean dryRun "lib/core/test/data")
   where
@@ -165,7 +165,7 @@ buildStep dryRun bk nightly = do
             , args
             ]
 
-    test opt behavior =
+    test opt behavior args =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "test" ]
@@ -179,6 +179,7 @@ buildStep dryRun bk nightly = do
                     ta (match serialTests ++ jobs 1) ++ jobs 1
                 Parallel ->
                     ta (skip serialTests)
+            , args
             ]
 
     color arg = ["--color", arg]
@@ -220,19 +221,16 @@ checkUnclean dryRun dir = do
         printf "This build step will fail.\n"
     pure res
 
--- | Ask stack for the list of Cabal packages for this project.
-listStackLocalPackages :: IO [Text]
-listStackLocalPackages = do
-    logCommand cmd args
-    inprocWithErr cmd args empty
-        & useStderrOnly
-        & grep (invert (begins "Cloning"))
-        & textLines
+-- | Find the name of all Cabal packages in this repo.
+listLocalPackages :: IO [Text]
+listLocalPackages =
+    find (suffix ".cabal") "."
+    & onFiles (grepText (invert isBuild))
+    & fmap basename
+    & textLines
   where
-    useStderrOnly = fmap (either id (const ""))
-    textLines shell = fold (lineToText <$> shell) Fold.list
-    cmd = "stack"
-    args = ["ide", "packages"]
+    isBuild = contains "./.stack-work" <|> contains "./dist"
+    textLines shell = fold (format fp <$> shell) Fold.list
 
 ----------------------------------------------------------------------------
 -- Buildkite
