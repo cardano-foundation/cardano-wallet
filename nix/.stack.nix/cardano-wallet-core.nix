@@ -68,7 +68,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
-          (hsPkgs."conduit" or (buildDepError "conduit"))
           (hsPkgs."containers" or (buildDepError "containers"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
@@ -85,8 +84,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."foldl" or (buildDepError "foldl"))
           (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
           (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
-          (hsPkgs."http-client" or (buildDepError "http-client"))
-          (hsPkgs."http-conduit" or (buildDepError "http-conduit"))
           (hsPkgs."http-media" or (buildDepError "http-media"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
@@ -127,7 +124,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."x509" or (buildDepError "x509"))
           (hsPkgs."x509-store" or (buildDepError "x509-store"))
           (hsPkgs."x509-validation" or (buildDepError "x509-validation"))
-          (hsPkgs."zip" or (buildDepError "zip"))
           (hsPkgs."Win32-network" or (buildDepError "Win32-network"))
           ];
         buildable = true;
@@ -198,7 +194,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."wai" or (buildDepError "wai"))
             (hsPkgs."wai-extra" or (buildDepError "wai-extra"))
             (hsPkgs."warp" or (buildDepError "warp"))
-            (hsPkgs."zip" or (buildDepError "zip"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))
