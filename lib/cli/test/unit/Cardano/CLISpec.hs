@@ -172,18 +172,15 @@ spec = do
                     expectation str
     describe "Specification / Usage Overview" $ do
 
-        let expectationFailure' = flip counterexample False
         let shouldShowUsage args expected = it (unwords args) $
                 case execParserPure defaultPrefs parser args of
-                    Success _ -> expectationFailure'
+                    Success _ -> expectationFailure
                         "expected parser to show usage but it has succeeded"
-                    CompletionInvoked _ -> expectationFailure'
+                    CompletionInvoked _ -> expectationFailure
                         "expected parser to show usage but it offered completion"
-                    Failure failure -> property $
+                    Failure failure -> do
                         let (usage, _) = renderFailure failure mempty
-                            msg = "*** Expected:\n" ++ (unlines expected)
-                                ++ "*** but actual usage is:\n" ++ usage
-                        in counterexample msg $ expected === lines usage
+                        (lines usage) `shouldBe` expected
 
         ["--help"] `shouldShowUsage`
             [ "The CLI is a proxy to the wallet server, which is required for"
