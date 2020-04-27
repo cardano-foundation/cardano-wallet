@@ -62,7 +62,7 @@
 -- +------------+-------------+------------------------------------------------+
 -- | σ          | @ [0, 1] @  | total relative stake of the pool               |
 -- +------------+-------------+------------------------------------------------+
-module Cardano.Pool.Ranking
+module Cardano.Pool.Jormungandr.Ranking
     (
       -- * Formulas
       desirability

@@ -14,13 +14,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.RankingSpec
+module Cardano.Pool.Jormungandr.RankingSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..)
     , Pool (..)
     , desirability
@@ -68,7 +68,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 
-import qualified Cardano.Pool.Ranking as R
+import qualified Cardano.Pool.Jormungandr.Ranking as R
 
 spec :: Spec
 spec = do

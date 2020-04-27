@@ -13,7 +13,7 @@
 -- This module contains a function for downloading stake pool metadata from an
 -- external registry.
 
-module Cardano.Pool.Metadata
+module Cardano.Pool.Jormungandr.Metadata
     ( -- * Types
       StakePoolMetadata (..)
     , sameStakePoolMetadata

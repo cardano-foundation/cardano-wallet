@@ -69,14 +69,18 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Pool.Jormungandr.Metadata
+      Cardano.Pool.Jormungandr.Metrics
+      Cardano.Pool.Jormungandr.Performance
+      Cardano.Pool.Jormungandr.Ranking
       Cardano.Wallet.Jormungandr
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Api.Client
       Cardano.Wallet.Jormungandr.Api.Types
       Cardano.Wallet.Jormungandr.Binary
-      Cardano.Wallet.Jormungandr.Rewards
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Network
+      Cardano.Wallet.Jormungandr.Rewards
       Cardano.Wallet.Jormungandr.Transaction
 
 executable cardano-wallet-jormungandr
@@ -157,6 +161,10 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.Pool.Jormungandr.MetadataSpec
+      Cardano.Pool.Jormungandr.MetricsSpec
+      Cardano.Pool.Jormungandr.PerformanceSpec
+      Cardano.Pool.Jormungandr.RankingSpec
       Cardano.Wallet.Jormungandr.ApiSpec
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
@@ -235,10 +243,10 @@ test-suite jormungandr-integration
   main-is:
       Main.hs
   other-modules:
+      Cardano.Pool.Jormungandr.MetricsSpec
       Cardano.Wallet.Jormungandr.Faucet
       Cardano.Wallet.Jormungandr.Launch
       Cardano.Wallet.Jormungandr.NetworkSpec
-      Cardano.Pool.MetricsSpec
       Test.Integration.Jcli
       Test.Integration.Jormungandr.Fixture
       Test.Integration.Jormungandr.Scenario.API.StakePools

@@ -23,7 +23,7 @@ import Cardano.CLI
     ( Port (..), withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Pool.Metadata
+import Cardano.Pool.Jormungandr.Metadata
     ( envVarMetadataRegistry )
 import Cardano.Startup
     ( withUtf8Encoding )
@@ -93,7 +93,7 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 
-import qualified Cardano.Pool.MetricsSpec as MetricsSpec
+import qualified Cardano.Pool.Jormungandr.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr

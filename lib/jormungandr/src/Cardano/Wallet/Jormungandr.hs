@@ -61,7 +61,7 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Pool.Metrics
+import Cardano.Pool.Jormungandr.Metrics
     ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet
     ( WalletLog )
@@ -169,7 +169,7 @@ import System.IOManager
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
-import qualified Cardano.Pool.Metrics as Pool
+import qualified Cardano.Pool.Jormungandr.Metrics as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Binary as J
@@ -310,7 +310,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
 -- Exported Utilities
 --------------------------------------------------------------------------------
 
--- | Covert a raw block to one that the "Cardano.Pool.Metrics" module accepts.
+-- | Covert a raw block to one that the "Cardano.Pool.Jormungandr.Metrics" module accepts.
 toSPBlock :: J.Block -> Pool.Block
 toSPBlock b = Pool.Block
      (convertHeader header)

@@ -3,11 +3,11 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.MetadataSpec (spec) where
+module Cardano.Pool.Jormungandr.MetadataSpec (spec) where
 
 import Prelude
 
-import Cardano.Pool.Metadata
+import Cardano.Pool.Jormungandr.Metadata
     ( FetchError (..)
     , MetadataConfig (..)
     , RegistryLog (..)

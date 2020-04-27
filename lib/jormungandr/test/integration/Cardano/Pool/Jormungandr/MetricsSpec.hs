@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Cardano.Pool.MetricsSpec where
+module Cardano.Pool.Jormungandr.MetricsSpec where
 
 import Prelude
 
@@ -10,7 +10,7 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Pool.DB
     ( DBLayer (..) )
-import Cardano.Pool.Metrics
+import Cardano.Pool.Jormungandr.Metrics
     ( monitorStakePools )
 import Cardano.Wallet.Jormungandr
     ( toSPBlock )

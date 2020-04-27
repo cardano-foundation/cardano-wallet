@@ -17,7 +17,7 @@
 -- - "Cardano.Wallet.Network" which provides the chain
 -- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
-module Cardano.Pool.Metrics
+module Cardano.Pool.Jormungandr.Metrics
     ( -- * Types
       Block (..)
     , StakePool (..)
@@ -49,16 +49,16 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
-import Cardano.Pool.Metadata
+import Cardano.Pool.Jormungandr.Metadata
     ( RegistryLog
     , StakePoolMetadata (..)
     , getMetadataConfig
     , getStakePoolMetadata
     , sameStakePoolMetadata
     )
-import Cardano.Pool.Performance
+import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
@@ -122,7 +122,7 @@ import GHC.Generics
 import System.Random
     ( StdGen )
 
-import qualified Cardano.Pool.Ranking as Ranking
+import qualified Cardano.Pool.Jormungandr.Ranking as Ranking
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map

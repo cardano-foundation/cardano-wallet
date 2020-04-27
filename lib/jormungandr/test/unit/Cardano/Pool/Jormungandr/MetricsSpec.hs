@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Cardano.Pool.MetricsSpec
+module Cardano.Pool.Jormungandr.MetricsSpec
     ( spec
     , arbitraryChunks
     , RegistrationsTest
@@ -25,9 +25,9 @@ import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
-import Cardano.Pool.Metadata
+import Cardano.Pool.Jormungandr.Metadata
     ( StakePoolMetadata (..), envVarMetadataRegistry, sameStakePoolMetadata )
-import Cardano.Pool.Metrics
+import Cardano.Pool.Jormungandr.Metrics
     ( Block (..)
     , ErrListStakePools (..)
     , StakePoolLayer (..)
@@ -37,7 +37,7 @@ import Cardano.Pool.Metrics
     , monitorStakePools
     , newStakePoolLayer
     )
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( genesisParameters )
