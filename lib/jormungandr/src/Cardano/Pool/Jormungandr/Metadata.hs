@@ -34,13 +34,10 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Api.Types
+    ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolOwner (..)
-    , ShowFmt (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker (..)
-    , sameStakePoolMetadata
-    )
+    ( PoolOwner (..), StakePoolMetadata (..) )
 import Codec.Archive.Zip
     ( EntrySelector
     , ZipArchive
@@ -53,21 +50,21 @@ import Codec.Archive.Zip
 import Control.Exception
     ( IOException, catch, displayException, onException, try, tryJust )
 import Control.Monad
-    ( join, when, (>=>) )
+    ( join, when )
 import Control.Monad.IO.Class
     ( MonadIO (..), liftIO )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Aeson
+    ( eitherDecodeStrict )
 import Data.Either
     ( isLeft )
 import Data.List
     ( find )
 import Data.Maybe
     ( fromMaybe )
-import Data.Text
-    ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime )
 import Fmt
@@ -232,7 +229,7 @@ findStakePoolMeta tr entry = do
         Just sel -> do
             json <- getEntry sel
             case eitherDecodeStrict json of
-                Right meta -> do
+                Right (ApiT meta) -> do
                     trace $ MsgExtractFileResult (Just (Right meta))
                     pure $ Just meta
                 Left err -> do
@@ -305,7 +302,7 @@ data FetchError
      | FetchErrorZipParsingFailed FilePath String
      -- ^ Failed to open the registry archive with the given path, as a zip
      -- file, due to the given cause.
-     deriving (Show, Eq, Generic, ToJSON)
+     deriving (Show, Eq, Generic)
 
 instance ToText FetchError where
     toText = \case
@@ -326,7 +323,7 @@ data RegistryLog = RegistryLog
     { registryLogUrl :: String
     , registryLogZipFile :: FilePath
     , registryLogMsg :: RegistryLogMsg
-    } deriving (Generic, Show, Eq, ToJSON)
+    } deriving (Generic, Show, Eq)
 
 instance HasPrivacyAnnotation RegistryLog where
     getPrivacyAnnotation = getPrivacyAnnotation . registryLogMsg
@@ -343,7 +340,7 @@ data RegistryLogMsg
     | MsgExtractFile FilePath
     | MsgExtractFileResult (Maybe (Either String StakePoolMetadata))
     | MsgUsingCached FilePath UTCTime
-    deriving (Generic, Show, Eq, ToJSON)
+    deriving (Generic, Show, Eq)
 
 instance HasPrivacyAnnotation RegistryLogMsg
 instance HasSeverityAnnotation RegistryLogMsg where

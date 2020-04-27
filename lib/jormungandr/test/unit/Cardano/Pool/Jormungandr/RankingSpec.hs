@@ -28,8 +28,8 @@ import Cardano.Pool.Jormungandr.Ranking
     , saturatedPoolSize
     , unsafeMkNonNegative
     )
-import Cardano.Wallet.Gen
-    ( genPercentage )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkPercentage )
 import Control.Exception
     ( SomeException, evaluate, try )
 import Data.Function
@@ -45,7 +45,7 @@ import Data.Ord
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..), percentageToDouble )
+    ( Percentage (..), Quantity (..), percentageToDouble )
 import Data.Word
     ( Word64 )
 import GHC.TypeLits
@@ -54,9 +54,11 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , NonNegative (..)
     , Positive (..)
     , Property
+    , choose
     , classify
     , counterexample
     , forAll
@@ -237,3 +239,9 @@ instance Arbitrary Percentage where
 instance Arbitrary EpochConstants where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+genPercentage :: Gen Percentage
+genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
+  where
+    genDouble :: Gen Double
+    genDouble = choose (0, 1)

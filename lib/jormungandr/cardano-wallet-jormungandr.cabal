@@ -39,15 +39,19 @@ library
     , cardano-wallet-core
     , cardano-wallet-cli
     , cardano-wallet-launcher
+    , conduit
     , containers
     , contra-tracer
     , cryptonite
     , deepseq
+    , directory
     , either
     , exceptions
     , filepath
     , fmt
+    , generic-lens
     , http-client
+    , http-conduit
     , http-types
     , iohk-monitoring
     , lifted-base
@@ -55,10 +59,12 @@ library
     , monad-loops
     , memory
     , network
+    , random
     , safe
     , servant
     , servant-client
     , servant-client-core
+    , servant-server
     , temporary
     , text
     , text-class
@@ -66,6 +72,7 @@ library
     , transformers
     , warp
     , Win32-network
+    , zip
   hs-source-dirs:
       src
   exposed-modules:
@@ -76,6 +83,7 @@ library
       Cardano.Wallet.Jormungandr
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Api.Client
+      Cardano.Wallet.Jormungandr.Api.Server
       Cardano.Wallet.Jormungandr.Api.Types
       Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Compatibility
@@ -128,6 +136,7 @@ test-suite unit
       base
     , aeson
     , aeson-qq
+    , async
     , binary
     , bytestring
     , cardano-crypto
@@ -135,13 +144,16 @@ test-suite unit
     , cardano-wallet-jormungandr
     , cardano-wallet-test-utils
     , containers
+    , contra-tracer
     , deepseq
     , directory
     , filepath
     , fmt
     , generic-arbitrary
+    , generic-lens
     , hspec
     , hspec-golden-aeson
+    , iohk-monitoring
     , lifted-base
     , memory
     , monad-control
@@ -149,9 +161,12 @@ test-suite unit
     , QuickCheck
     , safe
     , servant
+    , temporary
     , text
     , text-class
+    , time
     , transformers
+    , zip
   build-tools:
       hspec-discover
   type:

@@ -131,6 +131,7 @@ module Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
 
     -- * Stake Pools
+    , StakePool(..)
     , PoolId(..)
     , PoolOwner(..)
     , StakeDistribution (..)
@@ -562,6 +563,17 @@ isSubrangeOf r1 r2 =
 {-------------------------------------------------------------------------------
                                   Stake Pools
 -------------------------------------------------------------------------------}
+
+data StakePool = StakePool
+    { poolId :: PoolId
+    , stake :: Quantity "lovelace" Word64
+    , production :: Quantity "block" Word64
+    , performance :: Double
+    , desirability :: Double
+    , cost :: Quantity "lovelace" Word64
+    , margin :: Percentage
+    , saturation :: Double
+    } deriving (Show, Generic)
 
 -- | Information about a stake pool, published by a stake pool owner in the
 -- stake pool registry.

@@ -112,11 +112,11 @@ spec = do
                 [ expectListSize 3
 
                 , expectListField 0
-                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name))
+                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
                 , expectListField 1
-                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name))
+                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
                 , expectListField 2
-                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name))
+                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
 
                 , expectListField 0
                     #cost (`shouldBe` (Quantity 0))
@@ -200,13 +200,13 @@ spec = do
         nWithMetadata pools' `shouldBe` nWithMetadata pools + 2
 
         let (Just poolA) = find ((== ApiT poolIdA) . view #id) pools'
-        fmap (view #owner) (poolA ^. #metadata) `shouldBe` Just poolAOwner
+        fmap (view #owner . getApiT) (poolA ^. #metadata) `shouldBe` Just poolAOwner
 
         let (Just poolB) = find ((== ApiT poolIdB) . view #id) pools'
         (poolB ^. #metadata) `shouldBe` Nothing
 
         let (Just poolC) = find ((== ApiT poolIdC) . view #id) pools'
-        fmap (view #owner) (poolC ^. #metadata) `shouldBe` Just poolCOwner
+        fmap (view #owner . getApiT) (poolC ^. #metadata) `shouldBe` Just poolCOwner
 
     it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx

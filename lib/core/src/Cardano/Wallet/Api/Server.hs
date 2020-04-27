@@ -23,23 +23,68 @@
 -- endpoints reachable through HTTP.
 
 module Cardano.Wallet.Api.Server
-    ( Listen (..)
+    (
+    -- * Server Configuration
+      Listen (..)
     , ListenError (..)
     , HostPreference
     , TlsConfiguration (..)
+
+    -- * Server Setup
     , start
     , serve
-    , server
-    , byronServer
-    , newApiLayer
     , withListeningSocket
+
+    -- * ApiLayer
+    , newApiLayer
+
+    -- * Handlers
+    , delegationFee
+    , deleteTransaction
+    , deleteWallet
+    , forceResyncWallet
+    , getMigrationInfo
+    , getNetworkClock
+    , getNetworkInformation
+    , getNetworkParameters
+    , getUTxOsStatistics
+    , getWallet
+    , joinStakePool
+    , listAddresses
+    , listPools
+    , listTransactions
+    , listWallets
+    , migrateWallet
+    , postExternalTransaction
+    , postIcarusWallet
+    , postLedgerWallet
+    , postRandomAddress
+    , postRandomWallet
+    , postRandomWalletFromXPrv
+    , postTransaction
+    , postTransactionFee
+    , postTrezorWallet
+    , postWallet
+    , putByronWalletPassphrase
+    , putWallet
+    , putWalletPassphrase
+    , quitStakePool
+    , selectCoins
+
+    -- * Internals
     , LiftHandler(..)
+    , apiError
+    , mkShelleyWallet
+    , mkLegacyWallet
+    , withLegacyLayer
+    , withLegacyLayer'
+    , rndStateChange
     ) where
 
 import Prelude
 
-import Cardano.Pool.Metrics
-    ( ErrListStakePools (..), StakePool (..), StakePoolLayer (..) )
+import Cardano.Pool
+    ( StakePoolLayer (..) )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCannotJoin (..)
@@ -74,25 +119,11 @@ import Cardano.Wallet
     , HasLogger
     , WalletLog
     , genesisData
-    , networkLayer
-    , normalizeDelegationAddress
     )
 import Cardano.Wallet.Api
-    ( Addresses
-    , Api
-    , ApiLayer (..)
-    , ByronAddresses
-    , ByronMigrations
-    , ByronTransactions
-    , ByronWallets
-    , CoinSelections
+    ( ApiLayer (..)
     , HasDBFactory
     , HasWorkerRegistry
-    , Network
-    , Proxy_
-    , StakePools
-    , Transactions
-    , Wallets
     , dbFactory
     , workerRegistry
     )
@@ -143,7 +174,6 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
-    , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -206,6 +236,7 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
+    , StakePool (..)
     , StakePoolMetadata
     , SyncProgress
     , SyncTolerance
@@ -233,8 +264,6 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Applicative
-    ( liftA2 )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -308,11 +337,9 @@ import Network.Wai.Middleware.ServerError
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>) (..)
-    , Application
+    ( Application
     , JSON
     , NoContent (..)
-    , Server
     , contentType
     , err400
     , err403
@@ -320,10 +347,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServerError (..), runHandler )
@@ -452,311 +477,6 @@ ioToListenError hostPreference portOpt e
 
     isOtherError ex = show (ioeGetErrorType ex) == "failed"
     hasDescription text = text `isInfixOf` show e
-
-{-------------------------------------------------------------------------------
-                                   Core API
--------------------------------------------------------------------------------}
-
--- | A Servant server for our wallet API
-server
-    :: forall t n byron icarus shelley.
-        ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
-        , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        , shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        , DelegationAddress n ShelleyKey
-        , Buildable (ErrValidateSelection t)
-        )
-    => byron
-    -> icarus
-    -> shelley
-    -> StakePoolLayer IO
-    -> NtpClient
-    -> Server (Api n)
-server byron icarus shelley spl ntp =
-         wallets
-    :<|> addresses
-    :<|> coinSelections
-    :<|> transactions
-    :<|> stakePools
-    :<|> byronWallets
-    :<|> byronAddresses
-    :<|> byronTransactions
-    :<|> byronMigrations
-    :<|> network
-    :<|> proxy
-  where
-    wallets :: Server Wallets
-    wallets = deleteWallet shelley
-        :<|> (fmap fst . getWallet shelley mkShelleyWallet)
-        :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postWallet shelley
-        :<|> putWallet shelley mkShelleyWallet
-        :<|> putWalletPassphrase shelley
-        :<|> getUTxOsStatistics shelley
-        :<|> forceResyncWallet shelley
-
-    addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
-
-    coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley
-
-    transactions :: Server (Transactions n)
-    transactions =
-        postTransaction shelley (delegationAddress @n)
-        :<|> listTransactions shelley
-        :<|> postTransactionFee shelley
-        :<|> deleteTransaction shelley
-
-    stakePools :: Server (StakePools n)
-    stakePools = listPools spl
-        :<|> joinStakePool shelley spl
-        :<|> quitStakePool shelley
-        :<|> delegationFee shelley
-
-    byronWallets :: Server ByronWallets
-    byronWallets =
-        (\case
-            RandomWalletFromMnemonic x -> postRandomWallet byron x
-            RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
-            SomeIcarusWallet x -> postIcarusWallet icarus x
-            SomeTrezorWallet x -> postTrezorWallet icarus x
-            SomeLedgerWallet x -> postLedgerWallet icarus x
-        )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , deleteWallet byron wid)
-                (icarus, deleteWallet icarus wid)
-             )
-        :<|> (\wid -> withLegacyLayer' wid
-                ( byron
-                , fst <$> getWallet byron mkLegacyWallet wid
-                , const (fst <$> getWallet byron mkLegacyWallet wid)
-                )
-                ( icarus
-                , fst <$> getWallet icarus mkLegacyWallet wid
-                , const (fst <$> getWallet icarus mkLegacyWallet wid)
-                )
-             )
-        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  mkLegacyWallet)
-            (listWallets icarus mkLegacyWallet)
-        :<|> (\wid tip -> withLegacyLayer wid
-                (byron , forceResyncWallet byron  wid tip)
-                (icarus, forceResyncWallet icarus wid tip)
-             )
-        :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWallet byron mkLegacyWallet wid name)
-                (icarus, putWallet icarus mkLegacyWallet wid name)
-             )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , getUTxOsStatistics byron wid)
-                (icarus, getUTxOsStatistics icarus wid)
-             )
-        :<|> (\wid pwd -> withLegacyLayer wid
-                (byron , putByronWalletPassphrase byron wid pwd)
-                (icarus, putByronWalletPassphrase icarus wid pwd)
-             )
-
-    byronAddresses :: Server (ByronAddresses n)
-    byronAddresses =
-             (\_ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-
-    byronTransactions :: Server (ByronTransactions n)
-    byronTransactions =
-             (\_ _ -> throwError err501)
-        :<|>
-             (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron  wid r0 r1 s)
-                (icarus, listTransactions icarus wid r0 r1 s)
-             )
-        :<|>
-             (\_ _ -> throwError err501)
-        :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron  wid txid)
-                (icarus, deleteTransaction icarus wid txid)
-             )
-
-    byronMigrations :: Server (ByronMigrations n)
-    byronMigrations =
-             (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron  wid)
-                (icarus, getMigrationInfo icarus wid)
-             )
-        :<|> (\from to pwd -> withLegacyLayer from
-                (byron , migrateWallet byron  shelley from to pwd)
-                (icarus, migrateWallet icarus shelley from to pwd)
-             )
-
-    network :: Server Network
-    network =
-        getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis)
-        :<|> (getNetworkClock ntp)
-      where
-        nl = shelley ^. networkLayer @t
-        genesis = shelley ^. genesisData
-
-    proxy :: Server Proxy_
-    proxy = postExternalTransaction shelley
-
-
--- | A diminished servant server to serve Byron wallets only.
-byronServer
-    :: forall t n.
-        ( Buildable (ErrValidateSelection t)
-        , PaymentAddress n IcarusKey
-        , PaymentAddress n ByronKey
-        )
-    => ApiLayer (RndState n) t ByronKey
-    -> ApiLayer (SeqState n IcarusKey) t IcarusKey
-    -> NtpClient
-    -> Server (Api n)
-byronServer byron icarus ntp =
-         wallets
-    :<|> addresses
-    :<|> coinSelections
-    :<|> transactions
-    :<|> stakePools
-    :<|> byronWallets
-    :<|> byronAddresses
-    :<|> byronTransactions
-    :<|> byronMigrations
-    :<|> network
-    :<|> proxy
-  where
-    wallets :: Server Wallets
-    wallets =
-             (\_ -> throwError err501)
-        :<|> (\_ -> throwError err501)
-        :<|> throwError err501
-        :<|> (\_ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-
-    addresses :: Server (Addresses n)
-    addresses _ _ = throwError err501
-
-    coinSelections :: Server (CoinSelections n)
-    coinSelections _ _ = throwError err501
-
-    transactions :: Server (Transactions n)
-    transactions =
-             (\_ _ -> throwError err501)
-        :<|> (\_ _ _ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-
-    stakePools :: Server (StakePools n)
-    stakePools =
-             throwError err501
-        :<|> (\_ _ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ -> throwError err501)
-
-    byronWallets :: Server ByronWallets
-    byronWallets =
-        (\case
-            RandomWalletFromMnemonic x -> postRandomWallet byron x
-            RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
-            SomeIcarusWallet x -> postIcarusWallet icarus x
-            SomeTrezorWallet x -> postTrezorWallet icarus x
-            SomeLedgerWallet x -> postLedgerWallet icarus x
-        )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , deleteWallet byron wid)
-                (icarus, deleteWallet icarus wid)
-             )
-        :<|> (\wid -> withLegacyLayer' wid
-                ( byron
-                , fst <$> getWallet byron  mkLegacyWallet wid
-                , const (fst <$> getWallet byron  mkLegacyWallet wid)
-                )
-                ( icarus
-                , fst <$> getWallet icarus mkLegacyWallet wid
-                , const (fst <$> getWallet icarus mkLegacyWallet wid)
-                )
-             )
-        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  mkLegacyWallet)
-            (listWallets icarus mkLegacyWallet)
-        :<|> (\wid tip -> withLegacyLayer wid
-                (byron , forceResyncWallet byron  wid tip)
-                (icarus, forceResyncWallet icarus wid tip)
-             )
-        :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWallet byron mkLegacyWallet wid name)
-                (icarus, putWallet icarus mkLegacyWallet wid name)
-             )
-        :<|> (\wid -> withLegacyLayer wid
-                (byron , getUTxOsStatistics byron wid)
-                (icarus, getUTxOsStatistics icarus wid)
-             )
-        :<|> (\wid pwd -> withLegacyLayer wid
-                (byron , putByronWalletPassphrase byron wid pwd)
-                (icarus, putByronWalletPassphrase icarus wid pwd)
-             )
-
-    byronAddresses :: Server (ByronAddresses n)
-    byronAddresses =
-             (\wid s -> withLegacyLayer wid
-                (byron, postRandomAddress byron wid s)
-                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
-             )
-        :<|> (\wid s -> withLegacyLayer wid
-                (byron , listAddresses byron (const pure) wid s)
-                (icarus, listAddresses icarus (const pure) wid s)
-             )
-
-    byronTransactions :: Server (ByronTransactions n)
-    byronTransactions =
-             (\wid tx -> withLegacyLayer wid
-                 (byron , do
-                    let pwd = coerce (getApiT $ tx ^. #passphrase)
-                    genChange <- rndStateChange byron wid pwd
-                    postTransaction byron genChange wid tx
-                 )
-                 (icarus, do
-                    let genChange k _ = paymentAddress @n k
-                    postTransaction icarus genChange wid tx
-                 )
-             )
-        :<|>
-             (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron  wid r0 r1 s)
-                (icarus, listTransactions icarus wid r0 r1 s)
-             )
-        :<|>
-            (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid tx)
-                (icarus, postTransactionFee icarus wid tx)
-            )
-        :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron  wid txid)
-                (icarus, deleteTransaction icarus wid txid)
-             )
-
-    byronMigrations :: Server (ByronMigrations n)
-    byronMigrations =
-             (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron  wid)
-                (icarus, getMigrationInfo icarus wid)
-             )
-        :<|> \_ _ _ -> throwError err501
-
-    network :: Server Network
-    network =
-        getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis)
-        :<|> (getNetworkClock ntp)
-      where
-        nl = icarus ^. networkLayer @t
-        genesis = icarus ^. genesisData
-
-    proxy :: Server Proxy_
-    proxy = postExternalTransaction icarus
 
 {-------------------------------------------------------------------------------
                               Wallet Constructors
@@ -1480,7 +1200,8 @@ postTransactionFee ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 listPools
-    :: StakePoolLayer IO
+    :: LiftHandler e
+    => StakePoolLayer e IO
     -> Handler [ApiStakePool]
 listPools spl =
     liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
@@ -1503,7 +1224,7 @@ listPools spl =
             (sp ^. #saturation)
 
 joinStakePool
-    :: forall ctx s t n k.
+    :: forall ctx s t n k e.
         ( DelegationAddress n k
         , s ~ SeqState n k
         , k ~ ShelleyKey
@@ -1511,7 +1232,7 @@ joinStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> StakePoolLayer IO
+    -> StakePoolLayer e IO
     -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
@@ -1978,8 +1699,6 @@ class LiftHandler e where
 
     handler :: e -> ServerError
 
-
-
 apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
     { errBody = Aeson.encode $ Aeson.object
@@ -2311,16 +2030,6 @@ instance LiftHandler ErrCurrentNodeTip where
             , "probably because the node is down or not started yet. Retrying "
             , "in a bit might give better results!"
             ]
-
-instance LiftHandler ErrListStakePools where
-     handler = \case
-         ErrListStakePoolsCurrentNodeTip e -> handler e
-         ErrMetricsIsUnsynced p ->
-             apiError err503 NotSynced $ mconcat
-                 [ "I can't list stake pools yet because I need to scan the "
-                 , "blockchain for metrics first. I'm at "
-                 , toText p
-                 ]
 
 instance LiftHandler ErrSelectForDelegation where
     handler = \case

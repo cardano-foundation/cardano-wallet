@@ -1258,8 +1258,8 @@ instance Arbitrary ApiStakePool where
         <*> choose (0.0, 100.0)
         <*> choose (0.0, 2.0)
 
-instance Arbitrary (ApiT StakePoolMetadata) where
-    arbitrary = fmap ApiT . StakePoolMetadata
+instance Arbitrary StakePoolMetadata where
+    arbitrary = StakePoolMetadata
         <$> arbitrary
         <*> arbitrary
         <*> arbitraryText 50

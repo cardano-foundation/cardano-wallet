@@ -61,8 +61,10 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Pool
+    ( StakePoolLayer (..) )
 import Cardano.Pool.Jormungandr.Metrics
-    ( StakePoolLayer, StakePoolLog, monitorStakePools, newStakePoolLayer )
+    ( ErrListStakePools, StakePoolLog, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -73,6 +75,8 @@ import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
+import Cardano.Wallet.Jormungandr.Api.Server
+    ( server )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network
@@ -243,7 +247,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        -> StakePoolLayer IO
+        -> StakePoolLayer ErrListStakePools IO
         -> NtpClient
         -> IO ()
     startServer socket nPort bp byron icarus shelley pools ntp = do
@@ -251,7 +255,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
-                $ Server.server byron icarus shelley pools ntp
+                $ server byron icarus shelley pools ntp
         Server.start settings apiServerTracer tlsConfig socket application
       where
         tlsConfig = Nothing
@@ -283,7 +287,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> FilePath
-        -> IO (StakePoolLayer IO)
+        -> IO (StakePoolLayer ErrListStakePools IO)
     stakePoolLayer (block0, bp) nl db metadataDir = do
         void $ forkFinally (monitorStakePools tr (toSPBlock block0, k) nl' db) onExit
         getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
