@@ -132,6 +132,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -358,7 +360,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
-            jsonRoundtripAndGolden $ Proxy @StakePoolMetadata
+            jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
 
     describe "Textual encoding" $ do
@@ -550,7 +552,7 @@ spec = do
                                 "pledge_address": "ed25519_pk15vz9yc5c3upgze8tg5kd7kkzxqgqfxk5a3kudp22hdg0l2za00sq2ufkk7",
                                 "name": "invalid"
                             }
-                        |] `shouldBe` (Left @String @StakePoolMetadata msg)
+                        |] `shouldBe` (Left @String @(ApiT StakePoolMetadata) msg)
 
             forM_ ["too long", "sh", ""] testInvalidTicker
 
@@ -1256,8 +1258,8 @@ instance Arbitrary ApiStakePool where
         <*> choose (0.0, 100.0)
         <*> choose (0.0, 2.0)
 
-instance Arbitrary StakePoolMetadata where
-    arbitrary = StakePoolMetadata
+instance Arbitrary (ApiT StakePoolMetadata) where
+    arbitrary = fmap ApiT . StakePoolMetadata
         <$> arbitrary
         <*> arbitrary
         <*> arbitraryText 50

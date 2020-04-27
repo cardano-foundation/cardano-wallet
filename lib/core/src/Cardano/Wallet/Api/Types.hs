@@ -159,6 +159,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotLength (..)
     , SlotNo (..)
+    , StakePoolMetadata
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -400,7 +401,7 @@ data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , apparentPerformance :: !Double
-    , metadata :: !(Maybe StakePoolMetadata)
+    , metadata :: !(Maybe (ApiT StakePoolMetadata))
     , cost :: !(Quantity "lovelace" Natural)
     , margin :: !(Quantity "percent" Percentage)
     , desirability :: !Double
@@ -1210,6 +1211,12 @@ instance FromJSON ApiNetworkClock where
     parseJSON = parseJSON >=> pure . ApiNetworkClock
 instance ToJSON ApiNetworkClock where
     toJSON (ApiNetworkClock st) = toJSON st
+
+instance FromJSON (ApiT StakePoolMetadata) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+
+instance ToJSON (ApiT StakePoolMetadata) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
 instance FromJSON (ApiT StartTime) where
     parseJSON = fmap (ApiT . StartTime) . parseJSON

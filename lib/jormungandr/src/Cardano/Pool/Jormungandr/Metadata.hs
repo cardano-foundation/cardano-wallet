@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -14,13 +13,8 @@
 -- external registry.
 
 module Cardano.Pool.Jormungandr.Metadata
-    ( -- * Types
-      StakePoolMetadata (..)
-    , sameStakePoolMetadata
-    , StakePoolTicker
-
-      -- * Fetching metadata
-    , MetadataConfig (..)
+    ( -- * Fetching metadata
+      MetadataConfig (..)
     , cacheArchive
     , getMetadataConfig
     , getStakePoolMetadata
@@ -41,7 +35,12 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolOwner (..), ShowFmt (..) )
+    ( PoolOwner (..)
+    , ShowFmt (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker (..)
+    , sameStakePoolMetadata
+    )
 import Codec.Archive.Zip
     ( EntrySelector
     , ZipArchive
@@ -59,16 +58,6 @@ import Control.Monad.IO.Class
     ( MonadIO (..), liftIO )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
-import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , camelTo2
-    , eitherDecodeStrict
-    , fieldLabelModifier
-    , genericParseJSON
-    , genericToJSON
-    , omitNothingFields
-    )
 import Data.Either
     ( isLeft )
 import Data.List
@@ -98,80 +87,10 @@ import System.FilePath
 import System.IO
     ( IOMode (WriteMode), hTell, withFile )
 
-import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Conduit.Combinators as Conduit
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-
-{-------------------------------------------------------------------------------
-                                     Types
--------------------------------------------------------------------------------}
-
--- | Information about a stake pool, published by a stake pool owner in the
--- stake pool registry.
---
--- The wallet searches for registrations involving the owner, to find metadata
--- for a given PoolID.
---
--- The metadata information is not used directly by cardano-wallet, but rather
--- passed straight through to API consumers.
-data StakePoolMetadata = StakePoolMetadata
-    { owner :: PoolOwner
-    -- ^ Bech32-encoded ed25519 public key.
-    , ticker :: StakePoolTicker
-    -- ^ Very short human-readable ID for the stake pool.
-    , name :: Text
-    -- ^ Name of the stake pool.
-    , description :: Maybe Text
-    -- ^ Short description of the stake pool.
-    , homepage :: Text
-    -- ^ Absolute URL for the stake pool's homepage link.
-    , pledgeAddress :: Text
-    -- ^ Bech32-encoded address.
-    } deriving (Eq, Show, Generic)
-
--- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
-sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
-sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
-  where
-    same = PoolOwner mempty
-
--- | Very short name for a stake pool.
-newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
-    deriving stock (Generic, Show, Eq)
-    deriving newtype (ToText)
-
-instance FromText StakePoolTicker where
-    fromText t
-        | T.length t >= 3 && T.length t <= 5
-            = Right $ StakePoolTicker t
-        | otherwise
-            = Left . TextDecodingError $
-                "stake pool ticker length must be 3-5 characters"
-
--- NOTE
--- JSON instances for 'StakePoolMetadata' and 'StakePoolTicker' matching the
--- format described by the registry. The server API may then use different
--- formats if needed.
-
-instance FromJSON StakePoolMetadata where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance ToJSON StakePoolMetadata where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON StakePoolTicker where
-    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
-
-instance ToJSON StakePoolTicker where
-    toJSON = toJSON . toText
-
-defaultRecordTypeOptions :: Aeson.Options
-defaultRecordTypeOptions = Aeson.defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-    , omitNothingFields = True
-    }
 
 {-------------------------------------------------------------------------------
                        Fetching metadata from a registry

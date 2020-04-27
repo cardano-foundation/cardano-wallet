@@ -38,8 +38,6 @@ module Cardano.Wallet.Api.Server
 
 import Prelude
 
-import Cardano.Pool.Metadata
-    ( StakePoolMetadata )
 import Cardano.Pool.Metrics
     ( ErrListStakePools (..), StakePool (..), StakePoolLayer (..) )
 import Cardano.Wallet
@@ -208,6 +206,7 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
+    , StakePoolMetadata
     , SyncProgress
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
@@ -1497,7 +1496,7 @@ listPools spl =
                 (Quantity $ fromIntegral $ getQuantity $ stake sp)
                 (Quantity $ fromIntegral $ getQuantity $ production sp))
             (sp ^. #performance)
-            meta
+            (ApiT <$> meta)
             (fromIntegral <$> sp ^. #cost)
             (Quantity $ sp ^. #margin)
             (sp ^. #desirability)
