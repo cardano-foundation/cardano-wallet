@@ -1,4 +1,4 @@
-# Release Checklist
+## Preparing the release
 
 - [ ] Edit the release parameters section in `./scripts/make_release.sh`. To bump from `2020.3.16` to `2020.4.1` they will look like:
 ```
