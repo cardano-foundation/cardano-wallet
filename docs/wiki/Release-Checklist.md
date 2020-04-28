@@ -72,7 +72,7 @@ This will bump the version in .cabal and .nix files and generate release notes. 
         , "mnemonic_second_factor"
 ```
 
-- [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine.
+- [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine. [Benchmark charts](http://cardano-wallet-benchmarks.herokuapp.com/) may be helpful in analysis.
 
 - [ ] Manually run the disabled `LAUNCH` tests in:
 ```
