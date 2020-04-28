@@ -15,11 +15,11 @@
 
 ###############################################################
 # Release-specific parameters (Change when you bump the version)
-GIT_TAG="v2020-04-07"
-CABAL_VERSION="2020.4.7"
+GIT_TAG="v2020-04-28"
+CABAL_VERSION="2020.4.28"
 
-OLD_GIT_TAG="v2020-04-01"
-OLD_CABAL_VERSION="2020.4.1"
+OLD_GIT_TAG="v2020-04-07"
+OLD_CABAL_VERSION="2020.4.7"
 
 JORM_TAG="v0.8.15"
 CARDANO_NODE_TAG="1.9.3"
