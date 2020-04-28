@@ -40,8 +40,9 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 
 - [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
   ```
-  $ git push origin --tags
+  $ git push origin refs/tags/vYYYY-MM-DD
   ```
+  Where `YYYY-MM-DD` should be replaced by the actual date of the release.
 
 ## Create the release notes
 
