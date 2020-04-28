@@ -1,5 +1,18 @@
 ## Preparing the release
 
+- [ ] Fetch the tip of `master`:
+
+```sh
+$ git checkout master
+$ git pull
+```
+
+- [ ] Create a new branch for the release:
+
+```sh
+$ git checkout -b your-name/bump-release/YYYY-MM-DD
+```
+
 - [ ] Edit the release parameters section in `./scripts/make_release.sh`. To bump from `2020.3.16` to `2020.4.1` they will look like:
 ```
  # Release-specific parameters (Change when you bump the version)
