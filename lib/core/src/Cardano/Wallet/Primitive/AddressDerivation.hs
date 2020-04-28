@@ -87,7 +87,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase(..)
     , PassphraseMinLength(..)
     , PassphraseMaxLength(..)
-    , SomeMnemonic(..)
     , FromMnemonic(..)
     , FromMnemonicError(..)
     , ErrWrongPassphrase(..)
@@ -101,15 +100,15 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv, xpub )
-import Cardano.Wallet.Primitive.Mnemonic
+import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
     , DictionaryError (..)
     , EntropyError (..)
     , EntropySize
-    , Mnemonic
-    , MnemonicError (..)
+    , MkMnemonicError (..)
     , MnemonicWordsError (..)
+    , SomeMnemonic (..)
     , mkMnemonic
     )
 import Cardano.Wallet.Primitive.Types
@@ -152,8 +151,6 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
-import Data.Type.Equality
-    ( (:~:) (..), testEquality )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -166,8 +163,6 @@ import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 import Safe
     ( toEnumMay )
-import Type.Reflection
-    ( typeOf )
 
 import qualified Cardano.Crypto.Wallet.Encrypted as CC
 import qualified Codec.CBOR.Encoding as CBOR
@@ -428,16 +423,6 @@ instance
 
 instance ToText (Passphrase purpose) where
     toText (Passphrase bytes) = T.decodeUtf8 $ BA.convert bytes
-
-data SomeMnemonic where
-    SomeMnemonic :: forall mw. KnownNat mw => Mnemonic mw -> SomeMnemonic
-
-deriving instance Show SomeMnemonic
-instance Eq SomeMnemonic where
-    (SomeMnemonic mwa) == (SomeMnemonic mwb) =
-        case typeOf mwa `testEquality` typeOf mwb of
-            Nothing -> False
-            Just Refl -> mwa == mwb
 
 -- | Create a passphrase from a mnemonic sentence. This class enables caller to
 -- parse text list of variable length into mnemonic sentences.

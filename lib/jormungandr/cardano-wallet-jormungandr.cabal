@@ -320,6 +320,7 @@ executable migration-test
   build-depends:
       base
     , aeson
+    , cardano-addresses
     , cardano-wallet-core
     , cardano-wallet-launcher
     , iohk-monitoring

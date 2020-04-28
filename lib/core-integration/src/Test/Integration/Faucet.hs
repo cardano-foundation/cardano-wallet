@@ -16,7 +16,7 @@ module Test.Integration.Faucet
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Mnemonic
+import Cardano.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Primitive.Types
     ( Address, Coin )

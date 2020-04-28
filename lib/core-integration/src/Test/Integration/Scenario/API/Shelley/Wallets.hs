@@ -18,6 +18,16 @@ module Test.Integration.Scenario.API.Shelley.Wallets
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( ConsistentEntropy
+    , EntropySize
+    , MnemonicWords
+    , ValidChecksumSize
+    , ValidEntropySize
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Link
     ( Discriminate )
 import Cardano.Wallet.Api.Types
@@ -38,16 +48,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MnemonicWords
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..), WalletId, walletNameMaxLength, walletNameMinLength )
 import Control.Monad

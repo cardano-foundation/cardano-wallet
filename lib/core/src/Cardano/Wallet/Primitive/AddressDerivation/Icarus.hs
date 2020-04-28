@@ -47,6 +47,8 @@ import Cardano.Crypto.Wallet
     , xprv
     , xpub
     )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -61,13 +63,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , fromHex
     , hex
     )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant, testnetMagic )
 import Control.Arrow

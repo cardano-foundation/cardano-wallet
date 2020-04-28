@@ -37,6 +37,8 @@ import Cardano.BM.Trace
     ( Trace, logError, logInfo, logNotice )
 import Cardano.Launcher
     ( Command (..), ProcessHasExited (..), StdStream (..), withBackendProcess )
+import Cardano.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.Logging
@@ -45,8 +47,6 @@ import Cardano.Wallet.Network.Ports
     ( waitForPort )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Control.Concurrent
     ( threadDelay )
 import Control.Lens

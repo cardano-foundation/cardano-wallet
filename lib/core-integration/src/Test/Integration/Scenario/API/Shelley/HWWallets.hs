@@ -14,6 +14,8 @@ module Test.Integration.Scenario.API.Shelley.HWWallets
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
@@ -28,8 +30,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..), SyncProgress (..) )
 import Control.Monad
