@@ -257,25 +257,18 @@ benchmark latency
      base
    , aeson
    , async
-   , bech32
-   , bech32-th
-   , bytestring
    , cardano-wallet-cli
    , cardano-wallet-core
    , cardano-wallet-core-integration
    , cardano-wallet-byron
    , cardano-wallet-launcher
    , cardano-wallet-test-utils
-   , command
-   , directory
-   , filepath
    , fmt
    , generic-lens
    , http-client
    , http-types
    , hspec
    , iohk-monitoring
-   , memory
    , stm
    , temporary
    , text
