@@ -103,7 +103,7 @@ trMessage tr = Tracer $ \arg ->
        <*> pure (LogMessage arg)
 
 instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
-    trTransformer _fmt _verb = Tracer . traceWith . trMessageText
+    trTransformer _verb = Tracer . traceWith . trMessageText
 
 -- | Tracer transformer which removes tracing below the qgiven severity limit.
 filterTraceSeverity

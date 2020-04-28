@@ -108,14 +108,14 @@ import Ouroboros.Network.Block
     )
 import Ouroboros.Network.ChainFragment
     ( HasHeader (..) )
+import Ouroboros.Network.CodecCBORTerm
+    ( CodecCBORTerm )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
-import Ouroboros.Network.Protocol.Handshake.Version
-    ( CodecCBORTerm )
 
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W

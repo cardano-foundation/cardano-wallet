@@ -137,16 +137,19 @@ parseOpts = execParser opts
         )
 
 buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
-buildStep dryRun bk nightly =
+buildStep dryRun bk nightly = do
+    pkgs <- listLocalPackages
+    let cabalFlags = concatMap (flag "release") pkgs
+
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
-    titled "Build dependencies"
+      titled "Build dependencies"
         (build Standard ["--only-dependencies"]) .&&.
-    titled "Build"
-        (build Fast ["--test", "--no-run-tests"]) .&&.
-    titled "Test"
-        (timeout 45 (test Fast Serial .&&. test Fast Parallel)) .&&.
-    titled "Checking golden test files"
+      titled "Build"
+        (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
+      titled "Test"
+        (timeout 45 (test Fast Serial cabalFlags .&&. test Fast Parallel cabalFlags)) .&&.
+      titled "Checking golden test files"
         (checkUnclean dryRun "lib/core/test/data")
   where
     build opt args =
@@ -162,7 +165,7 @@ buildStep dryRun bk nightly =
             , args
             ]
 
-    test opt behavior =
+    test opt behavior args =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "test" ]
@@ -176,6 +179,7 @@ buildStep dryRun bk nightly =
                     ta (match serialTests ++ jobs 1) ++ jobs 1
                 Parallel ->
                     ta (skip serialTests)
+            , args
             ]
 
     color arg = ["--color", arg]
@@ -184,6 +188,7 @@ buildStep dryRun bk nightly =
     skip  arg = ["--skip", arg]
     match arg = ["--match", arg]
     ta    arg = ["--ta", T.unwords arg]
+    flag name pkg = ["--flag", pkg <> ":" <> name]
 
     serialTests = "SERIAL"
 
@@ -215,6 +220,17 @@ checkUnclean dryRun dir = do
         printf ("There are uncommitted changes in "%fp%".\n") dir
         printf "This build step will fail.\n"
     pure res
+
+-- | Find the name of all Cabal packages in this repo.
+listLocalPackages :: IO [Text]
+listLocalPackages =
+    find (suffix ".cabal") "."
+    & onFiles (grepText (invert isBuild))
+    & fmap basename
+    & textLines
+  where
+    isBuild = contains "./.stack-work" <|> contains "./dist"
+    textLines shell = fold (format fp <$> shell) Fold.list
 
 ----------------------------------------------------------------------------
 -- Buildkite

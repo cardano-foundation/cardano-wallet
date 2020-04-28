@@ -12,8 +12,8 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-flag development
-    description: Disable `-Werror`
+flag release
+    description: Enable optimization and `-Werror`
     default: False
     manual: True
 
@@ -27,10 +27,8 @@ library
       -Wall
       -Wcompat
       -fwarn-redundant-constraints
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -90,10 +88,8 @@ executable cardano-wallet-jormungandr
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , cardano-wallet-cli
@@ -122,10 +118,8 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -179,10 +173,8 @@ test-suite jormungandr-integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , QuickCheck
@@ -268,10 +260,8 @@ benchmark latency
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -325,9 +315,8 @@ executable migration-test
       -threaded -rtsopts
       -Wall
       -O2
-  if (!flag(development))
-    ghc-options:
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson

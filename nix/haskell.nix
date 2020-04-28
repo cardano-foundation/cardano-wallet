@@ -57,6 +57,18 @@ let
         packages.text-class.components.tests.unit.keepSource = true;
       }
 
+      # Enable release flag (optimization and -Werror) on all local packages
+      {
+        packages.cardano-wallet-byron.flags.release = true;
+        packages.cardano-wallet-cli.flags.release = true;
+        packages.cardano-wallet-core-integration.flags.release = true;
+        packages.cardano-wallet-core.flags.release = true;
+        packages.cardano-wallet-jormungandr.flags.release = true;
+        packages.cardano-wallet-launcher.flags.release = true;
+        packages.cardano-wallet-test-utils.flags.release = true;
+        packages.text-class.flags.release = true;
+      }
+
       # Provide configuration and dependencies to cardano-wallet components
       {
         packages.cardano-wallet-byron.components.tests = {

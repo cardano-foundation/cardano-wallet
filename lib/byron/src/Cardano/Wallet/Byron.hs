@@ -130,10 +130,10 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
     ( ApiLog )
+import Ouroboros.Network.CodecCBORTerm
+    ( CodecCBORTerm )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
-import Ouroboros.Network.Protocol.Handshake.Version
-    ( CodecCBORTerm )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager

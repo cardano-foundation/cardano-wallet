@@ -11,8 +11,8 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
-flag development
-    description: Disable `-Werror`
+flag release
+    description: Enable optimization and `-Werror`
     default: False
     manual: True
 
@@ -26,9 +26,8 @@ library
       -Wall
       -Wcompat
       -fwarn-redundant-constraints
-  if (!flag(development))
-    ghc-options:
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -91,10 +90,8 @@ executable cardano-wallet-byron
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -O2
-  if (!flag(development))
-    ghc-options:
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , cardano-wallet-byron
@@ -122,10 +119,8 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , bytestring
@@ -164,10 +159,8 @@ test-suite integration
   ghc-options:
       -threaded -rtsopts
       -Wall
-  if (!flag(development))
-    ghc-options:
-      -O2
-      -Werror
+  if (flag(release))
+    ghc-options: -O2 -Werror
   build-depends:
       base
     , aeson
@@ -204,94 +197,83 @@ test-suite integration
       Test.Integration.Byron.Scenario.CLI.Transactions
 
 benchmark restore
-   default-language:
-       Haskell2010
-   default-extensions:
-       NoImplicitPrelude
-       OverloadedStrings
-   ghc-options:
-       -threaded -rtsopts
-       -Wall
-       -O2
-   if (!flag(development))
-     ghc-options:
-       -Werror
-   build-depends:
-       base
-     , bytestring
-     , cardano-wallet-core
-     , optparse-applicative
-     , cardano-wallet-byron
-     , cardano-wallet-launcher
-     , ouroboros-network
-     , contra-tracer
-     , containers
-     , criterion-measurement
-     , cryptonite
-     , deepseq
-     , digest
-     , filepath
-     , fmt
-     , iohk-monitoring
-     , persistent
-     , persistent-template
-     , process
-     , say
-     , temporary
-     , text
-     , time
-     , transformers
-   type:
-      exitcode-stdio-1.0
-   hs-source-dirs:
-       bench
-   main-is:
-       Restore.hs
-   other-modules:
-       Cardano.Wallet.Primitive.AddressDiscovery.Any
-       Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
-
-benchmark latency
-   default-language:
-       Haskell2010
-   default-extensions:
-       NoImplicitPrelude
-       OverloadedStrings
-   ghc-options:
-       -threaded -rtsopts
-       -Wall
-       -O2
-   if (!flag(development))
-     ghc-options:
-       -Werror
-   build-depends:
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
       base
-    , aeson
-    , async
-    , bech32
-    , bech32-th
     , bytestring
-    , cardano-wallet-cli
     , cardano-wallet-core
-    , cardano-wallet-core-integration
+    , optparse-applicative
     , cardano-wallet-byron
     , cardano-wallet-launcher
-    , cardano-wallet-test-utils
-    , command
-    , directory
+    , ouroboros-network
+    , contra-tracer
+    , containers
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , digest
     , filepath
     , fmt
-    , generic-lens
-    , http-client
-    , http-types
-    , hspec
     , iohk-monitoring
-    , memory
-    , stm
+    , persistent
+    , persistent-template
+    , process
+    , say
     , temporary
     , text
-    , text-class
     , time
+    , transformers
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      bench
+  main-is:
+      Restore.hs
+  other-modules:
+      Cardano.Wallet.Primitive.AddressDiscovery.Any
+      Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+
+benchmark latency
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+     base
+   , aeson
+   , async
+   , cardano-wallet-cli
+   , cardano-wallet-core
+   , cardano-wallet-core-integration
+   , cardano-wallet-byron
+   , cardano-wallet-launcher
+   , cardano-wallet-test-utils
+   , fmt
+   , generic-lens
+   , http-client
+   , http-types
+   , hspec
+   , iohk-monitoring
+   , stm
+   , temporary
+   , text
+   , text-class
+   , time
   build-tools:
       cardano-wallet-byron
   type:
