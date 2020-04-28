@@ -28,7 +28,7 @@ to install Nix and set up the IOHK binary cache.
 To build the wallet for your current platform:
 
 ```
-nix-build -A cardano-wallet-jormungandr
+nix-build -A cardano-wallet-byron
 ```
 
 If you have no local changes in your git repo, then this will download
@@ -39,7 +39,7 @@ the build from the Hydra cache rather than building locally.
 To build the wallet for Windows, from **Linux**:
 
 ```
-nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
 ```
 
 If you're using **macOS**, then change `x86_64-linux` to
@@ -50,7 +50,7 @@ by default to reduce the load on CI):
 nix-build \
     release.nix \
     --arg supportedCrossSystems '["x86_64-darwin"]' \
-     -A x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-darwin
+     -A x86_64-w64-mingw32.cardano-wallet-byron.x86_64-darwin
 ```
 
 ### Building straight from GitHub
@@ -58,7 +58,7 @@ nix-build \
 To build another branch (replace `master` with the branch name, tag, or commit hash):
 
 ```
-nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet-jormungandr
+nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet-byron
 ```
 
 ### Navigating Hydra
@@ -66,8 +66,8 @@ nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.g
 The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
 shows all jobs defined in `release.nix`. Some of the release jobs have a download link.
 
-- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest)
-- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest)
+- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-byron-win64/latest)
+- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-byron-macos64/latest)
 
 
 ### Code generation
@@ -126,4 +126,12 @@ Inside this shell you can use `cabal new-build` and `ghci` for development.
 
 ```
 nix-shell --run "cabal new-build --enable-tests --enable-benchmarks all"
+```
+
+### Release build
+
+Enable the `release` Cabal flag to disallow compiler warnings and get build optimization:
+
+```
+cabal new-configure -frelease --enable-tests --enable-benchmarks
 ```
