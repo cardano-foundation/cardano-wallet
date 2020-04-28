@@ -14,6 +14,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , ChainCode (..)
@@ -26,7 +28,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
-    , SomeMnemonic
     , WalletKey (..)
     , XPrv
     , XPub (..)

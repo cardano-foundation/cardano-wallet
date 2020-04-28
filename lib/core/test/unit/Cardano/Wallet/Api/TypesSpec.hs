@@ -23,6 +23,19 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
+import Cardano.Mnemonic
+    ( CheckSumBits
+    , ConsistentEntropy
+    , Entropy
+    , EntropySize
+    , MnemonicException (..)
+    , ValidChecksumSize
+    , ValidEntropySize
+    , entropyToMnemonic
+    , mkEntropy
+    )
 import Cardano.Pool.Metadata
     ( StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Api
@@ -93,7 +106,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPub (..)
     , networkDiscriminantVal
@@ -106,17 +118,6 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( CheckSumBits
-    , ConsistentEntropy
-    , Entropy
-    , EntropySize
-    , MnemonicException (..)
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , mkEntropy
-    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -1319,7 +1320,7 @@ instance
         let
             size = fromIntegral $ natVal @n Proxy
             entropy =
-                mkEntropy  @n . B8.pack <$> vector (size `quot` 8)
+                mkEntropy  @n . BA.convert . B8.pack <$> vector (size `quot` 8)
         in
             either (error . show . UnexpectedEntropyError) Prelude.id <$> entropy
 

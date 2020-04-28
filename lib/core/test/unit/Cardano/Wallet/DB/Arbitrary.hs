@@ -30,6 +30,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( unXPrv )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
     ( PrimaryKey (..) )
 import Cardano.Wallet.DB.Model
@@ -44,7 +46,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , XPub

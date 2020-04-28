@@ -42,6 +42,8 @@ import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext, destroyDBLayer )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -75,7 +77,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistPrivateKey
-    , SomeMnemonic (..)
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

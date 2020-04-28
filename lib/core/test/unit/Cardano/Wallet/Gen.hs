@@ -14,7 +14,7 @@ module Cardano.Wallet.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Mnemonic
+import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )

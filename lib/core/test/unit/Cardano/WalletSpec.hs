@@ -20,6 +20,8 @@ import Prelude
 
 import Cardano.BM.Trace
     ( nullTracer )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet
     ( ErrSelectForPayment (..)
     , ErrSignPayment (..)
@@ -43,7 +45,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , Passphrase (..)
-    , SomeMnemonic (..)
     , XPrv
     , publicKey
     )
