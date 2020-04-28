@@ -43,6 +43,8 @@ import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.DB.Sqlite
     ( SqliteContext, destroyDBLayer )
+import Cardano.Mnemonic
+    ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
@@ -55,7 +57,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , NetworkDiscriminant (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPub
     , xpub
@@ -70,8 +71,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPool
     , mkSeqStateFromRootXPrv
     )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( EntropySize, entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types

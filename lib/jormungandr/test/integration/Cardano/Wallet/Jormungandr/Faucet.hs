@@ -14,6 +14,13 @@ module Cardano.Wallet.Jormungandr.Faucet
 import Prelude hiding
     ( appendFile )
 
+import Cardano.Mnemonic
+    ( Mnemonic
+    , SomeMnemonic (..)
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
@@ -23,15 +30,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
-    , SomeMnemonic (..)
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe

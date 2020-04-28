@@ -24,13 +24,12 @@ import Prelude hiding
     ( id )
 
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
-import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
     , Entropy
     , EntropySize
     , MnemonicException (..)
+    , SomeMnemonic (..)
     , ValidChecksumSize
     , ValidEntropySize
     , entropyToMnemonic

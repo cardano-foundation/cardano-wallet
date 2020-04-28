@@ -316,6 +316,7 @@ benchmark db
   build-depends:
       base
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-launcher

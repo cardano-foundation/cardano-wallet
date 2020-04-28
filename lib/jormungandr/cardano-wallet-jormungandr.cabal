@@ -185,6 +185,7 @@ test-suite jormungandr-integration
     , bech32-th
     , binary
     , bytestring
+    , cardano-addresses
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration

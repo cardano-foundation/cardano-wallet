@@ -16,9 +16,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
 import Prelude
 
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
-import Cardano.Mnemonic
-    ( ConsistentEntropy, EntropySize, mkMnemonic )
+    ( ConsistentEntropy, EntropySize, SomeMnemonic (..), mkMnemonic )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation

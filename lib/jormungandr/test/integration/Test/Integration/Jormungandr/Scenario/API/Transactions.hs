@@ -18,6 +18,8 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiFee
@@ -39,8 +41,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqStateFromRootXPrv )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
