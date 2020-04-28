@@ -59,9 +59,10 @@
 with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
 
 let
-  src = pkgs.haskell-nix.cleanSourceHaskell {
-    src = ./.;
+  src = cleanSourceWith {
+    src = pkgs.haskell-nix.cleanSourceHaskell { src = ./.; };
     name = "cardano-wallet-src";
+    filter = removeSocketFilesFilter;
   };
 
   haskellPackages = import ./nix/haskell.nix {
