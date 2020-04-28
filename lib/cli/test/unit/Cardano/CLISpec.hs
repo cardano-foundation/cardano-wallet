@@ -90,7 +90,14 @@ import Data.Text.Class
 import GHC.TypeLits
     ( natVal )
 import Options.Applicative
-    ( ParserResult (..), columns, execParserPure, prefs, renderFailure )
+    ( ParserInfo
+    , ParserPrefs
+    , ParserResult (..)
+    , columns
+    , execParserPure
+    , prefs
+    , renderFailure
+    )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -102,7 +109,9 @@ import System.IO.Silently
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( HasCallStack
+    ( Expectation
+    , HasCallStack
+    , HasCallStack
     , Spec
     , describe
     , expectationFailure
@@ -138,48 +147,7 @@ import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
-
-    let defaultPrefs = prefs (mempty <> columns 65)
-
-    let parser = cli $ mempty
-            <> cmdMnemonic
-            <> cmdWallet cmdWalletCreate walletClient
-            <> cmdTransaction transactionClient walletClient
-            <> cmdAddress addressClient
-            <> cmdStakePool stakePoolClient
-            <> cmdNetwork networkClient
-            <> cmdKey
-
-    let shouldStdOut args expected = it (unwords args) $ do
-            setUtf8EncodingHandles
-            case execParserPure defaultPrefs parser args of
-                Success x -> capture_ x >>= (`shouldBe` expected)
-                CompletionInvoked _ -> expectationFailure
-                    "expected parser to show usage but it offered completion"
-                Failure failure ->
-                    expectationFailure $ "parser failed with: " ++ show failure
-    let expectStdErr args expectation = it (unwords args) $ do
-            setUtf8EncodingHandles
-            case execParserPure defaultPrefs parser args of
-                Success x ->
-                    hCapture_ [stderr] (try @SomeException x) >>= (expectation)
-                CompletionInvoked _ -> expectationFailure
-                    "expected parser to show usage but it offered completion"
-                Failure failure -> do
-                    let (str, code) = renderFailure failure ""
-                    code `shouldBe` (ExitFailure 1)
-                    expectation str
     describe "Specification / Usage Overview" $ do
-
-        let shouldShowUsage args expected = it (unwords args) $
-                case execParserPure defaultPrefs parser args of
-                    Success _ -> expectationFailure
-                        "expected parser to show usage but it has succeeded"
-                    CompletionInvoked _ -> expectationFailure
-                        "expected parser to show usage but it offered completion"
-                    Failure failure -> do
-                        let (usage, _) = renderFailure failure mempty
-                        (lines usage) `shouldBe` expected
 
         ["--help"] `shouldShowUsage`
             [ "The CLI is a proxy to the wallet server, which is required for"
@@ -863,10 +831,10 @@ spec = do
                 , "\n"
                 ]
 
+
     describe "CLI Key derivation properties" $ do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
-
 
         it "derive . toPublic == toPublic . derive (for soft indices)"
             $ property prop_publicKeyDerivation
@@ -1000,7 +968,7 @@ fromTextGolden str desc expected =
         fromText str `shouldBe` (left TextDecodingError expected)
 
 {-------------------------------------------------------------------------------
-                                hGetSensitiveLine
+                               Test Helpers
 -------------------------------------------------------------------------------}
 
 data GetLineTest a = GetLineTest
@@ -1045,6 +1013,54 @@ test fn (GetLineTest prompt_ input_ output expected) =
             putMVar mvar Nothing
         Right a ->
             putMVar mvar (Just a)
+
+defaultPrefs :: ParserPrefs
+defaultPrefs = prefs (mempty <> columns 65)
+
+parser :: ParserInfo (IO ())
+parser = cli $ mempty
+    <> cmdMnemonic
+    <> cmdWallet cmdWalletCreate walletClient
+    <> cmdTransaction transactionClient walletClient
+    <> cmdAddress addressClient
+    <> cmdStakePool stakePoolClient
+    <> cmdNetwork networkClient
+    <> cmdKey
+
+shouldStdOut :: HasCallStack => [String] -> String -> Spec
+shouldStdOut args expected = it (unwords args) $ do
+    setUtf8EncodingHandles
+    case execParserPure defaultPrefs parser args of
+        Success x -> capture_ x >>= (`shouldBe` expected)
+        CompletionInvoked _ -> expectationFailure
+            "expected parser to show usage but it offered completion"
+        Failure failure ->
+            expectationFailure $ "parser failed with: " ++ show failure
+
+expectStdErr :: HasCallStack => [String] -> (String -> Expectation) -> Spec
+expectStdErr args expectation = it (unwords args) $ do
+        setUtf8EncodingHandles
+        case execParserPure defaultPrefs parser args of
+            Success x ->
+                hCapture_ [stderr] (try @SomeException x) >>= (expectation)
+            CompletionInvoked _ -> expectationFailure
+                "expected parser to show usage but it offered completion"
+            Failure failure -> do
+                let (str, code) = renderFailure failure ""
+                code `shouldBe` (ExitFailure 1)
+                expectation str
+
+shouldShowUsage :: HasCallStack => [String] -> [String] -> Spec
+shouldShowUsage args expected = it (unwords args) $
+    case execParserPure defaultPrefs parser args of
+        Success _ -> expectationFailure
+            "expected parser to show usage but it has succeeded"
+        CompletionInvoked _ -> expectationFailure
+            "expected parser to show usage but it offered completion"
+        Failure failure -> do
+            let (usage, _) = renderFailure failure mempty
+            (lines usage) `shouldBe` expected
+
 
 {-------------------------------------------------------------------------------
                                Arbitrary Instances
