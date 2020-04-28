@@ -269,7 +269,7 @@ serveWallet
         -> NetworkLayer IO t ByronBlock
         -> IO (ApiLayer s t k)
     apiLayer tl nl = do
-        let params = (block0, bp, sTolerance)
+        let params = (block0, gbp, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues $ getActiveSlotCoefficient bp)

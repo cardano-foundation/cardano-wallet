@@ -74,9 +74,9 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs -> ExceptT $ do
+        { initializeWallet = \pk cp meta txs txp -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs)
+                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs txp)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 

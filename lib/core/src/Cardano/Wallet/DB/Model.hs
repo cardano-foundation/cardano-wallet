@@ -134,7 +134,7 @@ data WalletDatabase s xprv = WalletDatabase
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
-    , txParameters :: !(Maybe TxParameters)
+    , txParameters :: !TxParameters
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -185,8 +185,9 @@ mInitializeWallet
     -> Wallet s
     -> WalletMetadata
     -> TxHistory
+    -> TxParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 txp db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -196,7 +197,7 @@ mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
                 , metadata = meta
                 , txHistory = history
                 , xprv = Nothing
-                , txParameters = Nothing
+                , txParameters = txp
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
@@ -388,11 +389,11 @@ mReadPrivateKey wid db@(Database wallets _) =
 
 mPutTxParameters :: Ord wid => wid -> TxParameters -> ModelOp wid s xprv ()
 mPutTxParameters wid txp = alterModel wid $ \wal ->
-    ((), wal { txParameters = Just txp })
+    ((), wal { txParameters = txp })
 
 mReadTxParameters :: Ord wid => wid -> ModelOp wid s xprv (Maybe TxParameters)
 mReadTxParameters wid db@(Database wallets _) =
-    (Right (Map.lookup wid wallets >>= txParameters), db)
+    (Right (txParameters <$> Map.lookup wid wallets), db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers

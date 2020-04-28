@@ -379,7 +379,7 @@ bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname
                         hFlush h
                 let w = WalletLayer
                         (traceProgressForPlotting fileTr)
-                        (emptyGenesis bp, bp, mkSyncTolerance 3600)
+                        (emptyGenesis bp, gbp, mkSyncTolerance 3600)
                         nw
                         tl
                         db

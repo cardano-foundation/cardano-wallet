@@ -147,6 +147,7 @@ TxParameters
     txParametersFeePolicy         W.FeePolicy sql=fee_policy
     txParametersTxMaxSize         Word16      sql=tx_max_size
     Primary txParametersWalletId
+    Foreign Wallet fk_wallet_tx_parameters txParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Store known delegation certificates for a particular wallet

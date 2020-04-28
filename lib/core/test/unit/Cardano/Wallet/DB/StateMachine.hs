@@ -75,10 +75,12 @@ import Cardano.Wallet.DB.Model
     , mPutDelegationCertificate
     , mPutPrivateKey
     , mPutTxHistory
+    , mPutTxParameters
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadPrivateKey
     , mReadTxHistory
+    , mReadTxParameters
     , mReadWalletMeta
     , mRemovePendingTx
     , mRemoveWallet
@@ -271,7 +273,7 @@ instance MockPrivKey (ByronKey 'RootK) where
 
 data Cmd s wid
     = CleanDB
-    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory
+    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory TxParameters
     | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
@@ -283,6 +285,8 @@ data Cmd s wid
     | ReadTxHistory wid SortOrder (Range SlotId) (Maybe TxStatus)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
+    | PutTxParameters wid TxParameters
+    | ReadTxParameters wid
     | RollbackTo wid SlotId
     | RemovePendingTx wid (Hash "Tx")
     | PutDelegationCertificate wid DelegationCertificate SlotId
@@ -296,6 +300,7 @@ data Success s wid
     | Metadata (Maybe WalletMetadata)
     | TxHistory TxHistory
     | PrivateKey (Maybe MPrivKey)
+    | TxParams (Maybe TxParameters)
     | BlockHeaders [BlockHeader]
     | Point SlotId
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -322,8 +327,8 @@ runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
-    CreateWallet wid wal meta txs ->
-        first (Resp . fmap (const (NewWallet wid))) . mInitializeWallet wid wal meta txs
+    CreateWallet wid wal meta txs txp ->
+        first (Resp . fmap (const (NewWallet wid))) . mInitializeWallet wid wal meta txs txp
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
@@ -348,6 +353,10 @@ runMock = \case
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
         first (Resp . fmap PrivateKey) . mReadPrivateKey wid
+    PutTxParameters wid txp ->
+        first (Resp . fmap Unit) . mPutTxParameters wid txp
+    ReadTxParameters wid ->
+        first (Resp . fmap TxParams) . mReadTxParameters wid
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
@@ -374,9 +383,10 @@ runIO db@DBLayer{..} = fmap Resp . go
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
-        CreateWallet wid wal meta txs ->
+        CreateWallet wid wal meta txs txp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
-            mapExceptT atomically $ initializeWallet (widPK wid) wal meta txs
+            mapExceptT atomically $
+            initializeWallet (widPK wid) wal meta txs txp
         RemoveWallet wid -> catchNoSuchWallet Unit $
             mapExceptT atomically $ removeWallet (PrimaryKey wid)
         ListWallets -> Right . WalletIds . fmap unPrimaryKey <$>
@@ -403,6 +413,10 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey $ PrimaryKey wid)
+        PutTxParameters wid txp -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putTxParameters (PrimaryKey wid) txp
+        ReadTxParameters wid -> Right . TxParams <$>
+            atomically (readTxParameters $ PrimaryKey wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
             mapExceptT atomically $ rollbackTo (PrimaryKey wid) sl
 
@@ -524,7 +538,8 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
             <$> genId
             <*> (getInitialCheckpoint <$> arbitrary)
             <*> arbitrary
-            <*> fmap unGenTxHistory arbitrary)
+            <*> fmap unGenTxHistory arbitrary
+            <*> arbitrary)
         ]
 
     withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
@@ -575,11 +590,9 @@ shrinker (Model _ _) (At cmd) = case cmd of
         [ At $ PutTxHistory wid h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
-    CreateWallet wid wal met txs ->
-        [ At $ CreateWallet wid wal' met' txs'
-        | txs' <- shrink txs
-        , wal' <- shrink wal
-        , met' <- shrink met
+    CreateWallet wid wal met txs txp ->
+        [ At $ CreateWallet wid wal' met' txs' txp'
+        | (txs', wal', met', txp') <- shrink (txs, wal, met, txp)
         ]
     PutWalletMeta wid met ->
         [ At $ PutWalletMeta wid met'
@@ -672,6 +685,8 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadTxHistory{}) = "ReadTxHistory"
     cmdName (At PutPrivateKey{}) = "PutPrivateKey"
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
+    cmdName (At PutTxParameters{}) = "PutTxParameters"
+    cmdName (At ReadTxParameters{}) = "ReadTxParameters"
     cmdName (At RollbackTo{}) = "RollbackTo"
     cmdName (At RemovePendingTx{}) = "RemovePendingTx"
     cmdNames _ =
@@ -681,6 +696,7 @@ instance CommandNames (At (Cmd s)) where
         , "PutWalletMeta", "ReadWalletMeta", "PutDelegationCertificate"
         , "PutTxHistory", "ReadTxHistory", "RemovePendingTx"
         , "PutPrivateKey", "ReadPrivateKey"
+        , "PutTxParameters", "ReadTxParameters"
         ]
 
 instance Functor f => Rank2.Functor (At f) where
@@ -895,7 +911,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Set MWid -> Event s Symbolic -> Set MWid
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
                     Set.insert wid created
                 _otherwise ->
                     created
@@ -910,7 +926,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
       where
         match :: Event s Symbolic -> Maybe MWid
         match ev = case (cmd ev, mockResp ev) of
-            (At (CreateWallet wid _ _ _), Resp _) -> Just wid
+            (At (CreateWallet wid _ _ _ _), Resp _) -> Just wid
             _otherwise -> Nothing
 
     removeWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
@@ -966,7 +982,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Map MWid Bool -> Event s Symbolic -> Map MWid Bool
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
                 (At ListWallets, Resp (Right (WalletIds wids))) ->
                     foldr (Map.adjust (const True)) created wids

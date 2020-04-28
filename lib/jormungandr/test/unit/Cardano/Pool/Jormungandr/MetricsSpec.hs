@@ -266,7 +266,7 @@ prop_trackRegistrations test = monadicIO $ do
                 pure mempty
             , currentNodeTip =
                 pure header0
-            , getTxParameters = pure txParameters
+            , getTxParameters = pure genesisTxParameters
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader

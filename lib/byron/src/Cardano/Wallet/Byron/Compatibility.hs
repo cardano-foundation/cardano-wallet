@@ -119,7 +119,6 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
-import qualified Cardano.Chain.Common as CC
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
@@ -371,7 +370,7 @@ fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
     W.LinearFee
         (Quantity (lovelaceToDouble a))
         (Quantity (rationalToDouble b))
-        (Quantity 0)
+        (Quantity 0) -- certificates do not exist for Byron
   where
     lovelaceToDouble :: Lovelace -> Double
     lovelaceToDouble = fromIntegral . unsafeGetLovelace
@@ -394,6 +393,17 @@ fromBlockCount (BlockCount k) =
 fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
+
+txParametersFromPP :: Update.ProtocolParameters -> W.TxParameters
+txParametersFromPP pp = W.TxParameters
+    { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
+    , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
+    }
+
+-- | Pluck the blockchain parameters relevant to creating transactions out of
+-- the cardano-chain update state record.
+txParametersFromUpdateState :: Update.State -> W.TxParameters
+txParametersFromUpdateState = txParametersFromPP . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
@@ -418,12 +428,7 @@ fromGenesisData (genesisData, genesisHash) =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters = W.TxParameters
-            { getFeePolicy =
-                fromTxFeePolicy . ppTxFeePolicy . gdProtocolParameters $ genesisData
-            , getTxMaxSize =
-                fromMaxTxSize . ppMaxTxSize . gdProtocolParameters $ genesisData
-            }
+        , txParameters = txParametersFromPP . gdProtocolParameters $ genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )
@@ -434,20 +439,3 @@ fromNetworkMagic (NetworkMagic magic) =
 
 fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
 fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
-
--- | Pluck the blockchain parameters relevant to creating transactions out of
--- the cardano-chain update state record.
-txParametersFromUpdateState :: Update.State -> W.TxParameters
-txParametersFromUpdateState = mk . Update.adoptedProtocolParameters
-  where
-    mk :: Update.ProtocolParameters -> W.TxParameters
-    mk pp = W.TxParameters
-        { getFeePolicy = feePolicy $ Update.ppTxFeePolicy pp
-        , getTxMaxSize = Quantity . fromIntegral $ Update.ppMaxTxSize pp
-        }
-    feePolicy :: CC.TxFeePolicy -> W.FeePolicy
-    feePolicy (CC.TxFeePolicyTxSizeLinear (CC.TxSizeLinear a m)) =
-        W.LinearFee
-            (Quantity (fromIntegral (CC.lovelaceToInteger a)))
-            (Quantity (fromRational m))
-            (Quantity 0) -- certificates do not exist for Byron

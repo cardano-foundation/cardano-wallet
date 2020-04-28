@@ -1333,15 +1333,6 @@ instance Buildable TxParameters where
         feePolicyF = build . toText
         txMaxSizeF (Quantity s) = build s
 
-{-
--- | Get transaction-specific parameters from the chain parameters.
-txParams :: BlockchainParameters -> TxParameters
-txParams bp =
-    TxParameters
-        (bp ^. #getFeePolicy)
-        (bp ^. #getTxMaxSize)
--}
-
 {-------------------------------------------------------------------------------
                                    Slotting
 -------------------------------------------------------------------------------}

@@ -441,7 +441,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \(PrimaryKey wid) cp meta txs -> ExceptT $ do
+        { initializeWallet = \(PrimaryKey wid) cp meta txs txp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta)
             when (isRight res) $ do
@@ -449,6 +449,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                 let (metas, txins, txouts) = mkTxHistory wid txs
                 putTxMetas metas
                 putTxs txins txouts
+                insert_ (mkTxParametersEntity wid txp)
             pure res
 
         , removeWallet = \(PrimaryKey wid) -> ExceptT $ do
@@ -602,9 +603,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
         , putTxParameters = \(PrimaryKey wid) txp -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> do
-                    deleteWhere [TxParametersWalletId ==. wid]
-                    insert_ (mkTxParametersEntity wid txp)
+                Just _  -> Right <$> repsert
+                    (TxParametersKey wid)
+                    (mkTxParametersEntity wid txp)
 
         , readTxParameters = \(PrimaryKey wid) -> selectTxParameters wid
 

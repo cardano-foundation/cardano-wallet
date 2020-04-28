@@ -231,9 +231,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer (block0, bp) nl db md
-                    byronApi   <- apiLayer (block0, bp) byronTl nl
-                    icarusApi  <- apiLayer (block0, bp) icarusTl nl
-                    shelleyApi <- apiLayer (block0, bp) shelleyTl nl
+                    byronApi   <- apiLayer (block0, gbp) byronTl nl
+                    icarusApi  <- apiLayer (block0, gbp) icarusTl nl
+                    shelleyApi <- apiLayer (block0, gbp) shelleyTl nl
                     startServer socket nPort gbp
                         byronApi
                         icarusApi
@@ -270,17 +270,17 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => (J.Block, BlockchainParameters)
+        => (J.Block, GenesisBlockParameters)
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
-    apiLayer (block0, bp) tl nl = do
+    apiLayer (block0, gbp) tl nl = do
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient bp)
+            (DefaultFieldValues $ getActiveSlotCoefficient $ staticParameters gbp)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db
+            walletEngineTracer (toWLBlock block0, gbp, sTolerance) nl' tl db
       where
         nl' = toWLBlock <$> nl
 

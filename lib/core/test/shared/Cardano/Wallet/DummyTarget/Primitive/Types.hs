@@ -6,8 +6,9 @@
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
     , block0
+    , genesisBlockParameters
     , genesisParameters
-    , txParameters
+    , genesisTxParameters
     , genesisHash
     , mockHash
     , mkTxId
@@ -24,6 +25,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , SlotLength (..)
     , StartTime (..)
@@ -79,10 +81,16 @@ genesisParameters = BlockchainParameters
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
 
-txParameters :: TxParameters
-txParameters = TxParameters
+genesisTxParameters :: TxParameters
+genesisTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getTxMaxSize = Quantity 8192
+    }
+
+genesisBlockParameters :: GenesisBlockParameters
+genesisBlockParameters = GenesisBlockParameters
+    { staticParameters = genesisParameters
+    , txParameters = genesisTxParameters
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.

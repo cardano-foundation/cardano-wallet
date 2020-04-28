@@ -33,7 +33,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     , TxParameters (..)
-    , TxParameters (..)
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, newMVar, readMVar )
