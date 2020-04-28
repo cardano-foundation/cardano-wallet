@@ -161,7 +161,7 @@ mainnetBlockchainParameters = W.GenesisBlockParameters
         { getFeePolicy =
             W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
         , getTxMaxSize =
-            Quantity 8192
+            Quantity 4096
         }
     }
 
