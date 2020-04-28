@@ -241,6 +241,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bech32" or (buildDepError "bech32"))
             (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
             (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-core-integration" or (buildDepError "cardano-wallet-core-integration"))

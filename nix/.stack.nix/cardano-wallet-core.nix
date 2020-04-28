@@ -61,7 +61,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."base58-bytestring" or (buildDepError "base58-bytestring"))
-          (hsPkgs."basement" or (buildDepError "basement"))
           (hsPkgs."bech32" or (buildDepError "bech32"))
           (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
           (hsPkgs."binary" or (buildDepError "binary"))
