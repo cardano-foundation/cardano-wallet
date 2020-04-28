@@ -342,7 +342,7 @@ mockNetworkLayer logLine = do
     st <- newMVar emptyBlockHeaders
     Right (_b0, gbp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure
-        ( fromJBlock <$> mkRawNetworkLayer (staticParameters gbp) (fromIntegral k) st jm
+        ( fromJBlock <$> mkRawNetworkLayer gbp (fromIntegral k) st jm
         , findIntersection st
         )
   where

@@ -134,6 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId
     , SlotId (..)
+    , TxParameters
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
@@ -275,8 +276,7 @@ newNetworkLayer tr baseUrl block0H = do
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, gbp) <- getInitialBlockchainParameters jor (coerce block0H)
-    let bp = staticParameters gbp
-    return ((block0, gbp), mkRawNetworkLayer bp 1000 st jor)
+    return ((block0, gbp), mkRawNetworkLayer gbp 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -288,18 +288,18 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => BlockchainParameters
+    => GenesisBlockParameters
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer bp batchSize st j = NetworkLayer
+mkRawNetworkLayer gbp batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
     , getTxParameters =
-        error "fixme jormungandr"
+        _getTxParameters
 
     , nextBlocks =
         _nextBlocks
@@ -329,10 +329,10 @@ mkRawNetworkLayer bp batchSize st j = NetworkLayer
     -- @k@ but in practice with Jörmungandr, nodes can make jumps longer than
     -- that.
     k :: Quantity "block" Word32
-    k = (max 100) <$> getEpochStability bp
+    k = (max 100) <$> getEpochStability (staticParameters gbp)
 
     genesis :: Hash "Genesis"
-    genesis = getGenesisBlockHash bp
+    genesis = getGenesisBlockHash $ staticParameters gbp
 
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do
@@ -341,6 +341,9 @@ mkRawNetworkLayer bp batchSize st j = NetworkLayer
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
             Nothing -> Left ErrCurrentNodeTipNotFound
+
+    _getTxParameters :: m TxParameters
+    _getTxParameters = pure $ txParameters gbp
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =
