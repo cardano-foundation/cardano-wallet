@@ -34,7 +34,6 @@ library
     , async
     , base
     , base58-bytestring
-    , basement
     , bech32
     , bech32-th
     , binary

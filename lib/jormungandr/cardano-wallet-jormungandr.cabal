@@ -271,6 +271,7 @@ benchmark latency
     , bech32
     , bech32-th
     , bytestring
+    , cardano-addresses
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
