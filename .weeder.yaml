@@ -14,19 +14,13 @@
     - name: test:integration bench:latency
     - message:
       - name: Module reused between components
-      - module:
-        - Cardano.Wallet.Byron.Faucet
+      - module: Cardano.Wallet.Byron.Faucet
 - package:
   - name: cardano-wallet-core
   - section:
     - name: test:unit
     - message:
       - name: Weeds exported
-      - module:
-        - name: Cardano.Pool.MetricsSpec
-        - identifier:
-          - RegistrationsTest
-          - arbitraryChunks
       - module:
         - name: Cardano.Wallet.DB.StateMachine
         - identifier: showLabelledExamples
@@ -82,6 +76,11 @@
     - name: test:unit
     - message:
       - name: Weeds exported
+      - module:
+        - name: Cardano.Pool.Jormungandr.MetricsSpec
+        - identifier:
+          - RegistrationsTest
+          - arbitraryChunks
       - module:
         - name: Cardano.Wallet.Jormungandr.NetworkSpec
         - identifier:
@@ -142,3 +141,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Startup.Windows
+

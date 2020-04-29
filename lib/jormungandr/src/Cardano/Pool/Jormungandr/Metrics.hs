@@ -17,13 +17,11 @@
 -- - "Cardano.Wallet.Network" which provides the chain
 -- - "Cardano.Pool.DB" - which can persist the metrics
 -- - "Cardano.Wallet.Api.Server" - which presents the results in an endpoint
-module Cardano.Pool.Metrics
+module Cardano.Pool.Jormungandr.Metrics
     ( -- * Types
       Block (..)
-    , StakePool (..)
 
     -- * Listing stake-pools from the DB
-    , StakePoolLayer (..)
     , newStakePoolLayer
     , ErrListStakePools (..)
 
@@ -47,18 +45,15 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Pool
+    ( StakePoolLayer (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
-import Cardano.Pool.Metadata
-    ( RegistryLog
-    , StakePoolMetadata (..)
-    , getMetadataConfig
-    , getStakePoolMetadata
-    , sameStakePoolMetadata
-    )
-import Cardano.Pool.Performance
+import Cardano.Pool.Jormungandr.Metadata
+    ( RegistryLog, getMetadataConfig, getStakePoolMetadata )
+import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
@@ -76,6 +71,9 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId
+    , StakePool (..)
+    , StakePoolMetadata (..)
+    , sameStakePoolMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -122,7 +120,7 @@ import GHC.Generics
 import System.Random
     ( StdGen )
 
-import qualified Cardano.Pool.Ranking as Ranking
+import qualified Cardano.Pool.Jormungandr.Ranking as Ranking
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
@@ -139,17 +137,6 @@ data Block = Block
     , poolRegistrations :: ![PoolRegistrationCertificate]
     -- ^ Any stake pools that were registered in this block.
     } deriving (Eq, Show, Generic)
-
-data StakePool = StakePool
-    { poolId :: PoolId
-    , stake :: Quantity "lovelace" Word64
-    , production :: Quantity "block" Word64
-    , performance :: Double
-    , desirability :: Double
-    , cost :: Quantity "lovelace" Word64
-    , margin :: Percentage
-    , saturation :: Double
-    } deriving (Show, Generic)
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring
@@ -241,19 +228,6 @@ data ErrMonitorStakePools
 -- StakePoolLayer
 --------------------------------------------------------------------------------
 
--- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
--- can easily be passed to the API-server, where it can be used in a simple way.
-data StakePoolLayer m = StakePoolLayer
-    { listStakePools
-        :: ExceptT ErrListStakePools m [(StakePool, Maybe StakePoolMetadata)]
-
-    , knownStakePools
-        :: m [PoolId]
-        -- ^ Get a list of known pools that doesn't require fetching things from
-        -- Jörmungandr or any registry. This list comes from the registration
-        -- certificates that have been seen on chain.
-    }
-
 data ErrListStakePools
      = ErrMetricsIsUnsynced (Quantity "percent" Percentage)
      | ErrListStakePoolsCurrentNodeTip ErrCurrentNodeTip
@@ -269,7 +243,7 @@ newStakePoolLayer
     -> FilePath
     -- ^ A directory to cache downloaded stake pool metadata. Will be created if
     -- it does not exist.
-    -> StakePoolLayer IO
+    -> StakePoolLayer ErrListStakePools IO
 newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
     { listStakePools = do
         lift $ traceWith tr MsgListStakePoolsBegin

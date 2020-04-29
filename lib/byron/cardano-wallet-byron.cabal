@@ -49,6 +49,7 @@ library
     , exceptions
     , filepath
     , fmt
+    , generic-lens
     , io-sim-classes
     , iohk-monitoring
     , memory
@@ -61,6 +62,7 @@ library
     , ouroboros-network-framework
     , process
     , retry
+    , servant-server
     , temporary
     , text
     , text-class
@@ -75,6 +77,7 @@ library
       src
   exposed-modules:
       Cardano.Wallet.Byron
+      Cardano.Wallet.Byron.Api.Server
       Cardano.Wallet.Byron.Compatibility
       Cardano.Wallet.Byron.Network
       Cardano.Wallet.Byron.Transaction

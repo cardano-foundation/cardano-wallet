@@ -131,10 +131,14 @@ module Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
 
     -- * Stake Pools
+    , StakePool(..)
     , PoolId(..)
     , PoolOwner(..)
     , StakeDistribution (..)
     , poolIdBytesLength
+    , StakePoolMetadata (..)
+    , StakePoolTicker (..)
+    , sameStakePoolMetadata
 
     -- * Querying
     , SortOrder (..)
@@ -559,6 +563,66 @@ isSubrangeOf r1 r2 =
 {-------------------------------------------------------------------------------
                                   Stake Pools
 -------------------------------------------------------------------------------}
+
+data StakePool = StakePool
+    { poolId :: PoolId
+    , stake :: Quantity "lovelace" Word64
+    , production :: Quantity "block" Word64
+    , performance :: Double
+    , desirability :: Double
+    , cost :: Quantity "lovelace" Word64
+    , margin :: Percentage
+    , saturation :: Double
+    } deriving (Show, Generic)
+
+-- | Information about a stake pool, published by a stake pool owner in the
+-- stake pool registry.
+--
+-- The wallet searches for registrations involving the owner, to find metadata
+-- for a given PoolID.
+--
+-- The metadata information is not used directly by cardano-wallet, but rather
+-- passed straight through to API consumers.
+data StakePoolMetadata = StakePoolMetadata
+    { owner :: PoolOwner
+    -- ^ Bech32-encoded ed25519 public key.
+    , ticker :: StakePoolTicker
+    -- ^ Very short human-readable ID for the stake pool.
+    , name :: Text
+    -- ^ Name of the stake pool.
+    , description :: Maybe Text
+    -- ^ Short description of the stake pool.
+    , homepage :: Text
+    -- ^ Absolute URL for the stake pool's homepage link.
+    , pledgeAddress :: Text
+    -- ^ Bech32-encoded address.
+    } deriving (Eq, Show, Generic)
+
+-- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
+sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
+sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
+  where
+    same = PoolOwner mempty
+
+-- | Very short name for a stake pool.
+newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
+    deriving stock (Generic, Show, Eq)
+    deriving newtype (ToText)
+
+instance FromText StakePoolTicker where
+    fromText t
+        | T.length t >= 3 && T.length t <= 5
+            = Right $ StakePoolTicker t
+        | otherwise
+            = Left . TextDecodingError $
+                "stake pool ticker length must be 3-5 characters"
+
+-- Here to avoid needless orphan instances in the API types.
+instance FromJSON StakePoolTicker where
+    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
+
+instance ToJSON StakePoolTicker where
+    toJSON = toJSON . toText
 
 -- | Identifies a stake pool.
 -- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool

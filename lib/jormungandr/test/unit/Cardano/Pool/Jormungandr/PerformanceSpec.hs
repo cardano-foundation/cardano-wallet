@@ -2,13 +2,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.PerformanceSpec
+module Cardano.Pool.Jormungandr.PerformanceSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Pool.Performance
+import Cardano.Pool.Jormungandr.Performance
     ( EpochStats (..), apparentPerformance )
 import Data.Function
     ( (&) )

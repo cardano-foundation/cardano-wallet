@@ -29,7 +29,7 @@
 -- This should be less punitive for leaders that have not yet been elected as
 -- part of the ongoing epoch while having still performed reasonably okay in the
 -- past.
-module Cardano.Pool.Performance
+module Cardano.Pool.Jormungandr.Performance
     ( EpochStats (..)
     , apparentPerformance
     , readPoolsPerformances

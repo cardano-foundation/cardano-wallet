@@ -3,23 +3,23 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Pool.MetadataSpec (spec) where
+module Cardano.Pool.Jormungandr.MetadataSpec (spec) where
 
 import Prelude
 
-import Cardano.Pool.Metadata
+import Cardano.Pool.Jormungandr.Metadata
     ( FetchError (..)
     , MetadataConfig (..)
     , RegistryLog (..)
     , RegistryLogMsg (..)
-    , StakePoolMetadata (..)
-    , StakePoolTicker
     , cacheArchive
     , getMetadataConfig
     , getStakePoolMetadata
     )
+import Cardano.Wallet.Api.Types
+    ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolOwner (..) )
+    ( PoolOwner (..), StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Codec.Archive.Zip
@@ -301,7 +301,7 @@ stakePoolEntryMeta (Meta m) = Just m
 
 encodeStakePoolEntry :: StakePoolEntry -> ByteString
 encodeStakePoolEntry Junk = "junk"
-encodeStakePoolEntry (Meta m) = BL.toStrict $ encode m
+encodeStakePoolEntry (Meta m) = BL.toStrict $ encode (ApiT m)
 
 isJunk :: StakePoolEntry -> Bool
 isJunk Junk = True

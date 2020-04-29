@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Cardano.Pool.MetricsSpec
+module Cardano.Pool.Jormungandr.MetricsSpec
     ( spec
     , arbitraryChunks
     , RegistrationsTest
@@ -21,28 +21,25 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( nullTracer )
+import Cardano.Pool
+    ( StakePoolLayer (..) )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
-import Cardano.Pool.Metadata
-    ( StakePoolMetadata (..), envVarMetadataRegistry, sameStakePoolMetadata )
-import Cardano.Pool.Metrics
+import Cardano.Pool.Jormungandr.Metadata
+    ( envVarMetadataRegistry )
+import Cardano.Pool.Jormungandr.Metrics
     ( Block (..)
     , ErrListStakePools (..)
-    , StakePoolLayer (..)
     , StakePoolLog (..)
     , associateMetadata
     , combineMetrics
     , monitorStakePools
     , newStakePoolLayer
     )
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( genesisParameters )
-import Cardano.Wallet.Gen
-    ( genPercentage )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetBlock (..)
@@ -57,14 +54,19 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , EpochNo
+    , FeePolicy (..)
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , SlotLength (..)
+    , StakePoolMetadata (..)
+    , StartTime (..)
     , flatSlot
     , flatSlot
     , fromFlatSlot
+    , sameStakePoolMetadata
     , slotParams
     , slotSucc
     )
@@ -89,11 +91,13 @@ import Data.Map.Strict
 import Data.Maybe
     ( catMaybes )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( (%) )
 import Data.Text.Class
     ( toText )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word32, Word64 )
 import System.Environment
@@ -467,6 +471,27 @@ arbitraryChunks xs = do
     n <- choose (1, length xs)
     rest <- arbitraryChunks (drop n xs)
     pure $ take n xs : rest
+
+genPercentage :: Gen Percentage
+genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
+  where
+    genDouble :: Gen Double
+    genDouble = choose (0, 1)
+
+genesisParameters  :: BlockchainParameters
+genesisParameters = BlockchainParameters
+    { getGenesisBlockHash = genesisHash
+    , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+    , getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
+    , getSlotLength = SlotLength 1
+    , getEpochLength = EpochLength 21600
+    , getTxMaxSize = Quantity 8192
+    , getEpochStability = Quantity 2160
+    , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+    }
+
+genesisHash :: Hash "Genesis"
+genesisHash = Hash (B8.replicate 32 '0')
 
 {-------------------------------------------------------------------------------
                                    Unit tests

@@ -250,8 +250,8 @@ mapCursor fn = \case
 -- should be forgotten and retried (@Retry@).
 --
 -- NOTE: @Retry@ is needed to handle data-races in
--- 'Cardano.Pool.Metrics', where it is essensial that we fetch the stake
--- distribution while the node-tip
+-- 'Cardano.Pool.Jormungandr.Metrics', where it is essensial that we fetch the
+-- stake distribution while the node-tip
 --
 -- FIXME:
 -- Retry actions with the Haskell nodes are not possible (or at least, requires

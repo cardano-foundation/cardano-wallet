@@ -83,7 +83,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, sign, toXPub, unXPub, unXSignature )
-import Cardano.Pool.Ranking
+import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.Jormungandr.Rewards
     ( PoolCapping (..)

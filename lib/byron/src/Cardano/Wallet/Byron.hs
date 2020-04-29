@@ -63,6 +63,8 @@ import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
+import Cardano.Wallet.Byron.Api.Server
+    ( server )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron, ByronBlock, fromByronBlock, fromNetworkMagic )
 import Cardano.Wallet.Byron.Network
@@ -251,7 +253,7 @@ serveWallet
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                Server.byronServer random icarus ntp
+                server random icarus ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer
