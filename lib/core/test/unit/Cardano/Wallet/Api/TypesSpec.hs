@@ -35,8 +35,6 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.Pool.Metadata
-    ( StakePoolMetadata (..), StakePoolTicker )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types

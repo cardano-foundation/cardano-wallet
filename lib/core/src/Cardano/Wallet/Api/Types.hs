@@ -118,8 +118,6 @@ import Prelude
 
 import Cardano.Mnemonic
     ( SomeMnemonic (..), mnemonicToText )
-import Cardano.Pool.Metadata
-    ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)

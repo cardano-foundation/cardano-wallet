@@ -57,7 +57,6 @@ library
     , foldl
     , generic-lens
     , http-api-data
-    , http-client
     , http-media
     , http-types
     , iohk-monitoring
@@ -234,7 +233,6 @@ test-suite unit
     , wai
     , wai-extra
     , warp
-    , zip
   build-tools:
       hspec-discover
   type:
