@@ -7,6 +7,7 @@ env:
 steps:
   - label: 'hydra-eval-errors'
     command: 'nix-build ./nix -A iohkNix.hydraEvalErrors && ./result/bin/hydra-eval-errors.py'
+    if: 'build.tag == null'
     agents:
       system: x86_64-linux
 
