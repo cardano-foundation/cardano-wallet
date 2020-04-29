@@ -15,6 +15,16 @@ module Test.Integration.Scenario.API.Byron.Wallets
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( ConsistentEntropy
+    , EntropySize
+    , MnemonicWords
+    , ValidChecksumSize
+    , ValidEntropySize
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiByronWalletMigrationInfo (..)
@@ -25,16 +35,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MnemonicWords
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad

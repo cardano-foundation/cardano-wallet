@@ -13,11 +13,12 @@ module Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
 import Prelude hiding
     ( lines )
 
+import Cardano.Mnemonic
+    ( SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , FromMnemonic (..)
     , NetworkDiscriminant (..)
-    , SomeMnemonic
     , WalletKey (..)
     , XPrv
     , XPub (..)

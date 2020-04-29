@@ -15,6 +15,8 @@ module Test.Integration.Byron.Scenario.API.Transactions
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiFee
@@ -31,8 +33,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Address, Direction (..), TxStatus (..) )
 import Control.Monad

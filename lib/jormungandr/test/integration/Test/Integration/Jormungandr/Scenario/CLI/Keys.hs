@@ -10,10 +10,16 @@ module Test.Integration.Jormungandr.Scenario.CLI.Keys
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( ConsistentEntropy
+    , EntropySize
+    , Mnemonic
+    , SomeMnemonic (..)
+    , entropyToMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Passphrase (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , hex
@@ -26,8 +32,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Data.Proxy

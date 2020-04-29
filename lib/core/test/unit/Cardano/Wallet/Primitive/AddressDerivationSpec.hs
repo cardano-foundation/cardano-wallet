@@ -20,6 +20,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub, unXPrv, xpub )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -35,7 +37,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , checkPassphrase

@@ -166,6 +166,7 @@ test-suite integration
     , aeson
     , async
     , bytestring
+    , cardano-addresses
     , cardano-wallet-byron
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -210,6 +211,7 @@ benchmark restore
   build-depends:
       base
     , bytestring
+    , cardano-addresses
     , cardano-wallet-core
     , optparse-applicative
     , cardano-wallet-byron

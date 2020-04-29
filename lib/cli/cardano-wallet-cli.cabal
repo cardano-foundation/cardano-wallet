@@ -36,6 +36,7 @@ library
     , bech32
     , bech32-th
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , contra-tracer
@@ -70,6 +71,7 @@ test-suite unit
   build-depends:
       base
     , bytestring
+    , cardano-addresses
     , cardano-wallet-launcher
     , cardano-wallet-cli
     , cardano-wallet-core

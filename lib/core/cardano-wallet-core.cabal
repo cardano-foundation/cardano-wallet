@@ -34,11 +34,11 @@ library
     , async
     , base
     , base58-bytestring
-    , basement
     , bech32
     , bech32-th
     , binary
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cborg
     , conduit
@@ -146,7 +146,6 @@ library
       Cardano.Wallet.Primitive.CoinSelection.Migration
       Cardano.Wallet.Primitive.CoinSelection.Random
       Cardano.Wallet.Primitive.Fee
-      Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Registry
@@ -183,6 +182,7 @@ test-suite unit
     , aeson-qq
     , async
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-launcher
@@ -288,7 +288,6 @@ test-suite unit
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec
       Cardano.Wallet.Primitive.CoinSelectionSpec
       Cardano.Wallet.Primitive.FeeSpec
-      Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec
@@ -316,6 +315,7 @@ benchmark db
   build-depends:
       base
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-launcher

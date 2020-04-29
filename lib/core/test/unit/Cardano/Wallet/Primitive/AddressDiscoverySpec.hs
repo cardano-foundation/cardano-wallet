@@ -13,6 +13,8 @@ module Cardano.Wallet.Primitive.AddressDiscoverySpec
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -22,7 +24,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
-    , SomeMnemonic (..)
     , XPrv
     , passphraseMaxLength
     , passphraseMinLength

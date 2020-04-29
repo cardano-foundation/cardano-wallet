@@ -16,6 +16,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -26,7 +28,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , liftIndex

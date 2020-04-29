@@ -30,16 +30,13 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv )
-import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( SomeMnemonic (..) )
-import Cardano.Wallet.Primitive.Mnemonic
+import Cardano.Mnemonic
     ( ConsistentEntropy
     , Entropy
     , EntropySize
     , Mnemonic
     , MnemonicWords
+    , SomeMnemonic (..)
     , ValidChecksumSize
     , ValidEntropySize
     , ValidMnemonicSentence
@@ -47,6 +44,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mkEntropy
     , mkMnemonic
     )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address )
 import Control.Monad
@@ -80,6 +79,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -158,7 +158,7 @@ unsafeMkEntropy
         )
     => ByteString
     -> Entropy ent
-unsafeMkEntropy = either (error . show) id . mkEntropy
+unsafeMkEntropy = either (error . show) id . mkEntropy . BA.convert
 
 unsafeMkSomeMnemonicFromEntropy
     :: forall mw ent csz.

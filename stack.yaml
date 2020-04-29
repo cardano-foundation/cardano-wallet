@@ -38,6 +38,9 @@ extra-deps:
     - persistent-sqlite
     - persistent-template
 
+- git: https://github.com/input-output-hk/cardano-addresses
+  commit: 1f05259ceeaab208d029850968678a7b41aa9b2d
+
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
   zip:

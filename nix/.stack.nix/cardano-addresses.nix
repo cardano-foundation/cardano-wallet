@@ -38,74 +38,64 @@ let
       If you are using Stackage, make sure that you are using a snapshot that contains the package. Otherwise you may need to update the Hackage snapshot you are using, usually by updating haskell.nix.
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
-  {
+  ({
     flags = { release = false; };
     package = {
-      specVersion = "1.10";
-      identifier = { name = "cardano-wallet-cli"; version = "2020.4.28"; };
+      specVersion = "0";
+      identifier = { name = "cardano-addresses"; version = "1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2018-2020 IOHK";
+      copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
-      author = "IOHK Engineering Team";
-      homepage = "https://github.com/input-output-hk/cardano-wallet";
+      author = "IOHK";
+      homepage = "https://github.com/input-output-hk/cardano-addresses#readme";
       url = "";
-      synopsis = "Utilities for a building Command-Line Interfaces";
-      description = "";
+      synopsis = "Library utilities for mnemonic generation and address derivation.";
+      description = "Please see the README on GitHub at <https://github.com/input-output-hk/cardano-addresses>";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
         depends = [
-          (hsPkgs."aeson" or (buildDepError "aeson"))
-          (hsPkgs."aeson-pretty" or (buildDepError "aeson-pretty"))
-          (hsPkgs."ansi-terminal" or (buildDepError "ansi-terminal"))
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."base58-bytestring" or (buildDepError "base58-bytestring"))
+          (hsPkgs."basement" or (buildDepError "basement"))
           (hsPkgs."bech32" or (buildDepError "bech32"))
           (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
-          (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-          (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-          (hsPkgs."directory" or (buildDepError "directory"))
+          (hsPkgs."cborg" or (buildDepError "cborg"))
+          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
+          (hsPkgs."deepseq" or (buildDepError "deepseq"))
+          (hsPkgs."digest" or (buildDepError "digest"))
+          (hsPkgs."exceptions" or (buildDepError "exceptions"))
           (hsPkgs."extra" or (buildDepError "extra"))
-          (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
-          (hsPkgs."http-client" or (buildDepError "http-client"))
-          (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."servant-client" or (buildDepError "servant-client"))
-          (hsPkgs."servant-client-core" or (buildDepError "servant-client-core"))
           (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."text-class" or (buildDepError "text-class"))
-          (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
           ];
         buildable = true;
         };
       tests = {
         "unit" = {
           depends = [
+            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
-            (hsPkgs."cardano-wallet-launcher" or (buildDepError "cardano-wallet-launcher"))
-            (hsPkgs."cardano-wallet-cli" or (buildDepError "cardano-wallet-cli"))
-            (hsPkgs."cardano-wallet-core" or (buildDepError "cardano-wallet-core"))
-            (hsPkgs."filepath" or (buildDepError "filepath"))
+            (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
-            (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."silently" or (buildDepError "silently"))
-            (hsPkgs."temporary" or (buildDepError "temporary"))
+            (hsPkgs."memory" or (buildDepError "memory"))
             (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."text-class" or (buildDepError "text-class"))
-            ];
-          build-tools = [
-            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (buildToolDepError "hspec-discover")))
             ];
           buildable = true;
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/cli; }
+    } // {
+    src = (pkgs.lib).mkDefault (pkgs.fetchgit {
+      url = "https://github.com/input-output-hk/cardano-addresses";
+      rev = "1f05259ceeaab208d029850968678a7b41aa9b2d";
+      sha256 = "0blqhakmyyq81kacjsgfgcp3ivly0bf5k3c1rz43khyrk9ni29q2";
+      });
+    }) // { cabal-generator = "hpack"; }

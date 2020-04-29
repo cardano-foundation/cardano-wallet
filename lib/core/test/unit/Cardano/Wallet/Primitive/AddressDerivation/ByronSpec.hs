@@ -16,13 +16,14 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( xprv )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
     , Index (..)
     , Passphrase (..)
-    , SomeMnemonic (..)
     , XPrv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

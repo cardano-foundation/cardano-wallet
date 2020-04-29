@@ -39,6 +39,13 @@ import Cardano.CLI
     , mapKey
     , newCliKeyScheme
     )
+import Cardano.Mnemonic
+    ( ConsistentEntropy
+    , EntropySize
+    , Mnemonic
+    , entropyToMnemonic
+    , mnemonicToText
+    )
 import Cardano.Startup
     ( setUtf8EncodingHandles )
 import Cardano.Wallet.Api.Client
@@ -52,13 +59,6 @@ import Cardano.Wallet.Api.Types
     ( ByronWalletStyle (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( XPrv, unXPrv )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , Mnemonic
-    , entropyToMnemonic
-    , mnemonicToText
-    )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow

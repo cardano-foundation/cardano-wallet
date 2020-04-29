@@ -42,6 +42,8 @@ import Cardano.DB.Sqlite
     ( destroyDBLayer, unsafeRunQuery )
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
 import Cardano.Startup
     ( installSignalHandlers )
 import Cardano.Wallet
@@ -77,7 +79,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
     , PersistPrivateKey
-    , SomeMnemonic (..)
     , WalletKey
     , digest
     , publicKey

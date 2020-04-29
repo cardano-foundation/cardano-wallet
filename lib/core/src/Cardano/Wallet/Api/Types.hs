@@ -116,6 +116,8 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Pool.Metadata
     ( StakePoolMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -128,7 +130,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PersistPublicKey (..)
-    , SomeMnemonic (..)
     , XPrv
     , XPub
     , natVals
@@ -143,8 +144,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)

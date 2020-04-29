@@ -15,6 +15,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( ConsistentEntropy, EntropySize, SomeMnemonic (..), mkMnemonic )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -30,7 +32,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     )
@@ -43,8 +44,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genLegacyAddress )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( ConsistentEntropy, EntropySize, mkMnemonic )
 import Cardano.Wallet.Primitive.Types
     ( Address )
 import Cardano.Wallet.Unsafe

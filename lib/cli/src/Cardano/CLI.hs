@@ -120,6 +120,8 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..), entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Client
     ( AddressClient (..)
     , NetworkClient (..)
@@ -166,7 +168,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
-    , SomeMnemonic (..)
     , WalletKey (..)
     , XPrv
     , XPub
@@ -178,8 +179,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, Hash, SortOrder, SyncTolerance (..), WalletId, WalletName )
 import Cardano.Wallet.Version

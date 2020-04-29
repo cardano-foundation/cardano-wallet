@@ -68,6 +68,7 @@
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
+        cardano-addresses = ./cardano-addresses.nix;
         cborg = ./cborg.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;

@@ -131,6 +131,13 @@ module Test.Integration.Framework.DSL
 
 import Cardano.CLI
     ( Port (..) )
+import Cardano.Mnemonic
+    ( Mnemonic
+    , SomeMnemonic (..)
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
@@ -163,7 +170,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
-    , SomeMnemonic (..)
     , WalletKey (..)
     , hex
     , preparePassphrase
@@ -174,8 +180,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( generateKeyFromSeed )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
