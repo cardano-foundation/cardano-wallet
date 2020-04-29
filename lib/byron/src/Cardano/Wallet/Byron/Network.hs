@@ -148,9 +148,11 @@ import Ouroboros.Consensus.Node.Run
     ( RunNode (..) )
 import Ouroboros.Network.Block
     ( Point (..)
+    , Serialised (..)
     , SlotNo (..)
     , Tip (..)
     , blockPoint
+    , castTip
     , decodePoint
     , decodeTip
     , encodePoint
@@ -194,7 +196,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     , chainSyncClientPeer
     )
 import Ouroboros.Network.Protocol.ChainSync.Codec
-    ( codecChainSync )
+    ( codecChainSync, codecChainSyncSerialised )
 import Ouroboros.Network.Protocol.ChainSync.Type
     ( ChainSync )
 import Ouroboros.Network.Protocol.Handshake.Version
@@ -260,7 +262,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     txParamsVar <- atomically $ newTVar (W.txParameters gbp)
-    nodeTipClient <- mkTipSyncClient tr bp
+    nodeTipClient <- mkTipSyncClient tr
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
@@ -464,8 +466,6 @@ mkTipSyncClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> W.BlockchainParameters
-        -- ^ Blockchain parameters
     -> TQueue m (LocalTxSubmissionCmd m)
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
@@ -473,7 +473,7 @@ mkTipSyncClient
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr bp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     onTxParamsUpdate' <- debounce $ \txParams -> do
@@ -500,7 +500,7 @@ mkTipSyncClient tr bp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                chainSyncFollowTip nullTracer bp onTipUpdate' channel
+                chainSyncFollowTip nullTracer onTipUpdate' channel
         , localTxSubmissionProtocol =
             let tr' = contramap MsgTxSubmission tr in
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
@@ -685,7 +685,13 @@ chainSyncWithBlocks tr bp queue channel = do
         } = bp
 
     codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = chainSyncCodec bp
+    codec = codecChainSync
+        encodeByronBlock
+        (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
+        (encodePoint encodeByronHeaderHash)
+        (decodePoint decodeByronHeaderHash)
+        (encodeTip encodeByronHeaderHash)
+        (decodeTip decodeByronHeaderHash)
 
     client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
     client = ChainSyncClient clientStIdle
@@ -746,21 +752,6 @@ chainSyncWithBlocks tr bp queue channel = do
                 respond (RollBackward point)
                 clientStIdle
 
-chainSyncCodec
-    :: forall m protocol.
-        ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
-        , MonadST m
-        )
-    => W.BlockchainParameters
-    -> Codec protocol DeserialiseFailure m ByteString
-chainSyncCodec W.BlockchainParameters{getEpochLength} = codecChainSync
-    encodeByronBlock
-    (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
-    (encodePoint encodeByronHeaderHash)
-    (decodePoint decodeByronHeaderHash)
-    (encodeTip encodeByronHeaderHash)
-    (decodeTip decodeByronHeaderHash)
-
 -- | Client for the 'Chain Sync' mini-protocol, which provides notifications
 -- when the node tip changes.
 --
@@ -768,13 +759,11 @@ chainSyncCodec W.BlockchainParameters{getEpochLength} = codecChainSync
 -- of these clients is necessary, rather than one client per wallet.
 chainSyncFollowTip
     :: forall m protocol.
-        ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
+        ( protocol ~ ChainSync (Serialised ByronBlock) (Tip (Serialised ByronBlock))
         , MonadThrow m, MonadST m
         )
     => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
-    -> W.BlockchainParameters
-        -- ^ Blockchain parameters
     -> (Tip ByronBlock -> m ())
         -- ^ Callback for when the tip changes.
     -> Channel m ByteString
@@ -782,21 +771,23 @@ chainSyncFollowTip
         -- transports serialized messages between peers (e.g. a unix
         -- socket).
     -> m Void
-chainSyncFollowTip tr bp onTipUpdate channel =
+chainSyncFollowTip tr onTipUpdate channel =
     runPeer tr codec channel (chainSyncClientPeer client)
   where
-    -- fixme: it's not necessary to deserialise blocks here, so
-    -- Ouroboros.Consensus.Network.NodeToClient.defaultCodecs could be used.
     codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = chainSyncCodec bp
+    codec = codecChainSyncSerialised
+        (encodePoint encodeByronHeaderHash)
+        (decodePoint decodeByronHeaderHash)
+        (encodeTip encodeByronHeaderHash)
+        (decodeTip decodeByronHeaderHash)
 
-    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
+    client :: ChainSyncClient (Serialised ByronBlock) (Tip (Serialised ByronBlock)) m Void
     client = ChainSyncClient (clientStIdle False)
       where
         -- Client in the state 'Idle'. We immediately request the next block.
         clientStIdle
             :: Bool
-            -> m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
+            -> m (ClientStIdle (Serialised ByronBlock) (Tip (Serialised ByronBlock)) m Void)
         clientStIdle synced = pure $ SendMsgRequestNext
             (clientStNext synced)
             (pure $ clientStNext synced)
@@ -807,7 +798,7 @@ chainSyncFollowTip tr bp onTipUpdate channel =
         -- server to send AwaitReply most of the time.
         clientStNext
             :: Bool
-            -> ClientStNext ByronBlock (Tip ByronBlock) m Void
+            -> ClientStNext (Serialised ByronBlock) (Tip (Serialised ByronBlock)) m Void
         clientStNext False = ClientStNext
                 { recvMsgRollBackward = const findIntersect
                 , recvMsgRollForward = const findIntersect
@@ -822,13 +813,13 @@ chainSyncFollowTip tr bp onTipUpdate channel =
                 }
           where
             doUpdate tip = ChainSyncClient $ do
-                onTipUpdate tip
+                onTipUpdate (castTip tip)
                 clientStIdle True
 
         -- After an intersection is found, we return to idle with the sync flag
         -- set.
         clientStIntersect
-            :: ClientStIntersect ByronBlock (Tip ByronBlock) m Void
+            :: ClientStIntersect (Serialised ByronBlock) (Tip (Serialised ByronBlock)) m Void
         clientStIntersect = ClientStIntersect
             { recvMsgIntersectFound = \_intersection _tip ->
                 ChainSyncClient $ clientStIdle True
@@ -944,7 +935,6 @@ localStateQuery
 localStateQuery tr queue channel =
     runPeer tr codec channel (localStateQueryClientPeer client)
   where
-    -- fixme: Marcin says use defaultCodecs or clientCodecs instead of this
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecLocalStateQuery
           (encodePoint encodeByronHeaderHash)
