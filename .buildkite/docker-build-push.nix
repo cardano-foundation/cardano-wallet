@@ -70,36 +70,45 @@ in
     ''}
 
   '' + concatMapStringsSep "\n" (image: ''
+    gitrev=${pkgs.iohkNix.commitIdFromGitRepoOrZero ../.git}
     branch="''${BUILDKITE_BRANCH:-}"
-    tag="''${BUILDKITE_TAG:-}"
-    extra_tag=""
-    if [[ -n "$tag" ]]; then
-      tag="${image.imageTag}"
-      extra_tag="${image.backend}"
-    elif [[ "$branch" = master ]]; then
-      tag="$(echo ${image.imageTag} | sed -e s/${image.version}/''${BUILDKITE_COMMIT:-dev-$branch}/)"
-      extra_tag="$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$branch/)"
-    else
-      echo "Not pushing docker image because this is not a master branch or tag build."
-      exit 0
-    fi
-    echo "Loading ${image}"
-    tagged="$fullrepo:$tag"
-    docker load -i "${image}"
-    if [ "$tagged" != "${image.imageName}:${image.imageTag}" ]; then
-      docker tag "${image.imageName}:${image.imageTag}" "$tagged"
-    fi
-    echo "Pushing $tagged"
-    docker push "$tagged"
-    if [ -n "$extra_tag" ]; then
-      echo "Pushing $fullrepo:$extra_tag"
-      docker tag "$tagged" "$fullrepo:$extra_tag"
-      docker push "$fullrepo:$extra_tag"
 
-      ${optionalString (image.backend == "byron") ''
-      echo "Pushing $fullrepo:latest"
-      docker tag "$tagged" "$fullrepo:latest"
-      docker push "$fullrepo:latest"
-      ''}
+    echo "Loading ${image}"
+    docker load -i "${image}"
+
+    # An image is tagged for each commit
+    echo "Pushing $fullrepo:$gitrev-${image.backend}"
+    docker tag "${image.imageName}:${image.imageTag}" "$fullrepo:$gitrev-${image.backend}"
+    docker push "$fullrepo:$gitrev-${image.backend}"
+
+    # If branch is master, tag with "dev-master-${image.backend}"
+    if [[ "$branch" == master ]]; then
+      echo "Pushing $fullrepo:dev-master-${image.backend}"
+      docker tag "$fullrepo:$gitrev-${image.backend}" "$fullrepo:dev-master-${image.backend}"
+      docker push "$fullrepo:dev-master-${image.backend}"
+    fi
+
+    # If a release event:
+    event="''${GITHUB_EVENT_NAME:-}"
+    if [[ "$event" == release ]]; then
+      # Tag with the image tag and image backend, e.g. "2020.01.01-byron"
+      echo "Tagging with a version number: $fullrepo:${image.imageTag}"
+      docker tag "$fullrepo:$gitrev-${image.backend}" "$fullrepo:${image.imageTag}"
+      echo "Pushing $fullrepo:${image.imageTag}"
+      docker push "$fullrepo:${image.imageTag}"
+
+      # Tag with image backend, e.g. "byron" or "jormungandr"
+      echo "Tagging with: $fullrepo:${image.backend}"
+      docker tag "$fullrepo:${image.imageTag}" "$fullrepo:${image.backend}"
+      echo "Pushing $fullrepo:${image.backend}"
+      docker push "$fullrepo:${image.backend}"
+
+      # Apply "latest" tag if "byron" backend
+      ${(if image.backend == "byron" then ''
+        echo "Tagging as latest"
+        docker tag "$fullrepo:${image.imageTag}" "$fullrepo:latest"
+        echo "Pushing $fullrepo:latest"
+        docker push "$fullrepo:latest"
+      '' else "")}
     fi
   '') images)
