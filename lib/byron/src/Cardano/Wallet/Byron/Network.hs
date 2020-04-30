@@ -200,11 +200,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     , chainSyncClientPeer
     )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
-    ( ChainSyncClientPipelined (..)
-    , ClientPipelinedStIdle (..)
-    , ClientPipelinedStIntersect (..)
-    , chainSyncClientPeerPipelined
-    )
+    ( ChainSyncClientPipelined (..), chainSyncClientPeerPipelined )
 import Ouroboros.Network.Protocol.ChainSync.Codec
     ( codecChainSync, codecChainSyncSerialised )
 import Ouroboros.Network.Protocol.ChainSync.Type
@@ -238,8 +234,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
+import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
 {- HLINT ignore "Use readTVarIO" -}
 
@@ -711,20 +707,49 @@ chainSyncWithBlocks tr bp queue channel = do
         -- 'TQueue'. Commands start a chain of messages and state transitions
         -- before finally returning to 'Idle', waiting for the next command.
         clientStIdle
-            :: m (ClientPipelinedStIdle Z ByronBlock (Tip ByronBlock) m Void)
+            :: m (P.ClientPipelinedStIdle 'Z ByronBlock (Tip ByronBlock) m Void)
         clientStIdle = atomically (readTQueue queue) >>= \case
             CmdFindIntersection points respond -> pure $
                 P.SendMsgFindIntersect points (clientStIntersect respond)
 
             CmdNextBlocks respond -> pure $
-                P.SendMsgRequestNext
-                    (clientStNext ([], 1000) respond)
-                    (pure $ clientStNext ([], 1) respond)
+                pipelineMany respond Zero
+
+        pipelineMany
+            :: (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
+            -> Nat n
+            -> P.ClientPipelinedStIdle n ByronBlock (Tip ByronBlock) m Void
+        pipelineMany respond (Succ n) | natToInt (Succ n) == 1000 =
+            P.CollectResponse Nothing $ collectResponses respond [] n
+        pipelineMany respond n =
+            P.SendMsgRequestNextPipelined $ pipelineMany respond (Succ n)
+
+        collectResponses
+            :: (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
+            -> [ByronBlock]
+            -> Nat n
+            -> P.ClientStNext n ByronBlock (Tip ByronBlock) m Void
+        collectResponses respond blocks Zero = P.ClientStNext
+            { P.recvMsgRollForward = \block tip -> do
+                let cursor' = blockPoint block
+                let blocks' = reverse (block:blocks)
+                let tip'    = fromTip getGenesisBlockHash getEpochLength tip
+                respond (RollForward cursor' tip' blocks')
+                clientStIdle
+            , P.recvMsgRollBackward = \_point _tip ->
+                clientStIdle
+            }
+        collectResponses respond blocks (Succ n) = P.ClientStNext
+            { P.recvMsgRollForward = \block _tip -> pure $
+                P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
+            , P.recvMsgRollBackward = \_point _tip -> pure $
+                P.CollectResponse Nothing $ collectResponses respond blocks n
+            }
 
         clientStIntersect
             :: (Maybe (Point ByronBlock) -> m ())
-            -> ClientPipelinedStIntersect ByronBlock (Tip ByronBlock) m Void
-        clientStIntersect respond = ClientPipelinedStIntersect
+            -> P.ClientPipelinedStIntersect ByronBlock (Tip ByronBlock) m Void
+        clientStIntersect respond = P.ClientPipelinedStIntersect
             { recvMsgIntersectFound = \intersection _tip -> do
                 respond (Just intersection)
                 clientStIdle
