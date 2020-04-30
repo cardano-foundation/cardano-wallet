@@ -19,7 +19,7 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Mnemonic
-    ( mnemonicToText )
+    ( MkSomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiFee
@@ -34,7 +34,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), Passphrase (..), fromMnemonic )
+    ( DelegationAddress (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( KnownNetwork (..), ShelleyKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -508,7 +508,7 @@ fixtureExternalTx ctx toSend = do
         }
   where
       getSeqState mnemonic password =
-          let (Right seed) = fromMnemonic @'[15] mnemonic
+          let (Right seed) = mkSomeMnemonic @'[15] mnemonic
               pwd = Passphrase $ BA.convert $ T.encodeUtf8 password
               rootXPrv = generateKeyFromSeed (seed, Nothing) pwd
           in (rootXPrv
