@@ -182,7 +182,7 @@ mnemonicsToAccountAddress m1 m2 = do
     pure $ mkAccountAddress $ generateKeyFromSeed (seed, sndFactor) mempty
   where
     unsafeFromMnemonic
-        :: forall (mz :: [Nat]). (FromMnemonic mz)
+        :: forall (mz :: [Nat]). (MkSomeMnemonic mz)
         => Text
         -> IO SomeMnemonic
     unsafeFromMnemonic = either (fail . show) pure . mkSomeMnemonic @mz . T.words
