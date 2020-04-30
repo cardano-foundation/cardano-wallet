@@ -117,7 +117,12 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..), SomeMnemonic (..), mnemonicToText, natVals )
+    ( MkSomeMnemonic (..)
+    , MkSomeMnemonicError (..)
+    , SomeMnemonic (..)
+    , mnemonicToText
+    , natVals
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -1013,7 +1018,7 @@ instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
     parseJSON bytes = do
         xs <- parseJSON bytes
-        m <- eitherToParser $ left show $ mkSomeMnemonic @sizes xs
+        m <- eitherToParser $ left (ShowFmt . getMkSomeMnemonicError) $ mkSomeMnemonic @sizes xs
         return $ ApiMnemonicT m
 
 instance ToJSON (ApiMnemonicT sizes) where
