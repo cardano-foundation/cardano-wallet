@@ -65,7 +65,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
-    , ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiSelectCoinsDataT
@@ -131,10 +130,6 @@ data WalletClient wallet = WalletClient
     , putWalletPassphrase
         :: ApiT WalletId
         -> WalletPutPassphraseData
-        -> ClientM NoContent
-    , forceResyncWallet
-        :: ApiT WalletId
-        -> ApiNetworkTip
         -> ClientM NoContent
     }
 
@@ -210,7 +205,6 @@ walletClient =
             :<|> _putWallet
             :<|> _putWalletPassphrase
             :<|> _getWalletUtxoStatistics
-            :<|> _forceResyncWallet
             = client (Proxy @("v2" :> Wallets))
     in
         WalletClient
@@ -220,7 +214,6 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
-            , forceResyncWallet = _forceResyncWallet
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 
@@ -232,7 +225,6 @@ byronWalletClient =
             :<|> _deleteWallet
             :<|> _getWallet
             :<|> _listWallets
-            :<|> _forceResyncWallet
             :<|> _putWallet
             :<|> _getWalletUtxoStatistics
             :<|> _putWalletPassphrase
@@ -249,7 +241,6 @@ byronWalletClient =
                     { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
                     , newPassphrase = body ^. #newPassphrase
                     }
-            , forceResyncWallet = _forceResyncWallet
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 

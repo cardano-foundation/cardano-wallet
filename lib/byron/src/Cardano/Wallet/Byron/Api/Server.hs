@@ -44,7 +44,6 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( deleteTransaction
     , deleteWallet
-    , forceResyncWallet
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -135,7 +134,6 @@ server byron icarus ntp =
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
 
     addresses :: Server (Addresses n)
     addresses _ _ = throwError err501
@@ -183,10 +181,6 @@ server byron icarus ntp =
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
             (listWallets icarus mkLegacyWallet)
-        :<|> (\wid tip -> withLegacyLayer wid
-                (byron , forceResyncWallet byron  wid tip)
-                (icarus, forceResyncWallet icarus wid tip)
-             )
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron mkLegacyWallet wid name)
                 (icarus, putWallet icarus mkLegacyWallet wid name)

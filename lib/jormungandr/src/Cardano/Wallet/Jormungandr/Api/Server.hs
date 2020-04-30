@@ -52,7 +52,6 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , forceResyncWallet
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -149,7 +148,6 @@ server byron icarus shelley spl ntp =
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
-        :<|> forceResyncWallet shelley
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
@@ -196,10 +194,6 @@ server byron icarus shelley spl ntp =
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
             (listWallets byron  mkLegacyWallet)
             (listWallets icarus mkLegacyWallet)
-        :<|> (\wid tip -> withLegacyLayer wid
-                (byron , forceResyncWallet byron  wid tip)
-                (icarus, forceResyncWallet icarus wid tip)
-             )
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron mkLegacyWallet wid name)
                 (icarus, putWallet icarus mkLegacyWallet wid name)
