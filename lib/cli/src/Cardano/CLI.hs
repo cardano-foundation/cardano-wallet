@@ -306,7 +306,7 @@ import System.Directory
 import System.Environment
     ( getProgName )
 import System.Exit
-    ( exitFailure, exitSuccess )
+    ( die, exitFailure, exitSuccess )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -319,7 +319,6 @@ import System.IO
     , hGetEcho
     , hIsTerminalDevice
     , hPutChar
-    , hPutStrLn
     , hSetBuffering
     , hSetEcho
     , stderr
@@ -420,8 +419,7 @@ data CliKeyScheme key m = CliKeyScheme
 data XPrvOrXPub = AXPrv XPrv | AXPub XPub
 
 eitherToIO :: Either String a -> IO a
-eitherToIO (Right a) = return a
-eitherToIO (Left e) = hPutStrLn stderr e >> exitFailure
+eitherToIO = either die return
 
 data KeyEncoding = Hex | Bech32
     deriving (Show, Eq, Enum, Bounded)
