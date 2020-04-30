@@ -98,6 +98,8 @@ import Options.Applicative
     , prefs
     , renderFailure
     )
+import System.Environment
+    ( getProgName )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -116,6 +118,7 @@ import Test.Hspec
     , describe
     , expectationFailure
     , it
+    , runIO
     , shouldBe
     , shouldStartWith
     )
@@ -206,12 +209,13 @@ spec = do
             , "!!! Only for the Incentivized Testnet !!!"
             ]
 
+        name <- runIO getProgName
         ["key", "--help"] `shouldShowUsage`
             [ "Keys can be passed as arguments or read as standard input. Both bech32- and hexadecimal encodings are supported."
             , ""
             , "For instance:"
-            , "$ cardano-wallet-byron key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
-            , "    | cardano-wallet-byron key public"
+            , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
+            , "    | " ++ name ++ " key public"
             , "xpub1k365denpkmqhj9zj6qpax..."
             , ""
             , "Usage:  key COMMAND"

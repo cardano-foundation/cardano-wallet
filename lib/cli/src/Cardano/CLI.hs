@@ -303,6 +303,8 @@ import System.Directory
     , doesFileExist
     , getXdgDirectory
     )
+import System.Environment
+    ( getProgName )
 import System.Exit
     ( exitFailure, exitSuccess )
 import System.FilePath
@@ -324,6 +326,8 @@ import System.IO
     , stdin
     , stdout
     )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -374,6 +378,10 @@ runCli = join . customExecParser preferences
                             Commands - 'HD Derivation'
 -------------------------------------------------------------------------------}
 
+{-# NOINLINE progName #-}
+progName :: String
+progName = unsafePerformIO getProgName
+
 cmdKey :: Mod CommandFields (IO ())
 cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     <> progDesc "Derive and manipulate keys."
@@ -382,8 +390,12 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
         , "bech32- and hexadecimal encodings are supported."
         , "\n\n"
         , "For instance:\n"
-        , "$ cardano-wallet-byron key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
-        , "    | cardano-wallet-byron key public\n"
+        , "$ "
+        , progName
+        , " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
+        , "    | "
+        , progName
+        , " key public\n"
         , "xpub1k365denpkmqhj9zj6qpax..."
         ])
   where
