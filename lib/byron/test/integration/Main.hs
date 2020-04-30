@@ -113,6 +113,7 @@ import qualified Test.Integration.Byron.Scenario.CLI.Wallets as WalletsByronCLI
 import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
 import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
+import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
@@ -129,6 +130,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
         describe "No backend required" $ do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+            describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
         describe "API Specifications" $ specWithServer tr $ do
             WalletsByron.spec @n
             AddressesByron.spec @n

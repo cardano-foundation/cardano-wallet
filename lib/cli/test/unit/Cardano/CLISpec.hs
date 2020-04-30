@@ -13,12 +13,14 @@ module Cardano.CLISpec
     ( spec
     ) where
 
-import Prelude
+import Prelude hiding
+    ( (.) )
 
 import Cardano.CLI
     ( CliKeyScheme (..)
     , DerivationIndex (..)
     , DerivationPath (..)
+    , KeyEncoding (..)
     , MnemonicSize (..)
     , Port (..)
     , TxId
@@ -32,12 +34,15 @@ import Cardano.CLI
     , cmdTransaction
     , cmdWallet
     , cmdWalletCreate
+    , decodeAnyKey
+    , deriveChildKey
+    , encodeKey
     , firstHardenedIndex
+    , fullKeyEncodingDescription
     , hGetLine
     , hGetSensitiveLine
-    , keyHexCodec
-    , mapKey
     , newCliKeyScheme
+    , toPublic
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy
@@ -63,6 +68,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
     ( left )
+import Control.Category
+    ( (.) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -82,7 +89,16 @@ import Data.Text.Class
 import GHC.TypeLits
     ( natVal )
 import Options.Applicative
-    ( ParserResult (..), columns, execParserPure, prefs, renderFailure )
+    ( ParserInfo
+    , ParserPrefs
+    , ParserResult (..)
+    , columns
+    , execParserPure
+    , prefs
+    , renderFailure
+    )
+import System.Environment
+    ( getProgName )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -94,11 +110,14 @@ import System.IO.Silently
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( HasCallStack
+    ( Expectation
+    , HasCallStack
+    , HasCallStack
     , Spec
     , describe
     , expectationFailure
     , it
+    , runIO
     , shouldBe
     , shouldStartWith
     )
@@ -112,70 +131,25 @@ import Test.QuickCheck
     , checkCoverage
     , counterexample
     , cover
-    , expectFailure
     , forAll
     , genericShrink
     , oneof
     , property
     , suchThat
     , vector
-    , (.&&.)
     , (===)
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
-
-    let defaultPrefs = prefs (mempty <> columns 65)
-
-    let parser = cli $ mempty
-            <> cmdMnemonic
-            <> cmdWallet cmdWalletCreate walletClient
-            <> cmdTransaction transactionClient walletClient
-            <> cmdAddress addressClient
-            <> cmdStakePool stakePoolClient
-            <> cmdNetwork networkClient
-            <> cmdKey
-
-    let shouldStdOut args expected = it (unwords args) $ do
-            setUtf8EncodingHandles
-            case execParserPure defaultPrefs parser args of
-                Success x -> capture_ x >>= (`shouldBe` expected)
-                CompletionInvoked _ -> expectationFailure
-                    "expected parser to show usage but it offered completion"
-                Failure failure ->
-                    expectationFailure $ "parser failed with: " ++ show failure
-    let expectStdErr args expectation = it (unwords args) $ do
-            setUtf8EncodingHandles
-            case execParserPure defaultPrefs parser args of
-                Success x ->
-                    hCapture_ [stderr] (try @SomeException x) >>= (expectation)
-                CompletionInvoked _ -> expectationFailure
-                    "expected parser to show usage but it offered completion"
-                Failure failure -> do
-                    let (str, code) = renderFailure failure ""
-                    code `shouldBe` (ExitFailure 1)
-                    expectation str
     describe "Specification / Usage Overview" $ do
-
-        let expectationFailure' = flip counterexample False
-        let shouldShowUsage args expected = it (unwords args) $
-                case execParserPure defaultPrefs parser args of
-                    Success _ -> expectationFailure'
-                        "expected parser to show usage but it has succeeded"
-                    CompletionInvoked _ -> expectationFailure'
-                        "expected parser to show usage but it offered completion"
-                    Failure failure -> property $
-                        let (usage, _) = renderFailure failure mempty
-                            msg = "*** Expected:\n" ++ (unlines expected)
-                                ++ "*** but actual usage is:\n" ++ usage
-                        in counterexample msg $ expected === lines usage
 
         ["--help"] `shouldShowUsage`
             [ "The CLI is a proxy to the wallet server, which is required for"
@@ -197,7 +171,7 @@ spec = do
             , "  address                  Manage addresses."
             , "  stake-pool               Manage stake pools."
             , "  network                  Manage network."
-            , "  key                      Derive keys from mnemonics."
+            , "  key                      Derive and manipulate keys."
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -234,10 +208,17 @@ spec = do
             , "!!! Only for the Incentivized Testnet !!!"
             ]
 
-
+        name <- runIO getProgName
         ["key", "--help"] `shouldShowUsage`
-            [ "Usage:  key COMMAND"
-            , "  Derive keys from mnemonics."
+            [ "Keys can be passed as arguments or read as standard input. Both bech32- and hexadecimal encodings are supported."
+            , ""
+            , "For instance:"
+            , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
+            , "    | " ++ name ++ " key public"
+            , "xpub1k365denpkmqhj9zj6qpax..."
+            , ""
+            , "Usage:  key COMMAND"
+            , "  Derive and manipulate keys."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -537,6 +518,7 @@ spec = do
 
         ["key", "root", "--help"] `shouldShowUsage`
             [ "Usage:  key root [--wallet-style WALLET_STYLE] MNEMONIC_WORD..."
+            , "                 [--encoding KEY-ENCODING]"
             , "  Extract root extended private key from a mnemonic sentence."
             , ""
             , "Available options:"
@@ -549,7 +531,7 @@ spec = do
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child --path DER-PATH XPRV"
+            [ "Usage:  key child --path DER-PATH [XPRV|XPUB]"
             , "  Derive child keys."
             , ""
             , "Available options:"
@@ -558,7 +540,7 @@ spec = do
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public XPRV"
+            [ "Usage:  key public [XPRV]"
             , "  Extract public key from a private key."
             , ""
             , "Available options:"
@@ -566,7 +548,7 @@ spec = do
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`
-            [ "Usage:  key inspect XPRV"
+            [ "Usage:  key inspect [XPRV|XPUB]"
             , "  Show information about a key."
             , ""
             , "Available options:"
@@ -611,6 +593,66 @@ spec = do
 
         fromTextGolden @DerivationPath "0x80000000/0H/0/" "should fail" $
             Left "\"0x80000000\" is not a number."
+
+
+    describe "Key encoding" $ do
+        let xprv1Bech32 =
+                "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pg\
+                \aexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990\
+                \aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
+
+        let xprv1Bech32FooHrp =
+                "foo18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pga\
+                \exmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990a\
+                \a67mvauxnnajh26hdxprzjry7q26tx0qvy9csa56"
+
+        -- This is a /public/ key with a "xprv" hrp
+        let notAXPrv = "xprv1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zp\
+                       \alvq4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcg0j\
+                       \8juy"
+        -- This is a /private/ key with a "xpub" hrp
+        let notAXPub = "xpub18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf\
+                       \0u2u3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq\
+                       \2jy27ejzgca990aa67mvauxnnajh26hdxprzjry7q26tx0qvyhat9w6"
+        describe "Detection of key encoding" $ do
+            describe "hex" $ do
+                decodeKeyGoldenErr "000000" "too short"
+                    "Expected key to be 96 bytes in the case of a private key \
+                    \and, 64 bytes for public keys. This key is 3 bytes."
+
+            describe "bech32" $ do
+                decodeKeyGoldenErr "xprv1hs" "xprv1hs"
+                    "StringToDecodeTooShort"
+                decodeKeyGoldenErr "xpub1hs" "xpubhs"
+                    "StringToDecodeTooShort"
+
+                -- TODO: We really have an opportunity to render nice error
+                -- messages here!
+                --
+                -- We should underline the invalid character!
+                decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char"
+                    "StringToDecodeContainsInvalidChars [CharPosition 165]"
+                decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
+                    "StringToDecodeContainsInvalidChars []"
+
+                -- We should /perhaps/ return a bech32 specific error here
+                decodeKeyGoldenErr xprv1Bech32FooHrp "wrong hrp"
+                    fullKeyEncodingDescription
+
+        describe "Key encoding: Bech32 goldens" $ do
+            it "xpub pretending to be xprv fails" $ do
+                decodeAnyKey notAXPrv
+                    `shouldBe`
+                    (Left "Expected extended private key to be 96 bytes \
+                          \but got 64 bytes.")
+
+            -- TODO: Make the error message match the previous case.
+            -- This one currently comes from cardano-crypto.
+            it "xprv pretending to be xpub fails" $ do
+                decodeAnyKey notAXPub
+                    `shouldBe`
+                    (Left "error: xprv needs to be 64 bytes: \
+                          \got 96 bytes")
 
     describe "Transaction ID decoding from text" $ do
 
@@ -802,6 +844,28 @@ spec = do
             let err1 = "Input is already a public key."
             ["key", "public", pub1] `expectStdErr` (`shouldBe` (err1 ++ "\n"))
 
+    describe "detection of key encoding (bech32 vs hex)" $ do
+        let prv1 = "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u\
+                   \3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejz\
+                   \gca990aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
+        let pub1 = "xpub1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zpalvq\
+                   \4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcgfe72yg"
+
+        ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
+
+
+        ["key", "public", "xp"] `expectStdErr` (`shouldBe`
+            (fullKeyEncodingDescription ++ "\n"))
+
+        ["key", "public", "xprv118rppm"] `expectStdErr` (`shouldBe`
+            ("StringToDecodeTooShort\n"))
+
+        let hexErr = "Expected key to be 96 bytes in the case of a private key \
+                     \and, 64 bytes for public keys. This key is 2 bytes.\n"
+
+        ["key", "public", "0000"] `expectStdErr` (`shouldBe` hexErr)
+
+
     describe "key inspect" $ do
         let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
                    \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
@@ -830,39 +894,30 @@ spec = do
                 , "\n"
                 ]
 
-    describe "CliKeyScheme" $ do
+
+    describe "CLI Key derivation properties" $ do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
 
         it "derive . toPublic == toPublic . derive (for soft indices)"
             $ property prop_publicKeyDerivation
 
-        it "scheme == scheme (reflexivity)" $ property $ \s ->
-            propCliKeySchemeEquality
-                (newCliKeyScheme s)
-                (newCliKeyScheme s)
+        describe "Key Encoding Roundtrips" $ do
+            let decodeAny = fmap fst . decodeAnyKey
+            it "decodeAnyKey . encodeKey Hex == pure" $ property $ \k -> do
+                (encodeKey Hex k >>= decodeAny) === Right k
 
-        it "scheme == mapKey (fromHex . toHex) scheme"
-            $ property prop_roundtripCliKeySchemeKeyViaHex
+            it "decodeAnyKey . encodeKey Bech32 == pure" $ property $ \k -> do
+                (encodeKey Bech32 k >>= decodeAny) === Right k
 
-        it "ledger /= icarus" $ do
-            expectFailure $ propCliKeySchemeEquality
-                (newCliKeyScheme Ledger)
-                (newCliKeyScheme Icarus)
+            it "encodeBack . decodeAnyKey . encodeKey enc === encodeKey enc" $
+                property $ \k enc -> do
+                let f x = decodeAnyKey x >>= \(k', enc') -> encodeKey enc' k'
+                (encodeKey enc k >>= f) === (encodeKey enc k)
 
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)
-
-prop_roundtripCliKeySchemeKeyViaHex :: ByronWalletStyle -> Property
-prop_roundtripCliKeySchemeKeyViaHex style =
-            propCliKeySchemeEquality
-                (newCliKeyScheme style)
-                (mapKey (inverse keyHexCodec)
-                    . mapKey keyHexCodec
-                    $ newCliKeyScheme style)
-  where
-    inverse (a, b) = (b, a)
 
 
 -- | For soft indices, public key derivation should be "equivalent" to private
@@ -887,23 +942,18 @@ prop_roundtripCliKeySchemeKeyViaHex style =
 -- @
 --
 prop_publicKeyDerivation
-    :: ByronWalletStyle
-    -> DerivationIndex
+    :: DerivationIndex
     -> XPrv
     -> Property
-prop_publicKeyDerivation style i key = do
+prop_publicKeyDerivation i key = do
     if isSoftIndex i
-    then (public k >>= derive) === (derive k >>= toPublic s)
-    else property $ isLeft (public k >>= derive)
+    then (toPublic k >>= derive) === (derive k >>= toPublic)
+    else property $ isLeft (toPublic k >>= derive)
   where
-    derive = flip (deriveChildKey s) i
-    public = toPublic s
+    derive = flip deriveChildKey i
     k = AXPrv key
 
     isSoftIndex = (< (DerivationIndex firstHardenedIndex))
-
-    s :: CliKeyScheme XPrvOrXPub (Either String)
-    s = newCliKeyScheme style
 
 prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
 prop_allowedWordLengthsAllWork style = do
@@ -918,42 +968,6 @@ prop_allowedWordLengthsAllWork style = do
         Left e -> counterexample
             (show (length mw) ++ " words, failed with: " ++ e)
             (property False)
-
-propCliKeySchemeEquality
-    :: CliKeyScheme XPrvOrXPub (Either String)
-    -> CliKeyScheme XPrvOrXPub (Either String)
-    -> Property
-propCliKeySchemeEquality s1 s2 = do
-    (forAll (genAllowedMnemonic s1) propSameMnem)
-    .&&.
-    (forAll (genKey s1) propSameChild)
-    .&&.
-    (forAll (genKey s1) propSameToPublic)
-    .&&.
-    (forAll (genKey s1) propSameInspect)
-    .&&.
-    (allowedWordLengths s1) === (allowedWordLengths s2)
-  where
-    propSameMnem :: [Text] -> Property
-    propSameMnem mw = (mnemonicToRootKey s1 mw) === (mnemonicToRootKey s2 mw)
-
-    propSameChild :: XPrvOrXPub -> DerivationIndex -> Property
-    propSameChild k i = (deriveChildKey s1 k i) === (deriveChildKey s2 k i)
-
-    propSameToPublic :: XPrvOrXPub -> Property
-    propSameToPublic k = (toPublic s1 k) === (toPublic s2 k)
-
-    propSameInspect :: XPrvOrXPub -> Property
-    propSameInspect k = (inspect s1 k) === (inspect s2 k)
-
-    unsafe = either (error . show) id
-
-    genRootKey :: CliKeyScheme XPrvOrXPub (Either String) -> Gen XPrvOrXPub
-    genRootKey s = unsafe
-        . mnemonicToRootKey s
-        <$> genAllowedMnemonic s
-
-    genKey s = oneof [genRootKey s, (unsafe . toPublic s) <$> genRootKey s]
 
 genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
 genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
@@ -985,6 +999,9 @@ instance Arbitrary XPrv where
       where
         s = newCliKeyScheme Icarus
 
+instance Arbitrary XPrvOrXPub where
+    arbitrary = oneof [ AXPrv <$> arbitrary, AXPub . CC.toXPub <$> arbitrary]
+
 genMnemonic
     :: forall mw ent csz.
      ( ConsistentEntropy ent mw csz
@@ -997,6 +1014,10 @@ genMnemonic = do
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
 
+{-------------------------------------------------------------------------------
+                               Test Helpers
+-------------------------------------------------------------------------------}
+
 fromTextGolden
     :: (HasCallStack, FromText a, Show a, Eq a)
     => Text
@@ -1007,9 +1028,17 @@ fromTextGolden str desc expected =
     it (show str ++ " " ++ desc) $
         fromText str `shouldBe` (left TextDecodingError expected)
 
-{-------------------------------------------------------------------------------
-                                hGetSensitiveLine
--------------------------------------------------------------------------------}
+
+decodeKeyGoldenErr
+    :: (HasCallStack)
+    => Text
+    -> String
+    -> String
+    -> Spec
+decodeKeyGoldenErr str desc err =
+    it (show str ++ " " ++ desc) $
+        decodeAnyKey str `shouldBe` (Left err)
+
 
 data GetLineTest a = GetLineTest
     { prompt :: Text
@@ -1054,6 +1083,54 @@ test fn (GetLineTest prompt_ input_ output expected) =
         Right a ->
             putMVar mvar (Just a)
 
+defaultPrefs :: ParserPrefs
+defaultPrefs = prefs (mempty <> columns 65)
+
+parser :: ParserInfo (IO ())
+parser = cli $ mempty
+    <> cmdMnemonic
+    <> cmdWallet cmdWalletCreate walletClient
+    <> cmdTransaction transactionClient walletClient
+    <> cmdAddress addressClient
+    <> cmdStakePool stakePoolClient
+    <> cmdNetwork networkClient
+    <> cmdKey
+
+shouldStdOut :: HasCallStack => [String] -> String -> Spec
+shouldStdOut args expected = it (unwords args) $ do
+    setUtf8EncodingHandles
+    case execParserPure defaultPrefs parser args of
+        Success x -> capture_ x >>= (`shouldBe` expected)
+        CompletionInvoked _ -> expectationFailure
+            "expected parser to show usage but it offered completion"
+        Failure failure ->
+            expectationFailure $ "parser failed with: " ++ show failure
+
+expectStdErr :: HasCallStack => [String] -> (String -> Expectation) -> Spec
+expectStdErr args expectation = it (unwords args) $ do
+        setUtf8EncodingHandles
+        case execParserPure defaultPrefs parser args of
+            Success x ->
+                hCapture_ [stderr] (try @SomeException x) >>= (expectation)
+            CompletionInvoked _ -> expectationFailure
+                "expected parser to show usage but it offered completion"
+            Failure failure -> do
+                let (str, code) = renderFailure failure ""
+                code `shouldBe` (ExitFailure 1)
+                expectation str
+
+shouldShowUsage :: HasCallStack => [String] -> [String] -> Spec
+shouldShowUsage args expected = it (unwords args) $
+    case execParserPure defaultPrefs parser args of
+        Success _ -> expectationFailure
+            "expected parser to show usage but it has succeeded"
+        CompletionInvoked _ -> expectationFailure
+            "expected parser to show usage but it offered completion"
+        Failure failure -> do
+            let (usage, _) = renderFailure failure mempty
+            (lines usage) `shouldBe` expected
+
+
 {-------------------------------------------------------------------------------
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -1074,5 +1151,9 @@ instance Arbitrary (Port "test") where
 
 instance Arbitrary DerivationIndex where
     arbitrary = arbitraryBoundedEnum
+
 instance Arbitrary DerivationPath where
     arbitrary = DerivationPath . getNonEmpty <$> arbitrary
+
+instance Arbitrary KeyEncoding where
+    arbitrary = arbitraryBoundedEnum

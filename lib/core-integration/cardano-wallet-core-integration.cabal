@@ -81,6 +81,7 @@ library
       Test.Integration.Scenario.CLI.Shelley.HWWallets
       Test.Integration.Scenario.CLI.Shelley.Transactions
       Test.Integration.Scenario.CLI.Shelley.Wallets
+      Test.Integration.Scenario.CLI.Keys
       Test.Integration.Scenario.CLI.Miscellaneous
       Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Network

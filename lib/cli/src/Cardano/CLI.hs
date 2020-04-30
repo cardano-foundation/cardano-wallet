@@ -14,6 +14,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -74,13 +75,17 @@ module Cardano.CLI
     , DerivationIndex (..)
     , DerivationPath (..)
     , XPrvOrXPub (..)
+    , KeyEncoding (..)
 
     , newCliKeyScheme
-    , keyHexCodec
-    , hoistKeyScheme
-    , mapKey
     , firstHardenedIndex
-
+    , fullKeyEncodingDescription
+    , decodeKey
+    , detectEncoding
+    , decodeAnyKey
+    , encodeKey
+    , deriveChildKey
+    , toPublic
 
     -- * Logging
     , withLogging
@@ -141,7 +146,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
     , ApiT (..)
-    , ApiTxId (..)
+    , ApiTxId (ApiTxId)
     , ApiWallet
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -199,8 +204,12 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower )
+import Data.Either
+    ( isRight )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
@@ -251,6 +260,7 @@ import Options.Applicative
     , flag'
     , footer
     , header
+    , headerDoc
     , help
     , helpDoc
     , helper
@@ -293,8 +303,10 @@ import System.Directory
     , doesFileExist
     , getXdgDirectory
     )
+import System.Environment
+    ( getProgName )
 import System.Exit
-    ( exitFailure, exitSuccess )
+    ( die, exitFailure, exitSuccess )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -307,13 +319,14 @@ import System.IO
     , hGetEcho
     , hIsTerminalDevice
     , hPutChar
-    , hPutStrLn
     , hSetBuffering
     , hSetEcho
     , stderr
     , stdin
     , stdout
     )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -364,9 +377,26 @@ runCli = join . customExecParser preferences
                             Commands - 'HD Derivation'
 -------------------------------------------------------------------------------}
 
+{-# NOINLINE progName #-}
+progName :: String
+progName = unsafePerformIO getProgName
+
 cmdKey :: Mod CommandFields (IO ())
 cmdKey = command "key" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Derive keys from mnemonics."
+    <> progDesc "Derive and manipulate keys."
+    <> headerDoc (Just $ string $ mconcat
+        [ "Keys can be passed as arguments or read as standard input. Both "
+        , "bech32- and hexadecimal encodings are supported."
+        , "\n\n"
+        , "For instance:\n"
+        , "$ "
+        , progName
+        , " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
+        , "    | "
+        , progName
+        , " key public\n"
+        , "xpub1k365denpkmqhj9zj6qpax..."
+        ])
   where
     cmds = subparser $ mempty
         <> cmdKeyRoot
@@ -374,106 +404,127 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
         <> cmdKeyPublic
         <> cmdKeyInspect
 
--- | Record with mnemonic and key derivation funcionality — /without/ any type
+-- | Record encapsulating @mnemonicToRootKey@  — /without/ any type
 -- parameters related to scheme.
 --
 -- This means that we can have a value for byron, a value for icarus, both with
 -- the same type @CliKeyScheme@.
 --
 -- @CliKeyScheme@ is on the other hand parameterized over @key@ and @m@.
--- @hoistKeyScheme@ is provided for mapping over @m@. @mapKey@ is provided for
--- mapping over @key@.
---
--- This way we can test mapping @XPrv@s to @Text@ as pure code in
--- @Either String@, rather than @IO@.
 data CliKeyScheme key m = CliKeyScheme
     { allowedWordLengths :: [Int]
     , mnemonicToRootKey :: [Text] -> m key
-    , deriveChildKey :: key -> DerivationIndex -> m key
-    , toPublic :: key -> m key
-    , inspect :: key -> m Text
     }
 
 data XPrvOrXPub = AXPrv XPrv | AXPub XPub
 
--- | Change the underlying monad of a @CliKeyScheme@.
-hoistKeyScheme
-    :: (forall a. m1 a -> m2 a)
-    -> CliKeyScheme key m1
-    -> CliKeyScheme key m2
-hoistKeyScheme eta s = CliKeyScheme
-    { allowedWordLengths = allowedWordLengths s
-    , mnemonicToRootKey = eta . mnemonicToRootKey s
-    , deriveChildKey = \k i -> eta $ deriveChildKey s k i
-    , toPublic = eta . toPublic s
-    , inspect = eta . inspect s
-    }
+eitherToIO :: Either String a -> IO a
+eitherToIO = either die return
 
--- | Pair of functions representing the bidirectional transformation between
--- a @XPrvOrXPub@ and its hex-encoded form.
-keyHexCodec :: (XPrvOrXPub -> Either String Text, Text -> Either String XPrvOrXPub)
-keyHexCodec = (encode, decode)
+data KeyEncoding = Hex | Bech32
+    deriving (Show, Eq, Enum, Bounded)
+
+detectEncoding :: Text -> Either String KeyEncoding
+detectEncoding x
+    | "xprv1" `T.isPrefixOf` x = pure Bech32
+    | "xpub1" `T.isPrefixOf` x = pure Bech32
+    | isHex x                  = pure Hex
+    | otherwise                = Left fullKeyEncodingDescription
   where
-    encode :: XPrvOrXPub -> Either String Text
-    encode (AXPub xpub) = return . T.pack . B8.unpack . hex . CC.unXPub $ xpub
-    encode (AXPrv xprv) =
-        fmap (T.pack . B8.unpack . hex)
-        . left showErr
-        . unXPrvStripPubCheckRoundtrip $ xprv
+    isHex = isRight . decodeHex
+
+fullKeyEncodingDescription :: String
+fullKeyEncodingDescription = mconcat
+    [ "Invalid key. Expected one of the following:\n"
+    , "- 96 bytes long hex (extended private key)\n"
+    , "- 64 bytes long hex (extended public key)\n"
+    , "- xprv1... (bech32-encoded extended private key)\n"
+    , "- xpub1... (bech32-encoded extended public key)"
+    ]
+
+xprvFromBytes :: ByteString -> Either String XPrvOrXPub
+xprvFromBytes = fmap AXPrv . left showErr . xPrvFromStrippedPubXPrvCheckRoundtrip
+  where
+    showErr (ErrInputLengthMismatch expected actual) = mconcat
+        [ "Expected extended private key to be "
+        , show expected
+        , " bytes but got "
+        , show actual
+        , " bytes."
+        ]
+    showErr (ErrCannotRoundtripToSameBytes) = mconcat
+        [ "That extended private key looks weird. "
+        , "Is it encrypted? Or is it an old Byron key?"
+        ]
+
+xpubFromBytes :: ByteString -> Either String XPrvOrXPub
+xpubFromBytes = fmap AXPub . CC.xpub
+
+xprvOrXPubFromBytes :: ByteString -> Either String XPrvOrXPub
+xprvOrXPubFromBytes bs =
+    case BS.length bs of
+        96 -> xprvFromBytes bs
+        64 -> xpubFromBytes bs
+        n -> Left . mconcat $
+            [ "Expected key to be 96 bytes in the case of a private key"
+            , " and, 64 bytes for public keys. This key is "
+            , show n
+            , " bytes."
+            ]
+
+xprvHrp :: Bech32.HumanReadablePart
+xprvHrp = [Bech32.humanReadablePart|xprv|]
+
+xpubHrp :: Bech32.HumanReadablePart
+xpubHrp = [Bech32.humanReadablePart|xpub|]
+
+decodeAnyKey :: Text -> Either String (XPrvOrXPub, KeyEncoding)
+decodeAnyKey rawKey = do
+    enc <- detectEncoding rawKey
+    k <- decodeKey enc rawKey
+    return (k, enc)
+
+decodeKey :: KeyEncoding -> Text -> Either String XPrvOrXPub
+decodeKey = \case
+    Bech32 -> decodeBech32
+    Hex -> decodeHex >=> xprvOrXPubFromBytes
+  where
+    decodeBech32 :: Text -> Either String XPrvOrXPub
+    decodeBech32 t = do
+        (hrp, dp) <- left show $ Bech32.decodeLenient t
+        bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
+        case hrp of
+            h | h == xpubHrp -> xpubFromBytes bytes
+            h | h == xprvHrp -> xprvFromBytes bytes
+            _ -> Left "unrecognized Bech32 Human Readable Part"
+      where
+        dpErr = "Internal error: Unable to extract bytes from bech32 data part"
+
+decodeHex :: Text -> Either String ByteString
+decodeHex txt = fromHex $ T.encodeUtf8 . T.strip $ txt
+ where
+   fromHex = left (const "Invalid hex.")
+       . convertFromBase Base16
+
+encodeKey :: KeyEncoding -> XPrvOrXPub -> Either String Text
+encodeKey enc key = case enc of
+    Hex -> T.decodeUtf8 . hex <$> bytes
+    Bech32 -> bech32 hrp <$> bytes
+  where
+    bech32 h = Bech32.encodeLenient h . Bech32.dataPartFromBytes
+
+    hrp = case key of
+        AXPrv _ -> xprvHrp
+        AXPub _ -> xpubHrp
+
+    bytes :: Either String ByteString
+    bytes = case key of
+        AXPrv xprv -> left showErr . unXPrvStripPubCheckRoundtrip $ xprv
+        AXPub xpub -> return . CC.unXPub $ xpub
       where
         -- NOTE: This error should never happen from using the CLI.
         showErr ErrCannotRoundtripToSameXPrv =
             "Internal error: Failed to safely encode an extended private key"
-
-    decode :: Text -> Either String XPrvOrXPub
-    decode txt = do
-        bytes <- fromHex $ B8.pack $ T.unpack . T.strip $ txt
-        case BS.length bytes of
-            96 -> fmap AXPrv $ left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
-            64 -> fmap AXPub . CC.xpub $ bytes
-            n -> Left . mconcat $
-                [ "Expected key to be 96 bytes in the case of a private key"
-                , " and, 64 bytes for public keys. This key is "
-                , show n
-                , " bytes."
-                ]
-      where
-        showErr (ErrInputLengthMismatch expected actual) = mconcat
-            [ "Expected extended private key to be "
-            , show expected
-            , " bytes but got "
-            , show actual
-            , " bytes."
-            ]
-        showErr (ErrCannotRoundtripToSameBytes) = mconcat
-            [ "That extended private key looks weird. "
-            , "Is it encrypted? Or is it an old Byron key?"
-            ]
-        fromHex = left (const "Invalid hex.")
-            . convertFromBase Base16
-
--- | Map over the key type of a CliKeyScheme.
---
--- @deriveChildKey@ both takes a key as an argument and returns one. Therefore
--- we need a bidirectional mapping between the two key types.
-mapKey
-    :: Monad m
-    => (key1 -> m key2, key2 -> m key1)
-    -> CliKeyScheme key1 m
-    -> CliKeyScheme key2 m
-mapKey (f, g) s = CliKeyScheme
-    { allowedWordLengths = allowedWordLengths s
-    , mnemonicToRootKey = mnemonicToRootKey s >=> f
-    , deriveChildKey = \k i -> do
-        k' <- g k
-        (deriveChildKey s k' i) >>= f
-    , toPublic = g >=> toPublic s >=> f
-    , inspect = g >=> inspect s
-    }
-
-eitherToIO :: Either String a -> IO a
-eitherToIO (Right a) = return a
-eitherToIO (Left e) = hPutStrLn stderr e >> exitFailure
 
 newtype DerivationPath = DerivationPath [DerivationIndex]
     deriving (Show, Eq)
@@ -564,9 +615,6 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
-                (derive CC.DerivationScheme2)
-                (toPub)
-                insp
     Trezor ->
         let
             proxy = Proxy @'API.Trezor
@@ -574,9 +622,6 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
-                (derive CC.DerivationScheme2)
-                (toPub)
-                insp
     Ledger ->
         let
             proxy = Proxy @'API.Ledger
@@ -584,9 +629,6 @@ newCliKeyScheme = \case
             CliKeyScheme
                 (apiAllowedLengths proxy)
                 (fmap (AXPrv . ledgerKeyFromSeed) . seedFromMnemonic proxy)
-                (derive CC.DerivationScheme2)
-                (toPub)
-                insp
   where
     seedFromMnemonic
         :: forall (s :: ByronWalletStyle).
@@ -611,52 +653,60 @@ newCliKeyScheme = \case
     ledgerKeyFromSeed = Icarus.getKey
         . flip Icarus.generateKeyFromHardwareLedger pass
 
-    toPub (AXPrv xprv) = return . AXPub . CC.toXPub $ xprv
-    toPub (AXPub _) = Left "Input is already a public key."
+    -- We don't use passwords to encrypt the keys here.
+    pass = mempty
 
-    derive
-        :: CC.DerivationScheme
-        -> XPrvOrXPub
-        -> DerivationIndex
-        -> Either String XPrvOrXPub
-    derive scheme1Or2 (AXPrv k) i =
-        return . AXPrv
-            $ CC.deriveXPrv
-                scheme1Or2
-                pass
-                k
-                (unDerivationIndex i)
-    derive scheme1Or2 (AXPub k) i =
-        maybe (Left err) (return . AXPub)
-            $ CC.deriveXPub
-                scheme1Or2
-                k
-                (unDerivationIndex i)
-      where
-        err = mconcat
-            [ T.unpack (toText i)
-            , " is a hardened index. Public key derivation is only possible for"
-            , " soft indices. \nIf the index is correct, please use the"
-            , " corresponding private key as input."
-            ]
 
-    insp (AXPrv key) = do
-        let bytes = CC.unXPrv key
-        let (xprv, rest) = BS.splitAt 64 bytes
-        let (_pub, cc) = BS.splitAt 32 rest
-        let encodeToHex = T.pack . B8.unpack . hex
-        return $ mconcat
-            [ "extended private key: "
-            , encodeToHex xprv
-            , "\n"
-            , "chain code: "
-            , encodeToHex cc
-            ]
-    insp (AXPub key) = do
-        let bytes = CC.unXPub key
-        let (xpub, cc) = BS.splitAt 32 bytes
-        let encodeToHex = T.pack . B8.unpack . hex
-        return $ mconcat
+toPublic :: XPrvOrXPub -> Either String XPrvOrXPub
+toPublic (AXPrv xprv) = return . AXPub . CC.toXPub $ xprv
+toPublic (AXPub _) = Left "Input is already a public key."
+
+deriveChildKey
+    :: XPrvOrXPub
+    -> DerivationIndex
+    -> Either String XPrvOrXPub
+deriveChildKey (AXPrv k) i =
+    return . AXPrv
+        $ CC.deriveXPrv
+            CC.DerivationScheme2
+            (mempty :: Passphrase "Encryption")
+            k
+            (unDerivationIndex i)
+deriveChildKey (AXPub k) i =
+    maybe (Left err) (return . AXPub)
+        $ CC.deriveXPub
+            CC.DerivationScheme2
+            k
+            (unDerivationIndex i)
+  where
+    err = mconcat
+        [ T.unpack (toText i)
+        , " is a hardened index. Public key derivation is only possible for"
+        , " soft indices. \nIf the index is correct, please use the"
+        , " corresponding private key as input."
+        ]
+
+inspect :: XPrvOrXPub -> Text
+inspect (AXPrv key) =
+    let
+        bytes = CC.unXPrv key
+        (xprv, rest) = BS.splitAt 64 bytes
+        (_pub, cc) = BS.splitAt 32 rest
+        encodeToHex = T.pack . B8.unpack . hex
+    in
+        mconcat
+        [ "extended private key: "
+        , encodeToHex xprv
+        , "\n"
+        , "chain code: "
+        , encodeToHex cc
+        ]
+inspect (AXPub key) =
+    let bytes = CC.unXPub key
+        (xpub, cc) = BS.splitAt 32 bytes
+        encodeToHex = T.pack . B8.unpack . hex
+    in
+        mconcat
             [ "extended public key: "
             , encodeToHex xpub
             , "\n"
@@ -664,12 +714,10 @@ newCliKeyScheme = \case
             , encodeToHex cc
             ]
 
-    -- We don't use passwords to encrypt the keys here.
-    pass = mempty
-
 data KeyRootArgs = KeyRootArgs
     { _walletStyle :: ByronWalletStyle
     , _mnemonicWords :: [Text]
+    , _keyEncoding :: KeyEncoding
     }
 
 cmdKeyRoot :: Mod CommandFields (IO ())
@@ -680,15 +728,12 @@ cmdKeyRoot =
     cmd = fmap exec $ KeyRootArgs
         <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
         <*> mnemonicWordsArgument
-    exec (KeyRootArgs keyType ws) = do
-        xprv <- mnemonicToRootKey scheme ws
-        TIO.putStrLn xprv
+        <*> keyEncodingOption
+    exec (KeyRootArgs keyType ws enc) = do
+        eitherToIO (mnemonicToRootKey scheme ws >>= encode) >>= TIO.putStrLn
       where
-        scheme :: CliKeyScheme Text IO
-        scheme =
-            hoistKeyScheme eitherToIO
-            . mapKey keyHexCodec
-            $ newCliKeyScheme keyType
+        encode = encodeKey enc
+        scheme = newCliKeyScheme keyType
 
 data KeyChildArgs = KeyChildArgs
     { _path :: DerivationPath
@@ -703,21 +748,15 @@ cmdKeyChild =
     cmd = fmap exec $
         KeyChildArgs <$> pathOption <*> keyArgument
 
-    exec (KeyChildArgs (DerivationPath path) k0) = do
-        child <- foldM (deriveChildKey scheme) k0 path
-        TIO.putStrLn child
+    exec (KeyChildArgs (DerivationPath path) key) = do
+        orReadStdin key
+            >>= eitherToIO . action
+            >>= TIO.putStrLn
       where
-        -- TODO: deriveChildKey is a part of @CliKeyScheme@, so we need a wallet
-        -- style to use it. We are using @Icarus@. All (current) styles use the
-        -- same derivation, so it doesn't matter.
-        --
-        -- How to resolve this problem is not quite clear, and we should perhaps
-        -- take other aspects into concideration (like public key derivation).
-        scheme :: CliKeyScheme Text IO
-        scheme =
-            hoistKeyScheme eitherToIO
-            . mapKey keyHexCodec
-            $ newCliKeyScheme Icarus
+        action :: Text -> Either String Text
+        action = decodeAnyKey
+            >=> \(k, enc) -> foldM deriveChildKey k path
+            >>= encodeKey enc
 
 newtype KeyPublicArgs = KeyPublicArgs
     { _key :: Text
@@ -729,18 +768,15 @@ cmdKeyPublic =
         <> progDesc "Extract public key from a private key."
   where
     cmd = fmap exec $
-        KeyPublicArgs <$> keyArgument
+        KeyPublicArgs <$> xprvArgument
 
-    exec (KeyPublicArgs key) = do
-        pub <- toPublic scheme key
-        TIO.putStrLn pub
-
-    scheme :: CliKeyScheme Text IO
-    scheme =
-        hoistKeyScheme eitherToIO
-        . mapKey keyHexCodec
-        $ newCliKeyScheme Icarus
-
+    exec (KeyPublicArgs key) =
+        orReadStdin key
+            >>= eitherToIO . action
+            >>= TIO.putStrLn
+      where
+        action :: Text -> Either String Text
+        action = decodeAnyKey >=> \(k, enc) -> toPublic k >>= encodeKey enc
 
 newtype KeyInspectArgs = KeyInspectArgs
     { _key :: Text
@@ -754,14 +790,13 @@ cmdKeyInspect =
     cmd = fmap exec $
         KeyInspectArgs <$> keyArgument
 
-    exec (KeyInspectArgs key) =
-        inspect scheme key >>= TIO.putStrLn
-
-    scheme :: CliKeyScheme Text IO
-    scheme =
-        hoistKeyScheme eitherToIO
-        . mapKey keyHexCodec
-        $ newCliKeyScheme Icarus
+    exec (KeyInspectArgs key) = do
+        orReadStdin key
+            >>= eitherToIO . action
+            >>= TIO.putStrLn
+      where
+        action :: Text -> Either String Text
+        action = fmap (\(k, _) -> inspect k) . decodeAnyKey
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
@@ -1731,8 +1766,23 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     prettyStyle s =
         "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
+instance FromText KeyEncoding where
+    fromText "bech32" = return Bech32
+    fromText "hex" = return Hex
+    fromText _ = Left $ TextDecodingError "Invalid key encoding option."
+
+keyEncodingOption :: Parser KeyEncoding
+keyEncodingOption = option (eitherReader fromTextS) $
+    mempty
+    <> long "encoding"
+    <> metavar "KEY-ENCODING"
+    <> value Hex
+
 keyArgument :: Parser Text
-keyArgument = T.pack <$> (argument str (metavar "XPRV"))
+keyArgument = T.pack <$> argument str (mempty <> metavar "XPRV|XPUB" <> value "")
+
+xprvArgument :: Parser Text
+xprvArgument = T.pack <$> argument str (mempty <> metavar "XPRV" <> value "")
 
 pathOption :: Parser DerivationPath
 pathOption = option (eitherReader fromTextS) $
@@ -2197,6 +2247,10 @@ withSGR h sgr action = hIsTerminalDevice h >>= \case
     aFirst = ([] <$ hSetSGR h [sgr])
     aLast = hSetSGR h
     aBetween = const action
+
+orReadStdin :: Text -> IO Text
+orReadStdin "" = TIO.getLine
+orReadStdin x = return x
 
 {-------------------------------------------------------------------------------
                                  Helpers
