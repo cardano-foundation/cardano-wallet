@@ -35,7 +35,6 @@ import Cardano.CLI
     , cmdWallet
     , cmdWalletCreate
     , decodeAnyKey
-    , decodeKey
     , deriveChildKey
     , encodeKey
     , firstHardenedIndex
@@ -595,6 +594,66 @@ spec = do
         fromTextGolden @DerivationPath "0x80000000/0H/0/" "should fail" $
             Left "\"0x80000000\" is not a number."
 
+
+    describe "Key encoding" $ do
+        let xprv1Bech32 =
+                "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pg\
+                \aexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990\
+                \aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
+
+        let xprv1Bech32FooHrp =
+                "foo18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pga\
+                \exmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990a\
+                \a67mvauxnnajh26hdxprzjry7q26tx0qvy9csa56"
+
+        -- This is a /public/ key with a "xprv" hrp
+        let notAXPrv = "xprv1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zp\
+                       \alvq4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcg0j\
+                       \8juy"
+        -- This is a /private/ key with a "xpub" hrp
+        let notAXPub = "xpub18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf\
+                       \0u2u3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq\
+                       \2jy27ejzgca990aa67mvauxnnajh26hdxprzjry7q26tx0qvyhat9w6"
+        describe "Detection of key encoding" $ do
+            describe "hex" $ do
+                decodeKeyGoldenErr "000000" "too short"
+                    "Expected key to be 96 bytes in the case of a private key \
+                    \and, 64 bytes for public keys. This key is 3 bytes."
+
+            describe "bech32" $ do
+                decodeKeyGoldenErr "xprv1hs" "xprv1hs"
+                    "StringToDecodeTooShort"
+                decodeKeyGoldenErr "xpub1hs" "xpubhs"
+                    "StringToDecodeTooShort"
+
+                -- TODO: We really have an opportunity to render nice error
+                -- messages here!
+                --
+                -- We should underline the invalid character!
+                decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char"
+                    "StringToDecodeContainsInvalidChars [CharPosition 165]"
+                decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
+                    "StringToDecodeContainsInvalidChars []"
+
+                -- We should /perhaps/ return a bech32 specific error here
+                decodeKeyGoldenErr xprv1Bech32FooHrp "wrong hrp"
+                    fullKeyEncodingDescription
+
+        describe "Key encoding: Bech32 goldens" $ do
+            it "xpub pretending to be xprv fails" $ do
+                decodeAnyKey notAXPrv
+                    `shouldBe`
+                    (Left "Expected extended private key to be 96 bytes \
+                          \but got 64 bytes.")
+
+            -- TODO: Make the error message match the previous case.
+            -- This one currently comes from cardano-crypto.
+            it "xprv pretending to be xpub fails" $ do
+                decodeAnyKey notAXPub
+                    `shouldBe`
+                    (Left "error: xprv needs to be 64 bytes: \
+                          \got 96 bytes")
+
     describe "Transaction ID decoding from text" $ do
 
         it "Should produce a user-friendly error message on failing to \
@@ -845,14 +904,8 @@ spec = do
 
         describe "Key Encoding Roundtrips" $ do
             let decodeAny = fmap fst . decodeAnyKey
-            it "decodeKey Hex . encodeKey Hex == pure" $ property $ \k -> do
-                (encodeKey Hex k >>= decodeKey Hex) === Right k
-
             it "decodeAnyKey . encodeKey Hex == pure" $ property $ \k -> do
                 (encodeKey Hex k >>= decodeAny) === Right k
-
-            it "decodeKey Bech32 . encodeBech32 == pure" $ property $ \k -> do
-                (encodeKey Bech32 k >>= decodeKey Bech32) === Right k
 
             it "decodeAnyKey . encodeKey Bech32 == pure" $ property $ \k -> do
                 (encodeKey Bech32 k >>= decodeAny) === Right k
@@ -961,6 +1014,10 @@ genMnemonic = do
         let ent = unsafeMkEntropy @(EntropySize mw) bytes
         return $ entropyToMnemonic ent
 
+{-------------------------------------------------------------------------------
+                               Test Helpers
+-------------------------------------------------------------------------------}
+
 fromTextGolden
     :: (HasCallStack, FromText a, Show a, Eq a)
     => Text
@@ -971,9 +1028,17 @@ fromTextGolden str desc expected =
     it (show str ++ " " ++ desc) $
         fromText str `shouldBe` (left TextDecodingError expected)
 
-{-------------------------------------------------------------------------------
-                               Test Helpers
--------------------------------------------------------------------------------}
+
+decodeKeyGoldenErr
+    :: (HasCallStack)
+    => Text
+    -> String
+    -> String
+    -> Spec
+decodeKeyGoldenErr str desc err =
+    it (show str ++ " " ++ desc) $
+        decodeAnyKey str `shouldBe` (Left err)
+
 
 data GetLineTest a = GetLineTest
     { prompt :: Text
