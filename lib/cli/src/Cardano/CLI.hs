@@ -442,17 +442,8 @@ fullKeyEncodingDescription = mconcat
     , "- xpub1... (bech32-encoded extended public key)"
     ]
 
-keyFromBytes :: ByteString -> Either String XPrvOrXPub
-keyFromBytes bytes = do
-    case BS.length bytes of
-        96 -> fmap AXPrv $ left showErr $ xPrvFromStrippedPubXPrvCheckRoundtrip bytes
-        64 -> fmap AXPub . CC.xpub $ bytes
-        n -> Left . mconcat $
-            [ "Expected key to be 96 bytes in the case of a private key"
-            , " and, 64 bytes for public keys. This key is "
-            , show n
-            , " bytes."
-            ]
+xprvFromBytes :: ByteString -> Either String XPrvOrXPub
+xprvFromBytes = fmap AXPrv . left showErr . xPrvFromStrippedPubXPrvCheckRoundtrip
   where
     showErr (ErrInputLengthMismatch expected actual) = mconcat
         [ "Expected extended private key to be "
@@ -465,6 +456,21 @@ keyFromBytes bytes = do
         [ "That extended private key looks weird. "
         , "Is it encrypted? Or is it an old Byron key?"
         ]
+
+xpubFromBytes :: ByteString -> Either String XPrvOrXPub
+xpubFromBytes = fmap AXPub . CC.xpub
+
+xprvOrXPubFromBytes :: ByteString -> Either String XPrvOrXPub
+xprvOrXPubFromBytes bs =
+    case BS.length bs of
+        96 -> xprvFromBytes bs
+        64 -> xpubFromBytes bs
+        n -> Left . mconcat $
+            [ "Expected key to be 96 bytes in the case of a private key"
+            , " and, 64 bytes for public keys. This key is "
+            , show n
+            , " bytes."
+            ]
 
 xprvHrp :: Bech32.HumanReadablePart
 xprvHrp = [Bech32.humanReadablePart|xprv|]
@@ -481,15 +487,15 @@ decodeAnyKey rawKey = do
 decodeKey :: KeyEncoding -> Text -> Either String XPrvOrXPub
 decodeKey = \case
     Bech32 -> decodeBech32
-    Hex -> decodeHex >=> keyFromBytes
+    Hex -> decodeHex >=> xprvOrXPubFromBytes
   where
     decodeBech32 :: Text -> Either String XPrvOrXPub
     decodeBech32 t = do
         (hrp, dp) <- left show $ Bech32.decodeLenient t
         bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
         case hrp of
-            h | h == xpubHrp -> keyFromBytes bytes
-            h | h == xprvHrp -> keyFromBytes bytes
+            h | h == xpubHrp -> xpubFromBytes bytes
+            h | h == xprvHrp -> xprvFromBytes bytes
             _ -> Left "unrecognized Bech32 Human Readable Part"
       where
         dpErr = "Internal error: Unable to extract bytes from bech32 data part"
