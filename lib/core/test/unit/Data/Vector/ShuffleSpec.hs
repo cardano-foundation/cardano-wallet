@@ -8,6 +8,8 @@ import Prelude
 
 import Data.Vector.Shuffle
     ( mkSeed, shuffle, shuffleWith )
+import System.Random
+    ( mkStdGen )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -85,8 +87,8 @@ prop_shuffleWithDeterministic
     -> Property
 prop_shuffleWithDeterministic (PrintableString seed) (NonEmpty xs) =
     monadicIO $ do
-        ys0 <- run $ shuffleWith (mkSeed $ T.pack seed) xs
-        ys1 <- run $ shuffleWith (mkSeed $ T.pack seed) xs
+        ys0 <- run $ shuffleWith (mkStdGen $ mkSeed $ T.pack seed) xs
+        ys1 <- run $ shuffleWith (mkStdGen $ mkSeed $ T.pack seed) xs
         monitor $ cover 90 (length xs > 1) "non singleton"
         assert (ys0 == ys1)
 
@@ -101,8 +103,8 @@ prop_shuffleDifferentSeed
     -> Property
 prop_shuffleDifferentSeed (x0, x1) (Positive len) = do
     x0 /= x1 ==> monadicIO $ do
-        let g0 = mkSeed $ T.pack $ getPrintableString x0
-        let g1 = mkSeed $ T.pack $ getPrintableString x1
+        let g0 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x0
+        let g1 = mkStdGen $ mkSeed $ T.pack $ getPrintableString x1
         es <- pick $ vectorOf len (arbitrary @Int)
         ys0 <- run $ shuffleWith g0 es
         ys1 <- run $ shuffleWith g1 es
