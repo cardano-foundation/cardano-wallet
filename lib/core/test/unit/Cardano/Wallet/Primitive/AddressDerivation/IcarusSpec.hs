@@ -16,7 +16,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
 import Prelude
 
 import Cardano.Mnemonic
-    ( ConsistentEntropy, EntropySize, SomeMnemonic (..), mkMnemonic )
+    ( ConsistentEntropy
+    , EntropySize
+    , MkSomeMnemonic (..)
+    , SomeMnemonic (..)
+    , mkMnemonic
+    )
 import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -24,7 +29,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationType (..)
     , DerivationType (..)
-    , FromMnemonic (..)
     , HardDerivation (..)
     , Index
     , MkKeyFingerprint (..)
@@ -87,7 +91,7 @@ spec = do
         goldenAddressGeneration $ GoldenAddressGeneration
             seed0 (toEnum 0x8000000E) UTxOInternal (toEnum 0x0000002A)
             "Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi"
-        let (Right seed1) = fromMnemonic @'[12]
+        let (Right seed1) = mkSomeMnemonic @'[12]
               [ "ghost", "buddy", "neutral", "broccoli", "face", "rack"
               , "relief", "odor", "swallow", "real", "once", "ecology"
               ]

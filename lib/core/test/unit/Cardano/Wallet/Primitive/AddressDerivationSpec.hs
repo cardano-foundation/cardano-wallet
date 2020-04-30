@@ -21,15 +21,13 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub, unXPrv, xpub )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
-    , FromMnemonic (..)
-    , FromMnemonicError (..)
     , Index
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -144,63 +142,63 @@ spec = describe "PATATE" $ do
         it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase for Scrypt passwords" $
             property prop_passphraseFromScryptRoundtripFail
 
-    describe "FromMnemonic" $ do
+    describe "MkSomeMnemonic" $ do
         let noInDictErr =
                 "Found an unknown word not present in the pre-defined dictionary. \
                 \The full dictionary is available here: https://github.com/input\
                 \-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
 
         it "early error reported first (Invalid Entropy)" $ do
-            let res = fromMnemonic @'[15,18,21]
+            let res = mkSomeMnemonic @'[15,18,21]
                         [ "glimpse", "paper", "toward", "fine", "alert"
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Invalid entropy checksum: \
+            res `shouldBe` Left (MkSomeMnemonicError "Invalid entropy checksum: \
                 \please double-check the last word of your mnemonic sentence.")
 
         it "early error reported first (Non-English Word)" $ do
-            let res = fromMnemonic @'[15,18,21]
+            let res = mkSomeMnemonic @'[15,18,21]
                         [ "baguette", "paper", "toward", "fine", "alert"
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
                         ]
-            res `shouldBe` Left (FromMnemonicError noInDictErr)
+            res `shouldBe` Left (MkSomeMnemonicError noInDictErr)
 
         it "early error reported first (Wrong number of words - 1)" $ do
-            let res = fromMnemonic @'[15,18,21]
+            let res = mkSomeMnemonic @'[15,18,21]
                         ["mom", "unveil", "slim", "abandon"
                         , "nut", "cash", "laugh", "impact"
                         , "system", "split", "depth", "sun"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Invalid number of words: \
+            res `shouldBe` Left (MkSomeMnemonicError "Invalid number of words: \
                 \15, 18 or 21 words are expected.")
 
         it "early error reported first (Wrong number of words - 2)" $ do
-            let res = fromMnemonic @'[15]
+            let res = mkSomeMnemonic @'[15]
                         ["mom", "unveil", "slim", "abandon"
                         , "nut", "cash", "laugh", "impact"
                         , "system", "split", "depth", "sun"
                         ]
-            res `shouldBe` Left (FromMnemonicError "Invalid number of words: \
+            res `shouldBe` Left (MkSomeMnemonicError "Invalid number of words: \
                 \15 words are expected.")
 
         it "early error reported first (Error not in first constructor)" $ do
-            let res = fromMnemonic @'[15,18,21,24]
+            let res = mkSomeMnemonic @'[15,18,21,24]
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError noInDictErr)
+            res `shouldBe` Left (MkSomeMnemonicError noInDictErr)
 
         it "early error reported first (Error not in first constructor)" $ do
-            let res = fromMnemonic @'[12,15,18]
+            let res = mkSomeMnemonic @'[12,15,18]
                         ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵"
                         ,"祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"
                         ]
-            res `shouldBe` Left (FromMnemonicError noInDictErr)
+            res `shouldBe` Left (MkSomeMnemonicError noInDictErr)
 
         it "successfully parse 15 words in [15,18,21]" $ do
-            let res = fromMnemonic @'[15,18,21]
+            let res = mkSomeMnemonic @'[15,18,21]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"
@@ -208,7 +206,7 @@ spec = describe "PATATE" $ do
             res `shouldSatisfy` isRight
 
         it "successfully parse 15 words in [12,15,18]" $ do
-            let res = fromMnemonic @'[12,15,18]
+            let res = mkSomeMnemonic @'[12,15,18]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"
@@ -216,7 +214,7 @@ spec = describe "PATATE" $ do
             res `shouldSatisfy` isRight
 
         it "successfully parse 15 words in [9,12,15]" $ do
-            let res = fromMnemonic @'[9,12,15]
+            let res = mkSomeMnemonic @'[9,12,15]
                         ["cushion", "anxiety", "oval", "village", "choose"
                         , "shoot", "over", "behave", "category", "cruise"
                         , "track", "either", "maid", "organ", "sock"

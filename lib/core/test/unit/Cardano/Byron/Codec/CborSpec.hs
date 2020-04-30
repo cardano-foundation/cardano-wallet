@@ -24,13 +24,10 @@ import Cardano.Byron.Codec.Cbor
     , encodeDerivationPathAttr
     , encodeTx
     )
+import Cardano.Mnemonic
+    ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Passphrase (..)
-    , fromMnemonic
-    )
+    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
@@ -163,7 +160,7 @@ decodeDerivationPathTest DecodeDerivationPath{..} =
     payload = unsafeDeserialiseCbor decodeAddressPayload $
         BL.fromStrict (unsafeFromHex addr)
     decoded = deserialiseCbor (decodeAddressDerivationPath pwd) payload
-    Right seed = fromMnemonic @'[12] mnem
+    Right seed = mkSomeMnemonic @'[12] mnem
     key = generateKeyFromSeed seed mempty
     pwd = payloadPassphrase key
 

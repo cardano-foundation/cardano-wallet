@@ -132,7 +132,8 @@ module Test.Integration.Framework.DSL
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
-    ( Mnemonic
+    ( MkSomeMnemonic (..)
+    , Mnemonic
     , SomeMnemonic (..)
     , entropyToMnemonic
     , genEntropy
@@ -164,7 +165,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
-    , FromMnemonic (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -1540,7 +1540,7 @@ rootPrvKeyFromMnemonics mnemonics pass =
     T.decodeUtf8 $ hex $ getKey $ Byron.generateKeyFromSeed seed
         (preparePassphrase W.EncryptWithScrypt rawPassd)
  where
-     (Right seed) = fromMnemonic @'[12] mnemonics
+     (Right seed) = mkSomeMnemonic @'[12] mnemonics
      rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 pass
 
 --
@@ -1551,7 +1551,7 @@ pubKeyFromMnemonics mnemonics =
     T.decodeUtf8 $ serializeXPub $ publicKey
        $ deriveAccountPrivateKey mempty rootXPrv minBound
  where
-     (Right seed) = fromMnemonic @'[15] mnemonics
+     (Right seed) = mkSomeMnemonic @'[15] mnemonics
      rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
 
 --

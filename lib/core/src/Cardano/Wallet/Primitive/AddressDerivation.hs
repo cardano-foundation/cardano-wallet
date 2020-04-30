@@ -65,7 +65,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , xPrvFromStrippedPubXPrvCheckRoundtrip
     , ErrXPrvFromStrippedPubXPrv (..)
     , ErrUnXPrvStripPub (..)
-    , NatVals (..)
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
@@ -86,8 +85,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase(..)
     , PassphraseMinLength(..)
     , PassphraseMaxLength(..)
-    , FromMnemonic(..)
-    , FromMnemonicError(..)
     , ErrWrongPassphrase(..)
     , PassphraseScheme(..)
     , encryptPassphrase
@@ -99,21 +96,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv, xpub )
-import Cardano.Mnemonic
-    ( CheckSumBits
-    , ConsistentEntropy
-    , DictionaryError (..)
-    , EntropyError (..)
-    , EntropySize
-    , MkMnemonicError (..)
-    , MnemonicWordsError (..)
-    , SomeMnemonic (..)
-    , mkMnemonic
-    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
-import Control.Arrow
-    ( left )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -124,8 +108,6 @@ import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
     ( MonadRandom (..) )
-import Data.Bifunctor
-    ( bimap )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess, ScrubbedBytes )
 import Data.ByteArray.Encoding
@@ -134,8 +116,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
-import Data.List
-    ( intercalate )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -422,88 +402,6 @@ instance
 
 instance ToText (Passphrase purpose) where
     toText (Passphrase bytes) = T.decodeUtf8 $ BA.convert bytes
-
--- | Create a passphrase from a mnemonic sentence. This class enables caller to
--- parse text list of variable length into mnemonic sentences.
---
--- >>> fromMnemonic @'[12,15,18,21] @"generation" ["toilet", "curse", ... ]
--- Right (Passphrase <ScrubbedBytes>)
---
--- Note that the given 'Nat's **have** to be valid mnemonic sizes, otherwise the
--- underlying code won't even compile, with not-so-friendly error messages.
-class FromMnemonic (sz :: [Nat]) where
-    fromMnemonic :: [Text] -> Either (FromMnemonicError sz) SomeMnemonic
-
--- | Error reported from trying to create a passphrase from a given mnemonic
-newtype FromMnemonicError (sz :: [Nat]) =
-    FromMnemonicError { getFromMnemonicError :: String }
-    deriving stock (Eq, Show)
-    deriving newtype Buildable
-
-instance {-# OVERLAPS #-}
-    ( n ~ EntropySize mw
-    , csz ~ CheckSumBits n
-    , ConsistentEntropy n mw csz
-    , FromMnemonic rest
-    , NatVals rest
-    ) =>
-    FromMnemonic (mw ': rest)
-  where
-    fromMnemonic parts = case parseMW of
-        Left err -> left (promote err) parseRest
-        Right mw -> Right mw
-      where
-        parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
-            fromMnemonic @'[mw] parts
-        parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
-            fromMnemonic @rest parts
-        promote e e' =
-            let
-                sz = fromEnum <$> natVals (Proxy :: Proxy (mw ': rest))
-                mw = fromEnum $ natVal (Proxy :: Proxy mw)
-            in if length parts `notElem` sz
-                then FromMnemonicError
-                    $  "Invalid number of words: "
-                    <> intercalate ", " (show <$> init sz)
-                    <> (if length sz > 1 then " or " else "") <> show (last sz)
-                    <> " words are expected."
-                else if length parts == mw then e else e'
-
--- | Small helper to collect 'Nat' values from a type-level list
-class NatVals (ns :: [Nat]) where
-    natVals :: Proxy ns -> [Integer]
-
-instance NatVals '[] where
-    natVals _ = []
-
-instance (KnownNat n, NatVals rest) => NatVals (n ': rest) where
-    natVals _ = natVal (Proxy :: Proxy n) : natVals (Proxy :: Proxy rest)
-
-instance
-    ( n ~ EntropySize mw
-    , csz ~ CheckSumBits n
-    , ConsistentEntropy n mw csz
-    ) =>
-    FromMnemonic (mw ': '[])
-  where
-    fromMnemonic parts = do
-        bimap (FromMnemonicError . pretty) SomeMnemonic (mkMnemonic @mw parts)
-      where
-        pretty = \case
-            ErrMnemonicWords ErrWrongNumberOfWords{} ->
-                "Invalid number of words: "
-                <> show (natVal (Proxy :: Proxy mw))
-                <> " words are expected."
-            ErrDictionary (ErrInvalidDictionaryWord _) ->
-                "Found an unknown word not present in the pre-defined dictionary. \
-                \The full dictionary is available here: \
-                \https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
-            ErrEntropy ErrInvalidEntropyChecksum{} ->
-                "Invalid entropy checksum: please double-check the last word of \
-                \your mnemonic sentence."
-            ErrEntropy ErrInvalidEntropyLength{} ->
-                "Something went wrong when trying to generate the entropy from \
-                \the given mnemonic. As a user, there's nothing you can do."
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase

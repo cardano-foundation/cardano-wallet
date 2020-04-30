@@ -117,11 +117,10 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), mnemonicToText )
+    ( MkSomeMnemonic (..), SomeMnemonic (..), mnemonicToText, natVals )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , FromMnemonic (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -130,7 +129,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , XPrv
     , XPub
-    , natVals
     , unXPrv
     , xprv
     )
@@ -958,7 +956,7 @@ withExtraField (k,v) = \case
     Aeson.Object m -> Aeson.Object (HM.insert k v m)
     json -> json
 
-instance FromMnemonic mw => FromJSON (ByronWalletPostData mw) where
+instance MkSomeMnemonic mw => FromJSON (ByronWalletPostData mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON (ByronWalletPostData mw) where
     toJSON = genericToJSON defaultRecordTypeOptions
@@ -1011,11 +1009,11 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
 instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
 
-instance FromMnemonic sizes => FromJSON (ApiMnemonicT sizes)
+instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
     parseJSON bytes = do
         xs <- parseJSON bytes
-        m <- eitherToParser $ left ShowFmt $ fromMnemonic @sizes xs
+        m <- eitherToParser $ left show $ mkSomeMnemonic @sizes xs
         return $ ApiMnemonicT m
 
 instance ToJSON (ApiMnemonicT sizes) where
