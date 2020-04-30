@@ -60,7 +60,6 @@ library
     , http-media
     , http-types
     , iohk-monitoring
-    , lifted-base
     , memory
     , monad-logger
     , network

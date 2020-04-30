@@ -1687,30 +1687,6 @@ paths:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
-  /wallets/{walletId}/tip:
-    put:
-      operationId: forceResync
-      tags: ["Wallets"]
-      summary: Force Resync
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Force the wallet to rewind back to the given block and sync again with the chain.
-        Any incoming transaction will be erased whereas outgoing transactions will be put back
-        as pending. This action should only be taken as an extreme measure to resolve potential
-        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
-
-        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
-        > Any other point will yield a `403 Forbidden` error.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *genesisBlock
-      responses: *responsesForceResyncWallet
-
   /wallets/{walletId}/statistics/utxos:
     get:
       operationId: getUTxOsStatistics
@@ -2020,30 +1996,6 @@ paths:
           application/json:
             schema: *ApiByronWalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
-
-  /byron-wallets/{walletId}/tip:
-    put:
-      operationId: forceResyncByron
-      tags: ["Byron Wallets"]
-      summary: Force Resync
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Force the wallet to rewind back to the given block and sync again with the chain.
-        Any incoming transaction will be erased whereas outgoing transactions will be put back
-        as pending. This action should only be taken as an extreme measure to resolve potential
-        syncing issues. If its use is required, please submit a ticket to https://github.com/input-output-hk/cardano-wallet/issues.
-
-        > ⚠️ At this stage, the server only allows resyncing to genesis (i.e. `(0,0)`).
-        > Any other point will yield a `403 Forbidden` error.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *genesisBlock
-      responses: *responsesForceResyncWallet
 
   /byron-wallets/{walletId}/addresses:
       get:

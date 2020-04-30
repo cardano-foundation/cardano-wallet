@@ -12,8 +12,6 @@
 
 module Test.Integration.Scenario.API.Shelley.Wallets
     ( spec
-    , scenarioWalletResync01_happyPath
-    , scenarioWalletResync02_notGenesis
     ) where
 
 import Prelude
@@ -28,8 +26,6 @@ import Cardano.Mnemonic
     , genEntropy
     , mnemonicToText
     )
-import Cardano.Wallet.Api.Link
-    ( Discriminate )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
@@ -49,17 +45,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..), WalletId, walletNameMaxLength, walletNameMinLength )
+    ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
-import Data.Aeson
-    ( FromJSON )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Generics.Product.Fields
-    ( HasField' )
-import Data.Generics.Product.Typed
-    ( HasType )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.Maybe
@@ -74,8 +64,6 @@ import Data.Text.Class
     ( toText )
 import Data.Word
     ( Word64 )
-import GHC.Generics
-    ( Generic )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -117,7 +105,6 @@ import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400ParseError
     , errMsg403NothingToMigrate
-    , errMsg403RejectedTip
     , errMsg403WrongPass
     , errMsg404NoWallet
     , errMsg406
@@ -1176,14 +1163,6 @@ spec = do
         expectResponseCode @IO HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
-    describe "WALLETS_RESYNC_01" $ do
-        it "force resync eventually get us back to the same point" $ \ctx -> do
-            scenarioWalletResync01_happyPath @'Shelley ctx emptyWallet
-
-    describe "WALLETS_RESYNC_02" $ do
-        it "given point is not genesis (i.e. (0, 0))" $ \ctx -> do
-            scenarioWalletResync02_notGenesis @'Shelley ctx emptyWallet
-
     describe "BYRON_MIGRATE_05 -\
         \ migrating from/to inappropriate wallet types" $ do
 
@@ -1706,58 +1685,3 @@ spec = do
        => IO [Text]
     genMnemonics =
         mnemonicToText . entropyToMnemonic @mw <$> genEntropy
-
--- force resync eventually get us back to the same point
-scenarioWalletResync01_happyPath
-    :: forall style t wallet.
-        ( Discriminate style
-        , HasType (ApiT WalletId) wallet
-        , HasField' "state" wallet (ApiT SyncProgress)
-        , FromJSON wallet
-        , Generic wallet
-        , Show wallet
-        )
-    => Context t
-    -> (Context t -> IO wallet)
-    -> IO ()
-scenarioWalletResync01_happyPath ctx fixture = do
-    w <- fixture ctx
-
-    -- 1. Wait for wallet to be synced
-    eventually "Wallet is synced" $ do
-        v <- request @wallet ctx (Link.getWallet @style w) Default Empty
-        verify v [ expectField @IO #state (`shouldBe` (ApiT Ready)) ]
-
-    -- 2. Force a resync
-    let payload = Json [json|{ "epoch_number": 0, "slot_number": 0 }|]
-    r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
-    verify r [ expectResponseCode @IO HTTP.status204 ]
-
-    -- 3. The wallet eventually re-sync
-    eventually "Wallet re-syncs successfully" $ do
-        v <- request @wallet ctx (Link.getWallet @style w) Default Empty
-        verify v [ expectField @IO #state (`shouldBe` (ApiT Ready)) ]
-
--- force resync eventually get us back to the same point
-scenarioWalletResync02_notGenesis
-    :: forall style t wallet.
-        ( Discriminate style
-        , HasType (ApiT WalletId) wallet
-        , HasField' "state" wallet (ApiT SyncProgress)
-        , FromJSON wallet
-        , Generic wallet
-        , Show wallet
-        )
-    => Context t
-    -> (Context t -> IO wallet)
-    -> IO ()
-scenarioWalletResync02_notGenesis ctx fixture = do
-    w <- fixture ctx
-
-    -- 1. Force a resync on an invalid point (/= from genesis)
-    let payload = Json [json|{ "epoch_number": 14, "slot_number": 42 }|]
-    r <- request @wallet ctx (Link.forceResyncWallet @style w) Default payload
-    verify r
-        [ expectResponseCode @IO HTTP.status403
-        , expectErrorMessage errMsg403RejectedTip
-        ]

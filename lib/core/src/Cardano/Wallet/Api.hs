@@ -29,7 +29,6 @@ module Cardano.Wallet.Api
         , PutWallet
         , PutWalletPassphrase
         , GetUTxOsStatistics
-        , ForceResyncWallet
 
     , Addresses
         , ListAddresses
@@ -55,7 +54,6 @@ module Cardano.Wallet.Api
         , GetByronWallet
         , ListByronWallets
         , PostByronWallet
-        , ForceResyncByronWallet
         , PutByronWallet
         , GetByronUTxOsStatistics
         , PutByronWalletPassphrase
@@ -105,7 +103,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
-    , ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiSelectCoinsDataT
@@ -205,7 +202,6 @@ type Wallets =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
-    :<|> ForceResyncWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -245,13 +241,6 @@ type GetUTxOsStatistics = "wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/forceResync
-type ForceResyncWallet = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "tip"
-    :> ReqBody '[JSON] ApiNetworkTip
-    :> PutNoContent
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -378,7 +367,6 @@ type ByronWallets =
     :<|> DeleteByronWallet
     :<|> GetByronWallet
     :<|> ListByronWallets
-    :<|> ForceResyncByronWallet
     :<|> PutByronWallet
     :<|> GetByronUTxOsStatistics
     :<|> PutByronWalletPassphrase
@@ -401,13 +389,6 @@ type GetByronWallet = "byron-wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron-wallets"
     :> Get '[JSON] [ApiByronWallet]
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/forceResyncByron
-type ForceResyncByronWallet = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "tip"
-    :> ReqBody '[JSON] ApiNetworkTip
-    :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putByronWallet
 type PutByronWallet = "byron-wallets"

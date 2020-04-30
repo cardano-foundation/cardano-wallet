@@ -42,7 +42,6 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , forceResyncWallet
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -270,10 +269,8 @@ import Control.DeepSeq
     ( NFData )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
-import Control.Exception.Lifted
-    ( finally )
 import Control.Monad
-    ( forM, unless, void, when, (>=>) )
+    ( forM, void, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -287,7 +284,7 @@ import Data.Coerce
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
@@ -978,44 +975,6 @@ getUTxOsStatistics ctx (ApiT wid) = do
         , scale = ApiT bType
         , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
         }
-
-forceResyncWallet
-    :: forall ctx s t k.
-        ( ctx ~ ApiLayer s t k
-        , IsOurs s ChimericAccount
-        , IsOurs s Address
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiNetworkTip
-    -> Handler NoContent
-forceResyncWallet ctx (ApiT wid) tip = guardTip (== W.slotMinBound) $ \pt -> do
-    liftIO $ Registry.unregister re wid
-    liftHandler (safeRollback pt) `finally` liftIO (registerWorker ctx wid)
-  where
-    re = ctx ^. workerRegistry @s @k
-    df = ctx ^. dbFactory @s @k
-
-    -- NOTE Safe because it happens without any worker running and, we've
-    -- controlled that 'point' is genesis.
-    safeRollback :: W.SlotId -> ExceptT ErrNoSuchWallet IO ()
-    safeRollback point = do
-        ExceptT $ withDatabase df wid $ \db -> do
-            let wrk = hoistResource db (MsgFromWorker wid) ctx
-            runExceptT $ W.rollbackBlocks wrk wid point
-
-    guardTip
-        :: (W.SlotId -> Bool)
-        -> (W.SlotId -> Handler ())
-        -> Handler NoContent
-    guardTip predicate handler_ = do
-        unless (predicate point) $ liftHandler $ throwE $ ErrRejectedTip tip
-        handler_ point $> NoContent
-      where
-        point = W.SlotId
-            { epochNumber = tip ^. #epochNumber . #getApiT
-            , slotNumber  = tip ^. #slotNumber  . #getApiT
-            }
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
