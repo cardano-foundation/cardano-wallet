@@ -57,6 +57,7 @@ library
     , foldl
     , generic-lens
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , iohk-monitoring
@@ -104,6 +105,7 @@ library
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete
       Cardano.Pool
+      Cardano.Pool.Metadata
       Cardano.Pool.DB
       Cardano.Pool.DB.MVar
       Cardano.Pool.DB.Model
