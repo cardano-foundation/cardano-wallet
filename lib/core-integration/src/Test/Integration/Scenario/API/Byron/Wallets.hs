@@ -97,10 +97,6 @@ import Test.Integration.Framework.TestData
     , updatePassPayload
     , wildcardsWalletName
     )
-import Test.Integration.Scenario.API.Shelley.Wallets
-    ( scenarioWalletResync01_happyPath, scenarioWalletResync02_notGenesis )
-import Test.Utils.Windows
-    ( pendingOnWindows )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -551,22 +547,6 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status204
             ]
-
-    describe "BYRON_WALLETS_RESYNC_01" $ do
-        let title = "force resync eventually get us back to the same point"
-        it ("emptyRandomWallet - " ++ title) $ \ctx -> do
-            pendingOnWindows "Failing on Windows only due to #1534"
-            scenarioWalletResync01_happyPath @'Byron ctx emptyRandomWallet
-        it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
-            pendingOnWindows "Failing on Windows only due to #1534"
-            scenarioWalletResync01_happyPath @'Byron ctx emptyIcarusWallet
-
-    describe "BYRON_WALLETS_RESYNC_02" $ do
-        let title = "force resync eventually get us back to the same point"
-        it ("emptyRandomWallet - " ++ title) $ \ctx -> do
-            scenarioWalletResync02_notGenesis @'Byron ctx emptyRandomWallet
-        it ("emptyIcarusWallet - " ++ title) $ \ctx -> do
-            scenarioWalletResync02_notGenesis @'Byron ctx emptyIcarusWallet
  where
      genMnemonics
         :: forall mw ent csz.

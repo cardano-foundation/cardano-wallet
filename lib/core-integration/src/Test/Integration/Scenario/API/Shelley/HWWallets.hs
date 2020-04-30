@@ -348,16 +348,6 @@ spec = do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        it "Can force resync" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-            let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
-
-            let payload = Json [json|{ "epoch_number": 0, "slot_number": 0 }|]
-            r <- request @ApiWallet ctx (Link.forceResyncWallet @'Shelley wPub)
-                    Default payload
-            expectResponseCode @IO HTTP.status204 r
-
         it "Can get coin selection" $ \ctx -> do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
