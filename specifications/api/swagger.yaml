@@ -2047,7 +2047,7 @@ paths:
 
   /byron-wallets/{walletId}/addresses:
       get:
-        operationId: listAddresses
+        operationId: listByronAddresses
         tags: ["Byron Addresses"]
         summary: List
         description: |
