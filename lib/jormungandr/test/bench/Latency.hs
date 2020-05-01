@@ -355,6 +355,11 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
         fmtResult "listStakePools     " t7
 
+        -- this one is to have comparable results from first to last measurement
+        -- otherwise the first one would be without cashing in contrast to other
+        -- measurements
+        _t8bare <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
         t8 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
 

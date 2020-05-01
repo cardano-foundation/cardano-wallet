@@ -313,6 +313,11 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
             (Link.getTransactionFee @'Byron wal1) Default payload
         fmtResult "postTransactionFee " t6
 
+        -- this one is to have comparable results from first to last measurement
+        -- otherwise the first one would be without cashing in contrast to other
+        -- measurements
+        _t7bare <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
         t7 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
         fmtResult "getNetworkInfo     " t7
