@@ -130,9 +130,11 @@ import Cardano.Wallet.Primitive.Types
     , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
+    , GenesisBlockParameters (..)
     , Hash (..)
     , PoolId
     , SlotId (..)
+    , TxParameters
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
@@ -207,7 +209,7 @@ withNetworkLayer
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -226,7 +228,7 @@ withNetworkLayerLaunch
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -246,7 +248,7 @@ withNetworkLayerConn
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , BlockchainParameters
+          , GenesisBlockParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -265,7 +267,7 @@ newNetworkLayer
     => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO ((J.Block, BlockchainParameters), NetworkLayer IO t J.Block)
+    -> ExceptT ErrGetBlockchainParams IO ((J.Block, GenesisBlockParameters), NetworkLayer IO t J.Block)
 newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
@@ -273,8 +275,8 @@ newNetworkLayer tr baseUrl block0H = do
     let tr' = contramap MsgWaitForService tr
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
-    (block0, bp) <- getInitialBlockchainParameters jor (coerce block0H)
-    return ((block0, bp), mkRawNetworkLayer bp 1000 st jor)
+    (block0, gbp) <- getInitialBlockchainParameters jor (coerce block0H)
+    return ((block0, gbp), mkRawNetworkLayer gbp 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -286,15 +288,18 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => BlockchainParameters
+    => GenesisBlockParameters
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer bp batchSize st j = NetworkLayer
+mkRawNetworkLayer gbp batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
+
+    , getTxParameters =
+        _getTxParameters
 
     , nextBlocks =
         _nextBlocks
@@ -324,10 +329,10 @@ mkRawNetworkLayer bp batchSize st j = NetworkLayer
     -- @k@ but in practice with Jörmungandr, nodes can make jumps longer than
     -- that.
     k :: Quantity "block" Word32
-    k = (max 100) <$> getEpochStability bp
+    k = (max 100) <$> getEpochStability (staticParameters gbp)
 
     genesis :: Hash "Genesis"
-    genesis = getGenesisBlockHash bp
+    genesis = getGenesisBlockHash $ staticParameters gbp
 
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do
@@ -336,6 +341,9 @@ mkRawNetworkLayer bp batchSize st j = NetworkLayer
         ExceptT . pure $ case blockHeadersTip bs' of
             Just t -> Right (bs', t)
             Nothing -> Left ErrCurrentNodeTipNotFound
+
+    _getTxParameters :: m TxParameters
+    _getTxParameters = pure $ txParameters gbp
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =

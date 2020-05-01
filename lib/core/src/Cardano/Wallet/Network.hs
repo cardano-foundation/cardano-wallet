@@ -22,6 +22,7 @@ module Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
+    , ErrGetTxParameters (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
 
@@ -47,6 +48,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SealedTx
     , SlotId
+    , TxParameters
     )
 import Control.Concurrent
     ( threadDelay )
@@ -118,6 +120,9 @@ data NetworkLayer m target block = NetworkLayer
         :: ExceptT ErrCurrentNodeTip m BlockHeader
         -- ^ Get the current tip from the chain producer
 
+    , getTxParameters
+        :: m TxParameters
+
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
@@ -164,6 +169,15 @@ data ErrGetBlock
     = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockNotFound (Hash "BlockHeader")
     deriving (Generic, Show, Eq)
+
+-- | Error while querying local parameters state.
+data ErrGetTxParameters
+    = ErrGetTxParametersTip ErrCurrentNodeTip
+    | ErrGetTxParametersNetworkUnreachable ErrNetworkUnavailable
+    | ErrGetTxParametersNotFound
+    deriving (Generic, Show, Eq)
+
+instance Exception ErrGetTxParameters
 
 -- | Error while trying to send a transaction
 data ErrPostTx
@@ -297,7 +311,7 @@ follow
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> BlockHeader -> IO (FollowAction e))
+    -> (NE.NonEmpty block -> (BlockHeader, TxParameters) -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
@@ -354,7 +368,8 @@ follow nl tr cps yield header =
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            action <- yield blocks tip
+            params <- getTxParameters nl
+            action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
             handle cursor' action
 

@@ -48,6 +48,8 @@ module Cardano.Wallet.Byron.Compatibility
     , fromTxAux
     , fromTxIn
     , fromTxOut
+
+    , txParametersFromUpdateState
     ) where
 
 import Prelude
@@ -117,6 +119,8 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Chain.Update as Update
+import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
@@ -136,24 +140,28 @@ type NodeVersionData =
 -- Chain Parameters
 
 
-mainnetBlockchainParameters :: W.BlockchainParameters
-mainnetBlockchainParameters = W.BlockchainParameters
-    { getGenesisBlockHash = W.Hash $ unsafeFromHex
-        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-    , getGenesisBlockDate =
-        W.StartTime $ posixSecondsToUTCTime 1506203091
-    , getFeePolicy =
-        W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-    , getSlotLength =
-        W.SlotLength 20
-    , getEpochLength =
-        W.EpochLength 21600
-    , getTxMaxSize =
-        Quantity 8192
-    , getEpochStability =
-        Quantity 2160
-    , getActiveSlotCoefficient =
-        W.ActiveSlotCoefficient 1.0
+mainnetBlockchainParameters :: W.GenesisBlockParameters
+mainnetBlockchainParameters = W.GenesisBlockParameters
+    { staticParameters = W.BlockchainParameters
+        { getGenesisBlockHash = W.Hash $ unsafeFromHex
+            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+        , getGenesisBlockDate =
+            W.StartTime $ posixSecondsToUTCTime 1506203091
+        , getSlotLength =
+            W.SlotLength 20
+        , getEpochLength =
+            W.EpochLength 21600
+        , getEpochStability =
+            Quantity 2160
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 1.0
+        }
+    , txParameters = W.TxParameters
+        { getFeePolicy =
+            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+        , getTxMaxSize =
+            Quantity 4096
+        }
     }
 
 -- NOTE
@@ -362,7 +370,7 @@ fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
     W.LinearFee
         (Quantity (lovelaceToDouble a))
         (Quantity (rationalToDouble b))
-        (Quantity 0)
+        (Quantity 0) -- certificates do not exist for Byron
   where
     lovelaceToDouble :: Lovelace -> Double
     lovelaceToDouble = fromIntegral . unsafeGetLovelace
@@ -386,31 +394,41 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
+txParametersFromPP :: Update.ProtocolParameters -> W.TxParameters
+txParametersFromPP pp = W.TxParameters
+    { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
+    , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
+    }
+
+-- | Pluck the blockchain parameters relevant to creating transactions out of
+-- the cardano-chain update state record.
+txParametersFromUpdateState :: Update.State -> W.TxParameters
+txParametersFromUpdateState = txParametersFromPP . Update.adoptedProtocolParameters
+
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
 fromNonAvvmBalances (GenesisNonAvvmBalances m) =
     fromTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
-fromGenesisData :: (GenesisData, GenesisHash) -> (W.BlockchainParameters, [W.TxOut])
+fromGenesisData :: (GenesisData, GenesisHash) -> (W.GenesisBlockParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
-    ( W.BlockchainParameters
-        { getGenesisBlockHash =
-            W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
-        , getGenesisBlockDate =
-            W.StartTime . gdStartTime $ genesisData
-        , getFeePolicy =
-            fromTxFeePolicy . ppTxFeePolicy . gdProtocolParameters $ genesisData
-        , getSlotLength =
-            fromSlotDuration . ppSlotDuration . gdProtocolParameters $ genesisData
-        , getEpochLength =
-            fromBlockCount . gdK $ genesisData
-        , getTxMaxSize =
-            fromMaxTxSize . ppMaxTxSize . gdProtocolParameters $ genesisData
-        , getEpochStability =
-            Quantity . fromIntegral . unBlockCount . gdK $ genesisData
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
+    ( W.GenesisBlockParameters
+        { staticParameters = W.BlockchainParameters
+            { getGenesisBlockHash =
+                W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
+            , getGenesisBlockDate =
+                W.StartTime . gdStartTime $ genesisData
+            , getSlotLength =
+                fromSlotDuration . ppSlotDuration . gdProtocolParameters $ genesisData
+            , getEpochLength =
+                fromBlockCount . gdK $ genesisData
+            , getEpochStability =
+                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
+            , getActiveSlotCoefficient =
+                W.ActiveSlotCoefficient 1.0
+            }
+        , txParameters = txParametersFromPP . gdProtocolParameters $ genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

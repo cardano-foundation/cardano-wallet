@@ -76,6 +76,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxParameters (..)
     , UTxO (..)
     , Wallet (..)
     , migrateAll
@@ -440,7 +441,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \(PrimaryKey wid) cp meta txs -> ExceptT $ do
+        { initializeWallet = \(PrimaryKey wid) cp meta txs txp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta)
             when (isRight res) $ do
@@ -448,6 +449,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                 let (metas, txins, txouts) = mkTxHistory wid txs
                 putTxMetas metas
                 putTxs txins txouts
+                insert_ (mkTxParametersEntity wid txp)
             pure res
 
         , removeWallet = \(PrimaryKey wid) -> ExceptT $ do
@@ -595,6 +597,19 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
         , readPrivateKey = \(PrimaryKey wid) -> selectPrivateKey wid
 
         {-----------------------------------------------------------------------
+                                 Blockchain Parameters
+        -----------------------------------------------------------------------}
+
+        , putTxParameters = \(PrimaryKey wid) txp -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> Right <$> repsert
+                    (TxParametersKey wid)
+                    (mkTxParametersEntity wid txp)
+
+        , readTxParameters = \(PrimaryKey wid) -> selectTxParameters wid
+
+        {-----------------------------------------------------------------------
                                      ACID Execution
         -----------------------------------------------------------------------}
 
@@ -728,10 +743,8 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
-        , checkpointFeePolicy = bp ^. #getFeePolicy
         , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
         , checkpointEpochLength = coerce (bp ^. #getEpochLength)
-        , checkpointTxMaxSize = coerce (bp ^. #getTxMaxSize)
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         , checkpointActiveSlotCoeff =
             W.unActiveSlotCoefficient (bp ^. #getActiveSlotCoefficient)
@@ -763,10 +776,8 @@ checkpointFromEntity cp utxo s =
         bh
         (BlockId genesisHash)
         genesisStart
-        feePolicy
         slotLength
         epochLength
-        txMaxSize
         epochStability
         activeSlotCoeff
         ) = cp
@@ -778,10 +789,8 @@ checkpointFromEntity cp utxo s =
     bp = W.BlockchainParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
-        , getFeePolicy = feePolicy
         , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
         , getEpochLength = W.EpochLength epochLength
-        , getTxMaxSize = Quantity txMaxSize
         , getEpochStability = Quantity epochStability
         , getActiveSlotCoefficient = W.ActiveSlotCoefficient activeSlotCoeff
         }
@@ -875,6 +884,19 @@ txHistoryFromEntity metas ins outs = map mkItem metas
         , W.blockHeight = Quantity (txMetaBlockHeight m)
         , W.amount = Quantity (txMetaAmount m)
         }
+
+mkTxParametersEntity
+    :: W.WalletId
+    -> W.TxParameters
+    -> TxParameters
+mkTxParametersEntity wid (W.TxParameters fp mx) =
+    TxParameters wid fp (getQuantity mx)
+
+txParametersFromEntity
+    :: TxParameters
+    -> W.TxParameters
+txParametersFromEntity (TxParameters _ fp mx) =
+    W.TxParameters fp (Quantity mx)
 
 {-------------------------------------------------------------------------------
                                    DB Queries
@@ -1044,6 +1066,14 @@ selectPrivateKey
 selectPrivateKey wid = do
     keys <- selectFirst [PrivateKeyWalletId ==. wid] []
     pure $ (privateKeyFromEntity . entityVal) <$> keys
+
+selectTxParameters
+    :: MonadIO m
+    => W.WalletId
+    -> SqlPersistT m (Maybe W.TxParameters)
+selectTxParameters wid = do
+    txp <- selectFirst [TxParametersWalletId ==. wid] []
+    pure $ (txParametersFromEntity . entityVal) <$> txp
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint

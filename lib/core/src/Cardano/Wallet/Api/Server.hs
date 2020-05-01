@@ -228,8 +228,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState (..)
     , Block
-    , BlockchainParameters
     , Coin (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , HistogramBar (..)
     , PassphraseScheme (..)
@@ -583,7 +583,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , tip = getWalletTip cp
         }
   where
-    (_, bp, _) = ctx ^. genesisData
+    (_, GenesisBlockParameters bp _, _) = ctx ^. genesisData
     sp = W.slotParams bp
 
     toApiWalletDelegation W.WalletDelegation{active,next} =
@@ -1332,10 +1332,10 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
 
 getNetworkInformation
     :: forall t. ()
-    => (Block, BlockchainParameters, SyncTolerance)
+    => (Block, GenesisBlockParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
-getNetworkInformation (_block0, bp, st) nl = do
+getNetworkInformation (_block0, gbp, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <- liftHandler (NW.currentNodeTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
@@ -1361,7 +1361,7 @@ getNetworkInformation (_block0, bp, st) nl = do
                 }
         }
   where
-    sp = W.slotParams bp
+    sp = W.slotParams (gbp ^. #staticParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
@@ -1370,15 +1370,15 @@ getNetworkInformation (_block0, bp, st) nl = do
       where bomb = error "reached final epoch of the Blockchain!?"
 
 getNetworkParameters
-    :: (Block, BlockchainParameters, SyncTolerance)
+    :: (Block, GenesisBlockParameters, SyncTolerance)
     -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, bp, _st) apiEpochNum = do
+getNetworkParameters (_block0, gbp, _st) apiEpochNum = do
     case apiEpochNum of
         ApiEpochNumber epochNum -> do
             now <- liftIO getCurrentTime
-            let ntrkTip =
-                    fromMaybe slotMinBound (slotAt (W.slotParams bp) now)
+            let slotParams = W.slotParams bp
+            let ntrkTip = fromMaybe slotMinBound (slotAt slotParams now)
             let currentEpochNum = ntrkTip ^. #epochNumber
             when (currentEpochNum < epochNum) $
                 liftHandler $ throwE $ ErrNoSuchEpoch
@@ -1389,6 +1389,8 @@ getNetworkParameters (_block0, bp, _st) apiEpochNum = do
 
         ApiEpochNumberLatest ->
             pure (toApiNetworkParameters bp)
+  where
+    bp = gbp ^. #staticParameters
 
 data ErrNoSuchEpoch = ErrNoSuchEpoch
     { errGivenEpoch :: W.EpochNo
@@ -1565,7 +1567,7 @@ newApiLayer
         , IsOurs s Address
         )
     => Tracer IO (WorkerLog WalletId WalletLog)
-    -> (Block, BlockchainParameters, SyncTolerance)
+    -> (Block, GenesisBlockParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k
@@ -1589,7 +1591,7 @@ registerWorker
 registerWorker ctx wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
-    (_, bp, _) = ctx ^. genesisData
+    (_, GenesisBlockParameters bp _, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker

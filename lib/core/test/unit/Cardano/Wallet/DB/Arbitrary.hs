@@ -79,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
+    , FeePolicy (..)
     , Hash (..)
     , PassphraseScheme (..)
     , PoolId (..)
@@ -92,6 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxParameters (..)
     , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
@@ -558,6 +560,21 @@ genPassphrase range = do
 rootKeysRnd :: [ByronKey 'RootK XPrv]
 rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
+
+{-------------------------------------------------------------------------------
+                             Blockchain Parameters
+-------------------------------------------------------------------------------}
+
+instance Arbitrary TxParameters where
+    arbitrary = TxParameters <$> arbitrary <*> arbitrary
+    shrink (TxParameters fp mx) =
+        [TxParameters fp' mx' | (fp', mx') <- shrink (fp, mx)]
+
+instance Arbitrary FeePolicy where
+    arbitrary = LinearFee <$> arbitrary <*> arbitrary <*> pure (Quantity 0)
+    shrink (LinearFee a b c) = [LinearFee a' b' c | (a', b') <- shrink (a, b)]
+
+deriving instance Arbitrary a => Arbitrary (Quantity n a)
 
 {-------------------------------------------------------------------------------
                                  Miscellaneous

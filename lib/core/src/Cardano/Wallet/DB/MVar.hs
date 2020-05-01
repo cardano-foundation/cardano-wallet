@@ -36,10 +36,12 @@ import Cardano.Wallet.DB.Model
     , mPutDelegationCertificate
     , mPutPrivateKey
     , mPutTxHistory
+    , mPutTxParameters
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadPrivateKey
     , mReadTxHistory
+    , mReadTxParameters
     , mReadWalletMeta
     , mRemovePendingTx
     , mRemoveWallet
@@ -72,9 +74,9 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs -> ExceptT $ do
+        { initializeWallet = \pk cp meta txs txp -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs)
+                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs txp)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -134,6 +136,15 @@ newDBLayer = do
 
         , removePendingTx = \pk tid -> ExceptT $ do
             alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
+
+        {-----------------------------------------------------------------------
+                                 Blockchain Parameters
+        -----------------------------------------------------------------------}
+
+        , putTxParameters = \pk txp -> ExceptT $ do
+            txp `deepseq` alterDB errNoSuchWallet db (mPutTxParameters pk txp)
+
+        , readTxParameters = readDB db . mReadTxParameters
 
         {-----------------------------------------------------------------------
                                       Execution

@@ -133,15 +133,21 @@ Checkpoint
     checkpointBlockHeight       Word32       sql=block_height
     checkpointGenesisHash       BlockId      sql=genesis_hash
     checkpointGenesisStart      UTCTime      sql=genesis_start
-    checkpointFeePolicy         W.FeePolicy  sql=fee_policy
     checkpointSlotLength        Word64       sql=slot_length
     checkpointEpochLength       Word32       sql=epoch_length
-    checkpointTxMaxSize         Word16       sql=tx_max_size
     checkpointEpochStability    Word32       sql=epoch_stability
     checkpointActiveSlotCoeff   Double       sql=active_slot_coeff
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE
+    deriving Show Generic
+
+TxParameters
+    txParametersWalletId          W.WalletId  sql=wallet_id
+    txParametersFeePolicy         W.FeePolicy sql=fee_policy
+    txParametersTxMaxSize         Word16      sql=tx_max_size
+    Primary txParametersWalletId
+    Foreign Wallet fk_wallet_tx_parameters txParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Store known delegation certificates for a particular wallet

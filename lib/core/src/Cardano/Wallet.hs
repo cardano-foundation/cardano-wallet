@@ -246,6 +246,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , Direction (..)
     , FeePolicy (LinearFee)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , IsDelegatingTo (..)
     , PassphraseScheme (..)
@@ -262,6 +263,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxParameters (..)
     , TxStatus (..)
     , UTxOStatistics
     , UnsignedTx (..)
@@ -400,7 +402,7 @@ import qualified Data.Text as T
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Tracer IO WalletLog)
-        (Block, BlockchainParameters, SyncTolerance)
+        (Block, GenesisBlockParameters, SyncTolerance)
         (NetworkLayer IO t Block)
         (TransactionLayer t k)
         (DBLayer IO s k)
@@ -438,7 +440,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
 -- and their metadata does not require any networking layer.
 type HasDBLayer s k = HasType (DBLayer IO s k)
 
-type HasGenesisData = HasType (Block, BlockchainParameters, SyncTolerance)
+type HasGenesisData = HasType (Block, GenesisBlockParameters, SyncTolerance)
 
 type HasLogger msg = HasType (Tracer IO msg)
 
@@ -456,9 +458,9 @@ dbLayer =
 
 genesisData
     :: forall ctx. HasGenesisData ctx
-    => Lens' ctx (Block, BlockchainParameters, SyncTolerance)
+    => Lens' ctx (Block, GenesisBlockParameters, SyncTolerance)
 genesisData =
-    typed @(Block, BlockchainParameters, SyncTolerance)
+    typed @(Block, GenesisBlockParameters, SyncTolerance)
 
 logger
     :: forall msg ctx. HasLogger msg ctx
@@ -507,10 +509,10 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
-        initializeWallet (PrimaryKey wid) cp meta hist $> wid
+        initializeWallet (PrimaryKey wid) cp meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, bp, _) = ctx ^. genesisData
+    (block0, GenesisBlockParameters bp txp, _) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -548,11 +550,12 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             , passphraseInfo = Nothing
             , delegation = WalletDelegation NotDelegating []
             }
+    let pk = PrimaryKey wid
     mapExceptT atomically $
-        initializeWallet (PrimaryKey wid) (updateState s' cp) meta hist $> wid
+        initializeWallet pk (updateState s' cp) meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, bp, _) = ctx ^. genesisData
+    (block0, GenesisBlockParameters bp txp, _) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
@@ -586,6 +589,18 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- withNoSuchWallet wid $ readWalletMeta pk
     txs <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fst <$> txs))
+  where
+    db = ctx ^. dbLayer @s @k
+
+readWalletTxParameters
+    :: forall ctx s k. HasDBLayer s k ctx
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO TxParameters
+readWalletTxParameters ctx wid = db & \DBLayer{..} ->
+    mapExceptT atomically $
+        withNoSuchWallet wid $
+            readTxParameters (PrimaryKey wid)
   where
     db = ctx ^. dbLayer @s @k
 
@@ -672,7 +687,9 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
-    let forward bs h = run $ restoreBlocks @ctx @s @k ctx wid bs h
+    let forward bs (h, ps) = run $ do
+            restoreBlocks @ctx @s @k ctx wid bs h
+            saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowInterrupted -> pure ()
         FollowFailure ->
@@ -788,6 +805,20 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     isParentOf cp = (== parent) . parentHeaderHash . header
       where parent = headerHash $ currentTip cp
 
+-- | Store the node tip params into the wallet database
+saveParams
+    :: forall ctx s k.
+        ( HasLogger WalletLog ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> TxParameters
+    -> ExceptT ErrNoSuchWallet IO ()
+saveParams ctx wid params = db & \DBLayer{..} ->
+   mapExceptT atomically $ putTxParameters (PrimaryKey wid) params
+  where
+    db = ctx ^. dbLayer @s @k
 
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
@@ -982,13 +1013,14 @@ selectCoinsForPayment
 selectCoinsForPayment ctx wid recipients = do
     (wal, _, pending) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         readWallet @ctx @s @k ctx wid
-    let bp = blockchainParameters wal
+    txp <- withExceptT ErrSelectForPaymentNoSuchWallet $
+        readWalletTxParameters @ctx @s @k ctx wid
     let utxo = availableUTxO @s pending wal
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-        let opts = coinSelOpts tl (bp ^. #getTxMaxSize)
+        let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl computeFee (bp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl computeFee (txp ^. #getFeePolicy)
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1011,10 +1043,11 @@ selectCoinsForDelegation
 selectCoinsForDelegation ctx wid = do
     (wal, _, pending) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         readWallet @ctx @s @k ctx wid
-    let bp = blockchainParameters wal
+    txp <- withExceptT ErrSelectForDelegationNoSuchWallet $
+        readWalletTxParameters @ctx @s @k ctx wid
     let utxo = availableUTxO @s pending wal
     let sel = CoinSelection [] [] []
-    let feePolicy = feeOpts tl (computeCertFee 1) (bp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl (computeCertFee 1) (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
@@ -1042,12 +1075,13 @@ selectCoinsForMigration
 selectCoinsForMigration ctx wid = do
     (cp, _, pending) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         readWallet @ctx @s @k ctx wid
-    let bp = blockchainParameters cp
+    txp <- withExceptT ErrSelectForMigrationNoSuchWallet $
+        readWalletTxParameters @ctx @s @k ctx wid
     let utxo = availableUTxO @s pending cp
-    let feePolicy@(LinearFee (Quantity a) _ _) = bp ^. #getFeePolicy
+    let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl computeFee feePolicy)
             { dustThreshold = Coin $ ceiling a }
-    let selOptions = coinSelOpts tl (bp ^. #getTxMaxSize)
+    let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
     case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
         cs | not (null cs) -> pure cs
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)

@@ -63,6 +63,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , StakePoolMetadata (..)
     , StartTime (..)
+    , TxParameters (..)
     , flatSlot
     , flatSlot
     , fromFlatSlot
@@ -265,6 +266,7 @@ prop_trackRegistrations test = monadicIO $ do
                 pure mempty
             , currentNodeTip =
                 pure header0
+            , getTxParameters = pure genesisTxParameters
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
@@ -323,6 +325,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: cursorSlotId"
     , currentNodeTip =
         error "mockNetworkLayer: currentNodeTip"
+    , getTxParameters =
+        error "mockNetworkLayer: getTxParameters"
     , postTx =
         \_ -> error "mockNetworkLayer: postTx"
     , stakeDistribution =
@@ -478,16 +482,20 @@ genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
     genDouble :: Gen Double
     genDouble = choose (0, 1)
 
-genesisParameters  :: BlockchainParameters
+genesisParameters :: BlockchainParameters
 genesisParameters = BlockchainParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    , getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getSlotLength = SlotLength 1
     , getEpochLength = EpochLength 21600
-    , getTxMaxSize = Quantity 8192
     , getEpochStability = Quantity 2160
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+    }
+
+genesisTxParameters :: TxParameters
+genesisTxParameters = TxParameters
+    { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
+    , getTxMaxSize = Quantity 8192
     }
 
 genesisHash :: Hash "Genesis"

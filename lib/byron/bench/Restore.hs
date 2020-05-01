@@ -103,6 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisBlockParameters (..)
     , SlotId (..)
     , SyncProgress (..)
     , WalletId (..)
@@ -209,7 +210,7 @@ exec c = do
     (_logCfg, tr) <- initBenchmarkLogging Info
     installSignalHandlers (return ())
 
-    (SomeNetworkDiscriminant networkProxy, bp, vData, _b)
+    (SomeNetworkDiscriminant networkProxy, gbp, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
     ----------------------------------------------------------------------------
@@ -247,14 +248,14 @@ exec c = do
     sayErr $ pretty cmd
 
     void $ withBackendProcess nullTracer cmd $ do
-            prepareNode networkProxy socketPath bp vData
+            prepareNode networkProxy socketPath gbp vData
             runBenchmarks
                 [ bench ("restore " <> network <> " seq")
                     (bench_restoration @_ @ByronKey
                         networkProxy
                         tr
                         socketPath
-                        bp
+                        gbp
                         vData
                         "seq.timelog"
                         (walletRnd))
@@ -264,7 +265,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        bp
+                        gbp
                         vData
                         "1-percent.timelog"
                         (initAnyState "Benchmark 1% Wallet" 0.01))
@@ -274,7 +275,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        bp
+                        gbp
                         vData
                         "2-percent.timelog"
                         (initAnyState "Benchmark 2% Wallet" 0.02))
@@ -352,17 +353,18 @@ bench_restoration
     -> Trace IO Text
     -> FilePath
        -- ^ Socket path
-    -> BlockchainParameters
+    -> GenesisBlockParameters
     -> NodeVersionData
     -> FilePath
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _proxy tracer socketPath bp vData progressLogFile (wid, wname, s) = do
+bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
-    withNetworkLayer nullTracer bp socketPath vData $ \nw' -> do
+    withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
+        let bp = staticParameters gbp
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer $ \db -> do
@@ -377,7 +379,7 @@ bench_restoration _proxy tracer socketPath bp vData progressLogFile (wid, wname,
                         hFlush h
                 let w = WalletLayer
                         (traceProgressForPlotting fileTr)
-                        (emptyGenesis bp, bp, mkSyncTolerance 3600)
+                        (emptyGenesis bp, gbp, mkSyncTolerance 3600)
                         nw
                         tl
                         db
@@ -434,12 +436,13 @@ prepareNode
     :: forall n. (NetworkDiscriminantVal n)
     => Proxy n
     -> FilePath
-    -> BlockchainParameters
+    -> GenesisBlockParameters
     -> NodeVersionData
     -> IO ()
-prepareNode _ socketPath bp vData = do
+prepareNode _ socketPath gbp vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
-    sl <- withNetworkLayer nullTracer bp socketPath vData $ \nw' -> do
+    sl <- withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
+        let bp = staticParameters gbp
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         waitForNodeSync nw logQuiet bp

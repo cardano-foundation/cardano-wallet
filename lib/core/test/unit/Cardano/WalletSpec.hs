@@ -34,7 +34,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0, genesisParameters, mkTxId )
+    ( DummyTarget, block0, genesisBlockParameters, mkTxId )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
+    , GenesisBlockParameters (..)
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
@@ -522,16 +523,16 @@ setupFixture (wid, wname, wstate) = do
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
-    let wl = WalletLayer nullTracer (block0, bp, st) nl tl db
+    let wl = WalletLayer nullTracer (block0, gbp, st) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal slotIdTime
   where
-    slotNo = flatSlot (getEpochLength bp)
+    slotNo = flatSlot $ getEpochLength $ staticParameters gbp
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
-    bp = genesisParameters
+    gbp = genesisBlockParameters
     st = SyncTolerance 10
 
 -- | A dummy transaction layer to see the effect of a root private key. It

@@ -121,6 +121,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisBlockParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -204,7 +205,7 @@ serveWallet
     -- ^ HTTP API Server port.
     -> JormungandrBackend
     -- ^ Whether and how to launch or use the node backend.
-    -> (SockAddr -> Port "node" -> BlockchainParameters -> IO ())
+    -> (SockAddr -> Port "node" -> GenesisBlockParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMainLoop = do
@@ -217,8 +218,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
   where
     serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
-        Right (cp, (block0, bp), nl) -> do
+        Right (cp, (block0, gbp), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
+            let bp = staticParameters gbp
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
@@ -229,10 +231,10 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer (block0, bp) nl db md
-                    byronApi   <- apiLayer (block0, bp) byronTl nl
-                    icarusApi  <- apiLayer (block0, bp) icarusTl nl
-                    shelleyApi <- apiLayer (block0, bp) shelleyTl nl
-                    startServer socket nPort bp
+                    byronApi   <- apiLayer (block0, gbp) byronTl nl
+                    icarusApi  <- apiLayer (block0, gbp) icarusTl nl
+                    shelleyApi <- apiLayer (block0, gbp) shelleyTl nl
+                    startServer socket nPort gbp
                         byronApi
                         icarusApi
                         shelleyApi
@@ -243,7 +245,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     startServer
         :: Socket
         -> Port "node"
-        -> BlockchainParameters
+        -> GenesisBlockParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
@@ -268,17 +270,17 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => (J.Block, BlockchainParameters)
+        => (J.Block, GenesisBlockParameters)
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
-    apiLayer (block0, bp) tl nl = do
+    apiLayer (block0, gbp) tl nl = do
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient bp)
+            (DefaultFieldValues $ getActiveSlotCoefficient $ staticParameters gbp)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer (toWLBlock block0, bp, sTolerance) nl' tl db
+            walletEngineTracer (toWLBlock block0, gbp, sTolerance) nl' tl db
       where
         nl' = toWLBlock <$> nl
 

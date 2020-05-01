@@ -82,7 +82,9 @@ module Cardano.Wallet.Primitive.Types
     , log10
 
     -- * BlockchainParameters
+    , GenesisBlockParameters (..)
     , BlockchainParameters (..)
+    , TxParameters (..)
     , ActiveSlotCoefficient (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -1243,19 +1245,32 @@ computeUtxoStatistics btype utxos =
                              Blockchain Parameters
 -------------------------------------------------------------------------------}
 
+-- | Initial blockchain parameters loaded from the application configuration and
+-- genesis block.
+data GenesisBlockParameters = GenesisBlockParameters
+    { staticParameters :: BlockchainParameters
+       -- ^ These parameters are defined by the configuration and genesis
+       -- block. At present, none of these are covered by the update system.
+    , txParameters :: TxParameters
+       -- ^ These parameters may be changed through update proposals. Currently
+       -- the only dynamic blockchain parameters that the wallet needs are
+       -- related to creating transactions.
+    } deriving (Generic, Show, Eq)
+
+instance NFData GenesisBlockParameters
+
+instance Buildable GenesisBlockParameters where
+    build (GenesisBlockParameters bp txp) = build bp <> build txp
+
 data BlockchainParameters = BlockchainParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
     , getGenesisBlockDate :: StartTime
         -- ^ Start time of the chain.
-    , getFeePolicy :: FeePolicy
-        -- ^ Policy regarding transaction fee.
     , getSlotLength :: SlotLength
         -- ^ Length, in seconds, of a slot.
     , getEpochLength :: EpochLength
         -- ^ Number of slots in a single epoch.
-    , getTxMaxSize :: Quantity "byte" Word16
-        -- ^ Maximum size of a transaction (soft or hard limit).
     , getEpochStability :: Quantity "block" Word32
         -- ^ Length of the suffix of the chain considered unstable
     , getActiveSlotCoefficient :: ActiveSlotCoefficient
@@ -1270,22 +1285,18 @@ instance Buildable BlockchainParameters where
         [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
             (bp :: BlockchainParameters))
-        , "Fee policy:         " <> feePolicyF (getFeePolicy bp)
         , "Slot length:        " <> slotLengthF (getSlotLength
             (bp :: BlockchainParameters))
         , "Epoch length:       " <> epochLengthF (getEpochLength
             (bp :: BlockchainParameters))
-        , "Tx max size:        " <> txMaxSizeF (getTxMaxSize bp)
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
         , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
         startTimeF (StartTime s) = build s
-        feePolicyF = build . toText
         slotLengthF (SlotLength s) = build s
         epochLengthF (EpochLength s) = build s
-        txMaxSizeF (Quantity s) = build s
         epochStabilityF (Quantity s) = build s
 
 newtype ActiveSlotCoefficient
@@ -1302,6 +1313,25 @@ slotParams bp =
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
         (bp ^. #getActiveSlotCoefficient)
+
+-- | Blockchain parameters relating to constructing transactions.
+data TxParameters = TxParameters
+    { getFeePolicy :: FeePolicy
+        -- ^ Formula for calculating the transaction fee.
+    , getTxMaxSize :: Quantity "byte" Word16
+        -- ^ Maximum size of a transaction (soft or hard limit).
+    } deriving (Generic, Show, Eq)
+
+instance NFData TxParameters
+
+instance Buildable TxParameters where
+    build txp = blockListF' "" id
+        [ "Fee policy:         " <> feePolicyF (txp ^. #getFeePolicy)
+        , "Tx max size:        " <> txMaxSizeF (txp ^. #getTxMaxSize)
+        ]
+      where
+        feePolicyF = build . toText
+        txMaxSizeF (Quantity s) = build s
 
 {-------------------------------------------------------------------------------
                                    Slotting

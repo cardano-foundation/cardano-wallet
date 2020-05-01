@@ -132,7 +132,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
-    , BlockchainParameters
+    , GenesisBlockParameters
     , SortOrder (..)
     , SyncTolerance
     , WalletId (..)
@@ -547,7 +547,7 @@ type PostExternalTransaction = "proxy"
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
         (Tracer IO (WorkerLog WalletId WalletLog))
-        (Block, BlockchainParameters, SyncTolerance)
+        (Block, GenesisBlockParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)
         (DBFactory IO s k)

@@ -55,9 +55,11 @@ module Cardano.Wallet.DB.Model
     , mPutDelegationCertificate
     , mPutTxHistory
     , mReadTxHistory
+    , mRemovePendingTx
     , mPutPrivateKey
     , mReadPrivateKey
-    , mRemovePendingTx
+    , mPutTxParameters
+    , mReadTxParameters
     ) where
 
 import Prelude
@@ -77,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , Tx (..)
     , TxMeta (..)
+    , TxParameters (..)
     , TxStatus (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
@@ -131,6 +134,7 @@ data WalletDatabase s xprv = WalletDatabase
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
+    , txParameters :: !TxParameters
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -181,8 +185,9 @@ mInitializeWallet
     -> Wallet s
     -> WalletMetadata
     -> TxHistory
+    -> TxParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 txp db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -192,6 +197,7 @@ mInitializeWallet wid cp meta txs0 db@Database{wallets,txs}
                 , metadata = meta
                 , txHistory = history
                 , xprv = Nothing
+                , txParameters = txp
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
@@ -380,6 +386,14 @@ mPutPrivateKey wid pk = alterModel wid $ \wal ->
 mReadPrivateKey :: Ord wid => wid -> ModelOp wid s xprv (Maybe xprv)
 mReadPrivateKey wid db@(Database wallets _) =
     (Right (Map.lookup wid wallets >>= xprv), db)
+
+mPutTxParameters :: Ord wid => wid -> TxParameters -> ModelOp wid s xprv ()
+mPutTxParameters wid txp = alterModel wid $ \wal ->
+    ((), wal { txParameters = txp })
+
+mReadTxParameters :: Ord wid => wid -> ModelOp wid s xprv (Maybe TxParameters)
+mReadTxParameters wid db@(Database wallets _) =
+    (Right (txParameters <$> Map.lookup wid wallets), db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers

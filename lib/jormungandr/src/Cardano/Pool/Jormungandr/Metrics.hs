@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId
     , StakePool (..)
     , StakePoolMetadata (..)
+    , TxParameters
     , sameStakePoolMetadata
     )
 import Cardano.Wallet.Unsafe
@@ -180,9 +181,9 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
 
     forward
         :: NonEmpty Block
-        -> BlockHeader
+        -> (BlockHeader, TxParameters)
         -> IO (FollowAction ErrMonitorStakePools)
-    forward blocks nodeTip = handler $ do
+    forward blocks (nodeTip, _params) = handler $ do
         let epochs = NE.nub $ view (#header . #slotId . #epochNumber) <$> blocks
         distributions <- forM epochs $ \ep -> do
             liftIO $ traceWith tr $ MsgStakeDistribution ep
