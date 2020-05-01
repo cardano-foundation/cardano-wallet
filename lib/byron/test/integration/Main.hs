@@ -177,8 +177,8 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (bp,vData) ->
-        withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
+        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (gbp, vData) ->
+        withSystemTempDirectory "cardano-wallet-databases" $ \db ->
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 (setupTracers (tracerSeverities (Just Info)) tr)
@@ -189,8 +189,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                 Nothing
                 socketPath
                 block0
-                (bp, vData)
-                (action bp)
+                (gbp, vData)
+                (action gbp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
