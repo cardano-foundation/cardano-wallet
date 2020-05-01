@@ -27,7 +27,7 @@ module Cardano.Wallet.Byron.Network
     , withNetworkLayer
 
       -- * Logging
-    , NetworkLayerLog
+    , NetworkLayerLog (..)
     ) where
 
 import Prelude
