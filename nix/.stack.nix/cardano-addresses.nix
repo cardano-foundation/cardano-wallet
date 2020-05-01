@@ -62,6 +62,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."basement" or (buildDepError "basement"))
           (hsPkgs."bech32" or (buildDepError "bech32"))
           (hsPkgs."bech32-th" or (buildDepError "bech32-th"))
+          (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
@@ -95,7 +96,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "1f05259ceeaab208d029850968678a7b41aa9b2d";
-      sha256 = "0blqhakmyyq81kacjsgfgcp3ivly0bf5k3c1rz43khyrk9ni29q2";
+      rev = "8728701893645c4fa33360033465ebf84a41e465";
+      sha256 = "19w22ls66xlyk41avb6swqr31qm23vbzp81jmlhv24q9yh9z0cyr";
       });
     }) // { cabal-generator = "hpack"; }

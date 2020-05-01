@@ -17,13 +17,12 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 import Prelude
 
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
+    ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , FromMnemonic (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -215,7 +214,7 @@ data GoldenTest = GoldenTest
 
 -- An arbitrary mnemonic sentence for the tests
 arbitraryMnemonic :: SomeMnemonic
-arbitraryMnemonic = either (error . show) id $ fromMnemonic @'[12]
+arbitraryMnemonic = either (error . show) id $ mkSomeMnemonic @'[12]
     [ "price", "whip", "bottom", "execute", "resist", "library"
     , "entire", "purse", "assist", "clock", "still", "noble" ]
 

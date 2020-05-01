@@ -14,7 +14,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -126,7 +125,14 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..), entropyToMnemonic, genEntropy, mnemonicToText )
+    ( MkSomeMnemonic (..)
+    , MkSomeMnemonicError (..)
+    , NatVals (..)
+    , SomeMnemonic (..)
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
 import Cardano.Wallet.Api.Client
     ( AddressClient (..)
     , NetworkClient (..)
@@ -166,10 +172,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , ErrUnXPrvStripPub (..)
     , ErrXPrvFromStrippedPubXPrv (..)
-    , FromMnemonic (..)
-    , FromMnemonicError (..)
     , Index (..)
-    , NatVals (..)
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
@@ -632,12 +635,12 @@ newCliKeyScheme = \case
   where
     seedFromMnemonic
         :: forall (s :: ByronWalletStyle).
-            (FromMnemonic (AllowedMnemonics s))
+            (MkSomeMnemonic (AllowedMnemonics s))
         => Proxy s
         -> [Text]
         -> Either String SomeMnemonic
     seedFromMnemonic _ =
-        left getFromMnemonicError . fromMnemonic @(AllowedMnemonics s)
+        left getMkSomeMnemonicError . mkSomeMnemonic @(AllowedMnemonics s)
 
     apiAllowedLengths
         :: forall (s :: ByronWalletStyle). ( NatVals (AllowedMnemonics s))
@@ -847,14 +850,14 @@ cmdMnemonicRewardCredentials =
     exec = do
         wSeed <- do
             let prompt = "Please enter your 15–24 word mnemonic sentence: "
-            let parser = fromMnemonic @'[15,18,21,24] . T.words
-            fst <$> getLine prompt parser
+            let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
+            fst <$> getLine @SomeMnemonic prompt (left show . parser)
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you didn't use a second factor.)\n"
                     <> "Please enter your 9–12 word mnemonic second factor: "
-            let parser = optionalE $ fromMnemonic @'[9,12] . T.words
-            fst <$> getLine prompt parser
+            let parser = optionalE $ mkSomeMnemonic @'[9,12] . T.words
+            fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
 
         let rootXPrv = Shelley.generateKeyFromSeed (wSeed, wSndFactor) mempty
         let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
@@ -954,8 +957,8 @@ cmdByronWalletCreateFromMnemonic mkClient =
         Random -> do
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
-                let parser = fromMnemonic @(AllowedMnemonics 'Random) . T.words
-                fst <$> getLine (T.pack prompt) parser
+                let parser = mkSomeMnemonic @(AllowedMnemonics 'Random) . T.words
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 RandomWalletFromMnemonic $ ByronWalletPostData
@@ -966,8 +969,8 @@ cmdByronWalletCreateFromMnemonic mkClient =
         Icarus -> do
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
-                let parser = fromMnemonic @(AllowedMnemonics 'Icarus) . T.words
-                fst <$> getLine (T.pack prompt) parser
+                let parser = mkSomeMnemonic @(AllowedMnemonics 'Icarus) . T.words
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeIcarusWallet $ ByronWalletPostData
@@ -978,8 +981,8 @@ cmdByronWalletCreateFromMnemonic mkClient =
         Trezor -> do
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
-                let parser = fromMnemonic @(AllowedMnemonics 'Trezor) . T.words
-                fst <$> getLine (T.pack prompt) parser
+                let parser = mkSomeMnemonic @(AllowedMnemonics 'Trezor) . T.words
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeTrezorWallet $ ByronWalletPostData
@@ -990,8 +993,8 @@ cmdByronWalletCreateFromMnemonic mkClient =
         Ledger -> do
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
-                let parser = fromMnemonic @(AllowedMnemonics 'Ledger) . T.words
-                fst <$> getLine (T.pack prompt) parser
+                let parser = mkSomeMnemonic @(AllowedMnemonics 'Ledger) . T.words
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeLedgerWallet $ ByronWalletPostData
@@ -1020,16 +1023,16 @@ cmdWalletCreateFromMnemonic mkClient =
     exec (WalletCreateArgs wPort wName wGap) = do
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
-            let parser = fromMnemonic @'[15,18,21,24] . T.words
-            fst <$> getLine prompt parser
+            let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
+            fst <$> getLine @SomeMnemonic prompt (left show . parser)
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second " <>
                     "factor.)\n" <>
                     "Please enter a 9–12 word mnemonic second factor: "
             let parser =
-                    optionalE (fromMnemonic @'[9,12]) . T.words
-            fst <$> getLine prompt parser
+                    optionalE (mkSomeMnemonic @'[9,12]) . T.words
+            fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Left $ WalletPostData
@@ -2162,9 +2165,8 @@ hGetLine (hstdin, hstderr) prompt fromT = do
 
 -- | Like 'hGetLine' but with default handles
 getLine
-    :: Buildable e
-    => Text
-    -> (Text -> Either e a)
+    :: Text
+    -> (Text -> Either String a)
     -> IO (a, Text)
 getLine = hGetLine (stdin, stderr)
 

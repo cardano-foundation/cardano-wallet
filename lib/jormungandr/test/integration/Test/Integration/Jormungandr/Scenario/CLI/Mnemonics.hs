@@ -14,10 +14,9 @@ import Prelude hiding
     ( lines )
 
 import Cardano.Mnemonic
-    ( SomeMnemonic )
+    ( MkSomeMnemonic (..), SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , FromMnemonic (..)
     , NetworkDiscriminant (..)
     , WalletKey (..)
     , XPrv
@@ -183,10 +182,10 @@ mnemonicsToAccountAddress m1 m2 = do
     pure $ mkAccountAddress $ generateKeyFromSeed (seed, sndFactor) mempty
   where
     unsafeFromMnemonic
-        :: forall (mz :: [Nat]). (FromMnemonic mz)
+        :: forall (mz :: [Nat]). (MkSomeMnemonic mz)
         => Text
         -> IO SomeMnemonic
-    unsafeFromMnemonic = either (fail . show) pure . fromMnemonic @mz . T.words
+    unsafeFromMnemonic = either (fail . show) pure . mkSomeMnemonic @mz . T.words
 
     -- Derive an account address corresponding to a reward account, from a root key
     mkAccountAddress
