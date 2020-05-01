@@ -1,22 +1,35 @@
-Docker builds of `cardano-wallet` are available on
-[DockerHub][].
+Docker builds of `cardano-wallet` are available on [DockerHub][].
 
 [DockerHub]: https://hub.docker.com/repository/docker/inputoutput/cardano-wallet
 
 ## Downloading the Docker image
 
+To get the latest release of `cardano-wallet-byron`, run:
+
+    docker pull inputoutput/cardano-wallet:byron
+
 To get the latest release of `cardano-wallet-jormungandr`, run:
 
-```
-docker pull inputoutput/cardano-wallet
-```
+    docker pull inputoutput/cardano-wallet:jormungandr
 
-## Running the Docker container
+## Running the Docker container for `cardano-wallet-byron`
 
 To run basic CLI commands, use:
 
 ```
-docker run --rm inputoutput/cardano-wallet --help
+docker run --rm inputoutput/cardano-wallet:byron --help
+```
+
+See [Wallet Command Line Interface](./Wallet-command-line-interface)
+for full documentation of the CLI.
+
+
+## Running the Docker container for `cardano-wallet-jormungandr`
+
+To run basic CLI commands, use:
+
+```
+docker run --rm inputoutput/cardano-wallet:jormungandr --help
 ```
 
 See [Wallet Command Line Interface](./Wallet-command-line-interface)
@@ -89,12 +102,16 @@ This example uses the [itn_rewards_v1](https://hydra.iohk.io/job/Cardano/iohk-ni
 
 The following tags are pushed to [DockerHub][].
 
-| Tag                                               | Network node backend | Version          |
-|:--------------------------------------------------|:--------------------:|:-----------------|
-| `inputoutput/cardano-wallet`                      | Jörmungandr          | same as _latest_ |
-| `inputoutput/cardano-wallet:latest`               | Jörmungandr          | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
-| `inputoutput/cardano-wallet:dev-master-jormungandr` | Jörmungandr        | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
-| `inputoutput/cardano-wallet:2020.1.7-jormungandr` | Jörmungandr          | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) (for example) |
+| Tag                                                 | Network node backend        | Version          |
+|:----------------------------------------------------|:---------------------------:|:-----------------|
+| `inputoutput/cardano-wallet`                        | cardano-node (Byron reboot) | same as _byron_ |
+| `inputoutput/cardano-wallet:byron`                  | cardano-node (Byron reboot) | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
+| `inputoutput/cardano-wallet:dev-master-byron`       | cardano-node (Byron reboot) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
+| `inputoutput/cardano-wallet:2020.4.28-byron`        | cardano-node (Byron reboot) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
+| `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-byron` | cardano-node (Byron reboot) | A certain revision of the master branch (aa46adf for example). |
+| `inputoutput/cardano-wallet:jormungandr`            | Jörmungandr                 | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
+| `inputoutput/cardano-wallet:dev-master-jormungandr` | Jörmungandr                 | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
+| `inputoutput/cardano-wallet:2020.1.7-jormungandr`   | Jörmungandr                 | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) (for example) |
 | `inputoutput/cardano-wallet:e902913750f763ac3dcb37f57fa35154db2934eb-jormungandr` | Jörmungandr        | A certain revision of the master branch (e902913 for example). |
 
 ## Building the Docker image locally
@@ -105,19 +122,19 @@ Ensure that you have Nix installed and the IOHK binary cache enabled
 Then run this command from the `cardano-wallet` git repo:
 
 ```
-docker load -i $(nix-build -A dockerImage --no-out-link)
+docker load -i $(nix-build -A dockerImage.byron --no-out-link)
 ```
 
 If you have no local changes, the build should be downloaded from
-the [IOHK binary cache](https://hydra.iohk.io/job/Cardano/cardano-wallet/native.dockerImage.x86_64-linux)
+the [IOHK binary cache](https://hydra.iohk.io/job/Cardano/cardano-wallet/native.dockerImage.byron.x86_64-linux)
 then loaded into your local Docker image storage.
 
 ## Inspecting the contents of the Docker image
 
 The default entrypoint of the image is
-`/bin/start-cardano-wallet-jormungandr`. If you need to run a shell
+`/bin/start-cardano-wallet-byron`. If you need to run a shell
 inside the Docker image, use the bash shell as the entrypoint:
 
 ```
-docker run --rm -it --entrypoint bash inputoutput/cardano-wallet
+docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:byron
 ```
