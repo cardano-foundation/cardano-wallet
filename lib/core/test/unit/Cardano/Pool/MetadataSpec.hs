@@ -19,7 +19,7 @@ import Cardano.Pool.Metadata
     , Client (..)
     , Scheme (..)
     , defaultManagerSettings
-    , mkClient
+    , mkClientIO
     , newManager
     )
 import Cardano.Wallet.Api.Server
@@ -129,7 +129,7 @@ spec = describe "Metadata - MockServer" $
 -- | Run a server in a separate thread. Block until the server is ready, and
 -- returns the TCP port on which the server is listening, and a handle to the
 -- server thread.
-withMockServer :: (Client Api -> IO ()) -> IO ()
+withMockServer :: (Client Api IO -> IO ()) -> IO ()
 withMockServer action = do
     bracket acquire release inBetween
   where
@@ -149,7 +149,7 @@ withMockServer action = do
             Right port -> do
                 mngr <- newManager defaultManagerSettings
                 let baseUrl = BaseUrl Http host port ""
-                pure (mkClient mngr baseUrl, thread)
+                pure (mkClientIO mngr baseUrl, thread)
     release = cancel . snd
     inBetween = action . fst
 
