@@ -16,9 +16,12 @@ import Cardano.Pool.Metadata
     ( Api
     , BaseUrl (..)
     , Client (..)
+    , ClientCallbacks (..)
+    , ClientConfig (..)
+    , MetadataRegistryLog (..)
     , Scheme (..)
     , defaultManagerSettings
-    , mkClientIO
+    , newClient
     , newManager
     )
 import Cardano.Wallet.Api.Server
@@ -35,10 +38,14 @@ import Control.Exception
     ( bracket )
 import Control.Lens
     ( at, (.~), (?~) )
+import Control.Tracer
+    ( Tracer, nullTracer )
 import Data.Aeson
     ( toJSON )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -62,14 +69,10 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
     ( mkSeed )
-import Network.HTTP.Types
-    ( status404 )
 import Network.Wai.Handler.Warp
     ( runSettingsSocket, setBeforeMainLoop )
 import Servant
     ( Server, err404, serve, throwError )
-import Servant.Client
-    ( ClientError (..), responseStatusCode )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -89,6 +92,8 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.QuickCheck.Random
     ( mkQCGen )
+import Test.Utils.Trace
+    ( captureLogging, withLogging )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -97,38 +102,41 @@ import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
-spec = describe "Metadata - MockServer" $
-    around withMockServer $ it "Mock Server works as intended" $
-        \Client{getStakePoolMetadata} -> property $ \pid -> monadicIO $ do
-            run (getStakePoolMetadata pid) >>= \case
-                Left e -> do
-                    monitor $ counterexample $
-                        "unexpected response from server: " <> show e
-                    case e of
-                        FailureResponse _ res -> do
-                            monitor $ counterexample $ show $
-                                responseStatusCode res
-                            assert (responseStatusCode res /= status404)
-                        _otherwise ->
-                            pure ()
-                    assert False
+spec = describe "Metadata - MockServer" $ do
 
-                Right Nothing -> do
-                    monitor $ label "No Corresponding Metadata"
-                    res <- run (getStakePoolMetadata pid)
-                    monitor $ counterexample $ unwords
-                        [ "request isn't deterministic:"
-                        , show res
-                        ]
-                    assert (res == Right Nothing)
+    around (withMockServer noCaching)
+    $ it "Mock Server works as intended"
+    $ \mkClient -> property $ \pid -> monadicIO $ do
+        let Client{getStakePoolMetadata} = mkClient nullTracer
+        run (getStakePoolMetadata pid) >>= \case
+            Nothing -> do
+                monitor $ label "No Corresponding Metadata"
+                res <- run (getStakePoolMetadata pid)
+                monitor $ counterexample $ unwords
+                    [ "request isn't deterministic:"
+                    , show res
+                    ]
+                assert (isNothing res)
 
-                Right (Just metadata) -> do
-                    monitor $ label "Got Valid Metadata"
-                    let json = toJSON $ ApiT metadata
-                    let errs = validateJSON mempty metadataSchema json
-                    monitor $ counterexample $ BL8.unpack $ Aeson.encode json
-                    monitor $ counterexample $ show errs
-                    assert (null errs)
+            Just metadata -> do
+                monitor $ label "Got Valid Metadata"
+                let json = toJSON $ ApiT metadata
+                let errs = validateJSON mempty metadataSchema json
+                monitor $ counterexample $ BL8.unpack $ Aeson.encode json
+                monitor $ counterexample $ show errs
+                assert (null errs)
+
+
+--
+-- Mock Storage
+--
+
+noCaching :: ClientCallbacks IO
+noCaching =
+    ClientCallbacks
+        { saveMetadata      = \_ _ -> pure ()
+        , getCachedMetadata = \_   -> pure Nothing
+        }
 
 --
 -- Mock Server
@@ -137,8 +145,11 @@ spec = describe "Metadata - MockServer" $
 -- | Run a server in a separate thread. Block until the server is ready, and
 -- returns the TCP port on which the server is listening, and a handle to the
 -- server thread.
-withMockServer :: (Client Api IO -> IO ()) -> IO ()
-withMockServer action = do
+withMockServer
+    :: ClientCallbacks IO
+    -> ((Tracer IO MetadataRegistryLog -> Client Api IO) -> IO ())
+    -> IO ()
+withMockServer callbacks action = do
     bracket acquire release inBetween
   where
     host = "127.0.0.1"
@@ -155,9 +166,11 @@ withMockServer action = do
         takeMVar mvar >>= \case
             Left e -> error (show e)
             Right port -> do
-                mngr <- newManager defaultManagerSettings
-                let baseUrl = BaseUrl Http host port ""
-                pure (mkClientIO mngr baseUrl, thread)
+                manager <- newManager defaultManagerSettings
+                let baseUrl  = BaseUrl Http host port ""
+                let cacheTTL = 0
+                let config = ClientConfig{manager,baseUrl,cacheTTL}
+                pure (\tr -> newClient tr config callbacks, thread)
     release = cancel . snd
     inBetween = action . fst
 

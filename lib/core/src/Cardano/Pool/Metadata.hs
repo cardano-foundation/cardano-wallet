@@ -19,11 +19,12 @@
 -- context to the exposed functions and data-types.
 module Cardano.Pool.Metadata
     ( Api
-    , Client(..)
-    , mkClientIO
 
-    -- * Refreshing Metadata
-    , refresh
+    -- * Client
+    , Client(..)
+    , ClientConfig (..)
+    , ClientCallbacks (..)
+    , newClient
     , MetadataRegistryLog (..)
 
     -- * Re-export
@@ -44,12 +45,8 @@ import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, StakePoolOffChainMetadata (..) )
-import Control.Monad
-    ( forM_ )
 import Control.Tracer
     ( Tracer, traceWith )
-import Data.Functor
-    ( (<&>) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -98,52 +95,20 @@ type Api
 newtype Client api m = Client
     { getStakePoolMetadata
         :: PoolId
-        -> m (Either ClientError (Maybe StakePoolOffChainMetadata))
+        -> m (Maybe StakePoolOffChainMetadata)
     }
-
-mkClientIO
-    :: Manager
-    -> BaseUrl
-    -> Client Api IO
-mkClientIO mgr baseUrl = Client
-    { getStakePoolMetadata = \pid -> do
-        run (getMetadata (ApiT pid)) <&> \case
-            Right (ApiT meta) ->
-                Right (Just meta)
-
-            Left (FailureResponse _ res) | responseStatusCode res == status404 -> do
-                Right Nothing
-
-            Left e ->
-                Left e
-    }
-  where
-    run :: ClientM a -> IO (Either ClientError a)
-    run query = runClientM query (mkClientEnv mgr baseUrl)
-
-    getMetadata =
-        client (Proxy @Api)
 
 -- | A configuration for managing metadata with the aggregation server.
 -- Callbacks and parameterized effects allows for easier testing while a real
 -- specialization would wire a database connector in here.
-data MetadataConfig (m :: * -> *) = MetadataConfig
-    { saveMetadata
-        :: PoolId -> (Maybe StakePoolOffChainMetadata, UTCTime) -> m ()
-        -- ^ A callback action for storing an off-chain metadata. The callback
-        -- may be called with 'Nothing' to store that no metadata were found for
-        -- a particular 'PoolId; this allows for not constantly re-fetching data
-        -- for pools that are known to have no metadata.
+data ClientConfig = ClientConfig
+    { manager
+        :: Manager
+        -- ^ An HTTP connection manager.
 
-    , getModificationTime
-        :: PoolId -> m (Maybe UTCTime)
-        -- ^ Action for fetching the last modification time of a cached result.
-        -- 'Nothing' is expected when there's no cached result.
-
-    , apiClient
-        :: Client Api m
-        -- ^ A client constructed with 'mkClient' for interacting with a
-        -- metadata aggregation server.
+    , baseUrl
+        :: BaseUrl
+        -- ^ Url for reaching out to the metadata aggregation server.
 
     , cacheTTL
         :: NominalDiffTime
@@ -151,37 +116,69 @@ data MetadataConfig (m :: * -> *) = MetadataConfig
         -- it's considered to be stale.
     }
 
--- | Refresh metadata for a list of pool ids. Where metadata are cached is
--- out of the scope for this function and provided through callbacks.
---
--- TODO: Add some typed log messages in here.
-refresh
+-- | Callbacks interfaces allowing the client to cache and manage cached
+-- entities. These would typically be hooked up with a database.
+data ClientCallbacks (m :: * -> *) = ClientCallbacks
+    { saveMetadata
+        :: PoolId -> (Maybe StakePoolOffChainMetadata, UTCTime) -> m ()
+        -- ^ A callback action for storing an off-chain metadata. The callback
+        -- may be called with 'Nothing' to store that no metadata were found for
+        -- a particular 'PoolId; this allows for not constantly re-fetching data
+        -- for pools that are known to have no metadata.
+
+    , getCachedMetadata
+        :: PoolId -> m (Maybe (Maybe StakePoolOffChainMetadata, UTCTime))
+        -- ^ Action for fetching the last modification time of a cached result.
+        -- 'Nothing' is expected when there's no cached result.
+    }
+
+-- | Create a new HTTP 'Client' in IO with caching support.
+newClient
     :: Tracer IO MetadataRegistryLog
-        -- ^ Logging object for capturing events in the 'refresh' function.
-        --
-    -> MetadataConfig IO
-        -- ^ Configuration and callbacks for persistence of metadata.
-
-    -> [PoolId]
-        -- ^ A list of pool ids for which metadata need to be fetched or
-        -- refreshed.
-    -> IO ()
-refresh tr cfg pids = do
-    now <- getCurrentTime
-    forM_ pids $ \pid -> getModificationTime pid >>= \case
-        Just timestamp | diffUTCTime now timestamp < cacheTTL -> do
-            traceWith tr $ MsgUsingCached pid timestamp
-        _expiredOrNotCached -> getStakePoolMetadata pid >>= \case
-            Right meta -> do
-                traceWith tr $ MsgRefreshingMetadata pid (meta, now)
-                saveMetadata pid (meta, now)
-            Left e ->
-                traceWith tr $ MsgUnexpectedError e
+    -> ClientConfig
+    -> ClientCallbacks IO
+    -> Client Api IO
+newClient tr ClientConfig{manager,baseUrl,cacheTTL} callbacks =
+    Client { getStakePoolMetadata }
   where
-    MetadataConfig{saveMetadata,getModificationTime,apiClient,cacheTTL} = cfg
-    Client{getStakePoolMetadata} = apiClient
+    run :: ClientM a -> IO (Either ClientError a)
+    run query = runClientM query (mkClientEnv manager baseUrl)
 
--- | Capture log events for the 'refresh' function.
+    getFromServer =
+        client (Proxy @Api)
+
+    ClientCallbacks{getCachedMetadata,saveMetadata} =
+        callbacks
+
+    getStakePoolMetadata
+        :: PoolId
+        -> IO (Maybe StakePoolOffChainMetadata)
+    getStakePoolMetadata pid = do
+        now <- getCurrentTime
+        getCachedMetadata pid >>= \case
+            Just (meta, time) | diffUTCTime now time < cacheTTL -> do
+                traceWith tr $ MsgUsingCached pid time
+                pure meta
+
+            _expiredOrNotCached ->
+                (handleRequest <$> run (getFromServer (ApiT pid))) >>= \case
+                    Right meta -> do
+                        traceWith tr $ MsgRefreshingMetadata pid (meta, now)
+                        saveMetadata pid (meta, now)
+                        pure meta
+                    Left e -> do
+                        traceWith tr $ MsgUnexpectedError e
+                        pure Nothing
+      where
+        handleRequest = \case
+            Right (ApiT meta) ->
+                Right (Just meta)
+            Left (FailureResponse _ res) | responseStatusCode res == status404 ->
+                Right Nothing
+            Left e ->
+                Left e
+
+-- | Capture log events for the Client.
 data MetadataRegistryLog
     = MsgUsingCached PoolId UTCTime
     | MsgRefreshingMetadata PoolId (Maybe StakePoolOffChainMetadata, UTCTime)
