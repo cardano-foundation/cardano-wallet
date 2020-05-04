@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -102,19 +101,28 @@ spec = describe "Metadata - MockServer" $
     around withMockServer $ it "Mock Server works as intended" $
         \Client{getStakePoolMetadata} -> property $ \pid -> monadicIO $ do
             run (getStakePoolMetadata pid) >>= \case
-                Left (FailureResponse _ res) -> do
-                    monitor $ label "No Corresponding Metadata"
-                    monitor $ counterexample $ mconcat
-                        [ show (responseStatusCode res)
-                        , " =/= "
-                        , show status404
-                        ]
-                    assert (responseStatusCode res == status404)
                 Left e -> do
                     monitor $ counterexample $
                         "unexpected response from server: " <> show e
+                    case e of
+                        FailureResponse _ res -> do
+                            monitor $ counterexample $ show $
+                                responseStatusCode res
+                            assert (responseStatusCode res /= status404)
+                        _otherwise ->
+                            pure ()
                     assert False
-                Right !metadata -> do
+
+                Right Nothing -> do
+                    monitor $ label "No Corresponding Metadata"
+                    res <- run (getStakePoolMetadata pid)
+                    monitor $ counterexample $ unwords
+                        [ "request isn't deterministic:"
+                        , show res
+                        ]
+                    assert (res == Right Nothing)
+
+                Right (Just metadata) -> do
                     monitor $ label "Got Valid Metadata"
                     let json = toJSON $ ApiT metadata
                     let errs = validateJSON mempty metadataSchema json

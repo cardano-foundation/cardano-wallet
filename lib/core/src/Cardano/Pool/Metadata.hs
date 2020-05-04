@@ -48,6 +48,8 @@ import Control.Monad
     ( forM_ )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Functor
+    ( (<&>) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -58,6 +60,8 @@ import Fmt
     ( pretty )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Network.HTTP.Types
+    ( status404 )
 import Servant
     ( (:>), Capture, Get, JSON )
 import Servant.Client
@@ -67,6 +71,7 @@ import Servant.Client
     , Scheme (..)
     , client
     , mkClientEnv
+    , responseStatusCode
     , runClientM
     )
 
@@ -93,7 +98,7 @@ type Api
 newtype Client api m = Client
     { getStakePoolMetadata
         :: PoolId
-        -> m (Either ClientError StakePoolOffChainMetadata)
+        -> m (Either ClientError (Maybe StakePoolOffChainMetadata))
     }
 
 mkClientIO
@@ -101,8 +106,16 @@ mkClientIO
     -> BaseUrl
     -> Client Api IO
 mkClientIO mgr baseUrl = Client
-    { getStakePoolMetadata = \pid ->
-        fmap getApiT <$> run (getMetadata (ApiT pid))
+    { getStakePoolMetadata = \pid -> do
+        run (getMetadata (ApiT pid)) <&> \case
+            Right (ApiT meta) ->
+                Right (Just meta)
+
+            Left (FailureResponse _ res) | responseStatusCode res == status404 -> do
+                Right Nothing
+
+            Left e ->
+                Left e
     }
   where
     run :: ClientM a -> IO (Either ClientError a)
@@ -159,15 +172,11 @@ refresh tr cfg pids = do
         Just timestamp | diffUTCTime now timestamp < cacheTTL -> do
             traceWith tr $ MsgUsingCached pid timestamp
         _expiredOrNotCached -> getStakePoolMetadata pid >>= \case
-            -- FIXME: Handle errors properly:
-            --
-            --   - 404 not found are somewhat expected
-            --   - Other errors should be reported as warning.
+            Right meta -> do
+                traceWith tr $ MsgRefreshingMetadata pid (meta, now)
+                saveMetadata pid (meta, now)
             Left e ->
                 traceWith tr $ MsgUnexpectedError e
-            Right meta -> do
-                traceWith tr $ MsgRefreshingMetadata pid (Just meta, now)
-                saveMetadata pid (Just meta, now)
   where
     MetadataConfig{saveMetadata,getModificationTime,apiClient,cacheTTL} = cfg
     Client{getStakePoolMetadata} = apiClient
