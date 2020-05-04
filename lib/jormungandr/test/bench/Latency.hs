@@ -134,6 +134,10 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
+
+    fmtLn "Non-cached run"
+    runBareScenario logging tvar
+
     fmtLn "Latencies for 2 fixture wallets scenario"
     runScenario logging tvar (nFixtureWallet 2)
 
@@ -355,16 +359,19 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
         fmtResult "listStakePools     " t7
 
-        -- this one is to have comparable results from first to last measurement
-        -- otherwise the first one would be without cashing in contrast to other
-        -- measurements
-        _t8bare <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
         t8 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
 
         fmtResult "getNetworkInfo     " t8
 
+        pure ()
+
+    runBareScenario logging tvar  = benchWithServer logging $ \ctx -> do
+        -- this one is to have comparable results from first to last measurement
+        -- in runScenario
+        t <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+            Link.getNetworkInfo Default Empty
+        fmtResult "getNetworkInfo     " t
         pure ()
 
 meanAvg :: [NominalDiffTime] -> Double
