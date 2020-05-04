@@ -1,5 +1,5 @@
 ## Preparing the release
-- [ ] Make sure `cardano-wallet` points to correct low-level libraries revisions that are it's dependencies (verify on target repositories if [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml#L34-L42) points to appopriate revisions for `persistent`, `cardano-addresses`...) 
+- [ ] Make sure `cardano-wallet` points to correct revisions of dependent low-level libs (verify on target repositories if [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml#L34-L42) points to appopriate revisions for `persistent`, `cardano-addresses`...) 
 
 - [ ] Fetch the tip of `master`:
 
