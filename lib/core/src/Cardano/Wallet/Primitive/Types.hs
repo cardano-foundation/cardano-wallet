@@ -139,6 +139,7 @@ module Cardano.Wallet.Primitive.Types
     , StakeDistribution (..)
     , poolIdBytesLength
     , StakePoolMetadata (..)
+    , StakePoolOffChainMetadata (..)
     , StakePoolTicker (..)
     , sameStakePoolMetadata
 
@@ -598,6 +599,20 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Absolute URL for the stake pool's homepage link.
     , pledgeAddress :: Text
     -- ^ Bech32-encoded address.
+    } deriving (Eq, Show, Generic)
+
+-- | A subset of the 'StakePoolMetadata' but with the information that is
+-- available off-chain. The 'pledgeAddress' and 'owner' are actually part of the
+-- pool registration certificates published on-chain.
+data StakePoolOffChainMetadata = StakePoolOffChainMetadata
+    { ticker :: StakePoolTicker
+    -- ^ Very short human-readable ID for the stake pool.
+    , name :: Text
+    -- ^ Name of the stake pool.
+    , description :: Text
+    -- ^ Short description of the stake pool.
+    , homepage :: Text
+    -- ^ Absolute URL for the stake pool's homepage link.
     } deriving (Eq, Show, Generic)
 
 -- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.

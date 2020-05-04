@@ -29,7 +29,7 @@ import Data.Vector.Mutable
 import Data.Word
     ( Word8 )
 import System.Random
-    ( RandomGen, StdGen, mkStdGen, newStdGen, randomR )
+    ( RandomGen, newStdGen, randomR )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -39,8 +39,8 @@ import qualified Data.Vector.Mutable as MV
 
 
 -- | Generate a random generator seed from a text string
-mkSeed :: Text -> StdGen
-mkSeed = mkStdGen . toInt . quickHash . T.encodeUtf16LE
+mkSeed :: Text -> Int
+mkSeed = toInt . quickHash . T.encodeUtf16LE
   where
     quickHash = BA.convert . hash @_ @MD5
     toInt = snd . BS.foldl' exponentiation (0,0)
