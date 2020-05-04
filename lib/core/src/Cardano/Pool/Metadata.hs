@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -55,6 +56,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime )
 import Fmt
     ( pretty )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types
@@ -183,7 +186,7 @@ data MetadataRegistryLog
     = MsgUsingCached PoolId UTCTime
     | MsgRefreshingMetadata PoolId (Maybe StakePoolOffChainMetadata, UTCTime)
     | MsgUnexpectedError ClientError
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq)
 
 instance HasPrivacyAnnotation MetadataRegistryLog
 instance HasSeverityAnnotation MetadataRegistryLog where
