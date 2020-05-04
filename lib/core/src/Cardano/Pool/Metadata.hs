@@ -21,7 +21,10 @@ module Cardano.Pool.Metadata
     ( Api
     , Client(..)
     , mkClientIO
+
+    -- * Refreshing Metadata
     , refresh
+    , MetadataRegistryLog (..)
 
     -- * Re-export
     , BaseUrl (..)
@@ -33,16 +36,26 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, StakePoolOffChainMetadata (..) )
 import Control.Monad
     ( forM_ )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime )
+import Fmt
+    ( pretty )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Servant
@@ -56,6 +69,8 @@ import Servant.Client
     , mkClientEnv
     , runClientM
     )
+
+import qualified Data.Text as T
 
 --
 -- Api
@@ -128,21 +143,66 @@ data MetadataConfig (m :: * -> *) = MetadataConfig
 --
 -- TODO: Add some typed log messages in here.
 refresh
-    :: MetadataConfig IO
+    :: Tracer IO MetadataRegistryLog
+        -- ^ Logging object for capturing events in the 'refresh' function.
+        --
+    -> MetadataConfig IO
         -- ^ Configuration and callbacks for persistence of metadata.
 
     -> [PoolId]
         -- ^ A list of pool ids for which metadata need to be fetched or
         -- refreshed.
     -> IO ()
-refresh cfg pids = do
+refresh tr cfg pids = do
     now <- getCurrentTime
     forM_ pids $ \pid -> getModificationTime pid >>= \case
         Just timestamp | diffUTCTime now timestamp < cacheTTL -> do
-            pure ()
-        _expiredOrNotCached -> do
-            meta <- either onClientError (pure . Just) =<< getStakePoolMetadata pid
-            saveMetadata (meta, now)
+            traceWith tr $ MsgUsingCached pid timestamp
+        _expiredOrNotCached -> getStakePoolMetadata pid >>= \case
+            -- FIXME: Handle errors properly:
+            --
+            --   - 404 not found are somewhat expected
+            --   - Other errors should be reported as warning.
+            Left e ->
+                traceWith tr $ MsgUnexpectedError e
+            Right meta -> do
+                traceWith tr $ MsgRefreshingMetadata pid (Just meta, now)
+                saveMetadata pid (Just meta, now)
   where
     MetadataConfig{saveMetadata,getModificationTime,apiClient,cacheTTL} = cfg
     Client{getStakePoolMetadata} = apiClient
+
+-- | Capture log events for the 'refresh' function.
+data MetadataRegistryLog
+    = MsgUsingCached PoolId UTCTime
+    | MsgRefreshingMetadata PoolId (Maybe StakePoolOffChainMetadata, UTCTime)
+    | MsgUnexpectedError ClientError
+    deriving (Show, Eq)
+
+instance HasPrivacyAnnotation MetadataRegistryLog
+instance HasSeverityAnnotation MetadataRegistryLog where
+    getSeverityAnnotation = \case
+        MsgUsingCached{} -> Debug
+        MsgRefreshingMetadata{} -> Debug
+        MsgUnexpectedError{} -> Warning
+
+instance ToText MetadataRegistryLog where
+    toText = \case
+        MsgUsingCached pid time -> T.unwords
+            [ "Using cached result for"
+            , pretty pid
+            , "last modified at"
+            , T.pack (show time)
+            ]
+        MsgRefreshingMetadata pid (meta, time) -> T.unwords
+            [ "Setting metadata for "
+            , pretty pid
+            , "="
+            , maybe "ø" (T.pack . show) meta
+            , ", last modified at"
+            , T.pack (show time)
+            ]
+        MsgUnexpectedError e -> T.unwords
+            [ "Unexpected error from the aggregation server:"
+            , T.pack (show e)
+            ]
