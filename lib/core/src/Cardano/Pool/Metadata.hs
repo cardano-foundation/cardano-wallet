@@ -2,6 +2,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
+-- |
+-- Copyright: © 2018-2020 IOHK
+-- License: Apache-2.0
+--
+-- API and corresponding client for dealing with a metadata aggregation server
+-- in Shelley. Such servers follow an OpenAPI specification, and on existing
+-- implementation written in Haskell is available at:
+--
+-- - https://github.com/input-output-hk/smash
+--
 module Cardano.Pool.Metadata
     ( Api
     , Client(..)
