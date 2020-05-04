@@ -9,6 +9,7 @@ packages:
 - lib/test-utils
 - lib/jormungandr
 - lib/byron
+- lib/shelley
 
 extra-deps:
 # Miscellaneous
