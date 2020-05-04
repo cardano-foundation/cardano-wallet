@@ -146,6 +146,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
              fmtLn "\n"
              fmtLn walletName
 
+             fmtTitle "Non-cached run"
              runBareScenario logging tvar
 
              fmtTitle "Latencies for 2 fixture wallets scenario"
@@ -326,7 +327,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar ->
         -- in runScenario
         t <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
-        fmtResult "getNetworkInfo without cache    " t
+        fmtResult "getNetworkInfo     " t
         pure ()
 
 meanAvg :: [NominalDiffTime] -> Double

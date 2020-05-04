@@ -135,6 +135,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
 main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
+    fmtLn "Non-cached run"
     runBareScenario logging tvar
 
     fmtLn "Latencies for 2 fixture wallets scenario"
@@ -370,7 +371,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         -- in runScenario
         t <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
-        fmtResult "getNetworkInfo without cache    " t
+        fmtResult "getNetworkInfo     " t
         pure ()
 
 meanAvg :: [NominalDiffTime] -> Double
