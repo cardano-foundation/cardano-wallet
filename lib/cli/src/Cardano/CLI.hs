@@ -188,6 +188,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState, Hash, SortOrder, SyncTolerance (..), WalletId, WalletName )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
+import Codec.Binary.Bech32
+    ( CharPosition (..), DecodingError (..) )
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
@@ -295,6 +297,7 @@ import System.Console.ANSI
     , hCursorBackward
     , hSetSGR
     , hSupportsANSIWithoutEmulation
+    , setSGRCode
     )
 import System.Directory
     ( XdgDirectory (..)
@@ -492,7 +495,7 @@ decodeKey = \case
   where
     decodeBech32 :: Text -> Either String XPrvOrXPub
     decodeBech32 t = do
-        (hrp, dp) <- left show $ Bech32.decodeLenient t
+        (hrp, dp) <- left bech32Err $ Bech32.decodeLenient t
         bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
         case hrp of
             h | h == xpubHrp -> xpubFromBytes bytes
@@ -500,6 +503,30 @@ decodeKey = \case
             _ -> Left "unrecognized Bech32 Human Readable Part"
       where
         dpErr = "Internal error: Unable to extract bytes from bech32 data part"
+
+        bech32Err  = ("Bech32 error: " <>) . \case
+            StringToDecodeTooLong -> "string is too long"
+            StringToDecodeTooShort -> "string is too short"
+            StringToDecodeHasMixedCase -> "string has mixed case"
+            StringToDecodeMissingSeparatorChar -> "string has no separator char"
+            StringToDecodeContainsInvalidChars [] -> invalidCharsMsg
+            StringToDecodeContainsInvalidChars ixs -> invalidCharsMsg <> ":\n"
+                    <> markCharsRedAtIndices (map unCharPos ixs) (T.unpack t)
+        invalidCharsMsg = "Invalid character(s) in string"
+        unCharPos (CharPosition x) = x
+
+markCharsRedAtIndices :: Integral i => [i] -> String -> String
+markCharsRedAtIndices ixs txt = go 0 ixs txt ++ def
+  where
+    go _c [] [] = mempty
+    go c (i:is) (s:ss)
+        | c == i    = red ++ s:def ++ go (c + 1) is ss
+        | otherwise = s : go (c + 1) (i:is) ss
+    go _ [] ss = ss
+    go _ _ [] = [] -- NOTE: Really an error case.
+
+    red = setSGRCode [SetColor Foreground Vivid Red]
+    def = setSGRCode [Reset]
 
 decodeHex :: Text -> Either String ByteString
 decodeHex txt = fromHex $ T.encodeUtf8 . T.strip $ txt
