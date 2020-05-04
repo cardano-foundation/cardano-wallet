@@ -83,7 +83,7 @@ import Data.Vector.Shuffle
 import Network.Wai.Handler.Warp
     ( runSettingsSocket, setBeforeMainLoop )
 import Servant
-    ( Server, err404, serve, throwError )
+    ( Server, err400, err404, serve, throwError )
 import Test.Hspec
     ( Spec, around, describe, it )
 import Test.QuickCheck
@@ -161,6 +161,16 @@ spec = describe "Metadata - MockServer" $ do
             assert $ count (_Ctor @"MsgRefreshingMetadata") logs == 2
             assert $ count (_Ctor @"MsgUsingCached")        logs == 0
 
+    around (withMockServer inMemoryCache)
+        $ it "Returns 'Nothing' and a warning log message on failure"
+        $ \mkClient -> withMaxSuccess 1 $ monadicIO $ do
+            (logs, res) <- run $ captureLogging $ \tr -> do
+                let Client{getStakePoolMetadata} = mkClient tr
+                getStakePoolMetadata $ PoolId "NOT A VALID POOL ID"
+            monitor $ counterexample $ unlines $ show <$> logs
+            assert $ isNothing res
+            assert $ count (_Ctor @"MsgUnexpectedError") logs == 1
+
 --
 -- Mock Storage
 --
@@ -231,8 +241,10 @@ server = hGetMetadata
     -- A mock metadata server. Returns either a 404 not found, or, some
     -- arbitrary metadata. It uses the pool's id as an random seed such that
     -- results are consistent between calls.
-    hGetMetadata (ApiT pid) =
-        if generateWith seed arbitrary
+    hGetMetadata (ApiT pid)
+        | BS.length (getPoolId pid) /= 32 = throwError err400
+        | otherwise =
+            if generateWith seed arbitrary
             then throwError err404
             else return $ ApiT $ StakePoolOffChainMetadata
                 { ticker =
