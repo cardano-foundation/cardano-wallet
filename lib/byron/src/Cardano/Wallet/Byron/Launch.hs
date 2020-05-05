@@ -206,12 +206,13 @@ data CardanoNodeConfig = CardanoNodeConfig
 -- IMPORTANT: @cardano-node@ must be available on the current path.
 withCardanoNode
     :: Trace IO Text
-    -- ^ Some trace for logging
+    -- ^ Trace for subprocess control logging
     -> FilePath
-    -- ^ Test directory
+    -- ^ Test directory in source tree
     -> Severity
+    -- ^ Logging level for @cardano-node@
     -> (FilePath -> Block -> (GenesisBlockParameters, NodeVersionData) -> IO a)
-    -- ^ Callback function with a socket description and genesis params
+    -- ^ Callback function with a socket filename and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
     orThrow $ withConfig tdir severity $ \cfg block0 (gbp, vData) -> do
@@ -252,8 +253,9 @@ withCardanoNode tr tdir severity action =
 --
 withConfig
     :: FilePath
+    -- ^ Test data directory in source tree
     -> Severity
-    -- ^ Test data directory
+    -- ^ Logging level for @cardano-node@
     -> (  CardanoNodeConfig
        -> Block
        -> (GenesisBlockParameters, NodeVersionData)
@@ -261,7 +263,7 @@ withConfig
        )
     -- ^ Callback function with the node configuration and genesis params
     -> IO a
-withConfig tdir severity action =
+withConfig tdir minSeverity action =
     bracket setupConfig teardownConfig $ \(_a,b,c,d) -> action b c d
   where
     source :: FilePath
@@ -291,7 +293,7 @@ withConfig tdir severity action =
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
             >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
-            >>= withObject (addMinSeverity (T.pack $ show severity))
+            >>= withObject (addMinSeverity (T.pack $ show minSeverity))
             >>= Yaml.encodeFile (dir </> "node.config")
 
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")

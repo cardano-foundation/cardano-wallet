@@ -82,9 +82,11 @@ let
           integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
 
           # cardano-node socket path becomes too long otherwise
+          unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
           integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
 
           # provide cardano-node command to test suites
+          unit.build-tools = [ pkgs.cardano-node ];
           integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {

@@ -128,18 +128,21 @@ test-suite unit
       base
     , bytestring
     , cardano-crypto
-    , cardano-wallet-core
     , cardano-crypto-wrapper
-    , ouroboros-consensus-byron
-    , text
     , cardano-wallet-byron
-    , ouroboros-network
+    , cardano-wallet-core
+    , cardano-wallet-test-utils
     , cborg
     , containers
-    , hspec
     , fmt
+    , hspec
+    , iohk-monitoring
     , memory
+    , ouroboros-consensus-byron
+    , ouroboros-network
     , QuickCheck
+    , retry
+    , text
     , transformers
   build-tools:
       hspec-discover
@@ -151,6 +154,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Byron.CompatibilitySpec
+      Cardano.Wallet.Byron.NetworkSpec
       Cardano.Wallet.Byron.TransactionSpec
 
 test-suite integration
