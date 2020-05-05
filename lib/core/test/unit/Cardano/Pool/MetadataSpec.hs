@@ -138,7 +138,7 @@ spec = describe "Metadata - MockServer" $ do
 
     around (withMockServer inMemoryCache)
         $ it "Cache metadata when called twice within the TTL"
-        $ \mkClient -> withMaxSuccess 10 $ property $ \pid -> monadicIO $ do
+        $ \mkClient -> withMaxSuccess 4 $ property $ \pid -> monadicIO $ do
             (logs, _) <- run $ captureLogging $ \tr -> do
                 let Client{getStakePoolMetadata} = mkClient tr
                 void $ getStakePoolMetadata pid
@@ -149,7 +149,7 @@ spec = describe "Metadata - MockServer" $ do
 
     around (withMockServer inMemoryCache)
         $ it "Fetch them again when fetching outside of the TTL"
-        $ \mkClient -> withMaxSuccess 10 $ property $ \pid -> monadicIO $ do
+        $ \mkClient -> withMaxSuccess 4 $ property $ \pid -> monadicIO $ do
             (logs, _) <- run $ captureLogging $ \tr -> do
                 let Client{getStakePoolMetadata} = mkClient tr
                 void $ getStakePoolMetadata pid
@@ -172,9 +172,9 @@ spec = describe "Metadata - MockServer" $ do
 -- Mock Storage
 --
 
--- | A default value for the cache, 10ms.
+-- | A default value for the cache, 1s
 defaultCacheTTL :: NominalDiffTime
-defaultCacheTTL = 0.01
+defaultCacheTTL = 1
 
 -- | Default dummy caching, callbacks are NoOps.
 noCache :: IO (ClientCallbacks IO)
