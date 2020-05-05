@@ -262,8 +262,8 @@ import Options.Applicative
     , flag
     , flag'
     , footer
+    , footerDoc
     , header
-    , headerDoc
     , help
     , helpDoc
     , helper
@@ -387,11 +387,12 @@ progName = unsafePerformIO getProgName
 cmdKey :: Mod CommandFields (IO ())
 cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     <> progDesc "Derive and manipulate keys."
-    <> headerDoc (Just $ string $ mconcat
-        [ "Keys can be passed as arguments or read as standard input. Both "
-        , "bech32- and hexadecimal encodings are supported."
+    <> footerDoc (Just $ string $ mconcat
+        [ "Keys are read from standard input for convenient chaining of commands."
         , "\n\n"
-        , "For instance:\n"
+        , "Bech32- and hexadecimal encodings are supported."
+        , "\n\n"
+        , "Example:\n"
         , "$ "
         , progName
         , " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
@@ -738,21 +739,22 @@ cmdKeyRoot =
         encode = encodeKey enc
         scheme = newCliKeyScheme keyType
 
-data KeyChildArgs = KeyChildArgs
+newtype KeyChildArgs = KeyChildArgs
     { _path :: DerivationPath
-    , _key :: Text
     }
 
 cmdKeyChild :: Mod CommandFields (IO ())
 cmdKeyChild =
     command "child" $ info (helper <*> cmd) $ mempty
         <> progDesc "Derive child keys."
+        <> footerDoc
+            (Just $ string "The parent key is read from standard input.")
   where
     cmd = fmap exec $
-        KeyChildArgs <$> pathOption <*> keyArgument
+        KeyChildArgs <$> pathOption
 
-    exec (KeyChildArgs (DerivationPath path) key) = do
-        orReadStdin key
+    exec (KeyChildArgs (DerivationPath path)) = do
+        TIO.getLine
             >>= eitherToIO . action
             >>= TIO.putStrLn
       where
@@ -761,40 +763,34 @@ cmdKeyChild =
             >=> \(k, enc) -> foldM deriveChildKey k path
             >>= encodeKey enc
 
-newtype KeyPublicArgs = KeyPublicArgs
-    { _key :: Text
-    }
-
 cmdKeyPublic :: Mod CommandFields (IO ())
 cmdKeyPublic =
     command "public" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Extract public key from a private key."
+        <> progDesc "Extract the public key from a private key."
+        <> footerDoc
+            (Just $ string "The private key is read from standard input.")
   where
-    cmd = fmap exec $
-        KeyPublicArgs <$> xprvArgument
+    cmd = pure exec
 
-    exec (KeyPublicArgs key) =
-        orReadStdin key
+    exec =
+        TIO.getLine
             >>= eitherToIO . action
             >>= TIO.putStrLn
       where
         action :: Text -> Either String Text
         action = decodeAnyKey >=> \(k, enc) -> toPublic k >>= encodeKey enc
 
-newtype KeyInspectArgs = KeyInspectArgs
-    { _key :: Text
-    }
-
 cmdKeyInspect :: Mod CommandFields (IO ())
 cmdKeyInspect =
     command "inspect" $ info (helper <*> cmd) $ mempty
         <> progDesc "Show information about a key."
+        <> footerDoc
+            (Just $ string "The key is read from standard input.")
   where
-    cmd = fmap exec $
-        KeyInspectArgs <$> keyArgument
+    cmd = pure exec
 
-    exec (KeyInspectArgs key) = do
-        orReadStdin key
+    exec = do
+        TIO.getLine
             >>= eitherToIO . action
             >>= TIO.putStrLn
       where
@@ -1781,12 +1777,6 @@ keyEncodingOption = option (eitherReader fromTextS) $
     <> metavar "KEY-ENCODING"
     <> value Hex
 
-keyArgument :: Parser Text
-keyArgument = T.pack <$> argument str (mempty <> metavar "XPRV|XPUB" <> value "")
-
-xprvArgument :: Parser Text
-xprvArgument = T.pack <$> argument str (mempty <> metavar "XPRV" <> value "")
-
 pathOption :: Parser DerivationPath
 pathOption = option (eitherReader fromTextS) $
     mempty
@@ -2249,10 +2239,6 @@ withSGR h sgr action = hIsTerminalDevice h >>= \case
     aFirst = ([] <$ hSetSGR h [sgr])
     aLast = hSetSGR h
     aBetween = const action
-
-orReadStdin :: Text -> IO Text
-orReadStdin "" = TIO.getLine
-orReadStdin x = return x
 
 {-------------------------------------------------------------------------------
                                  Helpers

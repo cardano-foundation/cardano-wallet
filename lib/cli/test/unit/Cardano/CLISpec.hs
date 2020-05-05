@@ -210,14 +210,7 @@ spec = do
 
         name <- runIO getProgName
         ["key", "--help"] `shouldShowUsage`
-            [ "Keys can be passed as arguments or read as standard input. Both bech32- and hexadecimal encodings are supported."
-            , ""
-            , "For instance:"
-            , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
-            , "    | " ++ name ++ " key public"
-            , "xpub1k365denpkmqhj9zj6qpax..."
-            , ""
-            , "Usage:  key COMMAND"
+            [ "Usage:  key COMMAND"
             , "  Derive and manipulate keys."
             , ""
             , "Available options:"
@@ -227,8 +220,18 @@ spec = do
             , "  root                     Extract root extended private key from"
             , "                           a mnemonic sentence."
             , "  child                    Derive child keys."
-            , "  public                   Extract public key from a private key."
+            , "  public                   Extract the public key from a private"
+            , "                           key."
             , "  inspect                  Show information about a key."
+            , ""
+            , "Keys are read from standard input for convenient chaining of commands."
+            , ""
+            , "Bech32- and hexadecimal encodings are supported."
+            , ""
+            , "Example:"
+            , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
+            , "    | " ++ name ++ " key public"
+            , "xpub1k365denpkmqhj9zj6qpax..."
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
@@ -531,28 +534,34 @@ spec = do
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child --path DER-PATH [XPRV|XPUB]"
+            [ "Usage:  key child --path DER-PATH"
             , "  Derive child keys."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0"
+            , ""
+            , "The parent key is read from standard input."
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public [XPRV]"
-            , "  Extract public key from a private key."
+            [ "Usage:  key public "
+            , "  Extract the public key from a private key."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
+            , ""
+            , "The private key is read from standard input."
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`
-            [ "Usage:  key inspect [XPRV|XPUB]"
+            [ "Usage:  key inspect "
             , "  Show information about a key."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
+            , ""
+            , "The key is read from standard input."
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -772,128 +781,6 @@ spec = do
             \The full dictionary is available here:\
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
-
-    describe "key child" $ do
-        let rootXPrv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e5\
-                       \11666cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e611049\
-                       \2b5ebb430f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fb\
-                       \ed4ad474371095c74db3d9c743a\n"
-        ["key", "child", "--path", "1852H/1815H/0H/0/0", rootXPrv]
-            `shouldStdOut`
-            "5073cbc3e3f85b0099c67ed5b0344bfc0f15861ef05f41cde2a797352f66cf48ab\
-            \59c46d040abb4b3e0623bb151362233e75cf1f923b6d5964780ebbcf3a2d7a3d90\
-            \78e802011f1580465c80e7040f1e4d8e24f978d23f01c1d2cf18fcf741a7\n"
-
-        -- This key does not have the "tweak" that newer keys are expected
-        -- to have.
-        let byronKey =
-              "464f3a1316a3849a1ca49a7e3a8b9ab35379598ac4fbcd0ba2bc3a165185150a\
-              \5c56ebf6d6d39fd6c070731a44133ebb083c42b949046d79aac48b7a1f52787c\
-              \a5078d2194b78ccb6116d64f4d5a3fad3cd41e4748c20fc589d87a0e69583357"
-        let encryptedKey =
-              "9d41c6c66a0aaac73b31bfbf2522c63eea4e16e7df63ccf43e012b20a4606cbb\
-              \e99a00cfed56e9516bc947f327a73e0849882a32a682932c51b42156055abb0b\
-              \5d3661deb9064f2d0e03fe85d68070b2fe33b4916059658e28ac7f7f91ca4b12"
-
-        describe "bryon keys fail" $ do
-            ["key", "child", "--path", "0", byronKey]
-                `expectStdErr` (`shouldBe` "That extended private key looks \
-                       \weird. Is it encrypted? Or is it an old Byron key?\n")
-        describe "encrypted keys fail" $ do
-            ["key", "child", "--path", "0", encryptedKey]
-                `expectStdErr` (`shouldBe` "That extended private key looks \
-                       \weird. Is it encrypted? Or is it an old Byron key?\n")
-        describe "fails when key is not 96 bytes" $ do
-            ["key", "child", "--path", "0", "5073"]
-                `expectStdErr` (`shouldBe` "Expected key to be 96 bytes in the\
-                    \ case of a private key and, 64 bytes for public keys. This\
-                    \ key is 2 bytes.\n")
-
-        let pub1 =
-              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed\
-              \74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
-
-        let pub2 =
-              "708792807c1e3959626cd0ab78b1db5ed1544a97f3addbb01457de56ee5a450f\
-              \e932040a815c8994e44b7075ec61bdfc66e77671c59d14c76f3b33e8c534b15f"
-
-        describe "public key" $ do
-            ["key", "child", "--path", "0", pub1]
-                `shouldStdOut` (pub2 <> "\n")
-
-            ["key", "child", "--path", "0H", pub1]
-                `expectStdErr` (`shouldBe` "0H is a hardened index. Public key \
-                    \derivation is only possible for soft indices. \nIf the\
-                    \ index is correct, please use the corresponding private \
-                    \key as input.\n")
-
-
-    describe "key public" $ do
-        let prv1 = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
-                   \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
-                   \0f570488f074a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad4743710\
-                   \95c74db3d9c743a"
-        let pub1 = "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae\
-                   \8dfed74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74\
-                   \db3d9c743a"
-
-        -- Verified manually with jcli.
-        ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
-
-        describe "fails when input is a public key" $ do
-            let err1 = "Input is already a public key."
-            ["key", "public", pub1] `expectStdErr` (`shouldBe` (err1 ++ "\n"))
-
-    describe "detection of key encoding (bech32 vs hex)" $ do
-        let prv1 = "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u\
-                   \3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejz\
-                   \gca990aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
-        let pub1 = "xpub1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zpalvq\
-                   \4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcgfe72yg"
-
-        ["key", "public", prv1] `shouldStdOut` (pub1 ++ "\n")
-
-
-        ["key", "public", "xp"] `expectStdErr` (`shouldBe`
-            (fullKeyEncodingDescription ++ "\n"))
-
-        ["key", "public", "xprv118rppm"] `expectStdErr` (`shouldBe`
-            ("StringToDecodeTooShort\n"))
-
-        let hexErr = "Expected key to be 96 bytes in the case of a private key \
-                     \and, 64 bytes for public keys. This key is 2 bytes.\n"
-
-        ["key", "public", "0000"] `expectStdErr` (`shouldBe` hexErr)
-
-
-    describe "key inspect" $ do
-        let xprv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e51166\
-                   \6cf48d6fd7bec908e4c6ced5f0c4f0798b1b619d6b61e6110492b5ebb43\
-                   \0f570488f0"
-        let cc = "74a9fc9a22f0a61b2ab9b1f1a990e3f8\
-                 \dd6fbed4ad474371095c74db3d9c743a"
-        ["key", "inspect", xprv ++ cc] `shouldStdOut`
-            mconcat [ "extended private key: "
-                , xprv
-                , "\n"
-                , "chain code: "
-                , cc
-                , "\n"
-                ]
-
-        let xpub =
-              "20997b093a426804de5120fa2b6d2184a605274b364201ddc9f79307eae8dfed"
-        let cc2 =
-              "74a9fc9a22f0a61b2ab9b1f1a990e3f8dd6fbed4ad474371095c74db3d9c743a"
-        ["key", "inspect", xpub ++ cc2] `shouldStdOut`
-            mconcat [ "extended public key: "
-                , xpub
-                , "\n"
-                , "chain code: "
-                , cc2
-                , "\n"
-                ]
-
 
     describe "CLI Key derivation properties" $ do
         it "all allowedWordLengths are supported"
