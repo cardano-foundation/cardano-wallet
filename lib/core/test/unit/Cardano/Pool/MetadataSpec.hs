@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -49,12 +48,10 @@ import Data.Aeson
     ( toJSON )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Prism
-    ( Prism', (^?) )
 import Data.Generics.Sum.Constructors
     ( _Ctor )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -105,7 +102,7 @@ import Test.QuickCheck.Monadic
 import Test.QuickCheck.Random
     ( mkQCGen )
 import Test.Utils.Trace
-    ( captureLogging )
+    ( captureLogging, countMsg )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -147,8 +144,8 @@ spec = describe "Metadata - MockServer" $ do
                 void $ getStakePoolMetadata pid
                 void $ getStakePoolMetadata pid
             monitor $ counterexample $ unlines $ show <$> logs
-            assert $ count (_Ctor @"MsgRefreshingMetadata") logs == 1
-            assert $ count (_Ctor @"MsgUsingCached")        logs == 1
+            assert $ countMsg (_Ctor @"MsgRefreshingMetadata") logs == 1
+            assert $ countMsg (_Ctor @"MsgUsingCached")        logs == 1
 
     around (withMockServer inMemoryCache)
         $ it "Fetch them again when fetching outside of the TTL"
@@ -158,8 +155,8 @@ spec = describe "Metadata - MockServer" $ do
                 void $ getStakePoolMetadata pid
                 threadDelay' (2 * defaultCacheTTL)
                 void $ getStakePoolMetadata pid
-            assert $ count (_Ctor @"MsgRefreshingMetadata") logs == 2
-            assert $ count (_Ctor @"MsgUsingCached")        logs == 0
+            assert $ countMsg (_Ctor @"MsgRefreshingMetadata") logs == 2
+            assert $ countMsg (_Ctor @"MsgUsingCached")        logs == 0
 
     around (withMockServer inMemoryCache)
         $ it "Returns 'Nothing' and a warning log message on failure"
@@ -169,7 +166,7 @@ spec = describe "Metadata - MockServer" $ do
                 getStakePoolMetadata $ PoolId "NOT A VALID POOL ID"
             monitor $ counterexample $ unlines $ show <$> logs
             assert $ isNothing res
-            assert $ count (_Ctor @"MsgUnexpectedError") logs == 1
+            assert $ countMsg (_Ctor @"MsgUnexpectedError") logs == 1
 
 --
 -- Mock Storage
@@ -321,13 +318,6 @@ generateWith seed (MkGen gen) =
     --
     -- https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/src/Test.QuickCheck.Gen.html#generate
     size = 30
-
--- | Count elements in the list matching the given Prism.
---
--- >>> count (_Ctor @"MyConstructor") xs
--- 2
-count :: Prism' s a -> [s] -> Int
-count prism = length . filter (\x -> isJust (x ^? prism))
 
 -- | Like 'threadDelay', but works with 'NominalDiffTime'
 threadDelay' :: NominalDiffTime -> IO ()
