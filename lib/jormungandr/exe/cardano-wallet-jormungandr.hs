@@ -106,8 +106,6 @@ import Control.Applicative
     ( Const (..), optional, (<|>) )
 import Control.Arrow
     ( second )
-import Control.Monad
-    ( void )
 import Control.Tracer
     ( contramap )
 import Data.List
@@ -143,7 +141,7 @@ import Options.Applicative.Types
 import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
-    ( exitWith )
+    ( exitSuccess, exitWith )
 import System.FilePath
     ( (</>) )
 
@@ -312,15 +310,15 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     exec
         :: ServeArgs
         -> IO ()
-    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H shutdownIPC logOpt) = do
+    exec args@(ServeArgs hostPreference listen nodePort databaseDir sTolerance block0H shutdownIPC logOpt) = maybe exitSuccess exitWith =<< do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            void $ withShutdownHandler (trShutdown tr) shutdownIPC $ do
+            withShutdownHandler (trShutdown tr) shutdownIPC $ do
                 logInfo tr $ MsgServeArgs args
                 let baseUrl = localhostBaseUrl $ getPort nodePort
                 let cp = JormungandrConnParams block0H baseUrl
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-                exitWith =<< serveWallet @('Testnet 0)
+                serveWallet @('Testnet 0)
                     tracers
                     sTolerance
                     databaseDir

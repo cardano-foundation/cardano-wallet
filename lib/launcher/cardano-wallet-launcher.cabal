@@ -34,6 +34,7 @@ library
     , async
     , code-page
     , contra-tracer
+    , deepseq
     , extra
     , fmt
     , iohk-monitoring

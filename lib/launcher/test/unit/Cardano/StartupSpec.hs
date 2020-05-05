@@ -149,7 +149,7 @@ withShutdownHandlerSpec = describe "withShutdownHandler" $ before_ pause $ do
     it "action throws exception" $ withFdPipe $ \(a, _) -> do
         let bomb = userError "bomb"
         logs <- captureLogging' $ \tr -> do
-            withShutdownHandler tr (Just a) (throwIO bomb)
+            withShutdownHandler tr (Just a) (throwIO bomb :: IO ())
                 `shouldThrow` isUserError
         logs `shouldContain` [MsgShutdownHandlerEnabled a]
 

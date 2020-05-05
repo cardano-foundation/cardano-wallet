@@ -43,6 +43,7 @@
           (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."code-page" or (buildDepError "code-page"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
+          (hsPkgs."deepseq" or (buildDepError "deepseq"))
           (hsPkgs."extra" or (buildDepError "extra"))
           (hsPkgs."fmt" or (buildDepError "fmt"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))

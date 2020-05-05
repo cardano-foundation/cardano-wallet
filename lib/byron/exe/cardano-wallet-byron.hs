@@ -94,8 +94,6 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
     ( Const (..), optional )
-import Control.Monad
-    ( void )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
@@ -123,7 +121,7 @@ import Options.Applicative
 import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
-    ( ExitCode (..), exitWith )
+    ( ExitCode (..), exitSuccess, exitWith )
 
 import qualified Data.Text as T
 
@@ -197,10 +195,10 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       databaseDir
       sTolerance
       shutdownIpc
-      logOpt) = do
+      logOpt) = maybe exitSuccess exitWith =<< do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
-            void $ withShutdownHandler (trShutdown tr) shutdownIpc $ do
+            withShutdownHandler (trShutdown tr) shutdownIpc $ do
                 logDebug tr $ MsgServeArgs args
 
                 (discriminant, bp, vData, block0)
@@ -211,7 +209,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                                 exitWith $ ExitFailure 33
 
                 whenJust databaseDir $ setupDirectory (logInfo tr . MsgSetupDatabases)
-                exitWith =<< serveWallet
+                serveWallet
                     discriminant
                     tracers
                     sTolerance

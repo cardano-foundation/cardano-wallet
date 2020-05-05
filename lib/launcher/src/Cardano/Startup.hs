@@ -34,10 +34,10 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, race, wait )
+import Control.DeepSeq
+    ( NFData, rnf )
 import Control.Exception
-    ( IOException, try )
-import Control.Monad
-    ( (<$!>) )
+    ( IOException, evaluate, try )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
@@ -101,7 +101,8 @@ setUtf8EncodingHandles = do
 -- action, causing the program to shut down.
 --
 withShutdownHandler
-    :: Tracer IO ShutdownHandlerLog
+    :: NFData a
+    => Tracer IO ShutdownHandlerLog
     -> Maybe Fd
     -> IO a
     -> IO (Maybe a)
@@ -112,7 +113,9 @@ withShutdownHandler tr (Just (Fd fd)) action = try (fdToHandle fd) >>= \case
         pure Nothing
     Right hnd -> do
         traceWith tr $ MsgShutdownHandlerEnabled (Fd fd)
-        res <- eitherToMaybe <$!> race (wrapUninterruptableIO $! waitForEOF hnd) action
+        res <- eitherToMaybe <$>
+            race (wrapUninterruptableIO $ waitForEOF hnd) action
+        evaluate (rnf res)
         threadDelay 1000000 -- prevent caller from closing fd too quickly
         pure res
   where
