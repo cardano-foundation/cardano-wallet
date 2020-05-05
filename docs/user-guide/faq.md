@@ -25,4 +25,8 @@ If you only intend to use the services as-is then, using either the pre-compiled
 {{</expand>}}
 
 {{<expand "Where is the faucet and do I get test ADA?" "...">}}
+
+- On Byron, have a look at: https://testnets.cardano.org/en/cardano/byron/tools/faucet
+- On Shelley, this is coming soon.
+
 {{</expand>}}

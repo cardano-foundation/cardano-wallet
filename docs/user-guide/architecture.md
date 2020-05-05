@@ -70,14 +70,14 @@ QAlreadyIntegrated{Do you already have<br/>an integration with<br/>cardano-sl?}
 
 GraphQL{cardano-graphql}
 Rest{cardano-rest}
-Libs{low-level libraries}
+SDK{SDK}
 Wallet{cardano-wallet}
 
 QMakeTx-->|yes| QManageUTxO
 QMakeTx-->|no| QAlreadyIntegrated
 QAlreadyIntegrated-->|yes| Rest
 QAlreadyIntegrated-->|no| GraphQL
-QManageUTxO-->|yes| Libs
+QManageUTxO-->|yes| SDK
 QManageUTxO-->|no| Wallet
 {{</mermaid>}}
 
