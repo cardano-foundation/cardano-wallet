@@ -65,6 +65,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
           (hsPkgs."file-embed" or (buildDepError "file-embed"))
+          (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
           (hsPkgs."hspec" or (buildDepError "hspec"))
           (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))

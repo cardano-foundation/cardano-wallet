@@ -176,7 +176,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."safe" or (buildDepError "safe"))
             (hsPkgs."scrypt" or (buildDepError "scrypt"))
             (hsPkgs."servant" or (buildDepError "servant"))
-            (hsPkgs."servant-client" or (buildDepError "servant-client"))
             (hsPkgs."servant-server" or (buildDepError "servant-server"))
             (hsPkgs."servant-swagger" or (buildDepError "servant-swagger"))
             (hsPkgs."stm" or (buildDepError "stm"))
