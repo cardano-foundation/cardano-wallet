@@ -216,7 +216,6 @@ test-suite unit
     , safe
     , scrypt
     , servant
-    , servant-client
     , servant-server
     , servant-swagger
     , stm
