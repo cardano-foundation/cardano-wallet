@@ -57,3 +57,13 @@ steps:
       system: x86_64-linux
     soft_fail:
       - exit_status: '*'
+
+  - label: 'Prevent merging to wrong branch'
+    if: 'build.branch == "bors/staging" && build.pull_request.base_branch != "master"'
+    command:
+      - 'echo "Refusing to merge into $BUILDKITE_PULL_REQUEST_BASE_BRANCH."'
+      - 'echo "You should only use bors to merge into master."'
+      - 'echo "Either change the PR base branch to master, or merge manually."'
+      - 'exit 1'
+    agents:
+      system: x86_64-linux
