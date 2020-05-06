@@ -44,6 +44,7 @@ start with Daedalus.
 ## Getting Started 
 
 ```
+wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
 NETWORK=testnet docker-compose up
 ```
 
