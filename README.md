@@ -41,9 +41,12 @@ start with Daedalus.
 > [cardano-sl](https://github.com/input-output-hk/cardano-sl)
 > repository.
 
-## How to install (Linux / Windows / Mac OS)
+## How to install (Linux / Windows / Mac OS / Docker)
 
 See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
+
+See [Wiki - Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker) for more information about using docker.
+
 
 > ### Latest releases
 >

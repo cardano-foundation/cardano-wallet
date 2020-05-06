@@ -1,0 +1,26 @@
+version: "3.7"
+
+services:
+  cardano-node:
+    image: inputoutput/cardano-node:latest
+    environment:
+      - NETWORK=mainnet
+    volumes:
+      - node-db:/data
+      - node-ipc:/ipc
+    restart: on-failure
+
+  cardano-wallet:
+    image: inputoutput/cardano-wallet:latest
+    volumes:
+      - wallet-db:/wallet-db
+      - node-ipc:/ipc
+    ports:
+      - 8090:8090
+    command: serve --mainnet --node-socket /ipc/node.socket --database /wallet-db --listen-address '0.0.0.0'
+    restart: on-failure
+
+volumes:
+  node-db:
+  node-ipc:
+  wallet-db:
