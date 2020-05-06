@@ -1,6 +1,7 @@
 # Every night at 00:00UTC
 # Download the latest master branch build of windows testing bundle
 # and run it.
+# After that passes, hand over to the Buildkite nightly pipeline.
 
 name: cardano-wallet Windows Tests
 
@@ -41,3 +42,17 @@ jobs:
         run: '.\\cardano-wallet-jormungandr-test-jormungandr-integration.exe --color'
         continue-on-error: true
         timeout-minutes: 60
+
+  trigger-buildkite-nightly:
+    needs: tests
+    name: 'Trigger cardano-wallet-nightly pipeline on Buildkite'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger Buildkite Pipeline
+      uses: buildkite/trigger-pipeline-action@v1.2.0
+      env:
+        BUILDKITE_API_ACCESS_TOKEN: '${{ secrets.Buildkite_Token }}'
+        PIPELINE: '${{ github.repository }}-nightly'
+        COMMIT: 'HEAD'
+        BRANCH: 'master'
+        MESSAGE: ':github: Triggered from a GitHub Action'

@@ -73,14 +73,14 @@ in
     branch="''${BUILDKITE_BRANCH:-}"
     tag="''${BUILDKITE_TAG:-}"
     extra_tag=""
-    if [[ -n "$tag" ]]; then
+    if [[ "$tag" =~ ^v20 ]]; then
       tag="${image.imageTag}"
       extra_tag="${image.backend}"
     elif [[ "$branch" = master ]]; then
       tag="$(echo ${image.imageTag} | sed -e s/${image.version}/''${BUILDKITE_COMMIT:-dev-$branch}/)"
       extra_tag="$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$branch/)"
     else
-      echo "Not pushing docker image because this is not a master branch or tag build."
+      echo "Not pushing docker image because this is not a master branch or v20* tag build."
       exit 0
     fi
     echo "Loading ${image}"

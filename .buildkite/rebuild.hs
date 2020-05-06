@@ -301,9 +301,7 @@ titled heading action = do
 -- Weeder - uses contents of .stack-work to determine unused dependencies
 
 weederStep :: DryRun -> IO ExitCode
-weederStep dryRun = do
-    echo "--- Weeder"
-    run dryRun "weeder" []
+weederStep dryRun = titled "Weeder" $ run dryRun "weeder" []
 
 ----------------------------------------------------------------------------
 -- Stack Haskell Program Coverage and upload to Coveralls
