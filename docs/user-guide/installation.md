@@ -34,14 +34,16 @@ docker pull inputoutput/cardano-wallet:v2020.4.7-byron
 For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. [cardano-wallet#latest-releases](https://github.com/input-output-hk/cardano-wallet#latest-releases)).
 {{</hint>}}
 
-Some leaf components like `cardano-submit-api` also provide example setup via [docker-compose](https://docs.docker.com/compose/). Those are useful for a quick start and for development, and also gives a baseline for development. See for example [input-output-hk/cardano-rest](https://github.com/input-output-hk/cardano-rest/blob/master/docker-compose.yml).
+## Docker compose
+
+Some components also provide example setup via [docker-compose](https://docs.docker.com/compose/). Those are useful for a quick start or as a baseline for development. See for example [cardano-wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml), [cardano-graphql](https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml) or [cardano-rest](https://github.com/input-output-hk/cardano-rest/blob/master/docker-compose.yml).
 
 ## Pre-compiled Artifacts / Building From Sources
 
 In case you prefer using raw binary instead, some components do provide pre-compiled release artifacts for each release. These can be downloaded directly from the github servers, via the UI or using a command-line tool like `wget` or `cURL`. For example, one can download a pre-packaged linux binary for `cardano-wallet@v2020-04-07` via:
 
 ```
-curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/v2020-04-07/cardano-wallet-v2020-04-07-linux64.tar.gz | tar xz 
+curl -L https://github.com/input-output-hk/cardano-wallet/releases/download/v2020-04-07/cardano-wallet-v2020-04-07-linux64.tar.gz | tar xz
 
 ./cardano-wallet-byron-linux64/cardano-wallet --help
 The CLI is a proxy to the wallet server, which is required for most commands.
