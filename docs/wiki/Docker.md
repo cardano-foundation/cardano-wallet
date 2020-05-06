@@ -138,3 +138,34 @@ inside the Docker image, use the bash shell as the entrypoint:
 ```
 docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:byron
 ```
+
+## Docker compose
+
+One can also use [docker-compose](https://docs.docker.com/compose/) to quickly spin up `cardano-wallet` together with supported block producer.
+Exemplary `docker-compose.yaml` combining the latest versions of `cardano-wallet` and `cardano-node` and connecting both to mainnet.
+
+```
+version: "3.7"
+
+services:
+  cardano-node:
+    image: inputoutput/cardano-node:latest
+    environment:
+      - NETWORK=mainnet
+    volumes:
+      - config:/data
+      - config:/ipc
+    restart: on-failure
+
+  cardano-wallet:
+    image: inputoutput/cardano-wallet:latest
+    volumes:
+      - config:/config
+    ports:
+      - 8090:8090
+    command: serve --mainnet --node-socket /config/node.socket --database /config/wallet-db --listen-address '0.0.0.0'
+    restart: on-failure
+
+volumes:
+  config:
+```
