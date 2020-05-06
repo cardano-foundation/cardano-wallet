@@ -41,12 +41,23 @@ start with Daedalus.
 > [cardano-sl](https://github.com/input-output-hk/cardano-sl)
 > repository.
 
-## How to install (Linux / Windows / Mac OS / Docker)
+## Getting Started 
+
+```
+NETWORK=testnet docker-compose up
+```
+
+Fantastic! The server is up-and-running, waiting for HTTP requests on `localhost:8090/v2` e.g.:
+
+```
+curl http://localhost:8090/v2/network/information
+```
+
+See also [Wiki - Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker) for more information about using docker.
+
+## How to install (Linux / Windows / Mac OS)
 
 See **Installation Instructions** for each available [release](https://github.com/input-output-hk/cardano-wallet/releases).
-
-See [Wiki - Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker) for more information about using docker.
-
 
 > ### Latest releases
 >
