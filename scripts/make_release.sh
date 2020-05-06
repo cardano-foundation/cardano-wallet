@@ -1,11 +1,13 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils gnugrep
+#! nix-shell -i bash -p nix coreutils gnugrep gnused
+
+set -euo pipefail
 
 # A handy utility for filling in the github RELEASE_TEMPLATE.
 # Since we are using nix, this script shoud work whether on linux or mac.
 #
-# NOTE: This script will target the LATEST wiki version. Make sure the wiki hasn't changed undesirably since
-# the release tag.
+# NOTE: This script will target the LATEST wiki version. Make sure the
+# wiki hasn't changed undesirably since the release tag.
 #
 # Usage:
 # cd cardano-wallet # (only works from here!)
@@ -13,61 +15,51 @@
 # ./scripts/make_release.sh
 #
 
-###############################################################
+################################################################################
 # Release-specific parameters (Change when you bump the version)
-GIT_TAG="v2020-04-28"
-CABAL_VERSION="2020.4.28"
+GIT_TAG="v2020-05-06"
+CABAL_VERSION="2020.5.6"
 
-OLD_GIT_TAG="v2020-04-07"
-OLD_CABAL_VERSION="2020.4.7"
+OLD_GIT_TAG="v2020-04-28"
+OLD_CABAL_VERSION="2020.4.28"
 
-JORM_TAG="v0.8.15"
-CARDANO_NODE_TAG="1.9.3"
-###############################################################
-TMP_CWD=$(pwd)
+JORM_TAG="v0.8.18"
+CARDANO_NODE_TAG="1.11.0"
+################################################################################
 OLD_DATE="${OLD_GIT_TAG//v}"
 CHANGELOG=GENERATED_CHANGELOG.md
 OUT=GENERATED_RELEASE_NOTES-$GIT_TAG.md
 REPO="input-output-hk/cardano-wallet"
-TMP_WIKI_DIR=/tmp/cardano-wallet-script
-rm -rf $TMP_WIKI_DIR
-mkdir $TMP_WIKI_DIR
-echo $TMP_WIKI_DIR
-cd $TMP_WIKI_DIR
-git clone https://github.com/$REPO.wiki.git
-cd cardano-wallet.wiki
-
-WIKI_COMMIT=$(git log -n 1 --pretty=format:%H)
-
-cd $TMP_CWD
-echo "cd $TMP_CWD"
+WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
 
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
-find nix -name "*.nix" -type f | xargs sed -i "s/$OLD_CABAL_VERSION/$CABAL_VERSION/"
-find lib -name "*.cabal" -type f | xargs sed -i "s/$OLD_CABAL_VERSION/$CABAL_VERSION/"
+sed -i "s/$OLD_CABAL_VERSION/$CABAL_VERSION/" \
+    $(git ls-files '*.nix'; git ls-files '*.cabal')
 echo "Looking for remaining references to old version:"
-echo "$(git grep $OLD_CABAL_VERSION)"
+git grep $OLD_CABAL_VERSION
 echo ""
 
 echo "Generating changelog..."
 ./scripts/make_changelog $OLD_DATE > $CHANGELOG
 echo ""
 echo "Filling in template..."
-sed -e "
-s/{{GIT_TAG}}/$GIT_TAG/g
-s/{{JORM_TAG}}/$JORM_TAG/g
-s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g
-s/{{CABAL_VERSION}}/$CABAL_VERSION/g
-s/{{DOCKER_WIKI_COMMIT}}/$WIKI_COMMIT/g
-s/{{JORM_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g
-s/{{BYRON_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g
-" .github/RELEASE_TEMPLATE.md | sed -e "/{{CHANGELOG}}/r $CHANGELOG" > $OUT
+sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
+    -e "s/{{JORM_TAG}}/$JORM_TAG/g"                 \
+    -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
+    -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
+    -e "s/{{DOCKER_WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
+    -e "s/{{JORM_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g"  \
+    -e "s/{{BYRON_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g" \
+    -e "/{{CHANGELOG}}/r $CHANGELOG"                \
+    -e "/{{CHANGELOG}}/d"                           \
+    .github/RELEASE_TEMPLATE.md > $OUT
 
-read -p "Do you want to create a commit and release-tag? (y/n)" -n 1 -r
-echo    # (optional) move to a new line
+read -p "Do you want to create a commit and release-tag? (y/n) " -n 1 -r
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-	git commit -am "Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
+  msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
+  git diff --quiet || git commit -am "$msg"
   git tag -s -m $GIT_TAG $GIT_TAG
 fi

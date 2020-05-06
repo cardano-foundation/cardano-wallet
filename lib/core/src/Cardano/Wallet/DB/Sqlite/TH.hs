@@ -133,8 +133,10 @@ Checkpoint
     checkpointBlockHeight       Word32       sql=block_height
     checkpointGenesisHash       BlockId      sql=genesis_hash
     checkpointGenesisStart      UTCTime      sql=genesis_start
+    checkpointFeePolicyUnused   Text         sql=fee_policy
     checkpointSlotLength        Word64       sql=slot_length
     checkpointEpochLength       Word32       sql=epoch_length
+    checkpointTxMaxSizeUnused   Word16       sql=tx_max_size
     checkpointEpochStability    Word32       sql=epoch_stability
     checkpointActiveSlotCoeff   Double       sql=active_slot_coeff
 

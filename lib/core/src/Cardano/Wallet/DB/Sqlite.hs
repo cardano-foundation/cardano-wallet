@@ -748,6 +748,8 @@ mkCheckpointEntity wid wal =
         , checkpointEpochStability = coerce (bp ^. #getEpochStability)
         , checkpointActiveSlotCoeff =
             W.unActiveSlotCoefficient (bp ^. #getActiveSlotCoefficient)
+        , checkpointFeePolicyUnused = ""
+        , checkpointTxMaxSizeUnused = 0
         }
     utxo =
         [ UTxO wid sl (TxId input) ix addr coin
@@ -776,8 +778,10 @@ checkpointFromEntity cp utxo s =
         bh
         (BlockId genesisHash)
         genesisStart
+        _feePolicyUnused
         slotLength
         epochLength
+        _txMaxSizeUnused
         epochStability
         activeSlotCoeff
         ) = cp
