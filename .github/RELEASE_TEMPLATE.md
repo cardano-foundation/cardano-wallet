@@ -2,31 +2,19 @@
 
 Compatible with [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/jormungandr/releases/tag/{{JORM_TAG}}) and [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
+<!-- A CHANGELOG, organized in three sections:
+ 
+ - New Features
+ - Improvements
+ - Resolved Issues
 
-## New Features
+-->
 
-## Improvements
-
-## Resolved Issues
-
-<!-- Fixes included in this release that were present in the previous release -->
+{{CHANGELOG}}
 
 ## Known Issues
 
 <!-- Bugs known at the moment of the release, or discovered after and not fixed -->
-
-## Changelog
-
-
-<!-- A CHANGELOG, organized in milestones. Ideally, we put it within
-some <details></details> elements to avoid cluttering the release notes -->
-
-{{CHANGELOG}}
-
-
-## Weekly Reports
-
-- [Week 12 - 2020-03-20](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports/2020-03-20)
 
 ## Documentation
 
@@ -57,7 +45,7 @@ the moment of releasing. -->
 
 #### Docker
 
-Pull from DockerHub and verify version.
+Pull from DockerHub and verify the version matches {{CABAL_VERSION}}
 
 ```
 $ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr
@@ -76,7 +64,7 @@ $ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr versi
 
 #### Docker
 
-Pull from DockerHub and verify version.
+Pull from DockerHub and verify the version matches {{CABAL_VERSION}}.
 
 ```
 $ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-byron
