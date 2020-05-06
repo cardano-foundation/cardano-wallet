@@ -1,6 +1,6 @@
 The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'mnemonic generate')
 
-<!-- 
+<!--
 ATTENTION:
 
 The left and right chevrons (`<` and `>`) aren't displayed in markdown, nor anything in between. So below, I am using
@@ -17,7 +17,7 @@ Available OPTIONS:
 Available COMMANDS:
   <a href="#launch">launch</a>                Launch and monitor a wallet server and its chain producers.
   <a href="#serve">serve</a>                 Serve an HTTP API that listens for commands/actions.
-  mnemonic                            
+  mnemonic
     <a href="#mnemonic-generate">generate</a>            Generate BIP-39 mnemonic words
     <a href="#mnemonic-reward-credentials">reward-credentials</a>  Derive reward account private key from mnemonic.
   wallet
@@ -26,10 +26,10 @@ Available COMMANDS:
       <a href="#wallet-create-from-mnemonic">from-mnemonic</a>     Create a new wallet using a mnemonic
       <a href="#wallet-create-from-public-key">from-public-key</a>   Create a wallet using a public account key
     <a href="#wallet-get">get</a>                 Fetch a particular wallet
-    <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution 
+    <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution
     update
       <a href="#wallet-update-passphrase">passphrase</a>        Update a wallet's master passphrase
-      <a href="#wallet-update-name">name</a>              Update a wallet's name 
+      <a href="#wallet-update-name">name</a>              Update a wallet's name
     <a href="#wallet-delete">delete</a>              Forget a wallet and its metadata
   transaction
     <a href="#transaction-create">create</a>              Create a transaction from a known wallet
@@ -51,12 +51,12 @@ Available COMMANDS:
     <a href="#key-public">public</a>              Extract public key from a private key.
     <a href="#key-inspect">inspect</a>             Show information about a key.
   <a href="#version">version</a>               Show the program's current version
-</pre> 
+</pre>
 
 > :information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility softwares like `jq`!
 
 > :gift_heart: For bash/zsh auto-completion, put the following script in your `/etc/bash_completion.d`:
-> 
+>
 > <details>
 > <summary>cardano-wallet.sh</summary>
 >
@@ -79,7 +79,7 @@ Available COMMANDS:
 > </details>
 # Commands
 
-## launch 
+## launch
 
 Launches and manages two sub-processes:
 
@@ -93,14 +93,14 @@ Many options supported by [`cardano-wallet serve`](#serve) are also supported by
 ### Invocation
 
 > ```
-> cardano-wallet launch 
->   [--listen-address HOST] 
+> cardano-wallet launch
+>   [--listen-address HOST]
 >   ([--random-port] | [--port INT])
 >   [--node-port INT]
 >   [--state-dir DIR]
 >   [--sync-tolerance DURATION]
 >   ([--quiet] | [--verbose])
->   (--genesis-block-hash STRING | --genesis-block FILE) 
+>   (--genesis-block-hash STRING | --genesis-block FILE)
 >   [-- ARGUMENTS...]
 
 ##### --state-dir
@@ -185,7 +185,7 @@ initial:
   - fund:
       address: ta1swk7svu8avn5jysl83vja72lp0sqfczanqee6q08a4j7q27a77kpg4p254a
       value: 100000000000
-  # And so forth... 
+  # And so forth...
 ```
 </details>
 
@@ -441,7 +441,7 @@ which could be plotted as:
     │                 │   │   │   │   │   │   ┌───┐           │   │
   1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
     │ │   │           │   │   │   │   │   │   │   │           │   │
-    │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │      ╷ 
+    │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │      ╷
     └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └──────│────────────
           10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳
 ```
@@ -477,7 +477,7 @@ Enter the passphrase a second time: **********
 
 ## wallet delete
 
-> `cardano-wallet wallet delete [--port=INT] WALLET_ID` 
+> `cardano-wallet wallet delete [--port=INT] WALLET_ID`
 
 Deletes wallet with specified wallet id:
 
@@ -564,7 +564,7 @@ $ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6
 
 ## address list
 
-> `cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]` 
+> `cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]`
 
 List all known (used or not) addresses and their corresponding status.
 
@@ -576,7 +576,7 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 ## stake pool list
 
-> `cardano-wallet stake-pool list [--port=INT]` 
+> `cardano-wallet stake-pool list [--port=INT]`
 
 List all known stake pools with some statistics about them.
 
@@ -588,7 +588,7 @@ $ cardano-wallet stake-pools list
 
 ## network information
 
-> `cardano-wallet network information [--port=INT]` 
+> `cardano-wallet network information [--port=INT]`
 
 View network information and syncing progress between the node and the blockchain.
 
@@ -600,7 +600,7 @@ $ cardano-wallet network information
 
 ## network parameters
 
-> `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER` 
+> `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER`
 
 View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not later than the current one), ie., `0`, `1`, .. .
 
@@ -612,7 +612,7 @@ $ cardano-wallet network parameters latest
 
 ## network clock
 
-> `cardano-wallet network clock` 
+> `cardano-wallet network clock`
 
 View [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) offset for cardano-wallet server in microseconds.
 
@@ -636,8 +636,9 @@ Ok.
 Extract the root extended private key from a mnemonic sentence. New mnemonic sentences can be generated using <a href="#mnemonic-generate">`mnemonic generate`</a>.
 
 > ```
-> Usage: cardano-wallet-jormungandr key root [--wallet-style WALLET_STYLE]
->                                           MNEMONIC_WORD...
+> Usage: cardano-wallet key root [--wallet-style WALLET_STYLE]
+>                                [--encoding KEY-ENCODING]
+>                                MNEMONIC_WORD...
 > Extract root extended private key from a mnemonic sentence.
 >
 > Available options:
@@ -647,10 +648,12 @@ Extract the root extended private key from a mnemonic sentence. New mnemonic sen
 >                             icarus (15 words)
 >                             trezor (12, 15, 18, 21 or 24 words)
 >                             ledger (12, 15, 18, 21 or 24 words)
+>  --key-encoding KEY-ENCODING
+>                           Either "hex" (default) os "bech32"
 > ```
 
 ```bash
-$ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme celery coral <...11 more words>
+$ cardano-wallet key root --wallet-style icarus -- express theme celery coral <...11 more words>
 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168f...
 ```
 
@@ -658,10 +661,10 @@ $ cardano-wallet-jormungandr key root --wallet-style icarus -- express theme ce
 
 ## key child
 
-Derive child key from root private key.
+Derive child key from root private key. The parent key is read from standard input.
 
 > ```
-> Usage: cardano-wallet-jormungandr key child --path DER-PATH XPRV
+> Usage: cardano-wallet key child --path DER-PATH
 >   Derive child keys.
 >
 > Available options:
@@ -670,19 +673,19 @@ Derive child key from root private key.
 > ```
 
 ```bash
-$ cardano-wallet key child --path 44H/1815H/0H/0 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key child --path 44H/1815H/0H/0
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## key public
 
-Extract the public key of an extended private key. Keys can be obtained using <a href="#key-root">`key root`</a> and <a href="#key-child">`key child`</a>.
+Extract the public key of an extended private key. Keys can be obtained using <a href="#key-root">`key root`</a> and <a href="#key-child">`key child`</a>. The private key is read from standard input.
 
-> `cardano-wallet-jormungandr key public XPRV` 
+> `cardano-wallet key public`
 
 ```bash
-$ cardano-wallet-jormungandr key public 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key public
 b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 ```
 
@@ -690,18 +693,17 @@ b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc02
 
 ## key inspect
 
-Show information about a key.
+Show information about a key. The key is read from standard input.
 
-> `cardano-wallet-jormungandr key inspect XPRV` 
+> `cardano-wallet key inspect`
 
 ```bash
-$ cardano-wallet-jormungandr key inspect 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key inspect
 extended private key: 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79
 chain code: 411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 
 ## version
 
