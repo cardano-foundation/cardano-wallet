@@ -631,18 +631,14 @@ spec = do
 
             describe "bech32" $ do
                 decodeKeyGoldenErr "xprv1hs" "xprv1hs"
-                    "StringToDecodeTooShort"
+                    "Bech32 error: string is too short"
                 decodeKeyGoldenErr "xpub1hs" "xpubhs"
-                    "StringToDecodeTooShort"
-
-                -- TODO: We really have an opportunity to render nice error
-                -- messages here!
-                --
-                -- We should underline the invalid character!
-                decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char"
-                    "StringToDecodeContainsInvalidChars [CharPosition 165]"
+                    "Bech32 error: string is too short"
+                decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char" $
+                    "Bech32 error: Invalid character(s) in string:\n"
+                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m\ESC[0m"
                 decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
-                    "StringToDecodeContainsInvalidChars []"
+                    "Bech32 error: Invalid character(s) in string"
 
                 -- We should /perhaps/ return a bech32 specific error here
                 decodeKeyGoldenErr xprv1Bech32FooHrp "wrong hrp"
