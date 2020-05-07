@@ -81,8 +81,8 @@ module Cardano.Wallet.Jormungandr.Binary
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPrv, sign, toXPub, unXPub, unXSignature )
+import Cardano.Address.Derivation
+    ( XPrv, toXPub, xpubToBytes )
 import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
 import Cardano.Wallet.Jormungandr.Rewards
@@ -178,6 +178,7 @@ import GHC.Stack
 import Safe
     ( headMay )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -661,11 +662,11 @@ putFragment (Hash block0Hash) inputs outputs = \case
     putWitness (putPayload :: Put) tag (xprv, Passphrase pwd) = case tag of
         TxWitnessUTxO -> do
             putTxWitnessTag tag
-            putByteString $ unXSignature $ sign pwd xprv msg
+            putByteString $ CC.unXSignature $ CC.sign pwd xprv msg
         TxWitnessLegacyUTxO -> do
             putTxWitnessTag tag
-            putByteString $ unXPub $ toXPub xprv
-            putByteString $ unXSignature $ sign pwd xprv msg
+            putByteString $ xpubToBytes $ toXPub xprv
+            putByteString $ CC.unXSignature $ CC.sign pwd xprv msg
         TxWitnessAccount ->
             error "putWitness: TxWitnessAccount: not implemented"
         TxWitnessMultisig ->
@@ -702,7 +703,7 @@ putFragment (Hash block0Hash) inputs outputs = \case
     -- SINGLE-ACNT-SIG  = ED25519-SIGNATURE
     putStakeAuthentication putAuthData (xprv, Passphrase pwd) = do
         putWord8 1
-        putByteString $ unXSignature $ sign pwd xprv msg
+        putByteString $ CC.unXSignature $ CC.sign pwd xprv msg
       where
         msg = BL.toStrict $ runPut putAuthData
 
