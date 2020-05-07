@@ -13,14 +13,14 @@ module Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
 import Prelude hiding
     ( lines )
 
+import Cardano.Address.Derivation
+    ( XPrv, getPublicKey )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , WalletKey (..)
-    , XPrv
-    , XPub (..)
     , deriveRewardAccount
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -195,7 +195,7 @@ mnemonicsToAccountAddress m1 m2 = do
         Bech32.encodeLenient hrp
         . Bech32.dataPartFromBytes
         . (BS.pack [addrAccount @('Testnet 0)] <>)
-        . xpubPublicKey
+        . getPublicKey
         . getRawKey
         . publicKey
         . deriveRewardAccount mempty

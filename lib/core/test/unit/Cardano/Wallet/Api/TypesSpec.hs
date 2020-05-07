@@ -95,8 +95,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Gen
     ( genMnemonic, genPercentage, shrinkPercentage )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChainCode (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -104,7 +103,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , PaymentAddress (..)
     , WalletKey (..)
-    , XPub (..)
     , networkDiscriminantVal
     , passphraseMaxLength
     , passphraseMinLength
@@ -291,6 +289,7 @@ import Test.Utils.Time
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -1007,18 +1006,18 @@ goldenTestAddr
 goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
     case traverse (convertFromBase Base16) pubkeys of
         Right [spendingKey] -> do
-            let xpub = ShelleyKey (XPub spendingKey chainCode)
+            let xpub = ShelleyKey (CC.XPub spendingKey chainCode)
             let addr = encodeAddress @n (paymentAddress @n xpub)
             addr `shouldBe` expected
         Right [spendingKey, delegationKey] -> do
-            let xpubSpending = ShelleyKey (XPub spendingKey chainCode)
-            let xpubDeleg = ShelleyKey (XPub delegationKey chainCode)
+            let xpubSpending = ShelleyKey (CC.XPub spendingKey chainCode)
+            let xpubDeleg = ShelleyKey (CC.XPub delegationKey chainCode)
             let addr = encodeAddress @n (delegationAddress @n xpubSpending xpubDeleg)
             addr `shouldBe` expected
         _ ->
             expectationFailure "goldenTestAddr: provided invalid inputs public keys"
   where
-    chainCode = ChainCode "<ChainCode is not used by singleAddressFromKey>"
+    chainCode = CC.ChainCode "<ChainCode is not used by singleAddressFromKey>"
 
 negativeTest
     :: forall n. DecodeAddress n

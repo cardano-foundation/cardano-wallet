@@ -139,6 +139,7 @@ test-suite unit
     , async
     , binary
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-jormungandr
@@ -187,7 +188,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.RewardsSpec
       Cardano.Wallet.Jormungandr.TransactionSpec
 
-test-suite jormungandr-integration
+test-suite integration
   default-language:
       Haskell2010
   default-extensions:
@@ -209,6 +210,7 @@ test-suite jormungandr-integration
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration

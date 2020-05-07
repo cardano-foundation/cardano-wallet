@@ -36,6 +36,8 @@ module Cardano.Wallet.DB.Sqlite
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -95,8 +97,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , XPrv
-    , XPub
     )
 import Control.Arrow
     ( (***) )

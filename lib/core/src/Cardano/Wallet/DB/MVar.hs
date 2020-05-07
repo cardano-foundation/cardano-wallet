@@ -16,6 +16,8 @@ module Cardano.Wallet.DB.MVar
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -48,7 +50,7 @@ import Cardano.Wallet.DB.Model
     , mRollbackTo
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), XPrv )
+    ( Depth (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash, WalletId )
 import Control.Concurrent.MVar

@@ -18,6 +18,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Mnemonic
@@ -45,7 +47,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , Passphrase (..)
-    , XPrv
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley

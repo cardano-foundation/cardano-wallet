@@ -47,19 +47,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , toChimericAccount
 
-    -- * Primitive Crypto Types
-    , XPub (..)
-    , ChainCode (..)
-    , XPrv
-    , unXPub
-    , unXPrv
-    , xprv
-    , xpub
-
     -- * Helpers
     , hex
     , fromHex
-    , unXPrvStripPub
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrv
     , xPrvFromStrippedPubXPrvCheckRoundtrip
@@ -94,8 +84,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPrv, XPub (..), unXPrv, unXPub, xprv, xpub )
+import Cardano.Address.Derivation
+    ( XPrv, XPub, xprvToBytes, xpubToBytes )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.DeepSeq
@@ -143,6 +133,7 @@ import GHC.TypeLits
 import Safe
     ( toEnumMay )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Crypto.Wallet.Encrypted as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -353,7 +344,7 @@ toChimericAccount
     => k 'AddressK XPub
     -> ChimericAccount
 toChimericAccount =
-    ChimericAccount . BS.take 32 . unXPub . getRawKey
+    ChimericAccount . BS.take 32 . xpubToBytes . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -680,34 +671,13 @@ data ErrUnXPrvStripPub
 -- - the key is an old byron key
 unXPrvStripPubCheckRoundtrip :: XPrv -> Either ErrUnXPrvStripPub ByteString
 unXPrvStripPubCheckRoundtrip k = do
-    let res = unXPrvStripPub k
-    case (fmap unXPrv . xPrvFromStrippedPubXPrv $ res) of
+    let res = xprvToBytes k
+    case (fmap CC.unXPrv . xPrvFromStrippedPubXPrv $ res) of
         Right bytes
-            | bytes == unXPrv k -> Right res
+            | bytes == CC.unXPrv k -> Right res
             | otherwise         -> Left ErrCannotRoundtripToSameXPrv
-        Left  _                 -> error "unXPrvStripPub: this state cannot be \
+        Left  _                 -> error "xprvToBytes: this state cannot be \
             \reached from a rightfully crafted XPrv"
-
--- | Convert a @XPrv@ to a 96-byte long extended private key that does /not/
--- include the public key.
---
--- The format is:
---
--- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
---
--- Does /not/ guarantee that @xPrvFromStrippedPubXPrv@ will be able to
--- reconstruct the same @XPrv@ from the resulting @ByteString@.
-unXPrvStripPub :: XPrv -> ByteString
-unXPrvStripPub k = do
-    stripPub . unXPrv $ k
-  where
-    -- Converts  xprv <> pub <> cc
-    -- To        xprv <>        cc
-    stripPub :: ByteString -> ByteString
-    stripPub xprv' = prv <> chainCode
-      where
-        (prv, rest) = BS.splitAt 64 xprv'
-        (_pub, chainCode) = BS.splitAt 32 rest
 
 data ErrXPrvFromStrippedPubXPrv
     = ErrInputLengthMismatch Int Int -- ^ Expected, Actual
@@ -724,7 +694,7 @@ xPrvFromStrippedPubXPrvCheckRoundtrip
     -> Either ErrXPrvFromStrippedPubXPrv XPrv
 xPrvFromStrippedPubXPrvCheckRoundtrip bs = do
         res <- xPrvFromStrippedPubXPrv bs
-        if unXPrvStripPub res == bs
+        if xprvToBytes res == bs
         then Right res
         else Left ErrCannotRoundtripToSameBytes
 
@@ -753,4 +723,4 @@ xPrvFromStrippedPubXPrv x = do
     -- @xprv@ can fail. But because it is calling @encryptedKey@ internally,
     -- and we are feeding it the output of @unEncryptedKey@, it really shouldn't.
     toXPrv :: CC.EncryptedKey -> XPrv
-    toXPrv = either (error . show) id . xprv . CC.unEncryptedKey
+    toXPrv = either (error . show) id . CC.xprv . CC.unEncryptedKey

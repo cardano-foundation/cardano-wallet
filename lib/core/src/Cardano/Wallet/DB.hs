@@ -29,8 +29,10 @@ module Cardano.Wallet.DB
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), XPrv )
+    ( Depth (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types

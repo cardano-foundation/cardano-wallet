@@ -10,6 +10,8 @@ module Test.Integration.Jormungandr.Scenario.CLI.Keys
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, xprvToBytes )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -18,14 +20,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Passphrase (..)
-    , WalletKey (..)
-    , XPrv
-    , hex
-    , unXPrv
-    , unXPrvStripPub
-    )
+    ( Depth (..), Passphrase (..), WalletKey (..), hex )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -54,6 +49,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -75,7 +71,7 @@ prop_keyToHexTextJcliCompatible
     => k 'RootK XPrv
     -> Property
 prop_keyToHexTextJcliCompatible k = monadicIO $ do
-    let hexXPrv = (B8.unpack . hex) . unXPrvStripPub . getRawKey $ k
+    let hexXPrv = (B8.unpack . hex) . xprvToBytes . getRawKey $ k
     monitor (counterexample $ "\nkey bytes = " ++ hexXPrv)
     (code, stdout, stderr) <- run $ jcliKeyFromHex hexXPrv
     monitor (counterexample $ "\n" ++ show code)
@@ -113,10 +109,10 @@ instance Arbitrary (IcarusKey 'RootK XPrv) where
         <*> (pure mempty)
 
 instance Show XPrv where
-    show = show . unXPrv
+    show = show . CC.unXPrv
 
 instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
+    a == b = CC.unXPrv a == CC.unXPrv b
 
 -- | Generates an arbitrary mnemonic of a size according to the type parameter.
 --

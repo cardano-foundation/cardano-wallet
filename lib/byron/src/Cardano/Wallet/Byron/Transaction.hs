@@ -21,17 +21,14 @@ module Cardano.Wallet.Byron.Transaction
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron )
 import Cardano.Wallet.Byron.Transaction.Size
     ( MaxSizeOf, maxSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , WalletKey (..)
-    , XPrv
-    )
+    ( Depth (..), NetworkDiscriminant (..), Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types

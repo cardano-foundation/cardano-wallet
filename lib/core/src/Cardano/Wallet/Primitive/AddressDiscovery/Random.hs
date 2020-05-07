@@ -34,6 +34,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     ) where
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -43,7 +45,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant
     , Passphrase (..)
     , PaymentAddress (..)
-    , XPrv
     , liftIndex
     , publicKey
     )

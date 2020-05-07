@@ -152,6 +152,8 @@ module Cardano.Wallet
 import Prelude hiding
     ( log )
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -185,7 +187,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase
     , PaymentAddress (..)
     , WalletKey (..)
-    , XPrv
     , checkPassphrase
     , deriveRewardAccount
     , encryptPassphrase

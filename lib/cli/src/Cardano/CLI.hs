@@ -113,6 +113,8 @@ module Cardano.CLI
 import Prelude hiding
     ( getLine )
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub )
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
@@ -178,11 +180,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength
     , PassphraseMinLength
     , WalletKey (..)
-    , XPrv
-    , XPub
     , deriveRewardAccount
     , hex
-    , unXPrv
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
@@ -891,7 +890,7 @@ cmdMnemonicRewardCredentials =
         let hrp = [Bech32.humanReadablePart|ed25519e_sk|]
         let dp = Bech32.dataPartFromBytes
                 $ BS.take 64
-                $ unXPrv
+                $ CC.unXPrv
                 $ getRawKey
                 rewardAccountXPrv
         TIO.putStrLn $ mconcat

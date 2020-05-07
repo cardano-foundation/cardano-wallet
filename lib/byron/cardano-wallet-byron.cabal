@@ -33,6 +33,7 @@ library
     , aeson
     , async
     , bytestring
+    , cardano-addresses
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-wrapper
@@ -126,6 +127,7 @@ test-suite unit
   build-depends:
       base
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-crypto-wrapper
     , cardano-wallet-byron

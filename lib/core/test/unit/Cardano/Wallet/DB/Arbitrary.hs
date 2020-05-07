@@ -28,6 +28,8 @@ module Cardano.Wallet.DB.Arbitrary
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -47,8 +49,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
-    , XPrv
-    , XPub
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

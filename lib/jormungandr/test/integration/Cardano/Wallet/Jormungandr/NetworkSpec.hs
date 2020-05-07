@@ -13,6 +13,8 @@ module Cardano.Wallet.Jormungandr.NetworkSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Jormungandr.Api
@@ -56,7 +58,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), Passphrase (..), XPrv )
+    ( NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
