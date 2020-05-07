@@ -40,7 +40,6 @@ import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
-    , fromByronHash
     , fromChainHash
     , fromSlotNo
     , fromTip
@@ -272,7 +271,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     txParamsVar <- atomically $ newTVar (W.txParameters gbp)
-    nodeTipClient <- mkTipSyncClient tr
+    nodeTipClient <- mkTipSyncClient tr gbp
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
@@ -477,6 +476,8 @@ mkTipSyncClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
+    -> W.GenesisBlockParameters
+        -- ^ Initial blockchain parameters
     -> TQueue m (LocalTxSubmissionCmd m)
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
@@ -484,7 +485,7 @@ mkTipSyncClient
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     onTxParamsUpdate' <- debounce $ \txParams -> do
@@ -503,8 +504,12 @@ mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
             Right (Right ls) ->
                 onTxParamsUpdate' $ txParametersFromUpdateState ls
 
+        W.BlockchainParameters{ getGenesisBlockHash
+        , getEpochLength
+        } = W.staticParameters gbp
+
     onTipUpdate' <- debounce $ \tip -> do
-        traceWith tr $ MsgNodeTip tip
+        traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -1064,7 +1069,7 @@ data NetworkLayerLog
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout
     | MsgPostSealedTx W.SealedTx
-    | MsgNodeTip (Tip ByronBlock)
+    | MsgNodeTip W.BlockHeader
     | MsgTxParameters W.TxParameters
     | MsgLocalStateQueryError String
 
@@ -1100,13 +1105,9 @@ instance ToText NetworkLayerLog where
             ]
         MsgLocalStateQuery msg ->
             T.pack (show msg)
-        MsgNodeTip TipGenesis ->
-            "Network node tip is at genesis"
-        MsgNodeTip (Tip _sl h (BlockNo bl)) -> T.unwords
-            [ "Network node tip block height is"
-            , T.pack (show bl)
-            , "at hash"
-            , pretty (fromByronHash h)
+        MsgNodeTip bh -> T.unwords
+            [ "Network node tip is"
+            , pretty bh
             ]
         MsgTxParameters params -> T.unwords
             [ "TxParams for tip are:"
