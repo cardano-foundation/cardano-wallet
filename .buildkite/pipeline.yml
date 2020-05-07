@@ -5,11 +5,13 @@ env:
   LC_ALL: "en_US.UTF-8"
 
 steps:
-  - label: 'hydra-eval-errors'
-    command: 'nix-build ./nix -A iohkNix.hydraEvalErrors && ./result/bin/hydra-eval-errors.py'
-    if: 'build.tag == null'
+  - label: 'Prevent merging to wrong branch'
+    if: 'build.branch == "bors/staging"'
+    command: './.buildkite/check-bors.sh'
     agents:
       system: x86_64-linux
+  - wait: ~
+    if: 'build.branch == "bors/staging"'
 
   - label: 'Stack Rebuild'
     command:
@@ -58,8 +60,8 @@ steps:
     soft_fail:
       - exit_status: '*'
 
-  - label: 'Prevent merging to wrong branch'
-    if: 'build.branch == "bors/staging"'
-    command: './.buildkite/check-bors.sh'
+  - label: 'hydra-eval-errors'
+    command: 'nix-build ./nix -A iohkNix.hydraEvalErrors && ./result/bin/hydra-eval-errors.py'
+    if: 'build.tag == null'
     agents:
       system: x86_64-linux
