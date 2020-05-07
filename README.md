@@ -65,9 +65,9 @@ See **Installation Instructions** for each available [release](https://github.co
 > | cardano-wallet                                                                            | jörmungandr (compatible versions)                                              | cardano-node (compatible versions)
 > | ---                                                                                       | ---                                                                            | ---
 > | `master` branch                                                                           | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.11.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.11.0)
+> | [v2020-05-06](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-05-06) | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.11.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.11.0)
+> | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.11.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.11.0)
 > | [v2020-04-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-07) | [v0.8.15](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.15) | [1.9.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.9.3)
-> | [v2020-04-01](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-01) | [v0.8.15](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.15) | [1.9.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.9.3)
-> | [v2020-03-16](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-03-16) | [v0.8.14](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.14) | [1.6.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.6.0)
 
 ## How to build from sources
 
