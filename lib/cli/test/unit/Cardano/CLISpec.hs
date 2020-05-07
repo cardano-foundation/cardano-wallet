@@ -13,8 +13,7 @@ module Cardano.CLISpec
     ( spec
     ) where
 
-import Prelude hiding
-    ( (.) )
+import Prelude
 
 import Cardano.CLI
     ( CliKeyScheme (..)
@@ -41,6 +40,7 @@ import Cardano.CLI
     , fullKeyEncodingDescription
     , hGetLine
     , hGetSensitiveLine
+    , markCharsRedAtIndices
     , newCliKeyScheme
     , toPublic
     )
@@ -68,8 +68,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
     ( left )
-import Control.Category
-    ( (.) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -80,12 +78,16 @@ import Control.Monad
     ( mapM_ )
 import Data.Either
     ( isLeft )
+import Data.List
+    ( nub )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import Data.Word
+    ( Word )
 import GHC.TypeLits
     ( natVal )
 import Options.Applicative
@@ -129,15 +131,19 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
+    , choose
     , counterexample
     , cover
     , forAll
+    , forAllShrink
     , genericShrink
     , oneof
     , property
     , suchThat
     , vector
+    , vectorOf
     , (===)
+    , (==>)
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
@@ -777,6 +783,16 @@ spec = do
             \The full dictionary is available here:\
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
+
+    describe "markCharsRedAtIndices" $ do
+        it "generates strings of expected length" $ property $ \(ixs :: [Word]) -> do
+            let maxIx = fromIntegral $ foldl max 0 ixs
+            let genStr = choose (maxIx, maxIx + 5) >>= flip vectorOf arbitrary
+            forAllShrink genStr shrink $ \s -> do
+                let rendered = markCharsRedAtIndices ixs s
+                all (< length s) (map fromIntegral ixs) ==>
+                    counterexample rendered $
+                        length rendered === length s + ((length (nub ixs)) * 9)
 
     describe "CLI Key derivation properties" $ do
         it "all allowedWordLengths are supported"

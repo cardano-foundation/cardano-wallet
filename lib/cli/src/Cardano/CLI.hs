@@ -93,6 +93,7 @@ module Cardano.CLI
     , putErrLn
     , hPutErrLn
     , enableWindowsANSI
+    , markCharsRedAtIndices
 
     -- * Working with Sensitive Data
     , getLine
