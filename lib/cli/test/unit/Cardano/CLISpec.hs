@@ -642,7 +642,7 @@ spec = do
                     "Bech32 error: string is too short"
                 decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char" $
                     "Bech32 error: Invalid character(s) in string:\n"
-                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m\ESC[0m"
+                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m"
                 decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
                     "Bech32 error: Invalid character(s) in string"
 
