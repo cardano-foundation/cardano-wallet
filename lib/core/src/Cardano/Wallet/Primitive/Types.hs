@@ -248,6 +248,7 @@ import Fmt
     , fixedF
     , fmt
     , indentF
+    , listF'
     , ordinalF
     , padRightF
     , prefixF
@@ -1340,9 +1341,9 @@ data TxParameters = TxParameters
 instance NFData TxParameters
 
 instance Buildable TxParameters where
-    build txp = blockListF' "" id
-        [ "Fee policy:         " <> feePolicyF (txp ^. #getFeePolicy)
-        , "Tx max size:        " <> txMaxSizeF (txp ^. #getTxMaxSize)
+    build txp = listF' id
+        [ "Fee policy: " <> feePolicyF (txp ^. #getFeePolicy)
+        , "Tx max size: " <> txMaxSizeF (txp ^. #getTxMaxSize)
         ]
       where
         feePolicyF = build . toText

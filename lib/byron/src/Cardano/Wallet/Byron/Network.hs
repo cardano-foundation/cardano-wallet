@@ -40,7 +40,6 @@ import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
-    , fromByronHash
     , fromChainHash
     , fromSlotNo
     , fromTip
@@ -132,6 +131,10 @@ import Network.Mux
     ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Network.TypedProtocol.Codec
     ( Codec )
+import Network.TypedProtocol.Pipelined
+    ( N (..), Nat (..), natToInt )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..)
     , GenTx
@@ -149,6 +152,7 @@ import Ouroboros.Consensus.Node.Run
     ( RunNode (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..)
+    , HasHeader (..)
     , Point (..)
     , Serialised (..)
     , SlotNo (..)
@@ -172,7 +176,7 @@ import Ouroboros.Network.Codec
 import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.Driver.Simple
-    ( TraceSendRecv, runPeer )
+    ( TraceSendRecv, runPeer, runPipelinedPeer )
 import Ouroboros.Network.Mux
     ( MuxPeer (..), OuroborosApplication (..), RunMiniProtocol (..) )
 import Ouroboros.Network.NodeToClient
@@ -197,6 +201,8 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     , ClientStNext (..)
     , chainSyncClientPeer
     )
+import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
+    ( ChainSyncClientPipelined (..), chainSyncClientPeerPipelined )
 import Ouroboros.Network.Protocol.ChainSync.Codec
     ( codecChainSync, codecChainSyncSerialised )
 import Ouroboros.Network.Protocol.ChainSync.Type
@@ -230,6 +236,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -264,7 +271,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     txParamsVar <- atomically $ newTVar (W.txParameters gbp)
-    nodeTipClient <- mkTipSyncClient tr
+    nodeTipClient <- mkTipSyncClient tr gbp
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
@@ -442,7 +449,7 @@ type NetworkClient m = OuroborosApplication
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
-    :: (MonadThrow m, MonadST m, MonadTimer m)
+    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => W.BlockchainParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd m)
@@ -450,11 +457,12 @@ mkWalletClient
     -> NetworkClient m
 mkWalletClient bp chainSyncQ =
     nodeToClientProtocols NodeToClientProtocols
-        { localChainSyncProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                chainSyncWithBlocks nullTracer bp chainSyncQ channel
-        , localTxSubmissionProtocol = doNothingProtocol
-        , localStateQueryProtocol = doNothingProtocol
+        { localChainSyncProtocol = InitiatorProtocolOnly $ MuxPeerRaw $
+            chainSyncWithBlocks nullTracer bp chainSyncQ
+        , localTxSubmissionProtocol =
+            doNothingProtocol
+        , localStateQueryProtocol =
+            doNothingProtocol
         }
         NodeToClientV_2
 
@@ -468,6 +476,8 @@ mkTipSyncClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
+    -> W.GenesisBlockParameters
+        -- ^ Initial blockchain parameters
     -> TQueue m (LocalTxSubmissionCmd m)
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
@@ -475,7 +485,7 @@ mkTipSyncClient
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     onTxParamsUpdate' <- debounce $ \txParams -> do
@@ -494,8 +504,12 @@ mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
             Right (Right ls) ->
                 onTxParamsUpdate' $ txParametersFromUpdateState ls
 
+        W.BlockchainParameters{ getGenesisBlockHash
+        , getEpochLength
+        } = W.staticParameters gbp
+
     onTipUpdate' <- debounce $ \tip -> do
-        traceWith tr $ MsgNodeTip tip
+        traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -622,6 +636,11 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
         traceWith tr Nothing
         pure onResourceVanished
 
+-- | A little type-alias to ease signatures in 'chainSyncWithBlocks'
+type RequestNextStrategy m n
+    =  (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
+    -> P.ClientPipelinedStIdle n ByronBlock (Tip ByronBlock) m Void
+
 -- | Client for the 'Chain Sync' mini-protocol.
 --
 -- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
@@ -662,7 +681,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
 chainSyncWithBlocks
     :: forall m protocol.
         ( protocol ~ ChainSync ByronBlock (Tip ByronBlock)
-        , MonadThrow m, MonadST m, MonadSTM m
+        , MonadThrow m, MonadST m, MonadSTM m, MonadAsync m
         )
     => Tracer m (TraceSendRecv protocol)
         -- ^ Base tracer for the mini-protocols
@@ -679,12 +698,19 @@ chainSyncWithBlocks
         -- socket).
     -> m Void
 chainSyncWithBlocks tr bp queue channel = do
-    runPeer tr codec channel (chainSyncClientPeer client)
+    runPipelinedPeer tr codec channel (chainSyncClientPeerPipelined client)
   where
     W.BlockchainParameters
         { getGenesisBlockHash
         , getEpochLength
+        , getEpochStability
         } = bp
+
+    k :: Natural
+    k = fromIntegral $ getQuantity getEpochStability
+
+    maxInFlight :: Natural
+    maxInFlight = 1000
 
     codec :: Codec protocol DeserialiseFailure m ByteString
     codec = codecChainSync
@@ -695,64 +721,94 @@ chainSyncWithBlocks tr bp queue channel = do
         (encodeTip encodeByronHeaderHash)
         (decodeTip decodeByronHeaderHash)
 
-    client :: ChainSyncClient ByronBlock (Tip ByronBlock) m Void
-    client = ChainSyncClient clientStIdle
+    -- Return the _number of slots between two tips.
+    tipDistance :: BlockNo -> Tip ByronBlock -> Natural
+    tipDistance (BlockNo n) TipGenesis =
+        1 + fromIntegral n
+    tipDistance (BlockNo n) (Tip _ _ (BlockNo n')) =
+        fromIntegral @Integer $ abs $ fromIntegral n - fromIntegral n'
+
+    client :: ChainSyncClientPipelined ByronBlock (Tip ByronBlock) m Void
+    client = ChainSyncClientPipelined (clientStIdle oneByOne)
       where
         -- Client in the state 'Idle'. We wait for requests / commands on an
         -- 'TQueue'. Commands start a chain of messages and state transitions
         -- before finally returning to 'Idle', waiting for the next command.
         clientStIdle
-            :: m (ClientStIdle ByronBlock (Tip ByronBlock) m Void)
-        clientStIdle = atomically (readTQueue queue) >>= \case
+            :: RequestNextStrategy m 'Z
+            -> m (P.ClientPipelinedStIdle 'Z ByronBlock (Tip ByronBlock) m Void)
+        clientStIdle strategy = atomically (readTQueue queue) >>= \case
             CmdFindIntersection points respond -> pure $
-                SendMsgFindIntersect points (clientStIntersect respond)
-
-            CmdNextBlocks respond -> pure $
-                SendMsgRequestNext
-                    (clientStNext ([], 1000) respond)
-                    (pure $ clientStNext ([], 1) respond)
+                P.SendMsgFindIntersect points (clientStIntersect respond)
+            CmdNextBlocks respond ->
+                pure $ strategy respond
 
         clientStIntersect
             :: (Maybe (Point ByronBlock) -> m ())
-            -> ClientStIntersect ByronBlock (Tip ByronBlock) m Void
-        clientStIntersect respond = ClientStIntersect
-            { recvMsgIntersectFound = \intersection _tip ->
-                ChainSyncClient $ do
-                    respond (Just intersection)
-                    clientStIdle
+            -> P.ClientPipelinedStIntersect ByronBlock (Tip ByronBlock) m Void
+        clientStIntersect respond = P.ClientPipelinedStIntersect
+            { recvMsgIntersectFound = \intersection _tip -> do
+                respond (Just intersection)
+                clientStIdle oneByOne
 
-            , recvMsgIntersectNotFound = \_tip ->
-                ChainSyncClient $ do
-                    respond Nothing
-                    clientStIdle
+            , recvMsgIntersectNotFound = \_tip -> do
+                respond Nothing
+                clientStIdle oneByOne
             }
 
-        clientStNext
-            :: ([ByronBlock], Int)
-            -> (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
-            -> ClientStNext ByronBlock (Tip ByronBlock) m Void
-        clientStNext (blocks, n) respond
-            | n <= 1 = ClientStNext
-                { recvMsgRollBackward = onRollback
-                , recvMsgRollForward = \block tip ->
-                    ChainSyncClient $ do
-                        let cursor' = blockPoint block
-                        let blocks' = reverse (block:blocks)
-                        let tip'    = fromTip getGenesisBlockHash getEpochLength tip
-                        respond (RollForward cursor' tip' blocks')
-                        clientStIdle
-                }
-            | otherwise = ClientStNext
-                { recvMsgRollBackward = onRollback
-                , recvMsgRollForward = \block _ ->
-                    ChainSyncClient $ pure $ SendMsgRequestNext
-                        (clientStNext (block:blocks,n-1) respond)
-                        (pure $ clientStNext (block:blocks,1) respond)
-                }
-          where
-            onRollback point _tip = ChainSyncClient $ do
+        -- Simple strategy that sends a request and waits for an answer.
+        oneByOne
+            :: RequestNextStrategy m 'Z
+        oneByOne respond = P.SendMsgRequestNext
+            (collectResponses respond [] Zero)
+            (pure $ collectResponses respond [] Zero)
+
+        -- We only pipeline requests when it's safe to pipeline them. Safe
+        -- is when all blocks are considered 'stable' and immutable, i.e.
+        -- when we land more than `k` blocks from the tip, so when we start
+        -- more than `k + maxInFlight` blocks from the tip
+        --
+        --     0                       tip - k           tip
+        --     |---------------------------|-------------->
+        --               pipelined            one by one
+        --
+        pipeline
+            :: Nat n
+            -> RequestNextStrategy m n
+        pipeline (Succ n) respond | natToInt (Succ n) == fromIntegral maxInFlight =
+            P.CollectResponse Nothing $ collectResponses respond [] n
+        pipeline n respond =
+            P.SendMsgRequestNextPipelined $ pipeline (Succ n) respond
+
+        collectResponses
+            :: (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
+            -> [ByronBlock]
+            -> Nat n
+            -> P.ClientStNext n ByronBlock (Tip ByronBlock) m Void
+        collectResponses respond blocks Zero = P.ClientStNext
+            { P.recvMsgRollForward = \block tip -> do
+                let cursor' = blockPoint block
+                let blocks' = reverse (block:blocks)
+                let tip'    = fromTip getGenesisBlockHash getEpochLength tip
+                respond (RollForward cursor' tip' blocks')
+                let distance = tipDistance (blockNo block) tip
+                let strategy = if distance > k + maxInFlight
+                        then pipeline Zero
+                        else oneByOne
+                clientStIdle strategy
+
+            , P.recvMsgRollBackward = \point _tip -> do
                 respond (RollBackward point)
-                clientStIdle
+                clientStIdle oneByOne
+            }
+        collectResponses respond blocks (Succ n) = P.ClientStNext
+            { P.recvMsgRollForward = \block _tip -> pure $
+                P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
+            , P.recvMsgRollBackward = \_point _tip -> pure $ error
+                "rolled backward while pipelining requests! This shouldn't be \
+                \possible because we are making sure to only pipeline requests \
+                \in areas where the node can't possibly roll back."
+            }
 
 -- | Client for the 'Chain Sync' mini-protocol, which provides notifications
 -- when the node tip changes.
@@ -1013,7 +1069,7 @@ data NetworkLayerLog
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout
     | MsgPostSealedTx W.SealedTx
-    | MsgNodeTip (Tip ByronBlock)
+    | MsgNodeTip W.BlockHeader
     | MsgTxParameters W.TxParameters
     | MsgLocalStateQueryError String
 
@@ -1049,13 +1105,9 @@ instance ToText NetworkLayerLog where
             ]
         MsgLocalStateQuery msg ->
             T.pack (show msg)
-        MsgNodeTip TipGenesis ->
-            "Network node tip is at genesis"
-        MsgNodeTip (Tip _sl h (BlockNo bl)) -> T.unwords
-            [ "Network node tip block height is"
-            , T.pack (show bl)
-            , "at hash"
-            , pretty (fromByronHash h)
+        MsgNodeTip bh -> T.unwords
+            [ "Network node tip is"
+            , pretty bh
             ]
         MsgTxParameters params -> T.unwords
             [ "TxParams for tip are:"
