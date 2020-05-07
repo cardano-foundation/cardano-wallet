@@ -59,7 +59,7 @@ import Control.Exception
     , Exception (..)
     , SomeException
     , asyncExceptionFromException
-    , catch
+    , handle
     )
 import Control.Monad
     ( when )
@@ -331,9 +331,9 @@ follow nl tr cps yield header =
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
     sleep :: Int -> Cursor target -> IO FollowExit
-    sleep delay cursor = do
+    sleep delay cursor = handle retry $ do
         when (delay > 0) (threadDelay delay)
-        step delay cursor `catch` retry
+        step delay cursor
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled ->
@@ -371,7 +371,7 @@ follow nl tr cps yield header =
             params <- getTxParameters nl
             action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
-            handle cursor' action
+            continueWith cursor' action
 
         Right (RollBackward cursor') ->
             -- NOTE
@@ -386,8 +386,8 @@ follow nl tr cps yield header =
                 (sl, _) ->
                     pure (FollowRollback sl)
       where
-        handle :: Cursor target -> FollowAction e -> IO FollowExit
-        handle cursor' = \case
+        continueWith :: Cursor target -> FollowAction e -> IO FollowExit
+        continueWith cursor' = \case
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return FollowInterrupted
             Continue ->

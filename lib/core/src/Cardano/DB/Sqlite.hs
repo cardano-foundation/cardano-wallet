@@ -53,7 +53,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog )
 import Control.Concurrent.MVar
-    ( newMVar, withMVar )
+    ( newMVar, withMVarMasked )
 import Control.Exception
     ( Exception, bracket_, tryJust )
 import Control.Monad
@@ -222,7 +222,7 @@ startSqliteBackend manualMigration autoMigration trace fp = do
     let observe :: IO a -> IO a
         observe = bracket_ (traceRun False) (traceRun True)
     let runQuery :: SqlPersistT IO a -> IO a
-        runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
+        runQuery cmd = withMVarMasked lock $ const $ observe $ runSqlConn cmd backend
     autoMigrationResult <-
         withForeignKeysDisabled trace connection
             $ runQuery (runMigrationQuiet autoMigration)
