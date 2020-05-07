@@ -40,6 +40,7 @@ import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
+    , fromByronHash
     , fromChainHash
     , fromSlotNo
     , fromTip
@@ -147,7 +148,8 @@ import Ouroboros.Consensus.Byron.Node
 import Ouroboros.Consensus.Node.Run
     ( RunNode (..) )
 import Ouroboros.Network.Block
-    ( Point (..)
+    ( BlockNo (..)
+    , Point (..)
     , Serialised (..)
     , SlotNo (..)
     , Tip (..)
@@ -481,11 +483,6 @@ mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         onTxParamsUpdate txParams
 
     let
-        onTipUpdate' tip = do
-            traceWith tr $ MsgNodeTip tip
-            onTipUpdate tip
-            queryLocalState (getTipPoint tip)
-
         queryLocalState pt =
             (localStateQueryQ `send` CmdQueryLocalState pt) >>= handleLocalState
 
@@ -496,6 +493,11 @@ mkTipSyncClient tr localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right (Right ls) ->
                 onTxParamsUpdate' $ txParametersFromUpdateState ls
+
+    onTipUpdate' <- debounce $ \tip -> do
+        traceWith tr $ MsgNodeTip tip
+        onTipUpdate tip
+        queryLocalState (getTipPoint tip)
 
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
@@ -1047,9 +1049,13 @@ instance ToText NetworkLayerLog where
             ]
         MsgLocalStateQuery msg ->
             T.pack (show msg)
-        MsgNodeTip tip -> T.unwords
-            [ "Network node tip is:"
-            , T.pack (show tip)
+        MsgNodeTip TipGenesis ->
+            "Network node tip is at genesis"
+        MsgNodeTip (Tip _sl h (BlockNo bl)) -> T.unwords
+            [ "Network node tip block height is"
+            , T.pack (show bl)
+            , "at hash"
+            , pretty (fromByronHash h)
             ]
         MsgTxParameters params -> T.unwords
             [ "TxParams for tip are:"
@@ -1074,6 +1080,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgIntersectionFound{}     -> Info
         MsgPostSealedTx{}          -> Debug
         MsgLocalStateQuery{}       -> Debug
-        MsgNodeTip{}               -> Info
+        MsgNodeTip{}               -> Debug
         MsgTxParameters{}          -> Info
         MsgLocalStateQueryError{}  -> Error
