@@ -6,7 +6,7 @@ services:
     environment:
       NETWORK:
     volumes:
-      - node-db:/data
+      - node-${NETWORK}-db:/data
       - node-ipc:/ipc
       - node-config:/nix/store
     restart: on-failure
@@ -14,7 +14,7 @@ services:
   cardano-wallet:
     image: inputoutput/cardano-wallet:latest
     volumes:
-      - wallet-db:/wallet-db
+      - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
       - node-config:/config
     ports:
@@ -30,7 +30,9 @@ services:
     restart: on-failure
 
 volumes:
-  node-db:
+  node-mainnet-db:
+  node-testnet-db:
+  wallet-mainnet-db:
+  wallet-testnet-db:
   node-ipc:
   node-config:
-  wallet-db:
