@@ -143,11 +143,11 @@ docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:byron
 
 One can also use [docker-compose](https://docs.docker.com/compose/) to quickly spin up `cardano-wallet` together with supported block producer.
 
-[Here](https://github.com/input-output-hk/cardano-wallet/blob/master/scripts/docker-compose.yaml) is exemplary `docker-compose.yaml` combining the latest versions of `cardano-wallet` and `cardano-node` and connecting both to mainnet.
+[Here](https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yaml) is exemplary `docker-compose.yaml` combining the latest versions of `cardano-wallet` and `cardano-node`.
 
 To give it a spin simply launch:
 
 ```
-wget https://github.com/input-output-hk/cardano-wallet/blob/master/scripts/docker-compose.yaml
-docker-compose up
+wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
+NETWORK=mainnet docker-compose up
 ```
