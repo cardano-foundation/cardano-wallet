@@ -41,7 +41,7 @@ start with Daedalus.
 > [cardano-sl](https://github.com/input-output-hk/cardano-sl)
 > repository.
 
-## Getting Started 
+## Getting Started
 
 ```
 wget https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/docker-compose.yml
@@ -52,6 +52,12 @@ Fantastic! The server is up-and-running, waiting for HTTP requests on `localhost
 
 ```
 curl http://localhost:8090/v2/network/information
+```
+
+or to be accessed via CLI, e.g.:
+
+```
+docker run --network host --rm inputoutput/cardano-wallet network information
 ```
 
 See also [Wiki - Docker](https://github.com/input-output-hk/cardano-wallet/wiki/Docker) for more information about using docker.
