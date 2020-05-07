@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -32,6 +33,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Network.NTP.Client
@@ -40,10 +43,13 @@ import Network.NTP.Client
     , NtpSettings (..)
     , NtpStatus (..)
     , NtpTrace (..)
+    , ResultOrFailure (..)
     , withNtpClient
     )
 import System.IOManager
     ( IOManager )
+
+import qualified Data.Text as T
 
 -- | Set up a 'NtpClient' and pass it to the given action. The 'NtpClient' is
 -- terminated when the callback returns.
@@ -68,6 +74,30 @@ ntpSettings = NtpSettings
     , ntpPollDelay = 300_000_000
     }
 
+-- TODO: Move this upstream.
+prettyNtpStatus :: NtpStatus -> Text
+prettyNtpStatus = \case
+    NtpDrift o -> "drifting by " <> prettyNtpOffset o
+    NtpSyncPending -> "pending"
+    NtpSyncUnavailable -> "unavailable"
+
+-- Using 'Integral' here because 'NtpOffset' is not exposed :/
+--
+-- TODO: Move this upstream.
+prettyNtpOffset :: Integral a => a -> Text
+prettyNtpOffset n =
+    T.pack (show $ fromIntegral @_ @Integer n) <> "μs"
+
+-- TODO: Move this upstream
+prettyResultOrFailure :: (a -> Text) -> ResultOrFailure a -> Text
+prettyResultOrFailure prettyA = \case
+    BothSucceeded a ->
+        prettyA a
+    SuccessAndFailure a ip e ->
+        "succeeded and failed with " <> prettyA a <> ", " <> T.pack (show (ip, e))
+    BothFailed e0 e1 ->
+        "failed with " <> T.pack (show e0) <> ", " <> T.pack (show e1)
+
 instance ToText IPVersion where
     toText IPv4 = "IPv4"
     toText IPv6 = "IPv6"
@@ -89,9 +119,10 @@ instance ToText NtpTrace where
         NtpTraceNoLocalAddr ->
             "no local address error when running ntp client"
         NtpTraceResult a ->
-            "ntp client gives result of " <> toText (show a)
+            "local clock is " <> prettyNtpStatus a
         NtpTraceRunProtocolResults a ->
-            "ntp client run protocol results: " <> toText (show a)
+            "ntp client run protocol results: "
+            <> prettyResultOrFailure (T.intercalate ", " . map prettyNtpOffset) a
         NtpTracePacketSent _ a ->
             "ntp client sent packet when running " <> toText (show a)
         NtpTracePacketSendError _ e ->
@@ -116,7 +147,7 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTraceClientStartQuery -> Info
         NtpTraceNoLocalAddr -> Notice
         NtpTraceResult _ -> Info
-        NtpTraceRunProtocolResults _ -> Info
+        NtpTraceRunProtocolResults _ -> Debug
         NtpTracePacketSent _ _ -> Debug
         NtpTracePacketSendError _ _ -> Notice
         NtpTracePacketDecodeError _ _ -> Notice
