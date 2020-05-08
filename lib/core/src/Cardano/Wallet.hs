@@ -88,9 +88,11 @@ module Cardano.Wallet
 
     -- ** Address
     , createRandomAddress
+    , importRandomAddress
     , listAddresses
     , normalizeDelegationAddress
     , ErrCreateRandomAddress(..)
+    , ErrImportRandomAddress(..)
 
     -- ** Payment
     , selectCoinsExternal
@@ -953,6 +955,30 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
     isKnownIndex accIx addrIx s =
         (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
+importRandomAddress
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , PaymentAddress n ByronKey
+        , s ~ RndState n
+        , k ~ ByronKey
+        )
+    => ctx
+    -> WalletId
+    -> Address
+    -> ExceptT ErrImportRandomAddress IO ()
+importRandomAddress ctx wid addr = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrImportAddrNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
+    case isOurs addr (getState cp) of
+        (False, _) -> throwE ErrImportAddrDoesNotBelong
+        (True, s') -> do
+            withExceptT ErrImportAddrNoSuchWallet
+                $ mapExceptT atomically
+                $ putCheckpoint (PrimaryKey wid) (updateState s' cp)
+  where
+    db = ctx ^. dbLayer @s @k
+
 -- NOTE
 -- Addresses coming from the transaction history might be payment or
 -- delegation addresses. So we normalize them all to be delegation addresses
@@ -1806,6 +1832,12 @@ data ErrCreateRandomAddress
     | ErrCreateAddrNoSuchWallet ErrNoSuchWallet
     | ErrCreateAddrWithRootKey ErrWithRootKey
     | ErrCreateAddressNotAByronWallet
+    deriving (Generic, Eq, Show)
+
+data ErrImportRandomAddress
+    = ErrImportAddrNoSuchWallet ErrNoSuchWallet
+    | ErrImportAddrDoesNotBelong
+    | ErrImportAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

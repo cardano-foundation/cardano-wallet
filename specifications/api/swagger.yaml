@@ -2049,9 +2049,9 @@ paths:
 
   /byron-wallets/{walletId}/addresses/{addressId}:
       put:
-        operationId: restoreAddress
+        operationId: importAddress
         tags: ["Byron Addresses"]
-        summary: Restore Address
+        summary: Import Address
         description: |
           <p align="right">status: <strong>stable</strong></p>
 

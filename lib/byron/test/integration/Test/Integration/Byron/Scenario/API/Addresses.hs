@@ -96,10 +96,10 @@ spec = do
         scenario_ADDRESS_CREATE_05 @n
         scenario_ADDRESS_CREATE_06 @n
 
-        scenario_ADDRESS_RESTORE_01 @n emptyRandomWalletMws
-        scenario_ADDRESS_RESTORE_02 @n emptyIcarusWalletMws
-        scenario_ADDRESS_RESTORE_03 @n emptyRandomWalletMws
-        scenario_ADDRESS_RESTORE_04 @n fixtureRandomWallet
+        scenario_ADDRESS_IMPORT_01 @n emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_02 @n emptyIcarusWalletMws
+        scenario_ADDRESS_IMPORT_03 @n emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_04 @n fixtureRandomWallet
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -281,7 +281,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
   where
     title = "ADDRESS_CREATE_06 - Cannot create an address that already exists"
 
-scenario_ADDRESS_RESTORE_01
+scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , EncodeAddress n
@@ -289,7 +289,7 @@ scenario_ADDRESS_RESTORE_01
         )
     => (Context t -> IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith (Context t)
-scenario_ADDRESS_RESTORE_01 fixture = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> do
     (w, mw) <- fixture ctx
 
     -- Get an unused address
@@ -301,16 +301,16 @@ scenario_ADDRESS_RESTORE_01 fixture = it title $ \ctx -> do
         [ expectResponseCode @IO HTTP.status204
         ]
 
-    -- Restore it
+    -- Import it
     r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r1
         [ expectListField 0 #state (`shouldBe` ApiT Unused)
         , expectListField 0 (#id . position @1) (`shouldBe` ApiT addr)
         ]
   where
-    title = "ADDRESS_RESTORE_01 - I can restore an address from my wallet"
+    title = "ADDRESS_IMPORT_01 - I can import an address from my wallet"
 
-scenario_ADDRESS_RESTORE_02
+scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , EncodeAddress n
@@ -318,7 +318,7 @@ scenario_ADDRESS_RESTORE_02
         )
     => (Context t -> IO (ApiByronWallet, Mnemonic 15))
     -> SpecWith (Context t)
-scenario_ADDRESS_RESTORE_02 fixture = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> do
     (w, mw) <- fixture ctx
 
     let addr = icarusAddresses @n mw !! 42
@@ -330,9 +330,9 @@ scenario_ADDRESS_RESTORE_02 fixture = it title $ \ctx -> do
         , expectErrorMessage errMsg403NotAByronWallet
         ]
   where
-    title = "ADDRESS_RESTORE_02 - I can't restore an address on an Icarus wallet"
+    title = "ADDRESS_IMPORT_02 - I can't import an address on an Icarus wallet"
 
-scenario_ADDRESS_RESTORE_03
+scenario_ADDRESS_IMPORT_03
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , EncodeAddress n
@@ -340,7 +340,7 @@ scenario_ADDRESS_RESTORE_03
         )
     => (Context t -> IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith (Context t)
-scenario_ADDRESS_RESTORE_03 fixture = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> do
     (w, mw) <- fixture ctx
 
     -- Get an unused address
@@ -354,9 +354,9 @@ scenario_ADDRESS_RESTORE_03 fixture = it title $ \ctx -> do
     r1 <- request @() ctx ("PUT", link) Default Empty
     verify r1 [ expectResponseCode @IO HTTP.status204 ]
   where
-    title = "ADDRESS_RESTORE_03 - I can restore an unused address multiple times"
+    title = "ADDRESS_IMPORT_03 - I can import an unused address multiple times"
 
-scenario_ADDRESS_RESTORE_04
+scenario_ADDRESS_IMPORT_04
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , EncodeAddress n
@@ -364,7 +364,7 @@ scenario_ADDRESS_RESTORE_04
         )
     => (Context t -> IO ApiByronWallet)
     -> SpecWith (Context t)
-scenario_ADDRESS_RESTORE_04 fixture = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> do
     w <- fixture ctx
 
     -- Get a used address
@@ -383,4 +383,4 @@ scenario_ADDRESS_RESTORE_04 fixture = it title $ \ctx -> do
         (Link.listAddresses' @'Byron w (Just Used)) Default Empty
     verify r2 [ expectListField 0 id (`shouldBe` addr) ]
   where
-    title = "ADDRESS_RESTORE_04 - I can restore a used address (idempotence)"
+    title = "ADDRESS_IMPORT_04 - I can import a used address (idempotence)"

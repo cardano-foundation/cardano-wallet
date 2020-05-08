@@ -93,6 +93,7 @@ import Cardano.Wallet
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
+    , ErrImportRandomAddress (..)
     , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
@@ -1034,7 +1035,9 @@ putRandomAddress
     -> ApiT WalletId
     -> (ApiT Address, Proxy n)
     -> Handler NoContent
-putRandomAddress ctx wid (ApiT addr, _proxy)  = do
+putRandomAddress ctx (ApiT wid) (ApiT addr, _proxy)  = do
+    withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.importRandomAddress @_ @s @k wrk wid addr
     pure NoContent
 
 listAddresses
@@ -2093,6 +2096,20 @@ instance LiftHandler ErrCreateRandomAddress where
             apiError err403 InvalidWalletType $ mconcat
                 [ "I cannot derive new address for this wallet type."
                 , " Make sure to use Byron random wallet id."
+                ]
+
+instance LiftHandler ErrImportRandomAddress where
+    handler = \case
+        ErrImportAddrNoSuchWallet e -> handler e
+        ErrImportAddressNotAByronWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "I cannot derive new address for this wallet type."
+                , " Make sure to use Byron random wallet id."
+                ]
+        ErrImportAddrDoesNotBelong ->
+            apiError err403 KeyNotFoundForAddress $ mconcat
+                [ "I couldn't identify this address as one of mine. It likely "
+                , "belongs to another wallet and I will therefore not import it."
                 ]
 
 instance LiftHandler (Request, ServerError) where
