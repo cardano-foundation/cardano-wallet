@@ -20,7 +20,7 @@ There are several wallet types available:
  - trezor
  - ledger
 
-The basic difference between them is that for a `random` wallet user needs to [create new address]({{< ref "how-to-get-target-address-for-incoming-transaction.md" >}}) manually, whereas for sequential wallets like `icarus`, `trezor` and `ledger` addresses are [generated automatically]({{< ref "how-to-get-target-address-for-incoming-transaction.md#listing-addresses-in-sequential-wallets" >}}) by the wallet.
+The basic difference between them is that for a `random` wallet user needs to [create new address]({{< ref "how-to-create-addresses.md" >}}) manually, whereas for sequential wallets like `icarus`, `trezor` and `ledger` addresses are [generated automatically]({{< ref "how-to-create-addresses.md#listing-addresses-in-sequential-wallets" >}}) by the wallet.
 
 {{<hint danger>}}
 Please note that `random` wallets are considered **deprecated** and should not be used by new applications.
