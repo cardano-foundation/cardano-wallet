@@ -83,17 +83,13 @@ spec  = do
               \e99a00cfed56e9516bc947f327a73e0849882a32a682932c51b42156055abb0b\
               \5d3661deb9064f2d0e03fe85d68070b2fe33b4916059658e28ac7f7f91ca4b12"
 
-        it "bryon keys fail" $ do
-            keyStderr ["child", "--path", "0"] byronKey
-                `shouldReturn`
-                "That extended private key looks \
-                \weird. Is it encrypted? Or is it an old Byron key?\n"
+        it "byron keys does not fail anymore" $ do
+            keySuccess ["child", "--path", "0"] byronKey
+                `shouldReturn` ""
 
-        it "encrypted keys fail" $ do
-            keyStderr ["child", "--path", "0"] encryptedKey
-            `shouldReturn`
-                "That extended private key looks \
-                \weird. Is it encrypted? Or is it an old Byron key?\n"
+        it "encrypted byron keys does not fail anymore" $ do
+            keySuccess ["child", "--path", "0"] encryptedKey
+                `shouldReturn` ""
 
         it "fails when key is not 96 bytes" $ do
             keyStderr ["child", "--path", "0"] "5073"
@@ -197,4 +193,16 @@ spec  = do
     keyStderr args stdin = do
         (c, _out, err) <- readProcessWithExitCode (commandName @t) ("key":args) stdin
         c `shouldBe` (ExitFailure 1)
+        return err
+
+    keySuccess
+        :: [String]
+        -- ^ Arguments
+        -> String
+        -- ^ Stdin
+        -> IO String
+        -- ^ Stderr
+    keySuccess args stdin = do
+        (c, _out, err) <- readProcessWithExitCode (commandName @t) ("key":args) stdin
+        c `shouldBe` ExitSuccess
         return err
