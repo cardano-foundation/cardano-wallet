@@ -85,13 +85,13 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xprvToBytes, xpubToBytes )
+    ( XPrv, XPub, xprvFromBytes, xprvToBytes, xpubToBytes )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless, when, (>=>) )
+    ( unless, (>=>) )
 import Crypto.Hash
     ( Blake2b_256, Digest, HashAlgorithm, hash )
 import Crypto.KDF.PBKDF2
@@ -134,7 +134,6 @@ import Safe
     ( toEnumMay )
 
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Crypto.Wallet.Encrypted as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -699,28 +698,7 @@ xPrvFromStrippedPubXPrvCheckRoundtrip bs = do
         else Left ErrCannotRoundtripToSameBytes
 
 -- | Create a @XPrv@ from a 96-byte long extended private key
---
--- The format is:
---
--- > Extended Private Key (64 bytes) <> ChainCode (32 bytes)
---
--- This function uses @cardano-crypto:encryptedCreateDirectWithTweak@ which
--- will modify the key if certain bits are not cleared / set. Byron keys are
--- likely not to have the correct tweak.
---
--- Byron keys would be silently modified.
 xPrvFromStrippedPubXPrv :: ByteString -> Either ErrXPrvFromStrippedPubXPrv XPrv
-xPrvFromStrippedPubXPrv x = do
-        when (BS.length x /= expectedInputLength) $
-            Left $ ErrInputLengthMismatch expectedInputLength (BS.length x)
-        return $ toXPrv $ CC.encryptedCreateDirectWithTweak x pass
-  where
-    pass :: ByteString
-    pass = ""
-
-    expectedInputLength = 96
-
-    -- @xprv@ can fail. But because it is calling @encryptedKey@ internally,
-    -- and we are feeding it the output of @unEncryptedKey@, it really shouldn't.
-    toXPrv :: CC.EncryptedKey -> XPrv
-    toXPrv = either (error . show) id . CC.xprv . CC.unEncryptedKey
+xPrvFromStrippedPubXPrv bs = case xprvFromBytes bs of
+    Nothing -> Left $ ErrInputLengthMismatch 96 (BS.length bs)
+    Just key -> return key

@@ -53,7 +53,7 @@ let
         packages.cardano-wallet-shelley.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-jormungandr.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
         packages.text-class.src = filterSubDir /lib/text-class;
         packages.text-class.components.tests.unit.keepSource = true;
@@ -112,11 +112,11 @@ let
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
           # aren't touching jormungandr a lot more these days.
-          integration.doCheck = false;
+          jormungandr-integration.doCheck = false;
           # Some tests want to write ~/.local/share/cardano-wallet
-          integration.preCheck = "export HOME=`pwd`";
+          jormungandr-integration.preCheck = "export HOME=`pwd`";
           # provide jormungandr command to test suites
-          integration.build-tools = [
+          jormungandr-integration.build-tools = [
             jmPkgs.jormungandr
             jmPkgs.jormungandr-cli
           ];
@@ -224,7 +224,7 @@ let
         packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-jormungandr.components.benchmarks.latency = fullyStaticOptions;
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
-        packages.cardano-wallet-jormungandr.components.tests.integration = fullyStaticOptions;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
         packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
