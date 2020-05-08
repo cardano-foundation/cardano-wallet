@@ -119,6 +119,7 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , createAddressViaCLI
+    , importAddressViaCLI
     , listAddressesViaCLI
     , listStakePoolsViaCLI
     , listWalletsViaCLI
@@ -1397,6 +1398,16 @@ createAddressViaCLI ctx args pass = do
             out <- TIO.hGetContents stdout
             err <- TIO.hGetContents stderr
             pure (c, out, err)
+
+importAddressViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> [String]
+        -- ^ Args
+    -> IO r
+        -- ^ (ExitCode, StdOut, StdErr)
+importAddressViaCLI ctx args = cardanoWalletCLI @t $
+    ["address", "import", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
 
 listAddressesViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)

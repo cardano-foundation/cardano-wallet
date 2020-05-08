@@ -15,9 +15,18 @@ module Test.Integration.Byron.Scenario.CLI.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiByronWallet, ApiT (..), DecodeAddress, EncodeAddress )
+    ( ApiAddress
+    , ApiByronWallet
+    , ApiT (..)
+    , DecodeAddress
+    , EncodeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant, PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
@@ -38,13 +47,18 @@ import Test.Integration.Framework.DSL
     , createAddressViaCLI
     , deleteWalletViaCLI
     , emptyIcarusWallet
+    , emptyIcarusWalletMws
     , emptyRandomWallet
+    , emptyRandomWalletMws
     , expectCliField
     , expectCliListField
     , expectValidJSON
     , fixtureIcarusWallet
     , fixtureRandomWallet
+    , icarusAddresses
+    , importAddressViaCLI
     , listAddressesViaCLI
+    , randomAddresses
     , verify
     , walletId
     )
@@ -56,6 +70,8 @@ import qualified Data.Text as T
 spec :: forall n t.
     ( DecodeAddress n
     , EncodeAddress n
+    , PaymentAddress n ByronKey
+    , PaymentAddress n IcarusKey
     , KnownCommand t
     ) => SpecWith (Context t)
 spec = do
@@ -75,6 +91,10 @@ spec = do
         scenario_ADDRESS_CREATE_04 @n
         scenario_ADDRESS_CREATE_05 @n
         scenario_ADDRESS_CREATE_06 @n
+
+        scenario_ADDRESS_IMPORT_01 @n
+        scenario_ADDRESS_IMPORT_02 @n
+        scenario_ADDRESS_IMPORT_03 @n
 
         describe "CLI_ADDRESS_CREATE_07 - False indexes" $ do
             let outOfBoundIndexes =
@@ -310,3 +330,58 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> do
     T.unpack err `shouldContain` expectedMsg
     c `shouldBe` ExitFailure 1
     out `shouldBe` mempty
+
+scenario_ADDRESS_IMPORT_01
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        , KnownCommand t
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> do
+    (w, mw) <- emptyRandomWalletMws ctx
+    let wid = T.unpack (w ^. walletId)
+    let addr = T.unpack $ encodeAddress @n $ randomAddresses @n mw !! 42
+    (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI @t ctx [wid, addr]
+    c `shouldBe` ExitSuccess
+    err `shouldContain` cmdOk
+  where
+    title = "CLI_ADDRESS_IMPORT_01 - I can import an address from my wallet"
+
+scenario_ADDRESS_IMPORT_02
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n IcarusKey
+        , KnownCommand t
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> do
+    (w, mw) <- emptyIcarusWalletMws ctx
+    let wid = T.unpack (w ^. walletId)
+    let addr = T.unpack $ encodeAddress @n $ icarusAddresses @n mw !! 42
+    (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI @t ctx [wid, addr]
+    c `shouldBe` ExitFailure 1
+    err `shouldContain` errMsg403NotAByronWallet
+  where
+    title = "CLI_ADDRESS_IMPORT_02 - I can't import an address on an Icarus wallets"
+
+scenario_ADDRESS_IMPORT_03
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        , KnownCommand t
+        )
+    => SpecWith (Context t)
+scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> do
+    w <- emptyRandomWallet ctx
+    let wid = T.unpack (w ^. walletId)
+    let addr = "💩"
+    (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI @t ctx [wid, addr]
+    c `shouldBe` ExitFailure 1
+    err `shouldBe` "Unable to decode Address: encoding is neither Bech32 nor Base58.\n"
+  where
+    title = "CLI_ADDRESS_IMPORT_03 - I can't import a gibberish address"
+
