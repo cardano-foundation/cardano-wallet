@@ -84,12 +84,20 @@ spec  = do
               \5d3661deb9064f2d0e03fe85d68070b2fe33b4916059658e28ac7f7f91ca4b12"
 
         it "byron keys does not fail anymore" $ do
-            keySuccess ["child", "--path", "0"] byronKey
-                `shouldReturn` ""
+            res <- key ["child", "--path", "0"] byronKey
+            res `shouldBe`
+                "460d95f55f8940c7145ab251da03f6a8767f2306b1f5345afd10090a558515\
+                \0abb4902024903aa130d0ea3524968539071c0708a020c8181c913b9c7f306\
+                \3b209bcb6f8af16317702127ab4169d2d7f11807d464b2f427b3ca45d5d9f0\
+                \578288\n"
 
         it "encrypted byron keys does not fail anymore" $ do
-            keySuccess ["child", "--path", "0"] encryptedKey
-                `shouldReturn` ""
+            res <- key ["child", "--path", "0"] encryptedKey
+            res `shouldBe`
+                "7d0ef39b2f7de32e8ca24cfe7a9cf1663a860778c42c70ef41ad851fa6606c\
+                \bbcfee7fbacf0e7141e449aa18e8d0c7206c0b7a71d3129751b516bf0a2abb\
+                \2383ca7b962e3bc5aa7d049f33606c8851a7ba94432ef335e47d77575e2fce\
+                \a9813c\n"
 
         it "fails when key is not 96 bytes" $ do
             keyStderr ["child", "--path", "0"] "5073"
@@ -193,16 +201,4 @@ spec  = do
     keyStderr args stdin = do
         (c, _out, err) <- readProcessWithExitCode (commandName @t) ("key":args) stdin
         c `shouldBe` (ExitFailure 1)
-        return err
-
-    keySuccess
-        :: [String]
-        -- ^ Arguments
-        -> String
-        -- ^ Stdin
-        -> IO String
-        -- ^ Stderr
-    keySuccess args stdin = do
-        (c, _out, err) <- readProcessWithExitCode (commandName @t) ("key":args) stdin
-        c `shouldBe` ExitSuccess
         return err
