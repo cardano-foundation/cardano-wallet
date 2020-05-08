@@ -15,22 +15,30 @@ module Test.Integration.Byron.Scenario.API.Addresses
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( Mnemonic )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
     , ApiT (..)
     , DecodeAddress
-    , EncodeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant )
+    ( NetworkDiscriminant, PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product.Positions
+    ( position )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
@@ -38,7 +46,9 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , emptyIcarusWallet
+    , emptyIcarusWalletMws
     , emptyRandomWallet
+    , emptyRandomWalletMws
     , expectErrorMessage
     , expectField
     , expectListField
@@ -47,13 +57,17 @@ import Test.Integration.Framework.DSL
     , fixtureIcarusWallet
     , fixtureRandomWallet
     , getFromResponse
+    , icarusAddresses
     , json
+    , randomAddresses
     , request
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NotAByronWallet, errMsg403WrongPass, errMsg404NoWallet )
+import Web.HttpApiData
+    ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
@@ -61,6 +75,8 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n t.
     ( DecodeAddress n
     , EncodeAddress n
+    , PaymentAddress n ByronKey
+    , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
 spec = do
     describe "BYRON_ADDRESSES" $ do
@@ -79,6 +95,11 @@ spec = do
         scenario_ADDRESS_CREATE_04 @n
         scenario_ADDRESS_CREATE_05 @n
         scenario_ADDRESS_CREATE_06 @n
+
+        scenario_ADDRESS_RESTORE_01 @n emptyRandomWalletMws
+        scenario_ADDRESS_RESTORE_02 @n emptyIcarusWalletMws
+        scenario_ADDRESS_RESTORE_03 @n emptyRandomWalletMws
+        scenario_ADDRESS_RESTORE_04 @n fixtureRandomWallet
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -259,3 +280,107 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
         ]
   where
     title = "ADDRESS_CREATE_06 - Cannot create an address that already exists"
+
+scenario_ADDRESS_RESTORE_01
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => (Context t -> IO (ApiByronWallet, Mnemonic 12))
+    -> SpecWith (Context t)
+scenario_ADDRESS_RESTORE_01 fixture = it title $ \ctx -> do
+    (w, mw) <- fixture ctx
+
+    -- Get an unused address
+    let addr = randomAddresses @n mw !! 42
+    let (_, base) = Link.postRandomAddress w
+    let link = base <> "/" <> encodeAddress @n addr
+    r0 <- request @() ctx ("PUT", link) Default Empty
+    verify r0
+        [ expectResponseCode @IO HTTP.status204
+        ]
+
+    -- Restore it
+    r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    verify r1
+        [ expectListField 0 #state (`shouldBe` ApiT Unused)
+        , expectListField 0 (#id . position @1) (`shouldBe` ApiT addr)
+        ]
+  where
+    title = "ADDRESS_RESTORE_01 - I can restore an address from my wallet"
+
+scenario_ADDRESS_RESTORE_02
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n IcarusKey
+        )
+    => (Context t -> IO (ApiByronWallet, Mnemonic 15))
+    -> SpecWith (Context t)
+scenario_ADDRESS_RESTORE_02 fixture = it title $ \ctx -> do
+    (w, mw) <- fixture ctx
+
+    let addr = icarusAddresses @n mw !! 42
+    let (_, base) = Link.postRandomAddress w
+    let link = base <> "/" <> encodeAddress @n addr
+    r0 <- request @() ctx ("PUT", link) Default Empty
+    verify r0
+        [ expectResponseCode @IO HTTP.status403
+        , expectErrorMessage errMsg403NotAByronWallet
+        ]
+  where
+    title = "ADDRESS_RESTORE_02 - I can't restore an address on an Icarus wallet"
+
+scenario_ADDRESS_RESTORE_03
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => (Context t -> IO (ApiByronWallet, Mnemonic 12))
+    -> SpecWith (Context t)
+scenario_ADDRESS_RESTORE_03 fixture = it title $ \ctx -> do
+    (w, mw) <- fixture ctx
+
+    -- Get an unused address
+    let addr = randomAddresses @n mw !! 42
+    let (_, base) = Link.postRandomAddress w
+    let link = base <> "/" <> encodeAddress @n addr
+
+    -- Insert it twice
+    r0 <- request @() ctx ("PUT", link) Default Empty
+    verify r0 [ expectResponseCode @IO HTTP.status204 ]
+    r1 <- request @() ctx ("PUT", link) Default Empty
+    verify r1 [ expectResponseCode @IO HTTP.status204 ]
+  where
+    title = "ADDRESS_RESTORE_03 - I can restore an unused address multiple times"
+
+scenario_ADDRESS_RESTORE_04
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => (Context t -> IO ApiByronWallet)
+    -> SpecWith (Context t)
+scenario_ADDRESS_RESTORE_04 fixture = it title $ \ctx -> do
+    w <- fixture ctx
+
+    -- Get a used address
+    r0 <- request @[ApiAddress n] ctx
+        (Link.listAddresses' @'Byron w (Just Used)) Default Empty
+    let (addr:_) = getFromResponse id r0
+
+    -- Re-insert it
+    let (_, base) = Link.postRandomAddress w
+    let link = base <> "/" <> toUrlPiece (addr ^. #id)
+    r1 <- request @() ctx ("PUT", link) Default Empty
+    verify r1 [ expectResponseCode @IO HTTP.status204 ]
+
+    -- Verify that the address is unchanged
+    r2 <- request @[ApiAddress n] ctx
+        (Link.listAddresses' @'Byron w (Just Used)) Default Empty
+    verify r2 [ expectListField 0 id (`shouldBe` addr) ]
+  where
+    title = "ADDRESS_RESTORE_04 - I can restore a used address (idempotence)"
