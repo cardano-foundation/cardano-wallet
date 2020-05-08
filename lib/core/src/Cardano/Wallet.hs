@@ -927,29 +927,28 @@ createRandomAddress
     -> Passphrase "raw"
     -> Maybe (Index 'Hardened 'AddressK)
     -> ExceptT ErrCreateRandomAddress IO Address
-createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrCreateAddrNoSuchWallet
-        $ mapExceptT atomically
-        $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
-    let s = getState cp
-    let accIx = Rnd.accountIndex s
-
-    (path, gen') <- case mIx of
-        Just addrIx | isKnownIndex accIx addrIx s ->
-            throwE $ ErrIndexAlreadyExists addrIx
-        Just addrIx ->
-            pure ((liftIndex accIx, liftIndex addrIx), Rnd.gen s)
-        Nothing ->
-            pure $ Rnd.findUnusedPath (Rnd.gen s) accIx (Rnd.unavailablePaths s)
-
+createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
-        let prepared = preparePassphrase scheme pwd
-        let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-        let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
-        withExceptT ErrCreateAddrNoSuchWallet
-            $ mapExceptT atomically
-            $ putCheckpoint (PrimaryKey wid) (updateState s' cp)
-        pure addr
+        mapExceptT atomically $ do
+            cp <- withExceptT ErrCreateAddrNoSuchWallet $
+                withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
+            let s = getState cp
+            let accIx = Rnd.accountIndex s
+
+            (path, gen') <- case mIx of
+                Just addrIx | isKnownIndex accIx addrIx s ->
+                    throwE $ ErrIndexAlreadyExists addrIx
+                Just addrIx ->
+                    pure ((liftIndex accIx, liftIndex addrIx), Rnd.gen s)
+                Nothing ->
+                    pure $ Rnd.findUnusedPath (Rnd.gen s) accIx (Rnd.unavailablePaths s)
+
+            let prepared = preparePassphrase scheme pwd
+            let addr = Rnd.deriveRndStateAddress @n xprv prepared path
+            let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
+            withExceptT ErrCreateAddrNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            pure addr
   where
     db = ctx ^. dbLayer @s @k
     isKnownIndex accIx addrIx s =
@@ -966,16 +965,14 @@ importRandomAddress
     -> WalletId
     -> Address
     -> ExceptT ErrImportRandomAddress IO ()
-importRandomAddress ctx wid addr = db & \DBLayer{..} -> do
+importRandomAddress ctx wid addr = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrImportAddrNoSuchWallet
-        $ mapExceptT atomically
         $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
     case isOurs addr (getState cp) of
         (False, _) -> throwE ErrImportAddrDoesNotBelong
         (True, s') -> do
-            withExceptT ErrImportAddrNoSuchWallet
-                $ mapExceptT atomically
-                $ putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            withExceptT ErrImportAddrNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
     db = ctx ^. dbLayer @s @k
 
