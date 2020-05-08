@@ -434,6 +434,10 @@ spec = do
             , "                           address index is optional, give none"
             , "                           to let the wallet generate a random"
             , "                           one."
+            , "  import                   Import a random address generated"
+            , "                           elsewhere. Only available for random"
+            , "                           wallets. The address must belong to"
+            , "                           the target wallet."
             ]
 
         ["address", "list", "--help"] `shouldShowUsage`
@@ -460,6 +464,17 @@ spec = do
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
             , "  --address-index INDEX    A derivation index for the address"
+            ]
+
+        ["address", "import", "--help"] `shouldShowUsage`
+            [ "Usage:  address import [--port INT] WALLET_ID ADDRESS"
+            , "  Import a random address generated elsewhere. Only available for"
+            , "  random wallets. The address must belong to the target wallet."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
