@@ -10,13 +10,33 @@ The API from the old explorer has been ported identically to _cardano-submit-api
 The setup is here a bit different. With _cardano-sl_, the explorer is mounted directly on the core node as one monolith and can be turned on and off. Now, these components have been split off one another and are using an extra middleware to communicate. So the "infrastructure" is slightly more complex but enables greater flexibility and robustness. 
 
 {{<hint info>}}
-It is possible to automatically migrate an existing blockchain database from _cardano-sl_ into its new format compatible with _cardano-node_. For this, have a look at the [cardano-cli][cardano-cli] and in particular the `???` command.
+It is possible to automatically migrate an existing blockchain database from _cardano-sl_ into its new format compatible with _cardano-node_. For this, have a look at the [db-converter][db-converter] and in particular, the `convert` command:
 
 ```
-$ cardano-cli ??? --help
+$ db-converter convert --help
+Usage: db-converter convert --epochDir STRING --dbDir STRING --epochSlots WORD64
+
+Available options:
+  -h,--help                Show this help text
+  --epochDir STRING        Path to the directory containing old epoch files
+  --dbDir STRING           Path to the new database directory
+  --epochSlots WORD64      Slots per epoch
 ```
 
-This can save you an hour of time downloading the blockchain from the network!
+> ℹ️  On Byron, the number of slots per epoch is fixed to `21600`.
+
+This can save you an hour of time downloading the blockchain from the network! 
+
+Build it with [Nix](https://nixos.org/download.html) as follows:
+
+```
+$ git clone https://github.com/input-output-hk/ouroboros-network
+$ cd ouroboros-network
+$ nix-build -A haskellPackages.ouroboros-consensus-byron.components.exes.db-converter -o db-converter
+$ ./db-converter/bin/db-converter --help
+```
+
+[db-converter]: https://github.com/input-output-hk/ouroboros-network/tree/master/ouroboros-consensus-byron
 {{</hint>}}
 
 
@@ -44,4 +64,3 @@ You are going to have a harder time migrating to _cardano-wallet_. The gaps betw
 
 [cardano-rest]: https://github.com/input-output-hk/cardano-rest
 [cardano-wallet]: https://github.com/input-output-hk/cardano-wallet
-[cardano-cli]: https://github.com/input-output-hk/cardano-node/blob/1.11.0/README.md#cardano-cli
