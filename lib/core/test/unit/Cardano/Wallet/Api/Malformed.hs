@@ -70,13 +70,15 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId, walletNameMaxLength )
+    ( Address, WalletId, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -172,6 +174,17 @@ instance Malformed (PathParam ApiEpochNumber) where
         ]
       where
         msg = "I couldn't parse the given epoch number. I am expecting either the word 'latest' or, an integer from 0 to 2147483647."
+
+instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
+    wellformed = PathParam
+        "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"
+
+instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
+    malformed = first PathParam <$>
+        [ ( "NOT-AN-ADDRESS"
+          , "Unable to decode Address: encoding is neither Bech32 nor Base58."
+          )
+        ]
 
 --
 -- Class instances (BodyParam)
