@@ -61,6 +61,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
+          (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
           (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
@@ -127,6 +128,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."cardano-addresses" or (buildDepError "cardano-addresses"))
             (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
             (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-wallet-byron" or (buildDepError "cardano-wallet-byron"))
