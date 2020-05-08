@@ -3,6 +3,13 @@ weight: 999
 title: FAQ
 ---
 
+{{<expand "Why aren't my unused addresses imported when I restore a wallet?" "...">}}
+
+This is by vertue of the blockchain. An unused address is by definition unused. Meaning that is doesn't exist on the chain and only exists locally, in the context of the software that has generated it. Different softwares may use different rules to generate addresses. For example in the past, _cardano-sl_ wallets used a method called random derivation where addresses will be created from a root seed and a random index that is stored with the address itself. Because indexes are random, it is not possible to restore randomly generated addresses that haven't been used on chain! 
+
+More recently, `cardano-wallet` have been using sequential derivation which follows a very similar principle with the major difference that indexes are derived in sequence, starting from 0. Following this method, wallets aren't allowed to pre-generated too many addresses in advance, which as a consequence, makes it possible to restore a wallet across many machines while keeping a very consistent state. 
+{{</expand>}}
+
 {{<expand "I’ve noticed that other blockchains create accounts for wallets?" "...">}}
 
 There are two sides to this question. Either, you are referring to accounts as in Ethereum accounts, or you may refer to accounts of hierarchical deterministic wallets.
