@@ -211,6 +211,7 @@ server byron icarus shelley spl ntp =
     byronAddresses =
              (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

@@ -65,6 +65,7 @@ module Cardano.Wallet.Api.Server
     , postTrezorWallet
     , postWallet
     , putByronWalletPassphrase
+    , putRandomAddress
     , putWallet
     , putWalletPassphrase
     , quitStakePool
@@ -1021,6 +1022,20 @@ postRandomAddress ctx (ApiT wid) body = do
     pure $ coerceAddress (addr, Unused)
   where
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
+
+putRandomAddress
+    :: forall ctx s t k n.
+        ( s ~ RndState n
+        , k ~ ByronKey
+        , ctx ~ ApiLayer s t k
+        , PaymentAddress n ByronKey
+        )
+    => ctx
+    -> ApiT WalletId
+    -> (ApiT Address, Proxy n)
+    -> Handler NoContent
+putRandomAddress ctx wid (ApiT addr, _proxy)  = do
+    pure NoContent
 
 listAddresses
     :: forall ctx s t k n.
