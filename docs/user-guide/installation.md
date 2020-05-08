@@ -7,16 +7,28 @@ title: Installation Instructions
 
 Docker images are continuously built and deployed on [dockerhub](https://hub.docker.com/u/inputoutput) under specific tags. Using docker provides **the fastest** and **easiest** user experience for setting up the Cardano stack. You should prefer this solution over building from sources unless you have really good reasons not to. The following images are available for each component of the Adrestia architecture:
 
-| Repository                                                           | Tags                          | Documentation               |
-| :---                                                                 | :---:                         | :---:                       |
-| [inputoutput/cardano-node][inputoutput-cardano-node]                 | `master`, `MAJOR.MINOR.PATCH` | [link][doc-cardano-node]    |
-| [inputoutput/cardano-db-sync][inputoutput-cardano-db-sync]           | `master`, `MAJOR.MINOR.PATCH` | [link][doc-cardano-db-sync] |
-| [inputoutput/cardano-graphql][inputoutput-cardano-graphql]           | `master`, `MAJOR.MINOR.PATCH` | [link][doc-cardano-graphql] |
-| [inputoutput/cardano-explorer-api][inputoutput-cardano-explorer-api] | `master`, `MAJOR.MINOR.PATCH` | [link][doc-cardano-rest]    |
-| [inputoutput/cardano-submit-api][inputoutput-cardano-submit-api]     | `master`, `MAJOR.MINOR.PATCH` | [link][doc-cardano-rest]    |
-| [inputoutput/cardano-wallet][inputoutput-cardano-wallet]             | `byron`, `YYYY.MM.DD-byron`   | [link][doc-cardano-wallet]  |
+| Repository                                                           | Tags                                  | Documentation               |
+| :---                                                                 | :---:                                 | :---:                       |
+| [inputoutput/cardano-node][inputoutput-cardano-node]                 | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-node]    |
+| [inputoutput/cardano-db-sync][inputoutput-cardano-db-sync]           | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-db-sync] |
+| [inputoutput/cardano-graphql][inputoutput-cardano-graphql]           | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-graphql] |
+| [inputoutput/cardano-explorer-api][inputoutput-cardano-explorer-api] | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-rest]    |
+| [inputoutput/cardano-submit-api][inputoutput-cardano-submit-api]     | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-rest]    |
+| [inputoutput/cardano-wallet][inputoutput-cardano-wallet]             | `byron`, `YYYY.MM.DD-byron`, `latest` | [link][doc-cardano-wallet]  |
 
-Each `MAJOR.MINOR.PATCH` or `YYYY.MM.DD-byron` tag must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available. For example, in order to use `cardano-node@1.10.0`, one can simply run:
+### Semantic
+
+
+| Tag | Semantic |
+| --- | --- | 
+| `latest` | Points to the latest __stable__ image for the corresponding component. This is also the tag to which `docker` defaults when pulling without an explicit tag. These typically points to latest known release which happens at the end of an iteration cycle. Depending on which project / component, the iteration cycle may vary from 1 to 2 weeks.
+| `MAJ.MIN.PATCH` or `YYYY.MM.DD-byron` | Must match actual releases of the corresponding component. Refer to each component release notes to know which release tags are available. |
+| `master` | Points to the very tip of the development branch. This is therefore __not recommended__ for production but can be useful to try out features before they are officially released. |
+| `byron`  | A special tag pointing to the very tip of the development branch on `cardano-wallet`. `cardano-wallet` does support both `jörmungandr` and `cardano-node` at the same time, but corresponding images are packaged separately. The `byron` tag therefore points to a version of `cardano-wallet` compatible with cardano-node in OBFT mode. |
+
+### Examples
+
+For example, in order to use `cardano-node@1.10.0`, one can simply run:
 
 ```
 docker pull inputoutput/cardano-node:1.10.0
@@ -34,7 +46,7 @@ docker pull inputoutput/cardano-wallet:v2020.4.7-byron
 For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. [cardano-wallet#latest-releases](https://github.com/input-output-hk/cardano-wallet#latest-releases)).
 {{</hint>}}
 
-## Docker compose
+### Docker compose
 
 Some components also provide example setup via [docker-compose](https://docs.docker.com/compose/). Those are useful for a quick start or as a baseline for development. See for example [cardano-wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/docker-compose.yml), [cardano-graphql](https://github.com/input-output-hk/cardano-graphql/blob/master/docker-compose.yml) or [cardano-rest](https://github.com/input-output-hk/cardano-rest/blob/master/docker-compose.yml).
 
@@ -53,8 +65,6 @@ run offline (e.g. 'mnemonic generate').
 
 [...]
 ```
-
-
 
 If you feel brave enough and want to compile everything from sources, please refer to each repository's documentation. As a pre-requisite, you may want to install and configure [Nix](https://nixos.org/), [stack](https://docs.haskellstack.org/en/stable/README/) or [cabal](https://www.haskell.org/cabal/) depending on your weapon of choice. Build instructions are available on each repository's main README.
 
