@@ -168,6 +168,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."command" or (buildDepError "command"))
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
+            (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
             (hsPkgs."http-client" or (buildDepError "http-client"))
             (hsPkgs."http-types" or (buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
