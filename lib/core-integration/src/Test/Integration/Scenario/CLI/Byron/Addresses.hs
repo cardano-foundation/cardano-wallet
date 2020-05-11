@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Byron.Scenario.CLI.Addresses
+module Test.Integration.Scenario.CLI.Byron.Addresses
     ( spec
     ) where
 

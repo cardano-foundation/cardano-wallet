@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Byron.Scenario.API.Addresses
+module Test.Integration.Scenario.API.Byron.Addresses
     ( spec
     ) where
 

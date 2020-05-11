@@ -72,6 +72,8 @@ library
       Test.Integration.Framework.TestData
       Test.Integration.Scenario.API.Byron.Transactions
       Test.Integration.Scenario.API.Byron.Wallets
+      Test.Integration.Scenario.API.Byron.Addresses
+      Test.Integration.Scenario.CLI.Byron.Addresses
       Test.Integration.Scenario.API.Shelley.Addresses
       Test.Integration.Scenario.API.Shelley.HWWallets
       Test.Integration.Scenario.API.Shelley.Transactions

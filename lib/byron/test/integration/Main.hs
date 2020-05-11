@@ -106,14 +106,14 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
-import qualified Test.Integration.Byron.Scenario.CLI.Addresses as AddressesByronCLI
 import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
 import qualified Test.Integration.Byron.Scenario.CLI.Wallets as WalletsByronCLI
+import qualified Test.Integration.Scenario.API.Byron.Addresses as AddressesByron
 import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
 import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
+import qualified Test.Integration.Scenario.CLI.Byron.Addresses as AddressesByronCLI
 import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
