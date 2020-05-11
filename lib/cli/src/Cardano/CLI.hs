@@ -1394,6 +1394,7 @@ cmdAddress mkClient =
     cmds = subparser $ mempty
         <> cmdAddressList mkClient
         <> cmdAddressCreate mkClient
+        <> cmdAddressImport mkClient
 
 -- | Arguments for 'address list' command
 data AddressListArgs = AddressListArgs
@@ -1443,6 +1444,28 @@ cmdAddressCreate mkClient =
         runClient wPort Aeson.encodePretty $ postRandomAddress mkClient
             (ApiT wId)
             (ApiPostRandomAddressData (ApiT pwd) (ApiT <$> wIx))
+
+-- | Arguments for 'address import' command
+data AddressImportArgs = AddressImportArgs
+    { _port :: Port "Wallet"
+    , _id :: WalletId
+    , _addr :: Text
+    }
+
+cmdAddressImport
+    :: AddressClient
+    -> Mod CommandFields (IO ())
+cmdAddressImport mkClient =
+    command "import" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Import a random address generated elsewhere. Only available \
+            \for random wallets. The address must belong to the target wallet."
+  where
+    cmd = fmap exec $ AddressImportArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> addressIdArgument
+    exec (AddressImportArgs wPort wId addr) = do
+        runClient wPort (const "") $ putRandomAddress mkClient (ApiT wId) addr
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
@@ -1877,6 +1900,11 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 -- | <mnemonic-words=MNEMONIC_WORD...>
 mnemonicWordsArgument :: Parser [Text]
 mnemonicWordsArgument = some (argument str (metavar "MNEMONIC_WORD..."))
+
+-- | <address=ADDRESS>
+addressIdArgument :: Parser Text
+addressIdArgument = argumentT $ mempty
+    <> metavar "ADDRESS"
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a

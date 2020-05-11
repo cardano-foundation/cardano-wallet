@@ -1144,6 +1144,15 @@ x-parametersStakePoolId: &parametersStakePoolId
     maxLength: 64
     minLength: 64
 
+x-parametersAddressId:  &parametersAddressId
+  in: path
+  name: addressId
+  required: true
+  schema:
+    type: string
+    format: base58
+    example: DdzFFzCqrhtCNjPk5Lei7E1FxnoqMoAYtJ8VjAWbFmDb614nNBWBwv3kt6QHJa59cGezzf6piMWsbK7sWRB5sv325QqWdRuusMqqLdMt
+
 x-parametersStartDate: &parametersStartDate
   in: query
   name: start
@@ -1597,6 +1606,13 @@ x-responsesPostRandomAddress: &responsesPostRandomAddress
       application/json:
         schema: *ApiAddress
 
+x-responsesPutRandomAddress: &responsesPutRandomAddress
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  204:
+    description: No Content
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -2030,6 +2046,22 @@ paths:
             application/json:
               schema: *ApiPostRandomAddressData
         responses: *responsesPostRandomAddress
+
+  /byron-wallets/{walletId}/addresses/{addressId}:
+      put:
+        operationId: importAddress
+        tags: ["Byron Addresses"]
+        summary: Import Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressId
+        responses: *responsesPutRandomAddress
 
   /byron-wallets/{walletId}/transactions:
     get:

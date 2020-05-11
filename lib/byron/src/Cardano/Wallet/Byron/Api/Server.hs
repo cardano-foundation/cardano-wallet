@@ -65,6 +65,7 @@ import Cardano.Wallet.Api.Server
     , postTransactionFee
     , postTrezorWallet
     , putByronWalletPassphrase
+    , putRandomAddress
     , putWallet
     , rndStateChange
     , withLegacyLayer
@@ -198,6 +199,10 @@ server byron icarus ntp =
     byronAddresses =
              (\wid s -> withLegacyLayer wid
                 (byron, postRandomAddress byron wid s)
+                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
+             )
+        :<|> (\wid addr -> withLegacyLayer wid
+                (byron, putRandomAddress byron wid addr)
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
         :<|> (\wid s -> withLegacyLayer wid

@@ -50,8 +50,10 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyRandomWallet
+    , emptyRandomWalletMws
     , emptyRandomWalletWithPasswd
     , emptyIcarusWallet
+    , emptyIcarusWalletMws
     , emptyByronWalletWith
     , emptyWallet
     , emptyWalletWith
@@ -117,6 +119,7 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , createAddressViaCLI
+    , importAddressViaCLI
     , listAddressesViaCLI
     , listStakePoolsViaCLI
     , listWalletsViaCLI
@@ -608,11 +611,23 @@ emptyRandomWallet ctx = do
     emptyByronWalletWith ctx "random"
         ("Random Wallet", mnemonic, "Secure Passphrase")
 
+emptyRandomWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 12)
+emptyRandomWalletMws ctx = do
+    mnemonic <- entropyToMnemonic <$> genEntropy
+    (,mnemonic) <$> emptyByronWalletWith ctx "random"
+        ("Random Wallet", mnemonicToText @12 mnemonic, "Secure Passphrase")
+
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, "Secure Passphrase")
+
+emptyIcarusWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 15)
+emptyIcarusWalletMws ctx = do
+    mnemonic <- entropyToMnemonic <$> genEntropy
+    (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
+        ("Icarus Wallet",mnemonicToText @15 mnemonic, "Secure Passphrase")
 
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
@@ -1383,6 +1398,16 @@ createAddressViaCLI ctx args pass = do
             out <- TIO.hGetContents stdout
             err <- TIO.hGetContents stderr
             pure (c, out, err)
+
+importAddressViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)
+    => s
+    -> [String]
+        -- ^ Args
+    -> IO r
+        -- ^ (ExitCode, StdOut, StdErr)
+importAddressViaCLI ctx args = cardanoWalletCLI @t $
+    ["address", "import", "--port", show (ctx ^. typed @(Port "wallet"))] ++ args
 
 listAddressesViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType (Port "wallet") s)

@@ -94,7 +94,8 @@ import Prelude
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressT
+    ( ApiAddressIdT
+    , ApiAddressT
     , ApiByronWallet
     , ApiByronWalletMigrationInfo
     , ApiCoinSelectionT
@@ -418,14 +419,22 @@ type PutByronWalletPassphrase = "byron-wallets"
 
 type ByronAddresses n =
     PostByronAddress n
+    :<|> PutByronAddress n
     :<|> ListByronAddresses n
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronAddress
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createAddress
 type PostByronAddress n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> ReqBody '[JSON] ApiPostRandomAddressData
     :> PostCreated '[JSON] (ApiAddressT n)
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/restoreAddress
+type PutByronAddress n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> Capture "addressId" (ApiAddressIdT n)
+    :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAddresses
 type ListByronAddresses n = "byron-wallets"

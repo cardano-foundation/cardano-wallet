@@ -382,6 +382,8 @@ spec = do
             httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
             httpApiDataRoundtrip $ Proxy @Iso8601Time
             httpApiDataRoundtrip $ Proxy @(ApiT SortOrder)
+            httpApiDataRoundtrip $ Proxy @(ApiT Address, Proxy 'Mainnet)
+            httpApiDataRoundtrip $ Proxy @(ApiT Address, Proxy ('Testnet 0))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -569,7 +571,7 @@ spec = do
     describe "encodeAddress & decodeAddress (Mainnet)" $ do
         let proxy = Proxy @'Mainnet
         it "decodeAddress . encodeAddress = pure" $
-            withMaxSuccess 1000 $ property $ \(ShowFmt a, _ :: Proxy 'Mainnet) ->
+            withMaxSuccess 1000 $ property $ \(ApiT a, _ :: Proxy 'Mainnet) ->
                 (ShowFmt <$> decodeAddress @'Mainnet (encodeAddress @'Mainnet a))
                     === Right (ShowFmt a)
         negativeTest proxy "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
@@ -616,7 +618,7 @@ spec = do
     describe "encodeAddress & decodeAddress (Testnet)" $ do
         let proxy = Proxy @('Testnet 0)
         it "decodeAddress . encodeAddress = pure" $
-            withMaxSuccess 1000 $ property $ \(ShowFmt a, _ :: Proxy ('Testnet 0)) ->
+            withMaxSuccess 1000 $ property $ \(ApiT a, _ :: Proxy ('Testnet 0)) ->
                 (ShowFmt <$> decodeAddress @('Testnet 0) (encodeAddress @('Testnet 0) a))
                     === Right (ShowFmt a)
         negativeTest proxy "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
@@ -1066,20 +1068,20 @@ instance Arbitrary AddressState where
     shrink = genericShrink
 
 instance Arbitrary Address where
-    arbitrary = (unShowFmt . fst)
-        <$> arbitrary @(ShowFmt Address, Proxy ('Testnet 0))
+    arbitrary = (getApiT . fst)
+        <$> arbitrary @(ApiT Address, Proxy ('Testnet 0))
 
-instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy 'Mainnet) where
+instance {-# OVERLAPS #-} Arbitrary (ApiT Address, Proxy 'Mainnet) where
     arbitrary = do
-        addr <- ShowFmt <$> frequency
+        addr <- ApiT <$> frequency
             [ (10, genAddress @'Mainnet)
             , (1, genLegacyAddress Nothing)
             ]
         return (addr, Proxy)
 
-instance {-# OVERLAPS #-} Arbitrary (ShowFmt Address, Proxy ('Testnet 0)) where
+instance {-# OVERLAPS #-} Arbitrary (ApiT Address, Proxy ('Testnet 0)) where
     arbitrary = do
-        addr <- ShowFmt <$> frequency
+        addr <- ApiT <$> frequency
             [ (10, genAddress @('Testnet 0))
             , (1, genLegacyAddress (Just (ProtocolMagic 0)))
             ]

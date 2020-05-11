@@ -107,6 +107,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Type families
     , ApiAddressT
+    , ApiAddressIdT
     , ApiCoinSelectionT
     , ApiSelectCoinsDataT
     , ApiTransactionT
@@ -758,6 +759,15 @@ instance FromText (ApiT (Hash "encryption"))  where
             [ "Invalid encrypted passphrase:"
             , "expecting a hex-encoded value."
             ]
+
+instance DecodeAddress n => FromHttpApiData (ApiT Address, Proxy n) where
+    parseUrlPiece txt = do
+        let proxy = Proxy @n
+        addr <- bimap (T.pack . getTextDecodingError) ApiT (decodeAddress @n txt)
+        return (addr, proxy)
+
+instance EncodeAddress n => ToHttpApiData (ApiT Address, Proxy n) where
+    toUrlPiece = encodeAddress @n . getApiT . fst
 
 {-------------------------------------------------------------------------------
                               API Types: Byron
@@ -1496,6 +1506,7 @@ gDecodeAddress decodeShelley decodeByron text =
 --
 -- We use an open type family so it can be extended by other module in places.
 type family ApiAddressT (n :: k) :: *
+type family ApiAddressIdT (n :: k) :: *
 type family ApiCoinSelectionT (n :: k) :: *
 type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
@@ -1504,6 +1515,9 @@ type family PostTransactionFeeDataT (n :: k) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
+
+type instance ApiAddressIdT (n :: NetworkDiscriminant) =
+    (ApiT Address, Proxy n)
 
 type instance ApiCoinSelectionT (n :: NetworkDiscriminant) =
     ApiCoinSelection n
