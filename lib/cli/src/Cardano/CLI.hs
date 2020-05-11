@@ -93,6 +93,7 @@ module Cardano.CLI
     , putErrLn
     , hPutErrLn
     , enableWindowsANSI
+    , markCharsRedAtIndices
 
     -- * Working with Sensitive Data
     , getLine
@@ -215,6 +216,8 @@ import Data.Char
     ( toLower )
 import Data.Either
     ( isRight )
+import Data.List
+    ( nub, sort )
 import Data.List.Extra
     ( enumerate )
 import Data.List.NonEmpty
@@ -519,7 +522,7 @@ decodeKey = \case
         unCharPos (CharPosition x) = x
 
 markCharsRedAtIndices :: Integral i => [i] -> String -> String
-markCharsRedAtIndices ixs txt = go 0 ixs txt ++ def
+markCharsRedAtIndices ixs = go 0 (sort $ nub ixs)
   where
     go _c [] [] = mempty
     go c (i:is) (s:ss)

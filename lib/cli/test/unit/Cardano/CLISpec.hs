@@ -13,8 +13,7 @@ module Cardano.CLISpec
     ( spec
     ) where
 
-import Prelude hiding
-    ( (.) )
+import Prelude
 
 import Cardano.CLI
     ( CliKeyScheme (..)
@@ -41,6 +40,7 @@ import Cardano.CLI
     , fullKeyEncodingDescription
     , hGetLine
     , hGetSensitiveLine
+    , markCharsRedAtIndices
     , newCliKeyScheme
     , toPublic
     )
@@ -68,8 +68,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
     ( left )
-import Control.Category
-    ( (.) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -80,12 +78,16 @@ import Control.Monad
     ( mapM_ )
 import Data.Either
     ( isLeft )
+import Data.List
+    ( nub )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import Data.Word
+    ( Word )
 import GHC.TypeLits
     ( natVal )
 import Options.Applicative
@@ -129,21 +131,26 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
+    , choose
     , counterexample
     , cover
     , forAll
+    , forAllShrink
     , genericShrink
     , oneof
     , property
     , suchThat
     , vector
+    , vectorOf
     , (===)
+    , (==>)
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteString as BS
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -651,7 +658,7 @@ spec = do
                     "Bech32 error: string is too short"
                 decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char" $
                     "Bech32 error: Invalid character(s) in string:\n"
-                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m\ESC[0m"
+                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m"
                 decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
                     "Bech32 error: Invalid character(s) in string"
 
@@ -793,6 +800,27 @@ spec = do
             \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
             \cifications/mnemonic/english.txt\n")
 
+    describe "markCharsRedAtIndices" $ do
+        it "generates strings of expected length" $ property $ \(ixs :: [Word]) -> do
+            let maxIx = fromIntegral $ foldl max 0 ixs
+            let genStr = choose (maxIx, maxIx + 5) >>= flip vectorOf arbitrary
+            forAllShrink genStr shrink $ \s -> do
+                let rendered = markCharsRedAtIndices ixs s
+                all (< length s) (map fromIntegral ixs) ==>
+                    counterexample rendered $
+                        length rendered === length s + ((length (nub ixs)) * 9)
+
+        it "all red chars correspond to indices" $ property $ \(ixs :: [Word]) -> do
+            let maxIx = fromIntegral $ foldl max 0 ixs
+            let genStr = choose (maxIx, maxIx + 5) >>= flip vectorOf arbitrary
+            forAllShrink genStr shrink $ \(s::String) -> do
+                let rendered = markCharsRedAtIndices ixs s
+                let ixs' = indicesOfRedCharacters rendered
+                if length s > maxIx
+                then Set.fromList ixs' === Set.fromList ixs
+                else property $
+                    Set.fromList ixs' `Set.isSubsetOf` Set.fromList ixs
+
     describe "CLI Key derivation properties" $ do
         it "all allowedWordLengths are supported"
             $ property prop_allowedWordLengthsAllWork
@@ -817,6 +845,19 @@ spec = do
     backspace :: Text
     backspace = T.singleton (toEnum 127)
 
+-- Returns a list of indices of charcters marked red with ANSI.
+--
+-- NOTE: Very primitive parser that only works with the current
+-- @markCharsRedAtIndices@ which surrounds /every/ red character with ANSI, even
+-- for neighboring characters.
+indicesOfRedCharacters :: Integral i => String -> [i]
+indicesOfRedCharacters s = go s 0
+  where
+    go ('\ESC':'[':'9':'1':'m':_x:'\ESC':'[':'0':'m':xs) n =
+        n : (go xs (n + 1))
+    go (_x:xs) n =
+        go xs (n + 1)
+    go [] _ = []
 
 -- | For soft indices, public key derivation should be "equivalent" to private
 -- key derivation.
