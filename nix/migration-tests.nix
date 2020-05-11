@@ -41,17 +41,22 @@ let
   # This is controlled by the `needsRewrite` flags int he releases.
   rewriteCrossSystem = crossSystem: if crossSystem != null && crossSystem.config == "x86_64-w64-mingw32" then crossSystem // { config = "x86_64-pc-mingw32"; } else crossSystem;
   # List of git revisions to test against.
-  # One can get sha256 for release via nix-prefetch-url, e.g. for v2020-04-28:
-  # nix-prefetch-url --unpack https://github.com/input-output-hk/cardano-wallet/archive/v2020-04-28.zip
   releases = [
-    { rev = "v2020-04-28";
-      sha256 = "0iw5gn3d2i1f99mx293zn8l72i7lidmdlrfyzblhdvx6f358iyki";
+    { rev = "v2019-12-13";
+      sha256 = "1a2b4iflwwp824b1k9b82jw2q8pqlar6hg96nv03zv55glkgdllm";
+      allowFail = true;
       needsRewrite = true; }
-    { rev = "v2020-04-07";
-      sha256 = "10m91l6r4ghhqddk5c0a4ffjl0z3h4nmk7cjhz2b0jhxdkmz6qg5";
+    { rev = "v2019-12-16";
+      sha256 = "0y5xf43lrc7gygvxh5ywkglr3d1xcc19dsskm7frl0v6m9yxzni6";
       needsRewrite = true;  }
-    { rev = "v2020-04-01";
-      sha256 = "0hjdz4bbhq7g9cc1hfxpnwypd42n3rx0ci91n8i7ahnjhv93bhhy";
+    { rev = "v2019-12-23";
+      sha256 = "1fq8hjwqnajlz7g09zihmzhjc3hyyjl685nr5qa4r2fqnjzq5i24";
+      needsRewrite = true;  }
+    { rev = "v2020-01-07";
+      sha256 = "1bsw89xhd60jjdxx9d5ya6ly0rpswwcj7x5ppqjhydvsdsrd3rww";
+      needsRewrite = true;  }
+    { rev = "v2020-01-14";
+      sha256 = "0kvwzrkpv3d62qr9sh9h7v7d398c600qr9dgw6zd3wcmxjk53762";
       needsRewrite = true;  }
   ];
 
