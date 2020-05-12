@@ -3,20 +3,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
-
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Ourouboros mini-protocols clients for implementing cardano-wallet. These
+-- Ouroboros mini-protocols clients for implementing cardano-wallet. These
 -- clients implement the logic and lift away concerns related to concrete
 -- data-type representation so that the code can be re-used / shared between
 -- Byron and Shelley.
@@ -202,7 +199,6 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
 import System.IO.Error
     ( isDoesNotExistError )
 
-
 import qualified Cardano.Chain.Update.Validation.Interface as U
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
@@ -304,7 +300,7 @@ chainSyncFollowTip onTipUpdate =
 -- callback.
 --
 -- See also 'send' for invoking commands.
-data ChainSyncCmd (m :: * -> *) block
+data ChainSyncCmd block (m :: * -> *)
     = CmdFindIntersection
         [Point block]
         (Maybe (Point block) -> m ())
@@ -361,7 +357,7 @@ chainSyncWithBlocks
         -- ^ Convert an abstract tip to a concrete 'BlockHeader'
         --
         -- TODO: We probably need a better type for representing Tip as well!
-    -> TQueue m (ChainSyncCmd m block)
+    -> TQueue m (ChainSyncCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
@@ -469,7 +465,7 @@ chainSyncWithBlocks (Quantity epochStability) fromTip queue =
 -- LocalStateQuery
 
 -- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd (m :: * -> *) block state
+data LocalStateQueryCmd block state (m :: * -> *)
     = CmdQueryLocalState
         (Point block)
         (Query block state)
@@ -509,7 +505,7 @@ type LocalStateQueryResult state = Either AcquireFailure state
 --
 localStateQuery
     :: forall m block state.  (MonadThrow m, MonadTimer m)
-    => TQueue m (LocalStateQueryCmd m block state)
+    => TQueue m (LocalStateQueryCmd block state m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
@@ -559,7 +555,7 @@ localStateQuery queue =
             clientStAcquiredAgain
         }
 
-    awaitNextCmd :: m (LocalStateQueryCmd m block state)
+    awaitNextCmd :: m (LocalStateQueryCmd block state m)
     awaitNextCmd = atomically $ readTQueue queue
 
 --------------------------------------------------------------------------------
@@ -568,7 +564,7 @@ localStateQuery queue =
 
 
 -- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
-data LocalTxSubmissionCmd (m :: * -> *) tx err
+data LocalTxSubmissionCmd tx err (m :: * -> *)
     = CmdSubmitTx tx (Maybe err -> m ())
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
@@ -595,7 +591,7 @@ data LocalTxSubmissionCmd (m :: * -> *) tx err
 --                                             *---------*
 localTxSubmission
     :: forall m tx err. ( MonadThrow m, MonadTimer m)
-    => TQueue m (LocalTxSubmissionCmd m tx err)
+    => TQueue m (LocalTxSubmissionCmd tx err m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
