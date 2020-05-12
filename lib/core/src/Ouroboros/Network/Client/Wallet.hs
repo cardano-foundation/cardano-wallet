@@ -10,6 +10,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -40,39 +42,15 @@ module Ouroboros.Network.Client.Wallet
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Chain.Byron.API
-    ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Network
-    ( Cursor
-    , ErrGetBlock (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    , NextBlocksResult (..)
-    , mapCursor
-    )
-import Control.Concurrent.Async
-    ( async, link )
-import Control.Exception
-    ( IOException )
-import Control.Monad
-    ( forever, unless, (>=>) )
-import Control.Monad.Catch
-    ( Handler (..) )
+    ( ErrNetworkUnavailable (..), NextBlocksResult (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync (race) )
-import Control.Monad.Class.MonadST
-    ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
     , atomically
     , newEmptyTMVarM
-    , newTMVarM
     , newTQueue
     , newTVar
     , putTMVar
