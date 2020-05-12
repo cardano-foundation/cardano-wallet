@@ -31,10 +31,12 @@ module Ouroboros.Network.Client.Wallet
 
       -- * LocalTxSubmission
     , LocalTxSubmissionCmd (..)
+    , localTxSubmission
 
       -- * LocalStateQuery
     , LocalStateQueryCmd (..)
     , LocalStateQueryResult
+    , localStateQuery
 
       -- * Helpers
     , send
@@ -46,6 +48,8 @@ import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), NextBlocksResult (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync (race) )
+import Control.Monad.Class.MonadST
+    ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
@@ -113,6 +117,8 @@ import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
     ( Natural )
+import Ouroboros.Consensus.Ledger.Abstract
+    ( Query (..) )
 import Ouroboros.Consensus.Node.Run
     ( RunNode (..) )
 import Ouroboros.Network.Block
@@ -195,6 +201,7 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission )
 import System.IO.Error
     ( isDoesNotExistError )
+
 
 import qualified Cardano.Chain.Update.Validation.Interface as U
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -462,15 +469,98 @@ chainSyncWithBlocks (Quantity epochStability) fromTip queue =
 -- LocalStateQuery
 
 -- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd (m :: * -> *) block
+data LocalStateQueryCmd (m :: * -> *) block state
     = CmdQueryLocalState
         (Point block)
-        (LocalStateQueryResult -> m ())
+        (Query block state)
+        (LocalStateQueryResult state -> m ())
 
 -- | Shorthand for the possible outcomes of acquiring local state parameters.
-type LocalStateQueryResult = Either AcquireFailure U.State
+type LocalStateQueryResult state = Either AcquireFailure state
 
--- TODO: port client implementation from Byron/Network
+-- | Client for the 'Local State Query' mini-protocol.
+--
+-- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
+-- constructor.
+--
+--                                    Agency
+--     -------------------------------------------------------------------------
+--     Client has agency*                | Idle, Acquired
+--     Server has agency*                | Acquiring, Querying
+--     * A peer has agency if it is expected to send the next message.
+--
+--
+--                ┌───────────────┐    Done      ┌───────────────┐
+--        ┌──────▶│     Idle      ├─────────────▶│     Done      │
+--        │       └───┬───────────┘              └───────────────┘
+--        │           │       ▲
+--        │   Acquire │       │
+--        │           │       │ Failure
+--        │           ▼       │
+--        │       ┌───────────┴───┐              Result
+--        │       │   Acquiring   │◀─────────────────────┐
+--        │       └───┬───────────┘                      │
+-- Release│           │       ▲                          │
+--        │           │       │                          │
+--        │  Acquired ▼       │ ReAcquire                │
+--        │       ┌───────────┴───┐             ┌────────┴───────┐
+--        └───────┤   Acquired    │────────────>│   Querying     │
+--                └───────────────┘             └────────────────┘
+--
+localStateQuery
+    :: forall m block state.  (MonadThrow m, MonadTimer m)
+    => TQueue m (LocalStateQueryCmd m block state)
+        -- ^ We use a 'TQueue' as a communication channel to drive queries from
+        -- outside of the network client to the client itself.
+        -- Requests are pushed to the queue which are then transformed into
+        -- messages to keep the state-machine moving.
+    -> LocalStateQueryClient block (Query block) m Void
+localStateQuery queue =
+    LocalStateQueryClient clientStIdle
+  where
+    clientStIdle
+        :: m (LSQ.ClientStIdle block (Query block) m Void)
+    clientStIdle = awaitNextCmd <&> \case
+        CmdQueryLocalState pt query respond ->
+            LSQ.SendMsgAcquire pt (clientStAcquiring query respond)
+
+    clientStAcquiring
+        :: Query block state
+        -> (LocalStateQueryResult state -> m ())
+        -> LSQ.ClientStAcquiring block (Query block) m Void
+    clientStAcquiring query respond = LSQ.ClientStAcquiring
+        { recvMsgAcquired = clientStAcquired query respond
+        , recvMsgFailure = \failure -> do
+                respond (Left failure)
+                clientStIdle
+        }
+
+    clientStAcquired
+        :: Query block state
+        -> (LocalStateQueryResult state -> m ())
+        -> LSQ.ClientStAcquired block (Query block) m Void
+    clientStAcquired query respond =
+        LSQ.SendMsgQuery query (clientStQuerying respond)
+
+    -- By re-acquiring rather releasing the state with 'MsgRelease' it
+    -- enables optimisations on the server side.
+    clientStAcquiredAgain
+        :: m (LSQ.ClientStAcquired block (Query block) m Void)
+    clientStAcquiredAgain = awaitNextCmd <&> \case
+        CmdQueryLocalState pt query respond ->
+            LSQ.SendMsgReAcquire pt (clientStAcquiring query respond)
+
+    clientStQuerying
+        :: (LocalStateQueryResult state -> m ())
+        -> LSQ.ClientStQuerying block (Query block) m Void state
+    clientStQuerying respond = LSQ.ClientStQuerying
+        { recvMsgResult = \result -> do
+            respond (Right result)
+            clientStAcquiredAgain
+        }
+
+    awaitNextCmd :: m (LocalStateQueryCmd m block state)
+    awaitNextCmd = atomically $ readTQueue queue
 
 --------------------------------------------------------------------------------
 --
@@ -481,8 +571,44 @@ type LocalStateQueryResult = Either AcquireFailure U.State
 data LocalTxSubmissionCmd (m :: * -> *) tx err
     = CmdSubmitTx tx (Maybe err -> m ())
 
--- TODO: port client implementation from Byron/Network
-
+-- | Client for the 'Local Tx Submission' mini-protocol.
+--
+-- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
+-- constructor.
+--
+--                                    Agency
+--     -------------------------------------------------------------------------
+--     Client has agency*                | Idle
+--     Server has agency*                | Busy
+--     * A peer has agency if it is expected to send the next message.
+--
+--      *-----------*
+--      |    Busy   |◀══════════════════════════════╗
+--      *-----------*            SubmitTx           ║
+--         │     │                                  ║
+--         │     │                             *---------*              *------*
+--         │     │        AcceptTx             |         |═════════════▶| Done |
+--         │     └────────────────────────────╼|         |   MsgDone    *------*
+--         │              RejectTx             |   Idle  |
+--         └──────────────────────────────────╼|         |
+--                                             |         |⇦ START
+--                                             *---------*
+localTxSubmission
+    :: forall m tx err. ( MonadThrow m, MonadTimer m)
+    => TQueue m (LocalTxSubmissionCmd m tx err)
+        -- ^ We use a 'TQueue' as a communication channel to drive queries from
+        -- outside of the network client to the client itself.
+        -- Requests are pushed to the queue which are then transformed into
+        -- messages to keep the state-machine moving.
+    -> LocalTxSubmissionClient tx err m Void
+localTxSubmission queue =
+    LocalTxSubmissionClient clientStIdle
+  where
+    clientStIdle
+        :: m (LocalTxClientStIdle tx err m Void)
+    clientStIdle = atomically (readTQueue queue) <&> \case
+        CmdSubmitTx tx respond ->
+            SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
 
 --------------------------------------------------------------------------------
 --
