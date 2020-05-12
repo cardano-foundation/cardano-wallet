@@ -582,7 +582,9 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
             , nChanges = length fixtures
             }
     verify r
-        [ expectCliField #amount $ between (Quantity feeMin, Quantity feeMax) ]
+        [ expectCliField #estimatedMin $
+            between (Quantity feeMin, Quantity feeMax)
+        ]
   where
     title = "CLI_TRANS_ESTIMATE_01/02 - " ++ show (length fixtures) ++ " recipient(s)"
 
@@ -751,7 +753,9 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
             , nChanges = 0
             }
     verify r
-        [ expectCliField #amount $ between (Quantity feeMin, Quantity feeMax) ]
+        [ expectCliField #estimatedMin $
+            between (Quantity feeMin, Quantity feeMax)
+        ]
   where
     title = "CLI_TRANS_ESTIMATE_04 - Can't cover fee"
 

@@ -772,7 +772,8 @@ spec = do
         it "ApiFee" $ property $ \x ->
             let
                 x' = ApiFee
-                    { amount = amount (x :: ApiFee)
+                    { estimatedMin = estimatedMin (x :: ApiFee)
+                    , estimatedMax = estimatedMax (x :: ApiFee)
                     }
             in
                 x' === x .&&. show x' === show x

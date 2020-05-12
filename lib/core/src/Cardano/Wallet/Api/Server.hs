@@ -121,6 +121,7 @@ import Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
+    , FeeEstimation (..)
     , HasLogger
     , WalletLog
     , genesisData
@@ -228,7 +229,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), changeBalance, feeBalance, inputBalance )
+    ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
@@ -1159,6 +1160,10 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
                 Pending  -> #pendingSince
                 InLedger -> #insertedAt
 
+apiFee :: FeeEstimation -> ApiFee
+apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
+    where qty = Quantity . fromIntegral
+
 postTransactionFee
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
@@ -1171,16 +1176,16 @@ postTransactionFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        (apiFee <$> W.selectCoinsForPayment @_ @s @t @k wrk wid outs)
+        (apiFee <$> W.estimateFeeForPayment @_ @s @t @k wrk wid outs)
             `catchE` handleCannotCover wrk
   where
-    apiFee = ApiFee . Quantity . fromIntegral . feeBalance
     handleCannotCover wrk = \case
         ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
             (wallet, _, pending) <- withExceptT ErrSelectForPaymentNoSuchWallet $
                 W.readWallet wrk wid
             let balance = availableBalance pending wallet
-            pure $ ApiFee $ Quantity $ fromIntegral missing + balance
+            let amt = Quantity $ fromIntegral missing + balance
+            pure $ ApiFee amt amt
 
         e -> throwE e
 
@@ -1258,9 +1263,7 @@ delegationFee
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-         apiFee <$> W.selectCoinsForDelegation @_ @s @t @k wrk wid
-  where
-    apiFee = ApiFee . Quantity . fromIntegral . feeBalance
+         apiFee <$> W.estimateFeeForDelegation @_ @s @t @k wrk wid
 
 quitStakePool
     :: forall ctx s t n k.

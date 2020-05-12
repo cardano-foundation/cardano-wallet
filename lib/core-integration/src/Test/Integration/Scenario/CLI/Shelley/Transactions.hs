@@ -485,7 +485,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) $
+            [ expectCliField (#estimatedMin . #getQuantity) $
                 between (feeMin - amt, feeMax + amt)
             ]
         c `shouldBe` ExitSuccess
@@ -511,7 +511,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) $
+            [ expectCliField (#estimatedMin . #getQuantity) $
                 between (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
@@ -540,7 +540,7 @@ spec = do
         err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiFee) out
         verify txJson
-            [ expectCliField (#amount . #getQuantity) $
+            [ expectCliField (#estimatedMin . #getQuantity) $
                 between (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
