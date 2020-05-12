@@ -98,7 +98,6 @@ import Debug.Trace
 import GHC.Stack
     ( HasCallStack )
 
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -527,16 +526,14 @@ decodeTxIn = do
     decodeTxIn' = do
         _ <- CBOR.decodeListLenCanonicalOf 2
         tx <- Hash <$> CBOR.decodeBytes
-        index <- CBOR.decodeWord32
-        return $ TxIn tx index
+        TxIn tx <$> CBOR.decodeWord32
 
 {-# HLINT ignore decodeTxOut "Use <$>" #-}
 decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
-    c <- CBOR.decodeWord64
-    return $ TxOut addr (Coin c)
+    TxOut addr . Coin <$> CBOR.decodeWord64
 
 decodeTxProof :: CBOR.Decoder s ()
 decodeTxProof = do
@@ -594,7 +591,7 @@ decodeUpdateProof = do
 --   passphrases). This is just scheme-specific and is better left out of this
 --   particular function
 encodeAddress :: XPub -> [CBOR.Encoding] -> CBOR.Encoding
-encodeAddress (CC.XPub pub (CC.ChainCode cc)) attrs =
+encodeAddress xpub attrs =
     encodeAddressPayload payload
   where
     blake2b224 = hash @_ @Blake2b_224
@@ -610,7 +607,7 @@ encodeAddress (CC.XPub pub (CC.ChainCode cc)) attrs =
         <> encodeSpendingData
         <> encodeAttributes attrs
     encodeXPub =
-        CBOR.encodeBytes (pub <> cc)
+        CBOR.encodeBytes (xpubToBytes xpub)
     encodeSpendingData = CBOR.encodeListLen 2
         <> CBOR.encodeWord8 0
         <> encodeXPub
