@@ -233,7 +233,7 @@ spec = do
             , ""
             , "Keys are read from standard input for convenient chaining of commands."
             , ""
-            , "Bech32- and hexadecimal encodings are supported."
+            , "Bech32 and hexadecimal encodings are supported."
             , ""
             , "Example:"
             , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
@@ -542,8 +542,8 @@ spec = do
             ]
 
         ["key", "root", "--help"] `shouldShowUsage`
-            [ "Usage:  key root [--wallet-style WALLET_STYLE] MNEMONIC_WORD..."
-            , "                 [--encoding KEY-ENCODING]"
+            [ "Usage:  key root [--wallet-style WALLET_STYLE]"
+            , "                 [--encoding KEY-ENCODING] MNEMONIC_WORD..."
             , "  Extract root extended private key from a mnemonic sentence."
             , ""
             , "Available options:"
@@ -553,6 +553,8 @@ spec = do
             , "                             icarus (15 mnemonic words)"
             , "                             trezor (12, 15, 18, 21 or 24 mnemonic words)"
             , "                             ledger (12, 15, 18, 21 or 24 mnemonic words)"
+            , "  --encoding KEY-ENCODING  Either 'hex' or 'bech32' (default:"
+            , "                           hex)"
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`

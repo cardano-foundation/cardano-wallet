@@ -396,7 +396,7 @@ cmdKey = command "key" $ info (helper <*> cmds) $ mempty
     <> footerDoc (Just $ string $ mconcat
         [ "Keys are read from standard input for convenient chaining of commands."
         , "\n\n"
-        , "Bech32- and hexadecimal encodings are supported."
+        , "Bech32 and hexadecimal encodings are supported."
         , "\n\n"
         , "Example:\n"
         , "$ "
@@ -750,8 +750,8 @@ inspect (AXPub key) =
 
 data KeyRootArgs = KeyRootArgs
     { _walletStyle :: ByronWalletStyle
-    , _mnemonicWords :: [Text]
     , _keyEncoding :: KeyEncoding
+    , _mnemonicWords :: [Text]
     }
 
 cmdKeyRoot :: Mod CommandFields (IO ())
@@ -761,9 +761,9 @@ cmdKeyRoot =
   where
     cmd = fmap exec $ KeyRootArgs
         <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
-        <*> mnemonicWordsArgument
         <*> keyEncodingOption
-    exec (KeyRootArgs keyType ws enc) = do
+        <*> mnemonicWordsArgument
+    exec (KeyRootArgs keyType enc ws) = do
         eitherToIO (mnemonicToRootKey scheme ws >>= encode) >>= TIO.putStrLn
       where
         encode = encodeKey enc
@@ -1821,13 +1821,16 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
 instance FromText KeyEncoding where
     fromText "bech32" = return Bech32
     fromText "hex" = return Hex
-    fromText _ = Left $ TextDecodingError "Invalid key encoding option."
+    fromText _ = Left $ TextDecodingError $ mconcat
+        [ "Invalid key encoding option. "
+        , "Expected one of the following: 'bech32' or 'hex'."]
 
 keyEncodingOption :: Parser KeyEncoding
 keyEncodingOption = option (eitherReader fromTextS) $
     mempty
     <> long "encoding"
     <> metavar "KEY-ENCODING"
+    <> help "Either 'hex' or 'bech32' (default: hex)"
     <> value Hex
 
 pathOption :: Parser DerivationPath
