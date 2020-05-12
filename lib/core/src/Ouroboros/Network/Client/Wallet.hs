@@ -45,165 +45,63 @@ import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), NextBlocksResult (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync (race) )
-import Control.Monad.Class.MonadST
-    ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
     , atomically
     , newEmptyTMVarM
-    , newTQueue
-    , newTVar
     , putTMVar
     , readTQueue
-    , readTVar
     , takeTMVar
     , writeTQueue
-    , writeTVar
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
-import Control.Monad.IO.Class
-    ( liftIO )
-import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE, withExceptT )
-import Control.Retry
-    ( RetryPolicyM
-    , RetryStatus (..)
-    , capDelay
-    , constantDelay
-    , fibonacciBackoff
-    , recovering
-    , retrying
-    )
-import Control.Tracer
-    ( Tracer, contramap, nullTracer, traceWith )
-import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
-import Data.ByteString.Lazy
-    ( ByteString )
-import Data.Function
-    ( (&) )
 import Data.Functor
     ( (<&>) )
-import Data.List
-    ( isInfixOf )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Void
     ( Void )
 import Data.Word
     ( Word32 )
-import Fmt
-    ( pretty )
-import GHC.Stack
-    ( HasCallStack )
-import Network.Mux
-    ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
-import Network.TypedProtocol.Codec
-    ( Codec )
 import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Ledger.Abstract
     ( Query (..) )
-import Ouroboros.Consensus.Node.Run
-    ( RunNode (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , HasHeader (..)
     , Point (..)
     , Serialised (..)
-    , SlotNo (..)
     , Tip (..)
     , blockPoint
     , castTip
-    , decodePoint
-    , decodeTip
-    , encodePoint
-    , encodeTip
-    , genesisPoint
     , getTipPoint
-    , pointHash
-    , pointSlot
-    , unwrapCBORinCBOR
     )
-import Ouroboros.Network.Channel
-    ( Channel )
-import Ouroboros.Network.Codec
-    ( DeserialiseFailure )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
-import Ouroboros.Network.Driver.Simple
-    ( TraceSendRecv, runPeer, runPipelinedPeer )
-import Ouroboros.Network.Mux
-    ( MuxPeer (..), OuroborosApplication (..), RunMiniProtocol (..) )
-import Ouroboros.Network.NodeToClient
-    ( ConnectionId (..)
-    , Handshake
-    , LocalAddress
-    , NetworkConnectTracers (..)
-    , NodeToClientProtocols (..)
-    , NodeToClientVersion (..)
-    , NodeToClientVersionData (..)
-    , connectTo
-    , localSnocket
-    , nodeToClientProtocols
-    , withIOManager
-    )
-import Ouroboros.Network.Point
-    ( fromWithOrigin )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( ChainSyncClient (..)
     , ClientStIdle (..)
     , ClientStIntersect (..)
     , ClientStNext (..)
-    , chainSyncClientPeer
     )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
-    ( ChainSyncClientPipelined (..), chainSyncClientPeerPipelined )
-import Ouroboros.Network.Protocol.ChainSync.Codec
-    ( codecChainSync, codecChainSyncSerialised )
-import Ouroboros.Network.Protocol.ChainSync.Type
-    ( ChainSync )
-import Ouroboros.Network.Protocol.Handshake.Version
-    ( DictVersion (..), simpleSingletonVersions )
+    ( ChainSyncClientPipelined (..) )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( ClientStAcquiring (..)
     , ClientStQuerying (..)
     , LocalStateQueryClient (..)
-    , localStateQueryClientPeer
     )
-import Ouroboros.Network.Protocol.LocalStateQuery.Codec
-    ( codecLocalStateQuery )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
-    ( AcquireFailure, LocalStateQuery )
+    ( AcquireFailure )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
-    ( LocalTxClientStIdle (..)
-    , LocalTxSubmissionClient (..)
-    , localTxSubmissionClientPeer
-    )
-import Ouroboros.Network.Protocol.LocalTxSubmission.Codec
-    ( codecLocalTxSubmission )
-import Ouroboros.Network.Protocol.LocalTxSubmission.Type
-    ( LocalTxSubmission )
-import System.IO.Error
-    ( isDoesNotExistError )
+    ( LocalTxClientStIdle (..), LocalTxSubmissionClient (..) )
 
-import qualified Cardano.Chain.Update.Validation.Interface as U
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Codec.CBOR.Term as CBOR
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
