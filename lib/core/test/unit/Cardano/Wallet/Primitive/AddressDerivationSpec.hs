@@ -19,7 +19,7 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xprvToBytes, xpubFromBytes )
+    ( XPrv, XPub, xpubFromBytes )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
 import Cardano.Wallet.Gen
@@ -39,11 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , checkPassphrase
     , encryptPassphrase
     , getIndex
-    , hex
     , preparePassphrase
-    , unXPrvStripPubCheckRoundtrip
-    , xPrvFromStrippedPubXPrv
-    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
@@ -55,16 +51,12 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), PassphraseScheme (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Control.Arrow
-    ( left )
 import Control.Monad
-    ( replicateM, (>=>) )
+    ( replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Either
-    ( isLeft, isRight )
-import Data.Function
-    ( (&) )
+    ( isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
@@ -73,15 +65,11 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
-    , NonNegative (..)
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , choose
-    , classify
-    , counterexample
     , expectFailure
-    , label
     , oneof
     , property
     , vector
@@ -232,18 +220,6 @@ spec = describe "PATATE" $ do
         it "XPub IcarusKey"
             (property $ prop_roundtripXPub @IcarusKey)
 
-    describe "unXPrvStripPub & xPrvFromStrippedPubXPrv" $ do
-        it "xPrvFromStrippedPubXPrv and unXPrvStripPub"
-              (property prop_strippedPubXPrvRoundtrip1)
-        it "xPrvFromStrippedPubXPrv and unXPrvStripPubCheckRoundtrip"
-              (property prop_strippedPubXPrvRoundtrip2)
-        it "xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPub"
-              (property prop_strippedPubXPrvRoundtrip3)
-        it "xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPubCheckRoundtrip"
-              (property prop_strippedPubXPrvRoundtrip4)
-        it "(xPrvFromStrippedPubXPrv bs) fails if (BS.length bs) /= 96"
-            (property prop_xPrvFromStrippedPubXPrvLengthRequirement)
-
     describe "golden test legacy passphrase encryption" $ do
         it "compare new implementation with cardano-sl - short password" $ do
             let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
@@ -367,86 +343,6 @@ prop_passphraseFromScryptRoundtripFail p p' =
         hp <- encryptPasswordWithScrypt p
         checkPassphrase EncryptWithScrypt p' hp
             `shouldBe` Left ErrWrongPassphrase
-
--- | xPrvFromStrippedPubXPrv and unXPrvStripPub
-prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property
-prop_strippedPubXPrvRoundtrip1 (XPrvWithPass k enc) = do
-    let bytes = xprvToBytes k
-    let Right res = xPrvFromStrippedPubXPrv bytes
-    counterexample (show . hex $ bytes) $
-        if enc == Passphrase ""
-        then label "no passphrase" (res === k)
-        else label "passphrase" $ do
-            counterexample "shoudn't roundtrip with passphrase"
-                $ property $ res /= k
-
--- | xPrvFromStrippedPubXPrv and unXPrvStripPubCheckRoundtrip
-prop_strippedPubXPrvRoundtrip2 :: XPrvWithPass -> Property
-prop_strippedPubXPrvRoundtrip2 (XPrvWithPass k enc) = do
-    let bytes = left show $ unXPrvStripPubCheckRoundtrip k
-    let res = xPrvFromStrippedPubXPrv' <$> bytes
-    counterexample (either (const "") (show . hex) bytes) $
-        if enc == Passphrase ""
-        then label "no passphrase" (res === Right k)
-        else label "passphrase" $ do
-            case res of
-                Right _ ->
-                    counterexample "shoudn't roundtrip with passphrase"
-                        $ property False
-                Left _ ->
-                    label "error" True
-  where
-   -- The input cannot have wrong length, so we discard the possibility of
-   -- @Left@.
-    xPrvFromStrippedPubXPrv' = either (error . show) id . xPrvFromStrippedPubXPrv
-
--- | xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPub
-prop_strippedPubXPrvRoundtrip3 :: XPrvWithPass -> Property
-prop_strippedPubXPrvRoundtrip3 (XPrvWithPass k enc) = do
-    let bytes = xprvToBytes k
-    let res = xPrvFromStrippedPubXPrvCheckRoundtrip bytes
-    counterexample (show $ hex bytes) $
-        if enc == Passphrase ""
-        then label "no passphrase" (res === Right k)
-        else label "passphrase" $ do
-            case res of
-                Right k' -> label "false success" $ k' /= k
-                Left _ -> label "error" True
-
--- | xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPubCheckRoundtrip
-prop_strippedPubXPrvRoundtrip4 :: XPrvWithPass -> Property
-prop_strippedPubXPrvRoundtrip4 (XPrvWithPass k enc) = do
-    let bytes = left show $ unXPrvStripPubCheckRoundtrip k
-    let res = left show . xPrvFromStrippedPubXPrvCheckRoundtrip =<< bytes
-    counterexample (either (const "") (show . hex) bytes) $
-        if enc == Passphrase ""
-        then label "no passphrase" (res === Right k)
-        else label "passphrase" $ do
-            case res of
-                Right _ ->
-                    counterexample "shoudn't roundtrip with passphrase"
-                        $ property False
-                Left _ ->
-                    label "error" True
-
-prop_xPrvFromStrippedPubXPrvLengthRequirement
-    :: Unencrypted XPrv
-    -> NonNegative Int
-    -> Property
-prop_xPrvFromStrippedPubXPrvLengthRequirement (Unencrypted k) (NonNegative n) = do
-    let f = toStripped >=> (return . BS.take n) >=> fromStripped
-    let k' = f k
-    -- A reason for writing the test using BS.take n instead of say vectorOf
-    -- was guarding against
-    -- https://github.com/input-output-hk/cardano-crypto/issues/67
-    n < 96 ==> property $ isLeft k'
-        & counterexample ("n = " ++ show n)
-        & counterexample ("result = " ++ show k')
-        & classify (n == 96) "== 96"
-        & classify (n < 96) "< 96"
-  where
-    toStripped = left show . unXPrvStripPubCheckRoundtrip
-    fromStripped = left show . xPrvFromStrippedPubXPrvCheckRoundtrip
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

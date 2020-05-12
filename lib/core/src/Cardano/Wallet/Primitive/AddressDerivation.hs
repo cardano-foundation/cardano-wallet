@@ -50,11 +50,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Helpers
     , hex
     , fromHex
-    , unXPrvStripPubCheckRoundtrip
-    , xPrvFromStrippedPubXPrv
-    , xPrvFromStrippedPubXPrvCheckRoundtrip
-    , ErrXPrvFromStrippedPubXPrv (..)
-    , ErrUnXPrvStripPub (..)
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
@@ -85,7 +80,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xprvFromBytes, xprvToBytes, xpubToBytes )
+    ( XPrv, XPub, xpubToBytes )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.DeepSeq
@@ -133,7 +128,6 @@ import GHC.TypeLits
 import Safe
     ( toEnumMay )
 
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -655,50 +649,3 @@ hex = convertToBase Base16
 -- | Decode a 'ByteString' from base16
 fromHex :: ByteArray bout => ByteString -> Either String bout
 fromHex = convertFromBase Base16
-
-data ErrUnXPrvStripPub
-    = ErrCannotRoundtripToSameXPrv
-      -- ^ The resulting bytestring would have been unable to roundtrip using
-      -- @xPrvFromStrippedPubXPrv@. Most likely because the input @XPrv@ was
-      -- encrypted, or because it was an old (Byron) key.
-    deriving (Eq, Show)
-
--- | Like @unXPrvStripPub@, but also checks that the result roundtrips.
---
--- Roundtrip may fail if:
--- - the key is encrypted
--- - the key is an old byron key
-unXPrvStripPubCheckRoundtrip :: XPrv -> Either ErrUnXPrvStripPub ByteString
-unXPrvStripPubCheckRoundtrip k = do
-    let res = xprvToBytes k
-    case (fmap CC.unXPrv . xPrvFromStrippedPubXPrv $ res) of
-        Right bytes
-            | bytes == CC.unXPrv k -> Right res
-            | otherwise         -> Left ErrCannotRoundtripToSameXPrv
-        Left  _                 -> error "xprvToBytes: this state cannot be \
-            \reached from a rightfully crafted XPrv"
-
-data ErrXPrvFromStrippedPubXPrv
-    = ErrInputLengthMismatch Int Int -- ^ Expected, Actual
-    | ErrCannotRoundtripToSameBytes
-    deriving (Eq, Show)
-
--- | Like @xPrvFromStrippedPubXPrv@, but also checks that the result roundtrips.
---
--- Roundtrip may fail if:
--- - the key is encrypted
--- - the key is an old byron key
-xPrvFromStrippedPubXPrvCheckRoundtrip
-    :: ByteString
-    -> Either ErrXPrvFromStrippedPubXPrv XPrv
-xPrvFromStrippedPubXPrvCheckRoundtrip bs = do
-        res <- xPrvFromStrippedPubXPrv bs
-        if xprvToBytes res == bs
-        then Right res
-        else Left ErrCannotRoundtripToSameBytes
-
--- | Create a @XPrv@ from a 96-byte long extended private key
-xPrvFromStrippedPubXPrv :: ByteString -> Either ErrXPrvFromStrippedPubXPrv XPrv
-xPrvFromStrippedPubXPrv bs = case xprvFromBytes bs of
-    Nothing -> Left $ ErrInputLengthMismatch 96 (BS.length bs)
-    Just key -> return key
