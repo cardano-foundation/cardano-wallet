@@ -649,7 +649,7 @@ Extract the root extended private key from a mnemonic sentence. New mnemonic sen
 >                             trezor (12, 15, 18, 21 or 24 words)
 >                             ledger (12, 15, 18, 21 or 24 words)
 >  --key-encoding KEY-ENCODING
->                           Either "hex" (default) os "bech32"
+>                           Either 'hex' or 'bech32' (default: hex)
 > ```
 
 ```bash
