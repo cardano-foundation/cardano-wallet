@@ -172,7 +172,16 @@ import Ouroboros.Network.Block
 import Ouroboros.Network.Channel
     ( Channel )
 import Ouroboros.Network.Client.Wallet
-    ( chainSyncWithBlocks )
+    ( ChainSyncCmd (..)
+    , LocalStateQueryCmd (..)
+    , LocalStateQueryResult
+    , LocalTxSubmissionCmd (..)
+    , chainSyncFollowTip
+    , chainSyncWithBlocks
+    , localStateQuery
+    , localTxSubmission
+    , send
+    )
 import Ouroboros.Network.Codec
     ( DeserialiseFailure )
 import Ouroboros.Network.CodecCBORTerm
@@ -247,7 +256,7 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Byron) = Cursor
     (Point ByronBlock)
-    (TQueue m (ChainSyncCmd m))
+    (TQueue m (ChainSyncCmd m ByronBlock))
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -354,80 +363,6 @@ withNetworkLayer tr gbp addrInfo versionData action = do
 --
 -- Interface with the Network Client
 
-
--- | We interact with the 'NetworkClient' via a commands instrumenting the
--- client to move within the state-machine protocol. Commands are sent from a
--- parent thread via a shared 'TQueue'.
---
---
--- MAIN THREAD                   | NETWORK CLIENT THREAD
---                               |
---     *---------------*         |
---     |               |         |
---     | Wallet Engine |         |
---     |               |         |
---     *---------------*         |
---            |  ^               |
---            v  |               |
---     *---------------*         |        *----------------*
---     |               |         |        |                |
---     | Network Layer |<===[ TQueue ]===>| Network Client |
---     |               |         |        |                |
---     *---------------*         |        *----------------*
---                               |                |  ^
---                               |                v  |
---                               |     (ChainSync + TxSubmission)
---
--- The NetworkClient is idling most of the time and blocking on the TQueue while
--- waiting for commands. Upon receiving a command, it interprets it by sending
--- the corresponding instruction to the node and responding via a given
--- callback.
---
--- See also 'send' for invoking commands.
-data ChainSyncCmd (m :: * -> *)
-    = CmdFindIntersection
-        [Point ByronBlock]
-        (Maybe (Point ByronBlock) -> m ())
-    | CmdNextBlocks
-        (NextBlocksResult (Point ByronBlock) ByronBlock -> m ())
-
--- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
-data LocalTxSubmissionCmd (m :: * -> *)
-    = CmdSubmitTx
-        (GenTx ByronBlock)
-        (Maybe ApplyMempoolPayloadErr -> m ())
-
--- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd (m :: * -> *)
-    = CmdQueryLocalState
-        (Point ByronBlock)
-        (LocalStateQueryResult -> m ())
-
--- | Shorthand for the possible outcomes of acquiring local state parameters.
-type LocalStateQueryResult = Either AcquireFailure U.State
-
--- | Helper function to easily send commands to the node's client and read
--- responses back.
---
--- >>> queue `send` CmdNextBlocks
--- RollForward cursor nodeTip blocks
---
--- >>> queue `send` CmdNextBlocks
--- AwaitReply
-send
-    :: (MonadSTM m, MonadAsync m, MonadTimer m)
-    => TQueue m (cmd m)
-    -> ((a -> m ()) -> cmd m)
-    -> m (Either ErrNetworkUnavailable a)
-send queue cmd = do
-    tvar <- newEmptyTMVarM
-    atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
-    race timeout (atomically $ takeTMVar tvar) <&> \case
-        Left{}  -> Left (ErrNetworkUnreachable "timeout")
-        Right a -> Right a
-  where
-    timeout = threadDelay 30
-
 --------------------------------------------------------------------------------
 --
 -- Network Client
@@ -454,7 +389,7 @@ mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => W.BlockchainParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (ChainSyncCmd m)
+    -> TQueue m (ChainSyncCmd m block)
         -- ^ Communication channel with the ChainSync client
     -> NetworkClient m
 mkWalletClient bp@W.BlockchainParameters{getEpochStability} chainSyncQ =
@@ -480,7 +415,7 @@ mkTipSyncClient
         -- ^ Base trace for underlying protocols
     -> W.GenesisBlockParameters
         -- ^ Initial blockchain parameters
-    -> TQueue m (LocalTxSubmissionCmd m)
+    -> TQueue m (LocalTxSubmissionCmd m (GenTx ByronBlock) ApplyMempoolPayloadErr)
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
         -- ^ Notifier callback for when tip changes
@@ -517,28 +452,55 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
 
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                chainSyncFollowTip nullTracer onTipUpdate' channel
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer nullTracer csCodec channel
+                $ chainSyncFollowTip onTipUpdate'
         , localTxSubmissionProtocol =
             let tr' = contramap MsgTxSubmission tr in
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                localTxSubmission tr' localTxSubmissionQ channel
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer tr txCodec channel
+                $ localTxSubmissionClientPeer
+                $ localTxSubmission localTxSubmissionQ
         , localStateQueryProtocol =
             let tr' = contramap MsgLocalStateQuery tr in
-            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                localStateQuery tr' localStateQueryQ channel
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer tr sqCodec channel
+                $ localStateQueryClientPeer
+                $ localStateQuery localStateQueryQ
         }
         NodeToClientV_2
+  where
+    csCodec
+        :: forall m protocol.
+            ( protocol ~ ChainSync (Serialised ByronBlock) (Tip (Serialised ByronBlock)))
+        => Codec protocol DeserialiseFailure m ByteString
+    csCodec = codecChainSyncSerialised
+        (encodePoint encodeByronHeaderHash)
+        (decodePoint decodeByronHeaderHash)
+        (encodeTip encodeByronHeaderHash)
+        (decodeTip decodeByronHeaderHash)
 
--- | Return a function to run an action only if its single parameter has changed
--- since the previous time it was called.
-debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
-debounce action = do
-    mvar <- newTMVarM Nothing
-    pure $ \cur -> do
-        prev <- atomically $ takeTMVar mvar
-        unless (Just cur == prev) $ action cur
-        atomically $ putTMVar mvar (Just cur)
+    txCodec
+        :: forall m protocol.
+            ( protocol ~ LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr )
+        => Codec protocol DeserialiseFailure m ByteString
+    txCodec = codecLocalTxSubmission
+        encodeByronGenTx -- Tx -> CBOR.Encoding
+        decodeByronGenTx -- CBOR.Decoder s Tx
+        (nodeEncodeApplyTxError (Proxy @ByronBlock)) -- ApplyTxErr -> CBOR.Encoding
+        (nodeDecodeApplyTxError (Proxy @ByronBlock)) -- CBOR.Decoder s ApplyTxErr
+
+    sqCodec
+        :: forall m protocol.
+            ( protocol ~ LocalStateQuery ByronBlock (Query ByronBlock) )
+        => Codec protocol DeserialiseFailure m ByteString
+    sqCodec = codecLocalStateQuery
+        (encodePoint encodeByronHeaderHash)
+        (decodePoint decodeByronHeaderHash)
+        nodeEncodeQuery
+        nodeDecodeQuery
+        nodeEncodeResult
+        nodeDecodeResult
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
@@ -637,170 +599,6 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-
-
--- | Client for the 'Local Tx Submission' mini-protocol.
---
--- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
--- constructor.
---
---                                    Agency
---     -------------------------------------------------------------------------
---     Client has agency*                | Idle
---     Server has agency*                | Busy
---     * A peer has agency if it is expected to send the next message.
---
---      *-----------*
---      |    Busy   |◀══════════════════════════════╗
---      *-----------*            SubmitTx           ║
---         │     │                                  ║
---         │     │                             *---------*              *------*
---         │     │        AcceptTx             |         |═════════════▶| Done |
---         │     └────────────────────────────╼|         |   MsgDone    *------*
---         │              RejectTx             |   Idle  |
---         └──────────────────────────────────╼|         |
---                                             |         |⇦ START
---                                             *---------*
-localTxSubmission
-    :: forall m protocol.
-        ( MonadThrow m, MonadTimer m, MonadST m
-        , protocol ~ LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr
-        )
-    => Tracer m (TraceSendRecv protocol)
-        -- ^ Base tracer for the mini-protocols
-    -> TQueue m (LocalTxSubmissionCmd m)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
-    -> Channel m ByteString
-        -- ^ A 'Channel' is a abstract communication instrument which
-        -- transports serialized messages between peers (e.g. a unix
-        -- socket).
-    -> m Void
-localTxSubmission tr queue channel =
-    runPeer tr codec channel (localTxSubmissionClientPeer client)
-  where
-    codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = codecLocalTxSubmission
-        encodeByronGenTx -- Tx -> CBOR.Encoding
-        decodeByronGenTx -- CBOR.Decoder s Tx
-        (nodeEncodeApplyTxError (Proxy @ByronBlock)) -- ApplyTxErr -> CBOR.Encoding
-        (nodeDecodeApplyTxError (Proxy @ByronBlock)) -- CBOR.Decoder s ApplyTxErr
-
-    client
-        :: LocalTxSubmissionClient (GenTx ByronBlock) ApplyMempoolPayloadErr m Void
-    client = LocalTxSubmissionClient clientStIdle
-      where
-        clientStIdle
-            :: m (LocalTxClientStIdle (GenTx ByronBlock) ApplyMempoolPayloadErr m Void)
-        clientStIdle = atomically (readTQueue queue) <&> \case
-            CmdSubmitTx tx respond ->
-                SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
-
--- | Client for the 'Local State Query' mini-protocol.
---
--- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
--- constructor.
---
---                                    Agency
---     -------------------------------------------------------------------------
---     Client has agency*                | Idle, Acquired
---     Server has agency*                | Acquiring, Querying
---     * A peer has agency if it is expected to send the next message.
---
---
---                ┌───────────────┐    Done      ┌───────────────┐
---        ┌──────▶│     Idle      ├─────────────▶│     Done      │
---        │       └───┬───────────┘              └───────────────┘
---        │           │       ▲
---        │   Acquire │       │
---        │           │       │ Failure
---        │           ▼       │
---        │       ┌───────────┴───┐              Result
---        │       │   Acquiring   │◀─────────────────────┐
---        │       └───┬───────────┘                      │
--- Release│           │       ▲                          │
---        │           │       │                          │
---        │  Acquired ▼       │ ReAcquire                │
---        │       ┌───────────┴───┐             ┌────────┴───────┐
---        └───────┤   Acquired    │────────────>│   Querying     │
---                └───────────────┘             └────────────────┘
---
-localStateQuery
-    :: forall m protocol.
-        ( MonadThrow m, MonadTimer m, MonadST m
-        , protocol ~ LocalStateQuery ByronBlock (Query ByronBlock)
-        )
-    => Tracer m (TraceSendRecv protocol)
-        -- ^ Base tracer for the mini-protocols
-    -> TQueue m (LocalStateQueryCmd m)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
-    -> Channel m ByteString
-        -- ^ A 'Channel' is a abstract communication instrument which
-        -- transports serialized messages between peers (e.g. a unix
-        -- socket).
-    -> m Void
-localStateQuery tr queue channel =
-    runPeer tr codec channel (localStateQueryClientPeer client)
-  where
-    codec :: Codec protocol DeserialiseFailure m ByteString
-    codec = codecLocalStateQuery
-          (encodePoint encodeByronHeaderHash)
-          (decodePoint decodeByronHeaderHash)
-          nodeEncodeQuery
-          nodeDecodeQuery
-          nodeEncodeResult
-          nodeDecodeResult
-
-    client :: LocalStateQueryClient ByronBlock (Query ByronBlock) m Void
-    client = LocalStateQueryClient clientStIdle
-      where
-        clientStIdle
-            :: m (LSQ.ClientStIdle ByronBlock (Query ByronBlock) m Void)
-        clientStIdle = awaitNextCmd <&> \case
-            CmdQueryLocalState pt respond ->
-                LSQ.SendMsgAcquire pt (clientStAcquiring respond)
-
-        clientStAcquiring
-            :: (LocalStateQueryResult -> m ())
-            -> LSQ.ClientStAcquiring ByronBlock (Query ByronBlock) m Void
-        clientStAcquiring respond = LSQ.ClientStAcquiring
-            { recvMsgAcquired = clientStAcquired respond
-            , recvMsgFailure = \failure -> do
-                    respond (Left failure)
-                    clientStIdle
-            }
-
-        clientStAcquired
-            :: (LocalStateQueryResult -> m ())
-            -> LSQ.ClientStAcquired ByronBlock (Query ByronBlock) m Void
-        clientStAcquired respond = LSQ.SendMsgQuery
-            GetUpdateInterfaceState
-            (clientStQuerying respond)
-
-        -- By re-acquiring rather releasing the state with 'MsgRelease' it
-        -- enables optimisations on the server side.
-        clientStAcquiredAgain
-            :: m (LSQ.ClientStAcquired ByronBlock (Query ByronBlock) m Void)
-        clientStAcquiredAgain = awaitNextCmd <&> \case
-            CmdQueryLocalState pt respond ->
-                LSQ.SendMsgReAcquire pt (clientStAcquiring respond)
-
-        clientStQuerying
-            :: (LocalStateQueryResult -> m ())
-            -> LSQ.ClientStQuerying ByronBlock (Query ByronBlock) m Void U.State
-        clientStQuerying respond = LSQ.ClientStQuerying
-            { recvMsgResult = \result -> do
-                    respond (Right result)
-                    clientStAcquiredAgain
-            }
-
-    awaitNextCmd :: m (LocalStateQueryCmd m)
-    awaitNextCmd = atomically $ readTQueue queue
 
 --------------------------------------------------------------------------------
 --
