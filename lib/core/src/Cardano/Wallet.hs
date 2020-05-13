@@ -741,10 +741,9 @@ restoreBlocks
     -> NonEmpty Block
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
-    (cp, meta) <- mapExceptT atomically $ (,)
-        <$> withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
-        <*> withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
+restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
+    cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
+    meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let bp = blockchainParameters cp
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
@@ -766,24 +765,23 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> do
     let k = bp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
+    putTxHistory (PrimaryKey wid) txs
+    forM_ slotPoolDelegations $ \delegation@(slotId, cert) -> do
+        liftIO $ logDelegation delegation
+        putDelegationCertificate (PrimaryKey wid) cert slotId
+
     let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
-    mapExceptT atomically $ do
-        putTxHistory (PrimaryKey wid) txs
 
-        forM_ slotPoolDelegations $ \delegation@(slotId, cert) -> do
-            liftIO $ logDelegation delegation
-            putDelegationCertificate (PrimaryKey wid) cert slotId
+    forM_ (NE.init cps) $ \cp' -> do
+        let (Quantity h) = currentTip cp' ^. #blockHeight
+        when (fromIntegral h `elem` unstable) $ do
+            liftIO $ logCheckpoint cp'
+            putCheckpoint (PrimaryKey wid) cp'
 
-        forM_ (NE.init cps) $ \cp' -> do
-            let (Quantity h) = currentTip cp' ^. #blockHeight
-            when (fromIntegral h `elem` unstable) $ do
-                liftIO $ logCheckpoint cp'
-                putCheckpoint (PrimaryKey wid) cp'
+    liftIO $ logCheckpoint (NE.last cps)
+    putCheckpoint (PrimaryKey wid) (NE.last cps)
 
-        liftIO $ logCheckpoint (NE.last cps)
-        putCheckpoint (PrimaryKey wid) (NE.last cps)
-
-        prune (PrimaryKey wid)
+    prune (PrimaryKey wid)
 
     liftIO $ do
         progress <- walletSyncProgress @ctx ctx (NE.last cps)
