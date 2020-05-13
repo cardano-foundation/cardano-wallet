@@ -23,6 +23,15 @@ spec  = do
         let childPub = "xpub12vr8xuljuc0z4snfjjq6hcnx02t5qkegku6ygncqy7xkhx4s7gwq3ulfrded8x7n5ykegc3u2cvlenjpl5y35k0633m8yluke5fu8cg3dfa0p"
         let childPubHex = "53067373f2e61e2ac2699481abe2667a97405b28b734444f00278d6b9ab0f21c08f3e91b72d39bd3a12d94623c5619fcce41fd091a59fa8c76727f96cd13c3e1"
 
+        let expectedInspect = mconcat
+                [ "extended public key: "
+                , "53067373f2e61e2ac2699481abe2667a97405b28b734444f00278d6b9ab0f21c"
+                , "\n"
+                , "chain code: "
+                , "08f3e91b72d39bd3a12d94623c5619fcce41fd091a59fa8c76727f96cd13c3e1"
+                , "\n"
+                ]
+
         it "derive bech32 public child key from mnemonic" $ do
             res <- key (["root", "--encoding", "bech32", "--"] ++ mw) ""
                 >>= key ["child", "--path", "0H/0H"]
@@ -35,20 +44,20 @@ spec  = do
                 >>= key ["public"]
                 >>= key ["child", "--path", "0"]
             res `shouldBe` (childPubHex ++ "\n")
-        it "inspect the final result" $ do
+        it "inspect the final hex result" $ do
             res <- key (["root", "--"] ++ mw) ""
                 >>= key ["child", "--path", "0H/0H"]
                 >>= key ["public"]
                 >>= key ["child", "--path", "0"]
                 >>= key ["inspect"]
-            res `shouldBe` (mconcat
-                [ "extended public key: "
-                , "53067373f2e61e2ac2699481abe2667a97405b28b734444f00278d6b9ab0f21c"
-                , "\n"
-                , "chain code: "
-                , "08f3e91b72d39bd3a12d94623c5619fcce41fd091a59fa8c76727f96cd13c3e1"
-                , "\n"
-                ])
+            res `shouldBe` expectedInspect
+        it "inspect the final bech32 result" $ do
+            res <- key (["root", "--encoding", "bech32", "--"] ++ mw) ""
+                >>= key ["child", "--path", "0H/0H"]
+                >>= key ["public"]
+                >>= key ["child", "--path", "0"]
+                >>= key ["inspect"]
+            res `shouldBe` expectedInspect
 
     describe "key child" $ do
         let rootXPrv = "588102383ed9ecc5c44e1bfa18d1cf8ef19a7cf806a20bb4cbbe4e5\
