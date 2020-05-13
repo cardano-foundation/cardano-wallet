@@ -44,7 +44,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromChainHash
     , fromGenesisData
     , fromNetworkMagic
-    , fromProtocolMagicId
     , fromSlotNo
     , fromTip
     , fromPParams
@@ -57,8 +56,6 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
-import Cardano.Crypto.ProtocolMagic
-    ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Slotting.Slot
     ( EpochSize (..) )
 import Cardano.Wallet.Unsafe
@@ -408,6 +405,3 @@ fromGenesisData g =
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
-
-fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
-fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
