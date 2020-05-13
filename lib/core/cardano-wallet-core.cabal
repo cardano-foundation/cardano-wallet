@@ -40,7 +40,6 @@ library
     , bytestring
     , cardano-addresses
     , cardano-crypto
-    , cardano-ledger
     , cborg
     , containers
     , contra-tracer
@@ -66,13 +65,10 @@ library
     , memory
     , monad-logger
     , network
-    , network-mux
     , ntp-client
     , OddWord
     , ouroboros-consensus
-    , ouroboros-consensus-byron
     , ouroboros-network
-    , ouroboros-network-framework
     , path-pieces
     , persistent
     , persistent-sqlite
@@ -96,7 +92,6 @@ library
     , tls
     , transformers
     , typed-protocols
-    , typed-protocols-examples
     , unliftio
     , unordered-containers
     , vector

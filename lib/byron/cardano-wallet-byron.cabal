@@ -68,8 +68,6 @@ library
     , text-class
     , time
     , transformers
-    , typed-protocols
-    , typed-protocols-examples
     , unordered-containers
     , warp
     , yaml
