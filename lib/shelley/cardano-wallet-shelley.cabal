@@ -34,7 +34,6 @@ library
     , async
     , bytestring
     , cardano-binary
-    , cardano-crypto-wrapper
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -127,19 +126,13 @@ test-suite unit
   build-depends:
       base
     , bytestring
-    , cardano-crypto
     , cardano-wallet-core
     , cardano-crypto-class
     , ouroboros-consensus-shelley
     , cardano-wallet-shelley
     , ouroboros-network
-    , cborg
-    , containers
     , hspec
-    , fmt
-    , memory
     , QuickCheck
-    , transformers
   build-tools:
       hspec-discover
   type:

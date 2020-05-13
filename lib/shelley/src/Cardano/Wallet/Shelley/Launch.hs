@@ -48,17 +48,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData
-    , emptyGenesis
-    , fromGenesisData
-    , mainnetBlockchainParameters
-    , mainnetVersionData
-    , testnetVersionData
-    )
+    ( NodeVersionData, fromGenesisData, testnetVersionData )
 import Cardano.Wallet.Shelley.Transaction
     ( genesisBlockFromTxOuts )
-import Control.Applicative
-    ( (<|>) )
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad
@@ -78,7 +70,7 @@ import Data.Time.Clock
 import GHC.TypeLits
     ( SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, flag', help, long, metavar )
+    ( Parser, help, long, metavar )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
 import Ouroboros.Consensus.Shelley.Protocol
@@ -105,10 +97,6 @@ import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 data NetworkConfiguration where
-    MainnetConfig
-        :: (SomeNetworkDiscriminant, NodeVersionData)
-        -> NetworkConfiguration
-
     TestnetConfig
         :: FilePath
         -> NetworkConfiguration
@@ -116,8 +104,6 @@ data NetworkConfiguration where
 -- | Hand-written as there's no Show instance for 'NodeVersionData'
 instance Show NetworkConfiguration where
     show = \case
-        MainnetConfig{} ->
-            "MainnetConfig"
         TestnetConfig genesisFile ->
             "TestnetConfig " <> show genesisFile
 
@@ -128,16 +114,11 @@ nodeSocketOption = optionT $ mempty
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
 
--- | --mainnet | (--testnet=FILE)
+-- | --testnet=FILE
 networkConfigurationOption :: Parser NetworkConfiguration
 networkConfigurationOption =
-    mainnetFlag <|> (TestnetConfig <$> testnetOption)
+    TestnetConfig <$> testnetOption
   where
-    -- --mainnet
-    mainnetFlag = flag'
-        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
-        (long "mainnet")
-
     -- | --testnet=FILE
     testnetOption
         :: Parser FilePath
@@ -165,12 +146,6 @@ parseGenesisData
     :: NetworkConfiguration
     -> ExceptT String IO (SomeNetworkDiscriminant, GenesisBlockParameters, NodeVersionData, Block)
 parseGenesisData = \case
-    MainnetConfig (discriminant, vData) -> pure
-        ( discriminant
-        , mainnetBlockchainParameters
-        , vData
-        , emptyGenesis (staticParameters mainnetBlockchainParameters)
-        )
     TestnetConfig genesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
             <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
