@@ -60,12 +60,15 @@ library
     , http-client
     , http-media
     , http-types
+    , io-sim-classes
     , iohk-monitoring
     , memory
     , monad-logger
     , network
     , ntp-client
     , OddWord
+    , ouroboros-consensus
+    , ouroboros-network
     , path-pieces
     , persistent
     , persistent-sqlite
@@ -80,14 +83,15 @@ library
     , servant-client
     , servant-server
     , split
-    , streaming-commons
     , stm
+    , streaming-commons
     , template-haskell
     , text
     , text-class
     , time
     , tls
     , transformers
+    , typed-protocols
     , unliftio
     , unordered-containers
     , vector
@@ -156,6 +160,7 @@ library
       Network.Ntp
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
+      Ouroboros.Network.Client.Wallet
   other-modules:
       Paths_cardano_wallet_core
 
