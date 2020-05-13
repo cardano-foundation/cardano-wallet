@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -13,7 +14,7 @@
 --
 -- Provides a function to launch cardano-node for /testing/.
 
-module Cardano.Wallet.Byron.Launch
+module Cardano.Wallet.Shelley.Launch
     ( -- * Integration Launcher
       withCardanoNode
 
@@ -25,31 +26,17 @@ module Cardano.Wallet.Byron.Launch
 
 import Prelude
 
+
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( Trace )
-import Cardano.Chain.Genesis
-    ( GenesisData (..), readGenesisData )
 import Cardano.CLI
     ( optionT )
-import Cardano.Crypto.ProtocolMagic
-    ( ProtocolMagicId (..) )
+import Cardano.Config.Shelley.Genesis
+    ( ShelleyGenesis )
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
-import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..) )
-import Cardano.Wallet.Byron.Compatibility
-    ( NodeVersionData
-    , emptyGenesis
-    , fromGenesisData
-    , fromProtocolMagicId
-    , mainnetBlockchainParameters
-    , mainnetVersionData
-    , testnetVersionData
-    )
-import Cardano.Wallet.Byron.Transaction
-    ( genesisBlockFromTxOuts )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -58,8 +45,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), GenesisBlockParameters (..), ProtocolMagic (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+import Cardano.Wallet.Shelley
+    ( SomeNetworkDiscriminant (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( NodeVersionData
+    , emptyGenesis
+    , fromGenesisData
+    , mainnetBlockchainParameters
+    , mainnetVersionData
+    , testnetVersionData
+    )
+import Cardano.Wallet.Shelley.Transaction
+    ( genesisBlockFromTxOuts )
 import Control.Applicative
     ( (<|>) )
 import Control.Exception
@@ -69,21 +66,23 @@ import Control.Monad
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT, withExceptT )
+    ( ExceptT (..) )
 import Data.Aeson
-    ( toJSON )
-import Data.Function
-    ( (&) )
+    ( eitherDecode, toJSON )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
-import Data.Time.Clock.POSIX
-    ( getPOSIXTime )
+import Data.Time.Clock
+    ( getCurrentTime )
 import GHC.TypeLits
     ( SomeNat (..), someNatVal )
 import Options.Applicative
     ( Parser, flag', help, long, metavar )
+import Ouroboros.Consensus.Shelley.Node
+    ( sgNetworkMagic )
+import Ouroboros.Consensus.Shelley.Protocol
+    ( TPraosStandardCrypto )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -100,6 +99,7 @@ import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
@@ -172,15 +172,12 @@ parseGenesisData = \case
         , emptyGenesis (staticParameters mainnetBlockchainParameters)
         )
     TestnetConfig genesisFile -> do
-        (genesisData, genesisHash) <-
-            withExceptT show $ readGenesisData genesisFile
+        (genesis :: ShelleyGenesis TPraosStandardCrypto)
+            <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+        let nm = unNetworkMagic $ sgNetworkMagic genesis
+        let (discriminant, vData) = someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
 
-        let (discriminant, vData) = genesisData
-                & gdProtocolMagicId
-                & fromProtocolMagicId
-                & someTestnetDiscriminant
-
-        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
+        let (gbp, outs) = fromGenesisData genesis
         pure
             ( discriminant
             , gbp
@@ -195,10 +192,11 @@ parseGenesisData = \case
 data CardanoNodeConfig = CardanoNodeConfig
     { nodeConfigFile   :: FilePath
     , nodeDatabaseDir  :: FilePath
-    , nodeDlgCertFile  :: FilePath
-    , nodeSignKeyFile  :: FilePath
     , nodeSocketFile   :: FilePath
     , nodeTopologyFile :: FilePath
+    , nodeVrfKey       :: FilePath
+    , nodeKesKey       :: FilePath
+    , nodeOpCert       :: FilePath
     }
 
 -- | Spins up a @cardano-node@ in another process.
@@ -206,13 +204,12 @@ data CardanoNodeConfig = CardanoNodeConfig
 -- IMPORTANT: @cardano-node@ must be available on the current path.
 withCardanoNode
     :: Trace IO Text
-    -- ^ Trace for subprocess control logging
+    -- ^ Some trace for logging
     -> FilePath
-    -- ^ Test directory in source tree
+    -- ^ Test directory
     -> Severity
-    -- ^ Logging level for @cardano-node@
     -> (FilePath -> Block -> (GenesisBlockParameters, NodeVersionData) -> IO a)
-    -- ^ Callback function with a socket filename and genesis params
+    -- ^ Callback function with a socket description and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
     orThrow $ withConfig tdir severity $ \cfg block0 (gbp, vData) -> do
@@ -226,12 +223,13 @@ withCardanoNode tr tdir severity action =
     mkArgs cfg port =
         [ "run"
         , "--config", nodeConfigFile cfg
-        , "--signing-key", nodeSignKeyFile cfg
-        , "--delegation-certificate", nodeDlgCertFile cfg
         , "--topology", nodeTopologyFile cfg
         , "--database-path", nodeDatabaseDir cfg
         , "--socket-path", nodeSocketFile cfg
         , "--port", show port
+        , "--shelley-vrf-key", nodeVrfKey cfg
+        , "--shelley-kes-key", nodeKesKey cfg
+        , "--shelley-operational-certificate", nodeOpCert cfg
         ]
 
 
@@ -253,9 +251,8 @@ withCardanoNode tr tdir severity action =
 --
 withConfig
     :: FilePath
-    -- ^ Test data directory in source tree
     -> Severity
-    -- ^ Logging level for @cardano-node@
+    -- ^ Test data directory
     -> (  CardanoNodeConfig
        -> Block
        -> (GenesisBlockParameters, NodeVersionData)
@@ -263,7 +260,7 @@ withConfig
        )
     -- ^ Callback function with the node configuration and genesis params
     -> IO a
-withConfig tdir minSeverity action =
+withConfig tdir severity action =
     bracket setupConfig teardownConfig $ \(_a,b,c,d) -> action b c d
   where
     source :: FilePath
@@ -281,10 +278,11 @@ withConfig tdir minSeverity action =
 
         let nodeConfigFile   = dir </> "node.config"
         let nodeDatabaseDir  = dir </> "node.db"
-        let nodeDlgCertFile  = dir </> "node.cert"
         let nodeGenesisFile  = dir </> "genesis.json"
-        let nodeSignKeyFile  = dir </> "node.key"
         let nodeTopologyFile = dir </> "node.topology"
+        let nodeVrfKey = dir </> "node-vrf.skey"
+        let nodeKesKey = dir </> "node-kes.skey"
+        let nodeOpCert = dir </> "node.opcert"
         let nodeSocketFile =
                 if os == "mingw32"
                 then "\\\\.\\pipe\\" ++ takeFileName dir
@@ -293,34 +291,36 @@ withConfig tdir minSeverity action =
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
             >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
-            >>= withObject (addMinSeverity (T.pack $ show minSeverity))
+            >>= withObject (addMinSeverity (T.pack $ show severity))
             >>= Yaml.encodeFile (dir </> "node.config")
 
         Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
             >>= withObject updateStartTime
             >>= Aeson.encodeFile nodeGenesisFile
-        forM_ ["node.topology", "node.key", "node.cert"] $ \f ->
+        forM_ ["node.topology", "node-vrf.skey", "node-kes.skey", "node.opcert"] $ \f ->
             copyFile (source </> f) (dir </> f)
 
-        (genesisData, genesisHash) <- unsafeRunExceptT $
-            readGenesisData nodeGenesisFile
-        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
+        (genesisData :: ShelleyGenesis TPraosStandardCrypto)
+            <- either (error . show) id . eitherDecode <$> BL.readFile nodeGenesisFile
 
-        let networkMagic = NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
+        let (gbp, outs) = fromGenesisData genesisData
+
+        let nm = sgNetworkMagic genesisData
 
         pure
             ( dir
             , CardanoNodeConfig
                 { nodeConfigFile
                 , nodeDatabaseDir
-                , nodeDlgCertFile
-                , nodeSignKeyFile
                 , nodeSocketFile
                 , nodeTopologyFile
+                , nodeVrfKey
+                , nodeKesKey
+                , nodeOpCert
                 }
             , genesisBlockFromTxOuts (staticParameters gbp) outs
             , ( gbp
-              , ( NodeToClientVersionData { networkMagic }
+              , ( NodeToClientVersionData nm
                 , nodeToClientCodecCBORTerm
                 )
               )
@@ -340,7 +340,7 @@ updateStartTime
     :: Aeson.Object
     -> IO Aeson.Object
 updateStartTime m = do
-    time <- round @_ @Int <$> getPOSIXTime
+    time <- getCurrentTime
     pure $ HM.insert "startTime" (toJSON time) m
 
 -- | Add a "GenesisFile" field in a given object with the current path of

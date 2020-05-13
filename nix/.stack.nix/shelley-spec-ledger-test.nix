@@ -60,6 +60,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
+          (hsPkgs."bytestring-conversion" or (buildDepError "bytestring-conversion"))
           (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
@@ -70,6 +71,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
           (hsPkgs."shelley-spec-ledger" or (buildDepError "shelley-spec-ledger"))
           (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
+          (hsPkgs."iproute" or (buildDepError "iproute"))
           (hsPkgs."multiset" or (buildDepError "multiset"))
           (hsPkgs."process-extras" or (buildDepError "process-extras"))
           (hsPkgs."small-steps" or (buildDepError "small-steps"))
@@ -86,8 +88,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "52afaab4fe99df8fff1e7666e665a923118cfc53";
-      sha256 = "1ldgpw37lnrgd09hhv2zxak9vc0kxbysmpsn7qd74zg3vli5z66j";
+      rev = "1b2a06df9a710f5cc9b511b6ae39c23bcfd04486";
+      sha256 = "0qva90k2alhznn88nkxp0ghphhnrynf2sl0n9jccc3q6hycdzxv8";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec/test; echo source root reset to \$sourceRoot";
     }

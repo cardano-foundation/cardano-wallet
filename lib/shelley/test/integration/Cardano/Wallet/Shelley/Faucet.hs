@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.Byron.Faucet
+module Cardano.Wallet.Shelley.Faucet
     ( Faucet(..)
 
     , initFaucet

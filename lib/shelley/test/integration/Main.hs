@@ -28,20 +28,6 @@ import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, WalletStyle (..) )
-import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..)
-    , serveWallet
-    , setupTracers
-    , tracerSeverities
-    )
-import Cardano.Wallet.Byron.Compatibility
-    ( Byron )
-import Cardano.Wallet.Byron.Faucet
-    ( initFaucet )
-import Cardano.Wallet.Byron.Launch
-    ( withCardanoNode )
-import Cardano.Wallet.Byron.Transaction.Size
-    ( maxSizeOf, minSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -60,6 +46,20 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Shelley
+    ( SomeNetworkDiscriminant (..)
+    , serveWallet
+    , setupTracers
+    , tracerSeverities
+    )
+import Cardano.Wallet.Shelley.Compatibility
+    ( Shelley )
+import Cardano.Wallet.Shelley.Faucet
+    ( initFaucet )
+import Cardano.Wallet.Shelley.Launch
+    ( withCardanoNode )
+import Cardano.Wallet.Shelley.Transaction.Size
+    ( maxSizeOf, minSizeOf, sizeOfSignedTx )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -106,13 +106,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Test.Integration.Byron.Scenario.API.Addresses as AddressesByron
-import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
-import qualified Test.Integration.Byron.Scenario.CLI.Addresses as AddressesByronCLI
-import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
-import qualified Test.Integration.Byron.Scenario.CLI.Wallets as WalletsByronCLI
-import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
-import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
@@ -121,10 +114,10 @@ import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 
 -- | Define the actual executable name for the bridge CLI
-instance KnownCommand Byron where
-    commandName = "cardano-wallet-byron"
+instance KnownCommand Shelley where
+    commandName = "cardano-wallet-shelley"
 
-main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
+main :: forall t . t ~ Shelley => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hSetBuffering stdout LineBuffering
     hspec $ do
@@ -133,26 +126,19 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
         describe "API Specifications" $ specWithServer tr $ do
-            WalletsByron.spec @n
-            AddressesByron.spec @n
-            TransactionsByron.spec @n
-            TransactionsByronCommon.spec @n
             Network.spec
         describe "CLI Specifications" $ specWithServer tr $ do
-            WalletsByronCLI.spec @n
-            TransactionsByronCLI.spec @n
-            AddressesByronCLI.spec @n
             PortCLI.spec @t
             NetworkCLI.spec @t
 
 
 specWithServer
     :: Trace IO Text
-    -> SpecWith (Context Byron)
+    -> SpecWith (Context Shelley)
     -> Spec
 specWithServer tr = aroundAll withContext . after tearDown
   where
-    withContext :: (Context Byron -> IO ()) -> IO ()
+    withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
         let setupContext gbp wAddr = do
@@ -179,7 +165,7 @@ specWithServer tr = aroundAll withContext . after tearDown
     withServer action =
         withCardanoNode tr $(getTestData) Info $ \socketPath block0 (bp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
-            serveWallet
+            serveWallet @(IO Shelley)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 (setupTracers (tracerSeverities (Just Info)) tr)
                 (SyncTolerance 10)

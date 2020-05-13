@@ -1,40 +1,42 @@
-avvmDistr: {}
-
-blockVersionData:
-  heavyDelThd: '300000000000'
-  maxBlockSize: '2000000'
-  maxHeaderSize: '2000000'
-  maxProposalSize: '700'
-  maxTxSize: '4096'
-  mpcThd: '20000000000000'
-  scriptVersion: 0
-  slotDuration: '2000'
-  softforkRule:
-    initThd: '900000000000000'
-    minThd: '600000000000000'
-    thdDecrement: '50000000000000'
-  txFeePolicy:
-    multiplier: '43000000000'
-    summand: '155381000000000'
-  unlockStakeEpoch: '18446744073709551615'
-  updateImplicit: '10000'
-  updateProposalThd: '100000000000000'
-  updateVoteThd: '1000000000000'
-
-bootStakeholders:
-  fceb7d9cb5fac4f7a8073ffc932726b6345127305b27c0b8e8c36ee7: 1
-
-heavyDelegation:
-  fceb7d9cb5fac4f7a8073ffc932726b6345127305b27c0b8e8c36ee7:
-    omega: 0
-    issuerPk: KbEP1cIgT+ITFB/+isxQYT+yN0T47WHTZ43gvgy8kROJt9/Lsf25kpxRNU/AFsXeCnARfnwfIf2pCkTcaO1z6Q==
-    delegatePk: b8j8qcnO/HyB5PcDgROOrF3fGHyAe1Ec2vitqVas+ZfWdrcaTfRDIhcKT+6jsNh0oQuKi7I23shW+1X7V3Y2Pw==
-    cert: ea983bfd989be8d1ac1529e0d9f9ef723766397ad58ea24b89d09c40fc3122a8728f3efaca35f16ab994aa02fff76098006889f20810c40d47a34a3a6b9d3e05
-
-protocolConsts:
-  k: 10
-  protocolMagic: 459045235
-
+---
+activeSlotsCoeff: 1
+protocolParams:
+  poolDecayRate: 0
+  poolDeposit: 0
+  protocolVersion:
+    minor: 0
+    major: 0
+  decentralisationParam: 1
+  maxTxSize: 2048
+  minFeeA: 0
+  maxBlockBodySize: 239857
+  keyMinRefund: 0
+  minFeeB: 0
+  eMax: 0
+  extraEntropy:
+    tag: NeutralNonce
+  maxBlockHeaderSize: 217569
+  keyDeposit: 0
+  keyDecayRate: 0
+  nOpt: 100
+  rho: 0
+  poolMinRefund: 0
+  tau: 0
+  a0: 0
+protocolMagicId: 838299499
+genDelegs:
+  abc238fb6d9b97d0c329367dccb68694e1740d8ed03eaad6b5302c60c8bfb793: 28d31f76d2edbaf9a341d66287c0d33ba0345c1d61bd6a974c3e7dde9aee3eed
+updateQuorum: 5
+maxMajorPV: 25446
+initialFunds: {}
+maxLovelaceSupply: 45000000000000000
+networkMagic: 4036000900
+epochLength: 1215
+staking:
+slotsPerKESPeriod: 86400
+slotLength: 8
+maxKESEvolutions: 90
+securityParam: 2160
 nonAvvmBalances:
 
   # Random wallets

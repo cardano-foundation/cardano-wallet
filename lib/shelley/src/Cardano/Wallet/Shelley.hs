@@ -77,6 +77,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey
     , networkDiscriminantVal
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -106,8 +108,6 @@ import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
-import Cardano.Wallet.Shelley.Transaction.Size
-    ( MaxSizeOf )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
@@ -153,11 +153,10 @@ data SomeNetworkDiscriminant where
         :: forall (n :: NetworkDiscriminant).
             ( NetworkDiscriminantVal n
             , PaymentAddress n IcarusKey
+            , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
-            , MaxSizeOf Address n IcarusKey
-            , MaxSizeOf Address n ShelleyKey
             )
         => Proxy n
         -> SomeNetworkDiscriminant
@@ -168,9 +167,7 @@ deriving instance Show SomeNetworkDiscriminant
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t.
-        ( t ~ IO Shelley
-        )
+    :: forall t. t ~ IO Shelley
     => SomeNetworkDiscriminant
     -- ^ Proxy for the network discriminant
     -> Tracers IO
@@ -223,9 +220,10 @@ serveWallet
         withNetworkLayer networkTracer gbp socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
-                randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
+                randomApi <- apiLayer (newTransactionLayer proxy pm) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
-                startServer proxy socket randomApi icarusApi ntpClient
+                shelleyApi <- apiLayer (newTransactionLayer proxy pm) nl
+                startServer proxy socket randomApi icarusApi shelleyApi ntpClient
                 pure ExitSuccess
 
     networkDiscriminantValFromProxy
@@ -238,22 +236,23 @@ serveWallet
     startServer
         :: forall n.
             ( PaymentAddress n IcarusKey
-            , PaymentAddress n ShelleyKey
+            , PaymentAddress n ByronKey
             , DecodeAddress n
             , EncodeAddress n
             )
         => Proxy n
         -> Socket
-        -> ApiLayer (RndState n) t ShelleyKey
+        -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
+        -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
         -> NtpClient
         -> IO ()
-    startServer _proxy socket random icarus ntp = do
+    startServer _proxy socket byron icarus shelley ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                server random icarus ntp
+                server byron icarus shelley ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer
@@ -377,7 +376,10 @@ tracerSeverities sev = Tracers
     }
 
 -- | Set up tracing with textual log messages.
-setupTracers :: TracerSeverities -> Trace IO Text -> Tracers IO
+setupTracers
+    :: TracerSeverities
+    -> Trace IO Text
+    -> Tracers IO
 setupTracers sev tr = Tracers
     { applicationTracer  = mkTrace applicationTracer  $ onoff applicationTracer tr
     , apiServerTracer    = mkTrace apiServerTracer    $ onoff apiServerTracer tr

@@ -89,6 +89,24 @@ let
           unit.build-tools = [ pkgs.cardano-node ];
           integration.build-tools = [ pkgs.cardano-node ];
         };
+        packages.cardano-wallet-shelley.components.tests = {
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          integration.doCheck = !isHydraPRJobset;
+
+          # Running Windows integration tests under Wine is disabled
+          # because ouroboros-network doesn't fully work under Wine.
+          integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
+
+          # cardano-node socket path becomes too long otherwise
+          unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+
+          # provide cardano-node command to test suites
+          unit.build-tools = [ pkgs.cardano-node ];
+          integration.build-tools = [ pkgs.cardano-node ];
+        };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
           # aren't touching jormungandr a lot more these days.

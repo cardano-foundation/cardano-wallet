@@ -21,33 +21,22 @@
 -- - Module's documentation in `ouroboros-network/typed-protocols/src/Network/TypedProtocols.hs`
 -- - Data Diffusion and Peer Networking in Shelley (see: https://raw.githubusercontent.com/wiki/input-output-hk/cardano-wallet/data_diffusion_and_peer_networking_in_shelley.pdf)
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
-module Cardano.Wallet.Byron.Network
+module Cardano.Wallet.Shelley.Network
     ( -- * Top-Level Interface
       pattern Cursor
     , withNetworkLayer
 
       -- * Logging
-    , NetworkLayerLog (..)
+    , NetworkLayerLog
     ) where
 
 import Prelude
+
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Chain.Byron.API
-    ( ApplyMempoolPayloadErr (..) )
-import Cardano.Wallet.Byron.Compatibility
-    ( Byron
-    , fromChainHash
-    , fromSlotNo
-    , fromTip
-    , toEpochSlots
-    , toGenTx
-    , toPoint
-    , txParametersFromUpdateState
-    )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetBlock (..)
@@ -55,6 +44,17 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     , mapCursor
+    )
+import Cardano.Wallet.Shelley.Compatibility
+    ( Shelley
+    , ShelleyBlock
+    , TPraosStandardCrypto
+    , fromChainHash
+    , fromPParams
+    , fromSlotNo
+    , fromTip
+    , toGenTx
+    , toPoint
     )
 import Control.Concurrent.Async
     ( async, link )
@@ -107,8 +107,6 @@ import Data.Function
     ( (&) )
 import Data.List
     ( isInfixOf )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -123,34 +121,25 @@ import GHC.Stack
     ( HasCallStack )
 import Network.Mux
     ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
-import Ouroboros.Consensus.Byron.Ledger
-    ( ByronBlock (..)
+import Ouroboros.Consensus.Network.NodeToClient
+    ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
+import Ouroboros.Consensus.Shelley.Ledger
+    ( CodecConfig (ShelleyCodecConfig)
     , GenTx
     , Query (..)
-    , decodeByronBlock
-    , decodeByronGenTx
-    , decodeByronHeaderHash
-    , encodeByronBlock
-    , encodeByronGenTx
-    , encodeByronHeaderHash
+    , ShelleyNodeToClientVersion (..)
     )
-import Ouroboros.Consensus.Byron.Node
+import Ouroboros.Consensus.Shelley.Node
     ()
-import Ouroboros.Consensus.Node.Run
-    ( RunNode (..) )
 import Ouroboros.Network.Block
-    ( Point (..)
+    ( Point
     , SlotNo (..)
     , Tip (..)
-    , decodePoint
-    , decodeTip
-    , encodePoint
-    , encodeTip
+    , castTip
     , genesisPoint
     , getTipPoint
     , pointHash
     , pointSlot
-    , unwrapCBORinCBOR
     )
 import Ouroboros.Network.Client.Wallet
     ( ChainSyncCmd (..)
@@ -187,20 +176,14 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( chainSyncClientPeerPipelined )
-import Ouroboros.Network.Protocol.ChainSync.Codec
-    ( codecChainSync, codecChainSyncSerialised )
 import Ouroboros.Network.Protocol.Handshake.Version
     ( DictVersion (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( localStateQueryClientPeer )
-import Ouroboros.Network.Protocol.LocalStateQuery.Codec
-    ( codecLocalStateQuery )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( AcquireFailure, LocalStateQuery )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( localTxSubmissionClientPeer )
-import Ouroboros.Network.Protocol.LocalTxSubmission.Codec
-    ( codecLocalTxSubmission )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission )
 import System.IO.Error
@@ -210,14 +193,15 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Ouroboros.Consensus.Shelley.Ledger as OC
 
 {- HLINT ignore "Use readTVarIO" -}
 
--- | Network layer cursor for Byron. Mostly useless since the protocol itself is
+-- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
-data instance Cursor (m Byron) = Cursor
-    (Point ByronBlock)
-    (TQueue m (ChainSyncCmd ByronBlock m))
+data instance Cursor (m Shelley) = Cursor
+    (Point ShelleyBlock)
+    (TQueue m (ChainSyncCmd ShelleyBlock m))
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -230,7 +214,7 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO Byron) ByronBlock -> IO a)
+    -> (NetworkLayer IO (IO Shelley) ShelleyBlock -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr gbp addrInfo versionData action = do
@@ -320,6 +304,10 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     _stakeDistribution =
         notImplemented "stakeDistribution"
 
+--------------------------------------------------------------------------------
+--
+-- Network Client
+
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.
 type NetworkClient m = OuroborosApplication
@@ -342,7 +330,7 @@ mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => W.BlockchainParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (ChainSyncCmd ByronBlock m)
+    -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
     -> NetworkClient m
 mkWalletClient bp chainSyncQ =
@@ -351,13 +339,6 @@ mkWalletClient bp chainSyncQ =
             let
                 fromTip' =
                     fromTip getGenesisBlockHash getEpochLength
-                codec = codecChainSync
-                    encodeByronBlock
-                    (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    (encodeTip encodeByronHeaderHash)
-                    (decodeTip decodeByronHeaderHash)
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
@@ -378,6 +359,14 @@ mkWalletClient bp chainSyncQ =
         , getGenesisBlockHash
         } = bp
 
+    codec = cChainSyncCodec codecs
+
+codecs :: MonadST m => ClientCodecs ShelleyBlock m
+codecs = clientCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
+
+serialisedCodecs :: MonadST m => DefaultCodecs ShelleyBlock m
+serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
+
 -- | Construct a network client with the given communication channel, for the
 -- purpose of:
 --
@@ -385,14 +374,14 @@ mkWalletClient bp chainSyncQ =
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 mkTipSyncClient
-    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
+    :: forall m. (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.GenesisBlockParameters
         -- ^ Initial blockchain parameters
-    -> TQueue m (LocalTxSubmissionCmd (GenTx ByronBlock) ApplyMempoolPayloadErr m)
+    -> TQueue m (LocalTxSubmissionCmd (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto) m)
         -- ^ Communication channel with the LocalTxSubmission client
-    -> (Tip ByronBlock -> m ())
+    -> (Tip ShelleyBlock -> m ())
         -- ^ Notifier callback for when tip changes
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
@@ -406,7 +395,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
 
     let
         queryLocalState pt = do
-            st <- localStateQueryQ `send` CmdQueryLocalState pt GetUpdateInterfaceState
+            st <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
         handleLocalState = \case
@@ -415,14 +404,15 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
             Right (Left (e :: AcquireFailure)) ->
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right (Right ls) ->
-                onTxParamsUpdate' $ txParametersFromUpdateState ls
+                onTxParamsUpdate' $ fromPParams ls
 
         W.BlockchainParameters
-            { getGenesisBlockHash
-            , getEpochLength
-            } = W.staticParameters gbp
+             { getGenesisBlockHash
+             , getEpochLength
+             } = W.staticParameters gbp
 
-    onTipUpdate' <- debounce $ \tip -> do
+    onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
+        let tip = castTip tip'
         traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
@@ -430,11 +420,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                codec = codecChainSyncSerialised
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    (encodeTip encodeByronHeaderHash)
-                    (decodeTip decodeByronHeaderHash)
+                codec = cChainSyncCodec $ serialisedCodecs @m
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer nullTracer codec channel
@@ -444,11 +430,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         , localTxSubmissionProtocol =
             let
                 tr' = contramap MsgTxSubmission tr
-                codec = codecLocalTxSubmission
-                    encodeByronGenTx -- Tx -> CBOR.Encoding
-                    decodeByronGenTx -- CBOR.Decoder s Tx
-                    (nodeEncodeApplyTxError (Proxy @ByronBlock))
-                    (nodeDecodeApplyTxError (Proxy @ByronBlock))
+                codec = cTxSubmissionCodec serialisedCodecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
@@ -458,13 +440,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         , localStateQueryProtocol =
             let
                 tr' = contramap MsgLocalStateQuery tr
-                codec = codecLocalStateQuery
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    nodeEncodeQuery
-                    nodeDecodeQuery
-                    nodeEncodeResult
-                    nodeDecodeResult
+                codec = cStateQueryCodec serialisedCodecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
@@ -473,6 +449,9 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         }
         NodeToClientV_2
 
+
+-- | Return a function to run an action only if its single parameter has changed
+-- since the previous time it was called.
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do
     mvar <- newTMVarM Nothing
@@ -593,8 +572,8 @@ notImplemented what = error ("Not implemented: " <> what)
 data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
-    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr))
-    | MsgLocalStateQuery (TraceSendRecv (LocalStateQuery ByronBlock (Query ByronBlock)))
+    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto)))
+    | MsgLocalStateQuery (TraceSendRecv (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
     | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")

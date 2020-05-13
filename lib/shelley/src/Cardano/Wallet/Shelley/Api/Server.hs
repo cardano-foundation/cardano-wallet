@@ -14,7 +14,7 @@
 -- API handlers and server using the underlying wallet layer to provide
 -- endpoints reachable through HTTP.
 
-module Cardano.Wallet.Byron.Api.Server
+module Cardano.Wallet.Shelley.Api.Server
     ( server
     ) where
 
@@ -55,6 +55,7 @@ import Cardano.Wallet.Api.Server
     , listTransactions
     , listWallets
     , mkLegacyWallet
+    , mkShelleyWallet
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -64,9 +65,11 @@ import Cardano.Wallet.Api.Server
     , postTransaction
     , postTransactionFee
     , postTrezorWallet
+    , postWallet
     , putByronWalletPassphrase
     , putRandomAddress
     , putWallet
+    , putWalletPassphrase
     , rndStateChange
     , withLegacyLayer
     , withLegacyLayer'
@@ -79,6 +82,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -111,9 +116,10 @@ server
         )
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
+    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> NtpClient
     -> Server (Api n)
-server byron icarus ntp =
+server byron icarus shelley ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -127,14 +133,13 @@ server byron icarus ntp =
     :<|> proxy
   where
     wallets :: Server Wallets
-    wallets =
-             (\_ -> throwError err501)
-        :<|> (\_ -> throwError err501)
-        :<|> throwError err501
-        :<|> (\_ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ -> throwError err501)
+    wallets = deleteWallet shelley
+        :<|> (fmap fst . getWallet shelley mkShelleyWallet)
+        :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
+        :<|> postWallet shelley
+        :<|> putWallet shelley mkShelleyWallet
+        :<|> putWalletPassphrase shelley
+        :<|> getUTxOsStatistics shelley
 
     addresses :: Server (Addresses n)
     addresses _ _ = throwError err501

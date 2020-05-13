@@ -182,7 +182,6 @@ test-suite integration
     , command
     , generic-lens
     , hspec
-    , http-api-data
     , http-client
     , http-types
     , iohk-monitoring

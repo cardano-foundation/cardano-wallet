@@ -98,6 +98,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
             (hsPkgs."generic-random" or (buildDepError "generic-random"))
             (hsPkgs."hedgehog-quickcheck" or (buildDepError "hedgehog-quickcheck"))
+            (hsPkgs."iproute" or (buildDepError "iproute"))
             (hsPkgs."mtl" or (buildDepError "mtl"))
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."time" or (buildDepError "time"))
@@ -118,8 +119,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "ec4f3af58c13a4c20116e9e262b048fb2d27bdc3";
-      sha256 = "1p4z6br0vyvkd84f3a9ilb7sg7d6pgg3fx2aijlxx9x3v1lb1426";
+      rev = "18ef245af8181cf3bc208b71c7c4f8502137dbbb";
+      sha256 = "1v0ksjw1fp9md91igya9vlmnvw5z81jylywgwc2svx125k9b79bj";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-shelley; echo source root reset to \$sourceRoot";
     }

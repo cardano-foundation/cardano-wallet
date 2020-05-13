@@ -65,6 +65,7 @@
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
         cardano-wallet-byron = ./cardano-wallet-byron.nix;
+        cardano-wallet-shelley = ./cardano-wallet-shelley.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
@@ -85,6 +86,10 @@
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
+        cardano-api = ./cardano-api.nix;
+        cardano-cli = ./cardano-cli.nix;
+        cardano-config = ./cardano-config.nix;
+        cardano-node = ./cardano-node.nix;
         cardano-prelude = ./cardano-prelude.nix;
         cardano-prelude-test = ./cardano-prelude-test.nix;
         cardano-shell = ./cardano-shell.nix;
@@ -97,6 +102,7 @@
         lobemo-backend-monitoring = ./lobemo-backend-monitoring.nix;
         lobemo-scribe-systemd = ./lobemo-scribe-systemd.nix;
         tracer-transformers = ./tracer-transformers.nix;
+        lobemo-backend-trace-forwarder = ./lobemo-backend-trace-forwarder.nix;
         io-sim = ./io-sim.nix;
         io-sim-classes = ./io-sim-classes.nix;
         network-mux = ./network-mux.nix;

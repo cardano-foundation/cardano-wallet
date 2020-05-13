@@ -34,12 +34,12 @@ import Cardano.CLI
     , cli
     , cmdAddress
     , cmdKey
-    , cmdMnemonicShelley
+    , cmdMnemonic
     , cmdNetwork
-    , cmdShelleyWalletCreate
     , cmdTransaction
     , cmdVersion
     , cmdWallet
+    , cmdWalletCreate
     , databaseOption
     , enableWindowsANSI
     , helperTracing
@@ -63,11 +63,7 @@ import Cardano.Startup
     , withUtf8Encoding
     )
 import Cardano.Wallet.Api.Client
-    ( byronAddressClient
-    , byronTransactionClient
-    , byronWalletClient
-    , networkClient
-    )
+    ( addressClient, networkClient, transactionClient, walletClient )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Logging
@@ -135,11 +131,11 @@ main = withUtf8Encoding $ do
     enableWindowsANSI
     runCli $ cli $ mempty
         <> cmdServe
-        <> cmdMnemonicShelley
+        <> cmdMnemonic
         <> cmdKey
-        <> cmdWallet cmdShelleyWalletCreate byronWalletClient
-        <> cmdAddress byronAddressClient
-        <> cmdTransaction byronTransactionClient byronWalletClient
+        <> cmdWallet cmdWalletCreate walletClient
+        <> cmdAddress addressClient
+        <> cmdTransaction transactionClient walletClient
         <> cmdNetwork networkClient
         <> cmdVersion
 
@@ -185,8 +181,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> shutdownHandlerFlag
         <*> loggingOptions tracerSeveritiesOption
     exec
-        :: ServeArgs
-        -> IO ()
+        :: ServeArgs -> IO ()
     exec args@(ServeArgs
       host
       listen
