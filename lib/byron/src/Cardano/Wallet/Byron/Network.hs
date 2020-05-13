@@ -122,7 +122,7 @@ import Network.Mux
     ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..)
-    , ByronNodeToClientVersion (..)
+    , ByronNodeToClientVersion (ByronNodeToClientVersion2)
     , CodecConfig (..)
     , GenTx
     , Query (..)
@@ -357,7 +357,7 @@ mkWalletClient bp chainSyncQ =
     codecs :: MonadST m => ClientCodecs ByronBlock m
     codecs = clientCodecs
         (ByronCodecConfig (toEpochSlots getEpochLength))
-        ByronNodeToClientVersion1
+        ByronNodeToClientVersion2
 
 
 -- | Construct a network client with the given communication channel, for the
@@ -444,7 +444,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     codecs :: MonadST m => DefaultCodecs ByronBlock m
     codecs = defaultCodecs
         (ByronCodecConfig (toEpochSlots getEpochLength))
-        ByronNodeToClientVersion1
+        ByronNodeToClientVersion2
 
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do
