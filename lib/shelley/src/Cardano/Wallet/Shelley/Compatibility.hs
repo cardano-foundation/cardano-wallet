@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -53,13 +54,13 @@ import Prelude
 
 
 import Cardano.Binary
-    ( serialize' )
+    ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
 import Cardano.Slotting.Slot
     ( EpochSize (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.Coerce
     ( coerce )
 import Data.Foldable
@@ -71,7 +72,7 @@ import Data.Text
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16, Word32, Word64 )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
@@ -81,7 +82,7 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import Ouroboros.Consensus.Protocol.Abstract
     ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( GenTx, ShelleyHash (..) )
+    ( Crypto, GenTx, ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Node
     ( ShelleyGenesis (..) )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
@@ -108,13 +109,17 @@ import Ouroboros.Network.Point
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.BlockChain as SL
+import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
+import qualified Shelley.Spec.Ledger.TxData as SL
+import qualified Shelley.Spec.Ledger.UTxO as SL
 
 data Shelley
 
@@ -249,14 +254,6 @@ toPoint genesisH epLength (W.BlockHeader sid _ h _)
 toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotNo epLength =
     SlotNo . W.flatSlot epLength
-
--- | SealedTx are the result of rightfully constructed byron transactions so, it
--- is relatively safe to unserialize them from CBOR.
-toGenTx :: HasCallStack => W.SealedTx -> GenTx ShelleyBlock
-toGenTx = error "todo: toGenTx not implemented"
-
-fromShelleyTx :: SL.Tx TPraosStandardCrypto -> W.Tx
-fromShelleyTx = error "todo: fromShelleyTx not implemented"
 
 fromShelleyBlock
     :: W.Hash "Genesis"
@@ -405,3 +402,45 @@ fromGenesisData g =
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
+
+--
+-- Txs
+--
+
+-- | SealedTx are the result of rightfully constructed shelely transactions so, it
+-- is relatively safe to unserialize them from CBOR.
+toGenTx :: HasCallStack => W.SealedTx -> GenTx ShelleyBlock
+toGenTx = unsafeDeserialiseCbor fromCBOR
+    . BL.fromStrict
+    . W.getSealedTx
+
+fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
+fromShelleyTxId (SL.TxId (UnsafeHash h)) = W.Hash h
+
+fromShelleyTxIn :: SL.TxIn crypto -> W.TxIn
+fromShelleyTxIn (SL.TxIn txid ix) =
+    W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
+  where
+    unsafeCast :: Natural -> Word32
+    unsafeCast = fromIntegral
+
+fromShelleyTxOut :: Crypto crypto => SL.TxOut crypto -> W.TxOut
+fromShelleyTxOut (SL.TxOut addr amount) =
+  W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
+
+fromShelleyAddress :: Crypto crypto => SL.Addr crypto -> W.Address
+fromShelleyAddress = W.Address . serialize'
+
+fromShelleyCoin :: SL.Coin -> W.Coin
+fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
+  where
+    -- (but probably safe)
+    unsafeCast :: Integer -> Word64
+    unsafeCast = fromIntegral
+
+-- NOTE: For resolved inputs we have to pass in a dummy value of 0.
+fromShelleyTx :: SL.Tx TPraosStandardCrypto -> W.Tx
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs _ _ _ _ _ _) _ _ _) = W.Tx
+    (fromShelleyTxId $ SL.txid bod)
+    (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
+    (map fromShelleyTxOut (toList outs))
