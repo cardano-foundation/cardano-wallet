@@ -33,4 +33,4 @@ fi
 cardano-wallet-jormungandr version
 jormungandr --version
 
-exec migration-test $1 launch --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile
+exec migration-test $1 launch --port 9090 --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile
