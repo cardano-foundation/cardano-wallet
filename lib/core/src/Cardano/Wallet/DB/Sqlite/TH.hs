@@ -251,7 +251,7 @@ SeqStateAddress
         seqStateAddressAddress
         seqStateAddressIndex
         seqStateAddressAccountingStyle
-    Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
+    Foreign Wallet seq_state_address seqStateAddressWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes
@@ -289,7 +289,7 @@ RndStateAddress
         rndStateAddressAccountIndex
         rndStateAddressIndex
         rndStateAddressAddress
-    Foreign Checkpoint rnd_state_address rndStateAddressWalletId rndStateAddressSlot ! ON DELETE CASCADE
+    Foreign Wallet rnd_state_address rndStateAddressWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- The set of pending change addresses.

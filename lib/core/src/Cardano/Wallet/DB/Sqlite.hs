@@ -139,6 +139,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -193,6 +195,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -639,6 +642,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
+                    deleteState @s (wid, nearestPoint)
                     pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) -> ExceptT $ do
@@ -1443,6 +1447,8 @@ class PersistState s where
     insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
     selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
+    -- | Delete any state beyond the given slot
+    deleteState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO ()
 
 {-------------------------------------------------------------------------------
                           Sequential address discovery
@@ -1488,16 +1494,26 @@ instance
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub
 
+    deleteState (wid, sl) = deleteWhere
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressSlot >. sl
+        ]
+
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPool c k
     -> SqlPersistT IO ()
-insertAddressPool wid sl pool =
+insertAddressPool wid sl pool = do
+    maxIx <- fmap (seqStateAddressIndex . entityVal) <$> selectFirst
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
+        ] [Desc SeqStateAddressIndex]
     void $ dbChunked insertMany_
         [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c)
         | (ix, addr) <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
+        , Just ix > maxIx
         ]
 
 selectAddressPool
@@ -1515,7 +1531,7 @@ selectAddressPool
 selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
+        , SeqStateAddressSlot <=. sl
         , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
         ] [Asc SeqStateAddressIndex]
     pure $ addressPoolFromEntity addrs
@@ -1561,9 +1577,7 @@ instance PersistState (Rnd.RndState t) where
         insertRndStatePending wid (Rnd.pendingAddresses st)
 
     selectState (wid, sl) = runMaybeT $ do
-        st <- MaybeT $ selectFirst
-            [ RndStateWalletId ==. wid
-            ] []
+        st <- MaybeT $ selectFirst [ RndStateWalletId ==. wid ] []
         let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
         addresses <- lift $ selectRndStateAddresses wid sl
         pendingAddresses <- lift $ selectRndStatePending wid
@@ -1590,16 +1604,33 @@ instance PersistState (Rnd.RndState t) where
             , gen = gen
             }
 
+    deleteState (wid, sl) = deleteWhere
+        [ RndStateAddressWalletId ==. wid
+        , RndStateAddressSlot >. sl
+        ]
+
 insertRndStateAddresses
     :: W.WalletId
     -> W.SlotNo
     -> RndStateAddresses
     -> SqlPersistT IO ()
 insertRndStateAddresses wid sl addresses = do
+    known <- pack . fmap entityVal <$> selectList
+        [ RndStateAddressWalletId ==. wid ]
+        []
+    let unknown = addresses `Map.withoutKeys` known
     dbChunked insertMany_
         [ RndStateAddress wid sl accIx addrIx addr
-        | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
+        | ((Index accIx, Index addrIx), addr) <- Map.assocs unknown
         ]
+  where
+    pack :: [RndStateAddress] -> Set Rnd.DerivationPath
+    pack = foldr (Set.insert . toDerivationPath) Set.empty
+      where
+        toDerivationPath x =
+            ( Index $ rndStateAddressAccountIndex x
+            , Index $ rndStateAddressIndex x
+            )
 
 insertRndStatePending
     :: W.WalletId
@@ -1619,7 +1650,7 @@ selectRndStateAddresses
 selectRndStateAddresses wid sl = do
     addrs <- fmap entityVal <$> selectList
         [ RndStateAddressWalletId ==. wid
-        , RndStateAddressSlot ==. sl
+        , RndStateAddressSlot <=. sl
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
   where

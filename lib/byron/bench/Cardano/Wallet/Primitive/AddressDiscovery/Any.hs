@@ -43,7 +43,7 @@ import Data.Text
 import Data.Word
     ( Word32 )
 import Database.Persist.Sql
-    ( entityVal, insert_, selectFirst, (==.) )
+    ( deleteWhere, entityVal, insert_, selectFirst, (==.), (>.) )
 import GHC.Generics
     ( Generic )
 
@@ -99,6 +99,10 @@ instance PersistState AnyAddressState where
             , DB.AnyAddressStateCheckpointSlot ==. sl
             ] []
         return (AnyAddressState s)
+    deleteState (wid, sl) = deleteWhere
+        [ DB.AnyAddressStateWalletId ==. wid
+        , DB.AnyAddressStateCheckpointSlot >. sl
+        ]
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)

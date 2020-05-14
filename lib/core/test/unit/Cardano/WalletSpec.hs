@@ -772,7 +772,8 @@ newtype DummyState
 
 instance Sqlite.PersistState DummyState where
     insertState _ _ = error "DummyState.insertState: not implemented"
-    selectState _ = error "DummyState.selectState: not implemented"
+    selectState _   = error "DummyState.selectState: not implemented"
+    deleteState _   = error "DummyState.deleteState: not implemented"
 
 instance NFData DummyState
 
