@@ -227,6 +227,9 @@ let
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
         packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
+
+        # systemd can't be statically linked - disable lobemo-scribe-journal
+        packages.cardano-config.flags.systemd = false;
       }))
 
       # Allow installation of a newer version of Win32 than what is
