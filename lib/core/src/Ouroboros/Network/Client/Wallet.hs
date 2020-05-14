@@ -41,6 +41,8 @@ module Ouroboros.Network.Client.Wallet
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( WithOrigin (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), NextBlocksResult (..) )
 import Control.Monad.Class.MonadAsync
@@ -49,10 +51,12 @@ import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
     , atomically
+    , isEmptyTQueue
     , newEmptyTMVarM
     , putTMVar
     , readTQueue
     , takeTMVar
+    , tryReadTQueue
     , writeTQueue
     )
 import Control.Monad.Class.MonadThrow
@@ -61,12 +65,10 @@ import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
 import Data.Functor
     ( (<&>) )
-import Data.Quantity
-    ( Quantity (..) )
+import Data.Maybe
+    ( isNothing )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word32 )
 import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
@@ -82,6 +84,7 @@ import Ouroboros.Network.Block
     , blockPoint
     , castTip
     , getTipPoint
+    , pointSlot
     )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( ChainSyncClient (..)
@@ -212,8 +215,7 @@ type RequestNextStrategy m n block
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
--- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
--- constructor. Once started, the client simply runs ad-infinitum but one may
+-- Once started, the client simply runs ad-infinitum but one may
 -- interact with it via a 'TQueue' of commands / messages used to move inside
 -- the state-machine.
 --
@@ -249,35 +251,38 @@ type RequestNextStrategy m n block
 --
 chainSyncWithBlocks
     :: forall m block. (Monad m, MonadSTM m, HasHeader block)
-    => Quantity "block" Word32
-        -- ^ Epoch stability (a.k.a k)
-    -> (Tip block -> W.BlockHeader)
+    => (Tip block -> W.BlockHeader)
         -- ^ Convert an abstract tip to a concrete 'BlockHeader'
         --
         -- TODO: We probably need a better type for representing Tip as well!
+
     -> TQueue m (ChainSyncCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
+
+    -> TQueue m (NextBlocksResult (Point block) block)
+        -- ^ An internal queue used for stashing responses collected while
+        -- pipelining. As argument to simplify code below. Responses are first
+        -- poped from this stash if not empty, otherwise they'll simply trigger
+        -- an exchange with the node.
+
     -> ChainSyncClientPipelined block (Tip block) m Void
-chainSyncWithBlocks (Quantity epochStability) fromTip queue =
-    ChainSyncClientPipelined (clientStIdle oneByOne)
+chainSyncWithBlocks fromTip queue stash =
+    ChainSyncClientPipelined $ clientStIdle oneByOne
   where
-    k :: Natural
-    k = fromIntegral epochStability
-
-    -- TODO
-    -- This should probably be a function argument.
-    maxInFlight :: Natural
-    maxInFlight = 1000
-
     -- Return the _number of slots between two tips.
     tipDistance :: BlockNo -> Tip block -> Natural
     tipDistance (BlockNo n) TipGenesis =
         1 + fromIntegral n
     tipDistance (BlockNo n) (Tip _ _ (BlockNo n')) =
         fromIntegral @Integer $ abs $ fromIntegral n - fromIntegral n'
+
+    -- | Keep only blocks from the list that are before or exactly at the given
+    -- point.
+    rollback :: Point block -> [block] -> [block]
+    rollback pt = filter (\b -> At (blockSlot b) <= pointSlot pt)
 
     -- Client in the state 'Idle'. We wait for requests / commands on an
     -- 'TQueue'. Commands start a chain of messages and state transitions
@@ -289,18 +294,29 @@ chainSyncWithBlocks (Quantity epochStability) fromTip queue =
         CmdFindIntersection points respond -> pure $
             P.SendMsgFindIntersect points (clientStIntersect respond)
         CmdNextBlocks respond ->
-            pure $ strategy respond
+            -- We are the only consumer & producer of this queue, so it's fine
+            -- to run 'isEmpty' and 'read' in two separate atomatic operations.
+            atomically (isEmptyTQueue stash) >>= \case
+                True  ->
+                    pure $ strategy respond
+                False -> do
+                    atomically (readTQueue stash) >>= respond
+                    clientStIdle strategy
 
+    -- When the client intersect, we are effectively starting "a new session",
+    -- so any stashed responses no longer apply and must be discarded.
     clientStIntersect
         :: (Maybe (Point block) -> m ())
         -> P.ClientPipelinedStIntersect block (Tip block) m Void
     clientStIntersect respond = P.ClientPipelinedStIntersect
         { recvMsgIntersectFound = \intersection _tip -> do
             respond (Just intersection)
+            flush stash
             clientStIdle oneByOne
 
         , recvMsgIntersectNotFound = \_tip -> do
             respond Nothing
+            flush stash
             clientStIdle oneByOne
         }
 
@@ -311,22 +327,21 @@ chainSyncWithBlocks (Quantity epochStability) fromTip queue =
         (collectResponses respond [] Zero)
         (pure $ collectResponses respond [] Zero)
 
-    -- We only pipeline requests when it's safe to pipeline them. Safe
-    -- is when all blocks are considered 'stable' and immutable, i.e.
-    -- when we land more than `k` blocks from the tip, so when we start
-    -- more than `k + maxInFlight` blocks from the tip
+    -- We only pipeline requests when we are far from the tip. As soon as we
+    -- reach the tip however, there's no point pipelining anymore, so we start
+    -- collecting responses one by one.
     --
-    --     0                       tip - k           tip
-    --     |---------------------------|-------------->
-    --               pipelined            one by one
-    --
+    --     0                                  tip
+    --     |-----------------------------------|----->
+    --                   pipelined               one by one
     pipeline
-        :: Nat n
+        :: Int
+        -> Nat n
         -> RequestNextStrategy m n block
-    pipeline (Succ n) respond | natToInt (Succ n) == fromIntegral maxInFlight =
+    pipeline goal (Succ n) respond | natToInt (Succ n) == goal =
         P.CollectResponse Nothing $ collectResponses respond [] n
-    pipeline n respond =
-        P.SendMsgRequestNextPipelined $ pipeline (Succ n) respond
+    pipeline goal n respond =
+        P.SendMsgRequestNextPipelined $ pipeline goal (Succ n) respond
 
     collectResponses
         :: (NextBlocksResult (Point block) block -> m ())
@@ -340,23 +355,60 @@ chainSyncWithBlocks (Quantity epochStability) fromTip queue =
             let tip'    = fromTip tip
             respond (RollForward cursor' tip' blocks')
             let distance = tipDistance (blockNo block) tip
-            let strategy = if distance > k + maxInFlight
-                    then pipeline Zero
-                    else oneByOne
+            let strategy = if distance <= 1
+                    then oneByOne
+                    else pipeline (fromIntegral $ min distance 1000) Zero
             clientStIdle strategy
 
-        , P.recvMsgRollBackward = \point _tip -> do
-            respond (RollBackward point)
-            clientStIdle oneByOne
+        -- When the last message we receive is a request to rollback, we have
+        -- two possibilities:
+        --
+        -- a) Either, we are asked to rollback to a point that is within the
+        -- blocks we have just collected. So it suffices to remove blocks from
+        -- the list, and apply the remaining portion.
+        --
+        -- b) We are asked to rollback even further and discard all the blocks
+        -- we just collected. In which case, we simply discard all blocks and
+        -- rollback to that point as if nothing happened.
+        , P.recvMsgRollBackward = \point tip ->
+            case rollback point blocks of
+                [] -> do -- b)
+                    respond (RollBackward point)
+                    clientStIdle oneByOne
+
+                xs -> do -- a)
+                    let cursor' = blockPoint $ head xs
+                    let blocks' = reverse xs
+                    let tip'    = fromTip tip
+                    respond (RollForward cursor' tip' blocks')
+                    clientStIdle oneByOne
         }
+
     collectResponses respond blocks (Succ n) = P.ClientStNext
         { P.recvMsgRollForward = \block _tip -> pure $
             P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
-        , P.recvMsgRollBackward = \_point _tip -> pure $ error
-            "rolled backward while pipelining requests! This shouldn't be \
-            \possible because we are making sure to only pipeline requests \
-            \in areas where the node can't possibly roll back."
+
+        -- This scenario is slightly more complicated than for the 'Zero' case.
+        -- Again, there are two possibilities:
+        --
+        -- a) Either we rollback to a point we have just collected, so it
+        -- suffices to discard blocks from the list and continue.
+        --
+        -- b) Or, we need to reply immediately, but we still have to collect the
+        -- remaining responses. BUT, we can only reply once to a given command.
+        -- So instead, we stash all the remaining responses in a queue and, upon
+        -- receiving future requests, we'll simply read them from the stash!
+        , P.recvMsgRollBackward = \point _tip ->
+            case rollback point blocks of
+                [] -> do -- b)
+                    let save = atomically . writeTQueue stash
+                    respond (RollBackward point)
+                    pure $ P.CollectResponse Nothing $ collectResponses save [] n
+                xs -> do -- a)
+                    pure $ P.CollectResponse Nothing $ collectResponses respond xs n
         }
+
+
 
 --------------------------------------------------------------------------------
 --
@@ -373,9 +425,6 @@ data LocalStateQueryCmd block state (m :: * -> *)
 type LocalStateQueryResult state = Either AcquireFailure state
 
 -- | Client for the 'Local State Query' mini-protocol.
---
--- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
--- constructor.
 --
 --                                    Agency
 --     -------------------------------------------------------------------------
@@ -467,9 +516,6 @@ data LocalTxSubmissionCmd tx err (m :: * -> *)
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
 --
--- A corresponding 'Channel' can be obtained using a `MuxInitiatorApplication`
--- constructor.
---
 --                                    Agency
 --     -------------------------------------------------------------------------
 --     Client has agency*                | Idle
@@ -507,6 +553,15 @@ localTxSubmission queue =
 --------------------------------------------------------------------------------
 --
 -- Helpers
+
+flush :: (MonadSTM m) => TQueue m a -> m ()
+flush queue =
+    atomically $ dropUntil isNothing queue
+  where
+    dropUntil predicate q =
+        (predicate <$> tryReadTQueue q) >>= \case
+            True  -> pure ()
+            False -> dropUntil predicate q
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.

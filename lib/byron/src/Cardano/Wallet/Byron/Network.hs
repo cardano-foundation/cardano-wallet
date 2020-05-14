@@ -251,9 +251,9 @@ withNetworkLayer tr gbp addrInfo versionData action = do
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        let client = const $ mkWalletClient bp chainSyncQ
+        client <- mkWalletClient bp chainSyncQ
         let handlers = failOnConnectionLost tr
-        link =<< async (connectClient tr handlers client versionData addrInfo)
+        link =<< async (connectClient tr handlers (const client) versionData addrInfo)
         let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
@@ -326,9 +326,10 @@ mkWalletClient
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ByronBlock m)
         -- ^ Communication channel with the ChainSync client
-    -> NetworkClient m
-mkWalletClient bp chainSyncQ =
-    nodeToClientProtocols NodeToClientProtocols
+    -> m (NetworkClient m)
+mkWalletClient bp chainSyncQ = do
+    stash <- atomically newTQueue
+    pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 fromTip' =
@@ -338,7 +339,7 @@ mkWalletClient bp chainSyncQ =
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks getEpochStability fromTip' chainSyncQ
+                $ chainSyncWithBlocks fromTip' chainSyncQ stash
 
         , localTxSubmissionProtocol =
             doNothingProtocol
@@ -349,8 +350,7 @@ mkWalletClient bp chainSyncQ =
         NodeToClientV_2
   where
     W.BlockchainParameters
-        { getEpochStability
-        , getEpochLength
+        { getEpochLength
         , getGenesisBlockHash
         } = bp
 
