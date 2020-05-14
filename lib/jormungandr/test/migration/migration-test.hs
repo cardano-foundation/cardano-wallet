@@ -83,7 +83,7 @@ main = do
 
     cfg <- defaultConfigStdout
     withTrace cfg "migration-test" $ \tr ->
-        testMain @('Testnet 0) tr 8090 testAction launchArgs >>= exitWith
+        testMain @('Testnet 0) tr 9090 testAction launchArgs >>= exitWith
 
 -- | Something to do while the server is running.
 type TestAction (t :: NetworkDiscriminant) = Trace IO Text -> ApiBase -> IO ExitCode
