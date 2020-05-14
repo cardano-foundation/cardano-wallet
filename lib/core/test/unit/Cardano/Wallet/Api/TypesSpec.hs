@@ -47,7 +47,6 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
-    , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
@@ -74,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
+    , ApiWalletMigrationInfo (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
@@ -331,7 +331,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
-            jsonRoundtripAndGolden $ Proxy @ApiByronWalletMigrationInfo
+            jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
@@ -753,11 +753,11 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiByronWalletMigrationInfo" $ property $ \x ->
+        it "ApiWalletMigrationInfo" $ property $ \x ->
             let
-                x' = ApiByronWalletMigrationInfo
+                x' = ApiWalletMigrationInfo
                     { migrationCost =
-                        migrationCost (x :: ApiByronWalletMigrationInfo)
+                        migrationCost (x :: ApiWalletMigrationInfo)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1113,7 +1113,7 @@ instance Arbitrary ApiByronWalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiByronWalletMigrationInfo where
+instance Arbitrary ApiWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1621,9 +1621,9 @@ instance ToSchema ApiWallet where
 instance ToSchema ApiByronWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
 
-instance ToSchema ApiByronWalletMigrationInfo where
+instance ToSchema ApiWalletMigrationInfo where
     declareNamedSchema _ =
-        declareSchemaForDefinition "ApiByronWalletMigrationInfo"
+        declareSchemaForDefinition "ApiWalletMigrationInfo"
 
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =

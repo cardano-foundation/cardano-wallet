@@ -142,7 +142,6 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
-    , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
@@ -169,6 +168,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletMigrationInfo (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
@@ -1299,13 +1299,13 @@ getMigrationInfo
         -- ^ Source wallet context (Legacy)
     -> ApiT WalletId
         -- ^ Source wallet (Legacy)
-    -> Handler ApiByronWalletMigrationInfo
+    -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     infoFromSelections <$> getSelections
   where
-    infoFromSelections :: [CoinSelection] -> ApiByronWalletMigrationInfo
+    infoFromSelections :: [CoinSelection] -> ApiWalletMigrationInfo
     infoFromSelections =
-        ApiByronWalletMigrationInfo
+        ApiWalletMigrationInfo
             . Quantity
             . fromIntegral
             . sum

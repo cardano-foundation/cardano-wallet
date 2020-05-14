@@ -75,6 +75,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet (..)
+    , ApiWalletMigrateData
     , ApiWalletPassphrase
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
@@ -134,6 +135,10 @@ data WalletClient wallet = WalletClient
         :: ApiT WalletId
         -> WalletPutPassphraseData
         -> ClientM NoContent
+    , migrateWallet
+        :: ApiT WalletId
+        -> ApiWalletMigrateData Aeson.Value
+        -> ClientM [ApiTransactionT Aeson.Value]
     }
 
 data TransactionClient = TransactionClient

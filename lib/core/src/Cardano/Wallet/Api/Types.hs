@@ -79,11 +79,12 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
+    , ApiWalletMigrateData (..)
+    , ApiWalletMigrationInfo (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
-    , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
@@ -595,6 +596,15 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
+data ApiWalletMigrateData (n :: NetworkDiscriminant) = ApiWalletMigrateData
+    { passphrase :: !(ApiT (Passphrase "raw"))
+    , addresses :: ![(ApiT Address, Proxy n)]
+    } deriving (Eq, Generic, Show)
+
+newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
+    { migrationCost :: Quantity "lovelace" Natural
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -780,10 +790,6 @@ data ApiByronWallet = ApiByronWallet
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
-    } deriving (Eq, Generic, Show)
-
-newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
-    { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDiscovery
@@ -1168,6 +1174,11 @@ instance DecodeAddress n => FromJSON (ApiTransaction n) where
 instance EncodeAddress n => ToJSON (ApiTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress n => FromJSON (ApiWalletMigrateData n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletMigrateData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
@@ -1290,9 +1301,9 @@ instance FromJSON ApiByronWallet where
 instance ToJSON ApiByronWallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiByronWalletMigrationInfo where
+instance FromJSON ApiWalletMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiByronWalletMigrationInfo where
+instance ToJSON ApiWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostRandomAddressData where

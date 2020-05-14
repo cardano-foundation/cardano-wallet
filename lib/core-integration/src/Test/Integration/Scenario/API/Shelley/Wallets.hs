@@ -29,13 +29,13 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
-    , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , EncodeAddress
     , WalletStyle (..)
@@ -1376,7 +1376,7 @@ spec = do
         $ \ctx -> do
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             expectResponseCode @IO HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -1394,7 +1394,7 @@ spec = do
             targetWallet <- emptyWallet ctx
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiByronWalletMigrationInfo ctx
+            r0 <- request @ApiWalletMigrationInfo ctx
                 (Link.getMigrationInfo sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
@@ -1458,7 +1458,7 @@ spec = do
         let originalBalance = view (#balance . #available . #getQuantity) wOld
 
         -- Calculate the expected migration fee:
-        rFee <- request @ApiByronWalletMigrationInfo ctx
+        rFee <- request @ApiWalletMigrationInfo ctx
             (Link.getMigrationInfo wOld)
             Default
             Empty
@@ -1589,7 +1589,7 @@ spec = do
 
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo sourceWallet)
-            r0 <- request @ApiByronWalletMigrationInfo ctx ep0 Default Empty
+            r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode @IO HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
