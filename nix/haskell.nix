@@ -49,6 +49,8 @@ let
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
         packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-shelley.src = filterSubDir /lib/shelley;
+        packages.cardano-wallet-shelley.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
@@ -60,6 +62,7 @@ let
       # Enable release flag (optimization and -Werror) on all local packages
       {
         packages.cardano-wallet-byron.flags.release = true;
+        packages.cardano-wallet-shelley.flags.release = true;
         packages.cardano-wallet-cli.flags.release = true;
         packages.cardano-wallet-core-integration.flags.release = true;
         packages.cardano-wallet-core.flags.release = true;
@@ -103,8 +106,7 @@ let
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
           integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
 
-          # provide cardano-node command to test suites
-          unit.build-tools = [ pkgs.cardano-node ];
+          # provide cardano-node command to integration tests
           integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
@@ -214,6 +216,9 @@ let
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.tests.integration = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
         packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
