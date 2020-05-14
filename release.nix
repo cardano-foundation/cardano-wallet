@@ -162,6 +162,7 @@ let
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
       cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
+      cardano-wallet-shelley = jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux;
       cardano-node = jobs.x86_64-w64-mingw32.cardano-node.x86_64-linux;
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
