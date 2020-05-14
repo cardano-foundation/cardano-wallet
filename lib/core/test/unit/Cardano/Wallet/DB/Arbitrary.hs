@@ -150,7 +150,7 @@ import GHC.Generics
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
-    ( mkStdGen )
+    ( mkStdGen, random, randoms )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -165,9 +165,11 @@ import Test.QuickCheck
     , generate
     , genericShrink
     , oneof
+    , resize
     , scale
     , shrinkIntegral
     , shrinkList
+    , sized
     , vector
     , vectorOf
     )
@@ -286,7 +288,7 @@ instance Arbitrary MockChain where
 instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
     arbitrary = do
-        cp <- arbitrary @(Wallet s)
+        cp <- resize 0 $ arbitrary @(Wallet s)
         pure $ InitialCheckpoint $ unsafeInitWallet
             (utxo cp)
             (block0 ^. #header)
@@ -332,13 +334,11 @@ instance Arbitrary PassphraseScheme where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary BlockHeader where
-    arbitrary = do
-        EpochNo ep <- arbitrary
-        SlotInEpoch sl <- arbitrary
-        let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
+    arbitrary = sized $ \sl -> do
+        let h = Quantity $ fromIntegral sl
+        let slot = SlotNo $ fromIntegral sl
         blockH <- arbitrary
-        let slot = SlotNo $ fromIntegral h
-        pure $ BlockHeader slot (Quantity h) blockH (coerce blockH)
+        pure $ BlockHeader slot h blockH (coerce blockH)
 
 instance Arbitrary SlotNo where
     arbitrary = do
@@ -535,17 +535,31 @@ arbitraryRewardAccount =
                                  Random State
 -------------------------------------------------------------------------------}
 
+{- HLINT ignore "Use !!" -}
 instance Arbitrary (RndState 'Mainnet) where
     shrink (RndState k ix addrs pending g) =
         [ RndState k ix' addrs' pending' g
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
         ]
-    arbitrary = RndState
-        (Passphrase "passphrase")
-        minBound
-        <$> arbitrary
-        <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
-        <*> pure (mkStdGen 42)
+    -- Addresses are generate based on the size parameter, so that property
+    -- tests can actually expect addresses to not be totally random, but
+    -- instead, be an ever growing map, much more like they are actually
+    -- generated in practice.
+    arbitrary = sized $ \n -> do
+        let stdgen = mkStdGen 42
+        let newAddress (m, g0) = (Map.insert k v m, g2)
+              where
+                (acctIx, g1) = random g0
+                (addrIx, g2) = random g1
+                k = (Index acctIx, Index addrIx)
+                v = Address $ B8.pack $ take 32 $ randoms g2
+        let addrs = fst $ head $ drop n $ iterate newAddress (mempty, stdgen)
+        pure $ RndState
+            (Passphrase "passphrase")
+            minBound
+            addrs
+            mempty -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
+            stdgen
 
 instance Arbitrary (ByronKey 'RootK XPrv) where
     shrink _ = []

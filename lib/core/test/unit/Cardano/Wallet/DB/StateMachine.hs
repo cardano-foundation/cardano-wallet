@@ -188,6 +188,7 @@ import Test.QuickCheck
     , frequency
     , labelledExamplesWith
     , property
+    , resize
     , (===)
     )
 import Test.QuickCheck.Monadic
@@ -514,19 +515,19 @@ type WidRefs r =
     RefEnv WalletId MWid r
 
 data Model s r
-    = Model (Mock s) (WidRefs r)
+    = Model Int (Mock s) (WidRefs r)
     deriving (Generic)
 
 deriving instance (Show1 r, Show s) => Show (Model s r)
 
 initModel :: Model s r
-initModel = Model emptyDatabase []
+initModel = Model 0 emptyDatabase []
 
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
-toMock (Model _ wids) (At fr) = fmap (wids !) fr
+toMock (Model _ _ wids) (At fr) = fmap (wids !) fr
 
 step :: Eq1 r => Model s r -> Cmd s :@ r -> (Resp s MWid, Mock s)
-step m@(Model mock _) c = runMock (toMock m c) mock
+step m@(Model _ mock _) c = runMock (toMock m c) mock
 
 {-------------------------------------------------------------------------------
   Events
@@ -547,10 +548,10 @@ lockstep
     -> Cmd s  :@ r
     -> Resp s :@ r
     -> Event s   r
-lockstep m@(Model _ ws) c (At resp) = Event
+lockstep m@(Model n _ ws) c (At resp) = Event
     { before = m
     , cmd = c
-    , after = Model mock' (ws <> ws')
+    , after = Model (n + 1) mock' (ws <> ws')
     , mockResp = resp'
     }
   where
@@ -567,7 +568,7 @@ generator
     :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
+generator (Model n _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     [ withoutWid
     , if null wids then [] else withWid
     ]
@@ -586,7 +587,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     withWid =
         [ (3, RemoveWallet <$> genId')
         , (5, pure ListWallets)
-        , (5, PutCheckpoint <$> genId' <*> arbitrary)
+        , (5, PutCheckpoint <$> genId' <*> resize n arbitrary)
         , (5, ReadCheckpoint <$> genId')
         , (5, ListCheckpoints <$> genId')
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
@@ -634,7 +635,7 @@ shrinker
     :: (Arbitrary (Wallet s))
     => Model s Symbolic
     -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
-shrinker (Model _ _) (At cmd) = case cmd of
+shrinker Model{} (At cmd) = case cmd of
     PutCheckpoint wid wal ->
         [ At $ PutCheckpoint wid wal'
         | wal' <- shrink wal ]
@@ -668,7 +669,7 @@ transition :: Eq1 r => Model s r -> Cmd s :@ r -> Resp s :@ r -> Model s r
 transition m c = after . lockstep m c
 
 precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
-precondition (Model _ wids) (At c) =
+precondition (Model _ _ wids) (At c) =
     forall (toList c) (`elem` map fst wids)
 
 postcondition
@@ -942,7 +943,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
   where
     isRollbackSuccess :: Event s Symbolic -> Maybe MWid
     isRollbackSuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (RollbackTo wid _), Resp (Right Point{}), Model _ wids ) ->
+        (At (RollbackTo wid _), Resp (Right Point{}), Model _ _ wids ) ->
             Just (wids ! wid)
         _otherwise ->
             Nothing
@@ -958,7 +959,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 (Nothing
                     , At (RemoveWallet wid)
                     , Resp (Right _)
-                    , Model _ wids) ->
+                    , Model _ _ wids) ->
                         Map.insert (wids ! wid) 0 created
                 _otherwise ->
                     created
@@ -969,7 +970,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadTxHistory :: Event s Symbolic -> Maybe MWid
     isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid _ _ _ _), Resp (Right (TxHistory _)), Model _ wids)
+        (At (ReadTxHistory wid _ _ _ _), Resp (Right (TxHistory _)), Model _ _ wids)
             -> Just (wids ! wid)
         _otherwise
             -> Nothing
@@ -1039,7 +1040,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
         (At (ReadPrivateKey wid)
             , Resp (Right (PrivateKey (Just _)))
-            , Model _ wids )
+            , Model _ _ wids )
                 -> Just (wids ! wid)
         _otherwise
             -> Nothing
@@ -1109,7 +1110,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     isPutCheckpointSuccess ev = case (cmd ev, mockResp ev, before ev) of
         (At (PutCheckpoint wid _wal)
             , Resp (Right (Unit ()))
-            , Model _ wids )
+            , Model _ _ wids )
                 -> Just (wids ! wid)
         _otherwise
             -> Nothing
@@ -1125,7 +1126,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                 ( Nothing
                   , At (PutDelegationCertificate wid _ _)
                   , Resp (Right _)
-                  , Model _ wids
+                  , Model _ _ wids
                   ) ->
                     Map.insert (wids ! wid) 0 acc
                 _ ->
@@ -1138,7 +1139,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadWalletMetadata :: Event s Symbolic -> Maybe MWid
     isReadWalletMetadata ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadWalletMeta wid), Resp Right{}, Model _ wids) ->
+        (At (ReadWalletMeta wid), Resp Right{}, Model _ _ wids) ->
             Just (wids ! wid)
         _ ->
             Nothing
