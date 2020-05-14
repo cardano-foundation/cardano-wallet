@@ -7,18 +7,19 @@
 # tag from the nix-build (../nix/docker.nix).
 #
 # 1. The repo (default "inputoutput/cardano-wallet") is changed to match
-#    the logged in Docker user's credentials.
+#    the logged in Docker user's credentials. So you can test this with
+#    your own Dockerhub account.
 #
-# 2. The tag (default "VERSION-jormungandr") is changed to reflect the
+# 2. The tag (default "VERSION-BACKEND") is changed to reflect the
 #    branch which is being built under this Buildkite pipeline.
 #
 #    - If this is a git tag build (i.e. release) then the docker tag
 #      is left as-is.
-#    - If this is a master branch build, then VERSION is replaced with
-#      the git revision.
+#    - If this is a master branch build then the docker tag is set to
+#      "dev-master-BACKEND".
 #    - Anything else is not tagged and not pushed.
 #
-# 3. After pushing the image to the repo, the "latest" tag is updated.
+# 3. After pushing the image to the repo, the "latest" tags are updated.
 #
 #    - "inputoutput/cardano-wallet:latest" should point to the most
 #      recent VERSION-byron tag build.
@@ -26,8 +27,6 @@
 #      recent VERSION-byron tag build.
 #    - "inputoutput/cardano-wallet:jormungandr" should point to the most
 #      recent VERSION-jormungandr tag build.
-#    - "inputoutput/cardano-wallet:dev-master-jormungandr" should
-#      point to the most recent master branch build.
 #
 
 { walletPackages ?  import ../default.nix {}
@@ -70,36 +69,32 @@ in
     ''}
 
   '' + concatMapStringsSep "\n" (image: ''
-    branch="''${BUILDKITE_BRANCH:-}"
-    tag="''${BUILDKITE_TAG:-}"
-    extra_tag=""
-    if [[ "$tag" =~ ^v20 ]]; then
-      tag="${image.imageTag}"
-      extra_tag="${image.backend}"
-    elif [[ "$branch" = master ]]; then
-      tag="$(echo ${image.imageTag} | sed -e s/${image.version}/''${BUILDKITE_COMMIT:-dev-$branch}/)"
-      extra_tag="$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$branch/)"
-    else
-      echo "Not pushing docker image because this is not a master branch or v20* tag build."
-      exit 0
-    fi
     echo "Loading ${image}"
-    tagged="$fullrepo:$tag"
     docker load -i "${image}"
-    if [ "$tagged" != "${image.imageName}:${image.imageTag}" ]; then
-      docker tag "${image.imageName}:${image.imageTag}" "$tagged"
-    fi
-    echo "Pushing $tagged"
-    docker push "$tagged"
-    if [ -n "$extra_tag" ]; then
-      echo "Pushing $fullrepo:$extra_tag"
-      docker tag "$tagged" "$fullrepo:$extra_tag"
-      docker push "$fullrepo:$extra_tag"
 
+    # Apply tagging scheme
+    orig_tag="${image.imageName}:${image.imageTag}"
+    git_branch="''${BUILDKITE_BRANCH:-}"
+    git_tag="''${BUILDKITE_TAG:-}"
+    tags=()
+    if [[ "$git_tag" =~ ^v20 ]]; then
+      tags+=( "${image.imageTag}" )
+      tags+=( "${image.backend}" )
       ${optionalString (image.backend == "byron") ''
-      echo "Pushing $fullrepo:latest"
-      docker tag "$tagged" "$fullrepo:latest"
-      docker push "$fullrepo:latest"
+      tags+=( "latest" )
       ''}
+    elif [[ "$git_branch" = master ]]; then
+      tags+=( "$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$git_branch/)" )
+    else
+      echo 'Not pushing docker image because this is not a master branch or v20* tag build.'
     fi
+
+    for tag in ''${tags[@]}; do
+      tagged="$fullrepo:$tag"
+      if [ "$tagged" != "$orig_tag" ]; then
+        docker tag "$orig_tag" "$tagged"
+      fi
+      echo "Pushing $tagged"
+      docker push "$tagged"
+    done
   '') images)
