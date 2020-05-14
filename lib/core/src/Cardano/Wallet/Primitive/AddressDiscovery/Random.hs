@@ -24,6 +24,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     (
     -- ** State
       RndState (..)
+    , DerivationPath
     , mkRndState
 
     -- ** Low-level API
