@@ -118,14 +118,14 @@ chainSyncFollowTip
     :: forall m block. (Monad m)
     => (Tip block -> m ())
     -- ^ Callback for when the tip changes.
-    -> ChainSyncClient (Serialised block) (Tip (Serialised block)) m Void
+    -> ChainSyncClient (Serialised block) (Tip (block)) m Void
 chainSyncFollowTip onTipUpdate =
     ChainSyncClient (clientStIdle False)
   where
     -- Client in the state 'Idle'. We immediately request the next block.
     clientStIdle
         :: Bool
-        -> m (ClientStIdle (Serialised block) (Tip (Serialised block)) m Void)
+        -> m (ClientStIdle (Serialised block) (Tip block) m Void)
     clientStIdle synced = pure $ SendMsgRequestNext
         (clientStNext synced)
         (pure $ clientStNext synced)
@@ -136,14 +136,14 @@ chainSyncFollowTip onTipUpdate =
     -- server to send AwaitReply most of the time.
     clientStNext
         :: Bool
-        -> ClientStNext (Serialised block) (Tip (Serialised block)) m Void
+        -> ClientStNext (Serialised block) (Tip block) m Void
     clientStNext False = ClientStNext
             { recvMsgRollBackward = const findIntersect
             , recvMsgRollForward = const findIntersect
             }
       where
         findIntersect tip = ChainSyncClient $
-            pure $ SendMsgFindIntersect [getTipPoint tip] clientStIntersect
+            pure $ SendMsgFindIntersect [getTipPoint $ castTip tip] clientStIntersect
 
     clientStNext True = ClientStNext
             { recvMsgRollBackward = const doUpdate
@@ -157,7 +157,7 @@ chainSyncFollowTip onTipUpdate =
     -- After an intersection is found, we return to idle with the sync flag
     -- set.
     clientStIntersect
-        :: ClientStIntersect (Serialised block) (Tip (Serialised block)) m Void
+        :: ClientStIntersect (Serialised block) (Tip block) m Void
     clientStIntersect = ClientStIntersect
         { recvMsgIntersectFound = \_intersection _tip ->
             ChainSyncClient $ clientStIdle True

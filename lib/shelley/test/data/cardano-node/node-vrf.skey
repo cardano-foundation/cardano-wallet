@@ -1,0 +1,4 @@
+type: SignKeyVRF SimpleVRF
+title: VRF Signing Key
+cbor-hex:
+ c24ebad822c4308684ac5b44bb561b88

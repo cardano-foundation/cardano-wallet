@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/master/snapshots/cardano-1.11.0.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/master/snapshots/pre-cardano-1.12.0.yaml
 
 packages:
 - lib/core
@@ -9,6 +9,7 @@ packages:
 - lib/test-utils
 - lib/jormungandr
 - lib/byron
+- lib/shelley
 
 extra-deps:
 # Miscellaneous

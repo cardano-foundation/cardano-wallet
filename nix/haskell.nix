@@ -49,6 +49,8 @@ let
         packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
         packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
         packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
+        packages.cardano-wallet-shelley.src = filterSubDir /lib/shelley;
+        packages.cardano-wallet-shelley.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
@@ -60,6 +62,7 @@ let
       # Enable release flag (optimization and -Werror) on all local packages
       {
         packages.cardano-wallet-byron.flags.release = true;
+        packages.cardano-wallet-shelley.flags.release = true;
         packages.cardano-wallet-cli.flags.release = true;
         packages.cardano-wallet-core-integration.flags.release = true;
         packages.cardano-wallet-core.flags.release = true;
@@ -87,6 +90,23 @@ let
 
           # provide cardano-node command to test suites
           unit.build-tools = [ pkgs.cardano-node ];
+          integration.build-tools = [ pkgs.cardano-node ];
+        };
+        packages.cardano-wallet-shelley.components.tests = {
+          # Only run integration tests on non-PR jobsets. Note that
+          # the master branch jobset will just re-use the cached Bors
+          # staging build and test results.
+          integration.doCheck = !isHydraPRJobset;
+
+          # Running Windows integration tests under Wine is disabled
+          # because ouroboros-network doesn't fully work under Wine.
+          integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
+
+          # cardano-node socket path becomes too long otherwise
+          unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+
+          # provide cardano-node command to integration tests
           integration.build-tools = [ pkgs.cardano-node ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
@@ -196,6 +216,9 @@ let
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.tests.integration = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
         packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
@@ -204,6 +227,9 @@ let
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
         packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
+
+        # systemd can't be statically linked - disable lobemo-scribe-journal
+        packages.cardano-config.flags.systemd = false;
       }))
 
       # Allow installation of a newer version of Win32 than what is

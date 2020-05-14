@@ -1,0 +1,183 @@
+name:                cardano-wallet-shelley
+version:             2020.5.6
+synopsis:            Wallet backend protocol-specific bits implemented using Shelley nodes
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2020 IOHK
+license:             Apache-2.0
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+flag release
+    description: Enable optimization and `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , aeson
+    , async
+    , bytestring
+    , cardano-binary
+    , cardano-slotting
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-config
+    , cardano-wallet-launcher
+    , cborg
+    , containers
+    , contra-tracer
+    , cryptonite
+    , directory
+    , exceptions
+    , filepath
+    , fmt
+    , generic-lens
+    , io-sim-classes
+    , iohk-monitoring
+    , memory
+    , network
+    , network-mux
+    , shelley-spec-ledger
+    , optparse-applicative
+    , ouroboros-consensus
+    , ouroboros-consensus-shelley
+    , ouroboros-network
+    , cardano-crypto-class
+    , ouroboros-network-framework
+    , process
+    , retry
+    , servant-server
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , unordered-containers
+    , warp
+    , yaml
+    , Win32-network
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Cardano.Wallet.Shelley
+      Cardano.Wallet.Shelley.Api.Server
+      Cardano.Wallet.Shelley.Compatibility
+      Cardano.Wallet.Shelley.Network
+      Cardano.Wallet.Shelley.Transaction
+      Cardano.Wallet.Shelley.Transaction.Size
+      Cardano.Wallet.Shelley.Launch
+
+executable cardano-wallet-shelley
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , cardano-wallet-shelley
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , contra-tracer
+    , iohk-monitoring
+    , network
+    , optparse-applicative
+    , text
+    , text-class
+    , transformers
+  hs-source-dirs:
+      exe
+  main-is:
+    cardano-wallet-shelley.hs
+
+test-suite unit
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , bytestring
+    , cardano-wallet-core
+    , cardano-crypto-class
+    , ouroboros-consensus-shelley
+    , cardano-wallet-shelley
+    , ouroboros-network
+    , hspec
+    , QuickCheck
+  build-tools:
+      hspec-discover
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/unit
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Shelley.CompatibilitySpec
+
+test-suite integration
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , aeson
+    , async
+    , bytestring
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-shelley
+    , cardano-wallet-core-integration
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , hspec
+    , http-client
+    , iohk-monitoring
+    , temporary
+    , text
+  build-tools:
+      cardano-wallet-shelley
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/integration
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Shelley.Faucet

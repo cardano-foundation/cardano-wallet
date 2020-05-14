@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Test.Integration.Byron.Scenario.CLI.Wallets
+module Test.Integration.Scenario.CLI.Byron.Wallets
     ( spec
     ) where
 

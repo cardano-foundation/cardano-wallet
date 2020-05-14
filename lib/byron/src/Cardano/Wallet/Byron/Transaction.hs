@@ -16,7 +16,7 @@
 
 module Cardano.Wallet.Byron.Transaction
     ( newTransactionLayer
-    , fromGenesisTxOut
+    , genesisBlockFromTxOuts
     ) where
 
 import Prelude
@@ -216,9 +216,12 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 -- Internal
 --
 
--- | Construct an initial genesis block from a genesis UTxO.
-fromGenesisTxOut :: BlockchainParameters -> [TxOut] -> Block
-fromGenesisTxOut bp outs = Block
+-- | Construct a ("fake") genesis block from genesis transaction outputs.
+--
+-- The genesis data on haskell nodes is not a block at all, unlike the block0 on
+-- jormungandr. This function is a method to deal with the discrepancy.
+genesisBlockFromTxOuts :: BlockchainParameters -> [TxOut] -> Block
+genesisBlockFromTxOuts bp outs = Block
     { delegations  = []
     , header = BlockHeader
         { slotId =

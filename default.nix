@@ -9,6 +9,7 @@
 #
 #   - cardano-wallet-jormungandr - cli executable
 #   - cardano-wallet-byron - cli executable
+#   - cardano-wallet-shelley - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
 #     - cardano-wallet-jormungandr.jormungandr-integration
@@ -28,6 +29,7 @@
 #   - dockerImage - tarballs of the docker images
 #     - jormungandr
 #     - byron
+#     - shelley
 #   - shell - imported by shell.nix
 #   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
 #     - cardano-wallet-core.components.library
@@ -97,6 +99,13 @@ let
       inherit (self) cardano-node;
     };
 
+    cardano-wallet-shelley = import ./nix/package-cardano-node.nix {
+      inherit pkgs gitrev;
+      haskellBuildUtils = haskellBuildUtils.package;
+      exe = haskellPackages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley;
+      inherit (self) cardano-node;
+    };
+
     # `tests` are the test suites which have been built.
     tests = collectComponents "tests" isCardanoWallet haskellPackages;
     # `checks` are the result of executing the tests.
@@ -111,6 +120,7 @@ let
     in recurseIntoAttrs (mapAttrs mkDockerImage {
       jormungandr = self.cardano-wallet-jormungandr;
       byron = self.cardano-wallet-byron;
+      shelley = self.cardano-wallet-shelley;
     });
 
     shell = haskellPackages.shellFor {
@@ -120,6 +130,7 @@ let
         cardano-wallet-core
         cardano-wallet-core-integration
         cardano-wallet-byron
+        cardano-wallet-shelley
         cardano-wallet-jormungandr
         cardano-wallet-launcher
         cardano-wallet-test-utils

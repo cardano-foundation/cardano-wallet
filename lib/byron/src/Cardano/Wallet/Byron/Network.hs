@@ -7,7 +7,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -107,8 +106,6 @@ import Data.Function
     ( (&) )
 import Data.List
     ( isInfixOf )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -125,32 +122,23 @@ import Network.Mux
     ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..)
+    , ByronNodeToClientVersion (ByronNodeToClientVersion2)
+    , CodecConfig (..)
     , GenTx
     , Query (..)
-    , decodeByronBlock
-    , decodeByronGenTx
-    , decodeByronHeaderHash
-    , encodeByronBlock
-    , encodeByronGenTx
-    , encodeByronHeaderHash
     )
 import Ouroboros.Consensus.Byron.Node
     ()
-import Ouroboros.Consensus.Node.Run
-    ( RunNode (..) )
+import Ouroboros.Consensus.Network.NodeToClient
+    ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Network.Block
     ( Point (..)
     , SlotNo (..)
     , Tip (..)
-    , decodePoint
-    , decodeTip
-    , encodePoint
-    , encodeTip
     , genesisPoint
     , getTipPoint
     , pointHash
     , pointSlot
-    , unwrapCBORinCBOR
     )
 import Ouroboros.Network.Client.Wallet
     ( ChainSyncCmd (..)
@@ -187,20 +175,14 @@ import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( chainSyncClientPeerPipelined )
-import Ouroboros.Network.Protocol.ChainSync.Codec
-    ( codecChainSync, codecChainSyncSerialised )
 import Ouroboros.Network.Protocol.Handshake.Version
     ( DictVersion (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( localStateQueryClientPeer )
-import Ouroboros.Network.Protocol.LocalStateQuery.Codec
-    ( codecLocalStateQuery )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( AcquireFailure, LocalStateQuery )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( localTxSubmissionClientPeer )
-import Ouroboros.Network.Protocol.LocalTxSubmission.Codec
-    ( codecLocalTxSubmission )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission )
 import System.IO.Error
@@ -351,13 +333,7 @@ mkWalletClient bp chainSyncQ =
             let
                 fromTip' =
                     fromTip getGenesisBlockHash getEpochLength
-                codec = codecChainSync
-                    encodeByronBlock
-                    (unwrapCBORinCBOR $ decodeByronBlock (toEpochSlots getEpochLength))
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    (encodeTip encodeByronHeaderHash)
-                    (decodeTip decodeByronHeaderHash)
+                codec = cChainSyncCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
@@ -377,6 +353,12 @@ mkWalletClient bp chainSyncQ =
         , getEpochLength
         , getGenesisBlockHash
         } = bp
+
+    codecs :: MonadST m => ClientCodecs ByronBlock m
+    codecs = clientCodecs
+        (ByronCodecConfig (toEpochSlots getEpochLength))
+        ByronNodeToClientVersion2
+
 
 -- | Construct a network client with the given communication channel, for the
 -- purpose of:
@@ -417,11 +399,6 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
             Right (Right ls) ->
                 onTxParamsUpdate' $ txParametersFromUpdateState ls
 
-        W.BlockchainParameters
-            { getGenesisBlockHash
-            , getEpochLength
-            } = W.staticParameters gbp
-
     onTipUpdate' <- debounce $ \tip -> do
         traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
@@ -430,11 +407,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                codec = codecChainSyncSerialised
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    (encodeTip encodeByronHeaderHash)
-                    (decodeTip decodeByronHeaderHash)
+                codec = cChainSyncCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer nullTracer codec channel
@@ -444,11 +417,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         , localTxSubmissionProtocol =
             let
                 tr' = contramap MsgTxSubmission tr
-                codec = codecLocalTxSubmission
-                    encodeByronGenTx -- Tx -> CBOR.Encoding
-                    decodeByronGenTx -- CBOR.Decoder s Tx
-                    (nodeEncodeApplyTxError (Proxy @ByronBlock))
-                    (nodeDecodeApplyTxError (Proxy @ByronBlock))
+                codec = cTxSubmissionCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
@@ -458,13 +427,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         , localStateQueryProtocol =
             let
                 tr' = contramap MsgLocalStateQuery tr
-                codec = codecLocalStateQuery
-                    (encodePoint encodeByronHeaderHash)
-                    (decodePoint decodeByronHeaderHash)
-                    nodeEncodeQuery
-                    nodeDecodeQuery
-                    nodeEncodeResult
-                    nodeDecodeResult
+                codec = cStateQueryCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
@@ -472,6 +435,16 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
                 $ localStateQuery localStateQueryQ
         }
         NodeToClientV_2
+  where
+    W.BlockchainParameters
+        { getGenesisBlockHash
+        , getEpochLength
+        } = W.staticParameters gbp
+
+    codecs :: MonadST m => DefaultCodecs ByronBlock m
+    codecs = defaultCodecs
+        (ByronCodecConfig (toEpochSlots getEpochLength))
+        ByronNodeToClientVersion2
 
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do

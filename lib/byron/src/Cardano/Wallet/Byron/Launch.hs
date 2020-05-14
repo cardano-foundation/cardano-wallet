@@ -49,7 +49,7 @@ import Cardano.Wallet.Byron.Compatibility
     , testnetVersionData
     )
 import Cardano.Wallet.Byron.Transaction
-    ( fromGenesisTxOut )
+    ( genesisBlockFromTxOuts )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -185,7 +185,7 @@ parseGenesisData = \case
             ( discriminant
             , gbp
             , vData
-            , fromGenesisTxOut (staticParameters gbp) outs
+            , genesisBlockFromTxOuts (staticParameters gbp) outs
             )
 
 --------------------------------------------------------------------------------
@@ -318,7 +318,7 @@ withConfig tdir minSeverity action =
                 , nodeSocketFile
                 , nodeTopologyFile
                 }
-            , fromGenesisTxOut (staticParameters gbp) outs
+            , genesisBlockFromTxOuts (staticParameters gbp) outs
             , ( gbp
               , ( NodeToClientVersionData { networkMagic }
                 , nodeToClientCodecCBORTerm

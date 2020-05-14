@@ -108,13 +108,25 @@ let
         jobs.native.cardano-wallet-byron.x86_64-darwin
         jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
 
+        # cardano-node (Shelley)
+        jobs.native.cardano-wallet-shelley.x86_64-linux
+        jobs.native.cardano-wallet-shelley.x86_64-darwin
+        jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
+
         # release packages - jormungandr
         jobs.cardano-wallet-jormungandr-linux64
         jobs.cardano-wallet-jormungandr-macos64
         jobs.cardano-wallet-jormungandr-win64
 
         # release packages - cardano-node (Byron)
+        jobs.cardano-wallet-byron-linux64
+        jobs.cardano-wallet-byron-macos64
         jobs.cardano-wallet-byron-win64
+
+        # release packages - cardano-node (Shelley)
+        jobs.cardano-wallet-shelley-linux64
+        jobs.cardano-wallet-shelley-macos64
+        jobs.cardano-wallet-shelley-win64
 
         # Windows testing package - is run nightly in CI.
         jobs.cardano-wallet-tests-win64
@@ -139,11 +151,18 @@ let
       exe = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
     };
 
+    # Windows release ZIP archive - shelley
+    cardano-wallet-shelley-win64 = import ./nix/windows-release.nix {
+      inherit pkgs;
+      exe = jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux;
+    };
+
     # This is used for testing the build on windows.
     cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
       cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
+      cardano-wallet-shelley = jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux;
       cardano-node = jobs.x86_64-w64-mingw32.cardano-node.x86_64-linux;
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
@@ -170,6 +189,10 @@ let
         # jobs.musl64.cardano-node.x86_64-linux
       ];
     };
+    cardano-wallet-shelley-linux64 = import ./nix/linux-release.nix {
+      inherit pkgs;
+      exes = [ jobs.musl64.cardano-wallet-shelley.x86_64-linux ];
+    };
 
     # macOS binary and dependencies in tarball
     cardano-wallet-jormungandr-macos64 = import ./nix/macos-release.nix {
@@ -179,6 +202,10 @@ let
     cardano-wallet-byron-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
       exes = [ jobs.native.cardano-wallet-byron.x86_64-darwin ];
+    };
+    cardano-wallet-shelley-macos64 = import ./nix/macos-release.nix {
+      inherit pkgs;
+      exes = [ jobs.native.cardano-wallet-shelley.x86_64-darwin ];
     };
 
     # Build and cache the build script used on Buildkite

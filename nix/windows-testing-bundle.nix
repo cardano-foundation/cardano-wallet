@@ -11,6 +11,7 @@
 , project
 , cardano-wallet-jormungandr
 , cardano-wallet-byron
+, cardano-wallet-shelley
 , cardano-node
 , tests ? []
 , benchmarks ? []
@@ -21,7 +22,7 @@ let
     core = ../lib/core/test/data;
     jormungandr = ../lib/jormungandr/test/data;
     byron = ../lib/byron/test/data;
-    daedalusIPC = ../lib/jormungandr/test/integration/js;
+    shelley = ../lib/shelley/test/data;
   };
 
   name = "cardano-wallet-${project.version}-tests-win64";
@@ -44,7 +45,8 @@ in pkgs.runCommand name {
 
   cp -vf ${cardano-wallet-jormungandr}/bin/* .
   cp -vf ${cardano-wallet-byron}/bin/* .
-  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* test/data
+  cp -vf ${cardano-wallet-shelley}/bin/* .
+  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* ${testData.shelley}/* test/data
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"
   sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat

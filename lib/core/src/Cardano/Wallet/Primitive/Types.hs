@@ -762,14 +762,17 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) hh _) =
-        prefixF 8 hhF
-        <> "-["
+    build (BlockHeader s (Quantity bh) hh ph) =
+        prefixF 8 phF
+        <> "<-["
+        <> prefixF 8 hhF
+        <> "-"
         <> build s
         <> "#" <> build (show bh)
         <> "]"
       where
         hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
+        phF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash ph
 
 {-------------------------------------------------------------------------------
                                       Tx

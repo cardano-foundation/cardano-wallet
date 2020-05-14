@@ -45,7 +45,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       identifier = { name = "iohk-monitoring"; version = "0.1.10.1"; };
       license = "Apache-2.0";
       copyright = "2018 IOHK";
-      maintainer = "";
+      maintainer = "operations@iohk.io";
       author = "Alexander Diemand, Andreas Triantafyllos";
       homepage = "";
       url = "";
@@ -139,8 +139,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "8f7d2a4ba4288e528fea62946b525f493c26ae7a";
-      sha256 = "12slplsvvf1hywddzsissza4sb85j4r0xhx44nv2icmhp4hp83cc";
+      rev = "20309d5aa56b0ae5fd982465297a1d87aa5658a1";
+      sha256 = "0j4k6faiy2isqfm12lmwz7szpdrkzxhfz6ljjkv5r2v41v0hnx6f";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }
