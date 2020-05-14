@@ -168,6 +168,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletMigrateData (..)
     , ApiWalletMigrationInfo (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -1319,37 +1320,30 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k k' n.
-        ( IsOwned s k
-        , SoftDerivation k'
-        , DelegationAddress n k'
+    :: forall s t k n.
+        ( Show s
+        , NFData s
+        , IsOwned s k
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiLayer (SeqState n k') t k'
-        -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet
-    -> ApiT WalletId
-        -- ^ Target wallet (Shelley)
-    -> ApiWalletPassphrase
+    -> ApiWalletMigrateData n
     -> Handler [ApiTransaction n]
-migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
-    -- FIXME
-    -- Better error handling here to inform users if they messed up with the
-    -- wallet ids.
+migrateWallet ctx (ApiT wid) migrateData = do
+    -- TO DO check if addrs are not empty
+
     migration <- do
-        withWorkerCtx srcCtx srcWid liftE liftE $ \srcWrk ->
-            withWorkerCtx sheCtx sheWid liftE liftE $ \sheWrk -> liftHandler $ do
-                cs <- W.selectCoinsForMigration @_ @_ @t srcWrk srcWid
-                withExceptT ErrSelectForMigrationNoSuchWallet $
-                    W.assignMigrationTargetAddresses sheWrk sheWid (delegationAddress @n) cs
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+            cs <- W.selectCoinsForMigration @_ @_ @t wrk wid
+            pure $ changeCoinSelectionForMigration addrs cs
 
     forM migration $ \cs -> do
-        (tx, meta, time, wit) <- withWorkerCtx srcCtx srcWid liftE liftE
-            $ \srcWrk -> liftHandler $ W.signTx @_ @s @t @k srcWrk srcWid pwd cs
-        withWorkerCtx srcCtx srcWid liftE liftE
-            $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk srcWid (tx, meta, wit)
+        (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd cs
+        withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk wid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
@@ -1358,6 +1352,38 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
             #pendingSince
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
+    addrs = getApiT . fst <$> migrateData ^. #addresses
+
+-- | Transform the given set of migration coin selections (for a source wallet)
+--   into a set of coin selections that will migrate funds to the specified
+--   target addresses.
+--
+-- Each change entry in the specified set of coin selections is replaced with a
+-- corresponding output entry in the returned set, where the output entry has a
+-- address from specified addresses.
+--
+-- The difference between the size of coin selection and the number of
+-- specified addresses is solved by cycling specified addresses.
+--
+changeCoinSelectionForMigration
+    :: [Address]
+    -- ^ Target addresses
+    -> [CoinSelection]
+    -- ^ Migration data for the source wallet.
+    -> [UnsignedTx]
+changeCoinSelectionForMigration addrs selections =
+    zipWith changeSel selections addrsPools
+  where
+      addrsPools =
+          fst $
+          foldl (\(res,addrPool) sel ->
+                     let len = length (change sel) in
+                         (take len addrPool:res, drop len addrPool)
+                )
+          ([], cycle addrs) selections
+      changeSel sel addrPool = UnsignedTx
+          (NE.fromList (sel ^. #inputs))
+          (NE.fromList (zipWith TxOut addrPool (sel  ^. #change)))
 
 {-------------------------------------------------------------------------------
                                     Network
