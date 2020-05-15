@@ -17,12 +17,12 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- Implementation of address derivation for 'Shelley' Keys. Shelley really means
+-- Implementation of address derivation for 'Jormungandr' Keys. Jormungandr really means
 -- Jörmungandr here.
 
-module Cardano.Wallet.Primitive.AddressDerivation.Shelley
+module Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( -- * Types
-      ShelleyKey(..)
+      JormungandrKey(..)
 
     -- * Constants
     , minSeedLengthBytes
@@ -37,7 +37,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , xpubFromText
 
     -- * Address
-    , decodeShelleyAddress
+    , decodeJormungandrAddress
     ) where
 
 import Prelude
@@ -112,19 +112,19 @@ import qualified Data.ByteString.Lazy as BL
                             Sequential Derivation
 -------------------------------------------------------------------------------}
 
--- | A cryptographic key for Shelley address derivation, with phantom-types to
+-- | A cryptographic key for Jormungandr address derivation, with phantom-types to
 -- disambiguate derivation paths
 --
 -- @
--- let rootPrivateKey = ShelleyKey 'RootK XPrv
--- let accountPubKey = ShelleyKey 'AccountK XPub
--- let addressPubKey = ShelleyKey 'AddressK XPub
+-- let rootPrivateKey = JormungandrKey 'RootK XPrv
+-- let accountPubKey = JormungandrKey 'AccountK XPub
+-- let addressPubKey = JormungandrKey 'AddressK XPub
 -- @
-newtype ShelleyKey (depth :: Depth) key =
-    ShelleyKey { getKey :: key }
+newtype JormungandrKey (depth :: Depth) key =
+    JormungandrKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
-instance (NFData key) => NFData (ShelleyKey depth key)
+instance (NFData key) => NFData (JormungandrKey depth key)
 
 -- | Size, in bytes, of a public key (without chain code)
 publicKeySize :: Int
@@ -176,7 +176,7 @@ generateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
        -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
-    -> ShelleyKey 'RootK XPrv
+    -> JormungandrKey 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
@@ -187,9 +187,9 @@ unsafeGenerateKeyFromSeed
     :: (SomeMnemonic, Maybe SomeMnemonic)
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
-    -> ShelleyKey depth XPrv
+    -> JormungandrKey depth XPrv
 unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
-    ShelleyKey $ generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
+    JormungandrKey $ generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
   where
     mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
     seed  = mnemonicToBytes root
@@ -199,11 +199,11 @@ unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
         (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
 
 
-instance HardDerivation ShelleyKey where
-    type AddressIndexDerivationType ShelleyKey = 'Soft
+instance HardDerivation JormungandrKey where
+    type AddressIndexDerivationType JormungandrKey = 'Soft
 
     deriveAccountPrivateKey
-            (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
+            (Passphrase pwd) (JormungandrKey rootXPrv) (Index accIx) =
         let
             purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
                 deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
@@ -212,10 +212,10 @@ instance HardDerivation ShelleyKey where
             acctXPrv = -- lvl3 derivation; hardened derivation of account' index
                 deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
         in
-            ShelleyKey acctXPrv
+            JormungandrKey acctXPrv
 
     deriveAddressPrivateKey
-            (Passphrase pwd) (ShelleyKey accXPrv) accountingStyle (Index addrIx) =
+            (Passphrase pwd) (JormungandrKey accXPrv) accountingStyle (Index addrIx) =
         let
             changeCode =
                 fromIntegral $ fromEnum accountingStyle
@@ -224,17 +224,17 @@ instance HardDerivation ShelleyKey where
             addrXPrv = -- lvl5 derivation; soft derivation of address index
                 deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
         in
-            ShelleyKey addrXPrv
+            JormungandrKey addrXPrv
 
-instance SoftDerivation ShelleyKey where
-    deriveAddressPublicKey (ShelleyKey accXPub) accountingStyle (Index addrIx) =
+instance SoftDerivation JormungandrKey where
+    deriveAddressPublicKey (JormungandrKey accXPub) accountingStyle (Index addrIx) =
         fromMaybe errWrongIndex $ do
             let changeCode = fromIntegral $ fromEnum accountingStyle
             changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
                 deriveXPub DerivationScheme2 accXPub changeCode
             addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
                 deriveXPub DerivationScheme2 changeXPub addrIx
-            return $ ShelleyKey addrXPub
+            return $ JormungandrKey addrXPub
       where
         errWrongIndex = error $
             "deriveAddressPublicKey failed: was given an hardened (or too big) \
@@ -246,7 +246,7 @@ instance SoftDerivation ShelleyKey where
                             WalletKey implementation
 -------------------------------------------------------------------------------}
 
-instance WalletKey ShelleyKey where
+instance WalletKey JormungandrKey where
     changePassphrase = changePassphraseSeq
     publicKey = publicKeySeq
     digest = digestSeq
@@ -255,17 +255,17 @@ instance WalletKey ShelleyKey where
 
 -- | Extract the public key part of a private key.
 publicKeySeq
-    :: ShelleyKey depth XPrv
-    -> ShelleyKey depth XPub
-publicKeySeq (ShelleyKey k) =
-    ShelleyKey (toXPub k)
+    :: JormungandrKey depth XPrv
+    -> JormungandrKey depth XPub
+publicKeySeq (JormungandrKey k) =
+    JormungandrKey (toXPub k)
 
 -- | Hash a public key to some other representation.
 digestSeq
     :: HashAlgorithm a
-    => ShelleyKey depth XPub
+    => JormungandrKey depth XPub
     -> Digest a
-digestSeq (ShelleyKey k) =
+digestSeq (JormungandrKey k) =
     hash (unXPub k)
 
 -- | Re-encrypt a private key using a different passphrase.
@@ -277,54 +277,54 @@ digestSeq (ShelleyKey k) =
 changePassphraseSeq
     :: Passphrase "encryption"
     -> Passphrase "encryption"
-    -> ShelleyKey depth XPrv
-    -> ShelleyKey depth XPrv
-changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
-    ShelleyKey $ xPrvChangePass oldPwd newPwd prv
+    -> JormungandrKey depth XPrv
+    -> JormungandrKey depth XPrv
+changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (JormungandrKey prv) =
+    JormungandrKey $ xPrvChangePass oldPwd newPwd prv
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet ShelleyKey where
-    paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
+instance PaymentAddress 'Mainnet JormungandrKey where
+    paymentAddress (JormungandrKey k0) =
+        encodeJormungandrAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
     liftPaymentAddress (KeyFingerprint k0) =
-        encodeShelleyAddress (addrSingle @'Mainnet) [k0]
+        encodeJormungandrAddress (addrSingle @'Mainnet) [k0]
 
-instance PaymentAddress ('Testnet pm) ShelleyKey where
-    paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (addrSingle @('Testnet _)) [xpubPublicKey k0]
+instance PaymentAddress ('Testnet pm) JormungandrKey where
+    paymentAddress (JormungandrKey k0) =
+        encodeJormungandrAddress (addrSingle @('Testnet _)) [xpubPublicKey k0]
     liftPaymentAddress (KeyFingerprint k0) =
-        encodeShelleyAddress (addrSingle @('Testnet _)) [k0]
+        encodeJormungandrAddress (addrSingle @('Testnet _)) [k0]
 
-instance DelegationAddress 'Mainnet ShelleyKey where
-    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
+instance DelegationAddress 'Mainnet JormungandrKey where
+    delegationAddress (JormungandrKey k0) (JormungandrKey k1) =
+        encodeJormungandrAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
+    liftDelegationAddress (KeyFingerprint k0) (JormungandrKey k1) =
+        encodeJormungandrAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
 
-instance DelegationAddress ('Testnet pm) ShelleyKey where
-    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @('Testnet _)) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @('Testnet _)) ([k0, xpubPublicKey k1])
+instance DelegationAddress ('Testnet pm) JormungandrKey where
+    delegationAddress (JormungandrKey k0) (JormungandrKey k1) =
+        encodeJormungandrAddress (addrGrouped @('Testnet _)) (xpubPublicKey <$> [k0, k1])
+    liftDelegationAddress (KeyFingerprint k0) (JormungandrKey k1) =
+        encodeJormungandrAddress (addrGrouped @('Testnet _)) ([k0, xpubPublicKey k1])
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: NetworkDiscriminant) where
     addrSingle :: Word8
         -- ^ Address discriminant byte for single addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying only a
+        -- byte of every addresses using the Jormungandr format carrying only a
         -- spending key.
 
     addrGrouped :: Word8
         -- ^ Address discriminant byte for grouped addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying both a
+        -- byte of every addresses using the Jormungandr format carrying both a
         -- spending and an account key.
 
     addrAccount :: Word8
         -- ^ Address discriminant byte for account addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying only an
+        -- byte of every addresses using the Jormungandr format carrying only an
         -- account key.
 
     knownDiscriminants :: [Word8]
@@ -360,8 +360,8 @@ isAddrGrouped (Address bytes) =
 --
 -- We use this to define both instance separately to avoid having to carry a
 -- 'KnownNetwork' constraint around.
-encodeShelleyAddress :: Word8 -> [ByteString] -> Address
-encodeShelleyAddress discriminant keys =
+encodeJormungandrAddress :: Word8 -> [ByteString] -> Address
+encodeJormungandrAddress discriminant keys =
     Address $ invariantSize $ BL.toStrict $ runPut $ do
         putWord8 discriminant
         mapM_ putByteString keys
@@ -378,11 +378,11 @@ encodeShelleyAddress discriminant keys =
         len = 1 + length keys * publicKeySize
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
-decodeShelleyAddress
+decodeJormungandrAddress
     :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
     => ByteString
     -> Either TextDecodingError Address
-decodeShelleyAddress bytes = do
+decodeJormungandrAddress bytes = do
     let firstByte = BS.unpack $ BS.take 1 bytes
 
     let knownBytes = pure <$>
@@ -415,14 +415,14 @@ decodeShelleyAddress bytes = do
         "This address belongs to another network. Network is: "
         <> show (networkDiscriminantVal @n) <> "."
 
-instance MkKeyFingerprint ShelleyKey Address where
+instance MkKeyFingerprint JormungandrKey Address where
     paymentKeyFingerprint addr@(Address bytes)
         | isAddrSingle addr || isAddrGrouped addr =
             Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
         | otherwise =
-            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
+            Left $ ErrInvalidAddress addr (Proxy @JormungandrKey)
 
-instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
+instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), JormungandrKey 'AddressK XPub) where
     paymentKeyFingerprint =
         Right . KeyFingerprint . xpubPublicKey . getRawKey . snd
 
@@ -430,27 +430,27 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
-instance PersistPrivateKey (ShelleyKey 'RootK) where
+instance PersistPrivateKey (JormungandrKey 'RootK) where
     serializeXPrv (k, h) =
         ( hex . unXPrv . getKey $ k
         , hex . getHash $ h
         )
 
     unsafeDeserializeXPrv (k, h) = either err id $ (,)
-        <$> fmap ShelleyKey (xprvFromText k)
+        <$> fmap JormungandrKey (xprvFromText k)
         <*> fmap Hash (fromHex h)
       where
         xprvFromText = xprv <=< fromHex @ByteString
-        err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"
+        err _ = error "unsafeDeserializeXPrv: unable to deserialize JormungandrKey"
 
-instance PersistPublicKey (ShelleyKey depth) where
+instance PersistPublicKey (JormungandrKey depth) where
     serializeXPub =
         hex . unXPub . getKey
 
     unsafeDeserializeXPub =
-        either err ShelleyKey . xpubFromText
+        either err JormungandrKey . xpubFromText
       where
-        err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
+        err _ = error "unsafeDeserializeXPub: unable to deserialize JormungandrKey"
 
 xpubFromText :: ByteString -> Either String XPub
 xpubFromText = xpub <=< fromHex @ByteString
@@ -483,13 +483,13 @@ xpubFromText = xpub <=< fromHex @ByteString
 -- gives a root private key. Then, child keys can be created safely using the
 -- various key derivation methods:
 --
--- - 'publicKey' --> For any @ShelleyKey _ XPrv@ to @ShelleyKey _ XPub@
+-- - 'publicKey' --> For any @JormungandrKey _ XPrv@ to @JormungandrKey _ XPub@
 -- - 'deriveAccountPrivateKey' -->
---      From @ShelleyKey RootK XPrv@ to @ShelleyKey AccountK XPrv@
+--      From @JormungandrKey RootK XPrv@ to @JormungandrKey AccountK XPrv@
 -- - 'deriveAddressPrivateKey' -->
---      From @ShelleyKey AccountK XPrv@ to @ShelleyKey AddressK XPrv@
+--      From @JormungandrKey AccountK XPrv@ to @JormungandrKey AddressK XPrv@
 -- - 'deriveAddressPublicKey' -->
---      From @ShelleyKey AccountK XPub@ to @ShelleyKey AddressK XPub@
+--      From @JormungandrKey AccountK XPub@ to @JormungandrKey AddressK XPub@
 --
 -- For example:
 --
@@ -497,12 +497,12 @@ xpubFromText = xpub <=< fromHex @ByteString
 -- -- Access public key for: m|coinType'|purpose'|0'
 -- let seed = "My Secret Seed"
 --
--- let rootXPrv :: ShelleyKey 'RootK XPrv
+-- let rootXPrv :: JormungandrKey 'RootK XPrv
 --     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
 --
 -- let accIx :: Index 'Hardened 'AccountK
 --     accIx = toEnum 0x80000000
 --
--- let accXPub :: ShelleyKey 'AccountL XPub
+-- let accXPub :: JormungandrKey 'AccountL XPub
 --     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
 -- @

@@ -81,8 +81,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -198,7 +198,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -255,7 +255,7 @@ testRegressionInsertSelectRndState db = do
 -------------------------------------------------------------------------------}
 
 loggingSpec :: Spec
-loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) @ShelleyKey $ do
+loggingSpec = withLoggingDB @(SeqState 'Mainnet JormungandrKey) @JormungandrKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
@@ -330,7 +330,7 @@ findObserveDiffs = filter isObserveDiff
                                 File Mode Spec
 -------------------------------------------------------------------------------}
 
-type TestDBSeq = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
+type TestDBSeq = DBLayer IO (SeqState 'Mainnet JormungandrKey) JormungandrKey
 type TestDBRnd = DBLayer IO (RndState 'Mainnet) ByronKey
 
 fileModeSpec :: Spec
@@ -339,7 +339,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- Just <$> temporaryDBFile
-                (ctx, _) <- newDBLayer' @(SeqState 'Mainnet ShelleyKey) db
+                (ctx, _) <- newDBLayer' @(SeqState 'Mainnet JormungandrKey) db
                 destroyDBLayer ctx
 
     describe "DBFactory" $ do
@@ -542,7 +542,7 @@ fileModeSpec =  do
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property $ prop_randomOpChunks @(SeqState 'Mainnet ShelleyKey))
+            (property $ prop_randomOpChunks @(SeqState 'Mainnet JormungandrKey))
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
@@ -601,7 +601,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 testOpeningCleaning
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO s)
+    -> (DBLayer IO (SeqState 'Mainnet JormungandrKey) JormungandrKey -> IO s)
     -> s
     -> s
     -> Expectation
@@ -618,7 +618,7 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())
+    :: (DBLayer IO (SeqState 'Mainnet JormungandrKey) JormungandrKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -636,7 +636,7 @@ withTestDBFile action expectations = do
 
 inMemoryDBLayer
     :: PersistState s
-    => IO (SqliteContext, DBLayer IO s ShelleyKey)
+    => IO (SqliteContext, DBLayer IO s JormungandrKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
 temporaryDBFile :: IO FilePath
@@ -649,7 +649,7 @@ defaultFieldValues = DefaultFieldValues
 newDBLayer'
     :: PersistState s
     => Maybe FilePath
-    -> IO (SqliteContext, DBLayer IO s ShelleyKey)
+    -> IO (SqliteContext, DBLayer IO s JormungandrKey)
 newDBLayer' = newDBLayer nullTracer defaultFieldValues
 
 -- | Clean the database
@@ -699,9 +699,9 @@ readPrivateKey' DBLayer{..} =
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
-    :: DBLayer IO s ShelleyKey
+    :: DBLayer IO s JormungandrKey
     -> PrimaryKey WalletId
-    -> ExceptT ErrNoSuchWallet IO (ShelleyKey 'RootK XPrv, Hash "encryption")
+    -> ExceptT ErrNoSuchWallet IO (JormungandrKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey DBLayer{..} wid = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
     seed <- liftIO $ generate $ SomeMnemonic <$> genMnemonic @15
@@ -726,10 +726,10 @@ cutRandomly = iter []
                                    Test data
 -------------------------------------------------------------------------------}
 
-testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
+testCp :: Wallet (SeqState 'Mainnet JormungandrKey)
 testCp = snd $ initWallet block0 genesisParameters initDummyState
   where
-    initDummyState :: SeqState 'Mainnet ShelleyKey
+    initDummyState :: SeqState 'Mainnet JormungandrKey
     initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
@@ -780,10 +780,10 @@ getTxsInLedger DBLayer {..} = do
                            Test data - Sequential AD
 -------------------------------------------------------------------------------}
 
-testCpSeq :: Wallet (SeqState 'Mainnet ShelleyKey)
+testCpSeq :: Wallet (SeqState 'Mainnet JormungandrKey)
 testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
 
-initDummyStateSeq :: SeqState 'Mainnet ShelleyKey
+initDummyStateSeq :: SeqState 'Mainnet JormungandrKey
 initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)

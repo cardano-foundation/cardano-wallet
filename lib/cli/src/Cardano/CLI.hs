@@ -344,7 +344,7 @@ import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -893,7 +893,7 @@ cmdMnemonicRewardCredentials =
             let parser = optionalE $ mkSomeMnemonic @'[9,12] . T.words
             fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
 
-        let rootXPrv = Shelley.generateKeyFromSeed (wSeed, wSndFactor) mempty
+        let rootXPrv = Jormungandr.generateKeyFromSeed (wSeed, wSndFactor) mempty
         let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
 
         let hrp = [Bech32.humanReadablePart|ed25519e_sk|]
@@ -1805,7 +1805,7 @@ loggingSeverityOrOffReader = do
 -- | [--wallet-style=WALLET_STYLE]
 --
 -- Note that we in the future might replace the type @ByronWalletStyle@ with
--- another type, to include Shelley keys.
+-- another type, to include Jormungandr keys.
 walletStyleOption
     :: ByronWalletStyle
         -- ^ Default style

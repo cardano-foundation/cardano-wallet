@@ -19,8 +19,8 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -224,7 +224,7 @@ spec = do
         it "WalletId" $ do
             let mw = someDummyMnemonic (Proxy @12)
             let xprv = generateKeyFromSeed
-                    (mw, Nothing) mempty :: ShelleyKey 'RootK XPrv
+                    (mw, Nothing) mempty :: JormungandrKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
             "c225b83f...1d9d620e" === pretty @_ @Text wid
         it "TxMeta (1)" $ do

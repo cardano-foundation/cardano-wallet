@@ -91,8 +91,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -117,8 +117,8 @@ server
     :: forall t n byron icarus shelley.
         ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
         , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        , shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        , DelegationAddress n ShelleyKey
+        , shelley ~ ApiLayer (SeqState n JormungandrKey) t JormungandrKey
+        , DelegationAddress n JormungandrKey
         , Buildable (ErrValidateSelection t)
         )
     => byron
