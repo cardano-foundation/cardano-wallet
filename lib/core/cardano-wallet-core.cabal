@@ -40,6 +40,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-crypto
+    , cardano-slotting
     , cborg
     , containers
     , contra-tracer
