@@ -73,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
+    , ApiWalletMigrateData (..)
     , ApiWalletMigrationInfo (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -332,6 +333,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrateData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
@@ -761,6 +763,14 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiWalletMigrateData" $ property $ \x ->
+            let
+                x' = ApiWalletMigrateData
+                    { passphrase = passphrase (x :: ApiWalletMigrateData ('Testnet 0))
+                    , addresses = addresses (x :: ApiWalletMigrateData ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWalletPassphrase" $ property $ \x ->
             let
                 x' = ApiWalletPassphrase
@@ -1116,6 +1126,13 @@ instance Arbitrary ApiByronWalletBalance where
 instance Arbitrary ApiWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary (ApiWalletMigrateData n) where
+    arbitrary = do
+        n <- choose (1,256)
+        pwd <- arbitrary
+        addr <- vector n
+        pure $ ApiWalletMigrateData pwd ((, Proxy @n) <$> addr)
 
 instance Arbitrary ApiWalletPassphrase where
     arbitrary = genericArbitrary
@@ -1624,6 +1641,10 @@ instance ToSchema ApiByronWallet where
 instance ToSchema ApiWalletMigrationInfo where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationInfo"
+
+instance ToSchema (ApiWalletMigrateData t) where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletMigrateData"
 
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =
