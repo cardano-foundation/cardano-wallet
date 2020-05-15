@@ -44,9 +44,7 @@ import Prelude
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), NextBlocksResult (..) )
-import Control.Monad.Class.MonadAsync
-    ( MonadAsync (race) )
+    ( NextBlocksResult (..) )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
@@ -61,8 +59,6 @@ import Control.Monad.Class.MonadSTM
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
-import Control.Monad.Class.MonadTimer
-    ( MonadTimer, threadDelay )
 import Data.Functor
     ( (<&>) )
 import Data.Maybe
@@ -451,7 +447,7 @@ type LocalStateQueryResult state = Either AcquireFailure state
 --                └───────────────┘             └────────────────┘
 --
 localStateQuery
-    :: forall m block state.  (MonadThrow m, MonadTimer m)
+    :: forall m block state. (MonadThrow m, MonadSTM m)
     => TQueue m (LocalStateQueryCmd block state m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -534,7 +530,7 @@ data LocalTxSubmissionCmd tx err (m :: * -> *)
 --                                             |         |⇦ START
 --                                             *---------*
 localTxSubmission
-    :: forall m tx err. ( MonadThrow m, MonadTimer m)
+    :: forall m tx err. (MonadThrow m, MonadSTM m)
     => TQueue m (LocalTxSubmissionCmd tx err m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -572,15 +568,11 @@ flush queue =
 -- >>> queue `send` CmdNextBlocks
 -- AwaitReply
 send
-    :: (MonadSTM m, MonadAsync m, MonadTimer m)
+    :: MonadSTM m
     => TQueue m (cmd m)
     -> ((a -> m ()) -> cmd m)
-    -> m (Either ErrNetworkUnavailable a)
+    -> m a
 send queue cmd = do
     tvar <- newEmptyTMVarM
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
-    race timeout (atomically $ takeTMVar tvar) <&> \case
-        Left{}  -> Left (ErrNetworkUnreachable "timeout")
-        Right a -> Right a
-  where
-    timeout = threadDelay 30
+    atomically $ takeTMVar tvar

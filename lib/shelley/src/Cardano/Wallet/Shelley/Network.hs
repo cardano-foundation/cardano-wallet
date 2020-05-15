@@ -38,13 +38,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Network
-    ( Cursor
-    , ErrGetBlock (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    , mapCursor
-    )
+    ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , ShelleyBlock
@@ -87,16 +81,9 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE, withExceptT )
+    ( throwE )
 import Control.Retry
-    ( RetryPolicyM
-    , RetryStatus (..)
-    , capDelay
-    , constantDelay
-    , fibonacciBackoff
-    , recovering
-    , retrying
-    )
+    ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
     ( Tracer, contramap, nullTracer, traceWith )
 import Data.ByteArray.Encoding
@@ -257,17 +244,11 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         let handlers = failOnConnectionLost tr
         link =<< async (connectClient tr handlers (const client) versionData addrInfo)
         let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
-        let policy = constantDelay 500
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
-        let shouldRetry _ = \case
-                Left (_ :: ErrNetworkUnavailable) -> do
-                    traceWith tr MsgFindIntersectionTimeout
-                    pure True
-                Right Nothing -> pure False
-                Right Just{}  -> pure False
-        retrying policy shouldRetry (const findIt) >>= \case
-            Right (Just intersection) -> do
+        res <- findIt
+        case res of
+            Just intersection -> do
                 traceWith tr
                     $ MsgIntersectionFound
                     $ fromChainHash getGenesisBlockHash
@@ -281,8 +262,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
 
     _nextBlocks (Cursor _ chainSyncQ) = do
         let toCursor point = Cursor point chainSyncQ
-        fmap (mapCursor toCursor) $ withExceptT ErrGetBlockNetworkUnreachable $
-            ExceptT (chainSyncQ `send` CmdNextBlocks)
+        liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
     _cursorSlotId (Cursor point _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
@@ -295,8 +275,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
 
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
-        result <- withExceptT ErrPostTxNetworkUnreachable $
-            ExceptT (localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx))
+        result <- liftIO $ localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx)
         case result of
             Nothing  -> pure ()
             Just err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
@@ -374,7 +353,7 @@ serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 mkTipSyncClient
-    :: forall m. (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
+    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.GenesisBlockParameters
@@ -389,21 +368,20 @@ mkTipSyncClient
 mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
-    onTxParamsUpdate' <- debounce $ \txParams -> do
+    (onTxParamsUpdate' :: W.TxParameters -> m ()) <- debounce $ \txParams -> do
         traceWith tr $ MsgTxParameters txParams
         onTxParamsUpdate txParams
 
     let
+        queryLocalState :: Point ShelleyBlock -> m ()
         queryLocalState pt = do
             st <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
         handleLocalState = \case
-            Left (e :: ErrNetworkUnavailable) ->
+            Left (e :: AcquireFailure) ->
                 traceWith tr $ MsgLocalStateQueryError $ show e
-            Right (Left (e :: AcquireFailure)) ->
-                traceWith tr $ MsgLocalStateQueryError $ show e
-            Right (Right ls) ->
+            Right ls ->
                 onTxParamsUpdate' $ fromPParams ls
 
         W.BlockchainParameters
