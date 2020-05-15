@@ -16,6 +16,8 @@ module Cardano.Wallet.Jormungandr.BinarySpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
@@ -34,7 +36,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase, XPrv, hex, unXPrv )
+    ( Passphrase, hex )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
@@ -105,6 +107,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Paths
     ( getTestData )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -366,7 +369,7 @@ instance Arbitrary PoolId where
 instance Show XPrv where
     show = const "XPrv"
 instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
+    a == b = CC.unXPrv a == CC.unXPrv b
 
 deriving instance Show MkFragment
 deriving instance Eq MkFragment

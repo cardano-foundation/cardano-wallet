@@ -13,6 +13,8 @@ module Cardano.Wallet.Primitive.AddressDiscoverySpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Gen
@@ -24,11 +26,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
-    , XPrv
     , passphraseMaxLength
     , passphraseMinLength
     , publicKey
-    , unXPrv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, generateKeyFromSeed, unsafeGenerateKeyFromSeed )
@@ -54,6 +54,7 @@ import Test.QuickCheck
     , (.&&.)
     )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -118,7 +119,7 @@ genRootKeys = do
         return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
 instance Show XPrv where
-    show = show . unXPrv
+    show = show . CC.unXPrv
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
     arbitrary = do

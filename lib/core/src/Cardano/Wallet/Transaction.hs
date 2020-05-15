@@ -26,8 +26,10 @@ module Cardano.Wallet.Transaction
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase, XPrv )
+    ( Depth (..), Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types

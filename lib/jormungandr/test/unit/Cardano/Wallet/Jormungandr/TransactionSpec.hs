@@ -13,6 +13,8 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -21,7 +23,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
-    , XPrv
     , networkDiscriminantVal
     , paymentAddress
     , publicKey

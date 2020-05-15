@@ -14,11 +14,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
-    , ChainCode (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -29,8 +30,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , XPrv
-    , XPub (..)
     , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -67,6 +66,7 @@ import Test.QuickCheck
     , (==>)
     )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
@@ -86,18 +86,18 @@ spec = do
             property prop_publicChildKeyDerivation
 
     describe "Encoding" $ do
-        let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
+        let cc = CC.ChainCode "<ChainCode is not used by singleAddressToKey>"
 
         let userException str (e :: SomeException) = str `isSubsequenceOf` show e
 
         it "throws when encoding XPub of invalid length (Mainnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @'Mainnet (ShelleyKey $ XPub "\148" cc))
+            evaluate (paymentAddress @'Mainnet (ShelleyKey $ CC.XPub "\148" cc))
                 `shouldThrow` userException msg
 
         it "throws when encoding XPub of invalid length (Testnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @('Testnet _) (ShelleyKey $ XPub "\148" cc))
+            evaluate (paymentAddress @('Testnet _) (ShelleyKey $ CC.XPub "\148" cc))
                 `shouldThrow` userException msg
 
     describe "KeyFingerprint" $ do

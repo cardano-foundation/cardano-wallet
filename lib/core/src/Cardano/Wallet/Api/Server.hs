@@ -83,6 +83,8 @@ module Cardano.Wallet.Api.Server
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Pool
     ( StakePoolLayer (..) )
 import Cardano.Wallet
@@ -196,7 +198,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , WalletKey (..)
-    , XPrv
     , digest
     , preparePassphrase
     , publicKey

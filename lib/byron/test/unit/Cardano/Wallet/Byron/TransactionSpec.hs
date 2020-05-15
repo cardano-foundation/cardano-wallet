@@ -27,6 +27,8 @@ module Cardano.Wallet.Byron.TransactionSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Crypto.Wallet
     ( generateNew, xpub )
 import Cardano.Wallet.Byron.Transaction
@@ -39,7 +41,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , WalletKey
-    , XPrv
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

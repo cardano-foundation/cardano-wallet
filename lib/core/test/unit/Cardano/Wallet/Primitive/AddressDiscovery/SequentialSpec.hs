@@ -20,6 +20,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , DelegationAddress (..)
@@ -31,7 +33,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )

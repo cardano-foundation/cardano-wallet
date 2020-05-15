@@ -35,6 +35,7 @@ library
     , async
     , binary
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-cli
@@ -139,6 +140,7 @@ test-suite unit
     , async
     , binary
     , bytestring
+    , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-jormungandr
@@ -209,6 +211,7 @@ test-suite jormungandr-integration
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration

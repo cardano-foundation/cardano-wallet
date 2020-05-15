@@ -18,8 +18,8 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub, unXPrv, xpub )
+import Cardano.Address.Derivation
+    ( XPrv, XPub, xprvToBytes, xpubFromBytes )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
 import Cardano.Wallet.Gen
@@ -36,13 +36,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , WalletKey (..)
-    , XPrv
     , checkPassphrase
     , encryptPassphrase
     , getIndex
     , hex
     , preparePassphrase
-    , unXPrvStripPub
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrv
     , xPrvFromStrippedPubXPrvCheckRoundtrip
@@ -99,6 +97,7 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
@@ -372,7 +371,7 @@ prop_passphraseFromScryptRoundtripFail p p' =
 -- | xPrvFromStrippedPubXPrv and unXPrvStripPub
 prop_strippedPubXPrvRoundtrip1 :: XPrvWithPass -> Property
 prop_strippedPubXPrvRoundtrip1 (XPrvWithPass k enc) = do
-    let bytes = unXPrvStripPub k
+    let bytes = xprvToBytes k
     let Right res = xPrvFromStrippedPubXPrv bytes
     counterexample (show . hex $ bytes) $
         if enc == Passphrase ""
@@ -404,7 +403,7 @@ prop_strippedPubXPrvRoundtrip2 (XPrvWithPass k enc) = do
 -- | xPrvFromStrippedPubXPrvCheckRoundtrip and unXPrvStripPub
 prop_strippedPubXPrvRoundtrip3 :: XPrvWithPass -> Property
 prop_strippedPubXPrvRoundtrip3 (XPrvWithPass k enc) = do
-    let bytes = unXPrvStripPub k
+    let bytes = xprvToBytes k
     let res = xPrvFromStrippedPubXPrvCheckRoundtrip bytes
     counterexample (show $ hex bytes) $
         if enc == Passphrase ""
@@ -513,11 +512,11 @@ instance Arbitrary PassphraseScheme where
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
-    show = show . unXPrv
+    show = show . CC.unXPrv
 
 -- Necessary unsound Eq instance for QuickCheck properties
 instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
+    a == b = CC.unXPrv a == CC.unXPrv b
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -619,7 +618,7 @@ genLegacyAddress
     -> Gen Address
 genLegacyAddress pm = do
     bytes <- BS.pack <$> vector 64
-    let (Right key) = xpub bytes
+    let (Just key) = xpubFromBytes bytes
     pure $ Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress key

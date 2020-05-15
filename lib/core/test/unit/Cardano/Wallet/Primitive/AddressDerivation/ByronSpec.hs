@@ -14,18 +14,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( xprv )
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index
-    , Index (..)
-    , Passphrase (..)
-    , XPrv
-    )
+    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
     , generateKeyFromSeed
@@ -50,6 +44,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, vector )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
@@ -156,7 +151,7 @@ xprv16 :: ByteString -> ByronKey 'RootK XPrv
 xprv16 hex = ByronKey k () (error "passphrase not used for tests")
   where
     Right k = xprvFromText hex
-    xprvFromText = xprv <=< fromHexText
+    xprvFromText = CC.xprv <=< fromHexText
     fromHexText :: ByteString -> Either String ByteString
     fromHexText = convertFromBase Base16
 

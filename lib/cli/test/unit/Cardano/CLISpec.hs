@@ -15,6 +15,8 @@ module Cardano.CLISpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.CLI
     ( CliKeyScheme (..)
     , DerivationIndex (..)
@@ -62,8 +64,6 @@ import Cardano.Wallet.Api.Client
     )
 import Cardano.Wallet.Api.Types
     ( ByronWalletStyle (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( XPrv, unXPrv )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Control.Arrow
@@ -924,10 +924,10 @@ genMnemonicOfSize = \case
             " was not a valid length of a mnemonic"
 
 instance Show XPrv where
-    show = show . unXPrv
+    show = show . CC.unXPrv
 
 instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
+    a == b = CC.unXPrv a == CC.unXPrv b
 
 deriving instance Eq XPrvOrXPub
 deriving instance Show XPrvOrXPub

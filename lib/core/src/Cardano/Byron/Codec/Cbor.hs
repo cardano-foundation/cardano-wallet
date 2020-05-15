@@ -54,8 +54,8 @@ module Cardano.Byron.Codec.Cbor
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPub (..), unXPub )
+import Cardano.Address.Derivation
+    ( XPub, xpubToBytes )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -526,16 +526,14 @@ decodeTxIn = do
     decodeTxIn' = do
         _ <- CBOR.decodeListLenCanonicalOf 2
         tx <- Hash <$> CBOR.decodeBytes
-        index <- CBOR.decodeWord32
-        return $ TxIn tx index
+        TxIn tx <$> CBOR.decodeWord32
 
 {-# HLINT ignore decodeTxOut "Use <$>" #-}
 decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
-    c <- CBOR.decodeWord64
-    return $ TxOut addr (Coin c)
+    TxOut addr . Coin <$> CBOR.decodeWord64
 
 decodeTxProof :: CBOR.Decoder s ()
 decodeTxProof = do
@@ -593,7 +591,7 @@ decodeUpdateProof = do
 --   passphrases). This is just scheme-specific and is better left out of this
 --   particular function
 encodeAddress :: XPub -> [CBOR.Encoding] -> CBOR.Encoding
-encodeAddress (XPub pub (ChainCode cc)) attrs =
+encodeAddress xpub attrs =
     encodeAddressPayload payload
   where
     blake2b224 = hash @_ @Blake2b_224
@@ -609,7 +607,7 @@ encodeAddress (XPub pub (ChainCode cc)) attrs =
         <> encodeSpendingData
         <> encodeAttributes attrs
     encodeXPub =
-        CBOR.encodeBytes (pub <> cc)
+        CBOR.encodeBytes (xpubToBytes xpub)
     encodeSpendingData = CBOR.encodeListLen 2
         <> CBOR.encodeWord8 0
         <> encodeXPub
@@ -658,7 +656,7 @@ encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
 encodePublicKeyWitness :: XPub -> ByteString -> CBOR.Encoding
 encodePublicKeyWitness xpub signatur = mempty
     <> CBOR.encodeListLen 2
-    <> CBOR.encodeBytes (unXPub xpub)
+    <> CBOR.encodeBytes (xpubToBytes xpub)
     <> CBOR.encodeBytes signatur
 
 encodeTx :: ([TxIn], [TxOut]) -> CBOR.Encoding

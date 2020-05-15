@@ -39,6 +39,8 @@
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubFromBytes )
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.DB.Sqlite
@@ -58,8 +60,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , NetworkDiscriminant (..)
     , WalletKey (..)
-    , XPub
-    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
@@ -121,6 +121,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -654,7 +656,7 @@ mkAddress i j =
     -- Generate a seed using two prime numbers and a pair of index. This should
     -- lead to a satisfactory entropy.
     seed = 1459*i + 1153*j
-    unsafeXPub = either (error . show) id . xpub
+    unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
 
 -- | Arbitrary epoch length for testing
 epochLength :: EpochLength

@@ -15,8 +15,10 @@ module Cardano.Wallet.Primitive.TypesSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), WalletKey (..), XPrv, digest, publicKey )
+    ( Depth (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types

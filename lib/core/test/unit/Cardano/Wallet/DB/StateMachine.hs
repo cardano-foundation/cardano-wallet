@@ -50,6 +50,8 @@ module Cardano.Wallet.DB.StateMachine
 import Prelude hiding
     ( elem )
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -91,7 +93,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
-    , XPrv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )

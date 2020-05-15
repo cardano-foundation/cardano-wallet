@@ -113,6 +113,8 @@ module Cardano.CLI
 import Prelude hiding
     ( getLine )
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub, toXPub, xpubToBytes )
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
@@ -178,11 +180,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength
     , PassphraseMinLength
     , WalletKey (..)
-    , XPrv
-    , XPub
     , deriveRewardAccount
     , hex
-    , unXPrv
     , unXPrvStripPubCheckRoundtrip
     , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
@@ -554,7 +553,7 @@ encodeKey enc key = case enc of
     bytes :: Either String ByteString
     bytes = case key of
         AXPrv xprv -> left showErr . unXPrvStripPubCheckRoundtrip $ xprv
-        AXPub xpub -> return . CC.unXPub $ xpub
+        AXPub xpub -> return . xpubToBytes $ xpub
       where
         -- NOTE: This error should never happen from using the CLI.
         showErr ErrCannotRoundtripToSameXPrv =
@@ -692,7 +691,7 @@ newCliKeyScheme = \case
 
 
 toPublic :: XPrvOrXPub -> Either String XPrvOrXPub
-toPublic (AXPrv xprv) = return . AXPub . CC.toXPub $ xprv
+toPublic (AXPrv xprv) = return . AXPub . toXPub $ xprv
 toPublic (AXPub _) = Left "Input is already a public key."
 
 deriveChildKey
@@ -736,7 +735,7 @@ inspect (AXPrv key) =
         , encodeToHex cc
         ]
 inspect (AXPub key) =
-    let bytes = CC.unXPub key
+    let bytes = xpubToBytes key
         (xpub, cc) = BS.splitAt 32 bytes
         encodeToHex = T.pack . B8.unpack . hex
     in
@@ -891,7 +890,7 @@ cmdMnemonicRewardCredentials =
         let hrp = [Bech32.humanReadablePart|ed25519e_sk|]
         let dp = Bech32.dataPartFromBytes
                 $ BS.take 64
-                $ unXPrv
+                $ CC.unXPrv
                 $ getRawKey
                 rewardAccountXPrv
         TIO.putStrLn $ mconcat

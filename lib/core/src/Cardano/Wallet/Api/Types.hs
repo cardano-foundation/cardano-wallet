@@ -117,6 +117,8 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -133,10 +135,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PersistPublicKey (..)
-    , XPrv
-    , XPub
-    , unXPrv
-    , xprv
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
@@ -257,6 +255,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -728,7 +727,7 @@ instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
         Left _ ->
             textDecodingError
-        Right (bytes :: ByteString) -> case xprv bytes of
+        Right (bytes :: ByteString) -> case CC.xprv bytes of
             Left _ -> textDecodingError
             Right val -> Right $ ApiT val
       where
@@ -742,12 +741,12 @@ instance {-# OVERLAPPING #-} Show (ApiT XPrv) where
     show _ = "<xprv>"
 
 instance {-# OVERLAPPING #-} Eq (ApiT XPrv) where
-    (ApiT val1) == (ApiT val2) = unXPrv val1 == unXPrv val2
+    (ApiT val1) == (ApiT val2) = CC.unXPrv val1 == CC.unXPrv val2
 
 instance ToText (ApiT XPrv) where
     toText = T.decodeUtf8
         . convertToBase Base16
-        . unXPrv
+        . CC.unXPrv
         . getApiT
 
 instance FromText (ApiT (Hash "encryption"))  where

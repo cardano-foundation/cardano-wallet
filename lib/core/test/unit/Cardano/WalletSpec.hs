@@ -18,6 +18,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, xpubToBytes )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Mnemonic
@@ -45,7 +47,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , Passphrase (..)
-    , XPrv
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -548,7 +549,7 @@ dummyTransactionLayer = TransactionLayer
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
             let (Hash sigData) = txId tx
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-            return $ CC.unXPub (getKey $ publicKey xprv) <> sig
+            return $ xpubToBytes (getKey $ publicKey xprv) <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
