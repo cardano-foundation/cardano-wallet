@@ -16,8 +16,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -291,8 +289,6 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -492,8 +488,6 @@ createWallet
     :: forall ctx s k.
         ( HasGenesisData ctx
         , HasDBLayer s k ctx
-        , Show s
-        , NFData s
         , IsOurs s Address
         , IsOurs s ChimericAccount
         )
@@ -809,8 +803,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
 -- | Store the node tip params into the wallet database
 saveParams
     :: forall ctx s k.
-        ( HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
+        ( HasDBLayer s k ctx
         )
     => ctx
     -> WalletId
@@ -882,7 +875,6 @@ listAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -956,7 +948,6 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
 importRandomAddress
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
-        , PaymentAddress n ByronKey
         , s ~ RndState n
         , k ~ ByronKey
         )
@@ -981,8 +972,7 @@ importRandomAddress ctx wid addr = db & \DBLayer{..} -> mapExceptT atomically $ 
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
     :: forall s k n.
-        ( MkKeyFingerprint k Address
-        , DelegationAddress n k
+        ( DelegationAddress n k
         , HasRewardAccount s
         , k ~ RewardAccountKey s
         )
@@ -1144,9 +1134,6 @@ assignMigrationTargetAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , GenChange s
-        , IsOurs s Address
-        , NFData s
-        , Show s
         )
     => ctx
     -> WalletId
@@ -1179,8 +1166,6 @@ signPayment
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
-        , Show s
-        , NFData s
         , IsOwned s k
         , GenChange s
         )
@@ -1216,8 +1201,6 @@ signTx
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
-        , Show s
-        , NFData s
         , IsOwned s k
         )
     => ctx
@@ -1251,9 +1234,6 @@ selectCoinsExternal
         , HasDBLayer s k ctx
         , HasLogger WalletLog ctx
         , HasTransactionLayer t k ctx
-        , IsOwned s k
-        , NFData s
-        , Show s
         , e ~ ErrValidateSelection t
         )
     => ctx
@@ -1297,8 +1277,6 @@ signDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
-        , Show s
-        , NFData s
         , IsOwned s k
         , GenChange s
         , HardDerivation k
@@ -1514,8 +1492,6 @@ joinStakePool
         , HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
-        , Show s
-        , NFData s
         , IsOwned s k
         , GenChange s
         , HardDerivation k
@@ -1554,8 +1530,6 @@ quitStakePool
         , HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
-        , Show s
-        , NFData s
         , IsOwned s k
         , GenChange s
         , HardDerivation k
