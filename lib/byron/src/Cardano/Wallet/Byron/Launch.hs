@@ -236,7 +236,7 @@ withCardanoNode tr tdir severity action =
 
 
 -- | Generate a new integration configuration based on a partial configuration
--- located in @./test/data/cardano-node@.
+-- located in @./test/data/cardano-node-byron@.
 --
 -- The 'startTime' from the partial genesis file will be overriden with a new
 -- fresh recent one (resulting in a different genesis hash).
@@ -267,7 +267,7 @@ withConfig tdir minSeverity action =
     bracket setupConfig teardownConfig $ \(_a,b,c,d) -> action b c d
   where
     source :: FilePath
-    source = tdir </> "cardano-node"
+    source = tdir </> "cardano-node-byron"
 
     setupConfig
         :: IO ( FilePath
