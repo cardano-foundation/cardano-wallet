@@ -886,13 +886,6 @@ components:
       properties:
         migration_cost: *amount
 
-    ApiWalletMigrationToAddressesInfo: &ApiWalletMigrationToAddressesInfo
-      type: object
-      required:
-        - migration_cost
-      properties:
-        migration_cost: *amount
-
     ApiWalletPassphrase: &ApiWalletPassphrase
       type: object
       required:
@@ -1370,16 +1363,6 @@ x-responsesPostWallet: &responsesPostWallet
     content:
       application/json:
         schema: *ApiWallet
-
-x-responsesWalletMigrationToAddressesInfo: &responsesWalletMigrationToAddressesInfo
-  <<: *responsesErr404
-  <<: *responsesErr405
-  <<: *responsesErr406
-  201:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiWalletMigrationToAddressesInfo
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
@@ -2182,7 +2165,7 @@ paths:
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
 
-  /byron-wallets/{walletId}/migrations/addresses:
+  /byron-wallets/{walletId}/migrations:
     get:
       operationId: getByronWalletMigrationInfo
       tags: ["Byron Migrations"]
@@ -2196,7 +2179,7 @@ paths:
         - *parametersWalletId
       responses: *responsesGetWalletMigrationInfo
 
-  /byron-wallets/{walletId}/migrations/addresses:
+  /byron-wallets/{walletId}/migrations:
     post:
       operationId: migrateByronWallet
       tags: ["Byron Migrations"]
