@@ -193,10 +193,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
+    , DerivationType (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , digest
     , preparePassphrase
@@ -268,8 +270,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
@@ -364,9 +364,9 @@ import System.Random
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -504,7 +504,7 @@ postWallet
     -> WalletOrAccountPostData
     -> Handler ApiWallet
 postWallet ctx (WalletOrAccountPostData body) = case body of
-    Left body' -> postShelleyWallet ctx body'
+    Left  body' -> postShelleyWallet ctx body'
     Right body' -> postAccountWallet ctx body'
 
 postShelleyWallet
@@ -530,7 +530,7 @@ postShelleyWallet ctx body = do
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
     pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
+    rootXPrv = Shelley.generateKeyFromSeed (seed, secondFactor) pwd
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
@@ -710,7 +710,7 @@ postRandomWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Rnd.generateKeyFromSeed seed pwd
+    rootXPrv = Byron.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postRandomWalletFromXPrv
@@ -754,7 +754,7 @@ postIcarusWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromSeed seed pwd
+    rootXPrv = Icarus.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postTrezorWallet
@@ -774,7 +774,7 @@ postTrezorWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromSeed seed pwd
+    rootXPrv = Icarus.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postLedgerWallet
@@ -794,7 +794,7 @@ postLedgerWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromHardwareLedger mw pwd
+    rootXPrv = Icarus.generateKeyFromHardwareLedger mw pwd
       where mw = getApiMnemonicT (body ^. #mnemonicSentence)
 
 {-------------------------------------------------------------------------------
@@ -986,9 +986,9 @@ getUTxOsStatistics ctx (ApiT wid) = do
 selectCoins
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , DelegationAddress n k
-        , k ~ ShelleyKey
         , s ~ SeqState n k
+        , DelegationAddress n k
+        , SoftDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1030,7 +1030,6 @@ putRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s t k
-        , PaymentAddress n ByronKey
         )
     => ctx
     -> ApiT WalletId
@@ -1047,7 +1046,6 @@ listAddresses
         , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
-        , IsOurs s ChimericAccount
         )
     => ctx
     -> (s -> Address -> Maybe Address)
@@ -1075,8 +1073,6 @@ postTransaction
         ( Buildable (ErrValidateSelection t)
         , GenChange s
         , IsOwned s k
-        , NFData s
-        , Show s
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1205,8 +1201,10 @@ joinStakePool
     :: forall ctx s t n k e.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , k ~ ShelleyKey
+        , IsOwned s k
+        , GenChange s
         , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1237,7 +1235,6 @@ joinStakePool ctx spl apiPoolId (ApiT wid) body = do
 delegationFee
     :: forall ctx s t n k.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1253,8 +1250,10 @@ quitStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , k ~ ShelleyKey
+        , IsOwned s k
+        , GenChange s
         , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1305,14 +1304,12 @@ getMigrationInfo ctx (ApiT wid) = do
 
 migrateWallet
     :: forall s t k n.
-        ( Show s
-        , NFData s
-        , IsOwned s k
-        , DelegationAddress n ShelleyKey
+        ( IsOwned s k
+        , DelegationAddress n k
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    -> ApiLayer (SeqState n k) t k
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet
