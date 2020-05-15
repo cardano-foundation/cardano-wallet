@@ -328,7 +328,7 @@ mkWalletClient
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
 mkWalletClient bp chainSyncQ = do
-    stash <- atomically newTQueue
+    responsesBuffer <- atomically newTQueue
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
             let
@@ -339,7 +339,7 @@ mkWalletClient bp chainSyncQ = do
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks fromTip' chainSyncQ stash
+                $ chainSyncWithBlocks fromTip' chainSyncQ responsesBuffer
 
         , localTxSubmissionProtocol =
             doNothingProtocol

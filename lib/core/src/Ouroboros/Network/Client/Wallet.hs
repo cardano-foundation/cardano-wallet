@@ -263,13 +263,13 @@ chainSyncWithBlocks
         -- messages to keep the state-machine moving.
 
     -> TQueue m (NextBlocksResult (Point block) block)
-        -- ^ An internal queue used for stashing responses collected while
+        -- ^ An internal queue used for buffering responses collected while
         -- pipelining. As argument to simplify code below. Responses are first
-        -- poped from this stash if not empty, otherwise they'll simply trigger
+        -- poped from this buffer if not empty, otherwise they'll simply trigger
         -- an exchange with the node.
 
     -> ChainSyncClientPipelined block (Tip block) m Void
-chainSyncWithBlocks fromTip queue stash =
+chainSyncWithBlocks fromTip queue responseBuffer =
     ChainSyncClientPipelined $ clientStIdle oneByOne
   where
     -- Return the _number of slots between two tips.
@@ -296,27 +296,27 @@ chainSyncWithBlocks fromTip queue stash =
         CmdNextBlocks respond ->
             -- We are the only consumer & producer of this queue, so it's fine
             -- to run 'isEmpty' and 'read' in two separate atomatic operations.
-            atomically (isEmptyTQueue stash) >>= \case
+            atomically (isEmptyTQueue responseBuffer) >>= \case
                 True  ->
                     pure $ strategy respond
                 False -> do
-                    atomically (readTQueue stash) >>= respond
+                    atomically (readTQueue responseBuffer) >>= respond
                     clientStIdle strategy
 
     -- When the client intersect, we are effectively starting "a new session",
-    -- so any stashed responses no longer apply and must be discarded.
+    -- so any buffered responses no longer apply and must be discarded.
     clientStIntersect
         :: (Maybe (Point block) -> m ())
         -> P.ClientPipelinedStIntersect block (Tip block) m Void
     clientStIntersect respond = P.ClientPipelinedStIntersect
         { recvMsgIntersectFound = \intersection _tip -> do
             respond (Just intersection)
-            flush stash
+            flush responseBuffer
             clientStIdle oneByOne
 
         , recvMsgIntersectNotFound = \_tip -> do
             respond Nothing
-            flush stash
+            flush responseBuffer
             clientStIdle oneByOne
         }
 
@@ -396,12 +396,12 @@ chainSyncWithBlocks fromTip queue stash =
         --
         -- b) Or, we need to reply immediately, but we still have to collect the
         -- remaining responses. BUT, we can only reply once to a given command.
-        -- So instead, we stash all the remaining responses in a queue and, upon
-        -- receiving future requests, we'll simply read them from the stash!
+        -- So instead, we buffer all the remaining responses in a queue and, upon
+        -- receiving future requests, we'll simply read them from the buffer!
         , P.recvMsgRollBackward = \point _tip ->
             case rollback point blocks of
                 [] -> do -- b)
-                    let save = atomically . writeTQueue stash
+                    let save = atomically . writeTQueue responseBuffer
                     respond (RollBackward point)
                     pure $ P.CollectResponse Nothing $ collectResponses save [] n
                 xs -> do -- a)
