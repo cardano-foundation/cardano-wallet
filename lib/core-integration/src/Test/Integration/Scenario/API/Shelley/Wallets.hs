@@ -1166,66 +1166,64 @@ spec = do
     describe "BYRON_MIGRATE_05 -\
         \ migrating from/to inappropriate wallet types" $ do
 
+        let addrValid = "addr1snfkjmygacv2xjdqxgvy750pxacq7v9r4ya5tyj3pmjas9mkvuh2u\
+                    \q0a3d2wj240n8ye5r2z52gd5m3rh0fyh5dq9p2ynae3m9p33lgg06zgge" :: Text
+
         it "Byron -> Byron" $ \ctx -> do
-            sWallet <- fixtureRandomWallet ctx
-            tWallet <- emptyRandomWallet ctx
+            sWallet <- emptyRandomWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
                 ]
 
         it "Icarus -> Icarus" $ \ctx -> do
-            sWallet <- fixtureIcarusWallet ctx
-            tWallet <- emptyIcarusWallet ctx
+            sWallet <- emptyIcarusWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
                 ]
 
         it "Icarus -> Byron" $ \ctx -> do
-            sWallet <- fixtureIcarusWallet ctx
-            tWallet <- emptyRandomWallet ctx
+            sWallet <- emptyIcarusWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
                 ]
 
         it "Byron -> Icarus" $ \ctx -> do
-            sWallet <- fixtureRandomWallet ctx
-            tWallet <- emptyIcarusWallet ctx
+            sWallet <- emptyRandomWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet $ tWallet ^. walletId)
+                , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
                 ]
 
         it "Shelley -> Byron" $ \ctx -> do
             sWallet <- fixtureWallet ctx
-            tWallet <- emptyRandomWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
                 , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
@@ -1233,12 +1231,11 @@ spec = do
 
         it "Shelley -> Icarus" $ \ctx -> do
             sWallet <- fixtureWallet ctx
-            tWallet <- emptyIcarusWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
                 , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
@@ -1246,12 +1243,11 @@ spec = do
 
         it "Shelley -> Shelley" $ \ctx -> do
             sWallet <- fixtureWallet ctx
-            tWallet <- emptyWallet ctx
 
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet tWallet )
+                (Link.migrateWallet sWallet )
                 Default
-                (Json [json|{ "passphrase": #{fixturePassphrase} }|])
+                (Json [json|{ "passphrase": #{fixturePassphrase} , addresses: [#{addrValid}]}|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
                 , expectErrorMessage (errMsg404NoWallet $ sWallet ^. walletId)
@@ -1259,10 +1255,9 @@ spec = do
 
     it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
         sourceWallet <- emptyRandomWallet ctx
-        targetWallet <- emptyWallet ctx
 
         r <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet targetWallet )
+            (Link.migrateWallet sourceWallet )
             Default
             (NonJson "{passphrase:,}")
         expectResponseCode @IO HTTP.status400 r
@@ -1392,6 +1387,8 @@ spec = do
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
+            addrs <- listAddresses @n ctx targetWallet
+            let addr1 = (addrs !! 1) ^. #id
 
             -- Calculate the expected migration fee:
             r0 <- request @ApiWalletMigrationInfo ctx
@@ -1404,9 +1401,9 @@ spec = do
 
             -- Perform a migration from the source wallet to the target wallet:
             r1 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sourceWallet targetWallet)
+                (Link.migrateWallet sourceWallet)
                 Default
-                (Json [json|{"passphrase": #{fixturePassphrase}}|])
+                (Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|])
             verify r1
                 [ expectResponseCode @IO HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
@@ -1470,9 +1467,12 @@ spec = do
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
-        let payloadMigrate = Json [json|{"passphrase": #{fixturePassphrase}}|]
+        addrs <- listAddresses @n ctx wNew
+        let addr1 = (addrs !! 1) ^. #id
+
+        let payloadMigrate = Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|]
         request @[ApiTransaction n] ctx
-            (Link.migrateWallet wOld wNew)
+            (Link.migrateWallet wOld)
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
@@ -1512,10 +1512,13 @@ spec = do
 
             -- Perform a migration from the source wallet to a target wallet:
             targetWallet <- emptyWallet ctx
+            addrs <- listAddresses @n ctx targetWallet
+            let addr1 = (addrs !! 1) ^. #id
+
             r0 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sourceWallet targetWallet )
+                (Link.migrateWallet sourceWallet)
                 Default
-                (Json [json|{"passphrase": #{fixturePassphrase}}|])
+                (Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|])
             verify r0
                 [ expectResponseCode @IO HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
@@ -1534,8 +1537,10 @@ spec = do
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": "Secure Passphrase"}|]
-            let ep = Link.migrateWallet sourceWallet targetWallet
+            addrs <- listAddresses @n ctx targetWallet
+            let addr1 = (addrs !! 1) ^. #id
+            let payload = Json [json|{"passphrase": "Secure Passphrase", addresses: [#{addr1}]}|]
+            let ep = Link.migrateWallet sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
             let srcId = sourceWallet ^. walletId
             verify r
@@ -1571,8 +1576,10 @@ spec = do
                     ]
 
             targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-            let ep = Link.migrateWallet sourceWallet targetWallet
+            addrs <- listAddresses @n ctx targetWallet
+            let addr1 = (addrs !! 1) ^. #id
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|]
+            let ep = Link.migrateWallet sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
             let srcId = sourceWallet ^. walletId
             verify r
@@ -1597,8 +1604,10 @@ spec = do
 
             -- Perform the migration.
             targetWallet <- emptyWallet ctx
-            let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-            let ep1 = Link.migrateWallet sourceWallet targetWallet
+            addrs <- listAddresses @n ctx targetWallet
+            let addr1 = (addrs !! 1) ^. #id
+            let payload = Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|]
+            let ep1 = Link.migrateWallet sourceWallet
             r1 <- request @[ApiTransaction n] ctx ep1 Default payload
             verify r1
                 [ expectResponseCode @IO HTTP.status202
@@ -1620,10 +1629,12 @@ spec = do
 
         -- Perform a migration from the source wallet to a target wallet:
         targetWallet <- emptyWallet ctx
+        addrs <- listAddresses @n ctx targetWallet
+        let addr1 = (addrs !! 1) ^. #id
         r0 <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet targetWallet )
+            (Link.migrateWallet sourceWallet )
             Default
-            (Json [json|{"passphrase": "not-the-right-passphrase"}|])
+            (Json [json|{"passphrase": "not-the-right-passphrase", addresses: [#{addr1}]}|])
         verify r0
             [ expectResponseCode @IO HTTP.status403
             , expectErrorMessage errMsg403WrongPass

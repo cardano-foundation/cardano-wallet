@@ -1281,8 +1281,11 @@ spec = do
         targetWallet <- emptyWallet ctx
 
         -- migrate funds and quickly get id of one of the pending txs
-        let payload = Json [json|{"passphrase": #{fixturePassphrase}}|]
-        let migrEp = Link.migrateWallet sourceWallet targetWallet
+        addrs <- listAddresses @n ctx targetWallet
+        let addr1 = (addrs !! 1) ^. #id
+
+        let payload = Json [json|{"passphrase": #{fixturePassphrase}, addresses: [#{addr1}]}|]
+        let migrEp = Link.migrateWallet sourceWallet
         (_, t:_) <- unsafeRequest @[ApiTransaction n] ctx migrEp payload
         t ^. (#status . #getApiT) `shouldBe` Pending
 
