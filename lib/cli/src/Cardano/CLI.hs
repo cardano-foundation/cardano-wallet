@@ -114,7 +114,14 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xpubToBytes )
+    ( XPrv
+    , XPub
+    , toXPub
+    , xprvFromBytes
+    , xprvToBytes
+    , xpubFromBytes
+    , xpubToBytes
+    )
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
@@ -173,8 +180,6 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , ErrUnXPrvStripPub (..)
-    , ErrXPrvFromStrippedPubXPrv (..)
     , Index (..)
     , Passphrase (..)
     , PassphraseMaxLength
@@ -182,8 +187,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     , hex
-    , unXPrvStripPubCheckRoundtrip
-    , xPrvFromStrippedPubXPrvCheckRoundtrip
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -451,29 +454,39 @@ fullKeyEncodingDescription = mconcat
     , "- xpub1... (bech32-encoded extended public key)"
     ]
 
-xprvFromBytes :: ByteString -> Either String XPrvOrXPub
-xprvFromBytes = fmap AXPrv . left showErr . xPrvFromStrippedPubXPrvCheckRoundtrip
+aXPrvFromBytes :: ByteString -> Either String XPrvOrXPub
+aXPrvFromBytes x = maybe errLength (return . AXPrv) $ xprvFromBytes x
   where
-    showErr (ErrInputLengthMismatch expected actual) = mconcat
+    actual = BS.length x
+    -- TODO: Have cardano-addresses expose the expected length
+    expectedBytes = 96 :: Int
+    errLength = Left $ mconcat
         [ "Expected extended private key to be "
-        , show expected
+        , show expectedBytes
         , " bytes but got "
         , show actual
         , " bytes."
         ]
-    showErr (ErrCannotRoundtripToSameBytes) = mconcat
-        [ "That extended private key looks weird. "
-        , "Is it encrypted? Or is it an old Byron key?"
-        ]
 
-xpubFromBytes :: ByteString -> Either String XPrvOrXPub
-xpubFromBytes = fmap AXPub . CC.xpub
+aXPubFromBytes :: ByteString -> Either String XPrvOrXPub
+aXPubFromBytes x = maybe errLength (return . AXPub) $ xpubFromBytes x
+  where
+    actual = BS.length x
+    -- TODO: Have cardano-addresses expose the expected length
+    expectedBytes = 64 :: Int
+    errLength = Left $ mconcat
+        [ "Expected extended public key to be "
+        , show expectedBytes
+        , " bytes but got "
+        , show actual
+        , " bytes."
+        ]
 
 xprvOrXPubFromBytes :: ByteString -> Either String XPrvOrXPub
 xprvOrXPubFromBytes bs =
     case BS.length bs of
-        96 -> xprvFromBytes bs
-        64 -> xpubFromBytes bs
+        96 -> aXPrvFromBytes bs
+        64 -> aXPubFromBytes bs
         n -> Left . mconcat $
             [ "Expected key to be 96 bytes in the case of a private key"
             , " and, 64 bytes for public keys. This key is "
@@ -503,8 +516,8 @@ decodeKey = \case
         (hrp, dp) <- left bech32Err $ Bech32.decodeLenient t
         bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
         case hrp of
-            h | h == xpubHrp -> xpubFromBytes bytes
-            h | h == xprvHrp -> xprvFromBytes bytes
+            h | h == xpubHrp -> aXPubFromBytes bytes
+            h | h == xprvHrp -> aXPrvFromBytes bytes
             _ -> Left "unrecognized Bech32 Human Readable Part"
       where
         dpErr = "Internal error: Unable to extract bytes from bech32 data part"
@@ -552,12 +565,8 @@ encodeKey enc key = case enc of
 
     bytes :: Either String ByteString
     bytes = case key of
-        AXPrv xprv -> left showErr . unXPrvStripPubCheckRoundtrip $ xprv
+        AXPrv xprv -> return . xprvToBytes $ xprv
         AXPub xpub -> return . xpubToBytes $ xpub
-      where
-        -- NOTE: This error should never happen from using the CLI.
-        showErr ErrCannotRoundtripToSameXPrv =
-            "Internal error: Failed to safely encode an extended private key"
 
 newtype DerivationPath = DerivationPath [DerivationIndex]
     deriving (Show, Eq)

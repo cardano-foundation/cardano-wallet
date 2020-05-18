@@ -675,13 +675,11 @@ spec = do
                     (Left "Expected extended private key to be 96 bytes \
                           \but got 64 bytes.")
 
-            -- TODO: Make the error message match the previous case.
-            -- This one currently comes from cardano-crypto.
             it "xprv pretending to be xpub fails" $ do
                 decodeAnyKey notAXPub
                     `shouldBe`
-                    (Left "error: xprv needs to be 64 bytes: \
-                          \got 96 bytes")
+                    (Left "Expected extended public key to be 64 bytes \
+                          \but got 96 bytes.")
 
     describe "Transaction ID decoding from text" $ do
 
