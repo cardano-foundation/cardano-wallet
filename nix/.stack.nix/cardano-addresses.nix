@@ -96,7 +96,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "67de9ec1d59e82ca1da70a8d2ef7f2c215746645";
-      sha256 = "14aaxsw5nf59zlr52j790y5ysyihyk5h1vkbc0jq44wjrz0zw96w";
+      rev = "7ce0428ff390b5cc97f672a1f4b44a1f39a846fc";
+      sha256 = "1h935zwwbk6qp56gh3mqh3aqaqrhzkbazbzijplwcch8bx1y9jzq";
       });
     }) // { cabal-generator = "hpack"; }
