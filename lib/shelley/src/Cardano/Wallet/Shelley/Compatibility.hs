@@ -356,7 +356,7 @@ fromPParams pp = W.TxParameters
     }
   where
     naturalToDouble :: Natural -> Double
-    naturalToDouble = naturalToDouble
+    naturalToDouble = fromIntegral
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
