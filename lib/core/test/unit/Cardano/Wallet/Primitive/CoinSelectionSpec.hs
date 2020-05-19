@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -96,7 +97,7 @@ spec = do
             (prop_coinValuesPreservedPerTx length)
         prop "All inputs are used" prop_allInputsAreUsed
         prop "All inputs are used per transaction" prop_allInputsAreUsedPerTx
-
+        prop "Addresses are recycled fairly" prop_fairAddressesRecycled
   where
     lowerConfidence :: Confidence
     lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
@@ -192,6 +193,25 @@ prop_allInputsAreUsedPerTx (CoinSelectionsSetup cs addrs) = do
     let txsCoinValue = map (Set.fromList . getInpsFromTx)
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
 
+-- For any given pair of addresses a1 and a2 in the given address list,
+-- if a1 is used n times, then a2 should be used either n or n − 1 times.
+-- (Assuming a1 and a2 appear in order.)
+prop_fairAddressesRecycled
+    :: CoinSelectionsSetup
+    -> Property
+prop_fairAddressesRecycled (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getAllAddrPerTx (UnsignedTx _ txouts) =
+            map (\(TxOut addr _) -> addr) $
+            NE.toList txouts
+    let getAllAddrCounts =
+            Map.elems .
+            foldr (\x -> Map.insertWith (+) x (1::Int)) Map.empty .
+            concatMap getAllAddrPerTx
+    let addrsCounts = getAllAddrCounts $ assignMigrationAddresses addrs sels
+    let maxAddressCountDiff :: [Int] -> Bool
+        maxAddressCountDiff xs = L.maximum xs - L.minimum xs <= 1
+    maxAddressCountDiff addrsCounts === True
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
