@@ -76,6 +76,7 @@ import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Test.QuickCheck.Monadic as QC
 
 spec :: Spec
@@ -85,11 +86,11 @@ spec = do
             checkCoverageWith
                 lowerConfidence
                 prop_utxoToListOrderDeterministic
+
     describe "assignMigrationAddresses properties" $ do
-        prop "Selection count is preserved"
-            prop_selectionCountPreserved
-        prop "Coin values are preserved"
-            prop_coinValuesPreserved
+        prop "Selection count is preserved" prop_selectionCountPreserved
+        prop "Coin values are preserved" prop_coinValuesPreserved
+        prop "All inputs are used" prop_allInputsAreUsed
 
   where
     lowerConfidence :: Confidence
@@ -132,6 +133,17 @@ prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
     let txsCoinValue =
             sum . map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
+
+prop_allInputsAreUsed
+    :: CoinSelectionsSetup
+    -> Property
+prop_allInputsAreUsed (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let csInps =
+            Set.fromList $ concatMap (\(CoinSelection inp _ _) -> inp) sels
+    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let txsCoinValue = Set.fromList . concatMap getInpsFromTx
+    txsCoinValue (assignMigrationAddresses addrs sels) === csInps
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
