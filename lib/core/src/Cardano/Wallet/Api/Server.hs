@@ -1321,6 +1321,7 @@ getMigrationInfo ctx (ApiT wid) = do
 migrateWallet
     :: forall s t k n.
         ( IsOwned s k
+        , SoftDerivation k
         , DelegationAddress n k
         )
     => ApiLayer s t k

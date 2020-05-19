@@ -17,8 +17,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- Implementation of address derivation for 'Jormungandr' Keys. Jormungandr really means
--- Jörmungandr here.
+-- Implementation of address derivation for 'Jormungandr' Keys.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( -- * Types
