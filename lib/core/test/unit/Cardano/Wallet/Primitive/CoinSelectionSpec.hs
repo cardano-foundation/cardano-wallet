@@ -24,6 +24,8 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 
 import Prelude
 
+import Cardano.Wallet.Api.Server
+    ( assignMigrationAddresses )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -49,6 +51,8 @@ import Fmt
     ( Buildable (..), blockListF, nameF )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Confidence (..)
@@ -62,11 +66,13 @@ import Test.QuickCheck
     , generate
     , scale
     , vector
+    , (===)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Data.ByteString as BS
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Test.QuickCheck.Monadic as QC
@@ -78,6 +84,10 @@ spec = do
             checkCoverageWith
                 lowerConfidence
                 prop_utxoToListOrderDeterministic
+    describe "assignMigrationAddresses properties" $ do
+        prop "Selection count is preserved"
+            prop_selectionCountPreserved
+
   where
     lowerConfidence :: Confidence
     lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
@@ -96,9 +106,24 @@ prop_utxoToListOrderDeterministic u = monadicIO $ QC.run $ do
         cover 90 (list0 /= list1) "shuffled" $
         list0 == Map.toList (Map.fromList list1)
 
+prop_selectionCountPreserved
+    :: CoinSelectionsSetup
+    -> Property
+prop_selectionCountPreserved (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    length (assignMigrationAddresses addrs sels) === length sels
+
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
 -------------------------------------------------------------------------------}
+
+newtype CoinSelectionForMigration = CoinSelectionForMigration
+    { getCS :: CoinSelection } deriving Show
+
+data CoinSelectionsSetup = CoinSelectionsSetup
+    { coinSelections :: [CoinSelectionForMigration]
+    , addresses :: [Address]
+    } deriving Show
 
 -- | Data for running
 data CoinSelProp = CoinSelProp
@@ -106,7 +131,7 @@ data CoinSelProp = CoinSelProp
         -- ^ Available UTxO for the selection
     , csOuts :: NonEmpty TxOut
         -- ^ Requested outputs for the payment
-    } deriving  Show
+    } deriving Show
 
 instance Buildable CoinSelProp where
     build (CoinSelProp utxo outs) = mempty
@@ -215,12 +240,34 @@ instance Arbitrary CoinSelProp where
         <$> zip (shrink utxo) (shrink outs)
     arbitrary = applyArbitrary2 CoinSelProp
 
+instance Arbitrary CoinSelectionForMigration where
+    arbitrary = do
+        txIntxOuts <- Map.toList . getUTxO <$> arbitrary
+        let chgs = map (\(_, TxOut _ c) -> c) txIntxOuts
+        pure $ CoinSelectionForMigration
+            $ CoinSelection txIntxOuts [] chgs
+
+instance Arbitrary CoinSelectionsSetup where
+    arbitrary = do
+        csNum <- choose (1,10)
+        addrNum <- choose (1,10)
+        addrs <- L.nub <$> vector addrNum
+        cs <- vector csNum
+        pure $ CoinSelectionsSetup cs addrs
+
 instance Arbitrary Address where
     -- No Shrinking
     arbitrary = elements
         [ Address "ADDR01"
         , Address "ADDR02"
         , Address "ADDR03"
+        , Address "ADDR04"
+        , Address "ADDR05"
+        , Address "ADDR06"
+        , Address "ADDR07"
+        , Address "ADDR08"
+        , Address "ADDR09"
+        , Address "ADDR10"
         ]
 
 instance Arbitrary Coin where

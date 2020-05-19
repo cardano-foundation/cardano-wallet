@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Server
     , withLegacyLayer
     , withLegacyLayer'
     , rndStateChange
+    , assignMigrationAddresses
     ) where
 
 import Prelude
