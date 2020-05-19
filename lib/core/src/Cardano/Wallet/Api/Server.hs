@@ -1377,8 +1377,8 @@ changeCoinSelectionForMigration addrs selections =
       addrsPools =
           fst $
           foldl (\(res,addrPool) sel ->
-                     let len = length (change sel) in
-                         (take len addrPool:res, drop len addrPool)
+                     let len = length (change sel)
+                     in (res ++ [take len addrPool], drop len addrPool)
                 )
           ([], cycle addrs) selections
       changeSel sel addrPool = UnsignedTx
