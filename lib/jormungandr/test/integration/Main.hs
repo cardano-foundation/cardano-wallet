@@ -48,8 +48,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -171,7 +171,7 @@ specWithServer
         ( NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
-        , DelegationAddress n ShelleyKey
+        , DelegationAddress n JormungandrKey
         )
     => Trace IO Text
     -> SpecWith (Port "node", FeePolicy, Context Jormungandr)
@@ -231,7 +231,7 @@ withMetadataRegistry action = withStaticServer root $ \baseUrl -> do
 
 -- NOTE²
 -- We use a range (min, max) and call it an "estimator" because for the
--- bridge (and probably cardano-node on Shelley), it's not possible to
+-- bridge (and probably cardano-node on Jormungandr), it's not possible to
 -- compute the fee precisely by only knowing the number of inputs and
 -- ouputs since the exact fee cost depends on the values of the
 -- outputs and the values of the input indexes.

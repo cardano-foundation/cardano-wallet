@@ -35,8 +35,8 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey, generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey, KnownNetwork (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -119,7 +119,7 @@ spec :: forall n t.
     ( KnownNetwork n
     , DecodeAddress n
     , EncodeAddress n
-    , DelegationAddress n ShelleyKey
+    , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
 spec = do
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
@@ -420,7 +420,7 @@ data ExternalTxFixture = ExternalTxFixture
 fixtureExternalTx
     :: forall n t.
         ( DecodeAddress n
-        , DelegationAddress n ShelleyKey
+        , DelegationAddress n JormungandrKey
         )
     => (Context t)
     -> Natural

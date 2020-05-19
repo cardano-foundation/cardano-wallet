@@ -1319,14 +1319,14 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n.
+    :: forall s t k k' n.
         ( IsOwned s k
-        , SoftDerivation k
-        , DelegationAddress n k
+        , SoftDerivation k'
+        , DelegationAddress n k'
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiLayer (SeqState n k) t k
+    -> ApiLayer (SeqState n k') t k'
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet

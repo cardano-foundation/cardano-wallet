@@ -107,8 +107,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -191,7 +191,7 @@ serveWallet
         , NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
-        , DelegationAddress n ShelleyKey
+        , DelegationAddress n JormungandrKey
         )
     => Tracers IO
     -- ^ Logging config.
@@ -223,7 +223,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let bp = staticParameters gbp
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
-            let shelleyTl = newTransactionLayer (getGenesisBlockHash bp)
+            let jormungandrTl = newTransactionLayer (getGenesisBlockHash bp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md ->
@@ -233,11 +233,11 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     poolApi <- stakePoolLayer (block0, bp) nl db md
                     byronApi   <- apiLayer (block0, gbp) byronTl nl
                     icarusApi  <- apiLayer (block0, gbp) icarusTl nl
-                    shelleyApi <- apiLayer (block0, gbp) shelleyTl nl
+                    jormungandrApi <- apiLayer (block0, gbp) jormungandrTl nl
                     startServer socket nPort gbp
                         byronApi
                         icarusApi
-                        shelleyApi
+                        jormungandrApi
                         poolApi
                         ntpClient
                     pure ExitSuccess
@@ -248,16 +248,16 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> GenesisBlockParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        -> ApiLayer (SeqState n JormungandrKey) t JormungandrKey
         -> StakePoolLayer ErrListStakePools IO
         -> NtpClient
         -> IO ()
-    startServer socket nPort bp byron icarus shelley pools ntp = do
+    startServer socket nPort bp byron icarus jormungandr pools ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
         let application = Server.serve (Proxy @(ApiV2 n))
-                $ server byron icarus shelley pools ntp
+                $ server byron icarus jormungandr pools ntp
         Server.start settings apiServerTracer tlsConfig socket application
       where
         tlsConfig = Nothing

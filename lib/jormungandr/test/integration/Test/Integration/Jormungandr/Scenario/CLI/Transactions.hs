@@ -16,8 +16,8 @@ import Cardano.Wallet.Api.Types
     ( ApiTxId (..), ApiWallet, DecodeAddress (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), hex )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..) )
 import Data.ByteArray.Encoding
@@ -71,7 +71,7 @@ import qualified Data.Text.Encoding as T
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
-    , DelegationAddress n ShelleyKey
+    , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
 spec = do
     it "TRANS_EXTERNAL_CREATE_01x - \
