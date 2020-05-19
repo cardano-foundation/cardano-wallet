@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , UnsignedTx (..)
     )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
@@ -87,6 +88,8 @@ spec = do
     describe "assignMigrationAddresses properties" $ do
         prop "Selection count is preserved"
             prop_selectionCountPreserved
+        prop "Coin values are preserved"
+            prop_coinValuesPreserved
 
   where
     lowerConfidence :: Confidence
@@ -112,6 +115,23 @@ prop_selectionCountPreserved
 prop_selectionCountPreserved (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     length (assignMigrationAddresses addrs sels) === length sels
+
+prop_coinValuesPreserved
+    :: CoinSelectionsSetup
+    -> Property
+prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getCoinValueFromInp =
+            sum . map (\(_, TxOut _ (Coin c)) -> c)
+    let selsCoinValue =
+            sum $
+            (\(CoinSelection inps _ _) -> getCoinValueFromInp inps) . getCS
+            <$> cs
+    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+            sum $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+    let txsCoinValue =
+            sum . map getCoinValueFromTxOut
+    txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
