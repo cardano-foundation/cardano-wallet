@@ -598,7 +598,7 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
 
 data ApiWalletMigrateData (n :: NetworkDiscriminant) = ApiWalletMigrateData
-    { passphrase :: !(ApiT (Passphrase "raw"))
+    { passphrase :: !(ApiT (Passphrase "lenient"))
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 

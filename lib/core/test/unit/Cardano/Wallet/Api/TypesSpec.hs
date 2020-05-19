@@ -766,8 +766,10 @@ spec = do
         it "ApiWalletMigrateData" $ property $ \x ->
             let
                 x' = ApiWalletMigrateData
-                    { passphrase = passphrase (x :: ApiWalletMigrateData ('Testnet 0))
-                    , addresses = addresses (x :: ApiWalletMigrateData ('Testnet 0))
+                    { passphrase =
+                        passphrase (x :: ApiWalletMigrateData ('Testnet 0))
+                    , addresses =
+                        addresses (x :: ApiWalletMigrateData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x

@@ -410,8 +410,8 @@ x-transactionDirection: &transactionDirection
     - outgoing
     - incoming
 
-x-addressesInputs: &addressesInputs
-  description: A list of addresses inputs
+x-addresses: &addresses
+  description: A list of addresses
   type: array
   minItems: 1
   items: *addressId
@@ -905,7 +905,7 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         addresses:
-          <<: *addressesInputs
+          <<: *addresses
           description: The recipient addresses.
 
     ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
@@ -2160,7 +2160,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Calculate the exact cost of migrating from a Byron wallet to
-        specified addresses.
+        the specified set of addresses.
       parameters:
         - <<: *parametersWalletId
           name: walletId
@@ -2173,7 +2173,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Migrate all funds from a Byron wallet to specified addresses.
+        Migrate all funds from a Byron wallet to set of addresses.
       parameters:
         - <<: *parametersWalletId
           name: walletId

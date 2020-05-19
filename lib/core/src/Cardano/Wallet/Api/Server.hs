@@ -285,6 +285,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
+import Data.Bifunctor
+    ( first )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -1337,7 +1339,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
     migration <- do
         withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
             cs <- W.selectCoinsForMigration @_ @_ @t wrk wid
-            pure $ changeCoinSelectionForMigration addrs cs
+            pure $ assignMigrationAddresses addrs cs
 
     forM migration $ \cs -> do
         (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
@@ -1362,28 +1364,25 @@ migrateWallet ctx (ApiT wid) migrateData = do
 -- corresponding output entry in the returned set, where the output entry has a
 -- address from specified addresses.
 --
--- The difference between the size of coin selection and the number of
--- specified addresses is solved by cycling specified addresses.
---
-changeCoinSelectionForMigration
+-- If the number of outputs in the specified coin selection is greater than
+-- the number of addresses in the specified address list, addresses will be
+-- recycled in order of their appearance in the original list.
+assignMigrationAddresses
     :: [Address]
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
     -> [UnsignedTx]
-changeCoinSelectionForMigration addrs selections =
-    zipWith changeSel selections addrsPools
+assignMigrationAddresses addrs selections =
+    fst $ foldr accumulate ([], cycle addrs) selections
   where
-      addrsPools =
-          fst $
-          foldl (\(res,addrPool) sel ->
-                     let len = length (change sel)
-                     in (res ++ [take len addrPool], drop len addrPool)
-                )
-          ([], cycle addrs) selections
-      changeSel sel addrPool = UnsignedTx
-          (NE.fromList (sel ^. #inputs))
-          (NE.fromList (zipWith TxOut addrPool (sel  ^. #change)))
+    accumulate sel (txs, addrsAvailable) = first
+        (\addrsSelected -> makeTx sel addrsSelected : txs)
+        (splitAt (length $ change sel) addrsAvailable)
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx
+    makeTx sel addrsSelected = UnsignedTx
+        (NE.fromList (sel ^. #inputs))
+        (NE.fromList (zipWith TxOut addrsSelected (sel ^. #change)))
 
 {-------------------------------------------------------------------------------
                                     Network
