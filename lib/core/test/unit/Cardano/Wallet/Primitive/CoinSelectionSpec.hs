@@ -89,8 +89,13 @@ spec = do
 
     describe "assignMigrationAddresses properties" $ do
         prop "Selection count is preserved" prop_selectionCountPreserved
-        prop "Coin values are preserved" prop_coinValuesPreserved
+        prop "Overall coin values are preserved" prop_coinValuesPreserved
+        prop "Coin values (sum) are preserved per transaction"
+            (prop_coinValuesPreservedPerTx sum)
+        prop "Coin values (length) are preserved per transaction"
+            (prop_coinValuesPreservedPerTx length)
         prop "All inputs are used" prop_allInputsAreUsed
+        prop "All inputs are used per transaction" prop_allInputsAreUsedPerTx
 
   where
     lowerConfidence :: Confidence
@@ -110,6 +115,8 @@ prop_utxoToListOrderDeterministic u = monadicIO $ QC.run $ do
         cover 90 (list0 /= list1) "shuffled" $
         list0 == Map.toList (Map.fromList list1)
 
+-- The number of created transactions should be the same as
+-- the number of selections.
 prop_selectionCountPreserved
     :: CoinSelectionsSetup
     -> Property
@@ -117,6 +124,9 @@ prop_selectionCountPreserved (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     length (assignMigrationAddresses addrs sels) === length sels
 
+-- For all transactions created from selections, the coin values
+-- in transactions should be identical to the sum of change of coin values
+-- of selections.
 prop_coinValuesPreserved
     :: CoinSelectionsSetup
     -> Property
@@ -134,6 +144,29 @@ prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
             sum . map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
 
+-- For each transaction t created from a selection s, the coin values within
+-- t should be identical to the change coin values within s.
+-- (The counts and values of coins should both be identical.)
+prop_coinValuesPreservedPerTx
+    :: (Show a, Eq a)
+    => ([Word64] -> a)
+    -> CoinSelectionsSetup
+    -> Property
+prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getCoinValueFromInp =
+            f . map (\(_, TxOut _ (Coin c)) -> c)
+    let selsCoinValue =
+            (\(CoinSelection inps _ _) -> getCoinValueFromInp inps) . getCS
+            <$> cs
+    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+            f $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+    let txsCoinValue = map getCoinValueFromTxOut
+    txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
+
+
+-- For all transactions created from a selections, the inputs within
+-- transactions should be identical to the inputs within selections.
 prop_allInputsAreUsed
     :: CoinSelectionsSetup
     -> Property
@@ -144,6 +177,21 @@ prop_allInputsAreUsed (CoinSelectionsSetup cs addrs) = do
     let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
     let txsCoinValue = Set.fromList . concatMap getInpsFromTx
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
+
+-- For each transaction t created from a selection s, the inputs within
+-- t should be identical to the inputs within s.
+-- (The counts and values of coins should both be identical.)
+prop_allInputsAreUsedPerTx
+    :: CoinSelectionsSetup
+    -> Property
+prop_allInputsAreUsedPerTx (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let csInps =
+             Set.fromList . (\(CoinSelection inp _ _) -> inp) <$> sels
+    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let txsCoinValue = map (Set.fromList . getInpsFromTx)
+    txsCoinValue (assignMigrationAddresses addrs sels) === csInps
+
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
