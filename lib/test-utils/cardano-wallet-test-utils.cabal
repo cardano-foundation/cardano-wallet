@@ -30,6 +30,7 @@ library
       -Werror
   build-depends:
       base
+    , aeson
     , async
     , contra-tracer
     , filepath
@@ -38,6 +39,8 @@ library
     , hspec
     , hspec-core
     , hspec-expectations
+    , hspec-golden-aeson
+    , http-api-data
     , iohk-monitoring
     , process
     , QuickCheck
@@ -51,6 +54,7 @@ library
   exposed-modules:
       Test.Hspec.Extra
       Test.Utils.Paths
+      Test.Utils.Roundtrip
       Test.Utils.StaticServer
       Test.Utils.Time
       Test.Utils.Trace
