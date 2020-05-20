@@ -1,0 +1,105 @@
+{
+    "seed": 4691563923457734284,
+    "samples": [
+        {
+            "total": {
+                "quantity": 102,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 213,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 234,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 107,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 82,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 91,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 19,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 237,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 198,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 121,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 218,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 84,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 68,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 73,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 183,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 14,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 167,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 132,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 237,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 115,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

@@ -219,6 +219,8 @@ import Servant.Swagger.Test
     ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
@@ -244,8 +246,10 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Paths
+    ( getTestData )
 import Test.Utils.Roundtrip
-    ( httpApiDataRoundtrip, jsonRoundtripAndGolden )
+    ( httpApiDataRoundtrip )
 import Test.Utils.Time
     ( genUniformTime )
 import Web.HttpApiData
@@ -263,9 +267,13 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
 import qualified Prelude
+import qualified Test.Utils.Roundtrip as Utils
 
 spec :: Spec
 spec = do
+    let jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
+            ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
+
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do

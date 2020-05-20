@@ -1,0 +1,85 @@
+{
+    "seed": -2366744487741549495,
+    "samples": [
+        {
+            "height": {
+                "quantity": 18267,
+                "unit": "block"
+            },
+            "epoch_number": 16540,
+            "slot_number": 15227
+        },
+        {
+            "height": {
+                "quantity": 7566,
+                "unit": "block"
+            },
+            "epoch_number": 408,
+            "slot_number": 28796
+        },
+        {
+            "height": {
+                "quantity": 92,
+                "unit": "block"
+            },
+            "epoch_number": 32700,
+            "slot_number": 14992
+        },
+        {
+            "height": {
+                "quantity": 152,
+                "unit": "block"
+            },
+            "epoch_number": 24914,
+            "slot_number": 1788
+        },
+        {
+            "height": {
+                "quantity": 11791,
+                "unit": "block"
+            },
+            "epoch_number": 6604,
+            "slot_number": 27814
+        },
+        {
+            "height": {
+                "quantity": 28780,
+                "unit": "block"
+            },
+            "epoch_number": 28310,
+            "slot_number": 27847
+        },
+        {
+            "height": {
+                "quantity": 20717,
+                "unit": "block"
+            },
+            "epoch_number": 19953,
+            "slot_number": 7805
+        },
+        {
+            "height": {
+                "quantity": 6974,
+                "unit": "block"
+            },
+            "epoch_number": 29015,
+            "slot_number": 8064
+        },
+        {
+            "height": {
+                "quantity": 13051,
+                "unit": "block"
+            },
+            "epoch_number": 30163,
+            "slot_number": 24402
+        },
+        {
+            "height": {
+                "quantity": 23300,
+                "unit": "block"
+            },
+            "epoch_number": 12611,
+            "slot_number": 8724
+        }
+    ]
+}

@@ -1,0 +1,151 @@
+{
+    "seed": -1126454614784649135,
+    "samples": [
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1866-06-02T00:05:35Z",
+                        "epoch_number": 14802
+                    },
+                    "target": "77b1dbe1d08ddb09057cebed75ecc34dcfff7892e57d039ad3e8f6bfe69052a0"
+                }
+            ],
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": [],
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1889-01-30T00:00:00Z",
+                        "epoch_number": 14643
+                    },
+                    "target": "1c37180375a3bb71a8d7ccfd8310eea07faf34d99c2e94c48d5f0787fe34cb92"
+                }
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "676efe422491e43d721c50f0d4d64acfeaa6f88d3603420dc46b0dd736eed102"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1901-10-28T00:04:37.290573532002Z",
+                        "epoch_number": 2465
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1908-01-18T13:00:00Z",
+                        "epoch_number": 24003
+                    },
+                    "target": "e969313cce865a6b77932c3bf30c835e70c1933d656b95069036ab1929a54c8e"
+                }
+            ],
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": [],
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": [],
+            "active": {
+                "status": "delegating",
+                "target": "74ab7243cdc532e47221dc7b4dd81d8e75804d467f7e1943f8eac4bda2aa14cd"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-02-13T06:24:36.596738827445Z",
+                        "epoch_number": 31733
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-09-26T05:00:00Z",
+                        "epoch_number": 412
+                    },
+                    "target": "01c889756f2d1dce5a63b90931c93bee365ac4bff61154e215397b4f91439cc0"
+                }
+            ],
+            "active": {
+                "status": "delegating",
+                "target": "6f265d42ea6b5dd97f1c239c4698cab8b6c78e19e181fb2b58d2faee4a7eb4a0"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1898-05-03T19:23:08.567297774087Z",
+                        "epoch_number": 15466
+                    }
+                },
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1899-09-02T20:16:26Z",
+                        "epoch_number": 11865
+                    },
+                    "target": "f1c910478eacac18489f42355f8ab011bc6d29d92be9cdc3fc3509046d545eb1"
+                }
+            ],
+            "active": {
+                "status": "not_delegating"
+            }
+        },
+        {
+            "next": [],
+            "active": {
+                "status": "delegating",
+                "target": "52d9f5352eb306e7a7484788bce609c748396f2eb10fb8322dd683b9eeb62fbd"
+            }
+        },
+        {
+            "next": [
+                {
+                    "status": "delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1869-04-11T13:46:52Z",
+                        "epoch_number": 4338
+                    },
+                    "target": "8b9d2fcf87938eac24b6c43fb7eb7d64fc6abe9b9a949649aa1af017998ab990"
+                },
+                {
+                    "status": "not_delegating",
+                    "changes_at": {
+                        "epoch_start_time": "1874-10-28T04:36:09.845612491798Z",
+                        "epoch_number": 8993
+                    }
+                }
+            ],
+            "active": {
+                "status": "not_delegating"
+            }
+        }
+    ]
+}

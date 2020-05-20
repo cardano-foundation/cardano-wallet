@@ -1,0 +1,115 @@
+{
+    "seed": 6269520290409707909,
+    "samples": [
+        {
+            "time": "1902-11-21T16:00:00Z",
+            "block": {
+                "height": {
+                    "quantity": 25161,
+                    "unit": "block"
+                },
+                "epoch_number": 10766,
+                "slot_number": 15331
+            }
+        },
+        {
+            "time": "1883-04-07T09:00:00Z",
+            "block": {
+                "height": {
+                    "quantity": 15775,
+                    "unit": "block"
+                },
+                "epoch_number": 21418,
+                "slot_number": 25513
+            }
+        },
+        {
+            "time": "1908-10-25T19:29:44.384282907738Z",
+            "block": {
+                "height": {
+                    "quantity": 26413,
+                    "unit": "block"
+                },
+                "epoch_number": 2346,
+                "slot_number": 7457
+            }
+        },
+        {
+            "time": "1904-09-15T13:00:00Z",
+            "block": {
+                "height": {
+                    "quantity": 4168,
+                    "unit": "block"
+                },
+                "epoch_number": 11231,
+                "slot_number": 9456
+            }
+        },
+        {
+            "time": "1865-10-14T05:07:18.525099563895Z",
+            "block": {
+                "height": {
+                    "quantity": 1866,
+                    "unit": "block"
+                },
+                "epoch_number": 18230,
+                "slot_number": 19044
+            }
+        },
+        {
+            "time": "1891-06-09T21:22:12Z",
+            "block": {
+                "height": {
+                    "quantity": 15762,
+                    "unit": "block"
+                },
+                "epoch_number": 13398,
+                "slot_number": 7432
+            }
+        },
+        {
+            "time": "1860-05-09T06:04:08Z",
+            "block": {
+                "height": {
+                    "quantity": 13775,
+                    "unit": "block"
+                },
+                "epoch_number": 23562,
+                "slot_number": 17149
+            }
+        },
+        {
+            "time": "1888-09-05T00:00:00Z",
+            "block": {
+                "height": {
+                    "quantity": 26799,
+                    "unit": "block"
+                },
+                "epoch_number": 14163,
+                "slot_number": 7657
+            }
+        },
+        {
+            "time": "1902-03-23T04:50:10.30592013779Z",
+            "block": {
+                "height": {
+                    "quantity": 28351,
+                    "unit": "block"
+                },
+                "epoch_number": 17179,
+                "slot_number": 6342
+            }
+        },
+        {
+            "time": "1906-09-27T18:44:27Z",
+            "block": {
+                "height": {
+                    "quantity": 11389,
+                    "unit": "block"
+                },
+                "epoch_number": 13142,
+                "slot_number": 30094
+            }
+        }
+    ]
+}

@@ -1,0 +1,105 @@
+{
+    "seed": -1303484063503918952,
+    "samples": [
+        {
+            "estimated_min": {
+                "quantity": 193,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 5,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 47,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 178,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 198,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 25,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 133,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 198,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 26,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 145,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 123,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 47,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 231,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 100,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 73,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 109,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 227,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 78,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 35,
+                "unit": "lovelace"
+            },
+            "estimated_max": {
+                "quantity": 132,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

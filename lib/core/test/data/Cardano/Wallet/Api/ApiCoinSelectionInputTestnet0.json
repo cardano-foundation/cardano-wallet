@@ -1,0 +1,95 @@
+{
+    "seed": 5052956414130988799,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 127,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "37110f18464b6618436e07447f1323ca58690228230d59075171151632082426",
+            "index": 23209
+        },
+        {
+            "amount": {
+                "quantity": 22,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "d2352e79365f3747495e33826a71fd2c284237717429100b88613df26a0e781f",
+            "index": 30147
+        },
+        {
+            "amount": {
+                "quantity": 183,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "20385d56713ded3852124a6951728a65650a48d31ce457072865034209792984",
+            "index": 30535
+        },
+        {
+            "amount": {
+                "quantity": 168,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "4845450c7237327c145b0449bc5469797e344e324a32125d1562237b4c473dfe",
+            "index": 32386
+        },
+        {
+            "amount": {
+                "quantity": 109,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "226f1568174336354d0f19653973d258790f5be971ec2f36380d5585590e2066",
+            "index": 11246
+        },
+        {
+            "amount": {
+                "quantity": 158,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "1b408a4e1f1537350c7413e44dd6083a6858616fe7d74a3b30722d7b7b7b7135",
+            "index": 27755
+        },
+        {
+            "amount": {
+                "quantity": 229,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "1d616f6a6a30ad162c34090f04730f81737328c37d6115b72419f32f72252e6b",
+            "index": 28496
+        },
+        {
+            "amount": {
+                "quantity": 117,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "08466d797e2817ed77551f4c649d7d1f322b3d48ec4553227b7f2d20043e787e",
+            "index": 26850
+        },
+        {
+            "amount": {
+                "quantity": 66,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "5d0c53774926340e77796c1274c28175674e4bd3154e3064057218eb7e700200",
+            "index": 8391
+        },
+        {
+            "amount": {
+                "quantity": 35,
+                "unit": "lovelace"
+            },
+            "address": "<addr>",
+            "id": "050b54675269372e0bd9850493907a2e2f247f79690d532e795025144708334f",
+            "index": 1421
+        }
+    ]
+}

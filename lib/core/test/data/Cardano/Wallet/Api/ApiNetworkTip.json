@@ -1,0 +1,45 @@
+{
+    "seed": 2875734820741521513,
+    "samples": [
+        {
+            "epoch_number": 9277,
+            "slot_number": 17769
+        },
+        {
+            "epoch_number": 16026,
+            "slot_number": 12770
+        },
+        {
+            "epoch_number": 7356,
+            "slot_number": 27432
+        },
+        {
+            "epoch_number": 24945,
+            "slot_number": 7006
+        },
+        {
+            "epoch_number": 30049,
+            "slot_number": 5188
+        },
+        {
+            "epoch_number": 23889,
+            "slot_number": 15205
+        },
+        {
+            "epoch_number": 539,
+            "slot_number": 25136
+        },
+        {
+            "epoch_number": 16151,
+            "slot_number": 16343
+        },
+        {
+            "epoch_number": 12880,
+            "slot_number": 3760
+        },
+        {
+            "epoch_number": 28935,
+            "slot_number": 19427
+        }
+    ]
+}

@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Test.Utils.Roundtrip
     ( jsonRoundtripAndGolden
@@ -16,8 +15,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
-import System.FilePath
-    ( (</>) )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Settings
@@ -36,8 +33,6 @@ import Test.Hspec
     ( Spec, it, runIO, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), property )
-import Test.Utils.Paths
-    ( getTestData )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -55,9 +50,10 @@ import Web.HttpApiData
 -- The directory `test/data/Cardano/Wallet/Api` is used.
 jsonRoundtripAndGolden
     :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
-    => Proxy a
+    => FilePath
+    -> Proxy a
     -> Spec
-jsonRoundtripAndGolden proxy = do
+jsonRoundtripAndGolden dir proxy = do
     roundtripSpecs proxy
     typeNameInfo <- runIO mkCompatibleTypeNameInfo
     goldenSpecsWithNotePlain settings typeNameInfo Nothing
@@ -81,7 +77,7 @@ jsonRoundtripAndGolden proxy = do
     settings :: Settings
     settings = defaultSettings
         { goldenDirectoryOption =
-            CustomDirectoryName ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
+            CustomDirectoryName dir
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 10

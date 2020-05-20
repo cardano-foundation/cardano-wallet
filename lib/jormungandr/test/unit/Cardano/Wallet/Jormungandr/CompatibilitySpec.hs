@@ -5,6 +5,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -48,6 +49,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -69,8 +72,10 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.Utils.Paths
+    ( getTestData )
 import Test.Utils.Roundtrip
-    ( httpApiDataRoundtrip, jsonRoundtripAndGolden )
+    ( httpApiDataRoundtrip )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
@@ -78,9 +83,12 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
+import qualified Test.Utils.Roundtrip as Utils
 
 spec :: Spec
 spec = do
+    let jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
+            ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do

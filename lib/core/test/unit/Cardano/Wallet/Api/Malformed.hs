@@ -1348,56 +1348,14 @@ migrateDataCases =
       )
     , ( [aesonQQ|
         { "passphrase": 1
-        , "addresses": [ #{addrValid} ]
+        , "addresses": [ #{addrPlaceholder} ]
         }|]
       , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
       )
     , ( [aesonQQ|
         { "passphrase": [ ]
-        , "addresses": [ #{addrValid} ]
+        , "addresses": [ #{addrPlaceholder} ]
         }|]
       , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrInvalid} ]
-        }|]
-      , "Error in $.addresses[0]: Unable to decode Address: encoding is neither Bech32 nor Base58."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrTooLong} ]
-        }|]
-      , "Error in $.addresses[0]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrValid}, #{addrInvalid} ]
-        }|]
-      , "Error in $.addresses[1]: Unable to decode Address: encoding is neither Bech32 nor Base58."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrValid}, #{addrTooLong} ]
-        }|]
-      , "Error in $.addresses[1]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrValid}, #{addrValid}, #{addrInvalid} ]
-        }|]
-      , "Error in $.addresses[2]: Unable to decode Address: encoding is neither Bech32 nor Base58."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrValid}, #{addrValid}, #{addrTooLong} ]
-        }|]
-      , "Error in $.addresses[2]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
-      )
-    , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
-        , "addresses": [ #{addrInvalid}, #{addrValid}, #{addrInvalid} ]
-        }|]
-      , "Error in $.addresses[0]: Unable to decode Address: encoding is neither Bech32 nor Base58."
       )
     ]
