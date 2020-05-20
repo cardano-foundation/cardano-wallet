@@ -154,6 +154,7 @@ let
           sqlite-interactive
           pythonPackages.openapi-spec-validator
         ]);
+      CARDANO_NODE_CONFIGS = cardano-node.configs;
       meta.platforms = lib.platforms.unix;
     };
     stackShell = import ./nix/stack-shell.nix {

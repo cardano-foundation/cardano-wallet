@@ -49,9 +49,7 @@ in pkgs.runCommand name {
   done
 
   # Copy test data to location expected by test suites.
-  for data in ${pkgs.lib.attrValues testData}; do
-    cp -Rv --no-preserve=mode $data/* test/data
-  done
+  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* ${testData.shelley}/* test/data
 
   # Set up batch scripts for jormungandr.
   cp -v ${jm-bat} jm.bat
