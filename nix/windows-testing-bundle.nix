@@ -43,10 +43,17 @@ in pkgs.runCommand name {
   mkdir -pv jm jm/test/data jm/test/integration $out/nix-support
   cd jm
 
-  cp -vf ${cardano-wallet-jormungandr}/bin/* .
-  cp -vf ${cardano-wallet-byron}/bin/* .
-  cp -vf ${cardano-wallet-shelley}/bin/* .
-  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* ${testData.shelley}/* test/data
+  # Copy in wallet and node EXEs and DLLs.
+  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-byron} ${cardano-wallet-shelley}; do
+    cp -vf $pkg/bin/* .
+  done
+
+  # Copy test data to location expected by test suites.
+  for data in ${pkgs.lib.attrValues testData}; do
+    cp -Rv --no-preserve=mode $data/* test/data
+  done
+
+  # Set up batch scripts for jormungandr.
   cp -v ${jm-bat} jm.bat
   hash="$(jcli genesis hash --input test/data/jormungandr/block0.bin)"
   sed -e "s/HASH/$hash/" ${cw-bat} > cw.bat
@@ -54,6 +61,8 @@ in pkgs.runCommand name {
   sed -e 's/storage:.*/storage: "c:\\cardano-wallet-jormungandr\\chain"/' \
       ${testData.jormungandr}/jormungandr/config.yaml > config.yaml
 
+  # Copy in test executables and rename.
+  # Add each one to tests.bat.
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''
     exe=`cd ${test}/bin; ls -1 *.exe`
     name=${test.packageName}-test-$exe
@@ -62,6 +71,7 @@ in pkgs.runCommand name {
     echo "if %errorlevel% neq 0 exit /b %errorlevel%" >> tests.bat
   '') tests}
 
+  # Copy in benchmark executables and rename.
   ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
     exe=`cd ${bench}/bin; ls -1 *.exe`
     name=${bench.packageName}-bench-$exe
