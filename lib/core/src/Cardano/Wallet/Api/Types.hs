@@ -118,7 +118,7 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubToBytes )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -134,12 +134,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
-    , PersistPublicKey (..)
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), decodeShelleyAddress, xpubFromText )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( decodeJormungandrAddress, xpubFromText )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -457,7 +457,7 @@ data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
     } deriving (Eq, Generic, Show)
 
 newtype ApiAccountPublicKey = ApiAccountPublicKey
-    { key :: (ApiT (ShelleyKey 'AccountK XPub))
+    { key :: (ApiT XPub)
     } deriving (Eq, Generic, Show)
 
 newtype WalletOrAccountPostData = WalletOrAccountPostData
@@ -721,7 +721,7 @@ instance FromText ApiAccountPublicKey where
             [ "Invalid account public key: expecting a hex-encoded value"
             , "that is 64 bytes in length."]
         Right pubkey ->
-            Right $ ApiAccountPublicKey $ ApiT $ ShelleyKey pubkey
+            Right $ ApiAccountPublicKey $ ApiT pubkey
 
 instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
@@ -902,7 +902,7 @@ instance FromJSON ApiAccountPublicKey where
         parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
 instance ToJSON ApiAccountPublicKey where
     toJSON =
-        toJSON . T.decodeUtf8 . serializeXPub . getApiT . key
+        toJSON . T.decodeUtf8 . hex . xpubToBytes . getApiT . key
 
 instance FromJSON WalletOrAccountPostData where
     parseJSON obj = do
@@ -1431,7 +1431,7 @@ class DecodeAddress (n :: NetworkDiscriminant) where
 -- - [Base58](https://en.wikipedia.org/wiki/Base58)
 --   for legacy / Byron addresses
 -- - [Bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
---   for Shelley addresses
+--   for Jormungandr/Shelley addresses
 --
 -- The right encoding is picked by looking at the raw 'Address' representation
 -- in order to figure out to which class the address belongs.
@@ -1455,17 +1455,18 @@ gEncodeAddress (Address bytes) =
 -- addresses:
 --
 -- - Legacy / Byron addresses encoded as `Base58`
+-- - Jormungandr addresses, encoded as `Bech32`
 -- - Shelley addresses, encoded as `Bech32`
 --
 -- See also 'EncodeAddress Jormungandr'
 instance DecodeAddress 'Mainnet where
     decodeAddress = gDecodeAddress
-        (decodeShelleyAddress @'Mainnet)
+        (decodeJormungandrAddress @'Mainnet)
         (decodeLegacyAddress Nothing)
 
 instance KnownNat pm => DecodeAddress ('Testnet pm) where
     decodeAddress = gDecodeAddress
-        (decodeShelleyAddress @('Testnet pm))
+        (decodeJormungandrAddress @('Testnet pm))
         (decodeLegacyAddress $ Just $ testnetMagic @pm)
 
 gDecodeAddress
@@ -1473,9 +1474,9 @@ gDecodeAddress
     -> (ByteString -> Maybe Address)
     -> Text
     -> Either TextDecodingError Address
-gDecodeAddress decodeShelley decodeByron text =
+gDecodeAddress decodeJormungandr decodeByron text =
     case (tryBech32, tryBase58) of
-        (Just bytes, _) -> decodeShelley bytes
+        (Just bytes, _) -> decodeJormungandr bytes
         (_, Just bytes) -> decodeByron bytes
             & maybeToEither (TextDecodingError
             "Unable to decode Address: neither Bech32-encoded nor a \

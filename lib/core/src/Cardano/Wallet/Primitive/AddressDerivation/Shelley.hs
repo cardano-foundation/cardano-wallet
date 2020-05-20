@@ -17,8 +17,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- Implementation of address derivation for 'Shelley' Keys. Shelley really means
--- Jörmungandr here.
+-- Implementation of address derivation for 'Shelley' Keys.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( -- * Types
@@ -26,15 +25,11 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
 
     -- * Constants
     , minSeedLengthBytes
-    , publicKeySize
-    , addrSingleSize
-    , addrGroupedSize
-    , KnownNetwork (..)
+
 
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
-    , xpubFromText
 
     -- * Address
     , decodeShelleyAddress
@@ -62,13 +57,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
-    , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
@@ -77,16 +70,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , fromHex
     , hex
-    , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( when, (<=<) )
+    ( (<=<) )
 import Crypto.Hash
-    ( Digest, HashAlgorithm, hash )
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_224 (..) )
+import Crypto.Hash.IO
+    ( HashAlgorithm (hashDigestSize) )
 import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.ByteString
@@ -98,11 +94,9 @@ import Data.Proxy
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word32 )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -125,18 +119,6 @@ newtype ShelleyKey (depth :: Depth) key =
     deriving stock (Generic, Show, Eq)
 
 instance (NFData key) => NFData (ShelleyKey depth key)
-
--- | Size, in bytes, of a public key (without chain code)
-publicKeySize :: Int
-publicKeySize = 32
-
--- Serialized length in bytes of a Single Address
-addrSingleSize :: Int
-addrSingleSize = 1 + publicKeySize
-
--- Serialized length in bytes of a Grouped Address
-addrGroupedSize :: Int
-addrGroupedSize = addrSingleSize + publicKeySize
 
 -- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
 -- extension for Cardano:
@@ -247,184 +229,111 @@ instance SoftDerivation ShelleyKey where
 -------------------------------------------------------------------------------}
 
 instance WalletKey ShelleyKey where
-    changePassphrase = changePassphraseSeq
-    publicKey = publicKeySeq
-    digest = digestSeq
-    getRawKey = getKey
-    keyTypeDescriptor _ = "seq"
+    changePassphrase (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
+        ShelleyKey $ xPrvChangePass oldPwd newPwd prv
 
--- | Extract the public key part of a private key.
-publicKeySeq
-    :: ShelleyKey depth XPrv
-    -> ShelleyKey depth XPub
-publicKeySeq (ShelleyKey k) =
-    ShelleyKey (toXPub k)
+    publicKey (ShelleyKey prv) =
+        ShelleyKey (toXPub prv)
 
--- | Hash a public key to some other representation.
-digestSeq
-    :: HashAlgorithm a
-    => ShelleyKey depth XPub
-    -> Digest a
-digestSeq (ShelleyKey k) =
-    hash (unXPub k)
+    digest (ShelleyKey pub) =
+        hash (unXPub pub)
 
--- | Re-encrypt a private key using a different passphrase.
---
--- **Important**:
--- This function doesn't check that the old passphrase is correct! Caller is
--- expected to have already checked that. Using an incorrect passphrase here
--- will lead to very bad thing.
-changePassphraseSeq
-    :: Passphrase "encryption"
-    -> Passphrase "encryption"
-    -> ShelleyKey depth XPrv
-    -> ShelleyKey depth XPrv
-changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
-    ShelleyKey $ xPrvChangePass oldPwd newPwd prv
+    getRawKey =
+        getKey
+
+    keyTypeDescriptor _ =
+        "she"
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
 instance PaymentAddress 'Mainnet ShelleyKey where
-    paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
-    liftPaymentAddress (KeyFingerprint k0) =
-        encodeShelleyAddress (addrSingle @'Mainnet) [k0]
+    paymentAddress paymentK = do
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString . blake2b224 $ paymentK
+      where
+        enterprise = 96
+        networkId = 1
+
+    liftPaymentAddress (KeyFingerprint fingerprint) =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString fingerprint
+      where
+        enterprise = 96
+        networkId = 1
 
 instance PaymentAddress ('Testnet pm) ShelleyKey where
-    paymentAddress (ShelleyKey k0) =
-        encodeShelleyAddress (addrSingle @('Testnet _)) [xpubPublicKey k0]
-    liftPaymentAddress (KeyFingerprint k0) =
-        encodeShelleyAddress (addrSingle @('Testnet _)) [k0]
+    paymentAddress paymentK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString . blake2b224 $ paymentK
+      where
+        enterprise = 96
+        networkId = 0
+
+    liftPaymentAddress (KeyFingerprint fingerprint) =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString fingerprint
+      where
+        enterprise = 96
+        networkId = 0
 
 instance DelegationAddress 'Mainnet ShelleyKey where
-    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
+    delegationAddress paymentK stakingK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (base + networkId)
+            putByteString . blake2b224 $ paymentK
+            putByteString . blake2b224 $ stakingK
+      where
+        base = 0
+        networkId = 1
+
+    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (base + networkId)
+            putByteString fingerprint
+            putByteString . blake2b224 $ stakingK
+      where
+        base = 0
+        networkId = 1
 
 instance DelegationAddress ('Testnet pm) ShelleyKey where
-    delegationAddress (ShelleyKey k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @('Testnet _)) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (ShelleyKey k1) =
-        encodeShelleyAddress (addrGrouped @('Testnet _)) ([k0, xpubPublicKey k1])
-
--- | Embed some constants into a network type.
-class KnownNetwork (n :: NetworkDiscriminant) where
-    addrSingle :: Word8
-        -- ^ Address discriminant byte for single addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying only a
-        -- spending key.
-
-    addrGrouped :: Word8
-        -- ^ Address discriminant byte for grouped addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying both a
-        -- spending and an account key.
-
-    addrAccount :: Word8
-        -- ^ Address discriminant byte for account addresses, this is the first
-        -- byte of every addresses using the Shelley format carrying only an
-        -- account key.
-
-    knownDiscriminants :: [Word8]
-    knownDiscriminants =
-        [ addrSingle @n
-        , addrGrouped @n
-        , addrAccount @n
-        ]
-
-instance KnownNetwork 'Mainnet where
-    addrSingle = 0x03
-    addrGrouped = 0x04
-    addrAccount = 0x05
-
-instance KnownNetwork ('Testnet pm) where
-    addrSingle = 0x83
-    addrGrouped = 0x84
-    addrAccount = 0x85
-
-isAddrSingle :: Address -> Bool
-isAddrSingle (Address bytes) =
-    firstByte `elem` [[addrSingle @('Testnet _)], [addrSingle @'Mainnet]]
-  where
-    firstByte = BS.unpack (BS.take 1 bytes)
-
-isAddrGrouped :: Address -> Bool
-isAddrGrouped (Address bytes) =
-    firstByte `elem` [[addrGrouped @('Testnet _)], [addrGrouped @'Mainnet]]
-  where
-    firstByte = BS.unpack (BS.take 1 bytes)
-
--- | Internal function to encode shelley addresses from key fingerprints.
---
--- We use this to define both instance separately to avoid having to carry a
--- 'KnownNetwork' constraint around.
-encodeShelleyAddress :: Word8 -> [ByteString] -> Address
-encodeShelleyAddress discriminant keys =
-    Address $ invariantSize $ BL.toStrict $ runPut $ do
-        putWord8 discriminant
-        mapM_ putByteString keys
-  where
-    invariantSize :: HasCallStack => ByteString -> ByteString
-    invariantSize bytes
-        | BS.length bytes == len = bytes
-        | otherwise = error
-            $ "length was "
-            ++ show (BS.length bytes)
-            ++ ", but expected to be "
-            ++ (show len)
+    delegationAddress paymentK stakingK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (base + networkId)
+            putByteString . blake2b224 $ paymentK
+            putByteString . blake2b224 $ stakingK
       where
-        len = 1 + length keys * publicKeySize
+        base = 0
+        networkId = 0
+
+    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (base + networkId)
+            putByteString fingerprint
+            putByteString . blake2b224 $ stakingK
+      where
+        base = 0
+        networkId = 1
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeShelleyAddress
-    :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
-    => ByteString
+    :: ByteString
     -> Either TextDecodingError Address
-decodeShelleyAddress bytes = do
-    let firstByte = BS.unpack $ BS.take 1 bytes
-
-    let knownBytes = pure <$>
-            knownDiscriminants @('Testnet _) ++ knownDiscriminants @'Mainnet
-    when (firstByte `notElem` knownBytes) $ Left (invalidAddressType firstByte)
-
-    let allowedBytes = pure <$> knownDiscriminants @n
-    when (firstByte `notElem` allowedBytes) $ Left invalidNetwork
-
-    case BS.length bytes of
-        n | n == addrSingleSize  && firstByte /= [addrGrouped @n] -> pure ()
-        n | n == addrGroupedSize && firstByte == [addrGrouped @n] -> pure ()
-        n -> Left $ invalidAddressLength n
-
-    return (Address bytes)
-  where
-    invalidAddressLength actualLength = TextDecodingError $
-        "Invalid address length ("
-        <> show actualLength
-        <> "): expected either "
-        <> show addrSingleSize
-        <> " or "
-        <> show addrGroupedSize
-        <> " bytes."
-    invalidAddressType byte = TextDecodingError $
-        "This type of address is not supported: "
-        <> show byte
-        <> "."
-    invalidNetwork = TextDecodingError $
-        "This address belongs to another network. Network is: "
-        <> show (networkDiscriminantVal @n) <> "."
+decodeShelleyAddress _bytes = do
+    error "TODO: decodeShelleyAddress"
 
 instance MkKeyFingerprint ShelleyKey Address where
-    paymentKeyFingerprint addr@(Address bytes)
-        | isAddrSingle addr || isAddrGrouped addr =
-            Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
-        | otherwise =
-            Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
+    paymentKeyFingerprint (Address bytes) =
+        Right $ KeyFingerprint $ BS.take (hashDigestSize Blake2b_224) $ BS.drop 1 bytes
 
 instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
-    paymentKeyFingerprint =
-        Right . KeyFingerprint . xpubPublicKey . getRawKey . snd
+    paymentKeyFingerprint (_, paymentK) =
+        Right $ KeyFingerprint $ blake2b224 paymentK
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
@@ -448,61 +357,15 @@ instance PersistPublicKey (ShelleyKey depth) where
         hex . unXPub . getKey
 
     unsafeDeserializeXPub =
-        either err ShelleyKey . xpubFromText
+        either err ShelleyKey . (xpub <=< fromHex @ByteString)
       where
         err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
 
-xpubFromText :: ByteString -> Either String XPub
-xpubFromText = xpub <=< fromHex @ByteString
+{-------------------------------------------------------------------------------
+                                 Internals
+-------------------------------------------------------------------------------}
 
--- $use
--- 'Key' and 'Index' allow for representing public keys, private keys, hardened
--- indexes and soft (non-hardened) indexes for various level in a non-ambiguous
--- manner. Those types are opaque and can only be created through dedicated
--- constructors.
---
--- Indexes can be created through their `Bounded` and `Enum` instances. Note
--- that, the `Enum` functions are partial and its the caller responsibility to
--- make sure it is safe to call them. For instance, calling @succ maxBound@ for
--- any index would through a runtime error. Similarly, trying to convert an
--- invalid value from an 'Int' to a an 'Index' will result in bad behavior.
---
--- >>> toEnum 0x00000000 :: Index 'Soft 'AddressK
--- Index {getIndex = 0}
---
--- >>> toEnum 0x00000000 :: Index 'Hardened 'AccountK
--- Index {getIndex = *** Exception: Index@Hardened.toEnum: bad argument
---
--- >>> toEnum 0x80000000 :: Index 'Hardened 'AccountK
--- Index {getIndex = 2147483648}
---
--- >>> toEnum 0x80000000 :: Index 'Soft 'AddressK
--- Index {getIndex = *** Exception: Index@Soft.toEnum: bad argument
---
--- Keys have to be created from a seed using 'generateKeyFromSeed' which always
--- gives a root private key. Then, child keys can be created safely using the
--- various key derivation methods:
---
--- - 'publicKey' --> For any @ShelleyKey _ XPrv@ to @ShelleyKey _ XPub@
--- - 'deriveAccountPrivateKey' -->
---      From @ShelleyKey RootK XPrv@ to @ShelleyKey AccountK XPrv@
--- - 'deriveAddressPrivateKey' -->
---      From @ShelleyKey AccountK XPrv@ to @ShelleyKey AddressK XPrv@
--- - 'deriveAddressPublicKey' -->
---      From @ShelleyKey AccountK XPub@ to @ShelleyKey AddressK XPub@
---
--- For example:
---
--- @
--- -- Access public key for: m|coinType'|purpose'|0'
--- let seed = "My Secret Seed"
---
--- let rootXPrv :: ShelleyKey 'RootK XPrv
---     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
---
--- let accIx :: Index 'Hardened 'AccountK
---     accIx = toEnum 0x80000000
---
--- let accXPub :: ShelleyKey 'AccountL XPub
---     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
--- @
+-- Hash a public key
+blake2b224 :: ShelleyKey depth XPub -> ByteString
+blake2b224 =
+    BA.convert . hash @_ @Blake2b_224 . xpubPublicKey . getKey

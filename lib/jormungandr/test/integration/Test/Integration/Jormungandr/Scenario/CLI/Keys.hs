@@ -25,8 +25,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Data.Proxy
@@ -52,15 +52,15 @@ import Test.QuickCheck.Monadic
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
 spec :: Spec
 spec =
     describe "unXPrvStripPub" $ do
-        it "is compatible with jcli (Shelley)" $
-            property $ prop_keyToHexTextJcliCompatible @ShelleyKey
+        it "is compatible with jcli (Jormungandr)" $
+            property $ prop_keyToHexTextJcliCompatible @JormungandrKey
         it "is compatible with jcli (Icarus)" $
             property $ prop_keyToHexTextJcliCompatible @IcarusKey
         it "is compatible with jcli (Byron)" $
@@ -83,12 +83,12 @@ prop_keyToHexTextJcliCompatible k = monadicIO $ do
         "jcli"
         ["key", "from-bytes", "--type", "ed25519bip32"]
 
-instance Arbitrary (ShelleyKey 'RootK XPrv) where
+instance Arbitrary (JormungandrKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = do
         s <- SomeMnemonic <$> genMnemonic @15
         g <- fmap SomeMnemonic <$> genSecondFactor
-        return $ Shelley.unsafeGenerateKeyFromSeed (s, g) encryptionPass
+        return $ Jormungandr.unsafeGenerateKeyFromSeed (s, g) encryptionPass
       where
         encryptionPass = Passphrase ""
         genSecondFactor = frequency

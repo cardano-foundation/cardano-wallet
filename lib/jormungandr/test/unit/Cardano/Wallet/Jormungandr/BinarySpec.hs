@@ -37,8 +37,8 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase, hex )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
@@ -216,7 +216,7 @@ spec = do
                 PoolRegistration (poolId', [owner], taxes, Tx txId' [] [])
 
     describe "Decode External Tx" $ do
-        let tl = newTransactionLayer @ShelleyKey (Hash "genesis")
+        let tl = newTransactionLayer @JormungandrKey (Hash "genesis")
 
         it "decodeExternalTx works ok with properly constructed binary blob" $
             property $ \test -> monadicIO $ do

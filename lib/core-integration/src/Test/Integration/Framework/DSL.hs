@@ -181,7 +181,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)

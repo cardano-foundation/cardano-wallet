@@ -84,7 +84,9 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
+import Cardano.Mnemonic
+    ( SomeMnemonic )
 import Cardano.Pool
     ( StakePoolLayer (..) )
 import Cardano.Wallet
@@ -193,10 +195,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
+    , DerivationType (..)
     , HardDerivation (..)
+    , Index (..)
+    , MkKeyFingerprint
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , digest
     , preparePassphrase
@@ -206,8 +212,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
@@ -268,8 +272,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.DeepSeq
-    ( NFData )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
@@ -364,9 +366,8 @@ import System.Random
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -495,30 +496,41 @@ type MkApiWallet ctx s w
 postWallet
     :: forall ctx s t k n.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         )
     => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    -> (XPub -> k 'AccountK XPub)
     -> WalletOrAccountPostData
     -> Handler ApiWallet
-postWallet ctx (WalletOrAccountPostData body) = case body of
-    Left body' -> postShelleyWallet ctx body'
-    Right body' -> postAccountWallet ctx body'
+postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
+    Left  body' -> postShelleyWallet ctx generateKey body'
+    Right body' -> postAccountWallet ctx liftKey body'
 
 postShelleyWallet
     :: forall ctx s t k n.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         )
     => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
     -> WalletPostData
     -> Handler ApiWallet
-postShelleyWallet ctx body = do
+postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
@@ -530,7 +542,7 @@ postShelleyWallet ctx body = do
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
     pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
+    rootXPrv = generateKey (seed, secondFactor) pwd
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wid = WalletId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
@@ -538,15 +550,19 @@ postShelleyWallet ctx body = do
 postAccountWallet
     :: forall ctx s t k n.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
         , HasWorkerRegistry s k ctx
         )
     => ctx
+    -> (XPub -> k 'AccountK XPub)
     -> AccountPostData
     -> Handler ApiWallet
-postAccountWallet ctx body = do
-    let state = mkSeqStateFromAccountXPub accXPub g
+postAccountWallet ctx liftKey body = do
+    let state = mkSeqStateFromAccountXPub (liftKey accXPub) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
@@ -556,7 +572,7 @@ postAccountWallet ctx body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ digest accXPub
+    wid = WalletId $ digest (liftKey accXPub)
 
 mkShelleyWallet
     :: forall ctx s t k n.
@@ -710,7 +726,7 @@ postRandomWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Rnd.generateKeyFromSeed seed pwd
+    rootXPrv = Byron.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postRandomWalletFromXPrv
@@ -754,7 +770,7 @@ postIcarusWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromSeed seed pwd
+    rootXPrv = Icarus.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postTrezorWallet
@@ -774,7 +790,7 @@ postTrezorWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromSeed seed pwd
+    rootXPrv = Icarus.generateKeyFromSeed seed pwd
       where seed = getApiMnemonicT (body ^. #mnemonicSentence)
 
 postLedgerWallet
@@ -794,7 +810,7 @@ postLedgerWallet ctx body = do
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
-    rootXPrv = Ica.generateKeyFromHardwareLedger mw pwd
+    rootXPrv = Icarus.generateKeyFromHardwareLedger mw pwd
       where mw = getApiMnemonicT (body ^. #mnemonicSentence)
 
 {-------------------------------------------------------------------------------
@@ -986,9 +1002,9 @@ getUTxOsStatistics ctx (ApiT wid) = do
 selectCoins
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , DelegationAddress n k
-        , k ~ ShelleyKey
         , s ~ SeqState n k
+        , DelegationAddress n k
+        , SoftDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1030,7 +1046,6 @@ putRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s t k
-        , PaymentAddress n ByronKey
         )
     => ctx
     -> ApiT WalletId
@@ -1047,7 +1062,6 @@ listAddresses
         , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
-        , IsOurs s ChimericAccount
         )
     => ctx
     -> (s -> Address -> Maybe Address)
@@ -1075,8 +1089,6 @@ postTransaction
         ( Buildable (ErrValidateSelection t)
         , GenChange s
         , IsOwned s k
-        , NFData s
-        , Show s
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1205,8 +1217,10 @@ joinStakePool
     :: forall ctx s t n k e.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , k ~ ShelleyKey
+        , IsOwned s k
+        , GenChange s
         , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1237,7 +1251,6 @@ joinStakePool ctx spl apiPoolId (ApiT wid) body = do
 delegationFee
     :: forall ctx s t n k.
         ( s ~ SeqState n k
-        , k ~ ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1253,8 +1266,10 @@ quitStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , k ~ ShelleyKey
+        , IsOwned s k
+        , GenChange s
         , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1304,15 +1319,14 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n.
-        ( Show s
-        , NFData s
-        , IsOwned s k
-        , DelegationAddress n ShelleyKey
+    :: forall s t k k' n.
+        ( IsOwned s k
+        , SoftDerivation k'
+        , DelegationAddress n k'
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    -> ApiLayer (SeqState n k') t k'
         -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet

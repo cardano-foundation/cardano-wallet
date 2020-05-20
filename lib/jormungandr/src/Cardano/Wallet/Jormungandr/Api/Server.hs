@@ -91,8 +91,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -114,20 +114,20 @@ import Servant
 
 -- | A Servant server for our wallet API
 server
-    :: forall t n byron icarus shelley.
+    :: forall t n byron icarus jormungandr.
         ( byron ~ ApiLayer (RndState 'Mainnet) t ByronKey
         , icarus ~ ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
-        , shelley ~ ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        , DelegationAddress n ShelleyKey
+        , jormungandr ~ ApiLayer (SeqState n JormungandrKey) t JormungandrKey
+        , DelegationAddress n JormungandrKey
         , Buildable (ErrValidateSelection t)
         )
     => byron
     -> icarus
-    -> shelley
+    -> jormungandr
     -> StakePoolLayer ErrListStakePools IO
     -> NtpClient
     -> Server (Api n)
-server byron icarus shelley spl ntp =
+server byron icarus jormungandr spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -141,32 +141,32 @@ server byron icarus shelley spl ntp =
     :<|> proxy
   where
     wallets :: Server Wallets
-    wallets = deleteWallet shelley
-        :<|> (fmap fst . getWallet shelley mkShelleyWallet)
-        :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postWallet shelley
-        :<|> putWallet shelley mkShelleyWallet
-        :<|> putWalletPassphrase shelley
-        :<|> getUTxOsStatistics shelley
+    wallets = deleteWallet jormungandr
+        :<|> (fmap fst . getWallet jormungandr mkShelleyWallet)
+        :<|> (fmap fst <$> listWallets jormungandr mkShelleyWallet)
+        :<|> postWallet jormungandr generateKeyFromSeed JormungandrKey
+        :<|> putWallet jormungandr mkShelleyWallet
+        :<|> putWalletPassphrase jormungandr
+        :<|> getUTxOsStatistics jormungandr
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
+    addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley
+    coinSelections = selectCoins jormungandr
 
     transactions :: Server (Transactions n)
     transactions =
-        postTransaction shelley (delegationAddress @n)
-        :<|> listTransactions shelley
-        :<|> postTransactionFee shelley
-        :<|> deleteTransaction shelley
+        postTransaction jormungandr (delegationAddress @n)
+        :<|> listTransactions jormungandr
+        :<|> postTransactionFee jormungandr
+        :<|> deleteTransaction jormungandr
 
     stakePools :: Server (StakePools n)
     stakePools = listPools spl
-        :<|> joinStakePool shelley spl
-        :<|> quitStakePool shelley
-        :<|> delegationFee shelley
+        :<|> joinStakePool jormungandr spl
+        :<|> quitStakePool jormungandr
+        :<|> delegationFee jormungandr
 
     byronWallets :: Server ByronWallets
     byronWallets =
@@ -235,8 +235,8 @@ server byron icarus shelley spl ntp =
                 (icarus, getMigrationInfo icarus wid)
              )
         :<|> (\from to pwd -> withLegacyLayer from
-                (byron , migrateWallet byron  shelley from to pwd)
-                (icarus, migrateWallet icarus shelley from to pwd)
+                (byron , migrateWallet byron  jormungandr from to pwd)
+                (icarus, migrateWallet icarus jormungandr from to pwd)
              )
 
     network :: Server Network
@@ -245,11 +245,11 @@ server byron icarus shelley spl ntp =
         :<|> (getNetworkParameters genesis)
         :<|> (getNetworkClock ntp)
       where
-        nl = shelley ^. networkLayer @t
-        genesis = shelley ^. genesisData
+        nl = jormungandr ^. networkLayer @t
+        genesis = jormungandr ^. genesisData
 
     proxy :: Server Proxy_
-    proxy = postExternalTransaction shelley
+    proxy = postExternalTransaction jormungandr
 
 instance LiftHandler ErrListStakePools where
      handler = \case

@@ -61,8 +61,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -250,7 +250,7 @@ bgroupSeqState db = bgroup "SeqState"
 -- - ~45 inputs
 -- - ~155 outputs
 --
--- In Shelley with Jörmungandr, we have a soft max size of 8Kb (64Kb hard).
+-- In Jormungandr with Jörmungandr, we have a soft max size of 8Kb (64Kb hard).
 --
 -- A transaction size is roughly:
 --
@@ -259,7 +259,7 @@ bgroupSeqState db = bgroup "SeqState"
 -- - size of all inputs: 41 bytes * nInputs
 -- - size of all outputs: 41 bytes * nOutputs
 --
--- This means a transaction in Shelley can't have more than (worst case):
+-- This means a transaction in Jormungandr can't have more than (worst case):
 --
 -- - ~78 inputs
 -- - ~200 outputs
@@ -514,7 +514,7 @@ benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
 
 mkPool
     :: forall c. (Typeable c)
-    => Int -> Int -> AddressPool c ShelleyKey
+    => Int -> Int -> AddressPool c JormungandrKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j) | j <- [1..numAddrs] ]
@@ -597,8 +597,8 @@ benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
-type WalletBench = Wallet (SeqState 'Mainnet ShelleyKey)
+type DBLayerBench = DBLayer IO (SeqState 'Mainnet JormungandrKey) JormungandrKey
+type WalletBench = Wallet (SeqState 'Mainnet JormungandrKey)
 
 instance NFData (DBLayer m s k) where
     rnf _ = ()
@@ -610,7 +610,7 @@ testCp :: WalletBench
 testCp = snd $ initWallet block0 genesisParameters initDummyState
 
 {-# NOINLINE initDummyState #-}
-initDummyState :: SeqState 'Mainnet ShelleyKey
+initDummyState :: SeqState 'Mainnet JormungandrKey
 initDummyState =
     mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
   where
@@ -633,12 +633,12 @@ testWid = WalletId (hash ("test" :: ByteString))
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
 
-ourAccount :: ShelleyKey 'AccountK XPub
+ourAccount :: JormungandrKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
-rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount :: JormungandrKey 'AddressK XPub
 rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
@@ -650,7 +650,7 @@ label prefix n = B8.take 32 $ B8.pack (prefix <> show n) <> B8.replicate 32 '0'
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
     delegationAddress @'Mainnet
-        (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
+        (JormungandrKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
         rewardAccount
   where
     -- Generate a seed using two prime numbers and a pair of index. This should

@@ -23,8 +23,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveRewardAccount
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..), ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), KnownNetwork (..), generateKeyFromSeed )
 import Control.Monad
     ( forM_ )
 import Data.Text
@@ -189,7 +189,7 @@ mnemonicsToAccountAddress m1 m2 = do
 
     -- Derive an account address corresponding to a reward account, from a root key
     mkAccountAddress
-        :: ShelleyKey 'RootK XPrv
+        :: JormungandrKey 'RootK XPrv
         -> Text
     mkAccountAddress =
         Bech32.encodeLenient hrp

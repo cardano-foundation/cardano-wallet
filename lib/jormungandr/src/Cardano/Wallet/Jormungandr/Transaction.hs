@@ -36,8 +36,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -63,7 +63,7 @@ import Fmt
 
 import qualified Data.ByteString.Lazy as BL
 
--- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
+-- | Construct a 'TransactionLayer' compatible with Jormungandr and 'Jörmungandr'
 newTransactionLayer
     :: forall k t.
         ( t ~ Jormungandr
@@ -142,15 +142,15 @@ newTransactionLayer block0H = TransactionLayer
 -- - ByronKey can only be used with legacy / Byron wallets as they require a
 --   special address structure (to embed the derivation path).
 --
--- - ShelleyKey could theorically be used with the legacy address structure (as
--- Yoroi does) however, our implementation only associate ShelleyKey to new
+-- - JormungandrKey could theorically be used with the legacy address structure (as
+-- Yoroi does) however, our implementation only associate JormungandrKey to new
 -- addresses.
 class TxWitnessTagFor (k :: Depth -> * -> *) where
     txWitnessTagFor :: TxWitnessTag
 
-instance TxWitnessTagFor ShelleyKey where txWitnessTagFor = TxWitnessUTxO
-instance TxWitnessTagFor IcarusKey  where txWitnessTagFor = TxWitnessLegacyUTxO
-instance TxWitnessTagFor ByronKey   where txWitnessTagFor = TxWitnessLegacyUTxO
+instance TxWitnessTagFor JormungandrKey where txWitnessTagFor = TxWitnessUTxO
+instance TxWitnessTagFor IcarusKey      where txWitnessTagFor = TxWitnessLegacyUTxO
+instance TxWitnessTagFor ByronKey       where txWitnessTagFor = TxWitnessLegacyUTxO
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts

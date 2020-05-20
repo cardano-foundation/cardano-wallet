@@ -8,7 +8,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivation.ShelleySpec
+module Cardano.Wallet.Primitive.AddressDerivation.JormungandrSpec
     ( spec
     ) where
 
@@ -16,6 +16,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Crypto.Wallet
+    ( XPub (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -32,9 +34,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , paymentAddress
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( KnownNetwork (..)
-    , ShelleyKey (..)
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..)
+    , KnownNetwork (..)
     , generateKeyFromSeed
     , minSeedLengthBytes
     , publicKeySize
@@ -92,12 +94,12 @@ spec = do
 
         it "throws when encoding XPub of invalid length (Mainnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @'Mainnet (ShelleyKey $ CC.XPub "\148" cc))
+            evaluate (paymentAddress @'Mainnet (JormungandrKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
         it "throws when encoding XPub of invalid length (Testnet)" $ do
             let msg = "length was 2, but expected to be 33"
-            evaluate (paymentAddress @('Testnet _) (ShelleyKey $ CC.XPub "\148" cc))
+            evaluate (paymentAddress @('Testnet _) (JormungandrKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
     describe "KeyFingerprint" $ do
@@ -149,7 +151,7 @@ prop_publicChildKeyDerivation
 prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
     addrXPub1 === addrXPub2
   where
-    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) encPwd :: ShelleyKey 'AccountK XPrv
+    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) encPwd :: JormungandrKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
     addrXPub1 = publicKey $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
@@ -163,7 +165,7 @@ prop_accountKeyDerivation
 prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     accXPub `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: ShelleyKey 'RootK XPrv
+    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: JormungandrKey 'RootK XPrv
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 -- | Single addresses have a payment key but no delegation key
@@ -171,31 +173,31 @@ prop_fingerprintSingleAddress
     :: SingleAddress ('Testnet pm)
     -> Property
 prop_fingerprintSingleAddress (SingleAddress addr) = property $
-    isRight (paymentKeyFingerprint @ShelleyKey addr)
+    isRight (paymentKeyFingerprint @JormungandrKey addr)
 
 -- | Grouped addresses have a payment key and a delegation key
 prop_fingerprintGroupedAddress
     :: GroupedAddress ('Testnet pm)
     -> Property
 prop_fingerprintGroupedAddress (GroupedAddress addr) = property $
-    isRight (paymentKeyFingerprint @ShelleyKey addr)
+    isRight (paymentKeyFingerprint @JormungandrKey addr)
 
 -- | Inspecting Invalid addresses throws
 prop_fingerprintInvalidAddress
     :: InvalidAddress
     -> Property
 prop_fingerprintInvalidAddress (InvalidAddress addr) = property $
-    isLeft (paymentKeyFingerprint @ShelleyKey addr)
+    isLeft (paymentKeyFingerprint @JormungandrKey addr)
 
 -- | liftPaymentKeyFingerprint <$> paymentKeyFingerprint addr = Right addr
 prop_fingerprintRoundtrip
     :: forall (n :: NetworkDiscriminant).
-        ( PaymentAddress n ShelleyKey
+        ( PaymentAddress n JormungandrKey
         )
     => SingleAddress n
     -> Property
 prop_fingerprintRoundtrip (SingleAddress addr) =
-    (liftPaymentAddress @n <$> paymentKeyFingerprint @ShelleyKey addr)
+    (liftPaymentAddress @n <$> paymentKeyFingerprint @JormungandrKey addr)
         === Right addr
 
 {-------------------------------------------------------------------------------

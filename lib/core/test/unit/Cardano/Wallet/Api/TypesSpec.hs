@@ -23,6 +23,8 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
+import Cardano.Crypto.Wallet
+    ( XPub (..) )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -107,8 +109,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMaxLength
     , passphraseMinLength
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( genAddress, genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -998,7 +1000,7 @@ httpApiDataRoundtrip proxy =
 -- | Generate addresses from the given keys and compare the result with an
 -- expected output obtained from jcli (see appendix below)
 goldenTestAddr
-    :: forall n. (DelegationAddress n ShelleyKey, EncodeAddress n)
+    :: forall n. (DelegationAddress n JormungandrKey, EncodeAddress n)
     => Proxy n
     -> [ByteString]
     -> Text
@@ -1006,12 +1008,12 @@ goldenTestAddr
 goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
     case traverse (convertFromBase Base16) pubkeys of
         Right [spendingKey] -> do
-            let xpub = ShelleyKey (CC.XPub spendingKey chainCode)
+            let xpub = JormungandrKey (XPub spendingKey chainCode)
             let addr = encodeAddress @n (paymentAddress @n xpub)
             addr `shouldBe` expected
         Right [spendingKey, delegationKey] -> do
-            let xpubSpending = ShelleyKey (CC.XPub spendingKey chainCode)
-            let xpubDeleg = ShelleyKey (CC.XPub delegationKey chainCode)
+            let xpubSpending = JormungandrKey (XPub spendingKey chainCode)
+            let xpubDeleg = JormungandrKey (XPub delegationKey chainCode)
             let addr = encodeAddress @n (delegationAddress @n xpubSpending xpubDeleg)
             addr `shouldBe` expected
         _ ->
@@ -1150,7 +1152,7 @@ instance Arbitrary AccountPostData where
         seed <- SomeMnemonic <$> genMnemonic @15
         let rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
         let accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv minBound
-        pure $ AccountPostData wName (ApiAccountPublicKey $ ApiT accXPub) Nothing
+        pure $ AccountPostData wName (ApiAccountPublicKey $ ApiT $ getKey accXPub) Nothing
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
