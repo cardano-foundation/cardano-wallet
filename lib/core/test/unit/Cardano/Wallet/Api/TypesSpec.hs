@@ -73,8 +73,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
-    , ApiWalletMigrateData (..)
     , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData (..)
@@ -333,7 +333,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrateData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
@@ -763,13 +763,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiWalletMigrateData" $ property $ \x ->
+        it "ApiWalletMigrationPostData" $ property $ \x ->
             let
-                x' = ApiWalletMigrateData
+                x' = ApiWalletMigrationPostData
                     { passphrase =
-                        passphrase (x :: ApiWalletMigrateData ('Testnet 0))
+                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0))
                     , addresses =
-                        addresses (x :: ApiWalletMigrateData ('Testnet 0))
+                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1129,12 +1129,12 @@ instance Arbitrary ApiWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrateData n) where
+instance Arbitrary (ApiWalletMigrationPostData n) where
     arbitrary = do
         n <- choose (1,256)
         pwd <- arbitrary
         addr <- vector n
-        pure $ ApiWalletMigrateData pwd ((, Proxy @n) <$> addr)
+        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addr)
 
 instance Arbitrary ApiWalletPassphrase where
     arbitrary = genericArbitrary
@@ -1644,9 +1644,9 @@ instance ToSchema ApiWalletMigrationInfo where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationInfo"
 
-instance ToSchema (ApiWalletMigrateData t) where
+instance ToSchema (ApiWalletMigrationPostData t) where
     declareNamedSchema _ =
-        declareSchemaForDefinition "ApiWalletMigrateData"
+        declareSchemaForDefinition "ApiWalletMigrationPostData"
 
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =

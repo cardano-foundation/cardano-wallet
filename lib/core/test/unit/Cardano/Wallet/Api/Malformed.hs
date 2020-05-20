@@ -57,7 +57,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData
     , ApiT (..)
     , ApiTxId
-    , ApiWalletMigrateData
+    , ApiWalletMigrationPostData
     , ApiWalletPassphrase
     , ByronWalletPutPassphraseData
     , PostExternalTransactionData
@@ -917,12 +917,12 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
-instance Malformed (BodyParam (ApiWalletMigrateData ('Testnet pm))) where
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrateData(ApiWalletMigrateData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrateData(ApiWalletMigrateData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
@@ -1388,12 +1388,12 @@ migrateDataCases =
     , ( [aesonQQ|
         { "passphrase": "Secure Passphrase"
         }|]
-      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrateData(ApiWalletMigrateData) failed, key 'addresses' not found"
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'addresses' not found"
       )
     , ( [aesonQQ|
         { "addresses": 1
         }|]
-      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrateData(ApiWalletMigrateData) failed, key 'passphrase' not found"
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'passphrase' not found"
       )
     , ( [aesonQQ|
         { "passphrase": 1

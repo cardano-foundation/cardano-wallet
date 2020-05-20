@@ -63,6 +63,7 @@ import Test.QuickCheck
     , applyArbitrary2
     , checkCoverageWith
     , choose
+    , counterexample
     , cover
     , elements
     , generate
@@ -165,8 +166,7 @@ prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
     let txsCoinValue = map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
 
-
--- For all transactions created from a selections, the inputs within
+-- For all transactions created from selections, the inputs within
 -- transactions should be identical to the inputs within selections.
 prop_allInputsAreUsed
     :: CoinSelectionsSetup
@@ -211,7 +211,8 @@ prop_fairAddressesRecycled (CoinSelectionsSetup cs addrs) = do
     let addrsCounts = getAllAddrCounts $ assignMigrationAddresses addrs sels
     let maxAddressCountDiff :: [Int] -> Bool
         maxAddressCountDiff xs = L.maximum xs - L.minimum xs <= 1
-    maxAddressCountDiff addrsCounts === True
+    counterexample (show addrsCounts) $
+        maxAddressCountDiff addrsCounts === True
 
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests

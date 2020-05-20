@@ -169,8 +169,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
-    , ApiWalletMigrateData (..)
     , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
@@ -1332,7 +1332,7 @@ migrateWallet
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
-    -> ApiWalletMigrateData n
+    -> ApiWalletMigrationPostData n
     -> Handler [ApiTransaction n]
 migrateWallet ctx (ApiT wid) migrateData = do
     -- TO DO check if addrs are not empty

@@ -79,7 +79,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
-    , ApiWalletMigrateData (..)
+    , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
 
     -- * API Types (Byron)
@@ -114,7 +114,7 @@ module Cardano.Wallet.Api.Types
     , ApiTransactionT
     , PostTransactionDataT
     , PostTransactionFeeDataT
-    , ApiWalletMigrateDataT
+    , ApiWalletMigrationPostDataT
     ) where
 
 import Prelude
@@ -597,7 +597,8 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
-data ApiWalletMigrateData (n :: NetworkDiscriminant) = ApiWalletMigrateData
+data ApiWalletMigrationPostData (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase "lenient"))
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
@@ -1175,9 +1176,9 @@ instance DecodeAddress n => FromJSON (ApiTransaction n) where
 instance EncodeAddress n => ToJSON (ApiTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (ApiWalletMigrateData n) where
+instance DecodeAddress n => FromJSON (ApiWalletMigrationPostData n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletMigrateData n) where
+instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
@@ -1524,7 +1525,7 @@ type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
-type family ApiWalletMigrateDataT (n :: k) :: *
+type family ApiWalletMigrationPostDataT (n :: k) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -1547,5 +1548,5 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
 
-type instance ApiWalletMigrateDataT (n :: NetworkDiscriminant) =
-    ApiWalletMigrateData n
+type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPostData n
