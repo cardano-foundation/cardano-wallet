@@ -410,6 +410,12 @@ x-transactionDirection: &transactionDirection
     - outgoing
     - incoming
 
+x-addresses: &addresses
+  description: A list of addresses
+  type: array
+  minItems: 1
+  items: *addressId
+
 x-transactionInputs: &transactionInputs
   description: A list of transaction inputs
   type: array
@@ -873,7 +879,7 @@ components:
         state: *walletState
         tip: *blockReference
 
-    ApiByronWalletMigrationInfo: &ApiByronWalletMigrationInfo
+    ApiWalletMigrationInfo: &ApiWalletMigrationInfo
       type: object
       required:
         - migration_cost
@@ -888,6 +894,19 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
+
+    ApiWalletMigrationPostData: &ApiWalletMigrationPostData
+      type: object
+      required:
+        - passphrase
+        - addresses
+      properties:
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        addresses:
+          <<: *addresses
+          description: The recipient addresses.
 
     ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
       type: object
@@ -1377,7 +1396,7 @@ x-responsesGetByronWallet: &responsesGetByronWallet
       application/json:
         schema: *ApiByronWallet
 
-x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
+x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
@@ -1385,9 +1404,9 @@ x-responsesGetByronWalletMigrationInfo: &responsesGetByronWalletMigrationInfo
     description: Ok
     content:
       application/json:
-        schema: *ApiByronWalletMigrationInfo
+        schema: *ApiWalletMigrationInfo
 
-x-responsesMigrateByronWallet: &responsesMigrateByronWallet
+x-responsesMigrateWallet: &responsesMigrateWallet
   <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr405
@@ -2140,13 +2159,13 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Calculate the exact cost of migrating from a Byron wallet to a new
-        wallet.
+        Calculate the exact cost of migrating from a Byron wallet to
+        the specified set of addresses.
       parameters:
-        - *parametersWalletId
-      responses: *responsesGetByronWalletMigrationInfo
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
 
-  /byron-wallets/{sourceWalletId}/migrations/{targetWalletId}:
     post:
       operationId: migrateByronWallet
       tags: ["Byron Migrations"]
@@ -2154,18 +2173,16 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Migrate all funds from a Byron wallet to a new-style wallet.
+        Migrate all funds from a Byron wallet to set of addresses.
       parameters:
         - <<: *parametersWalletId
-          name: sourceWalletId
-        - <<: *parametersWalletId
-          name: targetWalletId
+          name: walletId
       requestBody:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPassphrase
-      responses: *responsesMigrateByronWallet
+            schema: *ApiWalletMigrationPostData
+      responses: *responsesMigrateWallet
 
   /byron-wallets/{walletId}/statistics/utxos:
     get:

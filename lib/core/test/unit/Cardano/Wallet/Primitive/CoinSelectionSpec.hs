@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -24,6 +25,8 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 
 import Prelude
 
+import Cardano.Wallet.Api.Server
+    ( assignMigrationAddresses )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -34,6 +37,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , UnsignedTx (..)
     )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
@@ -49,6 +53,8 @@ import Fmt
     ( Buildable (..), blockListF, nameF )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Confidence (..)
@@ -57,18 +63,22 @@ import Test.QuickCheck
     , applyArbitrary2
     , checkCoverageWith
     , choose
+    , counterexample
     , cover
     , elements
     , generate
     , scale
     , vector
+    , (===)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Data.ByteString as BS
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Test.QuickCheck.Monadic as QC
 
 spec :: Spec
@@ -78,6 +88,17 @@ spec = do
             checkCoverageWith
                 lowerConfidence
                 prop_utxoToListOrderDeterministic
+
+    describe "assignMigrationAddresses properties" $ do
+        prop "Selection count is preserved" prop_selectionCountPreserved
+        prop "Overall coin values are preserved" prop_coinValuesPreserved
+        prop "Coin values (sum) are preserved per transaction"
+            (prop_coinValuesPreservedPerTx sum)
+        prop "Coin values (length) are preserved per transaction"
+            (prop_coinValuesPreservedPerTx length)
+        prop "All inputs are used" prop_allInputsAreUsed
+        prop "All inputs are used per transaction" prop_allInputsAreUsedPerTx
+        prop "Addresses are recycled fairly" prop_fairAddressesRecycled
   where
     lowerConfidence :: Confidence
     lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
@@ -96,9 +117,114 @@ prop_utxoToListOrderDeterministic u = monadicIO $ QC.run $ do
         cover 90 (list0 /= list1) "shuffled" $
         list0 == Map.toList (Map.fromList list1)
 
+-- The number of created transactions should be the same as
+-- the number of selections.
+prop_selectionCountPreserved
+    :: CoinSelectionsSetup
+    -> Property
+prop_selectionCountPreserved (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    length (assignMigrationAddresses addrs sels) === length sels
+
+-- For all transactions created from selections, the coin values
+-- in transactions should be identical to the sum of change of coin values
+-- of selections.
+prop_coinValuesPreserved
+    :: CoinSelectionsSetup
+    -> Property
+prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getCoinValueFromInp =
+            sum . map (\(_, TxOut _ (Coin c)) -> c)
+    let selsCoinValue =
+            sum $
+            (\(CoinSelection inps _ _) -> getCoinValueFromInp inps) . getCS
+            <$> cs
+    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+            sum $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+    let txsCoinValue =
+            sum . map getCoinValueFromTxOut
+    txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
+
+-- For each transaction t created from a selection s, the coin values within
+-- t should be identical to the change coin values within s.
+-- (The counts and values of coins should both be identical.)
+prop_coinValuesPreservedPerTx
+    :: (Show a, Eq a)
+    => ([Word64] -> a)
+    -> CoinSelectionsSetup
+    -> Property
+prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getCoinValueFromInp =
+            f . map (\(_, TxOut _ (Coin c)) -> c)
+    let selsCoinValue =
+            (\(CoinSelection inps _ _) -> getCoinValueFromInp inps) . getCS
+            <$> cs
+    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+            f $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+    let txsCoinValue = map getCoinValueFromTxOut
+    txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
+
+-- For all transactions created from selections, the inputs within
+-- transactions should be identical to the inputs within selections.
+prop_allInputsAreUsed
+    :: CoinSelectionsSetup
+    -> Property
+prop_allInputsAreUsed (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let csInps =
+            Set.fromList $ concatMap (\(CoinSelection inp _ _) -> inp) sels
+    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let txsCoinValue = Set.fromList . concatMap getInpsFromTx
+    txsCoinValue (assignMigrationAddresses addrs sels) === csInps
+
+-- For each transaction t created from a selection s, the inputs within
+-- t should be identical to the inputs within s.
+-- (The counts and values of coins should both be identical.)
+prop_allInputsAreUsedPerTx
+    :: CoinSelectionsSetup
+    -> Property
+prop_allInputsAreUsedPerTx (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let csInps =
+             Set.fromList . (\(CoinSelection inp _ _) -> inp) <$> sels
+    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let txsCoinValue = map (Set.fromList . getInpsFromTx)
+    txsCoinValue (assignMigrationAddresses addrs sels) === csInps
+
+-- For any given pair of addresses a1 and a2 in the given address list,
+-- if a1 is used n times, then a2 should be used either n or n − 1 times.
+-- (Assuming a1 and a2 appear in order.)
+prop_fairAddressesRecycled
+    :: CoinSelectionsSetup
+    -> Property
+prop_fairAddressesRecycled (CoinSelectionsSetup cs addrs) = do
+    let sels = getCS <$> cs
+    let getAllAddrPerTx (UnsignedTx _ txouts) =
+            map (\(TxOut addr _) -> addr) $
+            NE.toList txouts
+    let getAllAddrCounts =
+            Map.elems .
+            foldr (\x -> Map.insertWith (+) x (1::Int)) Map.empty .
+            concatMap getAllAddrPerTx
+    let addrsCounts = getAllAddrCounts $ assignMigrationAddresses addrs sels
+    let maxAddressCountDiff :: [Int] -> Bool
+        maxAddressCountDiff xs = L.maximum xs - L.minimum xs <= 1
+    counterexample (show addrsCounts) $
+        maxAddressCountDiff addrsCounts === True
+
 {-------------------------------------------------------------------------------
                          Coin Selection - Unit Tests
 -------------------------------------------------------------------------------}
+
+newtype CoinSelectionForMigration = CoinSelectionForMigration
+    { getCS :: CoinSelection } deriving Show
+
+data CoinSelectionsSetup = CoinSelectionsSetup
+    { coinSelections :: [CoinSelectionForMigration]
+    , addresses :: [Address]
+    } deriving Show
 
 -- | Data for running
 data CoinSelProp = CoinSelProp
@@ -106,7 +232,7 @@ data CoinSelProp = CoinSelProp
         -- ^ Available UTxO for the selection
     , csOuts :: NonEmpty TxOut
         -- ^ Requested outputs for the payment
-    } deriving  Show
+    } deriving Show
 
 instance Buildable CoinSelProp where
     build (CoinSelProp utxo outs) = mempty
@@ -215,12 +341,34 @@ instance Arbitrary CoinSelProp where
         <$> zip (shrink utxo) (shrink outs)
     arbitrary = applyArbitrary2 CoinSelProp
 
+instance Arbitrary CoinSelectionForMigration where
+    arbitrary = do
+        txIntxOuts <- Map.toList . getUTxO <$> arbitrary
+        let chgs = map (\(_, TxOut _ c) -> c) txIntxOuts
+        pure $ CoinSelectionForMigration
+            $ CoinSelection txIntxOuts [] chgs
+
+instance Arbitrary CoinSelectionsSetup where
+    arbitrary = do
+        csNum <- choose (1,10)
+        addrNum <- choose (1,10)
+        addrs <- L.nub <$> vector addrNum
+        cs <- vector csNum
+        pure $ CoinSelectionsSetup cs addrs
+
 instance Arbitrary Address where
     -- No Shrinking
     arbitrary = elements
         [ Address "ADDR01"
         , Address "ADDR02"
         , Address "ADDR03"
+        , Address "ADDR04"
+        , Address "ADDR05"
+        , Address "ADDR06"
+        , Address "ADDR07"
+        , Address "ADDR08"
+        , Address "ADDR09"
+        , Address "ADDR10"
         ]
 
 instance Arbitrary Coin where

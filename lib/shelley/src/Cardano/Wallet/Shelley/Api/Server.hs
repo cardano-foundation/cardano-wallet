@@ -249,7 +249,7 @@ server byron icarus shelley ntp =
                 (byron , getMigrationInfo byron  wid)
                 (icarus, getMigrationInfo icarus wid)
              )
-        :<|> \_ _ _ -> throwError err501
+        :<|> \_ _ -> throwError err501
 
     network :: Server Network
     network =

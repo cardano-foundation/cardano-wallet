@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Server
     , withLegacyLayer
     , withLegacyLayer'
     , rndStateChange
+    , assignMigrationAddresses
     ) where
 
 import Prelude
@@ -142,7 +143,6 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
-    , ApiByronWalletMigrationInfo (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
@@ -169,6 +169,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ByronWalletFromXPrvPostData
@@ -284,6 +286,8 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
+import Data.Bifunctor
+    ( first )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -1299,13 +1303,13 @@ getMigrationInfo
         -- ^ Source wallet context (Legacy)
     -> ApiT WalletId
         -- ^ Source wallet (Legacy)
-    -> Handler ApiByronWalletMigrationInfo
+    -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     infoFromSelections <$> getSelections
   where
-    infoFromSelections :: [CoinSelection] -> ApiByronWalletMigrationInfo
+    infoFromSelections :: [CoinSelection] -> ApiWalletMigrationInfo
     infoFromSelections =
-        ApiByronWalletMigrationInfo
+        ApiWalletMigrationInfo
             . Quantity
             . fromIntegral
             . sum
@@ -1319,37 +1323,26 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k k' n.
-        ( IsOwned s k
-        , SoftDerivation k'
-        , DelegationAddress n k'
-        )
+    :: forall s t k n. IsOwned s k
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiLayer (SeqState n k') t k'
-        -- ^ Target wallet context (Shelley)
     -> ApiT WalletId
         -- ^ Source wallet
-    -> ApiT WalletId
-        -- ^ Target wallet (Shelley)
-    -> ApiWalletPassphrase
+    -> ApiWalletMigrationPostData n
     -> Handler [ApiTransaction n]
-migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
-    -- FIXME
-    -- Better error handling here to inform users if they messed up with the
-    -- wallet ids.
+migrateWallet ctx (ApiT wid) migrateData = do
+    -- TO DO check if addrs are not empty
+
     migration <- do
-        withWorkerCtx srcCtx srcWid liftE liftE $ \srcWrk ->
-            withWorkerCtx sheCtx sheWid liftE liftE $ \sheWrk -> liftHandler $ do
-                cs <- W.selectCoinsForMigration @_ @_ @t srcWrk srcWid
-                withExceptT ErrSelectForMigrationNoSuchWallet $
-                    W.assignMigrationTargetAddresses sheWrk sheWid (delegationAddress @n) cs
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+            cs <- W.selectCoinsForMigration @_ @_ @t wrk wid
+            pure $ assignMigrationAddresses addrs cs
 
     forM migration $ \cs -> do
-        (tx, meta, time, wit) <- withWorkerCtx srcCtx srcWid liftE liftE
-            $ \srcWrk -> liftHandler $ W.signTx @_ @s @t @k srcWrk srcWid pwd cs
-        withWorkerCtx srcCtx srcWid liftE liftE
-            $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk srcWid (tx, meta, wit)
+        (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd cs
+        withWorkerCtx ctx wid liftE liftE
+            $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk wid (tx, meta, wit)
         pure $ mkApiTransaction
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
@@ -1358,6 +1351,35 @@ migrateWallet srcCtx sheCtx (ApiT srcWid) (ApiT sheWid) migrateData = do
             #pendingSince
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
+    addrs = getApiT . fst <$> migrateData ^. #addresses
+
+-- | Transform the given set of migration coin selections (for a source wallet)
+--   into a set of coin selections that will migrate funds to the specified
+--   target addresses.
+--
+-- Each change entry in the specified set of coin selections is replaced with a
+-- corresponding output entry in the returned set, where the output entry has a
+-- address from specified addresses.
+--
+-- If the number of outputs in the specified coin selection is greater than
+-- the number of addresses in the specified address list, addresses will be
+-- recycled in order of their appearance in the original list.
+assignMigrationAddresses
+    :: [Address]
+    -- ^ Target addresses
+    -> [CoinSelection]
+    -- ^ Migration data for the source wallet.
+    -> [UnsignedTx]
+assignMigrationAddresses addrs selections =
+    fst $ foldr accumulate ([], cycle addrs) selections
+  where
+    accumulate sel (txs, addrsAvailable) = first
+        (\addrsSelected -> makeTx sel addrsSelected : txs)
+        (splitAt (length $ change sel) addrsAvailable)
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx
+    makeTx sel addrsSelected = UnsignedTx
+        (NE.fromList (sel ^. #inputs))
+        (NE.fromList (zipWith TxOut addrsSelected (sel ^. #change)))
 
 {-------------------------------------------------------------------------------
                                     Network

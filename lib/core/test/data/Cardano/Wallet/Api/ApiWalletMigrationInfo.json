@@ -1,63 +1,63 @@
 {
-    "seed": 3422718525108155555,
+    "seed": -2798250740542455911,
     "samples": [
         {
             "migration_cost": {
-                "quantity": 128,
+                "quantity": 53,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 67,
+                "quantity": 151,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 40,
+                "quantity": 155,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 162,
+                "quantity": 226,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 205,
+                "quantity": 136,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 231,
+                "quantity": 246,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 113,
+                "quantity": 193,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 218,
+                "quantity": 3,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 232,
+                "quantity": 109,
                 "unit": "lovelace"
             }
         },
         {
             "migration_cost": {
-                "quantity": 102,
+                "quantity": 233,
                 "unit": "lovelace"
             }
         }

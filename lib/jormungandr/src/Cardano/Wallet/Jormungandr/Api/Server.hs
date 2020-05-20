@@ -234,9 +234,9 @@ server byron icarus jormungandr spl ntp =
                 (byron , getMigrationInfo byron  wid)
                 (icarus, getMigrationInfo icarus wid)
              )
-        :<|> (\from to pwd -> withLegacyLayer from
-                (byron , migrateWallet byron  jormungandr from to pwd)
-                (icarus, migrateWallet icarus jormungandr from to pwd)
+        :<|> (\wid m -> withLegacyLayer wid
+                (byron , migrateWallet byron wid m)
+                (icarus, migrateWallet icarus wid m)
              )
 
     network :: Server Network

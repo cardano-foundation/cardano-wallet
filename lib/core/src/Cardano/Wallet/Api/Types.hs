@@ -79,11 +79,12 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
+    , ApiWalletMigrationPostData (..)
+    , ApiWalletMigrationInfo (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
-    , ApiByronWalletMigrationInfo (..)
     , ByronWalletPostData (..)
     , SomeByronWalletPostData (..)
     , ByronWalletFromXPrvPostData (..)
@@ -113,6 +114,7 @@ module Cardano.Wallet.Api.Types
     , ApiTransactionT
     , PostTransactionDataT
     , PostTransactionFeeDataT
+    , ApiWalletMigrationPostDataT
     ) where
 
 import Prelude
@@ -595,6 +597,16 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
+data ApiWalletMigrationPostData (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPostData
+    { passphrase :: !(ApiT (Passphrase "lenient"))
+    , addresses :: ![(ApiT Address, Proxy n)]
+    } deriving (Eq, Generic, Show)
+
+newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
+    { migrationCost :: Quantity "lovelace" Natural
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -780,10 +792,6 @@ data ApiByronWallet = ApiByronWallet
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
-    } deriving (Eq, Generic, Show)
-
-newtype ApiByronWalletMigrationInfo = ApiByronWalletMigrationInfo
-    { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
 data ApiWalletDiscovery
@@ -1168,6 +1176,11 @@ instance DecodeAddress n => FromJSON (ApiTransaction n) where
 instance EncodeAddress n => ToJSON (ApiTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress n => FromJSON (ApiWalletMigrationPostData n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
@@ -1290,9 +1303,9 @@ instance FromJSON ApiByronWallet where
 instance ToJSON ApiByronWallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiByronWalletMigrationInfo where
+instance FromJSON ApiWalletMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiByronWalletMigrationInfo where
+instance ToJSON ApiWalletMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostRandomAddressData where
@@ -1512,6 +1525,7 @@ type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
+type family ApiWalletMigrationPostDataT (n :: k) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -1533,3 +1547,6 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
+
+type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPostData n

@@ -97,7 +97,6 @@ import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
     , ApiAddressT
     , ApiByronWallet
-    , ApiByronWalletMigrationInfo
     , ApiCoinSelectionT
     , ApiEpochNumber
     , ApiFee
@@ -113,6 +112,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletMigrationInfo
+    , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
     , ByronWalletPutPassphraseData
     , Iso8601Time
@@ -497,17 +498,16 @@ type ByronMigrations n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
 type MigrateByronWallet n = "byron-wallets"
-    :> Capture "sourceWalletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> Capture "targetWalletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n)
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
 type GetByronWalletMigrationInfo = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> Get '[JSON] ApiByronWalletMigrationInfo
+    :> Get '[JSON] ApiWalletMigrationInfo
 
 {-------------------------------------------------------------------------------
                                   Network

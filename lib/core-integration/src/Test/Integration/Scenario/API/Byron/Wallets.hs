@@ -27,9 +27,9 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
-    , ApiByronWalletMigrationInfo (..)
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
+    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , WalletStyle (..)
     )
@@ -112,7 +112,7 @@ spec = do
         $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
             let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
@@ -124,7 +124,7 @@ spec = do
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
             let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -150,7 +150,7 @@ spec = do
             (_, w) <- unsafeRequest @ApiByronWallet ctx
                 (Link.postWallet @'Byron) payloadRestore
             let ep = Link.getMigrationInfo w
-            r <- request @ApiByronWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
