@@ -95,6 +95,7 @@ module Cardano.Wallet
     -- ** Payment
     , selectCoinsExternal
     , selectCoinsForPayment
+    , estimateFeeForPayment
     , signPayment
     , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
@@ -111,6 +112,7 @@ module Cardano.Wallet
     , joinStakePool
     , quitStakePool
     , selectCoinsForDelegation
+    , estimateFeeForDelegation
     , signDelegation
     , guardJoin
     , guardQuit
@@ -120,6 +122,10 @@ module Cardano.Wallet
     , ErrCannotQuit (..)
     , ErrSelectForDelegation (..)
     , ErrSignDelegation (..)
+
+    -- ** Fee Estimation
+    , FeeEstimation (..)
+    , estimateFeeForCoinSelection
 
     -- ** Transaction
     , forgetPendingTx
@@ -213,7 +219,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , ErrCoinSelection (..)
+    , feeBalance
+    )
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
@@ -291,7 +301,7 @@ import Cardano.Wallet.Transaction
 import Control.Exception
     ( Exception )
 import Control.Monad
-    ( forM, forM_, unless, when )
+    ( forM, forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -308,6 +318,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either
+    ( partitionEithers )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -346,6 +358,8 @@ import Numeric.Natural
     ( Natural )
 import Safe
     ( lastMay )
+import Statistics.Quantile
+    ( medianUnbiased, quantiles )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -355,6 +369,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Vector as V
 
 -- $Development
 -- __Naming Conventions__
@@ -1067,6 +1082,20 @@ selectCoinsForDelegation ctx wid = do
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger @WalletLog
 
+-- | Estimate fee for 'selectCoinsForDelegation'.
+estimateFeeForDelegation
+    :: forall ctx s t k.
+        ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrSelectForDelegation IO FeeEstimation
+estimateFeeForDelegation ctx wid =
+    estimateFeeForCoinSelection $
+    selectCoinsForDelegation @_ @s @t @k ctx wid
+
 -- | Constructs a set of coin selections that select all funds from the given
 --   source wallet, returning them as change.
 --
@@ -1098,6 +1127,22 @@ selectCoinsForMigration ctx wid = do
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
     tl = ctx ^. transactionLayer @t @k
+
+-- | Estimate fee for 'selectCoinsForPayment'.
+estimateFeeForPayment
+    :: forall ctx s t k e.
+        ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
+        , HasDBLayer s k ctx
+        , e ~ ErrValidateSelection t
+        )
+    => ctx
+    -> WalletId
+    -> NonEmpty TxOut
+    -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
+estimateFeeForPayment ctx wid recipients =
+    estimateFeeForCoinSelection $
+    selectCoinsForPayment @_ @s @t @k ctx wid recipients
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
@@ -1519,6 +1564,59 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+
+{-------------------------------------------------------------------------------
+                                 Fee Estimation
+-------------------------------------------------------------------------------}
+
+-- | Result of a fee estimation process given a wallet and payment order.
+data FeeEstimation = FeeEstimation
+    { estMinFee :: Word64
+    -- ^ Most coin selections will result in a fee higher than this.
+    , estMaxFee :: Word64
+    -- ^ Most coin selections will result in a fee lower than this.
+    } deriving (Show, Eq)
+
+-- | Estimate the transaction fee for a given coin selection algorithm by
+-- repeatedly running it (100 times) and collecting the results. In the returned
+-- 'FeeEstimation', the minimum fee is that which 90% of the sampled fees are
+-- greater than. The maximum fee is the highest fee observed in the samples.
+estimateFeeForCoinSelection
+    :: forall m err. Monad m
+    => ExceptT err m CoinSelection
+    -> ExceptT err m FeeEstimation
+estimateFeeForCoinSelection
+    = fmap deciles
+    . handleErrors
+    . replicateM repeats
+    . runExceptT
+    . fmap feeBalance
+  where
+    -- Use method R-8 from to get top 90%.
+    -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
+    deciles = mkFeeEstimation
+        . map round
+        . V.toList
+        . quantiles medianUnbiased (V.fromList [1, 10]) 10
+        . V.fromList
+        . map fromIntegral
+    mkFeeEstimation [a,b] = FeeEstimation a b
+    mkFeeEstimation _ = error "estimateFeeForCoinSelection: impossible"
+
+    -- Remove failed coin selections from samples. Unless they all failed, in
+    -- which case pass on the error.
+    handleErrors :: m [Either err a] -> ExceptT err m [a]
+    handleErrors = ExceptT . fmap skipFailed
+      where
+        skipFailed samples = case partitionEithers samples of
+            ([], []) ->
+                error "estimateFeeForCoinSelection: impossible empty list"
+            ((e:_), []) ->
+                Left e
+            (_, samples') ->
+                Right samples'
+
+    repeats = 100 -- TODO: modify repeats based on data
 
 {-------------------------------------------------------------------------------
                                   Key Store

@@ -772,9 +772,11 @@ components:
     ApiFee: &ApiFee
       type: object
       required:
-        - amount
+        - estimated_min
+        - estimated_max
       properties:
-        amount: *transactionAmount
+        estimated_min: *transactionAmount
+        estimated_max: *transactionAmount
 
     ApiTxId: &ApiTxId
       type: object
@@ -1807,7 +1809,12 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Estimate fee for the transaction.
+        Estimate fee for the transaction. The estimate is made by
+        assembling multiple transactions and analyzing the
+        distribution of their fees. The estimated_max is the highest
+        fee observed, and the estimated_min is the fee which is lower
+        than at least 90% of the fees observed.
+
       parameters:
         - *parametersWalletId
       requestBody:

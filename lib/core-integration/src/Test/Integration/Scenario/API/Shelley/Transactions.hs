@@ -626,7 +626,7 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#estimatedMin . #getQuantity) $
                 between (feeMin - amt, feeMax + amt)
             ]
 
@@ -664,7 +664,7 @@ spec = do
             (Link.getTransactionFee @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#estimatedMin . #getQuantity) $
                 between (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
@@ -706,7 +706,7 @@ spec = do
             (Link.getTransactionFee @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#estimatedMin . #getQuantity) $
                 between (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
@@ -764,7 +764,7 @@ spec = do
             (Link.getTransactionFee @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#estimatedMin . #getQuantity) $
                 between (feeMin - amt, feeMax + amt)
             ]
 

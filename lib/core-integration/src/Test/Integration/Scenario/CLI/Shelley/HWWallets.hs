@@ -237,7 +237,7 @@ spec = do
             err `shouldBe` cmdOk
             txJson <- expectValidJSON (Proxy @ApiFee) out
             verify txJson
-                [ expectCliField (#amount . #getQuantity) $
+                [ expectCliField (#estimatedMin . #getQuantity) $
                     between (feeMin - amt, feeMax + amt)
                 ]
             code `shouldBe` ExitSuccess

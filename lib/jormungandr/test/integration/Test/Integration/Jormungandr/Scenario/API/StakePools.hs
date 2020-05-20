@@ -572,7 +572,7 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status200
             ]
-        let fee = getFromResponse #amount r
+        let fee = getFromResponse #estimatedMin r
         joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectField #amount (`shouldBe` fee)
             ]
@@ -584,7 +584,7 @@ spec = do
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 2 1 1
         verify r
             [ expectResponseCode HTTP.status200
-            , expectField #amount (`shouldBe` Quantity fee)
+            , expectField #estimatedMin (`shouldBe` Quantity fee)
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \

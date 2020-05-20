@@ -499,8 +499,9 @@ newtype PostExternalTransactionData = PostExternalTransactionData
     { payload :: ByteString
     } deriving (Eq, Generic, Show)
 
-newtype ApiFee = ApiFee
-    { amount :: (Quantity "lovelace" Natural)
+data ApiFee = ApiFee
+    { estimatedMin :: !(Quantity "lovelace" Natural)
+    , estimatedMax :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiEpochNumber =

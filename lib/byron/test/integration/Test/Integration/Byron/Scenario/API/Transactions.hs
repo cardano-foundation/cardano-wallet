@@ -263,7 +263,7 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
             }
     verify r
         [ expectResponseCode HTTP.status202
-        , expectField #amount $ between (Quantity feeMin, Quantity feeMax)
+        , expectField #estimatedMin $ between (Quantity feeMin, Quantity feeMax)
         ]
   where
     title = "TRANS_ESTIMATE_01/02 - " ++ show (length fixtures) ++ " recipient(s)"
@@ -422,7 +422,7 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
             }
     verify r
         [ expectResponseCode HTTP.status202
-        , expectField #amount $ between (Quantity feeMin, Quantity feeMax)
+        , expectField #estimatedMin $ between (Quantity feeMin, Quantity feeMax)
         ]
   where
     title = "TRANS_ESTIMATE_04 - Can't cover fee"

@@ -107,7 +107,9 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( ExceptT (..), runExceptT )
+import Control.Monad.Trans.State.Strict
+    ( State, evalState, state )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -147,6 +149,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
+    , counterexample
     , elements
     , label
     , oneof
@@ -155,6 +158,7 @@ import Test.QuickCheck
     , shrinkIntegral
     , vector
     , withMaxSuccess
+    , (.&&.)
     , (===)
     , (==>)
     )
@@ -214,6 +218,10 @@ spec = do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
+
+    describe "Tx fee estimation" $
+        it "Fee estimates are sound"
+            (property prop_estimateFee)
 
     describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
@@ -449,8 +457,8 @@ walletKeyIsReencrypted
     -> Property
 walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
     monadicIO $ liftIO $ do
-        let state = Map.insert (Address "source") minBound mempty
-        let wallet = (wid, wname, DummyState state)
+        let st = Map.insert (Address "source") minBound mempty
+        let wallet = (wid, wname, DummyState st)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
         (_,_,_,txOld) <-
@@ -489,6 +497,68 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
                 (\(tx, meta) -> (txId tx, slotIdTime (meta ^. #slotId))) <$> history
         times `shouldBe` expTimes
 
+
+{-------------------------------------------------------------------------------
+                        Properties of tx fee estimation
+-------------------------------------------------------------------------------}
+
+-- | Properties of 'estimateFeeForCoinSelection':
+-- 1. There is no coin selection with a fee above the estimated maximum.
+-- 2. The minimum estimated fee is no greater than the maximum estimated fee.
+-- 3. Around 10% of fees are below the estimated minimum.
+prop_estimateFee :: NonEmptyList (Either String FeeGen) -> Property
+prop_estimateFee (NonEmpty results) = case actual of
+    Left err -> label "errors: all" $
+        Left err === head results
+    Right estimation@(W.FeeEstimation minFee maxFee) ->
+        label ("errors: " <> if any isLeft results then "some" else "none") $
+        counterexample (show estimation) $
+            maxFee <= maximum (map (getRight 0) results) .&&.
+            minFee <= maxFee .&&.
+            (proportionBelow minFee results `closeTo` (1/10 :: Double))
+  where
+    actual :: Either String W.FeeEstimation
+    actual = runTest results' (W.estimateFeeForCoinSelection mockCoinSelection)
+
+    -- infinite list of CoinSelections (or errors) matching the given fee
+    -- amounts.
+    results' = fmap coinSelectionForFee <$> L.cycle results
+
+    -- Pops a pre-canned result off the state and returns it
+    mockCoinSelection
+        :: ExceptT String (State [Either String CoinSelection]) CoinSelection
+    mockCoinSelection = ExceptT $ state (\(r:rs) -> (r,rs))
+
+    runTest vals action = evalState (runExceptT action) vals
+
+    -- Find the number of results below the "minimum" estimate.
+    countBelow minFee =
+        count ((< minFee) . getRight maxBound)
+    proportionBelow minFee xs = fromIntegral (countBelow minFee xs)
+        / fromIntegral (count isRight xs)
+    count p = length . filter p
+
+    -- get the coin amount from a Right FeeGen, or a default value otherwise.
+    getRight d = either (const d) (getCoin . unFeeGen)
+
+    -- Two fractions are close to each other if they are within 20% either way.
+    closeTo a b =
+        counterexample (show a <> " & " <> show b <> " are not close enough") $
+        property $ abs (a - b) < (1/5)
+
+-- | A fee amount that has a uniform random distribution in the range 1-100.
+newtype FeeGen = FeeGen { unFeeGen :: Coin } deriving (Show, Eq)
+
+instance Arbitrary FeeGen where
+    arbitrary = FeeGen . Coin <$> choose (1,100)
+
+-- | Manufacture a coin selection that would result in the given fee.
+coinSelectionForFee :: FeeGen -> CoinSelection
+coinSelectionForFee (FeeGen (Coin fee)) = CoinSelection
+    { inputs = [(TxIn (Hash "") 0, TxOut (Address "") (Coin (1 + fee)))]
+    , outputs = [TxOut (Address "") (Coin 1)]
+    , change = []
+    }
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
