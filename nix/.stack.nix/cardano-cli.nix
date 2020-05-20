@@ -71,7 +71,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-          (hsPkgs."cardano-node" or (buildDepError "cardano-node"))
           (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
@@ -109,9 +108,10 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           depends = [
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."cardano-cli" or (buildDepError "cardano-cli"))
-            (hsPkgs."cardano-node" or (buildDepError "cardano-node"))
+            (hsPkgs."cardano-config" or (buildDepError "cardano-config"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
+            (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."transformers-except" or (buildDepError "transformers-except"))
             ];
           buildable = true;
@@ -137,8 +137,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "4b557bbeb2b43f0be6b97cb7f46b1723728447f0";
-      sha256 = "02crx7v7zzbpa0ni9kyxhin29ns4dbi8qkk4r7cv85ij43jc8d1r";
+      rev = "522b4f4fb3bf1abcab28c905b70ff751cd71bde2";
+      sha256 = "10ppxdyll0vd0k4jb223md94594r9l03sqgjd59jh791rzvhwfrv";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }

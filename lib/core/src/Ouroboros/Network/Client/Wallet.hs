@@ -99,6 +99,8 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( AcquireFailure )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..), LocalTxSubmissionClient (..) )
+import Ouroboros.Network.Protocol.LocalTxSubmission.Type
+    ( SubmitResult (..) )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
@@ -508,7 +510,7 @@ localStateQuery queue =
 
 -- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
 data LocalTxSubmissionCmd tx err (m :: * -> *)
-    = CmdSubmitTx tx (Maybe err -> m ())
+    = CmdSubmitTx tx (SubmitResult err -> m ())
 
 -- | Client for the 'Local Tx Submission' mini-protocol.
 --

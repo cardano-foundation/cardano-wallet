@@ -172,7 +172,7 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( localTxSubmissionClientPeer )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
-    ( LocalTxSubmission )
+    ( LocalTxSubmission, SubmitResult (..) )
 import System.IO.Error
     ( isDoesNotExistError )
 
@@ -277,8 +277,8 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
         result <- liftIO $ localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx)
         case result of
-            Nothing  -> pure ()
-            Just err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+            SubmitSuccess -> pure ()
+            SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
     _stakeDistribution =
         notImplemented "stakeDistribution"
