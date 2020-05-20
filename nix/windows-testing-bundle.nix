@@ -49,7 +49,7 @@ in pkgs.runCommand name {
   done
 
   # Copy test data to location expected by test suites.
-  for data in ${pkgs.lib.attrValues testData}; do
+  for data in ${toString (pkgs.lib.attrValues testData)}; do
     cp -Rv --no-preserve=mode $data/* test/data
   done
 
