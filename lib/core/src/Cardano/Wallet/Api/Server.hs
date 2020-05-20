@@ -1323,11 +1323,7 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n.
-        ( Show s
-        , NFData s
-        , IsOwned s k
-        )
+    :: forall s t k n. IsOwned s k
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
