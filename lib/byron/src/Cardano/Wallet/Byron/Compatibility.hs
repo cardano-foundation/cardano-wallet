@@ -5,8 +5,14 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
+-- Orphan instances for {Encode,Decode}Address until we get rid of the
+-- Jörmungandr dual support.
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -79,20 +85,38 @@ import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..), EncodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( decodeLegacyAddress )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( maybeToEither )
+import Data.Function
+    ( (&) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
 import GHC.Stack
     ( HasCallStack )
+import GHC.TypeLits
+    ( KnownNat )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Byron.Ledger
@@ -127,6 +151,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
@@ -439,3 +464,47 @@ fromNetworkMagic (NetworkMagic magic) =
 
 fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
 fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
+
+{-------------------------------------------------------------------------------
+                      Address Encoding / Decoding
+-------------------------------------------------------------------------------}
+
+instance EncodeAddress 'Mainnet where
+    encodeAddress =
+        gEncodeAddress
+
+instance EncodeAddress ('Testnet pm) where
+    encodeAddress =
+        gEncodeAddress
+
+gEncodeAddress :: W.Address -> Text
+gEncodeAddress (W.Address bytes) =
+    T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+
+instance DecodeAddress 'Mainnet where
+    decodeAddress =
+        gDecodeAddress (decodeLegacyAddress Nothing)
+
+instance KnownNat pm => DecodeAddress ('Testnet pm) where
+    decodeAddress =
+        gDecodeAddress (decodeLegacyAddress $ Just $ W.testnetMagic @pm)
+
+gDecodeAddress
+    :: (ByteString -> Maybe W.Address)
+    -> Text
+    -> Either TextDecodingError W.Address
+gDecodeAddress decodeByron text =
+    case tryBase58 of
+        Just bytes ->
+            decodeByron bytes
+                & maybeToEither (TextDecodingError
+                    "Unable to decode Address: not a well-formed Byron Address.")
+
+        Nothing ->
+            Left $ TextDecodingError
+                "Unable to decode Address: not a valid Base58 encoded string."
+  where
+    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+    tryBase58 :: Maybe ByteString
+    tryBase58 =
+        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)

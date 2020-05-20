@@ -10,16 +10,12 @@
 
 module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
-
-    -- * Generators
-    , genAddress
-    , genLegacyAddress
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubFromBytes )
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), MkSomeMnemonicError (..), SomeMnemonic (..) )
 import Cardano.Wallet.Gen
@@ -29,7 +25,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , Index
-    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -46,9 +41,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), KnownNetwork (..) )
+    ( JormungandrKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), PassphraseScheme (..), ProtocolMagic (..) )
+    ( Hash (..), PassphraseScheme (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad
@@ -72,7 +67,6 @@ import Test.QuickCheck
     , expectFailure
     , oneof
     , property
-    , vector
     , (.&&.)
     , (===)
     , (==>)
@@ -84,11 +78,10 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Ica
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Seq
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -475,19 +468,19 @@ genRootKeysSeqWithPass
 genRootKeysSeqWithPass encryptionPass = do
     s <- SomeMnemonic <$> genMnemonic @15
     g <- Just . SomeMnemonic <$> genMnemonic @12
-    return $ Seq.unsafeGenerateKeyFromSeed (s, g) encryptionPass
+    return $ Jormungandr.unsafeGenerateKeyFromSeed (s, g) encryptionPass
 
 genRootKeysRndWithPass
     :: Passphrase "encryption"
     -> Gen (ByronKey 'RootK XPrv)
-genRootKeysRndWithPass encryptionPass = Rnd.generateKeyFromSeed
+genRootKeysRndWithPass encryptionPass = Byron.generateKeyFromSeed
     <$> (SomeMnemonic <$> genMnemonic @12)
     <*> (pure encryptionPass)
 
 genRootKeysIcaWithPass
     :: Passphrase "encryption"
     -> Gen (IcarusKey depth XPrv)
-genRootKeysIcaWithPass encryptionPass = Ica.unsafeGenerateKeyFromSeed
+genRootKeysIcaWithPass encryptionPass = Icarus.unsafeGenerateKeyFromSeed
     <$> (SomeMnemonic <$> genMnemonic @15)
     <*> (pure encryptionPass)
 
@@ -496,29 +489,6 @@ genPassphrase range = do
     n <- choose range
     InfiniteList bytes _ <- arbitrary
     return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
-
-genAddress
-    :: forall (network :: NetworkDiscriminant). (KnownNetwork network)
-    => Gen Address
-genAddress = oneof
-    [ (\bytes -> Address (BS.pack (addrSingle @network:bytes)))
-        <$> vector Seq.publicKeySize
-    , (\bytes -> Address (BS.pack (addrGrouped @network:bytes)))
-        <$> vector (2*Seq.publicKeySize)
-    , (\bytes -> Address (BS.pack (addrAccount @network:bytes)))
-        <$> vector Seq.publicKeySize
-    ]
-
-genLegacyAddress
-    :: Maybe ProtocolMagic
-    -> Gen Address
-genLegacyAddress pm = do
-    bytes <- BS.pack <$> vector 64
-    let (Just key) = xpubFromBytes bytes
-    pure $ Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress key
-        $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12

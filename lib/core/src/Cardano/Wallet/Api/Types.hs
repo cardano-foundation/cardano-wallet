@@ -11,7 +11,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -138,10 +137,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , hex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( decodeJormungandrAddress, xpubFromText )
+    ( xpubFromText )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -171,11 +168,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , isValidCoin
-    , testnetMagic
     , unsafeEpochNo
     )
-import Codec.Binary.Bech32
-    ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( optional )
 import Control.Arrow
@@ -207,8 +201,6 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
@@ -219,8 +211,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -248,7 +238,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( KnownNat, Nat, Symbol )
+    ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
 import Servant.API
@@ -256,10 +246,7 @@ import Servant.API
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
-import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -1438,77 +1425,6 @@ class EncodeAddress (n :: NetworkDiscriminant) where
 -- backend used.
 class DecodeAddress (n :: NetworkDiscriminant) where
     decodeAddress :: Text -> Either TextDecodingError Address
-
--- | Encode an 'Address' to a human-readable format. This produces two kinds of
--- encodings:
---
--- - [Base58](https://en.wikipedia.org/wiki/Base58)
---   for legacy / Byron addresses
--- - [Bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
---   for Jormungandr/Shelley addresses
---
--- The right encoding is picked by looking at the raw 'Address' representation
--- in order to figure out to which class the address belongs.
-instance EncodeAddress 'Mainnet where
-    encodeAddress = gEncodeAddress
-
-instance EncodeAddress ('Testnet pm) where
-    encodeAddress = gEncodeAddress
-
-gEncodeAddress :: Address -> Text
-gEncodeAddress (Address bytes) =
-    if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
-        then base58
-        else bech32
-  where
-    base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
-    bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
-    hrp = [Bech32.humanReadablePart|addr|]
-
--- | Decode text string into an 'Address'. Jörmungandr recognizes two kind of
--- addresses:
---
--- - Legacy / Byron addresses encoded as `Base58`
--- - Jormungandr addresses, encoded as `Bech32`
--- - Shelley addresses, encoded as `Bech32`
---
--- See also 'EncodeAddress Jormungandr'
-instance DecodeAddress 'Mainnet where
-    decodeAddress = gDecodeAddress
-        (decodeJormungandrAddress @'Mainnet)
-        (decodeLegacyAddress Nothing)
-
-instance KnownNat pm => DecodeAddress ('Testnet pm) where
-    decodeAddress = gDecodeAddress
-        (decodeJormungandrAddress @('Testnet pm))
-        (decodeLegacyAddress $ Just $ testnetMagic @pm)
-
-gDecodeAddress
-    :: (ByteString -> Either TextDecodingError Address)
-    -> (ByteString -> Maybe Address)
-    -> Text
-    -> Either TextDecodingError Address
-gDecodeAddress decodeJormungandr decodeByron text =
-    case (tryBech32, tryBase58) of
-        (Just bytes, _) -> decodeJormungandr bytes
-        (_, Just bytes) -> decodeByron bytes
-            & maybeToEither (TextDecodingError
-            "Unable to decode Address: neither Bech32-encoded nor a \
-            \valid Byron Address.")
-        (Nothing, Nothing) -> Left $ TextDecodingError
-            "Unable to decode Address: encoding is neither Bech32 nor \
-            \Base58."
-  where
-    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
-    tryBase58 :: Maybe ByteString
-    tryBase58 =
-        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
-
-    -- | Attempt decoding an 'Address' using a Bech32 encoding.
-    tryBech32 :: Maybe ByteString
-    tryBech32 = do
-        (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
-        dataPartToBytes dp
 
 -- NOTE:
 -- The type families below are useful to allow building more flexible API

@@ -25,6 +25,8 @@ import Cardano.Wallet.Api.Types
     ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
     ( MkFragment (..), TxWitnessTag (..), fragmentId, putFragment )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ()
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , HardDerivation (..)

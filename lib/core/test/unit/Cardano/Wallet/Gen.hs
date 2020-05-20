@@ -10,12 +10,17 @@ module Cardano.Wallet.Gen
     ( genMnemonic
     , genPercentage
     , shrinkPercentage
+    , genLegacyAddress
     ) where
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( xpubFromBytes )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
 import Data.Proxy
@@ -29,6 +34,8 @@ import GHC.TypeLits
 import Test.QuickCheck
     ( Arbitrary (..), Gen, choose, vector )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 
 -- | Generates an arbitrary mnemonic of a size according to the type parameter.
@@ -59,3 +66,14 @@ shrinkPercentage x = unsafeMkPercentage <$>
   where
     p = numerator $ getPercentage x
     q = denominator $ getPercentage x
+
+genLegacyAddress
+    :: Maybe ProtocolMagic
+    -> Gen Address
+genLegacyAddress pm = do
+    bytes <- BS.pack <$> vector 64
+    let (Just key) = xpubFromBytes bytes
+    pure $ Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress key
+        $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm

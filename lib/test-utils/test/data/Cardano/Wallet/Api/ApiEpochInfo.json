@@ -1,0 +1,45 @@
+{
+    "seed": 2129687094218280713,
+    "samples": [
+        {
+            "epoch_start_time": "1868-03-01T20:17:08Z",
+            "epoch_number": 3808
+        },
+        {
+            "epoch_start_time": "1895-04-05T23:25:33.33054414108Z",
+            "epoch_number": 15380
+        },
+        {
+            "epoch_start_time": "1902-08-06T09:00:00Z",
+            "epoch_number": 29597
+        },
+        {
+            "epoch_start_time": "1904-04-20T06:04:15Z",
+            "epoch_number": 29461
+        },
+        {
+            "epoch_start_time": "1867-03-17T09:28:29.679461445876Z",
+            "epoch_number": 32499
+        },
+        {
+            "epoch_start_time": "1905-10-15T16:44:18.711565920025Z",
+            "epoch_number": 17088
+        },
+        {
+            "epoch_start_time": "1907-08-03T23:00:00Z",
+            "epoch_number": 29782
+        },
+        {
+            "epoch_start_time": "1898-06-19T05:58:35Z",
+            "epoch_number": 2546
+        },
+        {
+            "epoch_start_time": "1890-11-22T15:00:00Z",
+            "epoch_number": 14356
+        },
+        {
+            "epoch_start_time": "1893-02-13T00:04:31Z",
+            "epoch_number": 4301
+        }
+    ]
+}

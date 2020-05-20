@@ -27,6 +27,9 @@
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
+-- See comment in Cardano.Wallet.Jormungandr.Compatibility
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.ApiSpec
     ( spec
     ) where
@@ -47,8 +50,12 @@ import Cardano.Wallet.Api.Malformed
     )
 import Cardano.Wallet.Api.Server
     ( LiftHandler (..) )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -305,6 +312,13 @@ server = error
     \Tests are indeed all testing the internal machinery of Servant + Wai and \
     \the way they interact with the outside world. Only valid requests are \
     \delegated to our handlers."
+
+-- Dummy instances
+instance EncodeAddress ('Testnet 0) where
+    encodeAddress = T.pack . show
+
+instance DecodeAddress ('Testnet 0) where
+    decodeAddress _ = pure (Address "<addr>")
 
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest

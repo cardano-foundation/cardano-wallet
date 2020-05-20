@@ -181,11 +181,7 @@ instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
         "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"
 
 instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
-    malformed = first PathParam <$>
-        [ ( "NOT-AN-ADDRESS"
-          , "Unable to decode Address: encoding is neither Bech32 nor Base58."
-          )
-        ]
+    malformed = []
 
 --
 -- Class instances (BodyParam)
@@ -880,7 +876,7 @@ instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
               ( [aesonQQ|
                 { "payments": [
                     {
-                        "address": #{addrValid},
+                        "address": #{addrPlaceholder},
                         "amount": {
                             "quantity": 42000000,
                             "unit": "lovelace"
@@ -893,7 +889,7 @@ instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
             , ( [aesonQQ|
                { "payments": [
                    {
-                       "address": #{addrValid},
+                       "address": #{addrPlaceholder},
                        "amount": {
                            "quantity": 42000000,
                            "unit": "lovelace"
@@ -1037,14 +1033,8 @@ msgJsonInvalid = "I couldn't understand the content of your message. \
     \If your message is intended to be in JSON format, please check that \
     \the JSON is valid."
 
-addrValid :: Text
-addrValid = "addr1snfkjmygacv2xjdqxgvy750pxacq7v9r4ya5tyj3pmjas9mkvuh2uq0a3d2wj240n8ye5r2z52gd5m3rh0fyh5dq9p2ynae3m9p33lgg06zgge"
-
-addrTooLong :: Text
-addrTooLong = T.replicate 5000 "1"
-
-addrInvalid :: Text
-addrInvalid = T.replicate 104 "ś"
+addrPlaceholder :: Text
+addrPlaceholder = "<addr>"
 
 accountPublicKeyInvalid :: Text
 accountPublicKeyInvalid = T.replicate 128 "ś"
@@ -1206,45 +1196,6 @@ paymentCases =
       ( [aesonQQ|
         { "payments": [
             {
-                "address": "1",
-                "amount": {
-                    "quantity": 42000000,
-                    "unit": "lovelace"
-                }
-            }
-           ]
-        }|]
-      , "Error in $.payments[0].address: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
-      )
-    , ( [aesonQQ|
-        { "payments": [
-            {
-                "address": #{addrInvalid},
-                "amount": {
-                    "quantity": 42000000,
-                    "unit": "lovelace"
-                }
-            }
-           ]
-        }|]
-      , "Error in $.payments[0].address: Unable to decode Address: encoding is neither Bech32 nor Base58."
-      )
-    , ( [aesonQQ|
-        { "payments": [
-            {
-                "address": #{addrTooLong},
-                "amount": {
-                    "quantity": 42000000,
-                    "unit": "lovelace"
-                }
-            }
-           ]
-        }|]
-      , "Error in $.payments[0].address: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
-      )
-    , ( [aesonQQ|
-        { "payments": [
-            {
                 "address": 123,
                 "amount": {
                     "quantity": 42000000,
@@ -1271,7 +1222,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "quantity": 42000000,
                     "unit": "lovelaces"
@@ -1284,7 +1235,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "quantity": 42000000
                 }
@@ -1296,7 +1247,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid}
+                "address": #{addrPlaceholder}
             }
            ]
         }|]
@@ -1305,7 +1256,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "unit": "lovelace"
                 }
@@ -1317,7 +1268,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": 42000000
             }
            ]
@@ -1327,7 +1278,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "quantity": "123",
                     "unit": "lovelace"
@@ -1340,7 +1291,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "quantity": -1,
                     "unit": "lovelace"
@@ -1353,7 +1304,7 @@ paymentCases =
     , ( [aesonQQ|
         { "payments": [
             {
-                "address": #{addrValid},
+                "address": #{addrPlaceholder},
                 "amount": {
                     "quantity": 4200.12,
                     "unit": "lovelace"

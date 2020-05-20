@@ -23,8 +23,6 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
-import Cardano.Crypto.Wallet
-    ( XPub (..) )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -98,22 +96,19 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Gen
     ( genMnemonic, genPercentage, shrinkPercentage )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , HardDerivation (..)
+    ( HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
-    , PaymentAddress (..)
     , WalletKey (..)
-    , networkDiscriminantVal
     , passphraseMaxLength
     , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
-    ( genAddress, genLegacyAddress )
+    ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -126,8 +121,6 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , PoolOwner (..)
-    , ProtocolMagic (..)
-    , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -163,14 +156,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
 import Data.Char
-    ( isAlphaNum, toLower )
-import Data.Either
-    ( isRight )
+    ( toLower )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
@@ -205,8 +192,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
-import Data.Typeable
-    ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
     ( Word32, Word8 )
 import Data.Word.Odd
@@ -234,33 +219,8 @@ import Servant.Swagger.Test
     ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )
-import System.FilePath
-    ( (</>) )
-import Test.Aeson.GenericSpecs
-    ( GoldenDirectoryOption (CustomDirectoryName)
-    , Proxy (Proxy)
-    , Settings
-    , defaultSettings
-    , goldenDirectoryOption
-    , sampleSize
-    , useModuleNameAsSubDirectory
-    )
-import Test.Aeson.Internal.GoldenSpecs
-    ( goldenSpecsWithNotePlain )
-import Test.Aeson.Internal.RoundtripSpecs
-    ( roundtripSpecs )
-import Test.Aeson.Internal.Utils
-    ( TypeName (..), TypeNameInfo (..), mkTypeNameInfo )
 import Test.Hspec
-    ( Spec
-    , SpecWith
-    , describe
-    , expectationFailure
-    , it
-    , runIO
-    , shouldBe
-    , shouldSatisfy
-    )
+    ( Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -277,7 +237,6 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , vector
-    , withMaxSuccess
     , (.&&.)
     , (===)
     )
@@ -285,14 +244,13 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
-import Test.Utils.Paths
-    ( getTestData )
+import Test.Utils.Roundtrip
+    ( httpApiDataRoundtrip, jsonRoundtripAndGolden )
 import Test.Utils.Time
     ( genUniformTime )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..) )
 
-import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -311,7 +269,6 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -385,8 +342,6 @@ spec = do
             httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
             httpApiDataRoundtrip $ Proxy @Iso8601Time
             httpApiDataRoundtrip $ Proxy @(ApiT SortOrder)
-            httpApiDataRoundtrip $ Proxy @(ApiT Address, Proxy 'Mainnet)
-            httpApiDataRoundtrip $ Proxy @(ApiT Address, Proxy ('Testnet 0))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -407,12 +362,6 @@ spec = do
         validateEveryPath (Proxy :: Proxy (Api ('Testnet 0)))
 
     describe "verify JSON parsing failures too" $ do
-        it "ApiT Address" $ do
-            let msg = "Error in $: Unable to decode Address: \
-                    \encoding is neither Bech32 nor Base58."
-            Aeson.parseEither parseJSON [aesonQQ|"-----"|]
-                `shouldBe` (Left @String @(ApiT Address, Proxy ('Testnet 0)) msg)
-
         it "ApiT (Passphrase \"raw\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "raw")
             let msg = "Error in $: passphrase is too short: \
@@ -501,7 +450,7 @@ spec = do
             let msg = "Error in $.amount.quantity: parsing Natural failed, \
                     \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
+                { "address": "<addr>"
                 , "amount": {"unit":"lovelace","quantity":-14}
                 }
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
@@ -511,7 +460,7 @@ spec = do
                     \than or equal to " <> show (getCoin maxBound)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
-                { "address": "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
+                { "address": "<addr>"
                 , "amount":
                     { "unit":"lovelace"
                     ,"quantity":#{getCoin maxBound + 1}
@@ -571,130 +520,7 @@ spec = do
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
-    describe "encodeAddress & decodeAddress (Mainnet)" $ do
-        let proxy = Proxy @'Mainnet
-        it "decodeAddress . encodeAddress = pure" $
-            withMaxSuccess 1000 $ property $ \(ApiT a, _ :: Proxy 'Mainnet) ->
-                (ShowFmt <$> decodeAddress @'Mainnet (encodeAddress @'Mainnet a))
-                    === Right (ShowFmt a)
-        negativeTest proxy "ta1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677ztw225s"
-            ("This address belongs to another network. Network is: "
-            <> show (networkDiscriminantVal @'Mainnet) <> ".")
-        negativeTest proxy "EkxDbkPo"
-            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
-            \Address."
-        negativeTest proxy ".%14'"
-            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
-        negativeTest proxy "ca1qv8qurswpc8qurswpc8qurs7xnyen"
-            "Invalid address length (14): expected either 33 or 65 bytes."
-        negativeTest proxy
-            "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
-            ("This type of address is not supported: [107].")
-        negativeTest proxy
-            "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
-            \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
-            ("This type of address is not supported: [107].")
-        -- NOTE:
-        -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
-        -- as described in the annex at the end of the file.
-        goldenTestAddr proxy
-            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
-            ]
-            "addr1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677z5t3m7d"
-        goldenTestAddr proxy
-            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
-            ]
-            "addr1q00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7n5fgsv"
-        goldenTestAddr proxy
-            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
-            , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
-            ]
-            "addr1q3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
-            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wvuat2l"
-        goldenTestAddr proxy
-            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
-            , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
-            ]
-            "addr1qn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
-            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8n8hz07"
-
-    describe "encodeAddress & decodeAddress (Testnet)" $ do
-        let proxy = Proxy @('Testnet 0)
-        it "decodeAddress . encodeAddress = pure" $
-            withMaxSuccess 1000 $ property $ \(ApiT a, _ :: Proxy ('Testnet 0)) ->
-                (ShowFmt <$> decodeAddress @('Testnet 0) (encodeAddress @('Testnet 0) a))
-                    === Right (ShowFmt a)
-        negativeTest proxy "ca1qdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zqx4le2"
-            ("This address belongs to another network. Network is: "
-            <> show (networkDiscriminantVal @('Testnet 0)) <> ".")
-        negativeTest proxy "EkxDbkPo"
-            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
-            \Address."
-        negativeTest proxy ".%14'"
-            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
-        negativeTest proxy "ta1sv8qurswpc8qurswpc8qurs2l0ech"
-            "Invalid address length (14): expected either 33 or 65 bytes."
-        negativeTest proxy
-            "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
-            ("This type of address is not supported: [107].")
-        negativeTest proxy
-            "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
-            \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
-            ("This type of address is not supported: [107].")
-        goldenTestAddr proxy
-            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
-            ]
-            "addr1sdaa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677zgltetp"
-        goldenTestAddr proxy
-            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
-            ]
-            "addr1s00e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr70qn29q"
-        goldenTestAddr proxy
-            [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
-            , "b24e70b0c2ceeb24cc9f28f386478c73aa71c05a95a0119bb91dd8e89c3592ae"
-            ]
-            "addr1s3aa2wrvxxkrrwnsw6zk2qx0ymu96354hq83s0r6203l9pqe6677\
-            \rvjwwzcv9nhtynxf728nserccua2w8q949dqzxdmj8wcazwrty4wkdnx06"
-        goldenTestAddr proxy
-            [ "df9f08672a3a94778229b91daa981538883e1535d666dc10e63b438f44c63e3f"
-            , "402abff6065c847115ad22ff6b0d3a85fd69a6fcc32ed76aa8cadb305b0c51a7"
-            ]
-            "addr1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr\
-            \7sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8fke02m"
-
-    describe "Golden test addresses" $ do
-        it "Byron / Random (Mainnet)" $
-            decodeAddress @'Mainnet
-                "DdzFFzCqrhstkaXBhux3ALL9wqvP3Nkz8QE5qKwFbqkmTL6zyKpc\
-                \FpqXJLkgVhRTYkf5F7mh3q6bAv5hWYjhSV1gekjEJE8XFeZSganv"
-            `shouldSatisfy` isRight
-
-        it "Byron / Icarus (Mainnet)" $
-            decodeAddress @'Mainnet
-                "Ae2tdPwUPEZ9mpZBa3pN4CJH3xRA4cPr1HTUE1dVBF5JKNvkAKUxdK8f5L9"
-              `shouldSatisfy` isRight
-
-        it "Byron / Random (Testnet)" $
-            decodeAddress @('Testnet 1097911063)
-                "37btjrVyb4KFg2FzVkfmBWgue1qqC7oHmFNVTWYgLTHEE9wGC6xizioGw\
-                \sYPAtPbDTrvtnV7vUXAsmP7pTMx7X95AcwfUAqoLJpGJ4eaosUHGBjta4"
-              `shouldSatisfy` isRight
-
-        it "Byron / Icarus (Testnet)" $
-            decodeAddress @('Testnet 1097911063)
-                "2cWKMJemoBajA7ji3xQvAnrSESRyceRVnj\
-                \5j9kj1Tb9pzGoY5jPc142iPXfaix1DbbDF7"
-              `shouldSatisfy` isRight
-
     describe "pointless tests to trigger coverage for record accessors" $ do
-        it "ApiAddress" $ property $ \x ->
-            let
-                x' = ApiAddress
-                    { id = id (x :: ApiAddress ('Testnet 0))
-                    , state = state (x :: ApiAddress ('Testnet 0))
-                    }
-            in
-                x' === x .&&. show x' === show x
         it "ApiEpochInfo" $ property $ \x ->
             let
                 x' = ApiEpochInfo
@@ -936,112 +762,17 @@ spec = do
             in
                 x' === x .&&. show x' === show x
 
--- Golden tests files are generated automatically on first run. On later runs
--- we check that the format stays the same. The golden files should be tracked
--- in git.
---
--- Example:
--- >>> roundtripAndGolden $ Proxy @ Wallet
---
--- ...will compare @ToJSON@ of @Wallet@ against `Wallet.json`. It may either
--- match and succeed, or fail and write `Wallet.faulty.json` to disk with the
--- new format. Faulty golden files should /not/ be commited.
---
--- The directory `test/data/Cardano/Wallet/Api` is used.
-jsonRoundtripAndGolden
-    :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
-    => Proxy a
-    -> Spec
-jsonRoundtripAndGolden proxy = do
-    roundtripSpecs proxy
-    typeNameInfo <- runIO mkCompatibleTypeNameInfo
-    goldenSpecsWithNotePlain settings typeNameInfo Nothing
-  where
-    -- NOTE
-    -- We use a custom 'TypeNameInfo' instead of the default one provided by
-    -- @hspec-golden-aeson@ because the defaults generates names that are
-    -- invalid for Windows file-system.
-    mkCompatibleTypeNameInfo :: IO (TypeNameInfo a)
-    mkCompatibleTypeNameInfo = do
-        typeNameInfo <- mkTypeNameInfo settings proxy
-        pure $ typeNameInfo
-            { typeNameTypeName =
-                mkValidForWindows (typeNameTypeName typeNameInfo)
-            }
-      where
-        mkValidForWindows :: TypeName -> TypeName
-        mkValidForWindows (TypeName typeName) =
-            TypeName (filter isAlphaNum typeName)
+{-------------------------------------------------------------------------------
+                              Address Encoding
+-------------------------------------------------------------------------------}
 
-    settings :: Settings
-    settings = defaultSettings
-        { goldenDirectoryOption =
-            CustomDirectoryName ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
-        , useModuleNameAsSubDirectory =
-            False
-        , sampleSize = 10
-        }
+-- Dummy instances
+instance EncodeAddress ('Testnet 0) where
+    encodeAddress = const "<addr>"
 
--- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
-httpApiDataRoundtrip
-    :: forall a.
-        ( Arbitrary a
-        , FromHttpApiData a
-        , ToHttpApiData a
-        , Typeable a
-        , Eq a
-        , Show a
-        )
-    => Proxy a
-    -> Spec
-httpApiDataRoundtrip proxy =
-    it ("URL encoding of " <> cons (typeRep proxy)) $ property $ \(x :: a) -> do
-        let bytes = toUrlPiece x
-        let x' = parseUrlPiece bytes
-        x' `shouldBe` Right x
-  where
-    cons rep =
-        let
-            (c, args) = splitTyConApp rep
-        in
-            case args of
-                [] ->
-                    tyConName c
-                xs ->
-                    "(" <> tyConName c <> " " <> unwords (cons <$> xs) <> ")"
-
--- | Generate addresses from the given keys and compare the result with an
--- expected output obtained from jcli (see appendix below)
-goldenTestAddr
-    :: forall n. (DelegationAddress n JormungandrKey, EncodeAddress n)
-    => Proxy n
-    -> [ByteString]
-    -> Text
-    -> SpecWith ()
-goldenTestAddr _proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
-    case traverse (convertFromBase Base16) pubkeys of
-        Right [spendingKey] -> do
-            let xpub = JormungandrKey (XPub spendingKey chainCode)
-            let addr = encodeAddress @n (paymentAddress @n xpub)
-            addr `shouldBe` expected
-        Right [spendingKey, delegationKey] -> do
-            let xpubSpending = JormungandrKey (XPub spendingKey chainCode)
-            let xpubDeleg = JormungandrKey (XPub delegationKey chainCode)
-            let addr = encodeAddress @n (delegationAddress @n xpubSpending xpubDeleg)
-            addr `shouldBe` expected
-        _ ->
-            expectationFailure "goldenTestAddr: provided invalid inputs public keys"
-  where
-    chainCode = CC.ChainCode "<ChainCode is not used by singleAddressFromKey>"
-
-negativeTest
-    :: forall n. DecodeAddress n
-    => Proxy n
-    -> Text
-    -> String
-    -> SpecWith ()
-negativeTest _proxy bytes msg = it ("decodeAddress failure: " <> msg) $
-    decodeAddress @n bytes === Left (TextDecodingError msg)
+instance DecodeAddress ('Testnet 0) where
+    decodeAddress "<addr>" = Right $ Address "<addr>"
+    decodeAddress _ = Left $ TextDecodingError "invalid address"
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
@@ -1082,24 +813,7 @@ instance Arbitrary AddressState where
     shrink = genericShrink
 
 instance Arbitrary Address where
-    arbitrary = (getApiT . fst)
-        <$> arbitrary @(ApiT Address, Proxy ('Testnet 0))
-
-instance {-# OVERLAPS #-} Arbitrary (ApiT Address, Proxy 'Mainnet) where
-    arbitrary = do
-        addr <- ApiT <$> frequency
-            [ (10, genAddress @'Mainnet)
-            , (1, genLegacyAddress Nothing)
-            ]
-        return (addr, Proxy)
-
-instance {-# OVERLAPS #-} Arbitrary (ApiT Address, Proxy ('Testnet 0)) where
-    arbitrary = do
-        addr <- ApiT <$> frequency
-            [ (10, genAddress @('Testnet 0))
-            , (1, genLegacyAddress (Just (ProtocolMagic 0)))
-            ]
-        return (addr, Proxy)
+    arbitrary = pure $ Address "<addr>"
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []

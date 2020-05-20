@@ -41,6 +41,8 @@ import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress, EncodeAddress )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ()
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
