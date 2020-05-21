@@ -55,6 +55,7 @@ import Cardano.Wallet.Api.Server
     , listAddresses
     , listTransactions
     , listWallets
+    , migrateWallet
     , mkLegacyWallet
     , postExternalTransaction
     , postIcarusWallet
@@ -251,7 +252,10 @@ server byron icarus ntp =
                 (byron , getMigrationInfo byron  wid)
                 (icarus, getMigrationInfo icarus wid)
              )
-        :<|> \_ _ -> throwError err501
+        :<|> (\wid m -> withLegacyLayer wid
+                (byron , migrateWallet byron wid m)
+                (icarus, migrateWallet icarus wid m)
+             )
 
     network :: Server Network
     network =
