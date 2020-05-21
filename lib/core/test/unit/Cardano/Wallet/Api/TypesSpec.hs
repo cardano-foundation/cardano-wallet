@@ -299,6 +299,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
@@ -597,13 +598,23 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiWalletMigrationPostData" $ property $ \x ->
+        it "ApiWalletMigrationPostData lenient" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
                     { passphrase =
                         passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
                     , addresses =
                         addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiWalletMigrationPostData raw" $ property $ \x ->
+            let
+                x' = ApiWalletMigrationPostData
+                    { passphrase =
+                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    , addresses =
+                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
                     }
             in
                 x' === x .&&. show x' === show x
@@ -853,6 +864,13 @@ instance Arbitrary ApiWalletMigrationInfo where
     shrink = genericShrink
 
 instance Arbitrary (ApiWalletMigrationPostData n "lenient") where
+    arbitrary = do
+        n <- choose (1,255)
+        pwd <- arbitrary
+        addr <- vector n
+        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addr)
+
+instance Arbitrary (ApiWalletMigrationPostData n "raw") where
     arbitrary = do
         n <- choose (1,255)
         pwd <- arbitrary
@@ -1370,6 +1388,10 @@ instance ToSchema ApiWalletMigrationInfo where
 instance ToSchema (ApiWalletMigrationPostData t "lenient") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletMigrationPostData"
+
+instance ToSchema (ApiWalletMigrationPostData t "raw") where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiShelleyWalletMigrationPostData"
 
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =

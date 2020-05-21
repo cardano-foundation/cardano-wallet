@@ -924,6 +924,17 @@ instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "raw")) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
+
 instance Malformed (BodyParam ApiNetworkTip) where
     malformed = jsonValid ++ jsonInvalid
      where
