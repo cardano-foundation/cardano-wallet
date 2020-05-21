@@ -913,7 +913,7 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
-instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm))) where
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient")) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
@@ -1325,19 +1325,19 @@ migrateDataCases :: [(Aeson.Value, ExpectedError)]
 migrateDataCases =
     [
       ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         , "addresses": "not_a_array"
         }|]
       , "Error in $.addresses: parsing [] failed, expected Array, but encountered String"
       )
     , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         , "addresses": 1
         }|]
       , "Error in $.addresses: parsing [] failed, expected Array, but encountered Number"
       )
     , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         }|]
       , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'addresses' not found"
       )
@@ -1357,5 +1357,47 @@ migrateDataCases =
         , "addresses": [ #{addrPlaceholder} ]
         }|]
       , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrInvalid} ]
+        }|]
+      , "Error in $.addresses[0]: Unable to decode Address: encoding is neither Bech32 nor Base58."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrTooLong} ]
+        }|]
+      , "Error in $.addresses[0]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrValid}, #{addrInvalid} ]
+        }|]
+      , "Error in $.addresses[1]: Unable to decode Address: encoding is neither Bech32 nor Base58."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrValid}, #{addrTooLong} ]
+        }|]
+      , "Error in $.addresses[1]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrValid}, #{addrValid}, #{addrInvalid} ]
+        }|]
+      , "Error in $.addresses[2]: Unable to decode Address: encoding is neither Bech32 nor Base58."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrValid}, #{addrValid}, #{addrTooLong} ]
+        }|]
+      , "Error in $.addresses[2]: Unable to decode Address: neither Bech32-encoded nor a valid Byron Address."
+      )
+    , ( [aesonQQ|
+        { "passphrase": #{wPassphrase}
+        , "addresses": [ #{addrInvalid}, #{addrValid}, #{addrInvalid} ]
+        }|]
+      , "Error in $.addresses[0]: Unable to decode Address: encoding is neither Bech32 nor Base58."
       )
     ]

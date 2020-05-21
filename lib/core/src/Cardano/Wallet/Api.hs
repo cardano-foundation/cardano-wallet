@@ -500,7 +500,7 @@ type ByronMigrations n =
 type MigrateByronWallet n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n)
+    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "lenient")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo

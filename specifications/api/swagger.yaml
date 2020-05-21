@@ -897,7 +897,7 @@ components:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
 
-    ApiWalletMigrationPostData: &ApiWalletMigrationPostData
+    ApiByronWalletMigrationPostData: &ApiByronWalletMigrationPostData
       type: object
       required:
         - passphrase
@@ -2193,7 +2193,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletMigrationPostData
+            schema: *ApiByronWalletMigrationPostData
       responses: *responsesMigrateWallet
 
   /byron-wallets/{walletId}/statistics/utxos:
