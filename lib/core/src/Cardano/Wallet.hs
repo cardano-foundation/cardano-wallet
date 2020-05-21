@@ -1037,11 +1037,36 @@ selectCoinsForPayment
     -> NonEmpty TxOut
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPayment ctx wid recipients = do
-    (wal, _, pending) <- withExceptT ErrSelectForPaymentNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    txp <- withExceptT ErrSelectForPaymentNoSuchWallet $
-        readWalletTxParameters @ctx @s @k ctx wid
+    (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
+        selectCoinsSetup @ctx @s @k ctx wid
+    selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+
+-- | Retrieve wallet data which is needed for all types of coin selections.
+selectCoinsSetup
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO (W.UTxO, W.TxParameters)
+selectCoinsSetup ctx wid = do
+    (wal, _, pending) <- readWallet @ctx @s @k ctx wid
+    txp <- readWalletTxParameters @ctx @s @k ctx wid
     let utxo = availableUTxO @s pending wal
+    return (utxo, txp)
+
+selectCoinsForPaymentFromUTxO
+    :: forall ctx t k e.
+        ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
+        , e ~ ErrValidateSelection t
+        )
+    => ctx
+    -> W.UTxO
+    -> W.TxParameters
+    -> NonEmpty TxOut
+    -> ExceptT (ErrSelectForPayment e) IO CoinSelection
+selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
@@ -1067,11 +1092,20 @@ selectCoinsForDelegation
     -> WalletId
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid = do
-    (wal, _, pending) <- withExceptT ErrSelectForDelegationNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    txp <- withExceptT ErrSelectForDelegationNoSuchWallet $
-        readWalletTxParameters @ctx @s @k ctx wid
-    let utxo = availableUTxO @s pending wal
+    (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
+        selectCoinsSetup @ctx @s @k ctx wid
+    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+
+selectCoinsForDelegationFromUTxO
+    :: forall ctx t k.
+        ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
+        )
+    => ctx
+    -> W.UTxO
+    -> W.TxParameters
+    -> ExceptT ErrSelectForDelegation IO CoinSelection
+selectCoinsForDelegationFromUTxO ctx utxo txp = do
     let sel = CoinSelection [] [] []
     let feePolicy = feeOpts tl (computeCertFee 1) (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
@@ -1092,9 +1126,11 @@ estimateFeeForDelegation
     => ctx
     -> WalletId
     -> ExceptT ErrSelectForDelegation IO FeeEstimation
-estimateFeeForDelegation ctx wid =
+estimateFeeForDelegation ctx wid = do
+    (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
+        selectCoinsSetup @ctx @s @k ctx wid
     estimateFeeForCoinSelection $
-    selectCoinsForDelegation @_ @s @t @k ctx wid
+       selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
 
 -- | Constructs a set of coin selections that select all funds from the given
 --   source wallet, returning them as change.
@@ -1113,11 +1149,21 @@ selectCoinsForMigration
        -- ^ The source wallet ID.
     -> ExceptT ErrSelectForMigration IO [CoinSelection]
 selectCoinsForMigration ctx wid = do
-    (cp, _, pending) <- withExceptT ErrSelectForMigrationNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    txp <- withExceptT ErrSelectForMigrationNoSuchWallet $
-        readWalletTxParameters @ctx @s @k ctx wid
-    let utxo = availableUTxO @s pending cp
+    (utxo, txp) <- withExceptT ErrSelectForMigrationNoSuchWallet $
+        selectCoinsSetup @ctx @s @k ctx wid
+    selectCoinsForMigrationFromUTxO @ctx @t @k ctx utxo txp wid
+
+selectCoinsForMigrationFromUTxO
+    :: forall ctx t k.
+        ( HasTransactionLayer t k ctx
+        )
+    => ctx
+    -> W.UTxO
+    -> W.TxParameters
+    -> WalletId
+       -- ^ The source wallet ID.
+    -> ExceptT ErrSelectForMigration IO [CoinSelection]
+selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl computeFee feePolicy)
             { dustThreshold = Coin $ ceiling a }
@@ -1140,9 +1186,11 @@ estimateFeeForPayment
     -> WalletId
     -> NonEmpty TxOut
     -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
-estimateFeeForPayment ctx wid recipients =
+estimateFeeForPayment ctx wid recipients = do
+    (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
+        selectCoinsSetup @ctx @s @k ctx wid
     estimateFeeForCoinSelection $
-    selectCoinsForPayment @_ @s @t @k ctx wid recipients
+        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
