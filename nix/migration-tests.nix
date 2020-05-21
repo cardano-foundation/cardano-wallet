@@ -112,6 +112,7 @@ let
           migrationTest
           pkgs.bash
           pkgs.coreutils
+          pkgs.python3
         ]}
         export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
         export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
