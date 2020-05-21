@@ -37,6 +37,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , ShelleyMigrations
     , StakePools
     , Transactions
     , Wallets
@@ -54,6 +55,7 @@ import Cardano.Wallet.Api.Server
     , listAddresses
     , listTransactions
     , listWallets
+    , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
     , postExternalTransaction
@@ -124,6 +126,7 @@ server byron icarus shelley ntp =
     :<|> addresses
     :<|> coinSelections
     :<|> transactions
+    :<|> shelleyMigrations
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
@@ -153,6 +156,11 @@ server byron icarus shelley ntp =
         :<|> (\_ _ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+
+    shelleyMigrations :: Server (ShelleyMigrations n)
+    shelleyMigrations =
+             getMigrationInfo shelley
+        :<|> migrateWallet shelley
 
     stakePools :: Server (StakePools n)
     stakePools =

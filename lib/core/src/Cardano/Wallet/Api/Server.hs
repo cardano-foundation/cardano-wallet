@@ -1297,15 +1297,15 @@ quitStakePool ctx (ApiT wid) body = do
         #pendingSince
 
 {-------------------------------------------------------------------------------
-                                Legacy Migrations
+                                Migrations
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
     :: forall s t k. ()
     => ApiLayer s t k
-        -- ^ Source wallet context (Legacy)
+        -- ^ Source wallet context
     -> ApiT WalletId
-        -- ^ Source wallet (Legacy)
+        -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     infoFromSelections <$> getSelections

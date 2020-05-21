@@ -910,6 +910,19 @@ components:
           <<: *addresses
           description: The recipient addresses.
 
+    ApiShelleyWalletMigrationPostData: &ApiShelleyWalletMigrationPostData
+      type: object
+      required:
+        - passphrase
+        - addresses
+      properties:
+        passphrase:
+          <<: *walletPassphrase
+          description: The wallet's master passphrase.
+        addresses:
+          <<: *addresses
+          description: The recipient addresses.
+
     ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
       type: object
       required:
@@ -1950,6 +1963,39 @@ paths:
           application/json:
             schema: *ApiSelectCoinsData
       responses: *responsesSelectCoins
+
+  /wallets/{walletId}/migrations:
+    get:
+      operationId: getByronShelleyMigrationInfo
+      tags: ["Shelley Migrations"]
+      summary: Calculate Cost
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Calculate the exact cost of migrating from a Shelley wallet to
+        the specified set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
+
+    post:
+      operationId: migrateShelleyWallet
+      tags: ["Shelley Migrations"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Migrate all funds from a Shelley wallet to set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiShelleyWalletMigrationPostData
+      responses: *responsesMigrateWallet
 
   /byron-wallets:
     get:
