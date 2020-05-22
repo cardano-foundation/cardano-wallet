@@ -1966,7 +1966,7 @@ paths:
 
   /wallets/{walletId}/migrations:
     get:
-      operationId: getByronShelleyMigrationInfo
+      operationId: getShelleyWalletMigrationInfo
       tags: ["Shelley Migrations"]
       summary: Calculate Cost
       description: |
