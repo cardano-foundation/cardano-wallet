@@ -594,7 +594,7 @@ spec = do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let originalBalance =
-                        view (#balance . #available . #getQuantity) sourceWallet
+                    view (#balance . #available . #getQuantity) sourceWallet
 
             -- Create an empty target wallet:
             (targetWallet, mw) <- emptyRandomWalletMws ctx
