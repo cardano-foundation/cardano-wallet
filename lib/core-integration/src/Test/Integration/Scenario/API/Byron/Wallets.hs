@@ -570,7 +570,7 @@ spec = do
         sourceWallet <- emptyRandomWallet ctx
 
         r <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet )
+            (Link.migrateWallet sourceWallet)
             Default
             (NonJson "{passphrase:,}")
         expectResponseCode @IO HTTP.status400 r
