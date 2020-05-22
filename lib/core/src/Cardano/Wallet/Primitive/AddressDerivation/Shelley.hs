@@ -80,7 +80,7 @@ import Control.Monad
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..) )
+    ( Blake2b_256 (..) )
 import Crypto.Hash.IO
     ( HashAlgorithm (hashDigestSize) )
 import Data.Binary.Put
@@ -252,7 +252,7 @@ instance PaymentAddress 'Mainnet ShelleyKey where
     paymentAddress paymentK = do
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
-            putByteString . blake2b224 $ paymentK
+            putByteString . blake2b256 $ paymentK
       where
         enterprise = 96
         networkId = 1
@@ -269,7 +269,7 @@ instance PaymentAddress ('Testnet pm) ShelleyKey where
     paymentAddress paymentK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (enterprise + networkId)
-            putByteString . blake2b224 $ paymentK
+            putByteString . blake2b256 $ paymentK
       where
         enterprise = 96
         networkId = 0
@@ -286,8 +286,8 @@ instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
-            putByteString . blake2b224 $ paymentK
-            putByteString . blake2b224 $ stakingK
+            putByteString . blake2b256 $ paymentK
+            putByteString . blake2b256 $ stakingK
       where
         base = 0
         networkId = 1
@@ -296,7 +296,7 @@ instance DelegationAddress 'Mainnet ShelleyKey where
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString fingerprint
-            putByteString . blake2b224 $ stakingK
+            putByteString . blake2b256 $ stakingK
       where
         base = 0
         networkId = 1
@@ -305,8 +305,8 @@ instance DelegationAddress ('Testnet pm) ShelleyKey where
     delegationAddress paymentK stakingK =
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
-            putByteString . blake2b224 $ paymentK
-            putByteString . blake2b224 $ stakingK
+            putByteString . blake2b256 $ paymentK
+            putByteString . blake2b256 $ stakingK
       where
         base = 0
         networkId = 0
@@ -315,7 +315,7 @@ instance DelegationAddress ('Testnet pm) ShelleyKey where
         Address $ BL.toStrict $ runPut $ do
             putWord8 (base + networkId)
             putByteString fingerprint
-            putByteString . blake2b224 $ stakingK
+            putByteString . blake2b256 $ stakingK
       where
         base = 0
         networkId = 1
@@ -329,11 +329,11 @@ decodeShelleyAddress _bytes = do
 
 instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint (Address bytes) =
-        Right $ KeyFingerprint $ BS.take (hashDigestSize Blake2b_224) $ BS.drop 1 bytes
+        Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
 
 instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
     paymentKeyFingerprint (_, paymentK) =
-        Right $ KeyFingerprint $ blake2b224 paymentK
+        Right $ KeyFingerprint $ blake2b256 paymentK
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
@@ -365,7 +365,25 @@ instance PersistPublicKey (ShelleyKey depth) where
                                  Internals
 -------------------------------------------------------------------------------}
 
+-- FIXME: The final implementation should use Blake2b_224 hashes, but so far,
+-- cardano-node still uses blake2b_256 hashes... so we do.
+--
+-- -- Size of a public key hash (length in bytes)
+-- hashSize :: Int
+-- hashSize =
+--     hashDigestSize Blake2b_224
+--
+-- -- Hash a public key
+-- blake2b224 :: ShelleyKey depth XPub -> ByteString
+-- blake2b224 =
+--     BA.convert . hash @_ @Blake2b_224 . xpubPublicKey . getKey
+
+-- Size of a public key hash (length in bytes)
+hashSize :: Int
+hashSize =
+    hashDigestSize Blake2b_256
+
 -- Hash a public key
-blake2b224 :: ShelleyKey depth XPub -> ByteString
-blake2b224 =
-    BA.convert . hash @_ @Blake2b_224 . xpubPublicKey . getKey
+blake2b256 :: ShelleyKey depth XPub -> ByteString
+blake2b256 =
+    BA.convert . hash @_ @Blake2b_256 . xpubPublicKey . getKey

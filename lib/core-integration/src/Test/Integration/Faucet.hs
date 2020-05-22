@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -1432,10 +1433,10 @@ genFaucet encodeAddress genAddresses file ms = do
   where
     encodeFaucet :: Address -> Text
     encodeFaucet addr =
-        mconcat [ "- ", k, ": ", v ]
+        mconcat [ "  ", k, ": ", v ]
       where
         k = encodeAddress addr
-        v = surroundedBy '\'' (T.pack $ show faucetAmount)
+        v = T.pack $ show faucetAmount
 
 genMnemonics
     :: forall mw ent csz.
@@ -1461,4 +1462,6 @@ appendFile :: FilePath -> Text -> IO ()
 appendFile file txt = TIO.appendFile file (txt <> "\n")
 
 faucetAmount :: Int
-faucetAmount = 10000000000
+faucetAmount = ada 100_000
+  where
+    ada = (* 1000_000)
