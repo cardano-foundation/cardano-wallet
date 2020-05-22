@@ -863,14 +863,8 @@ instance Arbitrary ApiWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrationPostData n "lenient") where
-    arbitrary = do
-        n <- choose (1,255)
-        pwd <- arbitrary
-        addr <- vector n
-        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addr)
-
-instance Arbitrary (ApiWalletMigrationPostData n "raw") where
+instance Arbitrary (Passphrase purpose) =>
+         Arbitrary (ApiWalletMigrationPostData n purpose) where
     arbitrary = do
         n <- choose (1,255)
         pwd <- arbitrary
