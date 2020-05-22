@@ -559,8 +559,8 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
-        \amount eventually becomes available in the target wallet for arbitrary \
-        \ number of specified addresses."
+        \amount eventually becomes available in the target wallet for an \
+        \arbitrary number of specified addresses."
         $ \ctx -> do
               testAddressCycling ctx 1
               testAddressCycling ctx 3
