@@ -174,7 +174,6 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."generic-lens" or (buildDepError "generic-lens"))
             (hsPkgs."hspec" or (buildDepError "hspec"))
             (hsPkgs."hspec-golden-aeson" or (buildDepError "hspec-golden-aeson"))
-            (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
             (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
             (hsPkgs."lifted-base" or (buildDepError "lifted-base"))
             (hsPkgs."memory" or (buildDepError "memory"))
