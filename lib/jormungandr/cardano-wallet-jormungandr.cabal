@@ -160,7 +160,6 @@ test-suite unit
     , generic-lens
     , hspec
     , hspec-golden-aeson
-    , http-api-data
     , iohk-monitoring
     , lifted-base
     , memory
