@@ -108,7 +108,7 @@ import GHC.Generics
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
-    ( status400, status404, status503 )
+    ( status400, status404, status500, status503 )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -178,8 +178,16 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                     <$> defaultHandler ctx x
 
     , getTipId = ExceptT $ do
-        let ctx = safeLink api (Proxy @GetTipId)
-        run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
+        run (getBlockId <$> cGetTipId) >>= \case
+            Left (FailureResponse _ e) | responseStatusCode e == status500 ->
+                -- NOTE: /api/v0/tip returns 500 Internal Server Error when
+                -- called during bootstrap. Treat this status the same as 503
+                -- Service Unavailable, so that getTipId can be polled until
+                -- jormungandr is ready.
+                return $ Left $ ErrNetworkUnreachable $ T.pack $ show e
+            x -> do
+                let ctx = safeLink api (Proxy @GetTipId)
+                defaultHandler ctx x
 
     , getBlock = \blockId -> ExceptT $ do
         let action = cGetBlock (BlockId blockId)
