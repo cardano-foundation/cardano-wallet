@@ -576,8 +576,8 @@ spec = do
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400ParseError r
 
- where
-     genMnemonics
+  where
+    genMnemonics
         :: forall mw ent csz.
             ( ConsistentEntropy ent mw csz
             , ValidEntropySize ent
