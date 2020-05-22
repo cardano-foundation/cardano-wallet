@@ -588,7 +588,7 @@ spec = do
         => IO [Text]
     genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
 
-    testAddressCycling ctx addrNum =
+    testAddressCycling ctx addrCount =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
@@ -599,7 +599,7 @@ spec = do
             -- Create an empty target wallet:
             (targetWallet, mw) <- emptyRandomWalletMws ctx
             let addresses :: [Text] =
-                    take addressCount $ encodeAddress @n <$> randomAddresses @n mw
+                    take addrCount $ encodeAddress @n <$> randomAddresses @n mw
 
             -- Calculate the expected migration fee:
             r0 <- request @ApiWalletMigrationInfo ctx
@@ -616,7 +616,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: #{addrIds}
+                    , addresses: #{addresses}
                     }|])
             verify r1
                 [ expectResponseCode @IO HTTP.status202
