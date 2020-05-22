@@ -586,9 +586,9 @@ spec = do
             , mw ~ MnemonicWords ent
             )
         => IO [Text]
-     genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
+    genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
 
-     testAddressCycling ctx addrNum =
+    testAddressCycling ctx addrNum =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureWallet -> do
             -- Restore a Byron wallet with funds, to act as a source wallet:
