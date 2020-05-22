@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
+import Control.Monad
+    ( forM_ )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -69,7 +71,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.DSL as DSL
@@ -87,6 +89,7 @@ import Test.Integration.Framework.DSL as DSL
     , expectSuccess
     , faucetAmt
     , fixturePassphrase
+    , fixtureRandomWallet
     , fixtureRawTx
     , fixtureWallet
     , getFromResponse
@@ -353,6 +356,28 @@ spec = do
             [ expectErrorMessage errMsg400MalformedTxPayload
             , expectResponseCode HTTP.status400
             ]
+
+    it "BYRON_MIGRATE_07x - migrate to inaproppriate addresses" $ \ctx -> do
+        pendingWith "Pending due to\
+            \ https://github.com/input-output-hk/cardano-wallet/issues/1658#issuecomment-632137152"
+        let addrsInvalid :: [Text] =
+                [ "DdzFFzCqrhtCNjPk5Lei7E1FxnoqMoAYtJ8VjAWbFmDb614nNBWBwv3kt6QHJa59cGezzf6piMWsbK7sWRB5sv325QqWdRuusMqqLdMt"
+                , "37btjrVyb4KFbHcx5z2vjmdDBm6K68A5wTDJaL9XB8E8wcVfB6o8bJazKLC9tfrNTN3B4uCppR3MS8BYGaz92AqQtUVAKzGBUSQSooFW5pd84jc6Jj"
+                ]
+        forM_ addrsInvalid $ \addr -> do
+            sWallet <- fixtureRandomWallet ctx
+            r <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet sWallet)
+                Default
+                (Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: [#{addr}]
+                    }|])
+            verify r
+                [ expectResponseCode @IO HTTP.status400
+                , expectErrorMessage
+                    "Improper address. Make sure you are using valid Jörmungandr address."
+                ]
   where
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
