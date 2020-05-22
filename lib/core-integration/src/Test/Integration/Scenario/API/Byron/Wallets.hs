@@ -598,8 +598,8 @@ spec = do
 
             -- Create an empty target wallet:
             (targetWallet, mw) <- emptyRandomWalletMws ctx
-            let addrIds :: [Text] =
-                    take addrNum $ encodeAddress @n <$> randomAddresses @n mw
+            let addresses :: [Text] =
+                    take addressCount $ encodeAddress @n <$> randomAddresses @n mw
 
             -- Calculate the expected migration fee:
             r0 <- request @ApiWalletMigrationInfo ctx
