@@ -8,6 +8,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- Orphan instances for {Encode,Decode}Address until we get rid of the
+-- Jörmungandr dual support.
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -59,6 +63,10 @@ import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
 import Cardano.Slotting.Slot
     ( EpochSize (..) )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..), EncodeAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.Coerce
@@ -444,3 +452,19 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs _ _ _ _ _ _) _ _ _) = W.Tx
     (fromShelleyTxId $ SL.txid bod)
     (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
     (map fromShelleyTxOut (toList outs))
+
+{-------------------------------------------------------------------------------
+                      Address Encoding / Decoding
+-------------------------------------------------------------------------------}
+
+instance EncodeAddress 'Mainnet where
+    encodeAddress = error "TODO"
+
+instance EncodeAddress ('Testnet pm) where
+    encodeAddress = error "TODO"
+
+instance DecodeAddress 'Mainnet where
+    decodeAddress = error "TODO"
+
+instance DecodeAddress ('Testnet pm) where
+    decodeAddress = error "TODO"

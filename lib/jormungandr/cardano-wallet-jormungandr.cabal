@@ -33,6 +33,9 @@ library
       base
     , aeson
     , async
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , binary
     , bytestring
     , cardano-addresses
@@ -48,6 +51,7 @@ library
     , directory
     , either
     , exceptions
+    , extra
     , filepath
     , fmt
     , generic-lens
@@ -145,6 +149,7 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , cardano-wallet-test-utils
+    , cborg
     , containers
     , contra-tracer
     , deepseq
@@ -350,6 +355,7 @@ executable migration-test
     , aeson
     , cardano-addresses
     , cardano-wallet-core
+    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , iohk-monitoring
     , lens

@@ -61,6 +61,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       "library" = {
         depends = [
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
           (hsPkgs."filepath" or (buildDepError "filepath"))
@@ -69,6 +70,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."hspec" or (buildDepError "hspec"))
           (hsPkgs."hspec-core" or (buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (buildDepError "hspec-expectations"))
+          (hsPkgs."hspec-golden-aeson" or (buildDepError "hspec-golden-aeson"))
+          (hsPkgs."http-api-data" or (buildDepError "http-api-data"))
           (hsPkgs."iohk-monitoring" or (buildDepError "iohk-monitoring"))
           (hsPkgs."process" or (buildDepError "process"))
           (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))

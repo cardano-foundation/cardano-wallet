@@ -1,75 +1,75 @@
 {
-    "seed": 8280135164266051577,
+    "seed": -7518356479236390969,
     "samples": [
         {
             "amount": {
-                "quantity": 20,
+                "quantity": 212,
                 "unit": "lovelace"
             },
-            "address": "FHnt4NL7yPY2oahU63KiyuMhViF8rCqgLSokN44VkuJNz9wvPc4zsbJvvfLmhbY"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 192,
+                "quantity": 32,
                 "unit": "lovelace"
             },
-            "address": "addr1sw0us25cqrsrq52r3szkapzrwx2a7hsrcuwh9wqyvu7ehe4x63h9yx3j9s0"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 33,
+                "quantity": 40,
                 "unit": "lovelace"
             },
-            "address": "addr1snfmuxc099alvea7uudmsmx5f099vj8hx86agt8matxddpum5dscmglapdxk7h3lmumcwrh9pgfs55fzdqdr880pf6te7d69ygsw6tpy7r8kvz"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 230,
+                "quantity": 6,
                 "unit": "lovelace"
             },
-            "address": "addr1sjkaz7n8uu0c74tgjvmjtg7cskfghduvjh3huegh7a4jsg5xxxx6lwd7tnv92qmmlm4gsalrv7gsfuz50h47m56vcpa4agkckd3las2drru2ae"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 198,
+                "quantity": 232,
                 "unit": "lovelace"
             },
-            "address": "addr1s4yepf2hngwqcvetqtv4kmrw9zetcn47a2exsktzrzxpfqjqqyhlu02f9cz"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 109,
+                "quantity": 18,
                 "unit": "lovelace"
             },
-            "address": "addr1sd8zmne555tut5fn69msur4985thuw280j7ws3dym30gdk2xyqfazuz4kg7"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 180,
+                "quantity": 214,
                 "unit": "lovelace"
             },
-            "address": "addr1s5j4uj79mujyjp0pd0rd8llawgwuqklty5733m7274gez8a09ksqjfxdwm9"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 102,
+                "quantity": 143,
                 "unit": "lovelace"
             },
-            "address": "addr1s00lmu62fqn38hufw7yphqe3fuw8jm5u38ylf738xetusxv8ndddsz04xrt"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 226,
+                "quantity": 250,
                 "unit": "lovelace"
             },
-            "address": "addr1svj07z6q7lcue6paes9huxh8zdd6x5hzruae69twz3qypvq2n6hskt7dmap"
+            "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 37,
+                "quantity": 85,
                 "unit": "lovelace"
             },
-            "address": "addr1skmutz4gz0c2huwl0vhwg6z8r7pya6jtws87kfjcwjl7683d5y8jjfwqthd"
+            "address": "<addr>"
         }
     ]
 }

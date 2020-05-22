@@ -1,10 +1,20 @@
 {
-    "seed": 7294395511785756603,
+    "seed": 2198964721125321647,
     "samples": [
         {
             "status": "syncing",
             "progress": {
-                "quantity": 26,
+                "quantity": 44.48,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "not_responding"
+        },
+        {
+            "status": "syncing",
+            "progress": {
+                "quantity": 7.78,
                 "unit": "percent"
             }
         },
@@ -12,23 +22,10 @@
             "status": "ready"
         },
         {
-            "status": "ready"
+            "status": "not_responding"
         },
         {
-            "status": "ready"
-        },
-        {
-            "status": "ready"
-        },
-        {
-            "status": "ready"
-        },
-        {
-            "status": "syncing",
-            "progress": {
-                "quantity": 61,
-                "unit": "percent"
-            }
+            "status": "not_responding"
         },
         {
             "status": "ready"
@@ -36,14 +33,21 @@
         {
             "status": "syncing",
             "progress": {
-                "quantity": 79,
+                "quantity": 96.99,
                 "unit": "percent"
             }
         },
         {
             "status": "syncing",
             "progress": {
-                "quantity": 80,
+                "quantity": 85.13,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "syncing",
+            "progress": {
+                "quantity": 86.86,
                 "unit": "percent"
             }
         }

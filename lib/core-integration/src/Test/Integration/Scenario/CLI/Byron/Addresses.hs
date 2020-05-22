@@ -381,7 +381,7 @@ scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> do
     let addr = "💩"
     (Exit c, Stdout _out, Stderr err) <- importAddressViaCLI @t ctx [wid, addr]
     c `shouldBe` ExitFailure 1
-    err `shouldBe` "Unable to decode Address: encoding is neither Bech32 nor Base58.\n"
+    err `shouldBe` "Unable to decode Address: not a valid Base58 encoded string.\n"
   where
     title = "CLI_ADDRESS_IMPORT_03 - I can't import a gibberish address"
 

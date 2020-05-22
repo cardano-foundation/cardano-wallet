@@ -1,85 +1,85 @@
 {
-    "seed": 6232841450575900571,
+    "seed": -2366744487741549495,
     "samples": [
         {
             "height": {
-                "quantity": 21833,
+                "quantity": 18267,
                 "unit": "block"
             },
-            "epoch_number": 10735,
-            "slot_number": 11522
+            "epoch_number": 16540,
+            "slot_number": 15227
         },
         {
             "height": {
-                "quantity": 27177,
+                "quantity": 7566,
                 "unit": "block"
             },
-            "epoch_number": 20552,
-            "slot_number": 414
+            "epoch_number": 408,
+            "slot_number": 28796
         },
         {
             "height": {
-                "quantity": 5994,
+                "quantity": 92,
                 "unit": "block"
             },
-            "epoch_number": 15995,
-            "slot_number": 27101
+            "epoch_number": 32700,
+            "slot_number": 14992
         },
         {
             "height": {
-                "quantity": 7957,
+                "quantity": 152,
                 "unit": "block"
             },
-            "epoch_number": 19731,
-            "slot_number": 17054
+            "epoch_number": 24914,
+            "slot_number": 1788
         },
         {
             "height": {
-                "quantity": 29890,
+                "quantity": 11791,
                 "unit": "block"
             },
-            "epoch_number": 3724,
-            "slot_number": 32574
+            "epoch_number": 6604,
+            "slot_number": 27814
         },
         {
             "height": {
-                "quantity": 25264,
+                "quantity": 28780,
                 "unit": "block"
             },
-            "epoch_number": 6999,
-            "slot_number": 1994
+            "epoch_number": 28310,
+            "slot_number": 27847
         },
         {
             "height": {
-                "quantity": 15464,
+                "quantity": 20717,
                 "unit": "block"
             },
-            "epoch_number": 12688,
-            "slot_number": 15211
+            "epoch_number": 19953,
+            "slot_number": 7805
         },
         {
             "height": {
-                "quantity": 22465,
+                "quantity": 6974,
                 "unit": "block"
             },
-            "epoch_number": 22234,
-            "slot_number": 6706
+            "epoch_number": 29015,
+            "slot_number": 8064
         },
         {
             "height": {
-                "quantity": 7683,
+                "quantity": 13051,
                 "unit": "block"
             },
-            "epoch_number": 25235,
-            "slot_number": 27871
+            "epoch_number": 30163,
+            "slot_number": 24402
         },
         {
             "height": {
-                "quantity": 15943,
+                "quantity": 23300,
                 "unit": "block"
             },
-            "epoch_number": 32439,
-            "slot_number": 17774
+            "epoch_number": 12611,
+            "slot_number": 8724
         }
     ]
 }

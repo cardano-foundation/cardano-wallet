@@ -33,7 +33,6 @@ library
       aeson
     , async
     , base
-    , base58-bytestring
     , bech32
     , bech32-th
     , binary
@@ -205,7 +204,6 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
-    , hspec-golden-aeson
     , http-api-data
     , http-client
     , http-client-tls
