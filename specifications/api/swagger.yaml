@@ -1986,7 +1986,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Migrate all funds from a Shelley wallet to set of addresses.
+        Migrate all funds from a Shelley wallet to a specified set of addresses.
       parameters:
         - <<: *parametersWalletId
           name: walletId
