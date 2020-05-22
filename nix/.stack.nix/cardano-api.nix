@@ -88,6 +88,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
           (hsPkgs."serialise" or (buildDepError "serialise"))
           (hsPkgs."shelley-spec-ledger" or (buildDepError "shelley-spec-ledger"))
+          (hsPkgs."stm" or (buildDepError "stm"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."transformers-except" or (buildDepError "transformers-except"))
           (hsPkgs."typed-protocols" or (buildDepError "typed-protocols"))
@@ -132,8 +133,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "4b557bbeb2b43f0be6b97cb7f46b1723728447f0";
-      sha256 = "02crx7v7zzbpa0ni9kyxhin29ns4dbi8qkk4r7cv85ij43jc8d1r";
+      rev = "522b4f4fb3bf1abcab28c905b70ff751cd71bde2";
+      sha256 = "10ppxdyll0vd0k4jb223md94594r9l03sqgjd59jh791rzvhwfrv";
       });
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }

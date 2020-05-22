@@ -65,7 +65,7 @@ import Data.Aeson
 import Data.Aeson.Lens
     ( key, values, _Integral, _String )
 import Data.Maybe
-    ( isNothing )
+    ( fromMaybe, isNothing )
 import Data.Text
     ( Text )
 import Network.Wreq
@@ -74,6 +74,8 @@ import System.Environment
     ( getArgs )
 import System.Exit
     ( ExitCode (..), exitFailure, exitWith )
+import Text.Read
+    ( readMaybe )
 
 import qualified Data.Text as T
 
@@ -83,7 +85,7 @@ main = do
 
     cfg <- defaultConfigStdout
     withTrace cfg "migration-test" $ \tr ->
-        testMain @('Testnet 0) tr 9090 testAction launchArgs >>= exitWith
+        testMain @('Testnet 0) tr testAction launchArgs >>= exitWith
 
 -- | Something to do while the server is running.
 type TestAction (t :: NetworkDiscriminant) = Trace IO Text -> ApiBase -> IO ExitCode
@@ -91,11 +93,11 @@ type TestAction (t :: NetworkDiscriminant) = Trace IO Text -> ApiBase -> IO Exit
 testMain
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Trace IO Text
-    -> Int
     -> TestAction t
     -> [String]
     -> IO ExitCode
-testMain tr serverPort testAction launchArgs = do
+testMain tr testAction launchArgs = do
+    let serverPort = getServerPort launchArgs
     let apiBase = mkApiBase serverPort
     let cmd = Command "cardano-wallet-jormungandr" launchArgs (pure ()) Inherit Inherit
     res <- withBackendProcess (trMessageText tr) cmd $ do
@@ -112,6 +114,15 @@ testMain tr serverPort testAction launchArgs = do
         Left (ProcessHasExited _ st) -> do
             logError tr ("Process exited with status " <> T.pack (show st))
             pure (ExitFailure 14)
+
+-- | Scan through cardano-wallet server CLI arguments to find a port.
+-- Returns the default 8090 if none found.
+getServerPort :: [String] -> Int
+getServerPort = fromMaybe 8090 . portArg
+  where
+    portArg ("--port":port:_) = readMaybe port
+    portArg (_:args) = portArg args
+    portArg [] = Nothing
 
 -- | @run@ action
 doRun

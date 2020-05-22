@@ -30,7 +30,14 @@ if [ -z "${configFile:-}" ]; then
   exit 1
 fi
 
+# Find an unused TCP port to run the test on.
+# Source: https://unix.stackexchange.com/a/132524
+find_unused_port() {
+  python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
+}
+
+# Sanity-check versions
 cardano-wallet-jormungandr version
 jormungandr --version
 
-exec migration-test $1 launch --port 9090 --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile
+exec migration-test $1 launch --port "$(find_unused_port)" --state-dir $stateDir --genesis-block $genesisDataDir/block0.bin -- --secret $genesisDataDir/secret.yaml --config $configFile

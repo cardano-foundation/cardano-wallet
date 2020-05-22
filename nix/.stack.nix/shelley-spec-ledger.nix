@@ -59,6 +59,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
         depends = [
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."base" or (buildDepError "base"))
+          (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."cborg-json" or (buildDepError "cborg-json"))
@@ -89,6 +90,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."base16-bytestring" or (buildDepError "base16-bytestring"))
+            (hsPkgs."binary" or (buildDepError "binary"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
             (hsPkgs."bytestring-conversion" or (buildDepError "bytestring-conversion"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
@@ -120,8 +122,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "1b2a06df9a710f5cc9b511b6ae39c23bcfd04486";
-      sha256 = "0qva90k2alhznn88nkxp0ghphhnrynf2sl0n9jccc3q6hycdzxv8";
+      rev = "25354e11ed43d59485c404f491a118efe0bd8e70";
+      sha256 = "1hcmsc1pis5y9zdfw70jw5xy7y5ji16an82ppsl47r51s8h53lfk";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec; echo source root reset to \$sourceRoot";
     }

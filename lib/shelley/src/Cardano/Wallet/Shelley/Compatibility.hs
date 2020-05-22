@@ -114,11 +114,11 @@ import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
+import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
-import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 data Shelley

@@ -39,7 +39,7 @@ let
       '';
 in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = { unexpected_thunks = false; };
+    flags = { unexpected_thunks = false; systemd = true; };
     package = {
       specVersion = "1.10";
       identifier = { name = "cardano-node"; version = "1.11.0"; };
@@ -56,7 +56,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       };
     components = {
       "library" = {
-        depends = [
+        depends = ([
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."async" or (buildDepError "async"))
           (hsPkgs."base" or (buildDepError "base"))
@@ -79,17 +79,20 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."network-mux" or (buildDepError "network-mux"))
           (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
           (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
+          (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
+          (hsPkgs."ouroboros-consensus-shelley" or (buildDepError "ouroboros-consensus-shelley"))
           (hsPkgs."ouroboros-consensus-cardano" or (buildDepError "ouroboros-consensus-cardano"))
           (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
           (hsPkgs."process" or (buildDepError "process"))
+          (hsPkgs."shelley-spec-ledger" or (buildDepError "shelley-spec-ledger"))
           (hsPkgs."strict-concurrency" or (buildDepError "strict-concurrency"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."tracer-transformers" or (buildDepError "tracer-transformers"))
           (hsPkgs."transformers" or (buildDepError "transformers"))
           (hsPkgs."transformers-except" or (buildDepError "transformers-except"))
-          (hsPkgs."ouroboros-network-framework" or (buildDepError "ouroboros-network-framework"))
-          ] ++ (if system.isWindows
+          ] ++ (pkgs.lib).optional (system.isLinux && flags.systemd) (hsPkgs."systemd" or (buildDepError "systemd"))) ++ (if system.isWindows
           then [ (hsPkgs."Win32" or (buildDepError "Win32")) ]
           else [
             (hsPkgs."unix" or (buildDepError "unix"))
@@ -118,15 +121,16 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."base" or (buildDepError "base"))
             (hsPkgs."async" or (buildDepError "async"))
             (hsPkgs."bytestring" or (buildDepError "bytestring"))
+            (hsPkgs."containers" or (buildDepError "containers"))
             (hsPkgs."cardano-config" or (buildDepError "cardano-config"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
             (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-            (hsPkgs."cardano-node" or (buildDepError "cardano-node"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
             (hsPkgs."io-sim-classes" or (buildDepError "io-sim-classes"))
             (hsPkgs."network-mux" or (buildDepError "network-mux"))
             (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
             (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-cardano" or (buildDepError "ouroboros-consensus-cardano"))
             (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
             (hsPkgs."text" or (buildDepError "text"))
             (hsPkgs."transformers-except" or (buildDepError "transformers-except"))
@@ -142,8 +146,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "4b557bbeb2b43f0be6b97cb7f46b1723728447f0";
-      sha256 = "02crx7v7zzbpa0ni9kyxhin29ns4dbi8qkk4r7cv85ij43jc8d1r";
+      rev = "522b4f4fb3bf1abcab28c905b70ff751cd71bde2";
+      sha256 = "10ppxdyll0vd0k4jb223md94594r9l03sqgjd59jh791rzvhwfrv";
       });
     postUnpack = "sourceRoot+=/cardano-node; echo source root reset to \$sourceRoot";
     }

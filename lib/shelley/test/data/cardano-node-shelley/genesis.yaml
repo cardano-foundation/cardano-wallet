@@ -25,7 +25,7 @@ protocolParams:
   a0: 0
 protocolMagicId: 838299499
 genDelegs:
-  abc238fb6d9b97d0c329367dccb68694e1740d8ed03eaad6b5302c60c8bfb793: 28d31f76d2edbaf9a341d66287c0d33ba0345c1d61bd6a974c3e7dde9aee3eed
+  539bfc367f7e67011fc84300f274e0157b73d0a9a79fd7b8955e948b36864ce7: 7b410944ee6e8b69bc362f84efb6c1bc88ab3cb32c7d311ae6895a4eeff102d6
 updateQuorum: 5
 maxMajorPV: 25446
 initialFunds: {}
