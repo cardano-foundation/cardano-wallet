@@ -129,6 +129,9 @@ test-suite unit
     , bytestring
     , cardano-wallet-core
     , cardano-crypto-class
+    , cardano-addresses
+    , shelley-spec-ledger
+    , memory
     , ouroboros-consensus-shelley
     , cardano-wallet-shelley
     , ouroboros-network
