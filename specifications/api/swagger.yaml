@@ -2180,7 +2180,12 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Migrate all funds from a Byron wallet to set of addresses.
+        Create one or several transactions sending all funds from a Byron wallet to set of addresses.
+        This operation tries to preserve as much as possible the current UTxO shape of a wallet (hence
+        why several transactions may be needed).
+
+        A typical usage would be when one wants to move all funds from an old wallet to another (Shelley
+        or Byron) by providing addresses coming from the new wallet.
       parameters:
         - <<: *parametersWalletId
           name: walletId
