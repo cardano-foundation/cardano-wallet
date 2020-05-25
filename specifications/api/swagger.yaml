@@ -1530,8 +1530,8 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
-  200:
-    description: Ok
+  202:
+    description: Accepted
     content:
       application/json:
         schema: *ApiFee
