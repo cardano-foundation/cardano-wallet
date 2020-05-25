@@ -409,15 +409,7 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters =
-            -- TODO: implement properly when possible
-            -- From where are we supposed to get them?
-            W.TxParameters
-                { getFeePolicy =
-                    W.LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
-                , getTxMaxSize =
-                    Quantity 1000
-                }
+        , txParameters = fromPParams . sgProtocolParams $ g
         }
     , map mkTxOut . Map.toList . sgInitialFunds $ g
     )
