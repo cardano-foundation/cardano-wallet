@@ -26,6 +26,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationInfo
     , DecodeAddress (..)
     , EncodeAddress (..)
+    , Iso8601Time (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -40,6 +41,8 @@ import Control.Monad
     ( forM, forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Maybe
+    ( fromJust, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -161,6 +164,8 @@ spec = do
         scenario_TRANS_ESTIMATE_04a @n
         scenario_TRANS_ESTIMATE_04b @n
         scenario_TRANS_ESTIMATE_04c @n
+
+        scenario_TRANS_REG_1670 @n (fixtureIcarusWalletWith @n)
 
     describe "BYRON_RESTORATION" $ do
         scenario_RESTORE_01 @n fixtureRandomWallet
@@ -783,6 +788,71 @@ scenario_MIGRATE_02 fixtureSource addrCount = it title $ \ctx -> do
     title = "BYRON_MIGRATE_02 - after a migration operation successfully \
             \completes, the correct amount eventually becomes available \
             \in the target wallet for an arbitrary number of specified addresses."
+
+scenario_TRANS_REG_1670
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n IcarusKey
+        )
+    => (Context t -> [Natural] -> IO ApiByronWallet)
+    -> SpecWith (Context t)
+scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
+    -- SETUP
+    -- We want to construct two transactions, where the second transaction uses
+    -- an output of the first one. We achieve this by having a wallet with a
+    -- single UTxO, the second transaction is guaranteed to re-use the change
+    -- output of the first transaction.
+    --                    __
+    --                   /   Output           __ Output
+    --  Initial UTxO ---x                    /
+    --                   \__ Change --------x
+    --                                       \__ Change
+    --                <-------------->  <--------------->
+    --                     1st TX             2nd TX
+
+    let amnt = 1
+    let (_, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
+    wSrc <- fixture ctx [2*amnt+2*feeMax]
+    [sink] <- take 1 . icarusAddresses @n . entropyToMnemonic <$> genEntropy
+    let payment = mkPayment @n sink amnt
+
+    -- 1st TX
+    _ <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    eventually "transaction is inserted" $ do
+        rTxs <- request @[ApiTransaction n] ctx
+            (Link.listTransactions @'Byron wSrc) Default Empty
+        verify rTxs
+            [ expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+            , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+    -- 2nd TX
+    _ <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    start <- eventually "transaction is inserted" $ do
+        rTxs <- request @[ApiTransaction n] ctx
+            (Link.listTransactions @'Byron wSrc) Default Empty
+        verify rTxs
+            [ expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+            , expectListField 1 (#status . #getApiT) (`shouldBe` InLedger)
+            , expectListField 2 (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+        let getTime = view #time . fromJust . view #insertedAt
+        pure $ Iso8601Time $ maximum $ getTime <$> getFromResponse id rTxs
+
+    -- ACTION
+    rTxs <- request @[ApiTransaction n] ctx
+        (Link.listTransactions' @'Byron wSrc (Just start) Nothing Nothing)
+        Default
+        Empty
+
+    -- ASSERTIONS
+    verify rTxs
+        [ expectListSize 1
+        , expectListField 0 #inputs (`shouldSatisfy` (all (isJust . view #source)))
+        ]
+  where
+    title = "TRANS_REG_1670"
 
 --
 -- More Elaborated Fixtures
