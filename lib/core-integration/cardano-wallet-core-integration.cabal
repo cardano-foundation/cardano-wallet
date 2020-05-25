@@ -34,6 +34,9 @@ library
     , aeson-qq
     , async
     , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-wallet-cli
@@ -54,12 +57,14 @@ library
     , http-types
     , memory
     , process
+    , QuickCheck
     , retry
     , scrypt
     , template-haskell
     , text
     , text-class
     , time
+    , yaml
   hs-source-dirs:
       src
   exposed-modules:

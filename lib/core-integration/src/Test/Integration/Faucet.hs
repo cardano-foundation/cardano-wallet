@@ -1,6 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Faucet
@@ -12,24 +14,65 @@ module Test.Integration.Faucet
     , seqMnemonics
     , icaMnemonics
     , rndMnemonics
+
+      -- * Internals
+    , genByronFaucets
+    , genIcarusFaucets
+    , genShelleyFaucets
+    , genMnemonics
     ) where
 
-import Prelude
+import Prelude hiding
+    ( appendFile )
 
 import Cardano.Mnemonic
-    ( Mnemonic )
+    ( EntropySize
+    , Mnemonic
+    , MnemonicWords
+    , SomeMnemonic (..)
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ValidMnemonicSentence
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToText
+    )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( AccountingStyle (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , NetworkDiscriminant (..)
+    , PaymentAddress (..)
+    , WalletKey (..)
+    , liftIndex
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Coin )
+    ( Address (..), Coin )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( MVar, putMVar, takeMVar )
+import Control.Monad
+    ( forM_, replicateM )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, encodeBase58 )
 import Data.Functor
     ( (<$) )
+import Data.Text
+    ( Text )
 import GHC.TypeLits
     ( Nat, Symbol )
+
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
 
 -- | An opaque 'Faucet' type from which one can get a wallet with funds
 data Faucet = Faucet
@@ -1286,3 +1329,136 @@ rndMnemonics = unsafeMkMnemonic <$>
       , "cradle", "peasant", "sail", "whisper"
       ]
     ]
+
+-- | Generate faucets addresses and mnemonics to a file.
+--
+-- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
+genByronFaucets :: FilePath -> [Mnemonic 12] -> IO ()
+genByronFaucets = genFaucet encodeAddress genAddresses
+  where
+    encodeAddress :: Address -> Text
+    encodeAddress (Address bytes) =
+        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+
+    genAddresses :: Mnemonic 12 -> [Address]
+    genAddresses mw =
+        let
+            (seed, pwd) =
+                (SomeMnemonic mw, mempty)
+            rootXPrv =
+                Byron.generateKeyFromSeed seed pwd
+            accXPrv =
+                Byron.deriveAccountPrivateKey pwd rootXPrv (liftIndex @'Hardened minBound)
+            addrXPrv =
+                Byron.deriveAddressPrivateKey pwd accXPrv
+        in
+            [ paymentAddress @'Mainnet
+                $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
+            | ix <- [minBound..maxBound]
+            ]
+
+-- | Generate faucets addresses and mnemonics to a file.
+--
+-- >>> genMnemonics 100 >>= genIcarusFaucets "icarus-faucets.yaml"
+genIcarusFaucets :: FilePath -> [Mnemonic 15] -> IO ()
+genIcarusFaucets = genFaucet encodeAddress genAddresses
+  where
+    encodeAddress :: Address -> Text
+    encodeAddress (Address bytes) =
+        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+
+    genAddresses :: Mnemonic 15 -> [Address]
+    genAddresses mw =
+        let
+            (seed, pwd) =
+                (SomeMnemonic mw, mempty)
+            rootXPrv =
+                Icarus.generateKeyFromSeed seed pwd
+            accXPrv =
+                deriveAccountPrivateKey pwd rootXPrv minBound
+            addrXPrv =
+                deriveAddressPrivateKey pwd accXPrv UTxOExternal
+        in
+            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+            | ix <- [minBound..maxBound]
+            ]
+
+-- | Generate faucets addresses and mnemonics to a file.
+--
+-- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
+genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO ()
+genShelleyFaucets = genFaucet encodeAddress genAddresses
+  where
+    encodeAddress :: Address -> Text
+    encodeAddress (Address bytes) =
+        T.decodeUtf8 $ convertToBase Base16 bytes
+
+    genAddresses :: Mnemonic 15 -> [Address]
+    genAddresses mw =
+        let
+            (seed, pwd) =
+                (SomeMnemonic mw, mempty)
+            rootXPrv =
+                Shelley.generateKeyFromSeed (seed, Nothing) pwd
+            accXPrv =
+                deriveAccountPrivateKey pwd rootXPrv minBound
+            addrXPrv =
+                deriveAddressPrivateKey pwd accXPrv UTxOExternal
+        in
+            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+            | ix <- [minBound..maxBound]
+            ]
+
+-- | Abstract function for generating a faucet.
+genFaucet
+    :: forall mw ent csz.
+        ( ValidMnemonicSentence mw
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => (Address -> Text)
+    -> (Mnemonic mw -> [Address])
+    -> FilePath
+    -> [Mnemonic mw]
+    -> IO ()
+genFaucet encodeAddress genAddresses file ms = do
+    TIO.writeFile file ""
+    forM_ [ (m, take 10 (genAddresses m)) | m <- ms ] $ \(m, addrs) -> do
+        appendFile file $ ("# " <>) $ T.intercalate ", " $ surroundedBy '"'
+            <$> mnemonicToText m
+        forM_ addrs (appendFile file . encodeFaucet)
+  where
+    encodeFaucet :: Address -> Text
+    encodeFaucet addr =
+        mconcat [ "- ", k, ": ", v ]
+      where
+        k = encodeAddress addr
+        v = surroundedBy '\'' (T.pack $ show faucetAmount)
+
+genMnemonics
+    :: forall mw ent csz.
+        ( ValidMnemonicSentence mw
+        , ValidEntropySize ent
+        , ValidChecksumSize ent csz
+        , ent ~ EntropySize mw
+        , mw ~ MnemonicWords ent
+        )
+    => Int
+    -> IO [Mnemonic mw]
+genMnemonics n =
+    replicateM n (entropyToMnemonic @mw <$> genEntropy)
+
+--
+-- Helpers
+--
+
+surroundedBy :: Char -> Text -> Text
+surroundedBy c txt = T.singleton c <> txt <> T.singleton c
+
+appendFile :: FilePath -> Text -> IO ()
+appendFile file txt = TIO.appendFile file (txt <> "\n")
+
+faucetAmount :: Int
+faucetAmount = 10000000000
