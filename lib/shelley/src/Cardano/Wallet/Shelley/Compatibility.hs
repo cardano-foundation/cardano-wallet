@@ -434,7 +434,7 @@ fromNetworkMagic (NetworkMagic magic) =
 -- Txs
 --
 
--- | SealedTx are the result of rightfully constructed shelely transactions so, it
+-- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 toGenTx :: HasCallStack => W.SealedTx -> GenTx ShelleyBlock
 toGenTx = unsafeDeserialiseCbor fromCBOR
@@ -477,7 +477,7 @@ toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
 toSealed tx =
     let
         wtx = fromShelleyTx tx
-        sealed = W.SealedTx $ serialize' tx
+        sealed = W.SealedTx $ serialize' $ O.mkShelleyTx tx
     in (wtx, sealed)
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
