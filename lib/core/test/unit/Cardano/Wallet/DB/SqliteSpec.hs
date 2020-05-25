@@ -123,6 +123,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , toTxHistory
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -688,7 +689,7 @@ readTxHistory'
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
 readTxHistory' DBLayer{..} a0 a1 a2 =
-    atomically . readTxHistory a0 a1 a2
+    atomically . fmap (fmap toTxHistory) . readTxHistory a0 a1 a2
 
 readPrivateKey'
     :: DBLayer m s k
@@ -768,12 +769,14 @@ txp = genesisTxParameters
 getAvailableBalance :: DBLayer IO s k -> IO Word
 getAvailableBalance DBLayer{..} = do
     cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
-    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just Pending)
+    pend <- atomically $ fmap toTxHistory
+        <$> readTxHistory testPk Descending wholeRange (Just Pending)
     return $ fromIntegral $ availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
-    pend <- atomically $ readTxHistory testPk Descending wholeRange (Just InLedger)
+    pend <- atomically $ fmap toTxHistory
+        <$> readTxHistory testPk Descending wholeRange (Just InLedger)
     return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
 
 {-------------------------------------------------------------------------------

@@ -66,9 +66,9 @@ import Prelude
 
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, currentTip )
+    ( Wallet, blockchainParameters, currentTip, utxo )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (slotId)
+    ( BlockHeader (blockHeight, slotId)
     , DelegationCertificate (..)
     , Direction (..)
     , EpochNo (..)
@@ -77,16 +77,20 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
+    , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
     , TxParameters (..)
     , TxStatus (..)
+    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     , WalletMetadata (..)
     , dlgCertPoolId
     , isWithinRange
+    , slotParams
+    , slotStartTime
     )
 import Control.Monad
     ( when )
@@ -99,9 +103,13 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 
@@ -367,17 +375,48 @@ mReadTxHistory
     -> SortOrder
     -> Range SlotId
     -> Maybe TxStatus
-    -> ModelOp wid s xprv TxHistory
+    -> ModelOp wid s xprv [TransactionInfo]
 mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, db)
   where
-    res = maybe mempty getTxs $ Map.lookup wid wallets
-    getTxs wal = filterTxHistory order range $ catMaybes
+    res = fromMaybe mempty $ do
+        wal <- Map.lookup wid wallets
+        (_, cp) <- Map.lookupMax (checkpoints wal)
+        pure $ getTxs cp (txHistory wal)
+
+    getTxs cp history
+            = fmap (mkTransactionInfo cp)
+            $ filterTxHistory order range
+            $ catMaybes
             [ fmap (, meta) (Map.lookup tid txs)
-            | (tid, meta) <- Map.toList (txHistory wal)
+            | (tid, meta) <- Map.toList history
             , case mstatus of
                 Nothing -> True
                 Just s -> (status :: TxMeta -> TxStatus) meta == s
             ]
+
+    mkTransactionInfo cp (tx, meta) = TransactionInfo
+        { txInfoId =
+            txId tx
+        , txInfoInputs =
+            (\(inp, amt) -> (inp, amt, Map.lookup inp $ getUTxO $ utxo cp))
+                <$> resolvedInputs tx
+        , txInfoOutputs =
+            outputs tx
+        , txInfoMeta =
+            meta
+        , txInfoDepth =
+            Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
+        , txInfoTime =
+            slotStartTime sp ((slotId :: TxMeta -> SlotId) meta)
+        }
+      where
+        sp  = slotParams $ blockchainParameters cp
+        txH  = getQuantity
+             $ (blockHeight :: TxMeta -> Quantity "block" Word32)
+             meta
+        tipH = getQuantity
+             $ (blockHeight :: BlockHeader -> Quantity "block" Word32)
+             $ currentTip cp
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s xprv ()
 mPutPrivateKey wid pk = alterModel wid $ \wal ->

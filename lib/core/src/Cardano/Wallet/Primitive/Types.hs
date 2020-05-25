@@ -50,6 +50,7 @@ module Cardano.Wallet.Primitive.Types
     , isPending
     , inputs
     , fromTransactionInfo
+    , toTxHistory
 
     -- * Address
     , Address (..)
@@ -952,6 +953,11 @@ fromTransactionInfo info = Tx
     , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
     , outputs = txInfoOutputs info
     }
+
+-- | Drop time-specific information
+toTxHistory :: TransactionInfo -> (Tx, TxMeta)
+toTxHistory info =
+    (fromTransactionInfo info, txInfoMeta info)
 
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be the transaction size in bytes or, a number of
