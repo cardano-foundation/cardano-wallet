@@ -343,7 +343,7 @@ bench_restoration
         , WalletKey k
         , NFData s
         , Show s
-        , MaxSizeOf Address n k
+        , MaxSizeOf Address n ByronKey
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         , NetworkDiscriminantVal n
