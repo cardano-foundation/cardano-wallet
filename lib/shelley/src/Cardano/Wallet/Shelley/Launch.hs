@@ -49,8 +49,6 @@ import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, fromGenesisData, testnetVersionData )
-import Cardano.Wallet.Shelley.Transaction
-    ( genesisBlockFromTxOuts )
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad
@@ -152,12 +150,12 @@ parseGenesisData = \case
         let nm = unNetworkMagic $ sgNetworkMagic genesis
         let (discriminant, vData) = someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
 
-        let (gbp, outs) = fromGenesisData genesis
+        let (gbp, block0) = fromGenesisData genesis
         pure
             ( discriminant
             , gbp
             , vData
-            , genesisBlockFromTxOuts (staticParameters gbp) outs
+            , block0
             )
 
 --------------------------------------------------------------------------------
@@ -278,7 +276,7 @@ withConfig tdir severity action =
         (genesisData :: ShelleyGenesis TPraosStandardCrypto)
             <- either (error . show) id . eitherDecode <$> BL.readFile nodeGenesisFile
 
-        let (gbp, outs) = fromGenesisData genesisData
+        let (gbp, block0) = fromGenesisData genesisData
 
         let nm = sgNetworkMagic genesisData
 
@@ -293,7 +291,7 @@ withConfig tdir severity action =
                 , nodeKesKey
                 , nodeOpCert
                 }
-            , genesisBlockFromTxOuts (staticParameters gbp) outs
+            , block0
             , ( gbp
               , ( NodeToClientVersionData nm
                 , nodeToClientCodecCBORTerm

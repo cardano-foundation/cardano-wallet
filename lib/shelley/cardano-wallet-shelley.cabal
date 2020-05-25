@@ -33,6 +33,7 @@ library
     , aeson
     , async
     , bytestring
+    , cardano-api
     , cardano-binary
     , cardano-slotting
     , cardano-wallet-cli
