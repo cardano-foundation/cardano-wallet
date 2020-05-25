@@ -49,6 +49,7 @@ module Cardano.Wallet.Primitive.Types
     , txIns
     , isPending
     , inputs
+    , fromTransactionInfo
 
     -- * Address
     , Address (..)
@@ -931,7 +932,7 @@ isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 data TransactionInfo = TransactionInfo
     { txInfoId :: !(Hash "Tx")
     -- ^ Transaction ID of this transaction
-    , txInfoInputs :: ![(TxIn, Maybe TxOut)]
+    , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
     , txInfoOutputs :: ![TxOut]
@@ -943,6 +944,14 @@ data TransactionInfo = TransactionInfo
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
+
+-- | Reconstruct a transaction info from a transaction.
+fromTransactionInfo :: TransactionInfo -> Tx
+fromTransactionInfo info = Tx
+    { txId = txInfoId info
+    , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
+    , outputs = txInfoOutputs info
+    }
 
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be the transaction size in bytes or, a number of

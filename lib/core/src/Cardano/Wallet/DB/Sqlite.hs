@@ -859,23 +859,40 @@ mkTxMetaEntity wid txid meta = TxMeta
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity
-    :: [TxMeta]
-    -> [TxIn]
+    :: W.SlotParameters
+    -> W.BlockHeader
+    -> [TxMeta]
+    -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
-    -> [(W.Tx, W.TxMeta)]
-txHistoryFromEntity metas ins outs = map mkItem metas
+    -> [W.TransactionInfo]
+txHistoryFromEntity sp tip metas ins outs =
+    map mkItem metas
   where
-    mkItem m = (mkTxWith (txMetaTxId m), mkTxMeta m)
-    mkTxWith txid = W.Tx
-        (getTxId txid)
-        (map mkTxIn $ filter ((== txid) . txInputTxId) ins)
-        (map mkTxOut $ filter ((== txid) . txOutputTxId) outs)
-    mkTxIn tx =
+    mkItem m = mkTxWith (txMetaTxId m) (mkTxMeta m)
+    mkTxWith txid meta = W.TransactionInfo
+        { W.txInfoId =
+            getTxId txid
+        , W.txInfoInputs =
+            map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+        , W.txInfoOutputs =
+            map mkTxOut $ filter ((== txid) . txOutputTxId) outs
+        , W.txInfoMeta =
+            meta
+        , W.txInfoDepth =
+            Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
+        , W.txInfoTime =
+            W.slotStartTime sp (meta ^. #slotId)
+        }
+      where
+        txH  = getQuantity (meta ^. #blockHeight)
+        tipH = getQuantity (tip ^. #blockHeight)
+    mkTxIn (tx, out) =
         ( W.TxIn
             { W.inputId = getTxId (txInputSourceTxId tx)
             , W.inputIx = txInputSourceIndex tx
             }
         , txInputSourceAmount tx
+        , mkTxOut <$> out
         )
     mkTxOut tx = W.TxOut
         { W.address = txOutputAddress tx
@@ -1016,15 +1033,35 @@ selectUTxO cp = fmap entityVal <$>
 
 selectTxs
     :: [TxId]
-    -> SqlPersistT IO ([TxIn], [TxOut])
+    -> SqlPersistT IO ([(TxIn, Maybe TxOut)], [TxOut])
 selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
   where
     select txids = do
-        ins <- fmap entityVal <$> selectList [TxInputTxId <-. txids]
+        inputs <- fmap entityVal <$> selectList
+            [TxInputTxId <-. txids]
             [Asc TxInputTxId, Asc TxInputOrder]
-        outs <- fmap entityVal <$> selectList [TxOutputTxId <-. txids]
+
+        resolvedInputs <- toOutputMap . fmap entityVal <$> selectList
+            [TxOutputTxId <-. (txInputSourceTxId <$> inputs)]
             [Asc TxOutputTxId, Asc TxOutputIndex]
-        pure (ins, outs)
+
+        outputs <- fmap entityVal <$> selectList
+            [TxOutputTxId <-. txids]
+            [Asc TxOutputTxId, Asc TxOutputIndex]
+
+        pure
+            ( inputs `resolveWith` resolvedInputs
+            , outputs
+            )
+
+    toOutputMap :: [TxOut] -> Map TxId TxOut
+    toOutputMap = Map.fromList . fmap (\out -> (txOutputTxId out, out))
+
+    resolveWith :: [TxIn] -> Map TxId TxOut -> [(TxIn, Maybe TxOut)]
+    resolveWith inputs resolvedInputs =
+        [ (i, Map.lookup (txInputSourceTxId i) resolvedInputs)
+        | i <- inputs
+        ]
 
     concatUnzip :: [([a], [b])] -> ([a], [b])
     concatUnzip = (concat *** concat) . unzip
@@ -1033,13 +1070,21 @@ selectTxHistory
     :: W.WalletId
     -> W.SortOrder
     -> [Filter TxMeta]
-    -> SqlPersistT IO [(W.Tx, W.TxMeta)]
+    -> SqlPersistT IO [W.TransactionInfo]
 selectTxHistory wid order conditions = do
-    metas <- fmap entityVal <$> selectList
-        ((TxMetaWalletId ==. wid) : conditions) sortOpt
-    let txids = map txMetaTxId metas
-    (ins, outs) <- selectTxs txids
-    return $ txHistoryFromEntity metas ins outs
+    selectLatestCheckpoint wid >>= \case
+        Nothing -> pure []
+        Just cp -> do
+            metas <- fmap entityVal <$> selectList
+                ((TxMetaWalletId ==. wid) : conditions) sortOpt
+            let txids = map txMetaTxId metas
+            (ins, outs) <- selectTxs txids
+
+            let wal = checkpointFromEntity cp [] ()
+            let tip = W.currentTip wal
+            let slp = W.slotParams $ W.blockchainParameters wal
+
+            return $ txHistoryFromEntity slp tip metas ins outs
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable

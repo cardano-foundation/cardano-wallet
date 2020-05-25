@@ -121,7 +121,8 @@ newDBLayer = do
             txh `deepseq` alterDB errNoSuchWallet db (mPutTxHistory pk txh)
 
         , readTxHistory = \pk order range mstatus ->
-                readDB db (mReadTxHistory pk order range mstatus)
+                error "TODO: readTxHistory"
+                -- readDB db (mReadTxHistory pk order range mstatus)
 
         {-----------------------------------------------------------------------
                                        Keystore
