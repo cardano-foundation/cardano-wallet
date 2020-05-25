@@ -238,7 +238,7 @@ server byron icarus shelley ntp =
              )
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron  wid r0 r1 s)
+                (byron , listTransactions byron wid r0 r1 s)
                 (icarus, listTransactions icarus wid r0 r1 s)
              )
         :<|>
@@ -247,14 +247,14 @@ server byron icarus shelley ntp =
                 (icarus, postTransactionFee icarus wid tx)
             )
         :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron  wid txid)
+                (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
              )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron  wid)
+                (byron , getMigrationInfo byron wid)
                 (icarus, getMigrationInfo icarus wid)
              )
         :<|> \_ _ -> throwError err501
