@@ -30,8 +30,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
-    , mainnetBlockchainParameters
-
       -- * Genesis
     , emptyGenesis
     , genesisTip
@@ -74,7 +72,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeFromHex )
+    ( unsafeDeserialiseCbor )
 import Control.Arrow
     ( left )
 import Data.ByteArray.Encoding
@@ -93,8 +91,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import GHC.Stack
@@ -158,30 +154,6 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- Chain Parameters
 
-
-mainnetBlockchainParameters :: W.GenesisBlockParameters
-mainnetBlockchainParameters = W.GenesisBlockParameters
-    { staticParameters = W.BlockchainParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        }
-    , txParameters = W.TxParameters
-        { getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getTxMaxSize =
-            Quantity 4096
-        }
-    }
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
