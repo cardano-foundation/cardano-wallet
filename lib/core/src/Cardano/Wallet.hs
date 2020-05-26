@@ -141,6 +141,7 @@ module Cardano.Wallet
     , ErrDecodeSignedTx (..)
     , ErrListTransactions (..)
     , ErrNetworkUnavailable (..)
+    , ErrCurrentNodeTip (..)
     , ErrStartTimeLaterThanEndTime (..)
 
     -- ** Root Key
@@ -170,7 +171,8 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
-    ( ErrGetAccountBalance (..)
+    ( ErrCurrentNodeTip (..)
+    , ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
@@ -1220,6 +1222,7 @@ signPayment
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
         , IsOwned s k
         , GenChange s
         )
@@ -1231,6 +1234,7 @@ signPayment
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+        nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
@@ -1241,7 +1245,7 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
 
             let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl keyFrom ins allOuts
+                mkStdTx tl keyFrom (nodeTip ^. #slotId) ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
@@ -1249,12 +1253,14 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+    nl = ctx ^. networkLayer @t
 
 -- | Very much like 'signPayment', but doesn't not generate change addresses.
 signTx
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
         , IsOwned s k
         )
     => ctx
@@ -1264,13 +1270,14 @@ signTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+        nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
 
             let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl keyFrom inps outs
+                mkStdTx tl keyFrom (nodeTip ^. #slotId) inps outs
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) (getState cp) inps outs
@@ -1278,6 +1285,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+    nl = ctx ^. networkLayer @t
     inps = NE.toList inpsNE
     outs = NE.toList outsNE
 
@@ -1331,6 +1339,7 @@ signDelegation
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
         , IsOwned s k
         , GenChange s
         , HardDerivation k
@@ -1345,6 +1354,7 @@ signDelegation
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     let (CoinSelection ins outs chgs) = coinSel
+    nodeTip <- withExceptT ErrSignDelegationNetwork $ currentNodeTip nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1360,9 +1370,9 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join poolId ->
-                        mkDelegationJoinTx tl poolId (rewardAcc, pwdP) keyFrom ins allOuts
+                        mkDelegationJoinTx tl poolId (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
                     Quit ->
-                        mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom ins allOuts
+                        mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
 
             let bp = blockchainParameters cp
             let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
@@ -1370,6 +1380,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
+    nl = ctx ^. networkLayer @t
 
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
@@ -1761,6 +1772,7 @@ data ErrSignPayment
     = ErrSignPaymentMkTx ErrMkTx
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
+    | ErrSignPaymentNetwork ErrCurrentNodeTip
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.
@@ -1814,6 +1826,7 @@ data ErrSignDelegation
     = ErrSignDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSignDelegationWithRootKey ErrWithRootKey
     | ErrSignDelegationMkTx ErrMkTx
+    | ErrSignDelegationNetwork ErrCurrentNodeTip
     deriving (Show, Eq)
 
 data ErrJoinStakePool

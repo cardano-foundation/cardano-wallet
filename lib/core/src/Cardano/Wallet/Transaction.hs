@@ -33,7 +33,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), PoolId, SealedTx (..), Tx (..), TxIn (..), TxOut (..) )
+    ( Address (..)
+    , PoolId
+    , SealedTx (..)
+    , SlotId (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -46,6 +53,7 @@ import Data.Word
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)

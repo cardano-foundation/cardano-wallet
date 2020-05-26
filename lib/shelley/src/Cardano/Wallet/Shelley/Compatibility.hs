@@ -378,7 +378,7 @@ fromGenesisData g =
             }
         , txParameters = fromPParams . sgProtocolParams $ g
         }
-    , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds $ g
+    , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )
   where
 

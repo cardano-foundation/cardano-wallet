@@ -79,7 +79,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress (..) )
+    ( DelegationAddress (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -115,6 +115,7 @@ server
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
+        , DelegationAddress n ShelleyKey
         )
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
@@ -145,17 +146,18 @@ server byron icarus shelley ntp =
         :<|> getUTxOsStatistics shelley
 
     addresses :: Server (Addresses n)
-    addresses _ _ = throwError err501
+    addresses = listAddresses shelley (const pure)
+    -- TODO: Normalize using (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
     coinSelections _ _ = throwError err501
 
     transactions :: Server (Transactions n)
     transactions =
-             (\_ _ -> throwError err501)
-        :<|> (\_ _ _ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
+        postTransaction shelley (delegationAddress @n)
+        :<|> listTransactions shelley
+        :<|> postTransactionFee shelley
+        :<|> deleteTransaction shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

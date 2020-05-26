@@ -22,10 +22,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth, NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
 
 -- TODO: To be implemented
@@ -39,26 +37,11 @@ class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
 
 
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx = error "sizeOfSignedTx to be implemented"
+sizeOfSignedTx ins outs = 180 + (40 * length ins) + ( 65 * length outs)
+    -- TODO: Implement properly
 
+instance MinSizeOf Address (n :: NetworkDiscriminant) ShelleyKey where
+    minSizeOf = 33 -- Could be double checked.
 
-instance MaxSizeOf Address 'Mainnet IcarusKey where
-    maxSizeOf = error "maxSizeOf Mainnet IcarusKey not implemented"
-instance MinSizeOf Address 'Mainnet IcarusKey where
-    minSizeOf = error "minSizeOf Mainnet IcarusKey not implemented"
-
-instance MaxSizeOf Address ('Testnet pm) IcarusKey where
-    maxSizeOf = error "maxSizeOf Testnet IcarusKey not implemented"
-instance MinSizeOf Address ('Testnet pm) IcarusKey where
-    minSizeOf = error "minSizeOf Testnet IcarusKey not implemented"
-
-instance MaxSizeOf Address 'Mainnet ByronKey where
-    maxSizeOf = error "maxSizeOf Mainnet ByronKey not implemented"
-instance MinSizeOf Address 'Mainnet ByronKey where
-    minSizeOf = error "minSizeOf Mainnet ByronKey not implemented"
-
-instance MaxSizeOf Address ('Testnet pm) ByronKey where
-    maxSizeOf = error "maxSizeOf Testnet ByronKey not implemented"
-instance MinSizeOf Address ('Testnet pm) ByronKey where
-    minSizeOf = error "maxSizeOf Testnet ByronKey not implemented"
-
+instance MaxSizeOf Address (n :: NetworkDiscriminant) ShelleyKey where
+    maxSizeOf = 65 -- Could be double checked.
