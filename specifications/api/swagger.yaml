@@ -897,7 +897,7 @@ components:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
 
-    ApiWalletMigrationPostData: &ApiWalletMigrationPostData
+    ApiByronWalletMigrationPostData: &ApiByronWalletMigrationPostData
       type: object
       required:
         - passphrase
@@ -905,6 +905,19 @@ components:
       properties:
         passphrase:
           <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        addresses:
+          <<: *addresses
+          description: The recipient addresses.
+
+    ApiShelleyWalletMigrationPostData: &ApiShelleyWalletMigrationPostData
+      type: object
+      required:
+        - passphrase
+        - addresses
+      properties:
+        passphrase:
+          <<: *walletPassphrase
           description: The wallet's master passphrase.
         addresses:
           <<: *addresses
@@ -1951,6 +1964,39 @@ paths:
             schema: *ApiSelectCoinsData
       responses: *responsesSelectCoins
 
+  /wallets/{walletId}/migrations:
+    get:
+      operationId: getShelleyWalletMigrationInfo
+      tags: ["Shelley Migrations"]
+      summary: Calculate Cost
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Calculate the exact cost of migrating from a Shelley wallet to
+        the specified set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
+
+    post:
+      operationId: migrateShelleyWallet
+      tags: ["Shelley Migrations"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Migrate all funds from a Shelley wallet to a specified set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiShelleyWalletMigrationPostData
+      responses: *responsesMigrateWallet
+
   /byron-wallets:
     get:
       operationId: listByronWallets
@@ -2193,7 +2239,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletMigrationPostData
+            schema: *ApiByronWalletMigrationPostData
       responses: *responsesMigrateWallet
 
   /byron-wallets/{walletId}/statistics/utxos:

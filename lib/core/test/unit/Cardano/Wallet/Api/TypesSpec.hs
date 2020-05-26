@@ -298,7 +298,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
@@ -597,13 +598,23 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiWalletMigrationPostData" $ property $ \x ->
+        it "ApiWalletMigrationPostData lenient" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
                     { passphrase =
-                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0))
+                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
                     , addresses =
-                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0))
+                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiWalletMigrationPostData raw" $ property $ \x ->
+            let
+                x' = ApiWalletMigrationPostData
+                    { passphrase =
+                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    , addresses =
+                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
                     }
             in
                 x' === x .&&. show x' === show x
@@ -852,9 +863,10 @@ instance Arbitrary ApiWalletMigrationInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrationPostData n) where
+instance Arbitrary (Passphrase purpose) =>
+         Arbitrary (ApiWalletMigrationPostData n purpose) where
     arbitrary = do
-        n <- choose (1,256)
+        n <- choose (1,255)
         pwd <- arbitrary
         addr <- vector n
         pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addr)
@@ -1367,9 +1379,13 @@ instance ToSchema ApiWalletMigrationInfo where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationInfo"
 
-instance ToSchema (ApiWalletMigrationPostData t) where
+instance ToSchema (ApiWalletMigrationPostData t "lenient") where
     declareNamedSchema _ =
-        declareSchemaForDefinition "ApiWalletMigrationPostData"
+        declareSchemaForDefinition "ApiByronWalletMigrationPostData"
+
+instance ToSchema (ApiWalletMigrationPostData t "raw") where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiShelleyWalletMigrationPostData"
 
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =

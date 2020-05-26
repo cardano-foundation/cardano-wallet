@@ -585,9 +585,9 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
-data ApiWalletMigrationPostData (n :: NetworkDiscriminant) =
+data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
-    { passphrase :: !(ApiT (Passphrase "lenient"))
+    { passphrase :: !(ApiT (Passphrase s))
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 
@@ -1164,9 +1164,10 @@ instance DecodeAddress n => FromJSON (ApiTransaction n) where
 instance EncodeAddress n => ToJSON (ApiTransaction n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (ApiWalletMigrationPostData n) where
+instance (DecodeAddress n, PassphraseMaxLength s, PassphraseMinLength s) =>
+    FromJSON (ApiWalletMigrationPostData n s) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n) where
+instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
@@ -1442,7 +1443,7 @@ type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
-type family ApiWalletMigrationPostDataT (n :: k) :: *
+type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -1465,5 +1466,5 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
 
-type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) =
-    ApiWalletMigrationPostData n
+type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
+    ApiWalletMigrationPostData n s

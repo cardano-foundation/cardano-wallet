@@ -37,6 +37,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , ShelleyMigrations
     , StakePools
     , Transactions
     , Wallets
@@ -54,6 +55,7 @@ import Cardano.Wallet.Api.Server
     , listAddresses
     , listTransactions
     , listWallets
+    , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
     , postExternalTransaction
@@ -124,6 +126,7 @@ server byron icarus shelley ntp =
     :<|> addresses
     :<|> coinSelections
     :<|> transactions
+    :<|> shelleyMigrations
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
@@ -153,6 +156,11 @@ server byron icarus shelley ntp =
         :<|> (\_ _ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+
+    shelleyMigrations :: Server (ShelleyMigrations n)
+    shelleyMigrations =
+             getMigrationInfo shelley
+        :<|> migrateWallet shelley
 
     stakePools :: Server (StakePools n)
     stakePools =
@@ -230,7 +238,7 @@ server byron icarus shelley ntp =
              )
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron  wid r0 r1 s)
+                (byron , listTransactions byron wid r0 r1 s)
                 (icarus, listTransactions icarus wid r0 r1 s)
              )
         :<|>
@@ -239,14 +247,14 @@ server byron icarus shelley ntp =
                 (icarus, postTransactionFee icarus wid tx)
             )
         :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron  wid txid)
+                (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
              )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron  wid)
+                (byron , getMigrationInfo byron wid)
                 (icarus, getMigrationInfo icarus wid)
              )
         :<|> \_ _ -> throwError err501

@@ -31,10 +31,13 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDiscovery (..)
     , ApiWalletMigrationInfo (..)
     , DecodeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Monad
@@ -104,6 +107,8 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
+    , EncodeAddress n
+    , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
 spec = do
     it "BYRON_CALCULATE_01 - \
@@ -547,8 +552,9 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status204
             ]
- where
-     genMnemonics
+
+  where
+    genMnemonics
         :: forall mw ent csz.
             ( ConsistentEntropy ent mw csz
             , ValidEntropySize ent
@@ -557,4 +563,4 @@ spec = do
             , mw ~ MnemonicWords ent
             )
         => IO [Text]
-     genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
+    genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy

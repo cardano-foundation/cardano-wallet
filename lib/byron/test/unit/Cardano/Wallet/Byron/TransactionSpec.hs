@@ -319,7 +319,7 @@ prop_rebalanceChangeOutputs sel onDangling = do
 propSizeEstimation
     :: forall n k.
        ( WalletKey k
-       , MaxSizeOf Address n k
+       , MaxSizeOf Address n ByronKey
        )
     => ProtocolMagic
     -> Gen CoinSelection
@@ -334,13 +334,16 @@ propSizeEstimation pm genSel genChngAddrs =
         cbor = fromCoinSelection sel chngAddrs
         size = fromIntegral $ BS.length $ CBOR.toStrictByteString cbor
 
-        -- We always go for the higher bound for change address payload's size,
-        -- so, we may end up with up to 12 extra bytes per change address in our
-        -- estimation.
+        -- As we have
+        -- maxSizeOf Icarus w/ Mainnet = 43
+        -- maxSizeOf Random w/ Mainnet = 76
+        -- The difference is 33, and we always go for the higher bound for
+        -- change address payload's size, so, we may end up with up to
+        -- 33 + 12 = 45 extra bytes per change address in our estimation.
         -- For Icarus addresses, we can be as good as 4 bytes per change address
         -- because there's no variance due to the derivation path encoded as
         -- attributes (this only happens on random addresses).
-        margin = 12 * fromIntegral (length $ change sel)
+        margin = 45 * fromIntegral (length $ change sel)
         realSizeSup = Quantity (size + margin)
         realSizeInf = Quantity size
     in
@@ -510,7 +513,7 @@ xprv seed =
 goldenTestSignedTx
     :: forall (n :: NetworkDiscriminant) k.
         ( k ~ IcarusKey
-        , MaxSizeOf Address n k
+        , MaxSizeOf Address n ByronKey
         , PaymentAddress n k
         )
     => Proxy n

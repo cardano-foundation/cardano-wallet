@@ -48,6 +48,10 @@ module Cardano.Wallet.Api
         , QuitStakePool
         , DelegationFee
 
+    , ShelleyMigrations
+        , MigrateShelleyWallet
+        , GetShelleyWalletMigrationInfo
+
     -- * Byron
     , ByronWallets
         , DeleteByronWallet
@@ -182,6 +186,7 @@ type Api n =
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
+    :<|> ShelleyMigrations n
     :<|> StakePools n
     :<|> ByronWallets
     :<|> ByronAddresses n
@@ -319,6 +324,30 @@ type DeleteTransaction = "wallets"
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> DeleteNoContent
+
+{-------------------------------------------------------------------------------
+                                 Shelley Migrations
+
+See also:
+https://input-output-hk.github.io/cardano-wallet/api/#tag/Shelley-Migrations
+-------------------------------------------------------------------------------}
+
+type ShelleyMigrations n =
+         GetShelleyWalletMigrationInfo
+    :<|> MigrateShelleyWallet n
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateShelleyWallet
+type MigrateShelleyWallet n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "migrations"
+    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "raw")
+    :> PostAccepted '[JSON] [ApiTransactionT n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getShelleyWalletMigrationInfo
+type GetShelleyWalletMigrationInfo = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "migrations"
+    :> Get '[JSON] ApiWalletMigrationInfo
 
 {-------------------------------------------------------------------------------
                                   StakePools
@@ -500,7 +529,7 @@ type ByronMigrations n =
 type MigrateByronWallet n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n)
+    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "lenient")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo

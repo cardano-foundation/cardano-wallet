@@ -913,7 +913,18 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
-instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm))) where
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient")) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
+
+instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "raw")) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
@@ -1325,19 +1336,19 @@ migrateDataCases :: [(Aeson.Value, ExpectedError)]
 migrateDataCases =
     [
       ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         , "addresses": "not_a_array"
         }|]
       , "Error in $.addresses: parsing [] failed, expected Array, but encountered String"
       )
     , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         , "addresses": 1
         }|]
       , "Error in $.addresses: parsing [] failed, expected Array, but encountered Number"
       )
     , ( [aesonQQ|
-        { "passphrase": "Secure Passphrase"
+        { "passphrase": #{wPassphrase}
         }|]
       , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'addresses' not found"
       )

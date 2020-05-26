@@ -1297,15 +1297,15 @@ quitStakePool ctx (ApiT wid) body = do
         #pendingSince
 
 {-------------------------------------------------------------------------------
-                                Legacy Migrations
+                                Migrations
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
     :: forall s t k. ()
     => ApiLayer s t k
-        -- ^ Source wallet context (Legacy)
+        -- ^ Source wallet context
     -> ApiT WalletId
-        -- ^ Source wallet (Legacy)
+        -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     infoFromSelections <$> getSelections
@@ -1326,12 +1326,12 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n. IsOwned s k
+    :: forall s t k n p. IsOwned s k
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
-    -> ApiWalletMigrationPostData n
+    -> ApiWalletMigrationPostData n p
     -> Handler [ApiTransaction n]
 migrateWallet ctx (ApiT wid) migrateData = do
     -- TO DO check if addrs are not empty

@@ -42,6 +42,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , ShelleyMigrations
     , StakePools
     , Transactions
     , Wallets
@@ -132,6 +133,7 @@ server byron icarus jormungandr spl ntp =
     :<|> addresses
     :<|> coinSelections
     :<|> transactions
+    :<|> shelleyMigrations
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
@@ -161,6 +163,11 @@ server byron icarus jormungandr spl ntp =
         :<|> listTransactions jormungandr
         :<|> postTransactionFee jormungandr
         :<|> deleteTransaction jormungandr
+
+    shelleyMigrations :: Server (ShelleyMigrations n)
+    shelleyMigrations =
+             (\_ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     stakePools :: Server (StakePools n)
     stakePools = listPools spl
@@ -218,20 +225,20 @@ server byron icarus jormungandr spl ntp =
              (\_ _ -> throwError err501)
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron  wid r0 r1 s)
+                (byron , listTransactions byron wid r0 r1 s)
                 (icarus, listTransactions icarus wid r0 r1 s)
              )
         :<|>
              (\_ _ -> throwError err501)
         :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron  wid txid)
+                (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
              )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron  wid)
+                (byron , getMigrationInfo byron wid)
                 (icarus, getMigrationInfo icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
