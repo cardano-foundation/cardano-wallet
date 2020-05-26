@@ -37,8 +37,18 @@ class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
 
 
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx ins outs = 180 + (40 * length ins) + ( 65 * length outs)
-    -- TODO: Implement properly
+sizeOfSignedTx ins outs = 180 + (40 * length ins) + ((65 + fixme) * length outs)
+  where
+    -- According to the ledger specs, the 40 and 65 should be /the/ values, but
+    -- this integration test failure suggests otherwise:
+    -- ApplyTxError [LedgerFailure (UtxowFailure (UtxoFailure (FeeTooSmallUTxO
+    -- {pfUTXOminFee = Coin 553001000, pfUTXOgivenFee = Coin 520001000})))]\"}")
+    --
+    -- Maybe that value wasn't taking delegation keys into account?
+    --
+    -- Regardless:
+    -- TODO: Implement properly.
+    fixme = 32
 
 instance MinSizeOf Address (n :: NetworkDiscriminant) ShelleyKey where
     minSizeOf = 33 -- Could be double checked.
