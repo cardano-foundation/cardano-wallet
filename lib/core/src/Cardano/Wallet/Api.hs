@@ -329,7 +329,7 @@ type DeleteTransaction = "wallets"
                                  Shelley Migrations
 
 See also:
-https://input-output-hk.github.io/cardano-wallet/api/#tag/Shelley-Migrations
+https://input-output-hk.github.io/cardano-wallet/api/#tag/Migrations
 -------------------------------------------------------------------------------}
 
 type ShelleyMigrations n =
