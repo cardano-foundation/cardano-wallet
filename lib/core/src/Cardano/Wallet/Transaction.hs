@@ -61,6 +61,7 @@ data TransactionLayer t k = TransactionLayer
         :: PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
@@ -74,6 +75,7 @@ data TransactionLayer t k = TransactionLayer
     , mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)

@@ -522,7 +522,8 @@ fixtureExternalTx ctx toSend = do
             , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
             ]
     tl <- newTransactionLayer <$> getBlock0H
-    let (Right (tx, bin)) = mkStdTx tl keystore theInps theOuts
+    let curSlot = error "current slot not needed in jormungandr mkStdTx"
+    let (Right (tx, bin)) = mkStdTx tl keystore curSlot theInps theOuts
 
     return ExternalTxFixture
         { srcWallet = wSrc
