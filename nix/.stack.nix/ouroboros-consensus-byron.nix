@@ -1,43 +1,12 @@
-let
-  buildDepError = pkg:
-    builtins.throw ''
-      The Haskell package set does not contain the package: ${pkg} (build dependency).
-      
-      If you are using Stackage, make sure that you are using a snapshot that contains the package. Otherwise you may need to update the Hackage snapshot you are using, usually by updating haskell.nix.
-      '';
-  sysDepError = pkg:
-    builtins.throw ''
-      The Nixpkgs package set does not contain the package: ${pkg} (system dependency).
-      
-      You may need to augment the system package mapping in haskell.nix so that it can be found.
-      '';
-  pkgConfDepError = pkg:
-    builtins.throw ''
-      The pkg-conf packages does not contain the package: ${pkg} (pkg-conf dependency).
-      
-      You may need to augment the pkg-conf package mapping in haskell.nix so that it can be found.
-      '';
-  exeDepError = pkg:
-    builtins.throw ''
-      The local executable components do not include the component: ${pkg} (executable dependency).
-      '';
-  legacyExeDepError = pkg:
-    builtins.throw ''
-      The Haskell package set does not contain the package: ${pkg} (executable dependency).
-      
-      If you are using Stackage, make sure that you are using a snapshot that contains the package. Otherwise you may need to update the Hackage snapshot you are using, usually by updating haskell.nix.
-      '';
-  buildToolDepError = pkg:
-    builtins.throw ''
-      Neither the Haskell package set or the Nixpkgs package set contain the package: ${pkg} (build tool dependency).
-      
-      If this is a system dependency:
-      You may need to augment the system package mapping in haskell.nix so that it can be found.
-      
-      If this is a Haskell dependency:
-      If you are using Stackage, make sure that you are using a snapshot that contains the package. Otherwise you may need to update the Hackage snapshot you are using, usually by updating haskell.nix.
-      '';
-in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
+{ system
+  , compiler
+  , flags
+  , pkgs
+  , hsPkgs
+  , pkgconfPkgs
+  , errorHandler
+  , config
+  , ... }:
   {
     flags = { asserts = false; };
     package = {
@@ -57,67 +26,67 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     components = {
       "library" = {
         depends = [
-          (hsPkgs."base" or (buildDepError "base"))
-          (hsPkgs."binary" or (buildDepError "binary"))
-          (hsPkgs."bytestring" or (buildDepError "bytestring"))
-          (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-          (hsPkgs."cardano-crypto" or (buildDepError "cardano-crypto"))
-          (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
-          (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-          (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
-          (hsPkgs."cborg" or (buildDepError "cborg"))
-          (hsPkgs."containers" or (buildDepError "containers"))
-          (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-          (hsPkgs."formatting" or (buildDepError "formatting"))
-          (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."mtl" or (buildDepError "mtl"))
-          (hsPkgs."serialise" or (buildDepError "serialise"))
-          (hsPkgs."text" or (buildDepError "text"))
-          (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
-          (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+          (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+          (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
+          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
+          (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           ];
         buildable = true;
         };
       exes = {
         "db-converter" = {
           depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
-            (hsPkgs."contra-tracer" or (buildDepError "contra-tracer"))
-            (hsPkgs."directory" or (buildDepError "directory"))
-            (hsPkgs."mtl" or (buildDepError "mtl"))
-            (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
-            (hsPkgs."optparse-generic" or (buildDepError "optparse-generic"))
-            (hsPkgs."path" or (buildDepError "path"))
-            (hsPkgs."path-io" or (buildDepError "path-io"))
-            (hsPkgs."resourcet" or (buildDepError "resourcet"))
-            (hsPkgs."streaming" or (buildDepError "streaming"))
-            (hsPkgs."text" or (buildDepError "text"))
-            (hsPkgs."time" or (buildDepError "time"))
-            (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."optparse-generic" or (errorHandler.buildDepError "optparse-generic"))
+            (hsPkgs."path" or (errorHandler.buildDepError "path"))
+            (hsPkgs."path-io" or (errorHandler.buildDepError "path-io"))
+            (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
+            (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
             ];
           buildable = true;
           };
         "db-analyser" = {
           depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
-            (hsPkgs."mtl" or (buildDepError "mtl"))
-            (hsPkgs."optparse-applicative" or (buildDepError "optparse-applicative"))
-            (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
-            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
+            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             ];
           buildable = true;
           };
@@ -125,39 +94,39 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
       tests = {
         "test" = {
           depends = [
-            (hsPkgs."base" or (buildDepError "base"))
-            (hsPkgs."binary" or (buildDepError "binary"))
-            (hsPkgs."binary-search" or (buildDepError "binary-search"))
-            (hsPkgs."bytestring" or (buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-crypto-test" or (buildDepError "cardano-crypto-test"))
-            (hsPkgs."cardano-crypto-wrapper" or (buildDepError "cardano-crypto-wrapper"))
-            (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-ledger-test" or (buildDepError "cardano-ledger-test"))
-            (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
-            (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
-            (hsPkgs."cborg" or (buildDepError "cborg"))
-            (hsPkgs."containers" or (buildDepError "containers"))
-            (hsPkgs."cryptonite" or (buildDepError "cryptonite"))
-            (hsPkgs."hedgehog-quickcheck" or (buildDepError "hedgehog-quickcheck"))
-            (hsPkgs."mtl" or (buildDepError "mtl"))
-            (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
-            (hsPkgs."tasty" or (buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (buildDepError "tasty-hunit"))
-            (hsPkgs."tasty-quickcheck" or (buildDepError "tasty-quickcheck"))
-            (hsPkgs."time" or (buildDepError "time"))
-            (hsPkgs."transformers" or (buildDepError "transformers"))
-            (hsPkgs."ouroboros-network" or (buildDepError "ouroboros-network"))
-            (hsPkgs."ouroboros-consensus" or (buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-test-infra" or (buildDepError "ouroboros-consensus-test-infra"))
-            (hsPkgs."ouroboros-consensus-byron" or (buildDepError "ouroboros-consensus-byron"))
-            (hsPkgs."ouroboros-consensus-byronspec" or (buildDepError "ouroboros-consensus-byronspec"))
-            (hsPkgs."byron-spec-chain" or (buildDepError "byron-spec-chain"))
-            (hsPkgs."byron-spec-ledger" or (buildDepError "byron-spec-ledger"))
-            (hsPkgs."small-steps" or (buildDepError "small-steps"))
-            (hsPkgs."hedgehog" or (buildDepError "hedgehog"))
-            (hsPkgs."serialise" or (buildDepError "serialise"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+            (hsPkgs."binary-search" or (errorHandler.buildDepError "binary-search"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
+            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+            (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
+            (hsPkgs."hedgehog-quickcheck" or (errorHandler.buildDepError "hedgehog-quickcheck"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+            (hsPkgs."ouroboros-consensus-test-infra" or (errorHandler.buildDepError "ouroboros-consensus-test-infra"))
+            (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
+            (hsPkgs."ouroboros-consensus-byronspec" or (errorHandler.buildDepError "ouroboros-consensus-byronspec"))
+            (hsPkgs."byron-spec-chain" or (errorHandler.buildDepError "byron-spec-chain"))
+            (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
+            (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
+            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             ];
           buildable = true;
           };
