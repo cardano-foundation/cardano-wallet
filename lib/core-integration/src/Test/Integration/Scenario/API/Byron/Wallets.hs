@@ -27,7 +27,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
-    , ApiTransaction
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
     , ApiWalletMigrationInfo (..)
@@ -44,7 +43,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_, void )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Proxy
@@ -65,7 +64,6 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletWith
     , emptyIcarusWallet
     , emptyRandomWallet
-    , emptyRandomWalletMws
     , emptyRandomWalletWithPasswd
     , eventually
     , expectErrorMessage
@@ -81,7 +79,6 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , getFromResponse
     , json
-    , randomAddresses
     , request
     , rootPrvKeyFromMnemonics
     , unsafeRequest
@@ -92,7 +89,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
-    , errMsg400ParseError
     , errMsg403NothingToMigrate
     , errMsg403WrongPass
     , errMsg404NoWallet
@@ -557,25 +553,6 @@ spec = do
             [ expectResponseCode @IO HTTP.status204
             ]
 
-    it "BYRON_MIGRATE_01 - \
-        \after a migration operation successfully completes, the correct \
-        \amount eventually becomes available in the target wallet for an \
-        \arbitrary number of specified addresses."
-        $ \ctx -> do
-              testAddressCycling ctx 1
-              testAddressCycling ctx 3
-              testAddressCycling ctx 10
-
-    it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
-        sourceWallet <- emptyRandomWallet ctx
-
-        r <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet sourceWallet)
-            Default
-            (NonJson "{passphrase:,}")
-        expectResponseCode @IO HTTP.status400 r
-        expectErrorMessage errMsg400ParseError r
-
   where
     genMnemonics
         :: forall mw ent csz.
@@ -587,52 +564,3 @@ spec = do
             )
         => IO [Text]
     genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
-
-    testAddressCycling ctx addrCount =
-        forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureWallet -> do
-            -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureWallet ctx
-            let originalBalance =
-                    view (#balance . #available . #getQuantity) sourceWallet
-
-            -- Create an empty target wallet:
-            (targetWallet, mw) <- emptyRandomWalletMws ctx
-            let addresses :: [Text] =
-                    take addrCount $ encodeAddress @n <$> randomAddresses @n mw
-
-            -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
-                (Link.getMigrationInfo sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
-                , expectField #migrationCost (.> Quantity 0)
-                ]
-            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
-
-            -- Perform a migration from the source wallet to the target wallet:
-            r1 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sourceWallet)
-                Default
-                (Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: #{addresses}
-                    }|])
-            verify r1
-                [ expectResponseCode @IO HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee
-            eventually "Wallet has expectedBalance" $ do
-                r2 <- request @ApiByronWallet ctx
-                    (Link.getWallet @'Byron targetWallet) Default Empty
-                verify r2
-                    [ expectField
-                            (#balance . #available)
-                            (`shouldBe` Quantity expectedBalance)
-                    , expectField
-                            (#balance . #total)
-                            (`shouldBe` Quantity expectedBalance)
-                    ]
