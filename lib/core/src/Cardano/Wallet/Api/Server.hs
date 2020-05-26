@@ -1159,7 +1159,8 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
             Pending  -> apiTx
             InLedger -> apiTx { depth = Just depth  }
       where
-        apiTx = mkApiTransaction txid ins outs (meta, txtime) $
+        drop2nd (a,_,c) = (a,c)
+        apiTx = mkApiTransaction txid (drop2nd <$> ins) outs (meta, txtime) $
             case meta ^. #status of
                 Pending  -> #pendingSince
                 InLedger -> #insertedAt

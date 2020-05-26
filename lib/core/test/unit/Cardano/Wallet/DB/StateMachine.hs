@@ -120,6 +120,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -299,7 +300,7 @@ data Success s wid
     | WalletIds [wid]
     | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
-    | TxHistory TxHistory
+    | TxHistory [TransactionInfo]
     | PrivateKey (Maybe MPrivKey)
     | TxParams (Maybe TxParameters)
     | BlockHeaders [BlockHeader]
@@ -996,7 +997,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             | otherwise = Nothing
 
     readTxHistory
-        :: (TxHistory -> Bool)
+        :: ([TransactionInfo] -> Bool)
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
     readTxHistory check res = Fold update False (extractf res)

@@ -85,6 +85,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (unSlotNo)
     , SortOrder (..)
+    , TransactionInfo
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -387,7 +388,7 @@ benchReadTxHistory
     -> (Maybe Word64, Maybe Word64)
     -> Maybe TxStatus
     -> DBLayerBench
-    -> IO [(Tx, TxMeta)]
+    -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
     atomically $ readTxHistory testPk sortOrder range mstatus
   where

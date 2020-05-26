@@ -285,6 +285,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , computeUtxoStatistics
     , dlgCertPoolId
+    , fromTransactionInfo
     , log10
     , slotParams
     , slotRangeFromTimeRange
@@ -366,7 +367,6 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -598,8 +598,8 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     let pk = PrimaryKey wid
     cp <- withNoSuchWallet wid $ readCheckpoint pk
     meta <- withNoSuchWallet wid $ readWalletMeta pk
-    txs <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
-    pure (cp, meta, Set.fromList (fst <$> txs))
+    pending <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
+    pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @s @k
 
@@ -907,10 +907,11 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then normalize s a
             else Nothing
-    let usedAddrs = Set.fromList $
-            concatMap (mapMaybe maybeIsOurs . outputs') txs
-          where
-            outputs' (tx, _) = W.outputs tx
+    let usedAddrs
+            = Set.fromList
+            $ concatMap
+                (mapMaybe maybeIsOurs . W.outputs)
+                (fromTransactionInfo <$> txs)
     let knownAddrs =
             L.sortBy (compareDiscovery s) (mapMaybe (normalize s) $ knownAddresses s)
     let withAddressState addr =
@@ -1471,12 +1472,11 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         cp <- withExceptT ErrListTransactionsNoSuchWallet $
             withNoSuchWallet wid $ readCheckpoint pk
 
-        let tip = currentTip cp
         let sp = slotParams (blockchainParameters cp)
 
         mapExceptT liftIO (getSlotRange sp) >>= maybe
             (pure [])
-            (\r -> assemble sp tip <$> lift (readTxHistory pk order r Nothing))
+            (\r -> lift (readTxHistory pk order r Nothing))
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1492,45 +1492,6 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
         _ ->
             pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
-
-    -- This relies on DB.readTxHistory returning all necessary transactions
-    -- to assemble coin selection information for outgoing payments.
-    -- To reliably provide this information, it should be looked up when
-    -- applying blocks, but that is future work (issue #573).
-    assemble
-        :: SlotParameters
-        -> BlockHeader
-        -> [(Tx, TxMeta)]
-        -> [TransactionInfo]
-    assemble sp tip txs = map mkTxInfo txs
-      where
-        mkTxInfo (tx, meta) = TransactionInfo
-            { txInfoId = W.txId tx
-            , txInfoInputs =
-                [(txIn, lookupOutput txIn) | txIn <- W.inputs tx]
-            , txInfoOutputs = W.outputs tx
-            , txInfoMeta = meta
-            , txInfoDepth =
-                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
-            , txInfoTime = txTime (meta ^. #slotId)
-            }
-          where
-            txH = getQuantity (meta ^. #blockHeight)
-            tipH = getQuantity (tip ^. #blockHeight)
-        txOuts = Map.fromList
-            [ (W.txId tx, W.outputs tx)
-            | ((tx, _)) <- txs
-            ]
-        -- Because we only track the UTxO of this wallet, we can only
-        -- return this information for outgoing payments.
-        lookupOutput (TxIn txid index) =
-            Map.lookup txid txOuts >>= atIndex (fromIntegral index)
-        atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
-        -- Get the approximate time of a transaction, given its 'SlotId'.
-        -- We assume that the transaction "happens" at the start of the
-        -- slot. This is purely arbitrary and in practice, any time between
-        -- the start of a slot and its end could be a valid candidate.
-        txTime = slotStartTime sp
 
 {-------------------------------------------------------------------------------
                                   Delegation

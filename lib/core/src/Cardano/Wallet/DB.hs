@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
+    , TransactionInfo
     , Tx (..)
     , TxMeta
     , TxParameters
@@ -199,7 +200,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> SortOrder
         -> Range SlotId
         -> Maybe TxStatus
-        -> stm [(Tx, TxMeta)]
+        -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.
         --

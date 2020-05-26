@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , SortOrder (..)
+    , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
     , TxParameters
@@ -61,6 +62,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , isPending
+    , toTxHistory
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -312,7 +314,7 @@ readTxHistoryF
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
-    (Identity . GenTxHistory)
+    (Identity . GenTxHistory . fmap toTxHistory)
         <$> atomically (readTxHistory wid Descending wholeRange Nothing)
 
 putTxHistoryF
@@ -735,7 +737,8 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
 
     prop wid requestedPoint = do
         point <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid requestedPoint
-        txs <- run $ atomically $ readTxHistory wid Descending wholeRange Nothing
+        txs <- run $ atomically $ fmap toTxHistory
+            <$> readTxHistory wid Descending wholeRange Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)
