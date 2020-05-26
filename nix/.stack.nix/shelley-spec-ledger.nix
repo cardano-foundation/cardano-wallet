@@ -61,6 +61,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."base" or (buildDepError "base"))
           (hsPkgs."binary" or (buildDepError "binary"))
           (hsPkgs."bytestring" or (buildDepError "bytestring"))
+          (hsPkgs."cardano-ledger" or (buildDepError "cardano-ledger"))
           (hsPkgs."cborg" or (buildDepError "cborg"))
           (hsPkgs."cborg-json" or (buildDepError "cborg-json"))
           (hsPkgs."containers" or (buildDepError "containers"))
@@ -95,6 +96,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
             (hsPkgs."bytestring-conversion" or (buildDepError "bytestring-conversion"))
             (hsPkgs."cardano-binary" or (buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-class" or (buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-ledger-test" or (buildDepError "cardano-ledger-test"))
             (hsPkgs."cardano-prelude" or (buildDepError "cardano-prelude"))
             (hsPkgs."cardano-slotting" or (buildDepError "cardano-slotting"))
             (hsPkgs."cborg" or (buildDepError "cborg"))
@@ -122,8 +124,8 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "25354e11ed43d59485c404f491a118efe0bd8e70";
-      sha256 = "1hcmsc1pis5y9zdfw70jw5xy7y5ji16an82ppsl47r51s8h53lfk";
+      rev = "b687fa55369f480cb134c007e534662bef961cea";
+      sha256 = "1bwbrj22a0nmsw990ac8k4ffz4xdazfb85dyl3lv3pa5yp3svw1j";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec; echo source root reset to \$sourceRoot";
     }
