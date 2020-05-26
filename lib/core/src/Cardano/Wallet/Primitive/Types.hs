@@ -944,7 +944,9 @@ data TransactionInfo = TransactionInfo
     -- ^ Number of slots since the transaction slot.
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
-    } deriving (Show, Eq, Ord)
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData TransactionInfo
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx
