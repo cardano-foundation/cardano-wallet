@@ -598,8 +598,8 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     let pk = PrimaryKey wid
     cp <- withNoSuchWallet wid $ readCheckpoint pk
     meta <- withNoSuchWallet wid $ readWalletMeta pk
-    txs <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
-    pure (cp, meta, Set.fromList (fromTransactionInfo <$> txs))
+    pending <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
+    pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @s @k
 
