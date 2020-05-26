@@ -6,6 +6,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
@@ -52,10 +53,15 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromSlotNo
     , fromTip
     , fromPParams
+
+    , toCardanoTxId
+    , toCardanoTxIn
+    , toCardanoTxOut
+    , toCardanoLovelace
+    , toSealed
     ) where
 
 import Prelude
-
 
 import Cardano.Binary
     ( fromCBOR, serialize' )
@@ -66,17 +72,27 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
+import Control.Arrow
+    ( left )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -115,10 +131,12 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -356,9 +374,10 @@ fromMaxTxSize =
 
 fromPParams :: SL.PParams -> W.TxParameters
 fromPParams pp = W.TxParameters
+    -- TODO: Why does multiplying with 1000 work?
     { getFeePolicy = W.LinearFee
-        (Quantity (naturalToDouble $ SL._minfeeA pp))
-        (Quantity (fromIntegral $ SL._minfeeB pp))
+        (Quantity (1000 * naturalToDouble (SL._minfeeA pp)))
+        (Quantity (1000 * fromIntegral (SL._minfeeB pp)))
         (Quantity 0) -- TODO: it's not as simple as this?
     , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
     }
@@ -453,18 +472,66 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs _ _ _ _ _ _) _ _ _) = W.Tx
     (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
     (map fromShelleyTxOut (toList outs))
 
+-- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
+toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
+toSealed tx =
+    let
+        wtx = fromShelleyTx tx
+        sealed = W.SealedTx $ serialize' tx
+    in (wtx, sealed)
+
+toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
+toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash h
+
+toCardanoTxIn :: W.TxIn -> Cardano.TxIn
+toCardanoTxIn (W.TxIn tid ix) =
+    Cardano.TxIn (toCardanoTxId tid) (fromIntegral ix)
+
+-- NOTE: Only creates Shelley addresses.
+toCardanoAddress :: W.Address -> Cardano.Address
+toCardanoAddress (W.Address bytes) =
+    Cardano.AddressShelley
+        . fromMaybe (error "toCardanoAddress: invalid address")
+        . SL.deserialiseAddr @TPraosStandardCrypto
+        $ bytes
+
+toCardanoLovelace :: W.Coin -> Cardano.Lovelace
+toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
+  where
+    safeCast :: Word64 -> Integer
+    safeCast = fromIntegral
+
+toCardanoTxOut :: W.TxOut -> Cardano.TxOut
+toCardanoTxOut (W.TxOut addr coin) =
+    Cardano.TxOut (toCardanoAddress addr) (toCardanoLovelace coin)
+
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
 instance EncodeAddress 'Mainnet where
-    encodeAddress = error "TODO"
+    encodeAddress = T.decodeUtf8 . hex . W.unAddress
 
 instance EncodeAddress ('Testnet pm) where
-    encodeAddress = error "TODO"
+    encodeAddress = T.decodeUtf8 . hex . W.unAddress
+
+_decodeAddress :: Text -> Either TextDecodingError W.Address
+_decodeAddress x = validateWithLedger =<< W.Address <$> fromHex x
+  where
+    fromHex :: Text -> Either TextDecodingError ByteString
+    fromHex =
+        left (const $ TextDecodingError "Unable to decode Address: not valid hex encoding.")
+        .  convertFromBase @ByteString @ByteString Base16
+        . T.encodeUtf8
+
+    validateWithLedger addr@(W.Address bytes) =
+        case SL.deserialiseAddr @TPraosStandardCrypto bytes of
+            Just _ -> Right addr
+            Nothing -> Left $ TextDecodingError
+                "Unable to decode Address: not a well-formed Shelley Address."
 
 instance DecodeAddress 'Mainnet where
-    decodeAddress = error "TODO"
+    decodeAddress = _decodeAddress
 
 instance DecodeAddress ('Testnet pm) where
-    decodeAddress = error "TODO"
+    decodeAddress = _decodeAddress
