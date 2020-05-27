@@ -32,4 +32,14 @@ in pkgs.runCommand name { buildInputs = [ pkgs.buildPackages.zip ]; } ''
     zip -r $out/${exe.name}-configuration.zip .
     echo "file binary-dist $out/${exe.name}-configuration.zip" >> $out/nix-support/hydra-build-products
   fi
+
+  # make a separate deployments configuration package if needed
+  if [ -d ${exe}/deployments ]; then
+    cp -R ${exe}/deployments ..
+    cd ../deployments
+    chmod -R +w .
+
+    zip -r $out/${exe.name}-deployments.zip .
+    echo "file binary-dist $out/${exe.name}-deployments.zip" >> $out/nix-support/hydra-build-products
+  fi
 ''

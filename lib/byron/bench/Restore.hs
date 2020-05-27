@@ -181,7 +181,8 @@ import qualified Data.Text.Encoding as T
 
 main :: IO ()
 main = do
-    testnetGenesis <- getEnv "TESTNET_GENESIS"
+    configs <- getEnv "CARDANO_NODE_CONFIGS"
+    let testnetGenesis = configs </> "testnet" </> "genesis.json"
     let opts = info (fmap exec (networkConfigurationOption testnetGenesis)) mempty
     join $ execParser opts
 
@@ -215,12 +216,13 @@ exec c = do
 
     ----------------------------------------------------------------------------
     -- Environment variables set by nix/haskell.nix (or manually)
-    topology <- case c of
-        MainnetConfig _ -> getEnv "MAINNET_TOPOLOGY"
-        TestnetConfig _ -> getEnv "TESTNET_TOPOLOGY"
-    config <- case c of
-        MainnetConfig _ -> getEnv "MAINNET_NODE_CONFIG"
-        TestnetConfig _ -> getEnv "TESTNET_NODE_CONFIG"
+    configs <- getEnv "CARDANO_NODE_CONFIGS"
+    let networkDir = case c of
+            MainnetConfig _ -> "mainnet"
+            TestnetConfig _ -> "testnet"
+        topology = configs </> networkDir </> "topology.json"
+        config = configs </> networkDir </> "configuration.json"
+
     ----------------------------------------------------------------------------
     -- Environment variables set by ./buildkite/bench-restore.sh (or manually)
     nodeDB <- getEnv "NODE_DB"

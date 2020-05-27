@@ -150,11 +150,7 @@ let
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
-                --set TESTNET_NODE_CONFIG ${pkgs.cardano-node.testnet.configFile} \
-                --set TESTNET_TOPOLOGY ${pkgs.cardano-node.topologyFiles.testnet} \
-                --set TESTNET_GENESIS ${pkgs.cardano-node.testnet.genesisFile} \
-                --set MAINNET_NODE_CONFIG ${pkgs.cardano-node.mainnet.configFile} \
-                --set MAINNET_TOPOLOGY ${pkgs.cardano-node.topologyFiles.mainnet} \
+                --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node.deployments} \
                 --prefix PATH : ${pkgs.cardano-node}/bin
             '';
           };
