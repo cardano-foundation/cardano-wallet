@@ -518,14 +518,13 @@ spec = do
             ]
 
         ["network", "parameters", "--help"] `shouldShowUsage`
-            [ "Usage:  network parameters [--port INT] EPOCH_NUMBER"
+            [ "Usage:  network parameters [--port INT]"
             , "  View network parameters."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
-            , "  EPOCH_NUMBER             epoch number parameter or 'latest'"
             ]
 
         ["network", "clock", "--help"] `shouldShowUsage`
