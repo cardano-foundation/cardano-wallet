@@ -139,7 +139,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -1066,13 +1066,15 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             , outputs
             )
 
-    toOutputMap :: [TxOut] -> Map TxId TxOut
-    toOutputMap = Map.fromList . fmap (\out -> (txOutputTxId out, out))
+    toOutputMap :: [TxOut] -> Map (TxId, Word32) TxOut
+    toOutputMap = Map.fromList . fmap
+        (\out -> let key = (txOutputTxId out, txOutputIndex out) in (key, out))
 
-    resolveWith :: [TxIn] -> Map TxId TxOut -> [(TxIn, Maybe TxOut)]
+    resolveWith :: [TxIn] -> Map (TxId, Word32) TxOut -> [(TxIn, Maybe TxOut)]
     resolveWith inputs resolvedInputs =
-        [ (i, Map.lookup (txInputSourceTxId i) resolvedInputs)
+        [ (i, Map.lookup key resolvedInputs)
         | i <- inputs
+        , let key = (txInputSourceTxId i, txInputSourceIndex i)
         ]
 
     concatUnzip :: [([a], [b])] -> ([a], [b])
