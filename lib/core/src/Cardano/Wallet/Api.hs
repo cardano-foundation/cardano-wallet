@@ -102,7 +102,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
-    , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation
@@ -555,7 +554,6 @@ type GetNetworkInformation = "network"
 
 type GetNetworkParameters = "network"
     :> "parameters"
-    :> Capture "epochId" ApiEpochNumber
     :> Get '[JSON] ApiNetworkParameters
 
 type GetNetworkClock = "network"

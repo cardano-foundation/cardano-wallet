@@ -147,7 +147,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
-    , ApiEpochNumber (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -278,7 +277,7 @@ import Control.Arrow
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
-    ( forM, void, when, (>=>) )
+    ( forM, void, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -1430,31 +1429,11 @@ getNetworkInformation (_block0, gbp, st) nl = do
 
 getNetworkParameters
     :: (Block, GenesisBlockParameters, SyncTolerance)
-    -> ApiEpochNumber
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, gbp, _st) apiEpochNum = do
-    case apiEpochNum of
-        ApiEpochNumber epochNum -> do
-            now <- liftIO getCurrentTime
-            let slotParams = W.slotParams bp
-            let ntrkTip = fromMaybe slotMinBound (slotAt slotParams now)
-            let currentEpochNum = ntrkTip ^. #epochNumber
-            when (currentEpochNum < epochNum) $
-                liftHandler $ throwE $ ErrNoSuchEpoch
-                    { errGivenEpoch = epochNum
-                    , errCurrentEpoch = currentEpochNum
-                    }
-            pure (toApiNetworkParameters bp)
-
-        ApiEpochNumberLatest ->
-            pure (toApiNetworkParameters bp)
+getNetworkParameters (_block0, gbp, _st) =
+    pure $ toApiNetworkParameters bp
   where
     bp = gbp ^. #staticParameters
-
-data ErrNoSuchEpoch = ErrNoSuchEpoch
-    { errGivenEpoch :: W.EpochNo
-    , errCurrentEpoch :: W.EpochNo
-    } deriving (Eq, Show)
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
@@ -2111,18 +2090,6 @@ instance LiftHandler ErrQuitStakePool where
                     , "although you're not even delegating, nor won't be in an "
                     , "immediate future."
                     ]
-
-instance LiftHandler ErrNoSuchEpoch where
-    handler = \case
-        ErrNoSuchEpoch {errGivenEpoch,errCurrentEpoch}->
-            apiError err404 NoSuchEpochNo $ mconcat
-                [ "I couldn't show blockchain parameters for epoch number later"
-                , " than current one. You requested "
-                , pretty errGivenEpoch
-                , " epoch. Current one is "
-                , pretty errCurrentEpoch
-                , ". Use smaller epoch than current or 'latest'."
-                ]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case

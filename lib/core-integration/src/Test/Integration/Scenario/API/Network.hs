@@ -15,32 +15,28 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
-    , ApiT (..)
     , NtpSyncingStatus (..)
     , WalletStyle (..)
     , toApiNetworkParameters
     )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SyncProgress (..) )
+    ( SyncProgress (..) )
 import Control.Monad
-    ( forM_, when )
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Time.Clock
     ( getCurrentTime )
-import Data.Word.Odd
-    ( Word31 )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe )
+    ( SpecWith, it, pendingWith, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyRandomWallet
     , eventually
-    , expectErrorMessage
     , expectField
     , expectResponseCode
     , getFromResponse
@@ -48,13 +44,10 @@ import Test.Integration.Framework.DSL
     , verify
     , (.>)
     )
-import Test.Integration.Framework.TestData
-    ( errMsg404NoEpochNo )
 import Test.Utils.Paths
     ( inNixBuild )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
@@ -102,54 +95,14 @@ spec = do
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
 
-    describe "NETWORK_PARAMS_01 - Valid epoch values" $ do
-        let matrix = ["latest", "0"]
-        forM_ matrix $ \epochNo -> it ("Epoch: " <> show epochNo) $ \ctx -> do
-            verifyEpochNumOK ctx epochNo
+    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
 
-        it "Current epoch" $ \ctx -> do
-            r <- request @ApiNetworkInformation ctx
-                Link.getNetworkInfo Default Empty
-            let currentEpochNo =
-                    getFromResponse
-                        (#nodeTip . #epochNumber . #getApiT . #unEpochNo) r
-            let epochNo = T.pack $ show currentEpochNo
-            verifyEpochNumOK ctx epochNo
-
-        it "Previous epoch" $ \ctx -> do
-            r <- request @ApiNetworkInformation ctx
-                Link.getNetworkInfo Default Empty
-            let currentEpochNo =
-                    getFromResponse
-                        (#nodeTip . #epochNumber . #getApiT . #unEpochNo) r
-            -- test previous epoch unless the current is epoch 0
-            -- otherwise test hits maxBound of the epochNo and fails
-            epochNo <- if (currentEpochNo > 0) then do
-                return $ T.pack $ show (currentEpochNo - 1)
-            else do
-                return $ T.pack $ show currentEpochNo
-
-            verifyEpochNumOK ctx epochNo
-
-    describe "NETWORK_PARAMS_02 - Cannot query future epoch" $  do
-        it "Future epoch" $ \ctx -> do
-            r1 <- request @ApiNetworkInformation ctx
-                Link.getNetworkInfo Default Empty
-            let (ApiT (EpochNo currentEpochNo)) =
-                    getFromResponse (#nextEpoch . #epochNumber) r1
-            let futureEpochNo = T.pack $ show $ currentEpochNo + 10
-            verifyEpochNumWrong ctx
-                    futureEpochNo
-                    HTTP.status404
-                    (errMsg404NoEpochNo (T.unpack futureEpochNo))
-
-        it "Epoch max value" $ \ctx -> do
-            let maxEpochValue =
-                    T.pack $ show $ fromIntegral @Word31 @Int maxBound
-            verifyEpochNumWrong ctx
-                    maxEpochValue
-                    HTTP.status404
-                    (errMsg404NoEpochNo (T.unpack maxEpochValue))
+        let endpoint = ( "GET", "v2/network/parameters" )
+        r <- request @ApiNetworkParameters ctx endpoint Default Empty
+        expectResponseCode @IO HTTP.status200 r
+        let networkParams = getFromResponse id r
+        networkParams `shouldBe`
+            toApiNetworkParameters (ctx ^. #_blockchainParameters)
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
         sandboxed <- inNixBuild
@@ -172,25 +125,3 @@ spec = do
             expectResponseCode @IO HTTP.status200 r
             expectField (#ntpStatus . #status)
                 (`shouldBe` NtpSyncingStatusAvailable) r
-   where
-       verifyEpochNumWrong
-            :: Context t
-            -> T.Text
-            -> HTTP.Status
-            -> String
-            -> IO()
-       verifyEpochNumWrong ctx epochNum errCode errMsg = do
-           let endpoint =
-                   ( "GET", "v2/network/parameters/" <> epochNum )
-           r <- request @ApiNetworkParameters ctx endpoint Default Empty
-           expectResponseCode @IO errCode r
-           expectErrorMessage errMsg r
-
-       verifyEpochNumOK :: Context t -> T.Text -> IO ()
-       verifyEpochNumOK ctx epochNo = do
-           let endpoint = ( "GET", "v2/network/parameters/"<>epochNo )
-           r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
-           expectResponseCode @IO HTTP.status200 r2
-           let networkParams = getFromResponse id r2
-           networkParams `shouldBe`
-               toApiNetworkParameters (ctx ^. #_blockchainParameters)

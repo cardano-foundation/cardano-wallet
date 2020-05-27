@@ -50,8 +50,7 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiEpochNumber
-    , ApiNetworkTip
+    ( ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiSelectCoinsData
@@ -86,8 +85,6 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
-import Data.Word.Odd
-    ( Word31 )
 import GHC.TypeLits
     ( Symbol )
 import Servant
@@ -162,19 +159,6 @@ instance Malformed (PathParam ApiPoolId) where
         ]
       where
         msg = "Invalid stake pool id: expecting a hex-encoded value that is 32 bytes in length."
-
-instance Wellformed (PathParam ApiEpochNumber) where
-    wellformed = PathParam "latest"
-
-instance Malformed (PathParam ApiEpochNumber) where
-    malformed = first PathParam <$>
-        [ ("earliest", msg)
-        , (T.pack $ show $ (+1) $ fromIntegral @Word31 @Int maxBound, msg)
-        , ("invalid", msg)
-        , ("-1", msg)
-        ]
-      where
-        msg = "I couldn't parse the given epoch number. I am expecting either the word 'latest' or, an integer from 0 to 2147483647."
 
 instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
     wellformed = PathParam

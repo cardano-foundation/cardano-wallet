@@ -88,8 +88,7 @@ import Prelude
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
-    ( ApiEpochNumber
-    , ApiPoolId (..)
+    ( ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , Iso8601Time
@@ -426,15 +425,9 @@ getNetworkInfo =
     endpoint @Api.GetNetworkInformation id
 
 getNetworkParams
-    :: forall e.
-        ( HasType ApiEpochNumber e
-        )
-    => e
-    -> (Method, Text)
-getNetworkParams e =
-    endpoint @Api.GetNetworkParameters (epoch &)
-  where
-    epoch = e ^. typed @ApiEpochNumber
+    :: (Method, Text)
+getNetworkParams =
+    endpoint @Api.GetNetworkParameters id
 
 getNetworkClock
     :: (Method, Text)
