@@ -1590,7 +1590,7 @@ getSlotParams ctx = do
           Link.getNetworkInfo Default Empty
     let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r1
 
-    let endpoint = ( "GET", "v2/network/parameters/latest" )
+    let endpoint = ( "GET", "v2/network/parameters" )
     r2 <- request @ApiNetworkParameters ctx endpoint Default Empty
     let (Quantity slotL) = getFromResponse #slotLength r2
     let (Quantity epochL) = getFromResponse #epochLength r2
