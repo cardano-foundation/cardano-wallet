@@ -48,7 +48,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
-    , ApiEpochNumber (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
@@ -334,7 +333,6 @@ spec = do
         describe "Can perform roundtrip textual encoding & decoding" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
-            textRoundtrip $ Proxy @ApiEpochNumber
 
     describe "AddressAmount" $ do
         it "fromText \"22323\"" $
@@ -1177,16 +1175,6 @@ instance Arbitrary (Quantity "percent" Double) where
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary ApiEpochNumber where
-    arbitrary = do
-        let lowerBound = fromIntegral (minBound @Word31)
-        let upperBound = fromIntegral (maxBound @Word31)
-        epochN <- choose (lowerBound :: Int, upperBound)
-        elements
-            [ ApiEpochNumberLatest
-            , ApiEpochNumber (EpochNo (fromIntegral epochN))
-            ]
 
 instance Arbitrary SlotId where
     arbitrary = applyArbitrary2 SlotId

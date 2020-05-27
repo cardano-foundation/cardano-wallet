@@ -71,7 +71,6 @@ module Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
-    , ApiEpochNumber (..)
     , ApiNetworkParameters (..)
     , toApiNetworkParameters
     , ApiWalletDelegation (..)
@@ -253,7 +252,6 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Read as T
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -491,10 +489,6 @@ data ApiFee = ApiFee
     , estimatedMax :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-data ApiEpochNumber =
-    ApiEpochNumberLatest | ApiEpochNumber EpochNo
-    deriving (Eq, Generic, Show)
-
 data ApiNetworkParameters = ApiNetworkParameters
     { genesisBlockHash :: !(ApiT (Hash "Genesis"))
     , blockchainStartTime :: !(ApiT StartTime)
@@ -678,36 +672,6 @@ instance FromText NtpSyncingStatus where
             [ "I couldn't parse the given ntp syncing status."
             , "I am expecting one of the words 'unavailable', 'pending' or"
             , "'available'."]
-
-instance ToText ApiEpochNumber where
-    toText ApiEpochNumberLatest = "latest"
-    toText (ApiEpochNumber (EpochNo e)) = T.pack $ show e
-
-instance FromText ApiEpochNumber where
-    fromText txt = case txt of
-        "latest" ->
-            Right ApiEpochNumberLatest
-        rest -> case T.decimal @Int rest of
-            Right (num, "") | num >= minValue && num <= maxValue ->
-                Right $ ApiEpochNumber $ EpochNo $ fromIntegral num
-            _ ->
-                Left errText
-      where
-        minValue = fromIntegral $ minBound @Word31
-        maxValue = fromIntegral $ maxBound @Word31
-        errText  = TextDecodingError $ unwords
-            [ "I couldn't parse the given epoch number."
-            , "I am expecting either the word 'latest' or, an integer from"
-            , show (minBound @Word31)
-            , "to"
-            , show (maxBound @Word31) <> "."
-            ]
-
-instance ToHttpApiData ApiEpochNumber where
-    toUrlPiece = toText
-
-instance FromHttpApiData ApiEpochNumber where
-    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
 data ApiPoolId
     = ApiPoolIdPlaceholder
