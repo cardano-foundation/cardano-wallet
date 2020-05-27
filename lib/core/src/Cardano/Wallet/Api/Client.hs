@@ -61,7 +61,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
-    , ApiEpochNumber
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation (..)
@@ -194,8 +193,7 @@ data NetworkClient = NetworkClient
     { networkInformation
         :: ClientM ApiNetworkInformation
     , networkParameters
-        :: ApiEpochNumber
-        -> ClientM ApiNetworkParameters
+        :: ClientM ApiNetworkParameters
     , networkClock
         :: Bool -- When 'True', block and force NTP check
         -> ClientM ApiNetworkClock

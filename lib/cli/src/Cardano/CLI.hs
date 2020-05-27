@@ -158,7 +158,6 @@ import Cardano.Wallet.Api.Types
     , AllowedMnemonics
     , ApiAccountPublicKey
     , ApiByronWallet
-    , ApiEpochNumber
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
     , ApiT (..)
@@ -1556,9 +1555,8 @@ cmdNetworkInformation mkClient =
         runClient wPort Aeson.encodePretty (networkInformation mkClient)
 
 -- | Arguments for 'network parameters' command
-data NetworkParametersArgs = NetworkParametersArgs
+newtype NetworkParametersArgs = NetworkParametersArgs
     { _port :: Port "Wallet"
-    , _epoch :: ApiEpochNumber
     }
 
 cmdNetworkParameters
@@ -1570,9 +1568,8 @@ cmdNetworkParameters mkClient =
   where
     cmd = fmap exec $ NetworkParametersArgs
         <$> portOption
-        <*> epochArgument
-    exec (NetworkParametersArgs wPort epoch) = do
-        runClient wPort Aeson.encodePretty $ networkParameters mkClient epoch
+    exec (NetworkParametersArgs wPort) = do
+        runClient wPort Aeson.encodePretty $ networkParameters mkClient
 
 -- | Arguments for 'network clock' command
 data NetworkClockArgs = NetworkClockArgs
@@ -1882,12 +1879,6 @@ tlsOption = TlsConfiguration
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
-
--- | <epoch=EPOCH_NUMBER>
-epochArgument :: Parser ApiEpochNumber
-epochArgument = argumentT $ mempty
-    <> metavar "EPOCH_NUMBER"
-    <> help "epoch number parameter or 'latest'"
 
 -- | <transaction-id=TX_ID>
 transactionIdArgument :: Parser TxId
