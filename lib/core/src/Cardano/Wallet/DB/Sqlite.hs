@@ -106,6 +106,8 @@ import Control.Exception
     ( Exception, bracket, throwIO )
 import Control.Monad
     ( forM, unless, void, when )
+import Control.Monad.Extra
+    ( concatMapM )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Class
@@ -1050,9 +1052,10 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [TxInputTxId <-. txids]
             [Asc TxInputTxId, Asc TxInputOrder]
 
-        resolvedInputs <- toOutputMap . fmap entityVal <$> selectList
-            [TxOutputTxId <-. (txInputSourceTxId <$> inputs)]
-            [Asc TxOutputTxId, Asc TxOutputIndex]
+        resolvedInputs <- toOutputMap . fmap entityVal <$>
+            combineChunked inputs (\inputsChunk -> selectList
+                [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
+                [Asc TxOutputTxId, Asc TxOutputIndex])
 
         outputs <- fmap entityVal <$> selectList
             [TxOutputTxId <-. txids]
@@ -1074,6 +1077,12 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
 
     concatUnzip :: [([a], [b])] -> ([a], [b])
     concatUnzip = (concat *** concat) . unzip
+
+    -- Split a query's input values into chunks, run multiple smaller queries,
+    -- and then concatenate the results afterwards. Used to avoid "too many SQL
+    -- variables" errors for "SELECT IN" queries.
+    combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
+    combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 
 selectTxHistory
     :: W.WalletId
