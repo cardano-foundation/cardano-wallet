@@ -118,7 +118,7 @@ import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 instance KnownCommand Shelley where
     commandName = "cardano-wallet-shelley"
 
-main :: forall t n . (t ~ Shelley, n ~ 'Testnet 1) => IO ()
+main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hSetBuffering stdout LineBuffering
     hspec $ do
