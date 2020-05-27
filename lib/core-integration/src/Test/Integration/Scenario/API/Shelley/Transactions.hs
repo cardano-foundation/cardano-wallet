@@ -502,7 +502,7 @@ spec = do
                         "unit": "lovelace"
                     }
                 }],
-                "passphrase": "cardano-wallet"
+                "passphrase": "Secure Passphrase"
             }|]
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
