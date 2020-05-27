@@ -1158,16 +1158,6 @@ x-parametersTransactionId: &parametersTransactionId
     maxLength: 64
     minLength: 64
 
-x-parametersEpochId: &parametersEpochId
-  in: path
-  name: epochId
-  required: true
-  description: |
-    Epoch parameter number as string or `latest`
-    Example: `latest`, `0`, `22`
-  schema:
-    type: string
-
 x-parametersStakePoolId: &parametersStakePoolId
   in: path
   name: stakePoolId
@@ -2303,16 +2293,13 @@ paths:
           name: forceNtpCheck
       responses: *responsesGetNetworkClock
 
-  /network/parameters/{epochId}:
+  /network/parameters:
     get:
       operationId: getNetworkParameters
       tags: ["Network"]
       summary: Parameters
       description: |
         <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - <<: *parametersEpochId
-          name: epochId
       responses: *responsesGetNetworkParameters
 
   /proxy/transactions:
