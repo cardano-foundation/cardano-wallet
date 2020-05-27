@@ -624,7 +624,6 @@ data ApiErrorCode
     | NotDelegatingTo
     | InvalidRestorationParameters
     | RejectedTip
-    | NoSuchEpochNo
     | InvalidDelegationDiscovery
     | NotImplemented
     | WalletNotResponding

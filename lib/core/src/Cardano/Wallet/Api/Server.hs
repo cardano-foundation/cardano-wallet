@@ -1435,11 +1435,6 @@ getNetworkParameters (_block0, gbp, _st) =
   where
     bp = gbp ^. #staticParameters
 
-data ErrNoSuchEpoch = ErrNoSuchEpoch
-    { errGivenEpoch :: W.EpochNo
-    , errCurrentEpoch :: W.EpochNo
-    } deriving (Eq, Show)
-
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
 
@@ -2095,18 +2090,6 @@ instance LiftHandler ErrQuitStakePool where
                     , "although you're not even delegating, nor won't be in an "
                     , "immediate future."
                     ]
-
-instance LiftHandler ErrNoSuchEpoch where
-    handler = \case
-        ErrNoSuchEpoch {errGivenEpoch,errCurrentEpoch}->
-            apiError err404 NoSuchEpochNo $ mconcat
-                [ "I couldn't show blockchain parameters for epoch number later"
-                , " than current one. You requested "
-                , pretty errGivenEpoch
-                , " epoch. Current one is "
-                , pretty errCurrentEpoch
-                , ". Use smaller epoch than current or 'latest'."
-                ]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case
