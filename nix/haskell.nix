@@ -230,6 +230,9 @@ let
 
         # systemd can't be statically linked - disable lobemo-scribe-journal
         packages.cardano-config.flags.systemd = false;
+
+        # Haddock not working and not needed for cross builds
+        doHaddock = false;
       }))
 
       # Allow installation of a newer version of Win32 than what is
