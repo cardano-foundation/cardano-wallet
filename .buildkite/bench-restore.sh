@@ -3,23 +3,27 @@
 
 set -euo pipefail
 
-target=byron
-artifact_name=restore-$target-$NETWORK
+if [ "$#" -lt 2 ]; then
+  echo "usage: $0 TARGET NETWORK"
+  exit 1
+fi
+
+target=$1
+network=$2
+artifact_name=restore-$target-$network
 log=restore.log
-results=restore-$target-$NETWORK.txt
+results=restore-$target-$network.txt
 total_time=restore-time.txt
-export NODE_DB=$HOME/node-db-$NETWORK
+
+node_db=$HOME/node-db-$target-$network
 
 echo "--- Build"
 
-echo "pwd=$(pwd)"
-echo "NODE_DB=$NODE_DB"
-
 nix-build -A benchmarks.cardano-wallet-$target.restore -o bench-$target-restore
 
-bench="./bench-$target-restore/bin/restore --$NETWORK"
+bench="./bench-$target-restore/bin/restore $network"
 
-echo "--- Run benchmarks - $target - $NETWORK"
+echo "--- Run benchmarks - $target - $network"
 
 if [ -n "${SCRATCH_DIR:-}" ]; then
   mkdir -p "$SCRATCH_DIR"
@@ -30,7 +34,7 @@ command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' > $results
 
-echo "+++ Results - $target - $NETWORK"
+echo "+++ Results - $target - $network"
 
 cat $results
 
@@ -49,7 +53,7 @@ show ylabel;
 
 set terminal svg dynamic size 1200,700 background rgb 'white';
 set output "plot.svg";
-set title "Restoring byron wallets on $NETWORK";
+set title "Restoring byron wallets on $network";
 
 set key left top;
 

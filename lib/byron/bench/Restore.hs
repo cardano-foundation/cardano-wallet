@@ -20,8 +20,7 @@
 --
 -- or
 -- @
---     $ export NETWORK=testnet
---     $ ./.buildkite/bench-restore.sh
+--     $ ./.buildkite/bench-restore.sh byron testnet
 -- @
 --
 -- since it relies on lots of configuration most most easily retrieved with nix.
@@ -179,30 +178,96 @@ import qualified Data.Text.Encoding as T
 
 main :: IO ()
 main = do
-    configs <- getEnv "CARDANO_NODE_CONFIGS"
-    let testnetGenesis = configs </> "testnet" </> "genesis.json"
-    let opts = info (fmap exec (networkConfigurationOption testnetGenesis)) mempty
-    join $ execParser opts
+    (networkConfig, nodeConfig, cleanup) <- getNetworkConfiguration
 
--- | --mainnet | --testnet
-networkConfigurationOption
-    :: FilePath
-    -> Parser NetworkConfiguration
-networkConfigurationOption testnetGenesis =
-    mainnetFlag <|> testnetFlag
+    exec networkConfig nodeConfig `finally` cleanup
+
+data Args = Args
+    { networkName :: Maybe String
+    , configsDir :: Maybe FilePath
+    , nodeDatabaseDir :: Maybe FilePath
+    } deriving (Show, Eq)
+
+getNetworkConfiguration :: IO (NetworkConfiguration, CardanoNodeConfig, IO ())
+getNetworkConfiguration = do
+    let opts = info argsParser mempty
+    args <- addEnvs =<< execParser opts
+
+    configs <- maybe (die "--cardano-node-configs arg not set") pure (configsDir args)
+
+    networkConfig <- case networkName args of
+        Nothing ->
+            die "NETWORK arg not set"
+        Just "mainnet" ->
+            pure $ MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData)
+        Just networkName -> do
+            let testnetGenesis = configs </> networkName </> "genesis.json"
+            pure $ TestnetConfig testnetGenesis
+
+    (dbDir, cleanup) <- case nodeDatabaseDir args of
+        Nothing -> do
+            -- Temporary directory for storing socket and node database
+            tmpDir <- getCanonicalTemporaryDirectory
+                >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
+            pure (tmpDir, removeDirectoryRecursive tmpDir)
+        Just d -> pure (d, pure ())
+
+    let networkDir = configs </> networkName
+    let nodeConfig = CardanoNodeConfig
+            { nodeConfigFile   = networkDir </> "configuration.json"
+            , nodeDatabaseDir  = dbDir
+            , nodeDlgCertFile  = ""
+            , nodeSignKeyFile  = ""
+            , nodeSocketFile   = dbDir </> "cardano-node.socket"
+            , nodeTopologyFile = networkDir </> "topology.json"
+            }
+
+    pure (networkConfig, nodeConfig, cleanup)
+
+argsParser :: Parser Args
+argsParser = Args
+    <$> strArgument (metavar "NETWORK" <> help "Blockchain to use. Defaults to $NETWORK.")
+    <*> strOption
+        ( long "cardano-node-configs"
+          <> short 'c'
+          <> metavar "DIR"
+          <> help "Directory containing configurations for each network. Defaults to $CARDANO_NODE_CONFIGS")
+    <*> strOption
+        ( long "node-db"
+          <> metavar "DB"
+          <> help "Directory to put cardano-node state. Defaults to $NODE_DB, falls back to temporary directory")
+
+cardanoNodeCommand :: CardanoNodeConfig -> Int -> Command
+cardanoNodeCommand cfg port = Command "cardano-node" args (return ()) Inherit Inherit
   where
-    mainnetFlag = flag'
-        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
-        (long "mainnet")
+    args =
+        [ "run"
+        , "--database-path", nodeDatabaseDir cfg
+        , "--topology", nodeTopologyFile cfg
+        , "--socket-path", nodeSocketPath cfg
+        , "--config", nodeConfigFile cfg
+        , "--port", show port
+        ]
 
-    testnetFlag = flag'
-        (TestnetConfig testnetGenesis)
-        (long "testnet")
+
+-- Environment variables set by nix/haskell.nix (or manually)
+-- Environment variables set by ./buildkite/bench-restore.sh (or manually)
+addEnvs :: Args -> IO Args
+addEnvs (Args n c d) = update
+    <$> lookupEnv' "NETWORK"
+    <*> lookupEnv' "CARDANO_NODE_CONFIGS"
+    <*> lookupEnv' "NODE_DB"
+  where
+    update ne ce de = Args (n <|> ne) (c <|> ce) (d <|> de)
+    lookupEnv' k = lookupEnv k <&> \case
+        Just "" -> Nothing
+        Just v -> Just v
+        Nothing -> Nothing
 
 -- | Run all available benchmarks. Can accept one argument that is a target
 -- network against which benchmarks below should be ran
-exec :: NetworkConfiguration -> IO ()
-exec c = do
+exec :: NetworkConfiguration -> CardanoNodeConfig -> IO ()
+exec c nodeConfig = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
@@ -234,28 +299,19 @@ exec c = do
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
 
-    let socketPath = tmpDir </> "cardano-node.socket"
-    let args =
-            [ "run"
-            , "--database-path", nodeDB
-            , "--topology", topology
-            , "--socket-path", socketPath
-            , "--config", config
-            , "--port", "7776"
-            ]
-    let cmd = Command "cardano-node" args (return ()) Inherit Inherit
+    cmd <- cardanoNodeCommand nodeConfig <$> getRandomPort
 
     sayErr "Starting node with command:"
     sayErr $ pretty cmd
 
     void $ withBackendProcess nullTracer cmd $ do
-            prepareNode networkProxy socketPath np vData
+            prepareNode networkProxy (nodeSocketFile nodeConfig) np vData
             runBenchmarks
                 [ bench ("restore " <> network <> " seq")
                     (bench_restoration @_ @ByronKey
                         networkProxy
                         tr
-                        socketPath
+                        (nodeSocketFile nodeConfig)
                         np
                         vData
                         "seq.timelog"
@@ -265,7 +321,7 @@ exec c = do
                     (bench_restoration @_ @IcarusKey
                         networkProxy
                         tr
-                        socketPath
+                        (nodeSocketFile nodeConfig)
                         np
                         vData
                         "1-percent.timelog"
@@ -275,7 +331,7 @@ exec c = do
                     (bench_restoration @_ @IcarusKey
                         networkProxy
                         tr
-                        socketPath
+                        (nodeSocketFile nodeConfig)
                         np
                         vData
                         "2-percent.timelog"
