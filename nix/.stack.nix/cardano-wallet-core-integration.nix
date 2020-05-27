@@ -60,6 +60,7 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
     components = {
       "library" = {
         depends = [
+          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           (hsPkgs."aeson" or (buildDepError "aeson"))
           (hsPkgs."aeson-qq" or (buildDepError "aeson-qq"))
           (hsPkgs."async" or (buildDepError "async"))
@@ -83,17 +84,13 @@ in { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
           (hsPkgs."http-client" or (buildDepError "http-client"))
           (hsPkgs."http-types" or (buildDepError "http-types"))
           (hsPkgs."memory" or (buildDepError "memory"))
-          (hsPkgs."OddWord" or (buildDepError "OddWord"))
-          (hsPkgs."memory" or (buildDepError "memory"))
           (hsPkgs."process" or (buildDepError "process"))
           (hsPkgs."retry" or (buildDepError "retry"))
           (hsPkgs."scrypt" or (buildDepError "scrypt"))
-          (hsPkgs."time" or (buildDepError "time"))
           (hsPkgs."template-haskell" or (buildDepError "template-haskell"))
           (hsPkgs."text" or (buildDepError "text"))
           (hsPkgs."text-class" or (buildDepError "text-class"))
           (hsPkgs."time" or (buildDepError "time"))
-          (hsPkgs."QuickCheck" or (buildDepError "QuickCheck"))
           ];
         buildable = true;
         };
