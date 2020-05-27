@@ -1608,8 +1608,6 @@ x-responsesGetNetworkClock: &responsesGetNetworkClock
         schema: *ApiNetworkClock
 
 x-responsesGetNetworkParameters: &responsesGetNetworkParameters
-  <<: *responsesErr400
-  <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
   200:
