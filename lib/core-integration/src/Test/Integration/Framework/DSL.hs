@@ -1596,7 +1596,11 @@ getSlotParams ctx = do
     let (Quantity epochL) = getFromResponse #epochLength r2
     let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
     let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r2
-    let sp = SlotParameters (EpochLength epochL) (SlotLength slotL) genesisBlockDate (ActiveSlotCoefficient coeff)
+    let sp = SlotParameters
+            (EpochLength epochL)
+            (SlotLength slotL)
+            (genesisBlockDate)
+            (ActiveSlotCoefficient coeff)
 
     return (currentEpoch, sp)
 
