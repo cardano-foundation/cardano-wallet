@@ -1,5 +1,6 @@
-{ walletPackages ? import ./.. {}
+{ walletPackages ? import ./.. { inherit sourcesOverride; }
 , pkgs ? walletPackages.pkgs
+, sourcesOverride ? {}
 }:
 
 with pkgs.lib;

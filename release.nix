@@ -59,7 +59,7 @@
 with (import pkgs.iohkNix.release-lib) {
   inherit pkgs;
   inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
-  packageSet = import cardano-wallet;
+  packageSet = args: import cardano-wallet (args // { inherit sourcesOverride; });
   gitrev = cardano-wallet.rev;
 };
 
@@ -211,6 +211,7 @@ let
     # Build and cache the build script used on Buildkite
     buildkiteScript = import ./.buildkite/default.nix {
       walletPackages = project;
+      inherit sourcesOverride;
     };
   }
   # Build the shell derivation in Hydra so that all its dependencies
