@@ -29,7 +29,8 @@ library
     ghc-options:
       -Werror
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , aeson-qq
     , async
     , base
@@ -52,16 +53,13 @@ library
     , http-client
     , http-types
     , memory
-    , memory
     , process
     , retry
     , scrypt
-    , time
     , template-haskell
     , text
     , text-class
     , time
-    , QuickCheck
   hs-source-dirs:
       src
   exposed-modules:
