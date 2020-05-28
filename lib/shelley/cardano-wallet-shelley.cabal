@@ -149,6 +149,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
+      Cardano.Wallet.Shelley.TransactionSpec
 
 test-suite integration
   default-language:

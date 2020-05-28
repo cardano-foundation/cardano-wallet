@@ -26,29 +26,23 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
 
--- TODO: To be implemented
-
-
 class MaxSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
     maxSizeOf :: Int
 
 class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
     minSizeOf :: Int
 
-
 sizeOfSignedTx :: [TxIn] -> [TxOut] -> Int
-sizeOfSignedTx ins outs = 180 + (40 * length ins) + ((65 + fixme) * length outs)
+sizeOfSignedTx ins outs = emptySize
+    + ((40 + inPadding) * length ins)
+    + ((65 + outPadding) * length outs)
   where
     -- According to the ledger specs, the 40 and 65 should be /the/ values, but
-    -- this integration test failure suggests otherwise:
-    -- ApplyTxError [LedgerFailure (UtxowFailure (UtxoFailure (FeeTooSmallUTxO
-    -- {pfUTXOminFee = Coin 553001000, pfUTXOgivenFee = Coin 520001000})))]\"}")
-    --
-    -- Maybe that value wasn't taking delegation keys into account?
-    --
-    -- Regardless:
-    -- TODO: Implement properly.
-    fixme = 32
+    -- to make @prop_estimateSizeNeverUnderestimates@ pass, we seem to need:
+    inPadding = 110
+    outPadding = 32
+    emptySize = 17
+    -- TODO: Figure out why and investigate closer
 
 instance MinSizeOf Address (n :: NetworkDiscriminant) ShelleyKey where
     minSizeOf = 33 -- Could be double checked.
