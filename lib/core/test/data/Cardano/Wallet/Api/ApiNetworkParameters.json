@@ -1,203 +1,243 @@
 {
-    "seed": -7305240726725172952,
+    "seed": -1331206292408369414,
     "samples": [
         {
             "slot_length": {
-                "quantity": 8218,
+                "quantity": 4481,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 67,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 4355,
+                "quantity": 26318,
                 "unit": "block"
             },
-            "genesis_block_hash": "cc0f646f16f807551f45c878211d31c33aa42c163a65265f6e7c392356443245",
-            "blockchain_start_time": "1866-05-29T08:00:00Z",
+            "genesis_block_hash": "7f1535376d0c60752d213266651b90b1095573f1326d110169f0396e016e1b63",
+            "blockchain_start_time": "1908-08-05T09:00:00Z",
             "epoch_length": {
-                "quantity": 15383,
+                "quantity": 13609,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 52.62978398839388,
+                "quantity": 78.62708373240245,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 8694,
+                "quantity": 3359,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 59.77,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 25369,
+                "quantity": 6460,
                 "unit": "block"
             },
-            "genesis_block_hash": "3f072d4e3465735155684b428d259d59224f6f6c5f1fbd0c78382f3b7a39a73c",
-            "blockchain_start_time": "1868-10-05T09:46:25Z",
+            "genesis_block_hash": "673b352d3c2f6c57176825e532f86c19b5a0356237b78c3e960d5c28616d7066",
+            "blockchain_start_time": "1883-09-17T08:37:33.480496398755Z",
             "epoch_length": {
-                "quantity": 29253,
+                "quantity": 22307,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 26.848250733299018,
+                "quantity": 58.146715325079654,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 3106,
+                "quantity": 7255,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 28.94,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 856,
+                "quantity": 5369,
                 "unit": "block"
             },
-            "genesis_block_hash": "3a38140a98121e3a6a157a7f5f3e2f4e6a5302797c6b7a300d4e58ab495b5b06",
-            "blockchain_start_time": "1864-05-14T09:47:21Z",
+            "genesis_block_hash": "7c4f4b2e0703a155761c6a5d693b5868244a415f11c47d63627f151571062a23",
+            "blockchain_start_time": "1867-09-15T04:44:07.18685544607Z",
             "epoch_length": {
-                "quantity": 7332,
+                "quantity": 32596,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 92.12795147005589,
+                "quantity": 31.533960051384536,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 3572,
+                "quantity": 3285,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 63.69,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 24632,
+                "quantity": 2008,
                 "unit": "block"
             },
-            "genesis_block_hash": "041b64271f35161b7a23437052194931202196ae0b117c7904d82f0e5f2e3667",
-            "blockchain_start_time": "1875-07-21T05:46:38.788977040001Z",
+            "genesis_block_hash": "0d212e27f76e13ca63bd2d63102c667b321203a84077396c786753100943c15c",
+            "blockchain_start_time": "1860-03-07T22:01:48Z",
             "epoch_length": {
-                "quantity": 7932,
+                "quantity": 25091,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 3.519092328722895,
+                "quantity": 36.72480953416392,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 6241,
+                "quantity": 6702,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 72.49,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 14378,
+                "quantity": 17350,
                 "unit": "block"
             },
-            "genesis_block_hash": "4743287b0fa256436144082d5d21431c65378d74f1524028531811255d148a38",
-            "blockchain_start_time": "1899-01-18T15:08:46Z",
+            "genesis_block_hash": "77706a697cdc1a976e2c09125a7f4d368f7f5d0437b2560a650462504a7368df",
+            "blockchain_start_time": "1898-07-20T16:00:00Z",
             "epoch_length": {
-                "quantity": 9397,
+                "quantity": 30963,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 12.40671272785444,
+                "quantity": 50.93074806849109,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 658,
+                "quantity": 772,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 35.59,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 30449,
+                "quantity": 22445,
                 "unit": "block"
             },
-            "genesis_block_hash": "201a2814105b58786f420921315edd39bf838a3185343b095156bd5b4550002a",
-            "blockchain_start_time": "1894-05-14T13:13:22Z",
+            "genesis_block_hash": "4e524827324137b84f48336e741b56073f362d393941215b6b0416a7027d0535",
+            "blockchain_start_time": "1896-11-17T16:15:36.595743770768Z",
             "epoch_length": {
-                "quantity": 32055,
+                "quantity": 18281,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 99.49000068849807,
+                "quantity": 23.914063381142526,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 106,
+                "quantity": 665,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 78.14,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 12241,
+                "quantity": 25293,
                 "unit": "block"
             },
-            "genesis_block_hash": "7f351b03001b3f10f002363196150b5e4654154f8d705b4e0e3b022e28100b96",
-            "blockchain_start_time": "1865-03-16T04:00:00Z",
+            "genesis_block_hash": "4b072032a102699632952d600f49a00efb1d58647a354a556d9f602d41226c21",
+            "blockchain_start_time": "1904-02-07T22:39:44Z",
             "epoch_length": {
-                "quantity": 13518,
+                "quantity": 26670,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 7.326552145505227,
+                "quantity": 44.94722400324369,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 6777,
+                "quantity": 2354,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 55.69,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 1692,
+                "quantity": 27989,
                 "unit": "block"
             },
-            "genesis_block_hash": "33222e3f50fbb8287c4a6c6c43e51a1421a7325f3c53697d1d552643067878e8",
-            "blockchain_start_time": "1905-03-21T02:06:37Z",
+            "genesis_block_hash": "f1af112711150a07f09d796e4731062a5f3e60666f325a071dcb3a95453f0272",
+            "blockchain_start_time": "1906-08-22T21:33:20.123872129442Z",
             "epoch_length": {
-                "quantity": 19580,
+                "quantity": 24789,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 51.623115494155016,
+                "quantity": 38.097207764414755,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 6068,
+                "quantity": 2971,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 80.73,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 23413,
+                "quantity": 14987,
                 "unit": "block"
             },
-            "genesis_block_hash": "531f66c5286a674b7730037942124b7ccc5b622b284d7c520cf47778183a423c",
-            "blockchain_start_time": "1878-02-04T14:37:46Z",
+            "genesis_block_hash": "4e365b357a766d0b02760f362df3e73b21b5d2365f52007e75f360534754044d",
+            "blockchain_start_time": "1906-12-13T04:46:01.284275225298Z",
             "epoch_length": {
-                "quantity": 29007,
+                "quantity": 17350,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 51.91906025060903,
+                "quantity": 5.981136244796314,
                 "unit": "percent"
             }
         },
         {
             "slot_length": {
-                "quantity": 831,
+                "quantity": 8555,
                 "unit": "second"
             },
+            "decentralization_level": {
+                "quantity": 26.8,
+                "unit": "percent"
+            },
             "epoch_stability": {
-                "quantity": 21250,
+                "quantity": 16129,
                 "unit": "block"
             },
-            "genesis_block_hash": "707521afe9815e0b78386e0102216f4560621579542ac62472fc3e3154594ec8",
-            "blockchain_start_time": "1864-09-20T12:00:00Z",
+            "genesis_block_hash": "13aa2072246c4b33103f32734f393d660e40120b6534d22366247f3d41605bde",
+            "blockchain_start_time": "1878-01-18T02:46:53Z",
             "epoch_length": {
-                "quantity": 3762,
+                "quantity": 23138,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 96.13558984777694,
+                "quantity": 49.91311704166292,
                 "unit": "percent"
             }
         }

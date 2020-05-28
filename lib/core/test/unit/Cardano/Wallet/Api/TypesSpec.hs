@@ -774,6 +774,8 @@ spec = do
                         epochStability (x :: ApiNetworkParameters)
                     , activeSlotCoefficient =
                         activeSlotCoefficient (x :: ApiNetworkParameters)
+                    , decentralizationLevel =
+                        decentralizationLevel (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x
