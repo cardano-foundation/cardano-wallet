@@ -2298,6 +2298,8 @@ paths:
       summary: Parameters
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        Returns the set of network parameters for the current epoch.
       responses: *responsesGetNetworkParameters
 
   /proxy/transactions:
