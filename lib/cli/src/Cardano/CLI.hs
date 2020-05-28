@@ -1564,7 +1564,7 @@ cmdNetworkParameters
     -> Mod CommandFields (IO ())
 cmdNetworkParameters mkClient =
     command "parameters" $ info (helper <*> cmd) $ mempty
-        <> progDesc "View network parameters."
+        <> progDesc "View network parameters for the current epoch."
   where
     cmd = fmap exec $ NetworkParametersArgs
         <$> portOption
