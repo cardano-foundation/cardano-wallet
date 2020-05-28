@@ -28,6 +28,7 @@ pkgs.stdenv.mkDerivation rec {
   '' + (if pkgs.stdenv.hostPlatform.isWindows then ''
     cp --remove-destination -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
     cp --remove-destination -v ${cardano-node}/bin/* $out/bin
+    cp -Rv ${cardano-node.deployments} $out/deployments
     cp -Rv ${cardano-node.configs} $out/configuration
   '' else (if pkgs.stdenv.hostPlatform.isDarwin then ''
     cp -v ${cardano-node}/bin/cardano-node $out/bin
