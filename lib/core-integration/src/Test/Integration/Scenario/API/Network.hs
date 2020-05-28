@@ -27,6 +27,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..), mkPercentage )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
@@ -103,6 +105,15 @@ spec = do
         let networkParams = getFromResponse id r
         networkParams `shouldBe`
             toApiNetworkParameters (ctx ^. #_blockchainParameters)
+        let Right zeroPercent = Quantity <$> mkPercentage 0
+        verify r
+            -- NOTE: Currently, the decentralization level is hard-wired to 0%.
+            -- TODO: Adjust this test to expect the live value.
+            --
+            -- Related issue:
+            -- https://github.com/input-output-hk/cardano-wallet/issues/1693
+            --
+            [ expectField (#decentralizationLevel) (`shouldBe` zeroPercent) ]
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
         sandboxed <- inNixBuild

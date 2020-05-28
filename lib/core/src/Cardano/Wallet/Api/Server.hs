@@ -1431,9 +1431,7 @@ getNetworkParameters
     :: (Block, GenesisBlockParameters, SyncTolerance)
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, gbp, _st) =
-    pure $ toApiNetworkParameters bp
-  where
-    bp = gbp ^. #staticParameters
+    pure $ toApiNetworkParameters $ gbp ^. #staticParameters
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client

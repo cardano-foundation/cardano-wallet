@@ -725,6 +725,7 @@ components:
         - epoch_length
         - epoch_stability
         - active_slot_coefficient
+        - decentralization_level
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -732,6 +733,7 @@ components:
         epoch_length: *numberOfSlots
         epoch_stability: *numberOfBlocks
         active_slot_coefficient: *percentage
+        decentralization_level: *percentage
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object

@@ -496,6 +496,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , epochLength :: !(Quantity "slot" Word32)
     , epochStability :: !(Quantity "block" Word32)
     , activeSlotCoefficient :: !(Quantity "percent" Double)
+    , decentralizationLevel :: !(Quantity "percent" Percentage)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: BlockchainParameters -> ApiNetworkParameters
@@ -509,6 +510,17 @@ toApiNetworkParameters bp = ApiNetworkParameters
         $ (*100)
         $ unActiveSlotCoefficient
         $ getActiveSlotCoefficient bp)
+    (currentDecentralizationLevel)
+  where
+    currentDecentralizationLevel :: Quantity "percent" Percentage
+    currentDecentralizationLevel =
+        -- NOTE: For the moment, this value is hard-wired to 0%.
+        -- TODO: Adjust this function to report the live value.
+        --
+        -- Related issue:
+        -- https://github.com/input-output-hk/cardano-wallet/issues/1693
+        --
+        minBound
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

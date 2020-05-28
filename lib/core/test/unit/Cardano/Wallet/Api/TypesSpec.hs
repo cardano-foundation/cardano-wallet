@@ -761,23 +761,24 @@ spec = do
             in
                 x' === x .&&. show x' === show x
         it "ApiNetworkParameters" $ property $ \x ->
-            let
-                x' = ApiNetworkParameters
+            let x' = ApiNetworkParameters
                     { genesisBlockHash =
-                            genesisBlockHash (x :: ApiNetworkParameters)
+                        genesisBlockHash (x :: ApiNetworkParameters)
                     , blockchainStartTime =
-                            blockchainStartTime (x :: ApiNetworkParameters)
+                        blockchainStartTime (x :: ApiNetworkParameters)
                     , slotLength =
-                            slotLength (x :: ApiNetworkParameters)
+                        slotLength (x :: ApiNetworkParameters)
                     , epochLength =
-                            epochLength (x :: ApiNetworkParameters)
+                        epochLength (x :: ApiNetworkParameters)
                     , epochStability =
-                            epochStability (x :: ApiNetworkParameters)
+                        epochStability (x :: ApiNetworkParameters)
                     , activeSlotCoefficient =
-                            activeSlotCoefficient (x :: ApiNetworkParameters)
+                        activeSlotCoefficient (x :: ApiNetworkParameters)
+                    , decentralizationLevel =
+                        decentralizationLevel (x :: ApiNetworkParameters)
                     }
             in
-                x' === x .&&. show x' === show x
+            x' === x .&&. show x' === show x
 
 {-------------------------------------------------------------------------------
                               Address Encoding
