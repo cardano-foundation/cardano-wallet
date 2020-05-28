@@ -847,6 +847,14 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
         Empty
 
     -- ASSERTIONS
+    let transaction = head $ getFromResponse id rTxs
+    let inputs = view (#inputs)
+    let outputs = view (#outputs)
+    let amounts = getQuantity . view #amount . fromJust . view #source
+    let inputAmounts = sum $ amounts <$> (inputs transaction)
+    let outputAmounts = sum $ (getQuantity . view #amount) <$> (outputs transaction)
+
+    inputAmounts `shouldSatisfy` (>= outputAmounts)
     verify rTxs
         [ expectListSize 1
         , expectListField 0 #inputs (`shouldSatisfy` (all (isJust . view #source)))
