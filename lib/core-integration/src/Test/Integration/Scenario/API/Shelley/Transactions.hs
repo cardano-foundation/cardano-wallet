@@ -488,8 +488,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith @n ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [1]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
 
@@ -509,7 +508,7 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
-                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+                errMsg403NotEnoughMoney 1 1_000_000
             ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
