@@ -503,7 +503,8 @@ spec = do
             , ""
             , "Available commands:"
             , "  information              View network information."
-            , "  parameters               View network parameters."
+            , "  parameters               View network parameters for the"
+            , "                           current epoch."
             , "  clock                    View NTP offset."
             ]
 
@@ -519,7 +520,7 @@ spec = do
 
         ["network", "parameters", "--help"] `shouldShowUsage`
             [ "Usage:  network parameters [--port INT]"
-            , "  View network parameters."
+            , "  View network parameters for the current epoch."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
