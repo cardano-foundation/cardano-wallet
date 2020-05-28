@@ -841,26 +841,47 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
         pure $ Iso8601Time $ maximum $ getTime <$> getFromResponse id rTxs
 
     -- ACTION
-    rTxs <- request @[ApiTransaction n] ctx
+    rTxsFromDate <- request @[ApiTransaction n] ctx
         (Link.listTransactions' @'Byron wSrc (Just start) Nothing Nothing)
         Default
         Empty
 
-    -- ASSERTIONS
-    let transaction = head $ getFromResponse id rTxs
-    let inputs = view (#inputs)
-    let outputs = view (#outputs)
-    let amounts = getQuantity . view #amount . fromJust . view #source
-    let inputAmounts = sum $ amounts <$> (inputs transaction)
-    let outputAmounts = sum $ (getQuantity . view #amount) <$> (outputs transaction)
+    rTxsAll <- request @[ApiTransaction n] ctx
+        (Link.listTransactions' @'Byron wSrc Nothing Nothing Nothing)
+        Default
+        Empty
 
-    inputAmounts `shouldSatisfy` (>= outputAmounts)
-    verify rTxs
+    -- ASSERTIONS
+    let outgoing t = (view (#direction. #getApiT) t) == Outgoing
+    let txsFromDate, txsAllOutgoing :: [ApiTransaction n]
+        txsFromDate = getFromResponse id rTxsFromDate
+        txsAllOutgoing = filter outgoing (getFromResponse id rTxsAll)
+
+    verifyTxInputsAndOutputs txsFromDate
+    verifyTxInputsAndOutputs txsAllOutgoing
+
+    verify rTxsFromDate
         [ expectListSize 1
         , expectListField 0 #inputs (`shouldSatisfy` (all (isJust . view #source)))
         ]
   where
     title = "TRANS_REG_1670"
+    verifyTxInputsAndOutputs
+        :: forall (d :: NetworkDiscriminant).
+            ( DecodeAddress d
+            , EncodeAddress d
+            , PaymentAddress d IcarusKey
+            )
+        => [ApiTransaction d]
+        -> IO()
+    verifyTxInputsAndOutputs transactions = do
+        let inputs = view (#inputs)
+        let outputs = view (#outputs)
+        let amounts = getQuantity . view #amount . fromJust . view #source
+        forM_ transactions $ \transaction -> do
+            let inputAmounts = sum $ amounts <$> (inputs transaction)
+            let outputAmounts = sum $ (getQuantity . view #amount) <$> (outputs transaction)
+            inputAmounts `shouldSatisfy` (>= outputAmounts)
 
 --
 -- More Elaborated Fixtures
