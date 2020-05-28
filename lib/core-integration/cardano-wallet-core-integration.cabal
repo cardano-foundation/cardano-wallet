@@ -35,8 +35,6 @@ library
     , async
     , base
     , base58-bytestring
-    , bech32
-    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-wallet-cli
@@ -64,7 +62,6 @@ library
     , text
     , text-class
     , time
-    , yaml
   hs-source-dirs:
       src
   exposed-modules:

@@ -48,7 +48,6 @@ library
     , cryptonite
     , directory
     , exceptions
-    , ed25519
     , filepath
     , fmt
     , generic-lens
