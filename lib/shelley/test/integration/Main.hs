@@ -32,10 +32,13 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), computeFee )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Coin (..)
     , FeePolicy (..)
     , GenesisBlockParameters (..)
     , Hash (..)
@@ -56,8 +59,8 @@ import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
     ( withCardanoNode )
-import Cardano.Wallet.Shelley.Transaction.Size
-    ( MaxSizeOf (..), MinSizeOf (..), sizeOfSignedTx )
+import Cardano.Wallet.Shelley.Transaction
+    ( _estimateSize )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -68,8 +71,6 @@ import Control.Monad
     ( forM_, void )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -84,6 +85,8 @@ import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import System.Random
+    ( mkStdGen, randoms )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -194,32 +197,22 @@ mkFeeEstimator policy = \case
     PaymentDescription nInps nOuts nChgs ->
         let
             inps = take nInps
-                [ ( TxIn (Hash (BS.replicate 32 0)) tix
+                [ ( TxIn (genTxId ix) ix
                   , TxOut (Address mempty) minBound
                   )
-                | tix <- [0..]
+                | ix <- [0..]
                 ]
 
-            outsMin = replicate (nOuts + nChgs) (TxOut addr_ coin_)
-              where
-                coin_ = minBound
-                addr_ = Address $ flip BS.replicate 0 $ minimum
-                    [ minSizeOf @Address @'Mainnet @ShelleyKey
-                    ]
+            outs =
+                replicate (nOuts + nChgs) (Coin minBound)
 
-            outsMax = replicate (nOuts + nChgs) (TxOut addr_ coin_)
-              where
-                coin_ = maxBound
-                addr_ = Address $ flip BS.replicate 0 $ maximum
-                    [ maxSizeOf @Address @'Mainnet @ShelleyKey
-                    ]
+            size = _estimateSize $ CoinSelection inps [] outs
 
+            fee = fromIntegral $ getFee $ computeFee policy size
         in
-            ( round a + round b * fromIntegral (sizeOfSignedTx inps outsMin)
-            , round a + round b * fromIntegral (8 + sizeOfSignedTx inps outsMax)
-            )
+            ( fee, fee )
 
     DelegDescription{} ->
         error "mkFeeEstimator: can't estimate fee for certificate in Byron!"
   where
-    LinearFee (Quantity a) (Quantity b) _ = policy
+    genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)

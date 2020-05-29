@@ -83,7 +83,6 @@ library
       Cardano.Wallet.Shelley.Compatibility
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Transaction
-      Cardano.Wallet.Shelley.Transaction.Size
       Cardano.Wallet.Shelley.Launch
 
 executable cardano-wallet-shelley
@@ -150,7 +149,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
-      Cardano.Wallet.Shelley.TransactionSpec
 
 test-suite integration
   default-language:
@@ -177,6 +175,7 @@ test-suite integration
     , hspec
     , http-client
     , iohk-monitoring
+    , random
     , temporary
     , text
   build-tools:

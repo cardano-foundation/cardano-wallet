@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -14,6 +15,7 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+    , _estimateSize
     ) where
 
 import Prelude
@@ -25,6 +27,7 @@ import Cardano.Binary
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..), SignedDSIGN (..) )
 import Cardano.Crypto.DSIGN.Ed25519
+    ( VerKeyDSIGN (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), Passphrase, WalletKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -33,11 +36,12 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , EpochLength (..)
+    , Hash (..)
     , ProtocolMagic (..)
-    , SealedTx
+    , SealedTx (..)
     , SlotId (..)
     , Tx (..)
-    , TxIn
+    , TxIn (..)
     , TxOut (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -49,10 +53,10 @@ import Cardano.Wallet.Shelley.Compatibility
     , toSealed
     , toSlotNo
     )
-import Cardano.Wallet.Shelley.Transaction.Size
-    ( sizeOfSignedTx )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), ErrValidateSelection, TransactionLayer (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeXPrv )
 import Control.Monad
     ( forM )
 import Crypto.Error
@@ -76,9 +80,11 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Set as Set
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
+import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
@@ -128,15 +134,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
 
-    _estimateSize
-        :: CoinSelection
-        -> Quantity "byte" Int
-    _estimateSize (CoinSelection inps outs chngs) = Quantity $
-        sizeOfSignedTx inps (outs <> map dummyOutput chngs)
-      where
-        dummyOutput :: Coin -> TxOut
-        dummyOutput = TxOut $ Address $ BS.replicate 65 0
-
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
         -- ^ Transaction max size in bytes
@@ -146,6 +143,35 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     _estimateMaxNumberOfInputs _ _ =
         -- FIXME Implement.
         100
+
+_estimateSize
+    :: CoinSelection
+    -> Quantity "byte" Int
+_estimateSize (CoinSelection inps outs chngs) =
+    Quantity $ fromIntegral $ SL.txsize $
+        SL.Tx unsigned addrWits scriptWits metadata
+  where
+    scriptWits = mempty
+
+    metadata = SL.SNothing
+
+    unsigned = mkUnsignedTx maxBound inps outs' []
+      where
+        outs' :: [TxOut]
+        outs' = outs <> (dummyOutput <$> chngs)
+
+        dummyOutput :: Coin -> TxOut
+        dummyOutput = TxOut $ Address $ BS.pack (1:replicate 64 0)
+
+    addrWits = Set.map dummyWitness $ Set.fromList (fst <$> inps)
+      where
+        dummyWitness :: TxIn -> SL.WitVKey TPraosStandardCrypto
+        dummyWitness = mkWitness unsigned . (,mempty) . dummyXPrv
+
+        dummyXPrv :: TxIn -> XPrv
+        dummyXPrv (TxIn (Hash txid) ix) =
+            unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 $
+                txid <> B8.pack (show ix)
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
