@@ -57,7 +57,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), GenesisBlockParameters (..), ProtocolMagic (..) )
+    ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Applicative
@@ -163,7 +163,7 @@ someTestnetDiscriminant pm@(ProtocolMagic n) =
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO (SomeNetworkDiscriminant, GenesisBlockParameters, NodeVersionData, Block)
+    -> ExceptT String IO (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     MainnetConfig (discriminant, vData) -> pure
         ( discriminant
@@ -211,7 +211,7 @@ withCardanoNode
     -- ^ Test directory in source tree
     -> Severity
     -- ^ Logging level for @cardano-node@
-    -> (FilePath -> Block -> (GenesisBlockParameters, NodeVersionData) -> IO a)
+    -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket filename and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
@@ -258,7 +258,7 @@ withConfig
     -- ^ Logging level for @cardano-node@
     -> (  CardanoNodeConfig
        -> Block
-       -> (GenesisBlockParameters, NodeVersionData)
+       -> (NetworkParameters, NodeVersionData)
        -> IO a
        )
     -- ^ Callback function with the node configuration and genesis params
@@ -273,7 +273,7 @@ withConfig tdir minSeverity action =
         :: IO ( FilePath
               , CardanoNodeConfig
               , Block
-              , (GenesisBlockParameters, NodeVersionData)
+              , (NetworkParameters, NodeVersionData)
               )
     setupConfig = do
         dir <- getCanonicalTemporaryDirectory

@@ -64,7 +64,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisBlockParameters (..), SyncTolerance (..), TxParameters (..) )
+    ( NetworkParameters (..), SyncTolerance (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar

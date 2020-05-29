@@ -98,7 +98,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisBlockParameters, Hash (..), SyncTolerance )
+    ( Hash (..), NetworkParameters, SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -187,7 +187,7 @@ beforeMainLoop
     :: Trace IO MainLog
     -> SockAddr
     -> Port "node"
-    -> GenesisBlockParameters
+    -> NetworkParameters
     -> IO ()
 beforeMainLoop tr addr _ _ = logInfo tr $ MsgListenAddress addr
 

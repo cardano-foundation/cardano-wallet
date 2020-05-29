@@ -53,8 +53,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , FeePolicy (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)

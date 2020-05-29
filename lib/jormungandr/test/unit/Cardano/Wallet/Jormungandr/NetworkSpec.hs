@@ -28,8 +28,8 @@ import Cardano.Wallet.Network.BlockHeaders
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , BlockchainParameters (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
     , TxParameters (..)
@@ -398,7 +398,7 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
-        pure (block0, GenesisBlockParameters
+        pure (block0, NetworkParameters
                  { staticParameters = BlockchainParameters
                      { getGenesisBlockHash = blockId
                      , getGenesisBlockDate = error "mock bp"

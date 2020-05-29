@@ -165,8 +165,8 @@ type NodeVersionData =
 -- Chain Parameters
 
 
-mainnetBlockchainParameters :: W.GenesisBlockParameters
-mainnetBlockchainParameters = W.GenesisBlockParameters
+mainnetBlockchainParameters :: W.NetworkParameters
+mainnetBlockchainParameters = W.NetworkParameters
     { staticParameters = W.BlockchainParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
@@ -436,9 +436,9 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
     fromTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
-fromGenesisData :: (GenesisData, GenesisHash) -> (W.GenesisBlockParameters, [W.TxOut])
+fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
-    ( W.GenesisBlockParameters
+    ( W.NetworkParameters
         { staticParameters = W.BlockchainParameters
             { getGenesisBlockHash =
                 W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash

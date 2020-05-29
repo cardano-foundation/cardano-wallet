@@ -84,7 +84,7 @@ module Cardano.Wallet.Primitive.Types
     , log10
 
     -- * BlockchainParameters
-    , GenesisBlockParameters (..)
+    , NetworkParameters (..)
     , BlockchainParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
@@ -1283,7 +1283,7 @@ computeUtxoStatistics btype utxos =
 
 -- | Initial blockchain parameters loaded from the application configuration and
 -- genesis block.
-data GenesisBlockParameters = GenesisBlockParameters
+data NetworkParameters = NetworkParameters
     { staticParameters :: BlockchainParameters
        -- ^ These parameters are defined by the configuration and genesis
        -- block. At present, none of these are covered by the update system.
@@ -1293,10 +1293,10 @@ data GenesisBlockParameters = GenesisBlockParameters
        -- related to creating transactions.
     } deriving (Generic, Show, Eq)
 
-instance NFData GenesisBlockParameters
+instance NFData NetworkParameters
 
-instance Buildable GenesisBlockParameters where
-    build (GenesisBlockParameters bp txp) = build bp <> build txp
+instance Buildable NetworkParameters where
+    build (NetworkParameters bp txp) = build bp <> build txp
 
 data BlockchainParameters = BlockchainParameters
     { getGenesisBlockHash :: Hash "Genesis"

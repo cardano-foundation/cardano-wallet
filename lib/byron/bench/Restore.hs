@@ -103,7 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
-    , GenesisBlockParameters (..)
+    , NetworkParameters (..)
     , SlotId (..)
     , SyncProgress (..)
     , WalletId (..)
@@ -355,7 +355,7 @@ bench_restoration
     -> Trace IO Text
     -> FilePath
        -- ^ Socket path
-    -> GenesisBlockParameters
+    -> NetworkParameters
     -> NodeVersionData
     -> FilePath
        -- ^ Log output
@@ -438,7 +438,7 @@ prepareNode
     :: forall n. (NetworkDiscriminantVal n)
     => Proxy n
     -> FilePath
-    -> GenesisBlockParameters
+    -> NetworkParameters
     -> NodeVersionData
     -> IO ()
 prepareNode _ socketPath gbp vData = do

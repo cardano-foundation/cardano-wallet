@@ -25,8 +25,8 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , SlotLength (..)
     , StartTime (..)
     , Tx (..)
@@ -87,8 +87,8 @@ genesisTxParameters = TxParameters
     , getTxMaxSize = Quantity 8192
     }
 
-genesisBlockParameters :: GenesisBlockParameters
-genesisBlockParameters = GenesisBlockParameters
+genesisBlockParameters :: NetworkParameters
+genesisBlockParameters = NetworkParameters
     { staticParameters = genesisParameters
     , txParameters = genesisTxParameters
     }

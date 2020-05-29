@@ -121,7 +121,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , ChimericAccount
-    , GenesisBlockParameters (..)
+    , NetworkParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -205,7 +205,7 @@ serveWallet
     -- ^ HTTP API Server port.
     -> JormungandrBackend
     -- ^ Whether and how to launch or use the node backend.
-    -> (SockAddr -> Port "node" -> GenesisBlockParameters -> IO ())
+    -> (SockAddr -> Port "node" -> NetworkParameters -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMainLoop = do
@@ -245,7 +245,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     startServer
         :: Socket
         -> Port "node"
-        -> GenesisBlockParameters
+        -> NetworkParameters
         -> ApiLayer (RndState 'Mainnet) t ByronKey
         -> ApiLayer (SeqState 'Mainnet IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n JormungandrKey) t JormungandrKey
@@ -270,7 +270,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => (J.Block, GenesisBlockParameters)
+        => (J.Block, NetworkParameters)
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)

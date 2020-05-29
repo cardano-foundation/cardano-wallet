@@ -258,9 +258,9 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , Direction (..)
     , FeePolicy (LinearFee)
-    , GenesisBlockParameters (..)
     , Hash (..)
     , IsDelegatingTo (..)
+    , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
     , Range (..)
@@ -417,7 +417,7 @@ import qualified Data.Vector as V
 data WalletLayer s t (k :: Depth -> * -> *)
     = WalletLayer
         (Tracer IO WalletLog)
-        (Block, GenesisBlockParameters, SyncTolerance)
+        (Block, NetworkParameters, SyncTolerance)
         (NetworkLayer IO t Block)
         (TransactionLayer t k)
         (DBLayer IO s k)
@@ -455,7 +455,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
 -- and their metadata does not require any networking layer.
 type HasDBLayer s k = HasType (DBLayer IO s k)
 
-type HasGenesisData = HasType (Block, GenesisBlockParameters, SyncTolerance)
+type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
 
 type HasLogger msg = HasType (Tracer IO msg)
 
@@ -473,9 +473,9 @@ dbLayer =
 
 genesisData
     :: forall ctx. HasGenesisData ctx
-    => Lens' ctx (Block, GenesisBlockParameters, SyncTolerance)
+    => Lens' ctx (Block, NetworkParameters, SyncTolerance)
 genesisData =
-    typed @(Block, GenesisBlockParameters, SyncTolerance)
+    typed @(Block, NetworkParameters, SyncTolerance)
 
 logger
     :: forall msg ctx. HasLogger msg ctx
@@ -525,7 +525,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet (PrimaryKey wid) cp meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, GenesisBlockParameters bp txp, _) = ctx ^. genesisData
+    (block0, NetworkParameters bp txp, _) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -568,7 +568,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
         initializeWallet pk (updateState s' cp) meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, GenesisBlockParameters bp txp, _) = ctx ^. genesisData
+    (block0, NetworkParameters bp txp, _) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity

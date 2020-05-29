@@ -154,7 +154,6 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- Chain Parameters
 
-
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
 -- the following assumption:
@@ -359,9 +358,9 @@ fromPParams pp = W.TxParameters
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: ShelleyGenesis TPraosStandardCrypto
-    -> (W.GenesisBlockParameters, W.Block)
+    -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
-    ( W.GenesisBlockParameters
+    ( W.NetworkParameters
         { staticParameters = W.BlockchainParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =

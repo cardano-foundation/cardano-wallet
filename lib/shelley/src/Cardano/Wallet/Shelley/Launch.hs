@@ -44,7 +44,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), GenesisBlockParameters (..), ProtocolMagic (..) )
+    ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -142,7 +142,7 @@ someTestnetDiscriminant pm@(ProtocolMagic n) =
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO (SomeNetworkDiscriminant, GenesisBlockParameters, NodeVersionData, Block)
+    -> ExceptT String IO (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     TestnetConfig genesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
@@ -181,7 +181,7 @@ withCardanoNode
     -> FilePath
     -- ^ Test directory
     -> Severity
-    -> (FilePath -> Block -> (GenesisBlockParameters, NodeVersionData) -> IO a)
+    -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket description and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
@@ -228,7 +228,7 @@ withConfig
     -- ^ Test data directory
     -> (  CardanoNodeConfig
        -> Block
-       -> (GenesisBlockParameters, NodeVersionData)
+       -> (NetworkParameters, NodeVersionData)
        -> IO a
        )
     -- ^ Callback function with the node configuration and genesis params
@@ -243,7 +243,7 @@ withConfig tdir severity action =
         :: IO ( FilePath
               , CardanoNodeConfig
               , Block
-              , (GenesisBlockParameters, NodeVersionData)
+              , (NetworkParameters, NodeVersionData)
               )
     setupConfig = do
         dir <- getCanonicalTemporaryDirectory

@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisBlockParameters (..), SyncTolerance (..), TxParameters (..) )
+    ( NetworkParameters (..), SyncTolerance (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar

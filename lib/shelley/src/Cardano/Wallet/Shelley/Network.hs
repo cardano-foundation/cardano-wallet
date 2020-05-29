@@ -195,7 +195,7 @@ withNetworkLayer
     :: Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
         -- FIXME: Use a typed message instead of a 'Text'
-    -> W.GenesisBlockParameters
+    -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> FilePath
         -- ^ Socket for communicating with the node
@@ -356,7 +356,7 @@ mkTipSyncClient
     :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> W.GenesisBlockParameters
+    -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> TQueue m (LocalTxSubmissionCmd (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto) m)
         -- ^ Communication channel with the LocalTxSubmission client

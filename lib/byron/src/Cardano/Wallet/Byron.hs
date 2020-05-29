@@ -103,7 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockchainParameters (..)
     , ChimericAccount
-    , GenesisBlockParameters (..)
+    , NetworkParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -190,7 +190,7 @@ serveWallet
     -- ^ Socket for communicating with the node
     -> Block
     -- ^ The genesis block, or some starting point.
-    -> ( GenesisBlockParameters
+    -> ( NetworkParameters
        , ( NodeToClientVersionData
          , CodecCBORTerm Text NodeToClientVersionData
          )

@@ -79,8 +79,8 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BlockchainParameters (..)
     , EpochNo (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , SealedTx
     , SlotLength (..)
     , TxParameters (..)
@@ -154,7 +154,7 @@ data JormungandrClient m = JormungandrClient
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetBlockchainParams m (J.Block, GenesisBlockParameters)
+        -> ExceptT ErrGetBlockchainParams m (J.Block, NetworkParameters)
     , getStakeDistribution
         :: EpochNo
         -> ExceptT ErrNetworkUnavailable m StakeApiResponse
@@ -299,7 +299,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
             ([policy],[duration],[block0T], [epLength], [stability],[coeff]) ->
                 return
                     ( jblock
-                    , GenesisBlockParameters
+                    , NetworkParameters
                         { staticParameters = BlockchainParameters
                             { getGenesisBlockHash = block0
                             , getGenesisBlockDate = block0T

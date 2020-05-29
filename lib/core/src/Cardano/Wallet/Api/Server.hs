@@ -238,9 +238,9 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block
     , Coin (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
     , HistogramBar (..)
+    , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
@@ -606,7 +606,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , tip = getWalletTip cp
         }
   where
-    (_, GenesisBlockParameters bp _, _) = ctx ^. genesisData
+    (_, NetworkParameters bp _, _) = ctx ^. genesisData
     sp = W.slotParams bp
 
     toApiWalletDelegation W.WalletDelegation{active,next} =
@@ -1390,7 +1390,7 @@ assignMigrationAddresses addrs selections =
 
 getNetworkInformation
     :: forall t. ()
-    => (Block, GenesisBlockParameters, SyncTolerance)
+    => (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
 getNetworkInformation (_block0, gbp, st) nl = do
@@ -1428,7 +1428,7 @@ getNetworkInformation (_block0, gbp, st) nl = do
       where bomb = error "reached final epoch of the Blockchain!?"
 
 getNetworkParameters
-    :: (Block, GenesisBlockParameters, SyncTolerance)
+    :: (Block, NetworkParameters, SyncTolerance)
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, gbp, _st) =
     pure $ toApiNetworkParameters $ gbp ^. #staticParameters
@@ -1603,7 +1603,7 @@ newApiLayer
         , IsOurs s Address
         )
     => Tracer IO (WorkerLog WalletId WalletLog)
-    -> (Block, GenesisBlockParameters, SyncTolerance)
+    -> (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k
@@ -1627,7 +1627,7 @@ registerWorker
 registerWorker ctx wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
-    (_, GenesisBlockParameters bp _, _) = ctx ^. genesisData
+    (_, NetworkParameters bp _, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker

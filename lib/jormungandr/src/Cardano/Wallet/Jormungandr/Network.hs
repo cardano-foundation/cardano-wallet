@@ -130,8 +130,8 @@ import Cardano.Wallet.Primitive.Types
     , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , PoolId
     , SlotId (..)
     , TxParameters
@@ -209,7 +209,7 @@ withNetworkLayer
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , GenesisBlockParameters
+          , NetworkParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -228,7 +228,7 @@ withNetworkLayerLaunch
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , GenesisBlockParameters
+          , NetworkParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -248,7 +248,7 @@ withNetworkLayerConn
     -> (Either ErrStartup
         ( JormungandrConnParams
         , ( J.Block
-          , GenesisBlockParameters
+          , NetworkParameters
           )
         , NetworkLayer IO t J.Block
         ) -> IO a)
@@ -267,7 +267,7 @@ newNetworkLayer
     => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO ((J.Block, GenesisBlockParameters), NetworkLayer IO t J.Block)
+    -> ExceptT ErrGetBlockchainParams IO ((J.Block, NetworkParameters), NetworkLayer IO t J.Block)
 newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
@@ -288,7 +288,7 @@ mkRawNetworkLayer
         , t ~ Jormungandr
         , block ~ J.Block
         )
-    => GenesisBlockParameters
+    => NetworkParameters
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders

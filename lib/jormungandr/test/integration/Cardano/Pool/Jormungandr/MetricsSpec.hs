@@ -21,7 +21,7 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , BlockchainParameters (..)
-    , GenesisBlockParameters (..)
+    , NetworkParameters (..)
     , SlotId
     )
 import Control.Concurrent

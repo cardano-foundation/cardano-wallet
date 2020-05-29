@@ -18,7 +18,7 @@ import Cardano.Wallet.Byron.Network
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), GenesisBlockParameters (..), TxParameters (..) )
+    ( FeePolicy (..), NetworkParameters (..), TxParameters (..) )
 import Control.Retry
     ( constantDelay, limitRetries, recoverAll )
 import Data.Maybe
@@ -54,7 +54,7 @@ spec = describe "getTxParameters" $ do
             msg `shouldBe` [txParameters gbp]
 
 withTestNode
-    :: (GenesisBlockParameters -> FilePath -> NodeVersionData -> IO a)
+    :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
 withTestNode action = withCardanoNode nullTracer $(getTestData) Error $
     \sock _block0 (gbp, vData) -> action gbp sock vData
