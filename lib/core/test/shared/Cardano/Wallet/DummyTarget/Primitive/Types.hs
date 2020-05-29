@@ -6,7 +6,7 @@
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
     , block0
-    , genesisBlockParameters
+    , dummyNetworkParameters
     , dummyGenesisParameters
     , genesisTxParameters
     , genesisHash
@@ -87,8 +87,8 @@ genesisTxParameters = TxParameters
     , getTxMaxSize = Quantity 8192
     }
 
-genesisBlockParameters :: NetworkParameters
-genesisBlockParameters = NetworkParameters
+dummyNetworkParameters :: NetworkParameters
+dummyNetworkParameters = NetworkParameters
     { staticParameters = dummyGenesisParameters
     , txParameters = genesisTxParameters
     }

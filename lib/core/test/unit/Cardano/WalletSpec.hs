@@ -36,7 +36,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0, genesisBlockParameters, mkTxId )
+    ( DummyTarget, block0, dummyNetworkParameters, mkTxId )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Network
@@ -606,7 +606,7 @@ setupFixture (wid, wname, wstate) = do
   where
     slotNo = flatSlot $ getEpochLength $ staticParameters gbp
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
-    gbp = genesisBlockParameters
+    gbp = dummyNetworkParameters
     st = SyncTolerance 10
 
 -- | A dummy transaction layer to see the effect of a root private key. It
