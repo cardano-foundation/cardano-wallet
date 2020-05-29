@@ -12,7 +12,7 @@ module Cardano.Pool.DB.Arbitrary
 import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( genesisParameters )
+    ( dummyGenesisParameters )
 import Cardano.Wallet.Gen
     ( genPercentage )
 import Cardano.Wallet.Primitive.Types
@@ -145,14 +145,14 @@ instance Arbitrary StakePoolsFixture where
             }
 
         epochLength :: EpochLength
-        epochLength = genesisParameters ^. #getEpochLength
+        epochLength = dummyGenesisParameters ^. #getEpochLength
 
         sp :: SlotParameters
         sp = SlotParameters
             epochLength
-            (genesisParameters ^. #getSlotLength)
-            (genesisParameters ^. #getGenesisBlockDate)
-            (genesisParameters ^. #getActiveSlotCoefficient)
+            (dummyGenesisParameters ^. #getSlotLength)
+            (dummyGenesisParameters ^. #getGenesisBlockDate)
+            (dummyGenesisParameters ^. #getActiveSlotCoefficient)
 
         generateNextSlots :: [SlotId] -> Int -> [SlotId]
         generateNextSlots slots@(s:_) num =

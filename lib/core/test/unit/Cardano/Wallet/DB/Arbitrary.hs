@@ -39,7 +39,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( block0, genesisParameters, mkTx, mockHash )
+    ( block0, dummyGenesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -283,14 +283,14 @@ instance Arbitrary MockChain where
                 <*> pure []
 
         epochLength :: EpochLength
-        epochLength = genesisParameters ^. #getEpochLength
+        epochLength = dummyGenesisParameters ^. #getEpochLength
 
         sp :: SlotParameters
         sp = SlotParameters
             epochLength
-            (genesisParameters ^. #getSlotLength)
-            (genesisParameters ^. #getGenesisBlockDate)
-            (genesisParameters ^. #getActiveSlotCoefficient)
+            (dummyGenesisParameters ^. #getSlotLength)
+            (dummyGenesisParameters ^. #getGenesisBlockDate)
+            (dummyGenesisParameters ^. #getActiveSlotCoefficient)
 
 instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
@@ -314,7 +314,7 @@ instance GenState s => Arbitrary (Wallet s) where
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> pure genesisParameters
+        <*> pure dummyGenesisParameters
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []

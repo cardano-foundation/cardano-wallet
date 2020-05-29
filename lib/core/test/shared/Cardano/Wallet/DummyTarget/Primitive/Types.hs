@@ -7,7 +7,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
     , block0
     , genesisBlockParameters
-    , genesisParameters
+    , dummyGenesisParameters
     , genesisTxParameters
     , genesisHash
     , mockHash
@@ -71,8 +71,8 @@ block0 = Block
     , delegations = []
     }
 
-genesisParameters :: GenesisParameters
-genesisParameters = GenesisParameters
+dummyGenesisParameters :: GenesisParameters
+dummyGenesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     , getSlotLength = SlotLength 1
@@ -89,7 +89,7 @@ genesisTxParameters = TxParameters
 
 genesisBlockParameters :: NetworkParameters
 genesisBlockParameters = NetworkParameters
-    { staticParameters = genesisParameters
+    { staticParameters = dummyGenesisParameters
     , txParameters = genesisTxParameters
     }
 

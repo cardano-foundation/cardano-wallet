@@ -65,7 +65,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, genesisParameters, genesisTxParameters, mockHash )
+    ( block0, dummyGenesisParameters, genesisTxParameters, mockHash )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -728,7 +728,7 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState 'Mainnet JormungandrKey)
-testCp = snd $ initWallet block0 genesisParameters initDummyState
+testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
   where
     initDummyState :: SeqState 'Mainnet JormungandrKey
     initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
@@ -784,7 +784,7 @@ getTxsInLedger DBLayer {..} = do
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState 'Mainnet JormungandrKey)
-testCpSeq = snd $ initWallet block0 genesisParameters initDummyStateSeq
+testCpSeq = snd $ initWallet block0 dummyGenesisParameters initDummyStateSeq
 
 initDummyStateSeq :: SeqState 'Mainnet JormungandrKey
 initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
