@@ -65,11 +65,11 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (BlockHeader)
-    , BlockchainParameters (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , PoolId (..)

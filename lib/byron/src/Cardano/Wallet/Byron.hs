@@ -101,8 +101,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
-    , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisParameters (..)
     , NetworkParameters (..)
     , SyncTolerance
     , WalletId
@@ -276,7 +276,7 @@ serveWallet
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
       where
-        bp@BlockchainParameters
+        bp@GenesisParameters
             { getGenesisBlockHash
             , getEpochLength
             } = staticParameters gbp

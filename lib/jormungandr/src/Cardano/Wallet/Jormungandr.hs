@@ -119,8 +119,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisParameters (..)
     , NetworkParameters (..)
     , SyncTolerance
     , WalletId
@@ -285,7 +285,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         nl' = toWLBlock <$> nl
 
     stakePoolLayer
-        :: (J.Block, BlockchainParameters)
+        :: (J.Block, GenesisParameters)
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> FilePath

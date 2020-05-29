@@ -77,8 +77,8 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , SealedTx
@@ -300,7 +300,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 return
                     ( jblock
                     , NetworkParameters
-                        { staticParameters = BlockchainParameters
+                        { staticParameters = GenesisParameters
                             { getGenesisBlockHash = block0
                             , getGenesisBlockDate = block0T
                             , getEpochLength = epLength

@@ -83,9 +83,9 @@ module Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
 
-    -- * BlockchainParameters
+    -- * GenesisParameters
     , NetworkParameters (..)
-    , BlockchainParameters (..)
+    , GenesisParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -1284,7 +1284,7 @@ computeUtxoStatistics btype utxos =
 -- | Initial blockchain parameters loaded from the application configuration and
 -- genesis block.
 data NetworkParameters = NetworkParameters
-    { staticParameters :: BlockchainParameters
+    { staticParameters :: GenesisParameters
        -- ^ These parameters are defined by the configuration and genesis
        -- block. At present, none of these are covered by the update system.
     , txParameters :: TxParameters
@@ -1298,7 +1298,7 @@ instance NFData NetworkParameters
 instance Buildable NetworkParameters where
     build (NetworkParameters bp txp) = build bp <> build txp
 
-data BlockchainParameters = BlockchainParameters
+data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
     , getGenesisBlockDate :: StartTime
@@ -1314,17 +1314,17 @@ data BlockchainParameters = BlockchainParameters
         -- (i.e. slots for which someone can be elected as leader).
     } deriving (Generic, Show, Eq)
 
-instance NFData BlockchainParameters
+instance NFData GenesisParameters
 
-instance Buildable BlockchainParameters where
+instance Buildable GenesisParameters where
     build bp = blockListF' "" id
         [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
-            (bp :: BlockchainParameters))
+            (bp :: GenesisParameters))
         , "Slot length:        " <> slotLengthF (getSlotLength
-            (bp :: BlockchainParameters))
+            (bp :: GenesisParameters))
         , "Epoch length:       " <> epochLengthF (getEpochLength
-            (bp :: BlockchainParameters))
+            (bp :: GenesisParameters))
         , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
         , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
         ]
@@ -1342,7 +1342,7 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
-slotParams :: BlockchainParameters -> SlotParameters
+slotParams :: GenesisParameters -> SlotParameters
 slotParams bp =
     SlotParameters
         (bp ^. #getEpochLength)

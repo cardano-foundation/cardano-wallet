@@ -107,12 +107,12 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Address
     , BlockHeader
-    , BlockchainParameters
     , Coin (..)
     , DelegationCertificate
     , Direction (..)
     , EpochNo (..)
     , FeePolicy
+    , GenesisParameters
     , Hash (..)
     , Hash (..)
     , PoolId (..)
@@ -743,7 +743,7 @@ instance ToExpr (Hash purpose) where
 instance ToExpr b => ToExpr (Quantity a b) where
     toExpr = genericToExpr
 
-instance ToExpr BlockchainParameters where
+instance ToExpr GenesisParameters where
     toExpr = defaultExprViaShow
 
 instance ToExpr SlotId where

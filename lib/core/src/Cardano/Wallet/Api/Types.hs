@@ -146,12 +146,12 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
-    , BlockchainParameters (..)
     , BoundType
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
@@ -499,7 +499,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     } deriving (Eq, Generic, Show)
 
-toApiNetworkParameters :: BlockchainParameters -> ApiNetworkParameters
+toApiNetworkParameters :: GenesisParameters -> ApiNetworkParameters
 toApiNetworkParameters bp = ApiNetworkParameters
     (ApiT $ getGenesisBlockHash bp)
     (ApiT $ getGenesisBlockDate bp)

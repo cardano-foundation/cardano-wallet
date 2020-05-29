@@ -37,8 +37,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , Coin (..)
+    , GenesisParameters (..)
     , Hash (..)
     , PoolId
     , ProtocolMagic (..)
@@ -222,7 +222,7 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 --
 -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
 -- jormungandr. This function is a method to deal with the discrepancy.
-genesisBlockFromTxOuts :: BlockchainParameters -> [TxOut] -> Block
+genesisBlockFromTxOuts :: GenesisParameters -> [TxOut] -> Block
 genesisBlockFromTxOuts bp outs = Block
     { delegations  = []
     , header = BlockHeader

@@ -61,11 +61,11 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount (..)
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
+    , GenesisParameters (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -159,7 +159,7 @@ data Wallet s = Wallet
 
       -- | Parameters may change over time via protocol updates, so we keep
       -- track of them as part of the wallet checkpoints.
-    , blockchainParameters :: BlockchainParameters
+    , blockchainParameters :: GenesisParameters
     } deriving (Generic, Eq, Show)
 
 instance NFData s => NFData (Wallet s) where
@@ -187,7 +187,7 @@ initWallet
     :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Block
         -- ^ The genesis block
-    -> BlockchainParameters
+    -> GenesisParameters
         -- ^ Initial blockchain parameters
     -> s
         -- ^ Initial address discovery state
@@ -210,7 +210,7 @@ unsafeInitWallet
     -- ^ Header of the latest applied block (current tip)
     -> s
     -- ^ Address discovery state
-    -> BlockchainParameters
+    -> GenesisParameters
     -- ^ Blockchain parameters
     -> Wallet s
 unsafeInitWallet = Wallet

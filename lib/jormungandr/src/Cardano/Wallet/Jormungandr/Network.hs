@@ -127,9 +127,9 @@ import Cardano.Wallet.Network.Ports
     ( PortNumber, getRandomPort, waitForPort )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount (..)
     , EpochNo
+    , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , PoolId

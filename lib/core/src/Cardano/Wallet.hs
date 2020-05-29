@@ -252,12 +252,12 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount (..)
     , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , FeePolicy (LinearFee)
+    , GenesisParameters (..)
     , Hash (..)
     , IsDelegatingTo (..)
     , NetworkParameters (..)
@@ -575,7 +575,7 @@ checkWalletIntegrity
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
     -> WalletId
-    -> BlockchainParameters
+    -> GenesisParameters
     -> ExceptT ErrCheckWalletIntegrity IO ()
 checkWalletIntegrity ctx wid bp = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
@@ -1386,7 +1386,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 -- of input and output.
 mkTxMeta
     :: IsOurs s Address
-    => BlockchainParameters
+    => GenesisParameters
     -> BlockHeader
     -> s
     -> [(TxIn, TxOut)]

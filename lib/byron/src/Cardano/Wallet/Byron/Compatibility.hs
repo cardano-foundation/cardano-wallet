@@ -167,7 +167,7 @@ type NodeVersionData =
 
 mainnetBlockchainParameters :: W.NetworkParameters
 mainnetBlockchainParameters = W.NetworkParameters
-    { staticParameters = W.BlockchainParameters
+    { staticParameters = W.GenesisParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
@@ -197,7 +197,7 @@ mainnetBlockchainParameters = W.NetworkParameters
 --
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
-emptyGenesis :: W.BlockchainParameters -> W.Block
+emptyGenesis :: W.GenesisParameters -> W.Block
 emptyGenesis bp = W.Block
     { transactions = []
     , delegations  = []
@@ -439,7 +439,7 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
 fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
     ( W.NetworkParameters
-        { staticParameters = W.BlockchainParameters
+        { staticParameters = W.GenesisParameters
             { getGenesisBlockHash =
                 W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
             , getGenesisBlockDate =

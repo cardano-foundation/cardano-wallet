@@ -792,7 +792,7 @@ checkpointFromEntity cp utxo s =
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    bp = W.BlockchainParameters
+    bp = W.GenesisParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
         , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))

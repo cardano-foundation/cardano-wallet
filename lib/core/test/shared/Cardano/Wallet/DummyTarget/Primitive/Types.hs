@@ -21,10 +21,10 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
+    , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , SlotLength (..)
@@ -71,8 +71,8 @@ block0 = Block
     , delegations = []
     }
 
-genesisParameters :: BlockchainParameters
-genesisParameters = BlockchainParameters
+genesisParameters :: GenesisParameters
+genesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     , getSlotLength = SlotLength 1

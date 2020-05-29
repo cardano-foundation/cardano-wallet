@@ -20,7 +20,7 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..), withJormungandr, withNetworkLayer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , BlockchainParameters (..)
+    , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotId
     )

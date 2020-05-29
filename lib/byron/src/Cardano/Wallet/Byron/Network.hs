@@ -231,7 +231,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
             , getAccountBalance = _getAccountBalance
             }
   where
-    bp@W.BlockchainParameters
+    bp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
         } = W.staticParameters gbp
@@ -301,7 +301,7 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => W.BlockchainParameters
+    => W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ByronBlock m)
         -- ^ Communication channel with the ChainSync client
@@ -328,7 +328,7 @@ mkWalletClient bp chainSyncQ = do
         }
         NodeToClientV_2
   where
-    W.BlockchainParameters
+    W.GenesisParameters
         { getEpochLength
         , getGenesisBlockHash
         } = bp
@@ -413,7 +413,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         }
         NodeToClientV_2
   where
-    W.BlockchainParameters
+    W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
         } = W.staticParameters gbp

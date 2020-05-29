@@ -101,8 +101,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount
+    , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotId (..)
     , SyncProgress (..)
@@ -456,7 +456,7 @@ waitForWalletSync
     :: forall s t k. ()
     => WalletLayer s t k
     -> WalletId
-    -> BlockchainParameters
+    -> GenesisParameters
     -> NodeVersionData
     -> IO ()
 waitForWalletSync walletLayer wid bp vData = do
@@ -482,7 +482,7 @@ waitForWalletSync walletLayer wid bp vData = do
 waitForNodeSync
     :: NetworkLayer IO (IO Byron) Block
     -> (SlotId -> SlotId -> IO ())
-    -> BlockchainParameters
+    -> GenesisParameters
     -> IO SlotId
 waitForNodeSync nw logSlot bp = loop 10
   where

@@ -162,7 +162,7 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
-emptyGenesis :: W.BlockchainParameters -> W.Block
+emptyGenesis :: W.GenesisParameters -> W.Block
 emptyGenesis bp = W.Block
     { transactions = []
     , delegations  = []
@@ -361,7 +361,7 @@ fromGenesisData
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
     ( W.NetworkParameters
-        { staticParameters = W.BlockchainParameters
+        { staticParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . getSystemStart . sgStartTime $ g
