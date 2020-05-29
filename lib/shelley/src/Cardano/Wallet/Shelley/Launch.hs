@@ -247,7 +247,7 @@ withConfig tdir severity action =
               )
     setupConfig = do
         dir <- getCanonicalTemporaryDirectory
-            >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
+            >>= \tmpRoot -> createTempDirectory tmpRoot "cw-shelley"
 
         let nodeConfigFile   = dir </> "node.config"
         let nodeDatabaseDir  = dir </> "node.db"
