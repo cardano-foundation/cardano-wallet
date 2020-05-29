@@ -219,7 +219,8 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
     let handlers = retryOnConnectionLost tr
-    link =<< async (connectClient tr handlers (const nodeTipClient) versionData addrInfo)
+    link =<< async
+        (connectClient tr handlers (const nodeTipClient) versionData addrInfo)
 
     action
         NetworkLayer
@@ -242,8 +243,10 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient bp chainSyncQ
         let handlers = failOnConnectionLost tr
-        link =<< async (connectClient tr handlers (const client) versionData addrInfo)
-        let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
+        link =<< async
+            (connectClient tr handlers (const client) versionData addrInfo)
+        let points = reverse $ genesisPoint :
+                (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
         res <- findIt

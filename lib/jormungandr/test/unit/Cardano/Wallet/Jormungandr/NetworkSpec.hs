@@ -399,19 +399,19 @@ mockJormungandrClient logLine = JormungandrClient
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
         pure (block0, NetworkParameters
-                 { genesisParameters = GenesisParameters
-                     { getGenesisBlockHash = blockId
-                     , getGenesisBlockDate = error "mock bp"
-                     , getSlotLength = error "mock bp"
-                     , getEpochLength = error "mock bp"
-                     , getEpochStability = Quantity (fromIntegral k)
-                     , getActiveSlotCoefficient = error "mock bp"
-                     }
-                 , txParameters = TxParameters
-                     { getFeePolicy = error "mock bp"
-                     , getTxMaxSize = error "mock bp"
-                     }
-                 })
+            { genesisParameters = GenesisParameters
+                { getGenesisBlockHash = blockId
+                , getGenesisBlockDate = error "mock bp"
+                , getSlotLength = error "mock bp"
+                , getEpochLength = error "mock bp"
+                , getEpochStability = Quantity (fromIntegral k)
+                , getActiveSlotCoefficient = error "mock bp"
+                }
+            , txParameters = TxParameters
+                { getFeePolicy = error "mock bp"
+                , getTxMaxSize = error "mock bp"
+                }
+            })
 
     , postMessage = \_ -> error "mock postMessage"
 

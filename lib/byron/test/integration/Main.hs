@@ -145,7 +145,6 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             PortCLI.spec @t
             NetworkCLI.spec @t
 
-
 specWithServer
     :: Trace IO Text
     -> SpecWith (Context Byron)
@@ -169,7 +168,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator (getFeePolicy (txParameters gbp))
+                    , _feeEstimator =
+                        mkFeeEstimator (getFeePolicy (txParameters gbp))
                     , _blockchainParameters = genesisParameters gbp
                     , _target = Proxy
                     }
