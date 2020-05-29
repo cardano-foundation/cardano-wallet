@@ -272,7 +272,7 @@ instance PaymentAddress ('Testnet pm) ShelleyKey where
             putByteString . blake2b256 $ paymentK
       where
         enterprise = 96
-        networkId = 1 -- NOTE: Should be 0. Hack to support FF.
+        networkId = 1 -- FIXME: Should be 0. Hack to support FF.
 
     liftPaymentAddress (KeyFingerprint fingerprint) =
         Address $ BL.toStrict $ runPut $ do
@@ -280,7 +280,7 @@ instance PaymentAddress ('Testnet pm) ShelleyKey where
             putByteString fingerprint
       where
         enterprise = 96
-        networkId = 1 -- NOTE: Should be 0. Hack to support FF.
+        networkId = 1 -- FIXME: Should be 0. Hack to support FF.
 
 instance DelegationAddress 'Mainnet ShelleyKey where
     delegationAddress paymentK stakingK =
@@ -309,7 +309,7 @@ instance DelegationAddress ('Testnet pm) ShelleyKey where
             putByteString . blake2b256 $ stakingK
       where
         base = 0
-        networkId = 1 -- NOTE: Should be 0. Hack to support FF.
+        networkId = 1 -- FIXME: Should be 0. Hack to support FF.
 
     liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
         Address $ BL.toStrict $ runPut $ do
@@ -318,7 +318,7 @@ instance DelegationAddress ('Testnet pm) ShelleyKey where
             putByteString . blake2b256 $ stakingK
       where
         base = 0
-        networkId = 1 -- NOTE: Should be 0. Hack to support FF.
+        networkId = 1 -- FIXME: Should be 0. Hack to support FF.
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeShelleyAddress
