@@ -194,7 +194,11 @@ mkFeeEstimator policy = \case
     PaymentDescription nInps nOuts nChgs ->
         let
             inps = take nInps
-                [ TxIn (Hash (BS.replicate 32 0)) tix | tix <- [0..] ]
+                [ ( TxIn (Hash (BS.replicate 32 0)) tix
+                  , TxOut (Address mempty) minBound
+                  )
+                | tix <- [0..]
+                ]
 
             outsMin = replicate (nOuts + nChgs) (TxOut addr_ coin_)
               where
@@ -212,7 +216,7 @@ mkFeeEstimator policy = \case
 
         in
             ( round a + round b * fromIntegral (sizeOfSignedTx inps outsMin)
-            , round a + round b * fromIntegral (sizeOfSignedTx inps outsMax)
+            , round a + round b * fromIntegral (8 + sizeOfSignedTx inps outsMax)
             )
 
     DelegDescription{} ->
