@@ -7,7 +7,7 @@ protocolParams:
     minor: 0
     major: 0
   decentralisationParam: 1
-  maxTxSize: 2048
+  maxTxSize: 4096
   minFeeA: 1000000
   maxBlockBodySize: 239857
   keyMinRefund: 0
