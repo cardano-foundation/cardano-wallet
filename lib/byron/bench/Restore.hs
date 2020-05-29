@@ -15,7 +15,7 @@
 -- Easiest run using
 -- @
 --     $ export NODE_DB="node-db-testnet"
---     $ nix-build -A benchmarks.cardano-wallet-byron.restore -o restore && ./restore/bin/restore --testnet
+--     $ nix-build -A benchmarks.cardano-wallet-byron.restore -o restore && ./restore/bin/restore testnet
 -- @
 --
 -- or
@@ -29,24 +29,21 @@ module Main where
 
 import Prelude
 
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Setup
-    ( setupTrace_ )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.DB.Sqlite
     ( destroyDBLayer, unsafeRunQuery )
-import Cardano.Launcher
-    ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Startup
-    ( installSignalHandlers )
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog (..) )
+import Cardano.Wallet.BenchShared
+    ( RestoreBenchArgs (..)
+    , argsNetworkDir
+    , bench
+    , execBenchWithNode
+    , runBenchmarks
+    )
 import Cardano.Wallet.Byron
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Byron.Compatibility
@@ -119,19 +116,17 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.DeepSeq
-    ( NFData, rnf )
+    ( NFData )
 import Control.Exception
-    ( bracket, evaluate, throwIO )
+    ( bracket, throwIO )
 import Control.Monad
-    ( forM, join, mapM_, void )
+    ( void )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
     ( Tracer (..), traceWith )
-import Criterion.Measurement
-    ( getTime, initializeTime, secs )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -144,30 +139,17 @@ import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
     ( build, fmt, pretty, (+|), (+||), (|+), (||+) )
-import Options.Applicative
-    ( Parser, execParser, flag', info, long, (<|>) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
 import Say
     ( sayErr )
-import System.Environment
-    ( getEnv )
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( BufferMode (..)
-    , IOMode (..)
-    , hFlush
-    , hSetBuffering
-    , stderr
-    , stdout
-    , withFile
-    )
+    ( IOMode (..), hFlush, withFile )
 import System.IO.Temp
-    ( createTempDirectory, getCanonicalTemporaryDirectory, withSystemTempFile )
+    ( withSystemTempFile )
 
-import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
@@ -177,103 +159,22 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 main :: IO ()
-main = do
-    (networkConfig, nodeConfig, cleanup) <- getNetworkConfiguration
+main = execBenchWithNode argsNetworkConfig byronRestoreBench
 
-    exec networkConfig nodeConfig `finally` cleanup
+{-------------------------------------------------------------------------------
+                                Byron benchmarks
+-------------------------------------------------------------------------------}
 
-data Args = Args
-    { networkName :: Maybe String
-    , configsDir :: Maybe FilePath
-    , nodeDatabaseDir :: Maybe FilePath
-    } deriving (Show, Eq)
+argsNetworkConfig :: RestoreBenchArgs -> NetworkConfiguration
+argsNetworkConfig args = case argNetworkName args of
+    "mainnet" ->
+        MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData)
+    _ ->
+        TestnetConfig (argsNetworkDir args </> "genesis.json")
 
-getNetworkConfiguration :: IO (NetworkConfiguration, CardanoNodeConfig, IO ())
-getNetworkConfiguration = do
-    let opts = info argsParser mempty
-    args <- addEnvs =<< execParser opts
-
-    configs <- maybe (die "--cardano-node-configs arg not set") pure (configsDir args)
-
-    networkConfig <- case networkName args of
-        Nothing ->
-            die "NETWORK arg not set"
-        Just "mainnet" ->
-            pure $ MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData)
-        Just networkName -> do
-            let testnetGenesis = configs </> networkName </> "genesis.json"
-            pure $ TestnetConfig testnetGenesis
-
-    (dbDir, cleanup) <- case nodeDatabaseDir args of
-        Nothing -> do
-            -- Temporary directory for storing socket and node database
-            tmpDir <- getCanonicalTemporaryDirectory
-                >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
-            pure (tmpDir, removeDirectoryRecursive tmpDir)
-        Just d -> pure (d, pure ())
-
-    let networkDir = configs </> networkName
-    let nodeConfig = CardanoNodeConfig
-            { nodeConfigFile   = networkDir </> "configuration.json"
-            , nodeDatabaseDir  = dbDir
-            , nodeDlgCertFile  = ""
-            , nodeSignKeyFile  = ""
-            , nodeSocketFile   = dbDir </> "cardano-node.socket"
-            , nodeTopologyFile = networkDir </> "topology.json"
-            }
-
-    pure (networkConfig, nodeConfig, cleanup)
-
-argsParser :: Parser Args
-argsParser = Args
-    <$> strArgument (metavar "NETWORK" <> help "Blockchain to use. Defaults to $NETWORK.")
-    <*> strOption
-        ( long "cardano-node-configs"
-          <> short 'c'
-          <> metavar "DIR"
-          <> help "Directory containing configurations for each network. Defaults to $CARDANO_NODE_CONFIGS")
-    <*> strOption
-        ( long "node-db"
-          <> metavar "DB"
-          <> help "Directory to put cardano-node state. Defaults to $NODE_DB, falls back to temporary directory")
-
-cardanoNodeCommand :: CardanoNodeConfig -> Int -> Command
-cardanoNodeCommand cfg port = Command "cardano-node" args (return ()) Inherit Inherit
-  where
-    args =
-        [ "run"
-        , "--database-path", nodeDatabaseDir cfg
-        , "--topology", nodeTopologyFile cfg
-        , "--socket-path", nodeSocketPath cfg
-        , "--config", nodeConfigFile cfg
-        , "--port", show port
-        ]
-
-
--- Environment variables set by nix/haskell.nix (or manually)
--- Environment variables set by ./buildkite/bench-restore.sh (or manually)
-addEnvs :: Args -> IO Args
-addEnvs (Args n c d) = update
-    <$> lookupEnv' "NETWORK"
-    <*> lookupEnv' "CARDANO_NODE_CONFIGS"
-    <*> lookupEnv' "NODE_DB"
-  where
-    update ne ce de = Args (n <|> ne) (c <|> ce) (d <|> de)
-    lookupEnv' k = lookupEnv k <&> \case
-        Just "" -> Nothing
-        Just v -> Just v
-        Nothing -> Nothing
-
--- | Run all available benchmarks. Can accept one argument that is a target
--- network against which benchmarks below should be ran
-exec :: NetworkConfiguration -> CardanoNodeConfig -> IO ()
-exec c nodeConfig = do
-    hSetBuffering stdout NoBuffering
-    hSetBuffering stderr NoBuffering
-
-    (_logCfg, tr) <- initBenchmarkLogging Info
-    installSignalHandlers (return ())
-
+-- | Run all available benchmarks.
+byronRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO ()
+byronRestoreBench tr c socketFile = do
     (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
@@ -299,44 +200,38 @@ exec c nodeConfig = do
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
 
-    cmd <- cardanoNodeCommand nodeConfig <$> getRandomPort
+    prepareNode networkProxy socketFile np vData
+    runBenchmarks
+        [ bench ("restore " <> network <> " seq")
+            (bench_restoration @_ @ByronKey
+                networkProxy
+                tr
+                socketFile
+                np
+                vData
+                "seq.timelog"
+                (walletRnd))
 
-    sayErr "Starting node with command:"
-    sayErr $ pretty cmd
+        , bench ("restore " <> network <> " 1% ownership")
+            (bench_restoration @_ @IcarusKey
+                networkProxy
+                tr
+                socketFile
+                np
+                vData
+                "1-percent.timelog"
+                (initAnyState "Benchmark 1% Wallet" 0.01))
 
-    void $ withBackendProcess nullTracer cmd $ do
-            prepareNode networkProxy (nodeSocketFile nodeConfig) np vData
-            runBenchmarks
-                [ bench ("restore " <> network <> " seq")
-                    (bench_restoration @_ @ByronKey
-                        networkProxy
-                        tr
-                        (nodeSocketFile nodeConfig)
-                        np
-                        vData
-                        "seq.timelog"
-                        (walletRnd))
-
-                , bench ("restore " <> network <> " 1% ownership")
-                    (bench_restoration @_ @IcarusKey
-                        networkProxy
-                        tr
-                        (nodeSocketFile nodeConfig)
-                        np
-                        vData
-                        "1-percent.timelog"
-                        (initAnyState "Benchmark 1% Wallet" 0.01))
-
-                , bench ("restore " <> network <> " 2% ownership")
-                    (bench_restoration @_ @IcarusKey
-                        networkProxy
-                        tr
-                        (nodeSocketFile nodeConfig)
-                        np
-                        vData
-                        "2-percent.timelog"
-                        (initAnyState "Benchmark 2% Wallet" 0.02))
-                ]
+        , bench ("restore " <> network <> " 2% ownership")
+            (bench_restoration @_ @IcarusKey
+                networkProxy
+                tr
+                socketFile
+                np
+                vData
+                "2-percent.timelog"
+                (initAnyState "Benchmark 2% Wallet" 0.02))
+        ]
   where
     walletRnd
         :: (WalletId, WalletName, RndState n)
@@ -355,37 +250,6 @@ exec c nodeConfig = do
 
     networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
     networkDescription _ = networkDiscriminantVal @n
-
-runBenchmarks :: [IO (Text, Double)] -> IO ()
-runBenchmarks bs = do
-    initializeTime
-    -- NOTE: Adding an artificial delay between successive runs to get a better
-    -- output for the heap profiling.
-    rs <- forM bs $ \io -> io <* let _2s = 2000000 in threadDelay _2s
-    sayErr "\n\nAll results:"
-    mapM_ (uncurry printResult) rs
-
-bench :: Text -> IO () -> IO (Text, Double)
-bench benchName action = do
-    sayErr $ "Running " <> benchName
-    start <- getTime
-    res <- action
-    evaluate (rnf res)
-    finish <- getTime
-    let dur = finish - start
-    printResult benchName dur
-    pure (benchName, dur)
-
-printResult :: Text -> Double -> IO ()
-printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
-
-initBenchmarkLogging :: Severity -> IO (CM.Configuration, Trace IO Text)
-initBenchmarkLogging minSeverity = do
-    c <- defaultConfigStdout
-    CM.setMinSeverity c minSeverity
-    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    (tr, _sb) <- setupTrace_ c "bench-restore"
-    pure (c, tr)
 
 {-------------------------------------------------------------------------------
                                   Benchmarks

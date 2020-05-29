@@ -39,14 +39,19 @@ library
     , cardano-addresses
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cborg
     , command
     , containers
+    , contra-tracer
+    , criterion-measurement
     , cryptonite
+    , deepseq
     , directory
     , exceptions
     , extra
+    , filepath
     , fmt
     , generic-lens
     , hspec
@@ -56,11 +61,14 @@ library
     , http-types
     , iohk-monitoring
     , memory
+    , optparse-applicative
     , process
     , retry
+    , say
     , scrypt
     , stm
     , template-haskell
+    , temporary
     , text
     , text-class
     , time
@@ -96,3 +104,4 @@ library
       Test.Integration.Scenario.CLI.Port
       Cardano.Wallet.TransactionSpecShared
       Cardano.Wallet.LatencyBenchShared
+      Cardano.Wallet.BenchShared

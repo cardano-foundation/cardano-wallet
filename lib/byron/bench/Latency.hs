@@ -51,7 +51,7 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Byron.Faucet
     ( initFaucet )
 import Cardano.Wallet.Byron.Launch
-    ( withCardanoNode )
+    ( withCardanoNode, withCardanoSelfNode )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
@@ -369,7 +369,7 @@ benchWithByronServer tracers action = do
         either pure (throwIO . ProcessHasExited "integration")
   where
     withServer act =
-        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (gp,vData) ->
+        withCardanoSelfNode nullTracer $(getTestData) Error $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)

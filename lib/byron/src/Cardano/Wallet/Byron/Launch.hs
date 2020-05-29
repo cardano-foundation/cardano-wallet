@@ -16,7 +16,7 @@
 
 module Cardano.Wallet.Byron.Launch
     ( -- * Integration Launcher
-      withCardanoNode
+      withCardanoSelfNode
 
     , NetworkConfiguration (..)
     , nodeSocketOption
@@ -36,8 +36,12 @@ import Cardano.CLI
     ( optionT )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
-import Cardano.Launcher
-    ( Command (..), StdStream (..), withBackendProcess )
+import Cardano.Launcher.Node
+    ( CardanoNodeConfig (..)
+    , CardanoNodeConn (..)
+    , defaultCardanoNodeConfig
+    , withCardanoNode
+    )
 import Cardano.Wallet.Byron
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Byron.Compatibility
@@ -53,8 +57,6 @@ import Cardano.Wallet.Byron.Transaction
     ( genesisBlockFromTxOuts )
 import Cardano.Wallet.Logging
     ( trMessageText )
-import Cardano.Wallet.Network.Ports
-    ( getRandomPort )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -94,9 +96,7 @@ import System.Directory
 import System.Environment
     ( lookupEnv )
 import System.FilePath
-    ( takeFileName, (</>) )
-import System.Info
-    ( os )
+    ( (</>) )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 
@@ -230,19 +230,10 @@ parseGenesisData = \case
 -- For Integration
 --------------------------------------------------------------------------------
 
-data CardanoNodeConfig = CardanoNodeConfig
-    { nodeConfigFile   :: FilePath
-    , nodeDatabaseDir  :: FilePath
-    , nodeDlgCertFile  :: FilePath
-    , nodeSignKeyFile  :: FilePath
-    , nodeSocketFile   :: FilePath
-    , nodeTopologyFile :: FilePath
-    }
-
 -- | Spins up a @cardano-node@ in another process.
 --
 -- IMPORTANT: @cardano-node@ must be available on the current path.
-withCardanoNode
+withCardanoSelfNode
     :: Trace IO Text
     -- ^ Trace for subprocess control logging
     -> FilePath
@@ -252,25 +243,12 @@ withCardanoNode
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with a socket filename and genesis params
     -> IO a
-withCardanoNode tr tdir severity action =
-    orThrow $ withConfig tdir severity $ \cfg block0 (np, vData) -> do
-        nodePort <- getRandomPort
-        let args = mkArgs cfg nodePort
-        let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        withBackendProcess (trMessageText tr) cmd $ do
-            action (nodeSocketFile cfg) block0 (np, vData)
+withCardanoSelfNode tr tdir severity action =
+    orThrow $ withConfig tdir severity $ \cfg block0 (np, vData) ->
+        withCardanoNode (trMessageText tr) cfg $ \cp ->
+            action (nodeSocketFile cp) block0 (np, vData)
   where
     orThrow = (=<<) (either throwIO pure)
-    mkArgs cfg port =
-        [ "run"
-        , "--config", nodeConfigFile cfg
-        , "--signing-key", nodeSignKeyFile cfg
-        , "--delegation-certificate", nodeDlgCertFile cfg
-        , "--topology", nodeTopologyFile cfg
-        , "--database-path", nodeDatabaseDir cfg
-        , "--socket-path", nodeSocketFile cfg
-        , "--port", show port
-        ]
 
 
 -- | Generate a new integration configuration based on a partial configuration
@@ -319,14 +297,10 @@ withConfig tdir minSeverity action =
 
         let nodeConfigFile   = dir </> "node.config"
         let nodeDatabaseDir  = dir </> "node.db"
-        let nodeDlgCertFile  = dir </> "node.cert"
+        let nodeDlgCertFile  = Just (dir </> "node.cert")
+        let nodeSignKeyFile  = Just (dir </> "node.key")
         let nodeGenesisFile  = dir </> "genesis.json"
-        let nodeSignKeyFile  = dir </> "node.key"
         let nodeTopologyFile = dir </> "node.topology"
-        let nodeSocketFile =
-                if os == "mingw32"
-                then "\\\\.\\pipe\\" ++ takeFileName dir
-                else dir </> "socket"
 
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
@@ -348,12 +322,11 @@ withConfig tdir minSeverity action =
 
         pure
             ( dir
-            , CardanoNodeConfig
+            , defaultCardanoNodeConfig
                 { nodeConfigFile
                 , nodeDatabaseDir
                 , nodeDlgCertFile
                 , nodeSignKeyFile
-                , nodeSocketFile
                 , nodeTopologyFile
                 }
             , genesisBlockFromTxOuts (genesisParameters np) outs

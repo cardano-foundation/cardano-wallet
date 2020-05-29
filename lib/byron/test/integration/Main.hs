@@ -39,7 +39,7 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Byron.Faucet
     ( initFaucet )
 import Cardano.Wallet.Byron.Launch
-    ( withCardanoNode )
+    ( withCardanoSelfNode )
 import Cardano.Wallet.Byron.Transaction.Size
     ( maxSizeOf, minSizeOf, sizeOfSignedTx )
 import Cardano.Wallet.Network.Ports
@@ -183,7 +183,7 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (np, vData) ->
+        withCardanoSelfNode tr $(getTestData) Info $ \socketPath block0 (np, vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db ->
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
