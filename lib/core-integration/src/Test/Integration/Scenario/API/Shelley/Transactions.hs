@@ -161,7 +161,7 @@ spec = do
 
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [5_000_000]
+        wSrc <- fixtureWalletWith @n ctx [5_000_000_000]
         wDest <- emptyWallet ctx
 
         eventually "Pending tx has pendingSince field" $ do
