@@ -18,7 +18,11 @@ import Cardano.Wallet.Byron.Network
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), NetworkParameters (..), TxParameters (..) )
+    ( FeePolicy (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
+    , TxParameters (..)
+    )
 import Control.Retry
     ( constantDelay, limitRetries, recoverAll )
 import Data.Maybe
@@ -41,17 +45,20 @@ spec = describe "getTxParameters" $ do
     it "Correct values are queried" $ do
         withTestNode $ \gbp sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
-            let gbp' = gbp { txParameters = zeroTxParameters }
+            let pps = protocolParameters gbp
+            let pps' = pps { txParameters = zeroTxParameters }
+            let gbp' = gbp { protocolParameters = pps' }
             withNetworkLayer tr gbp' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
                 -- the genesis block configuration.
                 let retryPolicy = constantDelay 1_000_000 <> limitRetries 10
                 recoverAll retryPolicy $ const $
-                    getTxParameters nl `shouldReturn` txParameters gbp
+                    getTxParameters nl `shouldReturn`
+                        txParameters (protocolParameters gbp)
             -- Parameters update should be logged exactly once.
             msg <- mapMaybe isMsgTxParams <$> getLogs
-            msg `shouldBe` [txParameters gbp]
+            msg `shouldBe` [txParameters (protocolParameters gbp)]
 
 withTestNode
     :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)

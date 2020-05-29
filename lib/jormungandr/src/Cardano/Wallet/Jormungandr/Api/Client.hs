@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SealedTx
     , SlotLength (..)
     , TxParameters (..)
@@ -308,11 +309,17 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                             , getEpochStability = stability
                             , getActiveSlotCoefficient = coeff
                             }
-                        , txParameters = TxParameters
-                            { getFeePolicy = case mperCertFee of
-                                [override] -> overrideFeePolicy policy override
-                                _ -> policy
-                            , getTxMaxSize = softTxMaxSize
+                        , protocolParameters = ProtocolParameters
+                            { decentralizationLevel =
+                                minBound
+                            , txParameters = TxParameters
+                                { getFeePolicy = case mperCertFee of
+                                    [override] ->
+                                        overrideFeePolicy policy override
+                                    _ ->
+                                        policy
+                                , getTxMaxSize = softTxMaxSize
+                                }
                             }
                         }
                     )

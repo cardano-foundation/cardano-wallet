@@ -133,6 +133,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , NetworkParameters (..)
     , PoolId
+    , ProtocolParameters (..)
     , SlotId (..)
     , TxParameters
     )
@@ -343,7 +344,7 @@ mkRawNetworkLayer gbp batchSize st j = NetworkLayer
             Nothing -> Left ErrCurrentNodeTipNotFound
 
     _getTxParameters :: m TxParameters
-    _getTxParameters = pure $ txParameters gbp
+    _getTxParameters = pure $ txParameters $ protocolParameters gbp
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =

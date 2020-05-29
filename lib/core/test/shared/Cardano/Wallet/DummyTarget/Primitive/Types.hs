@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SlotLength (..)
     , StartTime (..)
     , Tx (..)
@@ -90,6 +91,12 @@ dummyTxParameters = TxParameters
 dummyNetworkParameters :: NetworkParameters
 dummyNetworkParameters = NetworkParameters
     { genesisParameters = dummyGenesisParameters
+    , protocolParameters = dummyProtocolParameters
+    }
+
+dummyProtocolParameters :: ProtocolParameters
+dummyProtocolParameters = ProtocolParameters
+    { decentralizationLevel = minBound
     , txParameters = dummyTxParameters
     }
 

@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
     , TxParameters (..)
@@ -407,9 +408,12 @@ mockJormungandrClient logLine = JormungandrClient
                 , getEpochStability = Quantity (fromIntegral k)
                 , getActiveSlotCoefficient = error "mock bp"
                 }
-            , txParameters = TxParameters
-                { getFeePolicy = error "mock bp"
-                , getTxMaxSize = error "mock bp"
+            , protocolParameters = ProtocolParameters
+                { decentralizationLevel = minBound
+                , txParameters = TxParameters
+                    { getFeePolicy = error "mock bp"
+                    , getTxMaxSize = error "mock bp"
+                    }
                 }
             })
 

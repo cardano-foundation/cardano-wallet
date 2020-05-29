@@ -213,7 +213,8 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- doesn't really do anything but sending dummy messages to get the node's
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    txParamsVar <- atomically $ newTVar (W.txParameters gbp)
+    txParamsVar <- atomically $ newTVar $
+        W.txParameters $ W.protocolParameters gbp
     nodeTipClient <- mkTipSyncClient tr gbp
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)

@@ -86,6 +86,7 @@ module Cardano.Wallet.Primitive.Types
     -- * GenesisParameters
     , NetworkParameters (..)
     , GenesisParameters (..)
+    , ProtocolParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -1287,7 +1288,7 @@ data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
        -- ^ These parameters are defined by the configuration and genesis
        -- block. At present, none of these are covered by the update system.
-    , txParameters :: TxParameters
+    , protocolParameters :: ProtocolParameters
        -- ^ These parameters may be changed through update proposals. Currently
        -- the only dynamic blockchain parameters that the wallet needs are
        -- related to creating transactions.
@@ -1349,6 +1350,21 @@ slotParams bp =
         (bp ^. #getSlotLength)
         (bp ^. #getGenesisBlockDate)
         (bp ^. #getActiveSlotCoefficient)
+
+data ProtocolParameters = ProtocolParameters
+    { decentralizationLevel
+        :: Quantity "percent" Percentage
+    , txParameters
+        :: TxParameters
+    } deriving (Eq, Generic, Show)
+
+instance NFData ProtocolParameters
+
+instance Buildable ProtocolParameters where
+    build pps = listF' id
+        [ "Decentralization level: " <> build (pps ^. #decentralizationLevel)
+        , "Transaction parameters: " <> build (pps ^. #txParameters)
+        ]
 
 -- | Blockchain parameters relating to constructing transactions.
 data TxParameters = TxParameters

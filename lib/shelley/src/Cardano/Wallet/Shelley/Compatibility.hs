@@ -374,7 +374,16 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters = fromPParams . sgProtocolParams $ g
+        , protocolParameters = W.ProtocolParameters
+            -- TODO: implement properly when possible
+            -- From where are we supposed to get them?
+            -- Related issue:
+            -- https://github.com/input-output-hk/cardano-wallet/issues/1693
+            { decentralizationLevel =
+                minBound
+            , txParameters =
+                fromPParams . sgProtocolParams $ g
+            }
         }
     , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )

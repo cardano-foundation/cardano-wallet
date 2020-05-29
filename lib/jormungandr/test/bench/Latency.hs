@@ -64,7 +64,11 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..), SyncTolerance (..), TxParameters (..) )
+    ( NetworkParameters (..)
+    , ProtocolParameters (..)
+    , SyncTolerance (..)
+    , TxParameters (..)
+    )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -481,7 +485,10 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                faucet <- initFaucet (getFeePolicy (txParameters gbp))
+                faucet <- initFaucet
+                    $ getFeePolicy
+                    $ txParameters
+                    $ protocolParameters gbp
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager

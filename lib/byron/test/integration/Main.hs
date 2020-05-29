@@ -55,6 +55,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , Hash (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)
@@ -168,8 +169,10 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator =
-                        mkFeeEstimator (getFeePolicy (txParameters gbp))
+                    , _feeEstimator = mkFeeEstimator
+                        $ getFeePolicy
+                        $ txParameters
+                        $ protocolParameters gbp
                     , _networkParameters = gbp
                     , _target = Proxy
                     }

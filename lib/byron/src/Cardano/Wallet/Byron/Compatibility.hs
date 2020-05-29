@@ -181,11 +181,15 @@ mainnetBlockchainParameters = W.NetworkParameters
         , getActiveSlotCoefficient =
             W.ActiveSlotCoefficient 1.0
         }
-    , txParameters = W.TxParameters
-        { getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getTxMaxSize =
-            Quantity 4096
+    , protocolParameters = W.ProtocolParameters
+        { decentralizationLevel =
+            minBound
+        , txParameters = W.TxParameters
+            { getFeePolicy =
+                W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+            , getTxMaxSize =
+                Quantity 4096
+            }
         }
     }
 
@@ -453,7 +457,12 @@ fromGenesisData (genesisData, genesisHash) =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters = txParametersFromPP . gdProtocolParameters $ genesisData
+        , protocolParameters = W.ProtocolParameters
+            { decentralizationLevel =
+                minBound
+            , txParameters =
+                txParametersFromPP . gdProtocolParameters $ genesisData
+            }
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

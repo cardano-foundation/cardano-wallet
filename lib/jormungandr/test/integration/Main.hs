@@ -53,7 +53,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..), SyncTolerance (..), TxParameters (..) )
+    ( NetworkParameters (..)
+    , ProtocolParameters (..)
+    , SyncTolerance (..)
+    , TxParameters (..)
+    )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -188,7 +192,9 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     { managerResponseTimeout =
                         responseTimeoutMicro sixtySeconds
                     })
-                let feePolicy = getFeePolicy (txParameters gbp)
+                let feePolicy = getFeePolicy
+                        $ txParameters
+                        $ protocolParameters gbp
                 faucet <- initFaucet feePolicy
                 putMVar ctx (nPort, feePolicy, Context
                     { _cleanup = pure ()

@@ -263,6 +263,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
+    , ProtocolParameters (..)
     , Range (..)
     , SealedTx
     , SlotId (..)
@@ -525,7 +526,8 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet (PrimaryKey wid) cp meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters bp txp, _) = ctx ^. genesisData
+    (block0, NetworkParameters bp pps, _) = ctx ^. genesisData
+    txp = txParameters pps
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -568,7 +570,8 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
         initializeWallet pk (updateState s' cp) meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters bp txp, _) = ctx ^. genesisData
+    (block0, NetworkParameters bp pps, _) = ctx ^. genesisData
+    txp = txParameters pps
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
