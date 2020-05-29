@@ -138,6 +138,7 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
+    , text
     , QuickCheck
   build-tools:
       hspec-discover

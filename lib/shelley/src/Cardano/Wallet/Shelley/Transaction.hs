@@ -75,6 +75,7 @@ import GHC.Stack
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
+import qualified Data.ByteString as BS
 import qualified Data.Set as Set
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
@@ -131,10 +132,10 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         :: CoinSelection
         -> Quantity "byte" Int
     _estimateSize (CoinSelection inps outs chngs) = Quantity $
-        sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
+        sizeOfSignedTx inps (outs <> map dummyOutput chngs)
       where
         dummyOutput :: Coin -> TxOut
-        dummyOutput = TxOut $ Address "\130\ACKX \217\NULYA\205=\179d\160d\203\232\SYN\138C\SOH\\MGO\141\201\228\161\138\146\136\179\235M\217v"
+        dummyOutput = TxOut $ Address $ BS.replicate 65 0
 
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
@@ -184,12 +185,10 @@ mkWitness
 mkWitness body (prv, pwd) =
     SL.WitVKey key sig
   where
-    txHash = serialize' $ SL.hashTxBody body
-
     sig = SignedDSIGN
         $ fromMaybe (error "error converting signatures")
         $ rawDeserialiseSigDSIGN
-        $ txHash `signWith` (prv, pwd)
+        $ serialize' (SL.hashTxBody body) `signWith` (prv, pwd)
 
     key = SL.VKey
         $ VerKeyEd25519DSIGN

@@ -11,25 +11,17 @@ module Cardano.Wallet.Shelley.TransactionSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
-import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , Mnemonic
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    )
+    ( XPrv, XPub, xpubFromBytes )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
-    , getRawKey
-    , publicKey
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -52,21 +44,19 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.Transaction
     ( TransactionLayer, estimateSize, mkStdTx )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy, unsafeMkSomeMnemonicFromEntropy )
+    ( unsafeXPrv )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import GHC.TypeLits
-    ( natVal )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
     , Property
     , choose
     , counterexample
@@ -76,8 +66,9 @@ import Test.QuickCheck
     , withMaxSuccess
     )
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
@@ -89,22 +80,32 @@ spec = do
 prop_estimateSizeNeverUnderestimates
     :: [(TxIn, TxOut)]
     -> [TxOut]
+    -> [TxOut]
     -> Property
-prop_estimateSizeNeverUnderestimates ins outs = do
-    let (_tx, SealedTx bytes) = mkTestingTx
-            (SlotId 0 0)
-            ins
-            outs
+prop_estimateSizeNeverUnderestimates ins outs chgs = do
+    let (_tx, SealedTx bytes) = mkTestingTx (SlotId 0 0) ins (outs ++ chgs)
     let actualSize = BS.length bytes
-    let Quantity estimatedSize = estimateSize tl $ CoinSelection ins outs []
-    if estimatedSize < actualSize
-    then property False & counterexample (mconcat
-        [ "Estimated size too low! Estimated: "
-        , show estimatedSize
-        , ", actual: "
-        , show actualSize
-        ])
+    let Quantity estimatedSize = estimateSize tl
+            $ CoinSelection ins outs (coin <$> chgs)
+    if (estimatedSize < actualSize) || (estimatedSize > actualSize + margin)
+    then property False
+        & counterexample (mconcat
+            [ "Estimated size out of bounds! Estimated "
+            , show estimatedSize
+            , ", but should be between: "
+            , show actualSize
+            , " and "
+            , show (actualSize + margin)
+            ])
+        & counterexample ("Serialized tx: " <> T.unpack (T.decodeUtf8 $ hex bytes))
     else property True
+  where
+    -- NOTE
+    -- 8 = TTL which is encoded as integer, going from 1 to 9 bytes.
+    --
+    -- 32 = size of a public key. We assume the "worse" for change address,
+    --      which is delegation address with 2 public keys.
+    margin = 8 + 32 * length chgs
 
 mkTestingTx
     :: SlotId
@@ -123,67 +124,38 @@ tl = newTransactionLayer (Proxy @'Mainnet) pm epochLength
 keystore
     :: Address
     -> Maybe (ShelleyKey 'AddressK XPrv, Passphrase "encryption")
-keystore = const $ Just (dummyKey, mempty)
-
-instance Arbitrary SlotId where
-    arbitrary = fromFlatSlot epochLength <$> choose (0, 100)
+keystore (Address bytes) = Just
+    -- We don't need the actual private key, but we do want the private key to
+    -- be (relatively) unique and with a 1:1 mapping with given addresses.
+    ( ShelleyKey $ unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 bytes
+    , mempty
+    )
 
 epochLength :: EpochLength
 epochLength = EpochLength 10
 
-instance Arbitrary (ShelleyKey 'AddressK XPrv) where
-    shrink _ = []
-    arbitrary = ShelleyKey . getRawKey <$> genRootKeys
-
-dummyKey :: ShelleyKey level XPrv
-dummyKey =
-    ShelleyKey $ getRawKey $ generateKeyFromSeed (mw, Nothing) mempty
-  where
-    ent = BS.pack $ replicate 20 0
-    mw = unsafeMkSomeMnemonicFromEntropy (Proxy @15) ent
-
-genRootKeys :: Gen (ShelleyKey 'RootK XPrv)
-genRootKeys = do
-    mnemonic <- arbitrary
-    e <- genPassphrase @"encryption" (0, 16)
-    return $ generateKeyFromSeed mnemonic e
-  where
-    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-    genPassphrase range = do
-        n <- choose range
-        InfiniteList bytes _ <- arbitrary
-        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
-
-instance Arbitrary SomeMnemonic where
-    arbitrary = SomeMnemonic <$> genMnemonic @12
-
-genMnemonic
-    :: forall mw ent csz.
-     ( ConsistentEntropy ent mw csz
-     , EntropySize mw ~ ent
-     )
-    => Gen (Mnemonic mw)
-genMnemonic = do
-        let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vector n
-        let ent = unsafeMkEntropy @(EntropySize mw) bytes
-        return $ entropyToMnemonic ent
-
-instance Show XPrv where
-    show _ = "<xprv>"
+instance Arbitrary SlotId where
+    arbitrary = fromFlatSlot epochLength <$> choose (0, 100)
 
 instance Arbitrary TxIn where
     arbitrary = do
         tid <- Hash . BS.pack <$> vector 32
-        return $ TxIn tid 0
+        ix  <- choose (0, 256)
+        return $ TxIn tid ix
 
 instance Arbitrary Address where
-    arbitrary = oneof $ map return
-        [ paymentAddress @'Mainnet (publicKey dummyKey)
-        , delegationAddress @'Mainnet (publicKey dummyKey) (publicKey dummyKey)
+    arbitrary = oneof
+        [ paymentAddress @'Mainnet <$> genPubKey
+        , delegationAddress @'Mainnet <$> genPubKey <*> genPubKey
         ]
+      where
+        genPubKey = ShelleyKey <$> arbitrary
 
 instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
         <*> (Coin <$> arbitrary)
+
+instance Arbitrary XPub where
+    arbitrary =
+        fromJust . xpubFromBytes . BS.pack <$> vector 64
