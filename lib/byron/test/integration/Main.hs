@@ -170,7 +170,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _faucet = faucet
                     , _feeEstimator =
                         mkFeeEstimator (getFeePolicy (txParameters gbp))
-                    , _blockchainParameters = genesisParameters gbp
+                    , _networkParameters = gbp
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=

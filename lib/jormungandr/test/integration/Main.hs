@@ -196,7 +196,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
-                    , _blockchainParameters = genesisParameters gbp
+                    , _networkParameters = gbp
                     , _target = Proxy
                     })
         race

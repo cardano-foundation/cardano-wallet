@@ -103,7 +103,7 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
         let networkParams = getFromResponse id r
         networkParams `shouldBe`
-            toApiNetworkParameters (ctx ^. #_blockchainParameters)
+            toApiNetworkParameters (ctx ^. #_networkParameters)
         let Right zeroPercent = Quantity <$> mkPercentage 0
         verify r
             -- NOTE: Currently, the decentralization level is hard-wired to 0%.

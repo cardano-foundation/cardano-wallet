@@ -24,7 +24,7 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisParameters )
+    ( NetworkParameters )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -91,7 +91,7 @@ data Context t = Context
         -- integration tests.
     , _feeEstimator :: TxDescription -> (Natural, Natural)
         -- ^ A fee estimator for the integration tests
-    , _blockchainParameters :: GenesisParameters
+    , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain
     , _target
         :: Proxy t

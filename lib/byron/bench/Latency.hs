@@ -67,7 +67,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..), SyncTolerance (..) )
+    ( SyncTolerance (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -443,7 +443,7 @@ benchWithServer tracers action = do
                 , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
-                , _blockchainParameters = genesisParameters gbp
+                , _networkParameters = gbp
                 , _target = Proxy
                 }
     race (takeMVar ctx >>= action) (withServer setupContext) >>=
