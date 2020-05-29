@@ -132,13 +132,6 @@ let
         jobs.cardano-wallet-tests-win64
       ]))
   // {
-    # These derivations are used for the Daedalus installer.
-    daedalus-jormungandr = with jobs; {
-      linux = native.cardano-wallet-jormungandr.x86_64-linux;
-      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-    };
-
     # Windows release ZIP archive - jormungandr
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
@@ -167,8 +160,6 @@ let
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
-    # alias to old name so download links don't break
-    cardano-wallet-jormungandr-tests-win64 = jobs.cardano-wallet-tests-win64;
 
     # Fully-static linux binaries
     cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
@@ -206,11 +197,6 @@ let
     buildkiteScript = import ./.buildkite/default.nix {
       walletPackages = project;
     };
-  }
-  # Build the shell derivation in Hydra so that all its dependencies
-  # are cached.
-  // mapTestOn (packagePlatforms {
-    inherit (project) shell stackShell;
-  });
+  };
 
 in jobs
