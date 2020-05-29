@@ -40,7 +40,7 @@ extra-deps:
     - persistent-template
 
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 67de9ec1d59e82ca1da70a8d2ef7f2c215746645
+  commit: 07280d380f3ccedba91f1ba5bc8fbd9dc83b967f
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

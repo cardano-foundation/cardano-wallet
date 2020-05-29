@@ -19,7 +19,7 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub, toXPub, xpubPublicKey )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -53,6 +53,8 @@ import Cardano.Wallet.Shelley.Transaction.Size
     ( sizeOfSignedTx )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), ErrValidateSelection, TransactionLayer (..) )
+import Control.Monad
+    ( forM )
 import Crypto.Error
     ( throwCryptoError )
 import Data.ByteString
@@ -73,8 +75,6 @@ import GHC.Stack
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
-import qualified Data.ByteString as BS
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
@@ -108,53 +108,19 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
     _mkStdTx keyFrom slot ownedIns outs = do
-        let ins' = map (toCardanoTxIn . fst) ownedIns
-        let outs' = map toCardanoTxOut outs
-        let fee = Coin $ sum (map (getCoin . coin . snd) ownedIns)
-                - sum (map (getCoin . coin) outs)
-        let certs = []
-
         -- TODO: The SlotId-SlotNo conversion based on epoch length would not
         -- work if the epoch length changed in a hard fork.
         let timeToLive = (toSlotNo epochLength slot) + 7200
-        let Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
-                ins'
-                outs'
-                timeToLive
-                (toCardanoLovelace fee)
-                certs
-                Nothing -- update
-        let bytes = serialize' (SL.hashTxBody unsigned)
-        keyWits <- mapM (fmap (signBody bytes) . lookupPrivateKey . address . snd) ownedIns
-        let stx = SL.Tx
-                unsigned
-                (Set.fromList keyWits)
-                Map.empty    -- script witnesses
-                SL.SNothing  -- metadata
-        return $ toSealed stx
-      where
-        lookupPrivateKey
-            :: Address
-            -> Either ErrMkTx (k 'AddressK XPrv, Passphrase "encryption")
-        lookupPrivateKey addr =
-            maybe (Left $ ErrKeyNotFoundForAddress addr) Right (keyFrom addr)
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs []
 
-        signBody :: ByteString -> (k 'AddressK XPrv, Passphrase "encryption") -> SL.WitVKey TPraosStandardCrypto
-        signBody body k =
-            let
-                sig = SignedDSIGN $ fromMaybe (error "error converting signatures")
-                        $ rawDeserialiseSigDSIGN
-                        $ k `sign` body
-                vKey = SL.VKey $ VerKeyEd25519DSIGN $  throwCryptoError $ Ed25519.publicKey $ BS.take 32 $ CC.unXPub $ CC.toXPub $ getRawKey $ fst k
-            in
-                SL.WitVKey vKey sig
+        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+            (k, pwd) <- lookupPrivateKey keyFrom addr
+            pure $ mkWitness unsigned (getRawKey k, pwd)
 
-        sign
-            :: (k 'AddressK XPrv, Passphrase "encryption")
-            -> ByteString
-            -> ByteString
-        sign (k, pass) = CC.unXSignature . CC.sign pass (getRawKey k)
+        let scriptWits = mempty
+        let metadata   = SL.SNothing
 
+        pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
 
     _estimateSize
         :: CoinSelection
@@ -174,6 +140,67 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     _estimateMaxNumberOfInputs _ _ =
         -- FIXME Implement.
         100
+
+lookupPrivateKey
+    :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> Address
+    -> Either ErrMkTx (k 'AddressK XPrv, Passphrase "encryption")
+lookupPrivateKey keyFrom addr =
+    maybe (Left $ ErrKeyNotFoundForAddress addr) Right (keyFrom addr)
+
+mkUnsignedTx
+    :: Cardano.SlotNo
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> [Cardano.Certificate]
+        -- ^ TODO: This should be not be a Cardano type, but a wallet type.
+    -> Cardano.ShelleyTxBody
+mkUnsignedTx ttl ownedIns outs certs =
+    let
+        Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
+            (toCardanoTxIn . fst <$> ownedIns)
+            (map toCardanoTxOut outs)
+            ttl
+            (realFee (snd <$> ownedIns) outs)
+            certs
+            Nothing -- Update
+    in
+        unsigned
+
+realFee :: [TxOut] -> [TxOut] -> Cardano.Lovelace
+realFee inps outs = toCardanoLovelace $ Coin
+    $ sum (map (getCoin . coin) inps)
+    - sum (map (getCoin . coin) outs)
+
+mkWitness
+    :: SL.TxBody TPraosStandardCrypto
+    -> (XPrv, Passphrase "encryption")
+    -> SL.WitVKey TPraosStandardCrypto
+mkWitness body (prv, pwd) =
+    SL.WitVKey key sig
+  where
+    txHash = serialize' $ SL.hashTxBody body
+
+    sig = SignedDSIGN
+        $ fromMaybe (error "error converting signatures")
+        $ rawDeserialiseSigDSIGN
+        $ txHash `signWith` (prv, pwd)
+
+    key = SL.VKey
+        $ VerKeyEd25519DSIGN
+        $ unsafeMkEd25519
+        $ toXPub prv
+
+signWith
+    :: ByteString
+    -> (XPrv, Passphrase "encryption")
+    -> ByteString
+signWith msg (prv, pass) =
+    CC.unXSignature . CC.sign pass prv $ msg
+
+unsafeMkEd25519 :: XPub -> Ed25519.PublicKey
+unsafeMkEd25519 =
+    throwCryptoError . Ed25519.publicKey . xpubPublicKey
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
