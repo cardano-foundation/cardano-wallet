@@ -222,7 +222,7 @@ serveWallet
         withNetworkLayer networkTracer gbp socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
-                let el = getEpochLength $ staticParameters gbp
+                let el = getEpochLength $ genesisParameters gbp
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
@@ -281,7 +281,7 @@ serveWallet
         bp@GenesisParameters
             { getGenesisBlockHash
             , getEpochLength
-            } = staticParameters gbp
+            } = genesisParameters gbp
         nl' = fromShelleyBlock getGenesisBlockHash getEpochLength <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)

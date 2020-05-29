@@ -169,7 +169,7 @@ parseGenesisData = \case
         ( discriminant
         , mainnetBlockchainParameters
         , vData
-        , emptyGenesis (staticParameters mainnetBlockchainParameters)
+        , emptyGenesis (genesisParameters mainnetBlockchainParameters)
         )
     TestnetConfig genesisFile -> do
         (genesisData, genesisHash) <-
@@ -185,7 +185,7 @@ parseGenesisData = \case
             ( discriminant
             , gbp
             , vData
-            , genesisBlockFromTxOuts (staticParameters gbp) outs
+            , genesisBlockFromTxOuts (genesisParameters gbp) outs
             )
 
 --------------------------------------------------------------------------------
@@ -318,7 +318,7 @@ withConfig tdir minSeverity action =
                 , nodeSocketFile
                 , nodeTopologyFile
                 }
-            , genesisBlockFromTxOuts (staticParameters gbp) outs
+            , genesisBlockFromTxOuts (genesisParameters gbp) outs
             , ( gbp
               , ( NodeToClientVersionData { networkMagic }
                 , nodeToClientCodecCBORTerm

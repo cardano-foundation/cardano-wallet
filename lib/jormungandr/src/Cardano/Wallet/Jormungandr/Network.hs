@@ -329,10 +329,10 @@ mkRawNetworkLayer gbp batchSize st j = NetworkLayer
     -- @k@ but in practice with Jörmungandr, nodes can make jumps longer than
     -- that.
     k :: Quantity "block" Word32
-    k = (max 100) <$> getEpochStability (staticParameters gbp)
+    k = (max 100) <$> getEpochStability (genesisParameters gbp)
 
     genesis :: Hash "Genesis"
-    genesis = getGenesisBlockHash $ staticParameters gbp
+    genesis = getGenesisBlockHash $ genesisParameters gbp
 
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do

@@ -1284,7 +1284,7 @@ computeUtxoStatistics btype utxos =
 -- | Initial blockchain parameters loaded from the application configuration and
 -- genesis block.
 data NetworkParameters = NetworkParameters
-    { staticParameters :: GenesisParameters
+    { genesisParameters :: GenesisParameters
        -- ^ These parameters are defined by the configuration and genesis
        -- block. At present, none of these are covered by the update system.
     , txParameters :: TxParameters

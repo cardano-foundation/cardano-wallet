@@ -399,7 +399,7 @@ mockJormungandrClient logLine = JormungandrClient
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
         pure (block0, NetworkParameters
-                 { staticParameters = GenesisParameters
+                 { genesisParameters = GenesisParameters
                      { getGenesisBlockHash = blockId
                      , getGenesisBlockDate = error "mock bp"
                      , getSlotLength = error "mock bp"

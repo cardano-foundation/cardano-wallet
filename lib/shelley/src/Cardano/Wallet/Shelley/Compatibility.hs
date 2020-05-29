@@ -361,7 +361,7 @@ fromGenesisData
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
     ( W.NetworkParameters
-        { staticParameters = W.GenesisParameters
+        { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . getSystemStart . sgStartTime $ g

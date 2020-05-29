@@ -366,7 +366,7 @@ bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname
     let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
     withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = staticParameters gbp
+        let bp = genesisParameters gbp
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer $ \db -> do
@@ -444,7 +444,7 @@ prepareNode
 prepareNode _ socketPath gbp vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
     sl <- withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = staticParameters gbp
+        let bp = genesisParameters gbp
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         waitForNodeSync nw logQuiet bp

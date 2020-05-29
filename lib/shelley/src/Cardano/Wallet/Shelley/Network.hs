@@ -236,7 +236,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     bp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
-        } = W.staticParameters gbp
+        } = W.genesisParameters gbp
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
@@ -387,7 +387,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         W.GenesisParameters
              { getGenesisBlockHash
              , getEpochLength
-             } = W.staticParameters gbp
+             } = W.genesisParameters gbp
 
     onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
         let tip = castTip tip'

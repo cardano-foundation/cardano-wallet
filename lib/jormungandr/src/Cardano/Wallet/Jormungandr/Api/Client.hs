@@ -300,7 +300,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                 return
                     ( jblock
                     , NetworkParameters
-                        { staticParameters = GenesisParameters
+                        { genesisParameters = GenesisParameters
                             { getGenesisBlockHash = block0
                             , getGenesisBlockDate = block0T
                             , getEpochLength = epLength

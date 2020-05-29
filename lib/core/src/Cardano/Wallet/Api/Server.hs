@@ -1419,7 +1419,7 @@ getNetworkInformation (_block0, gbp, st) nl = do
                 }
         }
   where
-    sp = W.slotParams (gbp ^. #staticParameters)
+    sp = W.slotParams (gbp ^. #genesisParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
@@ -1431,7 +1431,7 @@ getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, gbp, _st) =
-    pure $ toApiNetworkParameters $ gbp ^. #staticParameters
+    pure $ toApiNetworkParameters $ gbp ^. #genesisParameters
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client

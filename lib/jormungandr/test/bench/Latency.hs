@@ -487,7 +487,7 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _blockchainParameters = staticParameters gbp
+                    , _blockchainParameters = genesisParameters gbp
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
                     }

@@ -604,7 +604,7 @@ setupFixture (wid, wname, wstate) = do
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal slotIdTime
   where
-    slotNo = flatSlot $ getEpochLength $ staticParameters gbp
+    slotNo = flatSlot $ getEpochLength $ genesisParameters gbp
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
     gbp = dummyNetworkParameters
     st = SyncTolerance 10

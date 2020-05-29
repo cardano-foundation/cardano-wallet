@@ -89,7 +89,7 @@ dummyTxParameters = TxParameters
 
 dummyNetworkParameters :: NetworkParameters
 dummyNetworkParameters = NetworkParameters
-    { staticParameters = dummyGenesisParameters
+    { genesisParameters = dummyGenesisParameters
     , txParameters = dummyTxParameters
     }
 

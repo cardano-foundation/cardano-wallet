@@ -220,7 +220,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         Left e -> handleNetworkStartupError e
         Right (cp, (block0, gbp), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let bp = staticParameters gbp
+            let bp = genesisParameters gbp
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let jormungandrTl = newTransactionLayer (getGenesisBlockHash bp)
@@ -277,7 +277,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     apiLayer (block0, gbp) tl nl = do
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient $ staticParameters gbp)
+            (DefaultFieldValues $ getActiveSlotCoefficient $ genesisParameters gbp)
             databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock block0, gbp, sTolerance) nl' tl db

@@ -170,7 +170,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator (getFeePolicy (txParameters gbp))
-                    , _blockchainParameters = staticParameters gbp
+                    , _blockchainParameters = genesisParameters gbp
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=

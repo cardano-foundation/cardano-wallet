@@ -279,7 +279,7 @@ serveWallet
         bp@GenesisParameters
             { getGenesisBlockHash
             , getEpochLength
-            } = staticParameters gbp
+            } = genesisParameters gbp
         nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)

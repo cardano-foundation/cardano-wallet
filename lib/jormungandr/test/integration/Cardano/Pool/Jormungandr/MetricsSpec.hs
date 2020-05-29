@@ -119,7 +119,7 @@ spec = around setup $ do
             withNetworkLayer tr (UseRunning cp) $ \case
                 Right (_, (b0, gbp), nl) -> withDB "reference.sqlite" $ \db -> do
                     let nl' = toSPBlock <$> nl
-                    let k = getEpochStability (staticParameters gbp)
+                    let k = getEpochStability (genesisParameters gbp)
                     let block0 = toSPBlock b0
                     withMonitorStakePoolsThread (block0, k) nl' db $ \_workerThread ->
                         cb (nl', (block0, k), db)

@@ -443,7 +443,7 @@ benchWithServer tracers action = do
                 , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
-                , _blockchainParameters = staticParameters gbp
+                , _blockchainParameters = genesisParameters gbp
                 , _target = Proxy
                 }
     race (takeMVar ctx >>= action) (withServer setupContext) >>=
