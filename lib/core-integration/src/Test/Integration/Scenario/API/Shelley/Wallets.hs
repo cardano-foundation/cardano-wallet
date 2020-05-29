@@ -67,7 +67,14 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , it
+    , pendingWith
+    , shouldBe
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -1438,6 +1445,7 @@ spec = do
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1533,6 +1541,7 @@ spec = do
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1570,6 +1579,7 @@ spec = do
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+        pendingWith "Byron wallets not supported in cardano-node yet."
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 
@@ -1649,6 +1659,7 @@ spec = do
     testAddressCycling ctx addrNum =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =
