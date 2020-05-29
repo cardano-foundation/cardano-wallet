@@ -14,7 +14,7 @@ import Prelude hiding
     ( lines )
 
 import Cardano.Address.Derivation
-    ( XPrv, getPublicKey )
+    ( XPrv, xpubPublicKey )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -195,7 +195,7 @@ mnemonicsToAccountAddress m1 m2 = do
         Bech32.encodeLenient hrp
         . Bech32.dataPartFromBytes
         . (BS.pack [addrAccount @('Testnet 0)] <>)
-        . getPublicKey
+        . xpubPublicKey
         . getRawKey
         . publicKey
         . deriveRewardAccount mempty
