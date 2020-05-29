@@ -110,7 +110,12 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     _mkStdTx keyFrom slot ownedIns outs = do
         -- TODO: The SlotId-SlotNo conversion based on epoch length would not
         -- work if the epoch length changed in a hard fork.
+
+        -- NOTE: The (+7200) was selected arbitrarily when we were trying to get
+        -- this working on the FF testnet. Perhaps a better motivated and/or
+        -- configurable value would be better.
         let timeToLive = (toSlotNo epochLength slot) + 7200
+
         let unsigned = mkUnsignedTx timeToLive ownedIns outs []
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
