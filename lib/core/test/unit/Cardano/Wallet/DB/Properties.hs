@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( genesisTxParameters )
+    ( dummyTxParameters )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..) )
 import Cardano.Wallet.Primitive.Model
@@ -833,7 +833,7 @@ int :: Integral a => a -> Int
 int = fromIntegral
 
 txp :: TxParameters
-txp = genesisTxParameters
+txp = dummyTxParameters
 
 newtype GenSparseCheckpointsArgs
     = GenSparseCheckpointsArgs (Word32, Word32)

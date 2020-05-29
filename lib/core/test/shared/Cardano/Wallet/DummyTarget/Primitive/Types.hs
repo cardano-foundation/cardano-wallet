@@ -8,7 +8,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , block0
     , dummyNetworkParameters
     , dummyGenesisParameters
-    , genesisTxParameters
+    , dummyTxParameters
     , genesisHash
     , mockHash
     , mkTxId
@@ -81,8 +81,8 @@ dummyGenesisParameters = GenesisParameters
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
 
-genesisTxParameters :: TxParameters
-genesisTxParameters = TxParameters
+dummyTxParameters :: TxParameters
+dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getTxMaxSize = Quantity 8192
     }
@@ -90,7 +90,7 @@ genesisTxParameters = TxParameters
 dummyNetworkParameters :: NetworkParameters
 dummyNetworkParameters = NetworkParameters
     { staticParameters = dummyGenesisParameters
-    , txParameters = genesisTxParameters
+    , txParameters = dummyTxParameters
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.

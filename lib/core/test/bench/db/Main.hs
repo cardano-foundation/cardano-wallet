@@ -54,7 +54,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, genesisTxParameters, mkTxId )
+    ( block0, dummyGenesisParameters, dummyTxParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -367,7 +367,7 @@ walletFixture :: DBLayerBench -> IO ()
 walletFixture db@DBLayer{..} = do
     cleanDB db
     atomically $ unsafeRunExceptT $
-        initializeWallet testPk testCp testMetadata mempty genesisTxParameters
+        initializeWallet testPk testCp testMetadata mempty dummyTxParameters
 
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks

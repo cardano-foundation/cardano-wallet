@@ -65,7 +65,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, genesisTxParameters, mockHash )
+    ( block0, dummyGenesisParameters, dummyTxParameters, mockHash )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -760,7 +760,7 @@ testTxs =
     ]
 
 txp :: TxParameters
-txp = genesisTxParameters
+txp = dummyTxParameters
 
 {-------------------------------------------------------------------------------
                     Helpers for golden rollback tests
