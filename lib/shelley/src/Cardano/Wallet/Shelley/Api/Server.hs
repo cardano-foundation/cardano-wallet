@@ -25,6 +25,7 @@ import Cardano.Wallet
     , ErrValidateSelection
     , genesisData
     , networkLayer
+    , normalizeDelegationAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -73,6 +74,7 @@ import Cardano.Wallet.Api.Server
     , putWallet
     , putWalletPassphrase
     , rndStateChange
+    , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -146,11 +148,10 @@ server byron icarus shelley ntp =
         :<|> getUTxOsStatistics shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (const pure)
-    -- TODO: Normalize using (normalizeDelegationAddress @_ @_ @n)
+    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections _ _ = throwError err501
+    coinSelections = selectCoins shelley
 
     transactions :: Server (Transactions n)
     transactions =
@@ -259,7 +260,10 @@ server byron icarus shelley ntp =
                 (byron , getMigrationInfo byron wid)
                 (icarus, getMigrationInfo icarus wid)
              )
-        :<|> \_ _ -> throwError err501
+        :<|> (\wid m -> withLegacyLayer wid
+                (byron , migrateWallet byron wid m)
+                (icarus, migrateWallet icarus wid m)
+             )
 
     network :: Server Network
     network =
