@@ -26,6 +26,7 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs."ansi-terminal" or (errorHandler.buildDepError "ansi-terminal"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
           (hsPkgs."basement" or (errorHandler.buildDepError "basement"))
@@ -42,20 +43,37 @@
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+          (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+          (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           ];
         buildable = true;
+        };
+      exes = {
+        "cardano-address" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "unit" = {
           depends = [
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
+            (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
+            (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+            (hsPkgs."process" or (errorHandler.buildDepError "process"))
+            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           buildable = true;
@@ -65,7 +83,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "67de9ec1d59e82ca1da70a8d2ef7f2c215746645";
-      sha256 = "14aaxsw5nf59zlr52j790y5ysyihyk5h1vkbc0jq44wjrz0zw96w";
+      rev = "07280d380f3ccedba91f1ba5bc8fbd9dc83b967f";
+      sha256 = "1nqfj2bg0ljn5mj7vdxqpivi0vz1ry0sz3m905kq88gygn72py77";
       });
     }) // { cabal-generator = "hpack"; }
