@@ -37,11 +37,13 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletMigrationInfo (..)
     , DecodeAddress
-    , EncodeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
@@ -71,6 +73,7 @@ import Test.Hspec
     , describe
     , it
     , pendingWith
+    , runIO
     , shouldBe
     , shouldNotBe
     , shouldSatisfy
@@ -101,6 +104,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , request
     , selectCoins
+    , shelleyAddresses
     , unsafeRequest
     , verify
     , waitForNextEpoch
@@ -143,6 +147,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n t.
     ( DecodeAddress n
     , EncodeAddress n
+    , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
@@ -1172,9 +1177,10 @@ spec = do
 
     describe "BYRON_MIGRATE_05 -\
         \ migrating from inappropriate wallet types" $ do
-        let addrValid :: Text =
-                "addr1snfkjmygacv2xjdqxgvy750pxacq7v9r4ya5tyj3pmjas9mkvuh2uq0a3\
-                \d2wj240n8ye5r2z52gd5m3rh0fyh5dq9p2ynae3m9p33lgg06zgge"
+        addr <- runIO
+            $ encodeAddress @n . head . shelleyAddresses @n
+            . entropyToMnemonic @15 <$> genEntropy
+
         it "Byron" $ \ctx -> do
             sWallet <- emptyRandomWallet ctx
             rDel <- request @ApiWallet ctx
@@ -1185,7 +1191,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
@@ -1202,7 +1208,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
@@ -1219,7 +1225,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
