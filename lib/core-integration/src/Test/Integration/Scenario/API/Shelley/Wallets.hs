@@ -1365,6 +1365,7 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+        pendingWith "Byron wallets not support in cardano-node yet"
         -- NOTE
         -- Special mnemonic for which 500 legacy funds are attached to in the
         -- genesis file.
@@ -1517,6 +1518,7 @@ spec = do
                     "passphrase": #{fixturePassphrase},
                     "style": "random"
                     } |]
+            pendingWith "Byron wallets not supported in cardano-node yet."
             (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
                 (Link.postWallet @'Byron) payloadRestore
             eventually "wallet balance greater than 0" $ do
