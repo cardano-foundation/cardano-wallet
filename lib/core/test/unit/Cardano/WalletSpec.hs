@@ -39,6 +39,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, block0, genesisBlockParameters, mkTxId )
 import Cardano.Wallet.Gen
     ( genMnemonic )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
@@ -62,6 +64,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (BlockHeader)
     , BlockchainParameters (..)
     , ChimericAccount (..)
     , Coin (..)
@@ -591,7 +594,7 @@ setupFixture
     :: (WalletId, WalletName, DummyState)
     -> IO WalletLayerFixture
 setupFixture (wid, wname, wstate) = do
-    let nl = error "NetworkLayer"
+    let nl = dummyNetworkLayer
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
     let wl = WalletLayer nullTracer (block0, gbp, st) nl tl db
@@ -610,7 +613,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom inps outs -> do
+    { mkStdTx = \keyFrom _slot inps outs -> do
         let inps' = map (second coin) inps
         let tid = mkTxId inps' outs
         let tx = Tx tid inps' outs
@@ -642,6 +645,28 @@ dummyTransactionLayer = TransactionLayer
   where
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
+
+dummyNetworkLayer :: Monad m => NetworkLayer m t block
+dummyNetworkLayer = NetworkLayer
+    { nextBlocks =
+        error "dummyNetworkLayer: nextBlocks not implemented"
+    , initCursor =
+        error "dummyNetworkLayer: initCursor not implemented"
+    , cursorSlotId =
+        error "dummyNetworkLayer: cursorSlotId not implemented"
+    , currentNodeTip =
+        pure $ BlockHeader (SlotId 0 0) (Quantity 0) dummyHash dummyHash
+    , getTxParameters =
+        error "dummyNetworkLayer: getTxParameters not implemented"
+    , postTx =
+        error "dummyNetworkLayer: postTx not implemented"
+    , stakeDistribution =
+        error "dummyNetworkLayer: stakeDistribution not implemented"
+    , getAccountBalance =
+        error "dummyNetworkLayer: getAccountBalance not implemented"
+    }
+  where
+    dummyHash = Hash "dummy hash"
 
 newtype DummyState
     = DummyState (Map Address (Index 'Soft 'AddressK))

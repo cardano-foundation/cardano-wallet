@@ -531,7 +531,8 @@ goldenTestSignedTx proxy pm nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom inps outs
+    let curSlot = error "current slot not needed in byron mkStdTx"
+    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom curSlot inps outs
     case res of
         Left e -> fail (show e)
         Right (_tx, SealedTx bytes) ->
@@ -1086,7 +1087,8 @@ genGoldenTest
     -> IO ()
 genGoldenTest (nm, pm) nOuts xprvs = do
     let addrs = first (makePubKeyAddressBoot nm . encToPublic) <$> xprvs
-    let res = mkStdTx pm shuffler signer inps outs []
+    let curSlot = error "current slot not needed in byron mkStdTx"
+    let res = mkStdTx pm shuffler signer curSlot inps outs []
           where
             shuffler = return
             signer addr = maybe

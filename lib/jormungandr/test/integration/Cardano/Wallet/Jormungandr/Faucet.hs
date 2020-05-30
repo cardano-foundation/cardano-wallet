@@ -6,36 +6,12 @@
 
 module Cardano.Wallet.Jormungandr.Faucet
     ( initFaucet
-
-    -- * Internal
-    , genFaucets
     ) where
 
-import Prelude hiding
-    ( appendFile )
+import Prelude
 
-import Cardano.Mnemonic
-    ( Mnemonic
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
-import Cardano.Wallet.Api.Types
-    ( encodeAddress )
 import Cardano.Wallet.Jormungandr.Binary
     ( MkFragment (..), TxWitnessTag (..), fragmentId, putFragment )
-import Cardano.Wallet.Jormungandr.Compatibility
-    ()
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , HardDerivation (..)
-    , NetworkDiscriminant (..)
-    , PaymentAddress (..)
-    , publicKey
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -44,14 +20,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Concurrent.MVar
     ( newMVar )
-import Control.Monad
-    ( forM_, replicateM )
 import Data.ByteString
     ( ByteString )
-import Data.Text
-    ( Text )
-import GHC.TypeLits
-    ( KnownNat )
 import System.FilePath
     ( FilePath, (</>) )
 import System.IO.Temp
@@ -242,36 +212,3 @@ externalAddresses =
                 (MkFragmentSimpleTransaction TxWitnessUTxO)
         in
             TxIn sourceId 0
-
--- | Generate faucets addresses and mnemonics, printing everything to stdout
---
--- >>> genFaucets 1
-genFaucets :: FilePath -> Int -> IO ()
-genFaucets file n = do
-    ms <- replicateM n (entropyToMnemonic <$> genEntropy)
-    TIO.writeFile file ""
-    forM_ [ (m, take 10 (addresses m)) | m <- ms ] $ \(m, addrs) -> do
-        appendFile $ T.intercalate ", " $ surroundedBy '"' <$> mnemonicToText @15 m
-        forM_ addrs (appendFile . encodeAddress @'Mainnet)
-  where
-    surroundedBy :: Char -> Text -> Text
-    surroundedBy c txt = T.singleton c <> txt <> T.singleton c
-
-    appendFile :: Text -> IO ()
-    appendFile txt = TIO.appendFile file (txt <> "\n")
-
-    addresses :: KnownNat n => Mnemonic n -> [Address]
-    addresses mw =
-        let
-            (seed, pwd) =
-                (SomeMnemonic mw, mempty)
-            rootXPrv =
-                generateKeyFromSeed seed pwd
-            accXPrv =
-                deriveAccountPrivateKey pwd rootXPrv minBound
-            addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv UTxOExternal
-        in
-            [ paymentAddress @'Mainnet (publicKey $ addrXPrv ix)
-            | ix <- [minBound..maxBound]
-            ]

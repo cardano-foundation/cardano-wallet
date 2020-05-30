@@ -112,10 +112,11 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
   where
     _mkStdTx
         :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom inps outs = do
+    _mkStdTx keyFrom _slotId inps outs = do
         let tx = (fst <$> inps, outs)
         let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
         witnesses <- forM inps $ \(_, TxOut addr _) ->
@@ -184,6 +185,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
         :: PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
@@ -193,6 +195,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)

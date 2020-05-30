@@ -33,11 +33,15 @@ library
     , aeson
     , async
     , bytestring
+    , cardano-addresses
+    , cardano-api
     , cardano-binary
+    , cardano-config
+    , cardano-crypto
+    , cardano-crypto-class
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
-    , cardano-config
     , cardano-wallet-launcher
     , cborg
     , containers
@@ -53,16 +57,15 @@ library
     , memory
     , network
     , network-mux
-    , shelley-spec-ledger
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-consensus-shelley
     , ouroboros-network
-    , cardano-crypto-class
     , ouroboros-network-framework
     , process
     , retry
     , servant-server
+    , shelley-spec-ledger
     , temporary
     , text
     , text-class
@@ -80,7 +83,6 @@ library
       Cardano.Wallet.Shelley.Compatibility
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Transaction
-      Cardano.Wallet.Shelley.Transaction.Size
       Cardano.Wallet.Shelley.Launch
 
 executable cardano-wallet-shelley
@@ -96,10 +98,10 @@ executable cardano-wallet-shelley
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , cardano-wallet-shelley
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , cardano-wallet-shelley
     , contra-tracer
     , iohk-monitoring
     , network
@@ -126,12 +128,15 @@ test-suite unit
   build-depends:
       base
     , bytestring
-    , cardano-wallet-core
+    , cardano-addresses
     , cardano-crypto-class
-    , ouroboros-consensus-shelley
+    , cardano-wallet-core
     , cardano-wallet-shelley
-    , ouroboros-network
     , hspec
+    , memory
+    , ouroboros-consensus-shelley
+    , ouroboros-network
+    , shelley-spec-ledger
     , QuickCheck
   build-tools:
       hspec-discover
@@ -162,13 +167,14 @@ test-suite integration
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
-    , cardano-wallet-shelley
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
+    , cardano-wallet-shelley
     , cardano-wallet-test-utils
     , hspec
     , http-client
     , iohk-monitoring
+    , random
     , temporary
     , text
   build-tools:

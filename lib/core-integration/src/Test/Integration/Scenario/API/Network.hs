@@ -98,7 +98,6 @@ spec = do
                     ]
 
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
-
         let endpoint = ( "GET", "v2/network/parameters" )
         r <- request @ApiNetworkParameters ctx endpoint Default Empty
         expectResponseCode @IO HTTP.status200 r

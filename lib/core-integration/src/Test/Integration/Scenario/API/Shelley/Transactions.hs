@@ -55,7 +55,7 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
@@ -161,7 +161,7 @@ spec = do
 
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [5_000_000]
+        wSrc <- fixtureWalletWith @n ctx [5_000_000_000]
         wDest <- emptyWallet ctx
 
         eventually "Pending tx has pendingSince field" $ do
@@ -488,8 +488,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith @n ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [1]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
 
@@ -502,14 +501,14 @@ spec = do
                         "unit": "lovelace"
                     }
                 }],
-                "passphrase": "cardano-wallet"
+                "passphrase": "Secure Passphrase"
             }|]
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
-                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+                errMsg403NotEnoughMoney 1 1_000_000
             ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
@@ -769,8 +768,7 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
-        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-        wSrc <- fixtureWalletWith @n ctx [feeMin]
+        wSrc <- fixtureWalletWith @n ctx [1]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
 
@@ -789,7 +787,7 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
-                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+                errMsg403NotEnoughMoney 1 1_000_000
             ]
 
     it "TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
@@ -1277,6 +1275,7 @@ spec = do
 
     it "BYRON_TRANS_DELETE_01 -\
         \ Byron: Can forget pending transaction" $ \ctx -> do
+        pendingWith "Byron addresses not yet supported in Shelley"
         sourceWallet <- fixtureRandomWallet ctx
         targetWallet <- emptyWallet ctx
 
@@ -1327,6 +1326,7 @@ spec = do
 
     it "BYRON_TRANS_DELETE_02 -\
         \ Byron: Cannot forget tx that is already in ledger" $ \ctx -> do
+        pendingWith "Byron addresses not yet supported in Shelley"
         w <- fixtureRandomWallet ctx
 
         -- Get TX id

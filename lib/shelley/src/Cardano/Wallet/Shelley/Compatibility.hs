@@ -6,6 +6,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
@@ -29,8 +30,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
-    , mainnetBlockchainParameters
-
       -- * Genesis
     , emptyGenesis
     , genesisTip
@@ -52,10 +51,15 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromSlotNo
     , fromTip
     , fromPParams
+
+    , toCardanoTxId
+    , toCardanoTxIn
+    , toCardanoTxOut
+    , toCardanoLovelace
+    , toSealed
     ) where
 
 import Prelude
-
 
 import Cardano.Binary
     ( fromCBOR, serialize' )
@@ -66,19 +70,27 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeFromHex )
+    ( unsafeDeserialiseCbor )
+import Control.Arrow
+    ( left )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Data.Word
     ( Word16, Word32, Word64 )
 import GHC.Stack
@@ -92,7 +104,7 @@ import Ouroboros.Consensus.Protocol.Abstract
 import Ouroboros.Consensus.Shelley.Ledger
     ( Crypto, GenTx, ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Node
-    ( ShelleyGenesis (..) )
+    ( ShelleyGenesis (..), initialFundsPseudoTxIn )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( TPraosStandardCrypto )
 import Ouroboros.Network.Block
@@ -115,10 +127,12 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -140,30 +154,6 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- Chain Parameters
 
-
-mainnetBlockchainParameters :: W.GenesisBlockParameters
-mainnetBlockchainParameters = W.GenesisBlockParameters
-    { staticParameters = W.BlockchainParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        }
-    , txParameters = W.TxParameters
-        { getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getTxMaxSize =
-            Quantity 4096
-        }
-    }
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
@@ -357,8 +347,8 @@ fromMaxTxSize =
 fromPParams :: SL.PParams -> W.TxParameters
 fromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
-        (Quantity (naturalToDouble $ SL._minfeeA pp))
-        (Quantity (fromIntegral $ SL._minfeeB pp))
+        (Quantity (naturalToDouble (SL._minfeeB pp)))
+        (Quantity (fromIntegral (SL._minfeeA pp)))
         (Quantity 0) -- TODO: it's not as simple as this?
     , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
     }
@@ -369,16 +359,11 @@ fromPParams pp = W.TxParameters
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: ShelleyGenesis TPraosStandardCrypto
-    -> (W.GenesisBlockParameters, [W.TxOut])
+    -> (W.GenesisBlockParameters, W.Block)
 fromGenesisData g =
     ( W.GenesisBlockParameters
         { staticParameters = W.BlockchainParameters
-            { getGenesisBlockHash =
-                -- TODO: There is not yet any agreed upon definition of a
-                -- genesis hash for a shelley-only testnet.
-                --
-                -- For now we use a dummy value.
-                W.Hash . BS.pack $ replicate 32 1
+            { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . getSystemStart . sgStartTime $ g
             , getSlotLength =
@@ -390,22 +375,44 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters =
-            -- TODO: implement properly when possible
-            -- From where are we supposed to get them?
-            W.TxParameters
-                { getFeePolicy =
-                    W.LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
-                , getTxMaxSize =
-                    Quantity 1000
-                }
+        , txParameters = fromPParams . sgProtocolParams $ g
         }
-    , map mkTxOut . Map.toList . sgInitialFunds $ g
+    , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )
   where
-    mkTxOut (addr, coin) = W.TxOut
-        (W.Address $ serialize' addr)
-        (W.Coin $ fromIntegral coin)
+
+    -- TODO: There is not yet any agreed upon definition of a
+    -- genesis hash for a shelley-only testnet.
+    --
+    -- For now we use a dummy value.
+    dummyGenesisHash = W.Hash . BS.pack $ replicate 32 1
+
+
+    -- | Construct a ("fake") genesis block from genesis transaction outputs.
+    --
+    -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
+    -- jormungandr. This function is a method to deal with the discrepancy.
+    genesisBlockFromTxOuts :: [(SL.Addr TPraosStandardCrypto, SL.Coin)] -> W.Block
+    genesisBlockFromTxOuts outs = W.Block
+        { delegations  = []
+        , header = W.BlockHeader
+            { slotId =
+                W.SlotId 0 0
+            , blockHeight =
+                Quantity 0
+            , headerHash =
+                dummyGenesisHash
+            , parentHeaderHash =
+                W.Hash (BS.replicate 32 0)
+            }
+        , transactions = mkTx <$> outs
+        }
+      where
+        mkTx (addr, c) =
+            W.Tx pseudoHash [] [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
+          where
+            W.TxIn pseudoHash _ = fromShelleyTxIn $ initialFundsPseudoTxIn @TPraosStandardCrypto addr
+
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
@@ -415,7 +422,7 @@ fromNetworkMagic (NetworkMagic magic) =
 -- Txs
 --
 
--- | SealedTx are the result of rightfully constructed shelely transactions so, it
+-- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 toGenTx :: HasCallStack => W.SealedTx -> GenTx ShelleyBlock
 toGenTx = unsafeDeserialiseCbor fromCBOR
@@ -437,7 +444,8 @@ fromShelleyTxOut (SL.TxOut addr amount) =
   W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
 
 fromShelleyAddress :: Crypto crypto => SL.Addr crypto -> W.Address
-fromShelleyAddress = W.Address . serialize'
+fromShelleyAddress = W.Address
+    . SL.serialiseAddr
 
 fromShelleyCoin :: SL.Coin -> W.Coin
 fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
@@ -453,18 +461,66 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs _ _ _ _ _ _) _ _ _) = W.Tx
     (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
     (map fromShelleyTxOut (toList outs))
 
+-- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
+toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
+toSealed tx =
+    let
+        wtx = fromShelleyTx tx
+        sealed = W.SealedTx $ serialize' $ O.mkShelleyTx tx
+    in (wtx, sealed)
+
+toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
+toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash h
+
+toCardanoTxIn :: W.TxIn -> Cardano.TxIn
+toCardanoTxIn (W.TxIn tid ix) =
+    Cardano.TxIn (toCardanoTxId tid) (fromIntegral ix)
+
+-- NOTE: Only creates Shelley addresses.
+toCardanoAddress :: W.Address -> Cardano.Address
+toCardanoAddress (W.Address bytes) =
+    Cardano.AddressShelley
+        . fromMaybe (error "toCardanoAddress: invalid address")
+        . SL.deserialiseAddr @TPraosStandardCrypto
+        $ bytes
+
+toCardanoLovelace :: W.Coin -> Cardano.Lovelace
+toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
+  where
+    safeCast :: Word64 -> Integer
+    safeCast = fromIntegral
+
+toCardanoTxOut :: W.TxOut -> Cardano.TxOut
+toCardanoTxOut (W.TxOut addr coin) =
+    Cardano.TxOut (toCardanoAddress addr) (toCardanoLovelace coin)
+
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
 instance EncodeAddress 'Mainnet where
-    encodeAddress = error "TODO"
+    encodeAddress = T.decodeUtf8 . hex . W.unAddress
 
 instance EncodeAddress ('Testnet pm) where
-    encodeAddress = error "TODO"
+    encodeAddress = T.decodeUtf8 . hex . W.unAddress
+
+_decodeAddress :: Text -> Either TextDecodingError W.Address
+_decodeAddress x = validateWithLedger =<< W.Address <$> fromHex x
+  where
+    fromHex :: Text -> Either TextDecodingError ByteString
+    fromHex =
+        left (const $ TextDecodingError "Unable to decode Address: not valid hex encoding.")
+        .  convertFromBase @ByteString @ByteString Base16
+        . T.encodeUtf8
+
+    validateWithLedger addr@(W.Address bytes) =
+        case SL.deserialiseAddr @TPraosStandardCrypto bytes of
+            Just _ -> Right addr
+            Nothing -> Left $ TextDecodingError
+                "Unable to decode Address: not a well-formed Shelley Address."
 
 instance DecodeAddress 'Mainnet where
-    decodeAddress = error "TODO"
+    decodeAddress = _decodeAddress
 
 instance DecodeAddress ('Testnet pm) where
-    decodeAddress = error "TODO"
+    decodeAddress = _decodeAddress

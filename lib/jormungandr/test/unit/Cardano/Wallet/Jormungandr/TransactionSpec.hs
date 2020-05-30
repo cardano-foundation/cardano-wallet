@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
+    , SlotId (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -500,7 +501,7 @@ goldenTestStdTx
     -> ByteString
     -> SpecWith ()
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
-    let tx = mkStdTx tl keystore inps outs
+    let tx = mkStdTx tl keystore (SlotId 0 0) inps outs
     let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
@@ -517,7 +518,7 @@ goldenTestDelegationCertTx
     -> ByteString
     -> SpecWith ()
 goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
-    let res = mkDelegationJoinTx tl pool (accountXPrv, pass) keystore inps outs
+    let res = mkDelegationJoinTx tl pool (accountXPrv, pass) keystore (SlotId 0 0) inps outs
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` (Right $ unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))
@@ -564,7 +565,7 @@ unknownInputTest
 unknownInputTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = mkStdTx tl keyFrom inps outs
+    let res = mkStdTx tl keyFrom (SlotId 0 0) inps outs
           where
             tl = newTransactionLayer @JormungandrKey block0
             keyFrom = const Nothing

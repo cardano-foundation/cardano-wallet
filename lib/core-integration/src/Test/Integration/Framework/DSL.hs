@@ -98,6 +98,7 @@ module Test.Integration.Framework.DSL
     , withPathParam
     , icarusAddresses
     , randomAddresses
+    , shelleyAddresses
     , pubKeyFromMnemonics
     , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
@@ -183,6 +184,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -300,6 +303,7 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -1151,6 +1155,33 @@ icarusAddresses mw =
         [ paymentAddress @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
+
+-- | Generate an infinite list of addresses for shelley wallets.
+--
+-- To be typically used as:
+--
+-- >>> take 1 (shelleyAddresses @n)
+-- [addr]
+shelleyAddresses
+    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey)
+    => Mnemonic 15
+    -> [Address]
+shelleyAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Shelley.generateKeyFromSeed (seed, Nothing) pwd
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+    in
+        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        | ix <- [minBound..maxBound]
+        ]
+
+
 
 listAddresses
     :: forall n t. (DecodeAddress n)

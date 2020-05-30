@@ -115,7 +115,7 @@ newTransactionLayer block0H = TransactionLayer
     , allowUnbalancedTx = False
     }
   where
-    mkFragment details keyFrom rnps outs = do
+    mkFragment details keyFrom _slotId rnps outs = do
         credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
             maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         let inps = fmap (second coin) rnps

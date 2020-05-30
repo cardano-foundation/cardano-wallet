@@ -37,11 +37,13 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , ApiWalletMigrationInfo (..)
     , DecodeAddress
-    , EncodeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.Types
@@ -67,7 +69,15 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( SpecWith
+    , describe
+    , it
+    , pendingWith
+    , runIO
+    , shouldBe
+    , shouldNotBe
+    , shouldSatisfy
+    )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -94,9 +104,9 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , request
     , selectCoins
+    , shelleyAddresses
     , unsafeRequest
     , verify
-    , waitForNextEpoch
     , walletId
     , (.>)
     , (</>)
@@ -136,6 +146,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n t.
     ( DecodeAddress n
     , EncodeAddress n
+    , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
@@ -1165,9 +1176,10 @@ spec = do
 
     describe "BYRON_MIGRATE_05 -\
         \ migrating from inappropriate wallet types" $ do
-        let addrValid :: Text =
-                "addr1snfkjmygacv2xjdqxgvy750pxacq7v9r4ya5tyj3pmjas9mkvuh2uq0a3\
-                \d2wj240n8ye5r2z52gd5m3rh0fyh5dq9p2ynae3m9p33lgg06zgge"
+        addr <- runIO
+            $ encodeAddress @n . head . shelleyAddresses @n
+            . entropyToMnemonic @15 <$> genEntropy
+
         it "Byron" $ \ctx -> do
             sWallet <- emptyRandomWallet ctx
             rDel <- request @ApiWallet ctx
@@ -1178,7 +1190,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
@@ -1195,7 +1207,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
@@ -1212,7 +1224,7 @@ spec = do
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addrValid}]
+                    , addresses: [#{addr}]
                     }|])
             verify r
                 [ expectResponseCode @IO HTTP.status404
@@ -1352,6 +1364,7 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+        pendingWith "Byron wallets not support in cardano-node yet"
         -- NOTE
         -- Special mnemonic for which 500 legacy funds are attached to in the
         -- genesis file.
@@ -1438,6 +1451,7 @@ spec = do
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1503,6 +1517,7 @@ spec = do
                     "passphrase": #{fixturePassphrase},
                     "style": "random"
                     } |]
+            pendingWith "Byron wallets not supported in cardano-node yet."
             (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
                 (Link.postWallet @'Byron) payloadRestore
             eventually "wallet balance greater than 0" $ do
@@ -1533,6 +1548,7 @@ spec = do
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -1570,6 +1586,7 @@ spec = do
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+        pendingWith "Byron wallets not supported in cardano-node yet."
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 
@@ -1594,28 +1611,23 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx
-            waitForNextEpoch ctx
-            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
+            eventually "Wallet has the same tip as network/information" $ do
                 sync <- getNetworkInfo
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
-                return sync
 
-            let epochNum =
-                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-            let slotNum =
-                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-            let blockHeight =
-                    getFromResponse (#nodeTip . #height) r
+                let epochNum =
+                        getFromResponse (#nodeTip . #epochNumber . #getApiT) sync
+                let slotNum =
+                        getFromResponse (#nodeTip . #slotNumber . #getApiT) sync
+                let blockHeight =
+                        getFromResponse (#nodeTip . #height) sync
 
-            eventually "Wallet has the same tip as network/information" $ do
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField
-                            (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField
-                            (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
+                    , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
+                    , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
   where
@@ -1649,6 +1661,7 @@ spec = do
     testAddressCycling ctx addrNum =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =

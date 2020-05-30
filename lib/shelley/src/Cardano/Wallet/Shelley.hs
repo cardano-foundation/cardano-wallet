@@ -69,7 +69,8 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( DelegationAddress (..)
+    , Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , PaymentAddress
@@ -155,6 +156,7 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
+            , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
             )
@@ -220,9 +222,10 @@ serveWallet
         withNetworkLayer networkTracer gbp socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
-                randomApi <- apiLayer (newTransactionLayer proxy pm) nl
-                icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
-                shelleyApi <- apiLayer (newTransactionLayer proxy pm) nl
+                let el = getEpochLength $ staticParameters gbp
+                randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
+                icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
+                shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 startServer proxy socket randomApi icarusApi shelleyApi ntpClient
                 pure ExitSuccess
 
@@ -237,6 +240,7 @@ serveWallet
         :: forall n.
             ( PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
+            , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
             )
