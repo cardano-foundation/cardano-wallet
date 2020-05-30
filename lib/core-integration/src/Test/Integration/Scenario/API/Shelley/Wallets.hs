@@ -107,7 +107,6 @@ import Test.Integration.Framework.DSL
     , shelleyAddresses
     , unsafeRequest
     , verify
-    , waitForNextEpoch
     , walletId
     , (.>)
     , (</>)
@@ -1612,28 +1611,23 @@ spec = do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx
-            waitForNextEpoch ctx
-            r <- eventually "Network info enpoint shows syncProgress = Ready" $ do
+            eventually "Wallet has the same tip as network/information" $ do
                 sync <- getNetworkInfo
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
-                return sync
 
-            let epochNum =
-                    getFromResponse (#nodeTip . #epochNumber . #getApiT) r
-            let slotNum =
-                    getFromResponse (#nodeTip . #slotNumber . #getApiT) r
-            let blockHeight =
-                    getFromResponse (#nodeTip . #height) r
+                let epochNum =
+                        getFromResponse (#nodeTip . #epochNumber . #getApiT) sync
+                let slotNum =
+                        getFromResponse (#nodeTip . #slotNumber . #getApiT) sync
+                let blockHeight =
+                        getFromResponse (#nodeTip . #height) sync
 
-            eventually "Wallet has the same tip as network/information" $ do
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField
-                            (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField
-                            (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
+                    , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
+                    , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
   where
