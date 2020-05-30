@@ -27,7 +27,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, WalletStyle (..) )
+    ( ApiByronWallet, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -187,10 +187,14 @@ specWithServer tr = aroundAll withContext . after tearDown
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
     tearDown ctx = do
-        (_, wallets) <- unsafeRequest @[ApiByronWallet] ctx
+        (_, byronWallets) <- unsafeRequest @[ApiByronWallet] ctx
             (Link.listWallets @'Byron) Empty
-        forM_ wallets $ \w -> void $ request @Aeson.Value ctx
+        forM_ byronWallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Byron w) Default Empty
+        (_, wallets) <- unsafeRequest @[ApiWallet] ctx
+            (Link.listWallets @'Shelley) Empty
+        forM_ wallets $ \w -> void $ request @Aeson.Value ctx
+            (Link.deleteWallet @'Shelley w) Default Empty
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
