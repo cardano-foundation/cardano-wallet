@@ -8,10 +8,10 @@ protocolParams:
     major: 0
   decentralisationParam: 1
   maxTxSize: 4096
-  minFeeA: 1000000
+  minFeeA: 100
   maxBlockBodySize: 239857
   keyMinRefund: 0
-  minFeeB: 1000
+  minFeeB: 100000
   eMax: 0
   extraEntropy:
     tag: NeutralNonce
