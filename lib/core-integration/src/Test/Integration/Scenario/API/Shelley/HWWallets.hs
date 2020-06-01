@@ -20,7 +20,6 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
     , ApiFee
-    , ApiStakePool
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -31,7 +30,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState (..), SyncProgress (..) )
+    ( AddressState (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -60,20 +59,13 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWithMnemonics
     , getFromResponse
-    , getSlotParams
-    , joinStakePool
     , json
     , listAddresses
-    , mkEpochInfo
-    , notDelegating
     , pubKeyFromMnemonics
-    , quitStakePool
     , request
+    , restoreWalletFromPubKey
     , selectCoins
-    , unsafeRequest
     , verify
-    , waitAllTxsInLedger
-    , waitForNextEpoch
     , walletId
     )
 import Test.Integration.Framework.TestData
@@ -136,7 +128,7 @@ spec = do
 
         -- restore from account public key and make sure funds are there
         let accXPub = pubKeyFromMnemonics mnemonics
-        wDest' <- restoreWalletFromPubKey ctx accXPub
+        wDest' <- restoreWalletFromPubKey ctx accXPub restoredWalletName
 
         eventually "Balance of restored wallet is as expected" $ do
             rGet <- request @ApiWallet ctx
@@ -148,47 +140,6 @@ spec = do
                         (#balance . #getApiT . #available) (`shouldBe` Quantity 1)
                 ]
 
-    it "HW_WALLETS_02 - Restoration from account public key preserves delegation\
-        \ but I cannot quit" $ \ctx -> do
-        -- create wallet and get acc pub key from mnemonics
-        (w, mnemonics) <- fixtureWalletWithMnemonics ctx
-        let accPub = pubKeyFromMnemonics mnemonics
-
-        --make sure you are at the beginning of the epoch
-        waitForNextEpoch ctx
-        (currentEpoch, sp) <- getSlotParams ctx
-
-        -- join stake pool
-        (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-        r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
-        expectResponseCode @IO HTTP.status202 r
-        waitAllTxsInLedger @n ctx w
-        let expectedDelegation =
-                [ expectField #delegation
-                    (`shouldBe` notDelegating
-                        [ (Just (p ^. #id), mkEpochInfo (currentEpoch + 2) sp)
-                        ]
-                    )
-                ]
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            expectedDelegation
-
-        -- delete wallet
-        rDel <-
-            request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
-
-        -- restore from pub key and make sure delegation preserved
-        wRestored <- restoreWalletFromPubKey ctx accPub
-        request @ApiWallet ctx (Link.getWallet @'Shelley wRestored) Default Empty >>= flip verify
-            expectedDelegation
-
-        -- cannot quit stake pool
-        rQuit <- quitStakePool @n ctx (wRestored, fixturePassphrase)
-        expectResponseCode @IO HTTP.status403 rQuit
-        expectErrorMessage (errMsg403NoRootKey $ wRestored ^. walletId) rQuit
-
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
@@ -196,7 +147,7 @@ spec = do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey ctx pubKey
+            wSrc <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -216,24 +167,10 @@ spec = do
             expectResponseCode @IO HTTP.status403 rTrans
             expectErrorMessage (errMsg403NoRootKey $ wSrc ^. walletId) rTrans
 
-        it "Cannot join SP" $ \ctx -> do
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
-            let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 r
-
-            wk <- restoreWalletFromPubKey ctx pubKey
-            -- cannot join stake pool
-            (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
-            rJoin <- joinStakePool @n ctx (p ^. #id) (wk, fixturePassphrase)
-            expectResponseCode @IO HTTP.status403 rJoin
-            expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
-
         it "Cannot update pass" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey ctx pubKey
+            wk <- restoreWalletFromPubKey ctx pubKey restoredWalletName
 
             -- cannot update pass
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
@@ -246,7 +183,7 @@ spec = do
         it "Can update name" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey ctx pubKey
+            wk <- restoreWalletFromPubKey ctx pubKey restoredWalletName
 
             -- cannot update wallet name
             let newName = "new name"
@@ -267,7 +204,7 @@ spec = do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey ctx pubKey
+            wSrc <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -289,7 +226,7 @@ spec = do
         it "Can delete" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
+            wPub <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             r <- request @ApiWallet ctx
                 (Link.deleteWallet @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status204 r
@@ -297,7 +234,7 @@ spec = do
         it "Can see utxo" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
+            wPub <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             rStat <- request @ApiUtxoStatistics ctx
                 (Link.getUTxOsStatistics @'Shelley wPub) Default Empty
             expectResponseCode @IO HTTP.status200 rStat
@@ -306,7 +243,7 @@ spec = do
         it "Can list addresses" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
+            wPub <- restoreWalletFromPubKey ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
@@ -341,7 +278,7 @@ spec = do
         it "Can list transactions" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
+            wPub <- restoreWalletFromPubKey ctx pubKey restoredWalletName
 
             rt <- request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wPub) Default Empty
@@ -354,7 +291,7 @@ spec = do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            source <- restoreWalletFromPubKey ctx pubKey
+            source <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
 
@@ -371,7 +308,7 @@ spec = do
         it "Can get wallet" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey ctx pubKey
+            wPub <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wPub) Default Empty
             expectField
@@ -382,7 +319,7 @@ spec = do
         it "Can list wallet" $ \ctx -> do
             mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey ctx pubKey
+            _ <- restoreWalletFromPubKey ctx pubKey restoredWalletName
             rl <- request @[ApiWallet] ctx
                 (Link.listWallets @'Shelley) Default Empty
             expectListField 0
@@ -401,7 +338,7 @@ spec = do
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey ctx accXPub
+            _ <- restoreWalletFromPubKey ctx accXPub restoredWalletName
 
             -- both wallets are available
             rl <- request @[ApiWallet] ctx
@@ -418,19 +355,3 @@ spec = do
  where
      restoredWalletName :: Text
      restoredWalletName = "Wallet from pub key"
-
-     restoreWalletFromPubKey :: Context t -> Text -> IO ApiWallet
-     restoreWalletFromPubKey ctx pubKey = do
-         let payloadRestore = Json [json| {
-                 "name": #{restoredWalletName},
-                 "account_public_key": #{pubKey}
-             }|]
-         r <- request @ApiWallet ctx (Link.postWallet @'Shelley)
-                Default payloadRestore
-         expectResponseCode @IO HTTP.status201 r
-         let wid = getFromResponse id r
-         eventually "restoreWalletFromPubKey: wallet is 100% synced " $ do
-             rg <- request @ApiWallet ctx
-                 (Link.getWallet @'Shelley wid) Default Empty
-             expectField (#state . #getApiT) (`shouldBe` Ready) rg
-         return wid
