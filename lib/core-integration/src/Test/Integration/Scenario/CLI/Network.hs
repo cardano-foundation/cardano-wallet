@@ -61,7 +61,7 @@ spec = do
     it "NETWORK_PARAMS - network parameters" $ \ctx -> do
         params <- getNetworkParamsViaCli ctx
         params `shouldBe`
-            toApiNetworkParameters (ctx ^. #_blockchainParameters)
+            toApiNetworkParameters (ctx ^. #_networkParameters)
 
     it "CLI_NETWORK - network clock" $ \ctx -> do
         sandboxed <- inNixBuild

@@ -20,8 +20,8 @@ import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..), withJormungandr, withNetworkLayer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , BlockchainParameters (..)
-    , GenesisBlockParameters (..)
+    , GenesisParameters (..)
+    , NetworkParameters (..)
     , SlotId
     )
 import Control.Concurrent
@@ -117,9 +117,9 @@ spec = around setup $ do
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp ->
             withNetworkLayer tr (UseRunning cp) $ \case
-                Right (_, (b0, gbp), nl) -> withDB "reference.sqlite" $ \db -> do
+                Right (_, (b0, np), nl) -> withDB "reference.sqlite" $ \db -> do
                     let nl' = toSPBlock <$> nl
-                    let k = getEpochStability (staticParameters gbp)
+                    let k = getEpochStability (genesisParameters np)
                     let block0 = toSPBlock b0
                     withMonitorStakePoolsThread (block0, k) nl' db $ \_workerThread ->
                         cb (nl', (block0, k), db)

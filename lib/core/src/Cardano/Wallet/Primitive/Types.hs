@@ -83,9 +83,10 @@ module Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
 
-    -- * BlockchainParameters
-    , GenesisBlockParameters (..)
-    , BlockchainParameters (..)
+    -- * Network Parameters
+    , NetworkParameters (..)
+    , GenesisParameters (..)
+    , ProtocolParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -1283,22 +1284,22 @@ computeUtxoStatistics btype utxos =
 
 -- | Initial blockchain parameters loaded from the application configuration and
 -- genesis block.
-data GenesisBlockParameters = GenesisBlockParameters
-    { staticParameters :: BlockchainParameters
+data NetworkParameters = NetworkParameters
+    { genesisParameters :: GenesisParameters
        -- ^ These parameters are defined by the configuration and genesis
        -- block. At present, none of these are covered by the update system.
-    , txParameters :: TxParameters
+    , protocolParameters :: ProtocolParameters
        -- ^ These parameters may be changed through update proposals. Currently
        -- the only dynamic blockchain parameters that the wallet needs are
        -- related to creating transactions.
     } deriving (Generic, Show, Eq)
 
-instance NFData GenesisBlockParameters
+instance NFData NetworkParameters
 
-instance Buildable GenesisBlockParameters where
-    build (GenesisBlockParameters bp txp) = build bp <> build txp
+instance Buildable NetworkParameters where
+    build (NetworkParameters gp pp) = build gp <> build pp
 
-data BlockchainParameters = BlockchainParameters
+data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
     , getGenesisBlockDate :: StartTime
@@ -1314,19 +1315,19 @@ data BlockchainParameters = BlockchainParameters
         -- (i.e. slots for which someone can be elected as leader).
     } deriving (Generic, Show, Eq)
 
-instance NFData BlockchainParameters
+instance NFData GenesisParameters
 
-instance Buildable BlockchainParameters where
-    build bp = blockListF' "" id
-        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
+instance Buildable GenesisParameters where
+    build gp = blockListF' "" id
+        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash gp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
-            (bp :: BlockchainParameters))
+            (gp :: GenesisParameters))
         , "Slot length:        " <> slotLengthF (getSlotLength
-            (bp :: BlockchainParameters))
+            (gp :: GenesisParameters))
         , "Epoch length:       " <> epochLengthF (getEpochLength
-            (bp :: BlockchainParameters))
-        , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
-        , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
+            (gp :: GenesisParameters))
+        , "Epoch stability:    " <> epochStabilityF (getEpochStability gp)
+        , "Active slot coeff:  " <> build (gp ^. #getActiveSlotCoefficient)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
@@ -1342,13 +1343,28 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
-slotParams :: BlockchainParameters -> SlotParameters
-slotParams bp =
+slotParams :: GenesisParameters -> SlotParameters
+slotParams gp =
     SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-        (bp ^. #getActiveSlotCoefficient)
+        (gp ^. #getEpochLength)
+        (gp ^. #getSlotLength)
+        (gp ^. #getGenesisBlockDate)
+        (gp ^. #getActiveSlotCoefficient)
+
+data ProtocolParameters = ProtocolParameters
+    { decentralizationLevel
+        :: Quantity "percent" Percentage
+    , txParameters
+        :: TxParameters
+    } deriving (Eq, Generic, Show)
+
+instance NFData ProtocolParameters
+
+instance Buildable ProtocolParameters where
+    build pp = listF' id
+        [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
+        , "Transaction parameters: " <> build (pp ^. #txParameters)
+        ]
 
 -- | Blockchain parameters relating to constructing transactions.
 data TxParameters = TxParameters

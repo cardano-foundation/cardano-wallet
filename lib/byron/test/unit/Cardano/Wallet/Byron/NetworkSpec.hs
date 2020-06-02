@@ -1,4 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Cardano.Wallet.Byron.NetworkSpec (spec) where
@@ -18,9 +19,19 @@ import Cardano.Wallet.Byron.Network
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), GenesisBlockParameters (..), TxParameters (..) )
+    ( FeePolicy (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
+    , TxParameters (..)
+    )
 import Control.Retry
     ( constantDelay, limitRetries, recoverAll )
+import Data.Function
+    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( set )
+import Data.Generics.Labels
+    ()
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -39,25 +50,27 @@ import Test.Utils.Trace
 spec :: Spec
 spec = describe "getTxParameters" $ do
     it "Correct values are queried" $ do
-        withTestNode $ \gbp sock vData -> withLogging $ \(tr, getLogs) -> do
+        withTestNode $ \np sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
-            let gbp' = gbp { txParameters = zeroTxParameters }
-            withNetworkLayer tr gbp' sock vData $ \nl -> do
+            let np' = np &
+                    (#protocolParameters . #txParameters) `set` zeroTxParameters
+            withNetworkLayer tr np' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
                 -- the genesis block configuration.
                 let retryPolicy = constantDelay 1_000_000 <> limitRetries 10
                 recoverAll retryPolicy $ const $
-                    getTxParameters nl `shouldReturn` txParameters gbp
+                    getTxParameters nl `shouldReturn`
+                        txParameters (protocolParameters np)
             -- Parameters update should be logged exactly once.
             msg <- mapMaybe isMsgTxParams <$> getLogs
-            msg `shouldBe` [txParameters gbp]
+            msg `shouldBe` [txParameters (protocolParameters np)]
 
 withTestNode
-    :: (GenesisBlockParameters -> FilePath -> NodeVersionData -> IO a)
+    :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
 withTestNode action = withCardanoNode nullTracer $(getTestData) Error $
-    \sock _block0 (gbp, vData) -> action gbp sock vData
+    \sock _block0 (np, vData) -> action np sock vData
 
 isMsgTxParams :: NetworkLayerLog -> Maybe TxParameters
 isMsgTxParams (MsgTxParameters txp) = Just txp

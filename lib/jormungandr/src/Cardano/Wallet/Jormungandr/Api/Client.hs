@@ -77,10 +77,11 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , EpochNo (..)
-    , GenesisBlockParameters (..)
+    , GenesisParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SealedTx
     , SlotLength (..)
     , TxParameters (..)
@@ -154,7 +155,7 @@ data JormungandrClient m = JormungandrClient
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetBlockchainParams m (J.Block, GenesisBlockParameters)
+        -> ExceptT ErrGetBlockchainParams m (J.Block, NetworkParameters)
     , getStakeDistribution
         :: EpochNo
         -> ExceptT ErrNetworkUnavailable m StakeApiResponse
@@ -299,8 +300,8 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
             ([policy],[duration],[block0T], [epLength], [stability],[coeff]) ->
                 return
                     ( jblock
-                    , GenesisBlockParameters
-                        { staticParameters = BlockchainParameters
+                    , NetworkParameters
+                        { genesisParameters = GenesisParameters
                             { getGenesisBlockHash = block0
                             , getGenesisBlockDate = block0T
                             , getEpochLength = epLength
@@ -308,11 +309,17 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                             , getEpochStability = stability
                             , getActiveSlotCoefficient = coeff
                             }
-                        , txParameters = TxParameters
-                            { getFeePolicy = case mperCertFee of
-                                [override] -> overrideFeePolicy policy override
-                                _ -> policy
-                            , getTxMaxSize = softTxMaxSize
+                        , protocolParameters = ProtocolParameters
+                            { decentralizationLevel =
+                                minBound
+                            , txParameters = TxParameters
+                                { getFeePolicy = case mperCertFee of
+                                    [override] ->
+                                        overrideFeePolicy policy override
+                                    _ ->
+                                        policy
+                                , getTxMaxSize = softTxMaxSize
+                                }
                             }
                         }
                     )

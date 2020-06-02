@@ -137,7 +137,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
-    , GenesisBlockParameters
+    , NetworkParameters
     , SortOrder (..)
     , SyncTolerance
     , WalletId (..)
@@ -583,7 +583,7 @@ type PostExternalTransaction = "proxy"
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
         (Tracer IO (WorkerLog WalletId WalletLog))
-        (Block, GenesisBlockParameters, SyncTolerance)
+        (Block, NetworkParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)
         (DBFactory IO s k)
@@ -594,8 +594,8 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
     type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
     type WorkerMsg (ApiLayer s t k) = WalletLog
     type WorkerKey (ApiLayer s t k) = WalletId
-    hoistResource db transform (ApiLayer tr bp nw tl _ _) =
-        WalletLayer (contramap transform tr) bp nw tl db
+    hoistResource db transform (ApiLayer tr gp nw tl _ _) =
+        WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------
                                Capabilities

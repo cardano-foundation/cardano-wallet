@@ -101,9 +101,9 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , ChimericAccount
-    , GenesisBlockParameters (..)
+    , GenesisParameters (..)
+    , NetworkParameters (..)
     , SlotId (..)
     , SyncProgress (..)
     , WalletId (..)
@@ -211,7 +211,7 @@ exec c = do
     (_logCfg, tr) <- initBenchmarkLogging Info
     installSignalHandlers (return ())
 
-    (SomeNetworkDiscriminant networkProxy, gbp, vData, _b)
+    (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
     ----------------------------------------------------------------------------
@@ -250,14 +250,14 @@ exec c = do
     sayErr $ pretty cmd
 
     void $ withBackendProcess nullTracer cmd $ do
-            prepareNode networkProxy socketPath gbp vData
+            prepareNode networkProxy socketPath np vData
             runBenchmarks
                 [ bench ("restore " <> network <> " seq")
                     (bench_restoration @_ @ByronKey
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "seq.timelog"
                         (walletRnd))
@@ -267,7 +267,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "1-percent.timelog"
                         (initAnyState "Benchmark 1% Wallet" 0.01))
@@ -277,7 +277,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "2-percent.timelog"
                         (initAnyState "Benchmark 2% Wallet" 0.02))
@@ -355,19 +355,20 @@ bench_restoration
     -> Trace IO Text
     -> FilePath
        -- ^ Socket path
-    -> GenesisBlockParameters
+    -> NetworkParameters
     -> NodeVersionData
     -> FilePath
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname, s) = do
+bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
-    withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = staticParameters gbp
-        let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
+    withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
+        let gp = genesisParameters np
+        let convert =
+                fromByronBlock (getGenesisBlockHash gp) (getEpochLength gp)
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
@@ -381,13 +382,13 @@ bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname
                         hFlush h
                 let w = WalletLayer
                         (traceProgressForPlotting fileTr)
-                        (emptyGenesis bp, gbp, mkSyncTolerance 3600)
+                        (emptyGenesis gp, np, mkSyncTolerance 3600)
                         nw
                         tl
                         db
                 wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
                 void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @t @k w wid
-                waitForWalletSync w wallet bp vData
+                waitForWalletSync w wallet gp vData
                 (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
                 sayErr "Wallet restored!"
                 sayErr . fmt . build $
@@ -438,16 +439,17 @@ prepareNode
     :: forall n. (NetworkDiscriminantVal n)
     => Proxy n
     -> FilePath
-    -> GenesisBlockParameters
+    -> NetworkParameters
     -> NodeVersionData
     -> IO ()
-prepareNode _ socketPath gbp vData = do
+prepareNode _ socketPath np vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
-    sl <- withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = staticParameters gbp
-        let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
+    sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
+        let gp = genesisParameters np
+        let convert =
+                fromByronBlock (getGenesisBlockHash gp) (getEpochLength gp)
         let nw = convert <$> nw'
-        waitForNodeSync nw logQuiet bp
+        waitForNodeSync nw logQuiet gp
     sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
@@ -456,35 +458,35 @@ waitForWalletSync
     :: forall s t k. ()
     => WalletLayer s t k
     -> WalletId
-    -> BlockchainParameters
+    -> GenesisParameters
     -> NodeVersionData
     -> IO ()
-waitForWalletSync walletLayer wid bp vData = do
+waitForWalletSync walletLayer wid gp vData = do
     (w, _, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     let tol = mkSyncTolerance 3600
     prog <- syncProgressRelativeToTime
                 tol
-                (slotParams bp)
+                (slotParams gp)
                 (currentTip w)
                 <$> getCurrentTime
     case prog of
         Ready -> return ()
         NotResponding -> do
             threadDelay 1000000
-            waitForWalletSync walletLayer wid bp vData
+            waitForWalletSync walletLayer wid gp vData
         Syncing (Quantity p) -> do
             sayErr . fmt $ "[INFO] restoring: "+|p|+""
             threadDelay 1000000
-            waitForWalletSync walletLayer wid bp vData
+            waitForWalletSync walletLayer wid gp vData
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
     :: NetworkLayer IO (IO Byron) Block
     -> (SlotId -> SlotId -> IO ())
-    -> BlockchainParameters
+    -> GenesisParameters
     -> IO SlotId
-waitForNodeSync nw logSlot bp = loop 10
+waitForNodeSync nw logSlot gp = loop 10
   where
     loop :: Int -> IO SlotId
     loop retries = runExceptT (currentNodeTip nw) >>= \case
@@ -506,7 +508,7 @@ waitForNodeSync nw logSlot bp = loop 10
 
     getCurrentSlot :: IO SlotId
     getCurrentSlot = do
-        let sp = slotParams bp
+        let sp = slotParams gp
         fromMaybe (error errMsg) . slotAt sp <$> getCurrentTime
       where
         errMsg = "getCurrentSlot: is the current time earlier than the\

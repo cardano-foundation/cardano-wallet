@@ -54,7 +54,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, genesisParameters, genesisTxParameters, mkTxId )
+    ( block0, dummyGenesisParameters, dummyTxParameters, mkTxId )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -367,7 +367,7 @@ walletFixture :: DBLayerBench -> IO ()
 walletFixture db@DBLayer{..} = do
     cleanDB db
     atomically $ unsafeRunExceptT $
-        initializeWallet testPk testCp testMetadata mempty genesisTxParameters
+        initializeWallet testPk testCp testMetadata mempty dummyTxParameters
 
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks
@@ -473,7 +473,7 @@ mkCheckpoints numCheckpoints utxoSize =
             (Hash $ label "headerHash" i)
         )
         initDummyState
-        genesisParameters
+        dummyGenesisParameters
 
     utxo i = Map.fromList $ zip
         (map fst $ mkInputs i utxoSize)
@@ -504,7 +504,7 @@ utxoFixture db@DBLayer{..} numCheckpoints utxoSize = do
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk)
-        [ snd $ initWallet block0 genesisParameters $
+        [ snd $ initWallet block0 dummyGenesisParameters $
             SeqState
                 (mkPool numAddrs i)
                 (mkPool numAddrs i)
@@ -608,7 +608,7 @@ instance NFData SqliteContext where
     rnf _ = ()
 
 testCp :: WalletBench
-testCp = snd $ initWallet block0 genesisParameters initDummyState
+testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
 
 {-# NOINLINE initDummyState #-}
 initDummyState :: SeqState 'Mainnet JormungandrKey

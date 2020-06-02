@@ -40,8 +40,9 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , FeePolicy (..)
-    , GenesisBlockParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)
@@ -147,7 +148,7 @@ specWithServer tr = aroundAll withContext . after tearDown
     withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext gbp wAddr = do
+        let setupContext np wAddr = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -161,15 +162,18 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator (getFeePolicy (txParameters gbp))
-                    , _blockchainParameters = staticParameters gbp
+                    , _feeEstimator = mkFeeEstimator
+                        $ getFeePolicy
+                        $ txParameters
+                        $ protocolParameters np
+                    , _networkParameters = np
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (bp,vData) ->
+        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet @(IO Shelley)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
@@ -181,8 +185,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                 Nothing
                 socketPath
                 block0
-                (bp, vData)
-                (action bp)
+                (gp, vData)
+                (action gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()

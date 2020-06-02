@@ -200,7 +200,7 @@ spec = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
                 let jor = Jormungandr.mkJormungandrClient mgr baseUrl
-                let g0 = error "BlockchainParameters"
+                let g0 = error "GenesisParameters"
                 return (void $ mkRawNetworkLayer g0 1000 st jor)
 
         let makeUnreachableNetworkLayer = do

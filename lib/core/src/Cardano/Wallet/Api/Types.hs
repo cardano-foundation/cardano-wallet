@@ -10,6 +10,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -146,13 +147,14 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
-    , BlockchainParameters (..)
     , BoundType
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
     , PoolId (..)
     , ShowFmt (..)
     , SlotLength (..)
@@ -204,6 +206,8 @@ import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
     ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( intercalate )
 import Data.List.NonEmpty
@@ -499,28 +503,18 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     } deriving (Eq, Generic, Show)
 
-toApiNetworkParameters :: BlockchainParameters -> ApiNetworkParameters
-toApiNetworkParameters bp = ApiNetworkParameters
-    (ApiT $ getGenesisBlockHash bp)
-    (ApiT $ getGenesisBlockDate bp)
-    (Quantity $ unSlotLength $ getSlotLength bp)
-    (Quantity $ unEpochLength $ getEpochLength bp)
-    (getEpochStability bp)
+toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
+toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
+    (ApiT $ getGenesisBlockHash gp)
+    (ApiT $ getGenesisBlockDate gp)
+    (Quantity $ unSlotLength $ getSlotLength gp)
+    (Quantity $ unEpochLength $ getEpochLength gp)
+    (getEpochStability gp)
     (Quantity
         $ (*100)
         $ unActiveSlotCoefficient
-        $ getActiveSlotCoefficient bp)
-    (currentDecentralizationLevel)
-  where
-    currentDecentralizationLevel :: Quantity "percent" Percentage
-    currentDecentralizationLevel =
-        -- NOTE: For the moment, this value is hard-wired to 0%.
-        -- TODO: Adjust this function to report the live value.
-        --
-        -- Related issue:
-        -- https://github.com/input-output-hk/cardano-wallet/issues/1693
-        --
-        minBound
+        $ getActiveSlotCoefficient gp)
+    (view #decentralizationLevel pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

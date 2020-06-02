@@ -27,9 +27,10 @@ import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders, emptyBlockHeaders, greatestCommonBlockHeader )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , BlockchainParameters (..)
-    , GenesisBlockParameters (..)
+    , GenesisParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SlotId (..)
     , SlotNo (unSlotNo)
     , TxParameters (..)
@@ -340,9 +341,10 @@ mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
-    Right (_b0, gbp) <- runExceptT $ getInitialBlockchainParameters jm genesisHash
+    Right (_b0, np) <-
+        runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure
-        ( fromJBlock <$> mkRawNetworkLayer gbp (fromIntegral k) st jm
+        ( fromJBlock <$> mkRawNetworkLayer np (fromIntegral k) st jm
         , findIntersection st
         )
   where
@@ -398,20 +400,23 @@ mockJormungandrClient logLine = JormungandrClient
 
     , getInitialBlockchainParameters = \blockId -> do
         Quantity k <- lift $ gets mockNodeK
-        pure (block0, GenesisBlockParameters
-                 { staticParameters = BlockchainParameters
-                     { getGenesisBlockHash = blockId
-                     , getGenesisBlockDate = error "mock bp"
-                     , getSlotLength = error "mock bp"
-                     , getEpochLength = error "mock bp"
-                     , getEpochStability = Quantity (fromIntegral k)
-                     , getActiveSlotCoefficient = error "mock bp"
-                     }
-                 , txParameters = TxParameters
-                     { getFeePolicy = error "mock bp"
-                     , getTxMaxSize = error "mock bp"
-                     }
-                 })
+        pure (block0, NetworkParameters
+            { genesisParameters = GenesisParameters
+                { getGenesisBlockHash = blockId
+                , getGenesisBlockDate = error "mock gp"
+                , getSlotLength = error "mock gp"
+                , getEpochLength = error "mock gp"
+                , getEpochStability = Quantity (fromIntegral k)
+                , getActiveSlotCoefficient = error "mock gp"
+                }
+            , protocolParameters = ProtocolParameters
+                { decentralizationLevel = minBound
+                , txParameters = TxParameters
+                    { getFeePolicy = error "mock gp"
+                    , getTxMaxSize = error "mock gp"
+                    }
+                }
+            })
 
     , postMessage = \_ -> error "mock postMessage"
 

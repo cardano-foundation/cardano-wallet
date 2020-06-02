@@ -67,7 +67,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( GenesisBlockParameters (..), SyncTolerance (..) )
+    ( SyncTolerance (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -429,7 +429,7 @@ benchWithServer
     -> IO ()
 benchWithServer tracers action = do
     ctx <- newEmptyMVar
-    let setupContext gbp wAddr = do
+    let setupContext np wAddr = do
             let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
             let sixtySeconds = 60*1000*1000 -- 60s in microseconds
             manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -443,14 +443,14 @@ benchWithServer tracers action = do
                 , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
-                , _blockchainParameters = staticParameters gbp
+                , _networkParameters = np
                 , _target = Proxy
                 }
     race (takeMVar ctx >>= action) (withServer setupContext) >>=
         either pure (throwIO . ProcessHasExited "integration")
   where
     withServer act =
-        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (bp,vData) ->
+        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
@@ -462,8 +462,8 @@ benchWithServer tracers action = do
                 Nothing
                 socketPath
                 block0
-                (bp, vData)
-                (act bp)
+                (gp, vData)
+                (act gp)
 
 instance ToJSON ApiLog where
     toJSON = toJSON . toText

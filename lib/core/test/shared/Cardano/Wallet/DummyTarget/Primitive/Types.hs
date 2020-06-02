@@ -6,9 +6,9 @@
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget
     , block0
-    , genesisBlockParameters
-    , genesisParameters
-    , genesisTxParameters
+    , dummyNetworkParameters
+    , dummyGenesisParameters
+    , dummyTxParameters
     , genesisHash
     , mockHash
     , mkTxId
@@ -21,12 +21,13 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
-    , GenesisBlockParameters (..)
+    , GenesisParameters (..)
     , Hash (..)
+    , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SlotLength (..)
     , StartTime (..)
     , Tx (..)
@@ -71,8 +72,8 @@ block0 = Block
     , delegations = []
     }
 
-genesisParameters :: BlockchainParameters
-genesisParameters = BlockchainParameters
+dummyGenesisParameters :: GenesisParameters
+dummyGenesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     , getSlotLength = SlotLength 1
@@ -81,16 +82,22 @@ genesisParameters = BlockchainParameters
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
 
-genesisTxParameters :: TxParameters
-genesisTxParameters = TxParameters
+dummyTxParameters :: TxParameters
+dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getTxMaxSize = Quantity 8192
     }
 
-genesisBlockParameters :: GenesisBlockParameters
-genesisBlockParameters = GenesisBlockParameters
-    { staticParameters = genesisParameters
-    , txParameters = genesisTxParameters
+dummyNetworkParameters :: NetworkParameters
+dummyNetworkParameters = NetworkParameters
+    { genesisParameters = dummyGenesisParameters
+    , protocolParameters = dummyProtocolParameters
+    }
+
+dummyProtocolParameters :: ProtocolParameters
+dummyProtocolParameters = ProtocolParameters
+    { decentralizationLevel = minBound
+    , txParameters = dummyTxParameters
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.

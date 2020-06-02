@@ -193,7 +193,7 @@ withNetworkLayer
     :: Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
         -- FIXME: Use a typed message instead of a 'Text'
-    -> W.GenesisBlockParameters
+    -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> FilePath
         -- ^ Socket for communicating with the node
@@ -202,7 +202,7 @@ withNetworkLayer
     -> (NetworkLayer IO (IO Byron) ByronBlock -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr gbp addrInfo versionData action = do
+withNetworkLayer tr np addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
 
     -- NOTE: We keep a client connection running for accessing the node tip,
@@ -211,13 +211,15 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- doesn't really do anything but sending dummy messages to get the node's
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    txParamsVar <- atomically $ newTVar (W.txParameters gbp)
-    nodeTipClient <- mkTipSyncClient tr gbp
+    txParamsVar <- atomically $ newTVar $
+        W.txParameters $ W.protocolParameters np
+    nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
     let handlers = retryOnConnectionLost tr
-    link =<< async (connectClient tr handlers (const nodeTipClient) versionData addrInfo)
+    link =<< async
+        (connectClient tr handlers (const nodeTipClient) versionData addrInfo)
 
     action
         NetworkLayer
@@ -231,17 +233,19 @@ withNetworkLayer tr gbp addrInfo versionData action = do
             , getAccountBalance = _getAccountBalance
             }
   where
-    bp@W.BlockchainParameters
+    gp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
-        } = W.staticParameters gbp
+        } = W.genesisParameters np
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient bp chainSyncQ
+        client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
-        link =<< async (connectClient tr handlers (const client) versionData addrInfo)
-        let points = reverse $ genesisPoint : (toPoint getGenesisBlockHash getEpochLength <$> headers)
+        link =<< async
+            (connectClient tr handlers (const client) versionData addrInfo)
+        let points = reverse $ genesisPoint :
+                (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
         res <- findIt
@@ -277,7 +281,6 @@ withNetworkLayer tr gbp addrInfo versionData action = do
         case result of
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
-
     _stakeDistribution =
         notImplemented "stakeDistribution"
 
@@ -301,12 +304,12 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => W.BlockchainParameters
+    => W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ByronBlock m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
-mkWalletClient bp chainSyncQ = do
+mkWalletClient gp chainSyncQ = do
     responsesBuffer <- atomically newTQueue
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
@@ -328,10 +331,10 @@ mkWalletClient bp chainSyncQ = do
         }
         NodeToClientV_2
   where
-    W.BlockchainParameters
+    W.GenesisParameters
         { getEpochLength
         , getGenesisBlockHash
-        } = bp
+        } = gp
 
     codecs :: MonadST m => ClientCodecs ByronBlock m
     codecs = clientCodecs
@@ -349,7 +352,7 @@ mkTipSyncClient
     :: (MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> W.GenesisBlockParameters
+    -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> TQueue m (LocalTxSubmissionCmd (GenTx ByronBlock) ApplyMempoolPayloadErr m)
         -- ^ Communication channel with the LocalTxSubmission client
@@ -358,7 +361,7 @@ mkTipSyncClient
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     onTxParamsUpdate' <- debounce $ \txParams -> do
@@ -413,10 +416,10 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         }
         NodeToClientV_2
   where
-    W.BlockchainParameters
+    W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
-        } = W.staticParameters gbp
+        } = W.genesisParameters np
 
     codecs :: MonadST m => DefaultCodecs ByronBlock m
     codecs = defaultCodecs
@@ -441,7 +444,7 @@ doNothingProtocol =
 -- Connect a client to a network, see `mkWalletClient` to construct a network
 -- client interface.
 --
--- >>> connectClient (mkWalletClient tr bp queue) mainnetVersionData addrInfo
+-- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
 connectClient
     :: Tracer IO NetworkLayerLog
     -> [RetryStatus -> Handler IO Bool]

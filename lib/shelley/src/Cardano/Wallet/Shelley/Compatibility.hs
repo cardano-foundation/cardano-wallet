@@ -154,7 +154,6 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- Chain Parameters
 
-
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
 -- the following assumption:
@@ -163,8 +162,8 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 --
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
-emptyGenesis :: W.BlockchainParameters -> W.Block
-emptyGenesis bp = W.Block
+emptyGenesis :: W.GenesisParameters -> W.Block
+emptyGenesis gp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
@@ -173,7 +172,7 @@ emptyGenesis bp = W.Block
         , blockHeight =
             Quantity 0
         , headerHash =
-            coerce $ W.getGenesisBlockHash bp
+            coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
             hashOfNoParent
         }
@@ -359,10 +358,10 @@ fromPParams pp = W.TxParameters
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: ShelleyGenesis TPraosStandardCrypto
-    -> (W.GenesisBlockParameters, W.Block)
+    -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
-    ( W.GenesisBlockParameters
-        { staticParameters = W.BlockchainParameters
+    ( W.NetworkParameters
+        { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . getSystemStart . sgStartTime $ g
@@ -375,7 +374,15 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters = fromPParams . sgProtocolParams $ g
+        , protocolParameters = W.ProtocolParameters
+            -- TODO: Report live value of decentralization level.
+            -- Related issue:
+            -- https://github.com/input-output-hk/cardano-wallet/issues/1693
+            { decentralizationLevel =
+                minBound
+            , txParameters =
+                fromPParams . sgProtocolParams $ g
+            }
         }
     , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )

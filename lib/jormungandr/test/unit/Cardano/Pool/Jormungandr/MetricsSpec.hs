@@ -50,11 +50,11 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
-    , BlockchainParameters (..)
     , Coin (..)
     , EpochLength (..)
     , EpochNo
     , FeePolicy (..)
+    , GenesisParameters (..)
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
@@ -482,8 +482,8 @@ genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
     genDouble :: Gen Double
     genDouble = choose (0, 1)
 
-genesisParameters :: BlockchainParameters
-genesisParameters = BlockchainParameters
+genesisParameters :: GenesisParameters
+genesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     , getSlotLength = SlotLength 1

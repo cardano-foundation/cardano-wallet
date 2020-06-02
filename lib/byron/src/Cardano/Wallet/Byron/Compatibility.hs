@@ -29,7 +29,7 @@ module Cardano.Wallet.Byron.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
-    , mainnetBlockchainParameters
+    , mainnetNetworkParameters
 
       -- * Genesis
     , emptyGenesis
@@ -165,9 +165,9 @@ type NodeVersionData =
 -- Chain Parameters
 
 
-mainnetBlockchainParameters :: W.GenesisBlockParameters
-mainnetBlockchainParameters = W.GenesisBlockParameters
-    { staticParameters = W.BlockchainParameters
+mainnetNetworkParameters :: W.NetworkParameters
+mainnetNetworkParameters = W.NetworkParameters
+    { genesisParameters = W.GenesisParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
@@ -181,11 +181,15 @@ mainnetBlockchainParameters = W.GenesisBlockParameters
         , getActiveSlotCoefficient =
             W.ActiveSlotCoefficient 1.0
         }
-    , txParameters = W.TxParameters
-        { getFeePolicy =
-            W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-        , getTxMaxSize =
-            Quantity 4096
+    , protocolParameters = W.ProtocolParameters
+        { decentralizationLevel =
+            minBound
+        , txParameters = W.TxParameters
+            { getFeePolicy =
+                W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+            , getTxMaxSize =
+                Quantity 4096
+            }
         }
     }
 
@@ -197,8 +201,8 @@ mainnetBlockchainParameters = W.GenesisBlockParameters
 --
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
-emptyGenesis :: W.BlockchainParameters -> W.Block
-emptyGenesis bp = W.Block
+emptyGenesis :: W.GenesisParameters -> W.Block
+emptyGenesis gp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
@@ -207,7 +211,7 @@ emptyGenesis bp = W.Block
         , blockHeight =
             Quantity 0
         , headerHash =
-            coerce $ W.getGenesisBlockHash bp
+            coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
             W.Hash (BS.replicate 32 0)
         }
@@ -436,10 +440,10 @@ fromNonAvvmBalances (GenesisNonAvvmBalances m) =
     fromTxOut . uncurry TxOut <$> Map.toList m
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
-fromGenesisData :: (GenesisData, GenesisHash) -> (W.GenesisBlockParameters, [W.TxOut])
+fromGenesisData :: (GenesisData, GenesisHash) -> (W.NetworkParameters, [W.TxOut])
 fromGenesisData (genesisData, genesisHash) =
-    ( W.GenesisBlockParameters
-        { staticParameters = W.BlockchainParameters
+    ( W.NetworkParameters
+        { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash =
                 W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
             , getGenesisBlockDate =
@@ -453,7 +457,12 @@ fromGenesisData (genesisData, genesisHash) =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , txParameters = txParametersFromPP . gdProtocolParameters $ genesisData
+        , protocolParameters = W.ProtocolParameters
+            { decentralizationLevel =
+                minBound
+            , txParameters =
+                txParametersFromPP . gdProtocolParameters $ genesisData
+            }
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )
