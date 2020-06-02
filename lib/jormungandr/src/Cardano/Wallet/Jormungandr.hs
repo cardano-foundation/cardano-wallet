@@ -218,9 +218,9 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
   where
     serveApp socket = withNetworkLayer networkTracer backend $ \case
         Left e -> handleNetworkStartupError e
-        Right (cp, (block0, gbp), nl) -> do
+        Right (cp, (block0, np), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let bp = genesisParameters gbp
+            let bp = genesisParameters np
             let byronTl = newTransactionLayer (getGenesisBlockHash bp)
             let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
             let jormungandrTl = newTransactionLayer (getGenesisBlockHash bp)
@@ -231,10 +231,10 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
                     poolApi <- stakePoolLayer (block0, bp) nl db md
-                    byronApi   <- apiLayer (block0, gbp) byronTl nl
-                    icarusApi  <- apiLayer (block0, gbp) icarusTl nl
-                    jormungandrApi <- apiLayer (block0, gbp) jormungandrTl nl
-                    startServer socket nPort gbp
+                    byronApi <- apiLayer (block0, np) byronTl nl
+                    icarusApi <- apiLayer (block0, np) icarusTl nl
+                    jormungandrApi <- apiLayer (block0, np) jormungandrTl nl
+                    startServer socket nPort np
                         byronApi
                         icarusApi
                         jormungandrApi
@@ -274,13 +274,15 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> TransactionLayer t k
         -> NetworkLayer IO t J.Block
         -> IO (ApiLayer s t k)
-    apiLayer (block0, gbp) tl nl = do
+    apiLayer (block0, np) tl nl = do
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient $ genesisParameters gbp)
+            (DefaultFieldValues
+                $ getActiveSlotCoefficient
+                $ genesisParameters np)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer (toWLBlock block0, gbp, sTolerance) nl' tl db
+            walletEngineTracer (toWLBlock block0, np, sTolerance) nl' tl db
       where
         nl' = toWLBlock <$> nl
 

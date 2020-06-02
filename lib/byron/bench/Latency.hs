@@ -429,7 +429,7 @@ benchWithServer
     -> IO ()
 benchWithServer tracers action = do
     ctx <- newEmptyMVar
-    let setupContext gbp wAddr = do
+    let setupContext np wAddr = do
             let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
             let sixtySeconds = 60*1000*1000 -- 60s in microseconds
             manager <- (baseUrl,) <$> newManager (defaultManagerSettings
@@ -443,7 +443,7 @@ benchWithServer tracers action = do
                 , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
-                , _networkParameters = gbp
+                , _networkParameters = np
                 , _target = Proxy
                 }
     race (takeMVar ctx >>= action) (withServer setupContext) >>=

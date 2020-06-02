@@ -1393,7 +1393,7 @@ getNetworkInformation
     => (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
-getNetworkInformation (_block0, gbp, st) nl = do
+getNetworkInformation (_block0, np, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <- liftHandler (NW.currentNodeTip nl)
     let ntrkTip = fromMaybe slotMinBound (slotAt sp now)
@@ -1419,7 +1419,7 @@ getNetworkInformation (_block0, gbp, st) nl = do
                 }
         }
   where
-    sp = W.slotParams (gbp ^. #genesisParameters)
+    sp = W.slotParams (np ^. #genesisParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
@@ -1430,8 +1430,8 @@ getNetworkInformation (_block0, gbp, st) nl = do
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, gbp, _st) =
-    pure $ toApiNetworkParameters gbp
+getNetworkParameters (_block0, np, _st) =
+    pure $ toApiNetworkParameters np
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client

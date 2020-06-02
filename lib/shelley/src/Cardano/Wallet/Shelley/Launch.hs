@@ -142,18 +142,19 @@ someTestnetDiscriminant pm@(ProtocolMagic n) =
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
+    -> ExceptT String IO
+        (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     TestnetConfig genesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
             <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
         let nm = unNetworkMagic $ sgNetworkMagic genesis
-        let (discriminant, vData) = someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
-
-        let (gbp, block0) = fromGenesisData genesis
+        let (discriminant, vData) =
+                someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
+        let (np, block0) = fromGenesisData genesis
         pure
             ( discriminant
-            , gbp
+            , np
             , vData
             , block0
             )
@@ -185,12 +186,12 @@ withCardanoNode
     -- ^ Callback function with a socket description and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
-    orThrow $ withConfig tdir severity $ \cfg block0 (gbp, vData) -> do
+    orThrow $ withConfig tdir severity $ \cfg block0 (np, vData) -> do
         nodePort <- getRandomPort
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
         withBackendProcess (trMessageText tr) cmd $ do
-            action (nodeSocketFile cfg) block0 (gbp, vData)
+            action (nodeSocketFile cfg) block0 (np, vData)
   where
     orThrow = (=<<) (either throwIO pure)
     mkArgs cfg port =
@@ -276,7 +277,7 @@ withConfig tdir severity action =
         (genesisData :: ShelleyGenesis TPraosStandardCrypto)
             <- either (error . show) id . eitherDecode <$> BL.readFile nodeGenesisFile
 
-        let (gbp, block0) = fromGenesisData genesisData
+        let (np, block0) = fromGenesisData genesisData
 
         let nm = sgNetworkMagic genesisData
 
@@ -292,7 +293,7 @@ withConfig tdir severity action =
                 , nodeOpCert
                 }
             , block0
-            , ( gbp
+            , ( np
               , ( NodeToClientVersionData nm
                 , nodeToClientCodecCBORTerm
                 )

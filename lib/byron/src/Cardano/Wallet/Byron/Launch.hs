@@ -163,7 +163,8 @@ someTestnetDiscriminant pm@(ProtocolMagic n) =
 
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
+    -> ExceptT String IO
+        (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     MainnetConfig (discriminant, vData) -> pure
         ( discriminant
@@ -180,12 +181,12 @@ parseGenesisData = \case
                 & fromProtocolMagicId
                 & someTestnetDiscriminant
 
-        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
+        let (np, outs) = fromGenesisData (genesisData, genesisHash)
         pure
             ( discriminant
-            , gbp
+            , np
             , vData
-            , genesisBlockFromTxOuts (genesisParameters gbp) outs
+            , genesisBlockFromTxOuts (genesisParameters np) outs
             )
 
 --------------------------------------------------------------------------------
@@ -215,12 +216,12 @@ withCardanoNode
     -- ^ Callback function with a socket filename and genesis params
     -> IO a
 withCardanoNode tr tdir severity action =
-    orThrow $ withConfig tdir severity $ \cfg block0 (gbp, vData) -> do
+    orThrow $ withConfig tdir severity $ \cfg block0 (np, vData) -> do
         nodePort <- getRandomPort
         let args = mkArgs cfg nodePort
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
         withBackendProcess (trMessageText tr) cmd $ do
-            action (nodeSocketFile cfg) block0 (gbp, vData)
+            action (nodeSocketFile cfg) block0 (np, vData)
   where
     orThrow = (=<<) (either throwIO pure)
     mkArgs cfg port =
@@ -304,9 +305,9 @@ withConfig tdir minSeverity action =
 
         (genesisData, genesisHash) <- unsafeRunExceptT $
             readGenesisData nodeGenesisFile
-        let (gbp, outs) = fromGenesisData (genesisData, genesisHash)
-
-        let networkMagic = NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
+        let (np, outs) = fromGenesisData (genesisData, genesisHash)
+        let networkMagic =
+                NetworkMagic $ unProtocolMagicId $ gdProtocolMagicId genesisData
 
         pure
             ( dir
@@ -318,8 +319,8 @@ withConfig tdir minSeverity action =
                 , nodeSocketFile
                 , nodeTopologyFile
                 }
-            , genesisBlockFromTxOuts (genesisParameters gbp) outs
-            , ( gbp
+            , genesisBlockFromTxOuts (genesisParameters np) outs
+            , ( np
               , ( NodeToClientVersionData { networkMagic }
                 , nodeToClientCodecCBORTerm
                 )

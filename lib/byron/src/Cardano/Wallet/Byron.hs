@@ -211,7 +211,7 @@ serveWallet
   tlsConfig
   socketPath
   block0
-  (gbp, vData)
+  (np, vData)
   beforeMainLoop = do
     let ntwrk = networkDiscriminantValFromProxy proxy
     traceWith applicationTracer $ MsgStarting socketPath
@@ -221,7 +221,7 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer gbp socketPath vData $ \nl -> do
+        withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 randomApi  <- apiLayer (newTransactionLayer proxy pm) nl
@@ -269,7 +269,7 @@ serveWallet
         -> NetworkLayer IO t ByronBlock
         -> IO (ApiLayer s t k)
     apiLayer tl nl = do
-        let params = (block0, gbp, sTolerance)
+        let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues $ getActiveSlotCoefficient bp)
@@ -279,7 +279,7 @@ serveWallet
         bp@GenesisParameters
             { getGenesisBlockHash
             , getEpochLength
-            } = genesisParameters gbp
+            } = genesisParameters np
         nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)

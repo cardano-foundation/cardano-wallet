@@ -148,7 +148,7 @@ specWithServer tr = aroundAll withContext . after tearDown
     withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext gbp wAddr = do
+        let setupContext np wAddr = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -165,8 +165,8 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _feeEstimator = mkFeeEstimator
                         $ getFeePolicy
                         $ txParameters
-                        $ protocolParameters gbp
-                    , _networkParameters = gbp
+                        $ protocolParameters np
+                    , _networkParameters = np
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=

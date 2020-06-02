@@ -597,16 +597,16 @@ setupFixture (wid, wname, wstate) = do
     let nl = dummyNetworkLayer
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer
-    let wl = WalletLayer nullTracer (block0, gbp, st) nl tl db
+    let wl = WalletLayer nullTracer (block0, np, st) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal slotIdTime
   where
-    slotNo = flatSlot $ getEpochLength $ genesisParameters gbp
+    slotNo = flatSlot $ getEpochLength $ genesisParameters np
     slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
-    gbp = dummyNetworkParameters
+    np = dummyNetworkParameters
     st = SyncTolerance 10
 
 -- | A dummy transaction layer to see the effect of a root private key. It

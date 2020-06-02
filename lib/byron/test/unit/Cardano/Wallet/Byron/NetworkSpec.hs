@@ -50,27 +50,27 @@ import Test.Utils.Trace
 spec :: Spec
 spec = describe "getTxParameters" $ do
     it "Correct values are queried" $ do
-        withTestNode $ \gbp sock vData -> withLogging $ \(tr, getLogs) -> do
+        withTestNode $ \np sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
-            let gbp' = gbp &
+            let np' = np &
                     (#protocolParameters . #txParameters) `set` zeroTxParameters
-            withNetworkLayer tr gbp' sock vData $ \nl -> do
+            withNetworkLayer tr np' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
                 -- the genesis block configuration.
                 let retryPolicy = constantDelay 1_000_000 <> limitRetries 10
                 recoverAll retryPolicy $ const $
                     getTxParameters nl `shouldReturn`
-                        txParameters (protocolParameters gbp)
+                        txParameters (protocolParameters np)
             -- Parameters update should be logged exactly once.
             msg <- mapMaybe isMsgTxParams <$> getLogs
-            msg `shouldBe` [txParameters (protocolParameters gbp)]
+            msg `shouldBe` [txParameters (protocolParameters np)]
 
 withTestNode
     :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
 withTestNode action = withCardanoNode nullTracer $(getTestData) Error $
-    \sock _block0 (gbp, vData) -> action gbp sock vData
+    \sock _block0 (np, vData) -> action np sock vData
 
 isMsgTxParams :: NetworkLayerLog -> Maybe TxParameters
 isMsgTxParams (MsgTxParameters txp) = Just txp

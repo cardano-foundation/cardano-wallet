@@ -276,8 +276,8 @@ newNetworkLayer tr baseUrl block0H = do
     let tr' = contramap MsgWaitForService tr
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
-    (block0, gbp) <- getInitialBlockchainParameters jor (coerce block0H)
-    return ((block0, gbp), mkRawNetworkLayer gbp 1000 st jor)
+    (block0, np) <- getInitialBlockchainParameters jor (coerce block0H)
+    return ((block0, np), mkRawNetworkLayer np 1000 st jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -295,7 +295,7 @@ mkRawNetworkLayer
     -> MVar BlockHeaders
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer gbp batchSize st j = NetworkLayer
+mkRawNetworkLayer np batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
@@ -330,10 +330,10 @@ mkRawNetworkLayer gbp batchSize st j = NetworkLayer
     -- @k@ but in practice with Jörmungandr, nodes can make jumps longer than
     -- that.
     k :: Quantity "block" Word32
-    k = (max 100) <$> getEpochStability (genesisParameters gbp)
+    k = (max 100) <$> getEpochStability (genesisParameters np)
 
     genesis :: Hash "Genesis"
-    genesis = getGenesisBlockHash $ genesisParameters gbp
+    genesis = getGenesisBlockHash $ genesisParameters np
 
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do
@@ -344,7 +344,7 @@ mkRawNetworkLayer gbp batchSize st j = NetworkLayer
             Nothing -> Left ErrCurrentNodeTipNotFound
 
     _getTxParameters :: m TxParameters
-    _getTxParameters = pure $ txParameters $ protocolParameters gbp
+    _getTxParameters = pure $ txParameters $ protocolParameters np
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =

@@ -204,7 +204,7 @@ withNetworkLayer
     -> (NetworkLayer IO (IO Shelley) ShelleyBlock -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr gbp addrInfo versionData action = do
+withNetworkLayer tr np addrInfo versionData action = do
     localTxSubmissionQ <- atomically newTQueue
 
     -- NOTE: We keep a client connection running for accessing the node tip,
@@ -214,8 +214,8 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     txParamsVar <- atomically $ newTVar $
-        W.txParameters $ W.protocolParameters gbp
-    nodeTipClient <- mkTipSyncClient tr gbp
+        W.txParameters $ W.protocolParameters np
+    nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar txParamsVar)
@@ -238,7 +238,7 @@ withNetworkLayer tr gbp addrInfo versionData action = do
     bp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
-        } = W.genesisParameters gbp
+        } = W.genesisParameters np
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
@@ -369,7 +369,7 @@ mkTipSyncClient
     -> (W.TxParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     (onTxParamsUpdate' :: W.TxParameters -> m ()) <- debounce $ \txParams -> do
@@ -391,7 +391,7 @@ mkTipSyncClient tr gbp localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         W.GenesisParameters
              { getGenesisBlockHash
              , getEpochLength
-             } = W.genesisParameters gbp
+             } = W.genesisParameters np
 
     onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
         let tip = castTip tip'

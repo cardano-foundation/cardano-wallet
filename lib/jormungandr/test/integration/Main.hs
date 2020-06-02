@@ -184,7 +184,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
   where
     withContext action = do
         ctx <- newEmptyMVar
-        let setupContext wAddr nPort gbp = do
+        let setupContext wAddr nPort np = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
@@ -194,7 +194,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     })
                 let feePolicy = getFeePolicy
                         $ txParameters
-                        $ protocolParameters gbp
+                        $ protocolParameters np
                 faucet <- initFaucet feePolicy
                 putMVar ctx (nPort, feePolicy, Context
                     { _cleanup = pure ()
@@ -202,7 +202,7 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = mkFeeEstimator feePolicy
-                    , _networkParameters = gbp
+                    , _networkParameters = np
                     , _target = Proxy
                     })
         race

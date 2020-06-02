@@ -211,7 +211,7 @@ exec c = do
     (_logCfg, tr) <- initBenchmarkLogging Info
     installSignalHandlers (return ())
 
-    (SomeNetworkDiscriminant networkProxy, gbp, vData, _b)
+    (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
     ----------------------------------------------------------------------------
@@ -250,14 +250,14 @@ exec c = do
     sayErr $ pretty cmd
 
     void $ withBackendProcess nullTracer cmd $ do
-            prepareNode networkProxy socketPath gbp vData
+            prepareNode networkProxy socketPath np vData
             runBenchmarks
                 [ bench ("restore " <> network <> " seq")
                     (bench_restoration @_ @ByronKey
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "seq.timelog"
                         (walletRnd))
@@ -267,7 +267,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "1-percent.timelog"
                         (initAnyState "Benchmark 1% Wallet" 0.01))
@@ -277,7 +277,7 @@ exec c = do
                         networkProxy
                         tr
                         socketPath
-                        gbp
+                        np
                         vData
                         "2-percent.timelog"
                         (initAnyState "Benchmark 2% Wallet" 0.02))
@@ -361,12 +361,12 @@ bench_restoration
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname, s) = do
+bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
-    withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = genesisParameters gbp
+    withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
+        let bp = genesisParameters np
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer $ \db -> do
@@ -381,7 +381,7 @@ bench_restoration _proxy tracer socketPath gbp vData progressLogFile (wid, wname
                         hFlush h
                 let w = WalletLayer
                         (traceProgressForPlotting fileTr)
-                        (emptyGenesis bp, gbp, mkSyncTolerance 3600)
+                        (emptyGenesis bp, np, mkSyncTolerance 3600)
                         nw
                         tl
                         db
@@ -441,10 +441,10 @@ prepareNode
     -> NetworkParameters
     -> NodeVersionData
     -> IO ()
-prepareNode _ socketPath gbp vData = do
+prepareNode _ socketPath np vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
-    sl <- withNetworkLayer nullTracer gbp socketPath vData $ \nw' -> do
-        let bp = genesisParameters gbp
+    sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
+        let bp = genesisParameters np
         let convert = fromByronBlock (getGenesisBlockHash bp) (getEpochLength bp)
         let nw = convert <$> nw'
         waitForNodeSync nw logQuiet bp
