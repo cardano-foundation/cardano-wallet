@@ -110,6 +110,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
@@ -117,6 +118,10 @@ import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
+import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Shelley where
@@ -134,8 +139,13 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             Addresses.spec @n
             Transactions.spec @n
             Wallets.spec @n
+            HWWallets.spec @n
             Network.spec
         describe "CLI Specifications" $ specWithServer tr $ do
+            AddressesCLI.spec @n
+            TransactionsCLI.spec @n
+            WalletsCLI.spec @n
+            HWWalletsCLI.spec @n
             PortCLI.spec @t
             NetworkCLI.spec @t
 

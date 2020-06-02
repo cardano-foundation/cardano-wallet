@@ -49,6 +49,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , restoreWalletFromPubKey
     , emptyRandomWallet
     , emptyRandomWalletMws
     , emptyRandomWalletWithPasswd
@@ -198,6 +199,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotParameters (..)
     , SortOrder (..)
+    , SyncProgress (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -607,6 +609,23 @@ eventuallyUsingDelay delay desc io = do
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
+
+-- | Restore HW Wallet from pub key
+restoreWalletFromPubKey :: Context t -> Text -> Text -> IO ApiWallet
+restoreWalletFromPubKey ctx pubKey name = do
+    let payloadRestore = Json [aesonQQ| {
+            "name": #{name},
+            "account_public_key": #{pubKey}
+        }|]
+    r <- request @ApiWallet ctx (Link.postWallet @'Shelley)
+           Default payloadRestore
+    expectResponseCode @IO HTTP.status201 r
+    let wid = getFromResponse id r
+    eventually "restoreWalletFromPubKey: wallet is 100% synced " $ do
+        rg <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley wid) Default Empty
+        expectField (#state . #getApiT) (`shouldBe` Ready) rg
+    return wid
 
 -- | Create an empty wallet
 emptyRandomWallet :: Context t -> IO ApiByronWallet
@@ -1180,8 +1199,6 @@ shelleyAddresses mw =
         [ paymentAddress @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
         ]
-
-
 
 listAddresses
     :: forall n t. (DecodeAddress n)

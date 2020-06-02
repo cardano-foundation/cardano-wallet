@@ -67,14 +67,17 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , fixtureWallet
     , fixtureWalletWith
+    , fixtureWalletWithMnemonics
     , getFromResponse
     , getSlotParams
     , joinStakePool
     , json
     , mkEpochInfo
     , notDelegating
+    , pubKeyFromMnemonics
     , quitStakePool
     , request
+    , restoreWalletFromPubKey
     , unsafeRequest
     , verify
     , waitAllTxsInLedger
@@ -85,6 +88,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
+    , errMsg403NoRootKey
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
@@ -104,6 +108,62 @@ spec :: forall n t.
     , EncodeAddress n
     ) => SpecWith (Port "node", FeePolicy, Context t)
 spec = do
+    describe "HW_WALLETS_02,03 - Delegation with restored HW Wallets" $ do
+        it "HW_WALLETS_03 - Cannot join SP" $ \(_,_,ctx) -> do
+            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            let pubKey = pubKeyFromMnemonics mnemonics
+            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode @IO HTTP.status204 r
+
+            wk <- restoreWalletFromPubKey ctx pubKey "Wallet from pubkey"
+            -- cannot join stake pool
+            (_, p:_) <- eventually "Stake pools are listed" $
+                unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+            rJoin <- joinStakePool @n ctx (p ^. #id) (wk, fixturePassphrase)
+            expectResponseCode @IO HTTP.status403 rJoin
+            expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
+
+        it "HW_WALLETS_02 - Restoration from account public key preserves delegation\
+            \ but I cannot quit" $ \(_,_,ctx) -> do
+            -- create wallet and get acc pub key from mnemonics
+            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            let accPub = pubKeyFromMnemonics mnemonics
+
+            --make sure you are at the beginning of the epoch
+            waitForNextEpoch ctx
+            (currentEpoch, sp) <- getSlotParams ctx
+
+            -- join stake pool
+            (_, p:_) <- eventually "Stake pools are listed" $
+                unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
+            r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
+            expectResponseCode @IO HTTP.status202 r
+            waitAllTxsInLedger @n ctx w
+            let expectedDelegation =
+                    [ expectField #delegation
+                        (`shouldBe` notDelegating
+                            [ (Just (p ^. #id), mkEpochInfo (currentEpoch + 2) sp)
+                            ]
+                        )
+                    ]
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                expectedDelegation
+
+            -- delete wallet
+            rDel <-
+                request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode @IO HTTP.status204 rDel
+
+            -- restore from pub key and make sure delegation preserved
+            wRestored <- restoreWalletFromPubKey ctx accPub "Wallet from pubkey"
+            request @ApiWallet ctx (Link.getWallet @'Shelley wRestored) Default Empty >>= flip verify
+                expectedDelegation
+
+            -- cannot quit stake pool
+            rQuit <- quitStakePool @n ctx (wRestored, fixturePassphrase)
+            expectResponseCode @IO HTTP.status403 rQuit
+            expectErrorMessage (errMsg403NoRootKey $ wRestored ^. walletId) rQuit
+
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> do
         eventually "Listing stake pools shows expected information" $ do
             r <- request @[ApiStakePool] ctx Link.listStakePools Default Empty

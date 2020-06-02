@@ -1064,13 +1064,15 @@ spec = do
           , (Just validTime1, Just validTime2)
           ]
 
-      longAddr = replicate 10000 '1'
       encodeErr = "Unable to decode Address:"
       parseErr = "Parse error. Expecting format \"<amount>@<address>\""
       matrixInvalidAddrs =
-          [ ( "long hex", longAddr, encodeErr )
-          , ( "short hex", "1", encodeErr )
-          , ( "-1000", "-1000", encodeErr )
+-- TODO: For the haskell node, hex is valid. For jormungandr it is not.
+--  longAddr = replicate 10000 '1'
+--  We should optimally find a way to test this.
+--          [ ( "long hex", longAddr, encodeErr )
+--          , ( "short hex", "1", encodeErr )
+          [ ( "-1000", "-1000", encodeErr )
           , ( "q", "q", encodeErr )
           , ( "empty", "", encodeErr )
           , ( "wildcards", T.unpack wildcardsWalletName, parseErr )
