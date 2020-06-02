@@ -708,12 +708,12 @@ metadataFromEntity walDelegation wal = W.WalletMetadata
         -- to have a wallet with a scheme but no last update. Either they should
         -- have both, or they should have none.
         --
-        -- | Creation Method               | Scheme | Last Update |
-        -- | ---                           | ---    | ---         |
-        -- | Byron, from mnemonic          | ✓      | ✓           |
-        -- | Byron, from xprv              | ✓      | ✓           |
-        -- | Shelley, from mnemonic        | ✓      | ✓           |
-        -- | Shelley, from account pub key | ø      | ø           |
+        --     Creation Method               | Scheme | Last Update
+        --     ---                           | ---    | ---
+        --     Byron, from mnemonic          | ✓      | ✓
+        --     Byron, from xprv              | ✓      | ✓
+        --     Shelley, from mnemonic        | ✓      | ✓
+        --     Shelley, from account pub key | ø      | ø
         case (walPassphraseLastUpdatedAt wal, walPassphraseScheme wal) of
             (Nothing, _) ->
                 Nothing
