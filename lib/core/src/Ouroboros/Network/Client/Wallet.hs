@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -65,6 +66,7 @@ import Data.Maybe
     ( isNothing )
 import Data.Void
     ( Void )
+import Debug.Trace
 import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
@@ -413,8 +415,8 @@ chainSyncWithBlocks fromTip queue responseBuffer =
 -- LocalStateQuery
 
 -- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd block state (m :: * -> *)
-    = CmdQueryLocalState
+data LocalStateQueryCmd block (m :: * -> *)
+    = forall state. CmdQueryLocalState
         (Point block)
         (Query block state)
         (LocalStateQueryResult state -> m ())
@@ -449,8 +451,8 @@ type LocalStateQueryResult state = Either AcquireFailure state
 --                └───────────────┘             └────────────────┘
 --
 localStateQuery
-    :: forall m block state. (MonadThrow m, MonadSTM m)
-    => TQueue m (LocalStateQueryCmd block state m)
+    :: forall m block . (MonadThrow m, MonadSTM m)
+    => TQueue m (LocalStateQueryCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
@@ -461,15 +463,15 @@ localStateQuery queue =
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Query block) m Void)
-    clientStIdle = awaitNextCmd <&> \case
+    clientStIdle = trace "idle" $ awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
             LSQ.SendMsgAcquire pt (clientStAcquiring query respond)
 
     clientStAcquiring
-        :: Query block state
+        :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
         -> LSQ.ClientStAcquiring block (Query block) m Void
-    clientStAcquiring query respond = LSQ.ClientStAcquiring
+    clientStAcquiring query respond = trace "acquiring" $ LSQ.ClientStAcquiring
         { recvMsgAcquired = clientStAcquired query respond
         , recvMsgFailure = \failure -> do
                 respond (Left failure)
@@ -477,10 +479,10 @@ localStateQuery queue =
         }
 
     clientStAcquired
-        :: Query block state
+        :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
         -> LSQ.ClientStAcquired block (Query block) m Void
-    clientStAcquired query respond =
+    clientStAcquired query respond = trace "aquired"
         LSQ.SendMsgQuery query (clientStQuerying respond)
 
     -- By re-acquiring rather releasing the state with 'MsgRelease' it
@@ -492,7 +494,7 @@ localStateQuery queue =
             LSQ.SendMsgReAcquire pt (clientStAcquiring query respond)
 
     clientStQuerying
-        :: (LocalStateQueryResult state -> m ())
+        :: forall state. (LocalStateQueryResult state -> m ())
         -> LSQ.ClientStQuerying block (Query block) m Void state
     clientStQuerying respond = LSQ.ClientStQuerying
         { recvMsgResult = \result -> do
@@ -500,7 +502,7 @@ localStateQuery queue =
             clientStAcquiredAgain
         }
 
-    awaitNextCmd :: m (LocalStateQueryCmd block state m)
+    awaitNextCmd :: m (LocalStateQueryCmd block m)
     awaitNextCmd = atomically $ readTQueue queue
 
 --------------------------------------------------------------------------------
