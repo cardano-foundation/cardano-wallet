@@ -41,6 +41,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toSlotNo
 
+      -- ** Stake pools
+    , fromPoolId
+
+
     , fromBlockNo
     , fromShelleyBlock
     , fromShelleyHash
@@ -149,6 +153,7 @@ import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
+import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
@@ -478,6 +483,13 @@ fromGenesisData g =
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
+
+--
+-- Stake pools
+--
+
+fromPoolId :: SL.KeyHash 'SL.StakePool crypto -> W.PoolId
+fromPoolId (SL.KeyHash x) = W.PoolId $ getHash x
 
 --
 -- Txs

@@ -149,6 +149,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiJormungandrStakePool (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)

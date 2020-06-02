@@ -45,6 +45,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , TPraosStandardCrypto
     , fromChainHash
     , fromPParams
+    , fromPoolId
     , fromSlotNo
     , fromTip
     , toGenTx
@@ -94,6 +95,8 @@ import Data.Function
     ( (&) )
 import Data.List
     ( isInfixOf )
+import Data.Map
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -102,6 +105,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Void
     ( Void )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Stack
@@ -178,9 +183,11 @@ import System.IO.Error
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Shelley.Spec.Ledger.Delegation.Certificates as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -215,10 +222,12 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
+    stakeDistrVar <- atomically $ newTVar Nothing
     nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar protocolParamsVar)
+        (atomically . writeTVar stakeDistrVar . Just)
     let handlers = retryOnConnectionLost tr
     link =<< async
         (connectClient tr handlers nodeTipClient versionData addrInfo)
@@ -231,7 +240,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
-            , stakeDistribution = _stakeDistribution
+            , stakeDistribution = _stakeDistribution stakeDistrVar
             , getAccountBalance = _getAccountBalance
             }
   where
@@ -272,6 +281,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance _ =
+        -- TODO: Implement as part of ADP-302.
         pure (Quantity 0)
 
     _currentNodeTip nodeTipVar =
@@ -285,8 +295,28 @@ withNetworkLayer tr np addrInfo versionData action = do
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-    _stakeDistribution =
-        notImplemented "stakeDistribution"
+    _stakeDistribution var _epoch = do
+        res <- liftIO $ atomically $ readTVar var
+        case res of
+            Just x -> return $ fromPoolDistr x
+            Nothing -> throwE $
+                -- We should stop trying to conflate cardano-node with
+                -- jormungandr, such that we can have type signatures that
+                -- actually mean something...
+                error "todo: handle error. Wallet hasn't queried the node yet."
+
+    fromPoolDistr
+        :: SL.PoolDistr TPraosStandardCrypto
+        -> Map W.PoolId (Quantity "lovelace" Word64)
+    fromPoolDistr =
+        -- NOTE: We have to round here...
+        Map.map (Quantity . round . (* totalStake) . fst)
+        . Map.mapKeys fromPoolId
+        . SL.unPoolDistr
+      where
+        -- TODO: How can we get the total stake?
+        -- Multiplying by 1e6 for now.
+        totalStake = 1000000
 
 --------------------------------------------------------------------------------
 --
@@ -374,8 +404,10 @@ mkTipSyncClient
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
+    -> (SL.PoolDistr TPraosStandardCrypto -> m ())
+        -- ^ Notifier callback for when the stake distribution changes.
     -> m (NetworkClient m)
-mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onStakeDistr = do
     localStateQueryQ <- atomically newTQueue
 
     (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
@@ -392,6 +424,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
+            distr <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetStakeDistribution
+            handleStakeDistr distr
 
         handleLocalState
             :: HasCallStack
@@ -402,6 +436,12 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right ls ->
                 onPParamsUpdate' $ fromPParams ls
+
+        handleStakeDistr = \case
+            Left (e :: AcquireFailure) ->
+                traceWith tr $ MsgLocalStateQueryError $ show e
+            Right ls -> do
+                onStakeDistr ls
 
         W.GenesisParameters
              { getGenesisBlockHash
@@ -556,13 +596,6 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-
---------------------------------------------------------------------------------
---
--- Temporary
-
-notImplemented :: HasCallStack => String -> a
-notImplemented what = error ("Not implemented: " <> what)
 
 {-------------------------------------------------------------------------------
                                     Logging

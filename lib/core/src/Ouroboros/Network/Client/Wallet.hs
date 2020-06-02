@@ -66,7 +66,6 @@ import Data.Maybe
     ( isNothing )
 import Data.Void
     ( Void )
-import Debug.Trace
 import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
@@ -463,7 +462,7 @@ localStateQuery queue =
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Query block) m Void)
-    clientStIdle = trace "idle" $ awaitNextCmd <&> \case
+    clientStIdle = awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
             LSQ.SendMsgAcquire pt (clientStAcquiring query respond)
 
@@ -471,7 +470,7 @@ localStateQuery queue =
         :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
         -> LSQ.ClientStAcquiring block (Query block) m Void
-    clientStAcquiring query respond = trace "acquiring" $ LSQ.ClientStAcquiring
+    clientStAcquiring query respond = LSQ.ClientStAcquiring
         { recvMsgAcquired = clientStAcquired query respond
         , recvMsgFailure = \failure -> do
                 respond (Left failure)
@@ -482,7 +481,7 @@ localStateQuery queue =
         :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
         -> LSQ.ClientStAcquired block (Query block) m Void
-    clientStAcquired query respond = trace "aquired"
+    clientStAcquired query respond =
         LSQ.SendMsgQuery query (clientStQuerying respond)
 
     -- By re-acquiring rather releasing the state with 'MsgRelease' it

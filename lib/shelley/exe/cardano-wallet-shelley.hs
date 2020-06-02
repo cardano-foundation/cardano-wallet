@@ -6,6 +6,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -36,6 +37,7 @@ import Cardano.CLI
     , cmdKey
     , cmdMnemonic
     , cmdNetwork
+    , cmdStakePool
     , cmdTransaction
     , cmdVersion
     , cmdWallet
@@ -63,7 +65,12 @@ import Cardano.Startup
     , withUtf8Encoding
     )
 import Cardano.Wallet.Api.Client
-    ( addressClient, networkClient, transactionClient, walletClient )
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration )
 import Cardano.Wallet.Logging
@@ -85,6 +92,8 @@ import Cardano.Wallet.Shelley.Launch
     , nodeSocketOption
     , parseGenesisData
     )
+import Cardano.Wallet.Shelley.Pools
+    ( ApiStakePool )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -137,6 +146,7 @@ main = withUtf8Encoding $ do
         <> cmdAddress addressClient
         <> cmdTransaction transactionClient walletClient
         <> cmdNetwork networkClient
+        <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdVersion
 
 beforeMainLoop

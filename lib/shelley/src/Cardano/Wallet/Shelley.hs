@@ -57,7 +57,7 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2 )
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
@@ -102,7 +102,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Registry
     ( WorkerLog (..) )
 import Cardano.Wallet.Shelley.Api.Server
-    ( server )
+    ( ApiV2, server )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, ShelleyBlock, fromNetworkMagic, fromShelleyBlock )
 import Cardano.Wallet.Shelley.Network
@@ -226,7 +226,14 @@ serveWallet
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                startServer proxy socket randomApi icarusApi shelleyApi ntpClient
+                startServer
+                    proxy
+                    socket
+                    randomApi
+                    icarusApi
+                    shelleyApi
+                    nl
+                    ntpClient
                 pure ExitSuccess
 
     networkDiscriminantValFromProxy
@@ -237,7 +244,7 @@ serveWallet
         networkDiscriminantVal @n
 
     startServer
-        :: forall n.
+        :: forall n b.
             ( PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
             , DelegationAddress n ShelleyKey
@@ -249,14 +256,15 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        -> NetworkLayer IO (IO Shelley) b
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley ntp = do
+    startServer _proxy socket byron icarus shelley nl ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                server byron icarus shelley ntp
+                server byron icarus shelley nl ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer

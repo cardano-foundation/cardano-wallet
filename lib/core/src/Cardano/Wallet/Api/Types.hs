@@ -114,6 +114,9 @@ module Cardano.Wallet.Api.Types
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , ApiWalletMigrationPostDataT
+
+    -- * Utilities
+    , defaultRecordTypeOptions
     ) where
 
 import Prelude
@@ -1296,12 +1299,10 @@ instance
     toJSON = toJSON . fromEnum . getApiT
 
 instance FromJSON ApiWalletDiscovery where
-    parseJSON = genericParseJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance ToJSON ApiWalletDiscovery where
-    toJSON = genericToJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 {-------------------------------------------------------------------------------
                              FromText/ToText instances

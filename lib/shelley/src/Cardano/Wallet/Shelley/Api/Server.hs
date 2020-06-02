@@ -16,6 +16,7 @@
 
 module Cardano.Wallet.Shelley.Api.Server
     ( server
+    , ApiV2
     ) where
 
 import Prelude
@@ -30,9 +31,9 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Api
     ( Addresses
-    , Api
     , ApiLayer (..)
     , ByronAddresses
+    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -81,9 +82,11 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiJormungandrStakePool, ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiT (..), SomeByronWalletPostData (..) )
+import Cardano.Wallet.Network
+    ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..) )
+    ( DelegationAddress (..), NetworkDiscriminant, PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -94,6 +97,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Shelley.Pools
+    ( ApiStakePool, listPools )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
@@ -111,11 +116,27 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server, err501, throwError )
+    ( (:<|>) (..), (:>), Server, err501, throwError )
 
--- | A diminished servant server to serve Byron wallets only.
+type ApiV2 n = "v2" :> Api n
+
+type Api (n :: NetworkDiscriminant ) =
+         Wallets
+    :<|> Addresses n
+    :<|> CoinSelections n
+    :<|> Transactions n
+    :<|> ShelleyMigrations n
+    :<|> StakePools n ApiStakePool
+    :<|> ByronWallets
+    :<|> ByronAddresses n
+    :<|> ByronCoinSelections n
+    :<|> ByronTransactions n
+    :<|> ByronMigrations n
+    :<|> Network
+    :<|> Proxy_
+
 server
-    :: forall t n.
+    :: forall t n b.
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
@@ -124,9 +145,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    -> NetworkLayer IO t b
     -> NtpClient
     -> Server (Api n)
-server byron icarus shelley ntp =
+server byron icarus shelley nw ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -168,9 +190,9 @@ server byron icarus shelley ntp =
              getMigrationInfo shelley
         :<|> migrateWallet shelley
 
-    stakePools :: Server (StakePools n ApiJormungandrStakePool)
+    stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             throwError err501
+             listPools nw
         :<|> (\_ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)
