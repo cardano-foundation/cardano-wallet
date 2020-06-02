@@ -140,6 +140,8 @@ import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word32, Word64 )
+import Database.Persist.Class
+    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -168,7 +170,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import Database.Persist.Types
-    ( PersistValue (PersistText) )
+    ( PersistValue (PersistText), fromPersistValueText )
 import Fmt
     ( pretty )
 import System.Directory
@@ -313,15 +315,48 @@ migrateManually
     -> ManualMigration
 migrateManually tr defaultFieldValues =
     ManualMigration $ \conn -> do
+        assignDefaultPassphraseScheme conn
+
         addActiveSlotCoefficientIfMissing conn
+
         -- FIXME
         -- Temporary migration to fix Daedalus flight wallets. This should
         -- really be removed as soon as we have a fix for the cardano-sl:wallet
         -- currently in production.
         removeSoftRndAddresses conn
   where
-    activeSlotCoeff = DBField CheckpointActiveSlotCoeff
-    rndAccountIx = DBField RndStateAddressAccountIndex
+    -- NOTE
+    -- Wallets created before the 'PassphraseScheme' was introduced have no
+    -- passphrase scheme set in the database. Yet, their passphrase is known
+    -- to use the default / new scheme (i.e. PBKDF2) and, it is impossible
+    -- to have a wallet with a scheme but no last update. Either they should
+    -- have both, or they should have none.
+    --
+    --     Creation Method               | Scheme | Last Update
+    --     ---                           | ---    | ---
+    --     Byron, from mnemonic          | ✓      | ✓
+    --     Byron, from xprv              | ✓      | ✓
+    --     Shelley, from mnemonic        | ✓      | ✓
+    --     Shelley, from account pub key | ø      | ø
+    assignDefaultPassphraseScheme :: Sqlite.Connection -> IO ()
+    assignDefaultPassphraseScheme conn = do
+        isFieldPresent conn passphraseScheme >>= \case
+            Nothing -> pure ()
+            Just _  -> do
+                value <- either (fail . show) pure $
+                    fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
+                traceWith tr $ MsgManualMigrationNeeded passphraseScheme value
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "UPDATE", tableName passphraseScheme
+                    , "SET", fieldName passphraseScheme, "=", value
+                    , "WHERE", fieldName passphraseScheme, "IS NULL"
+                    , "AND", fieldName passphraseLastUpdatedAt, "IS NOT NULL"
+                    , ";"
+                    ]
+                Sqlite.step query *> Sqlite.finalize query
+      where
+        passphraseScheme = DBField WalPassphraseScheme
+        passphraseLastUpdatedAt = DBField WalPassphraseLastUpdatedAt
 
     -- | Remove any addresses that were wrongly generated in previous releases.
     -- See comment below in 'selectState' from 'RndState'.
@@ -353,6 +388,7 @@ migrateManually tr defaultFieldValues =
                 Sqlite.finalize stmt
       where
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
+        rndAccountIx   = DBField RndStateAddressAccountIndex
 
     -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
     --   it is missing.
@@ -378,6 +414,7 @@ migrateManually tr defaultFieldValues =
                 _ <- Sqlite.step addColumn
                 Sqlite.finalize addColumn
       where
+        activeSlotCoeff = DBField CheckpointActiveSlotCoeff
         value = toText
             $ W.unActiveSlotCoefficient
             $ defaultActiveSlotCoefficient defaultFieldValues
@@ -700,30 +737,9 @@ metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
-    , passphraseInfo =
-        -- NOTE
-        -- Wallets created before the 'PassphraseScheme' was introduced have no
-        -- passphrase scheme set in the database. Yet, their passphrase is known
-        -- to use the default / new scheme (i.e. PBKDF2) and, it is impossible
-        -- to have a wallet with a scheme but no last update. Either they should
-        -- have both, or they should have none.
-        --
-        --     Creation Method               | Scheme | Last Update
-        --     ---                           | ---    | ---
-        --     Byron, from mnemonic          | ✓      | ✓
-        --     Byron, from xprv              | ✓      | ✓
-        --     Shelley, from mnemonic        | ✓      | ✓
-        --     Shelley, from account pub key | ø      | ø
-        case (walPassphraseLastUpdatedAt wal, walPassphraseScheme wal) of
-            (Nothing, _) ->
-                Nothing
-
-            (Just t, Nothing) ->
-                Just $ W.WalletPassphraseInfo t W.EncryptWithPBKDF2
-
-            (Just t, Just s) ->
-                Just $ W.WalletPassphraseInfo t s
-
+    , passphraseInfo = W.WalletPassphraseInfo
+        <$> walPassphraseLastUpdatedAt wal
+        <*> walPassphraseScheme wal
     , delegation = walDelegation
     }
 
