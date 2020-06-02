@@ -375,8 +375,7 @@ fromGenesisData g =
                 W.ActiveSlotCoefficient 1.0
             }
         , protocolParameters = W.ProtocolParameters
-            -- TODO: implement properly when possible
-            -- From where are we supposed to get them?
+            -- TODO: Report live value of decentralization level.
             -- Related issue:
             -- https://github.com/input-output-hk/cardano-wallet/issues/1693
             { decentralizationLevel =
