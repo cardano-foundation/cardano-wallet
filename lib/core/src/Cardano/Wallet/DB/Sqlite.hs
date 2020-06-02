@@ -700,9 +700,30 @@ metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
     , creationTime = walCreationTime wal
-    , passphraseInfo = W.WalletPassphraseInfo
-        <$> walPassphraseLastUpdatedAt wal
-        <*> walPassphraseScheme wal
+    , passphraseInfo =
+        -- NOTE
+        -- Wallets created before the 'PassphraseScheme' was introduced have no
+        -- passphrase scheme set in the database. Yet, their passphrase is known
+        -- to use the default / new scheme (i.e. PBKDF2) and, it is impossible
+        -- to have a wallet with a scheme but no last update. Either they should
+        -- have both, or they should have none.
+        --
+        -- | Creation Method               | Scheme | Last Update |
+        -- | ---                           | ---    | ---         |
+        -- | Byron, from mnemonic          | ✓      | ✓           |
+        -- | Byron, from xprv              | ✓      | ✓           |
+        -- | Shelley, from mnemonic        | ✓      | ✓           |
+        -- | Shelley, from account pub key | ø      | ø           |
+        case (walPassphraseLastUpdatedAt wal, walPassphraseScheme wal) of
+            (Nothing, _) ->
+                Nothing
+
+            (Just t, Nothing) ->
+                Just $ W.WalletPassphraseInfo t W.EncryptWithPBKDF2
+
+            (Just t, Just s) ->
+                Just $ W.WalletPassphraseInfo t s
+
     , delegation = walDelegation
     }
 
