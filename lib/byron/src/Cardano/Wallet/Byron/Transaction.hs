@@ -223,7 +223,7 @@ type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
 -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
 -- jormungandr. This function is a method to deal with the discrepancy.
 genesisBlockFromTxOuts :: GenesisParameters -> [TxOut] -> Block
-genesisBlockFromTxOuts bp outs = Block
+genesisBlockFromTxOuts gp outs = Block
     { delegations  = []
     , header = BlockHeader
         { slotId =
@@ -231,7 +231,7 @@ genesisBlockFromTxOuts bp outs = Block
         , blockHeight =
             Quantity 0
         , headerHash =
-            coerce $ getGenesisBlockHash bp
+            coerce $ getGenesisBlockHash gp
         , parentHeaderHash =
             Hash (BS.replicate 32 0)
         }

@@ -235,14 +235,14 @@ withNetworkLayer tr np addrInfo versionData action = do
             , getAccountBalance = _getAccountBalance
             }
   where
-    bp@W.GenesisParameters
+    gp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
         } = W.genesisParameters np
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient bp chainSyncQ
+        client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
         link =<< async
             (connectClient tr handlers (const client) versionData addrInfo)
@@ -316,7 +316,7 @@ mkWalletClient
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
-mkWalletClient bp chainSyncQ = do
+mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols NodeToClientProtocols
         { localChainSyncProtocol =
@@ -340,7 +340,7 @@ mkWalletClient bp chainSyncQ = do
     W.GenesisParameters
         { getEpochLength
         , getGenesisBlockHash
-        } = bp
+        } = gp
 
     codec = cChainSyncCodec codecs
 
@@ -452,7 +452,7 @@ doNothingProtocol =
 -- Connect a client to a network, see `mkWalletClient` to construct a network
 -- client interface.
 --
--- >>> connectClient (mkWalletClient tr bp queue) mainnetVersionData addrInfo
+-- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
 connectClient
     :: Tracer IO NetworkLayerLog
     -> [RetryStatus -> Handler IO Bool]

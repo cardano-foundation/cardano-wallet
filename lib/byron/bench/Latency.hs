@@ -450,7 +450,7 @@ benchWithServer tracers action = do
         either pure (throwIO . ProcessHasExited "integration")
   where
     withServer act =
-        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (bp,vData) ->
+        withCardanoNode nullTracer $(getTestData) Error $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
@@ -462,8 +462,8 @@ benchWithServer tracers action = do
                 Nothing
                 socketPath
                 block0
-                (bp, vData)
-                (act bp)
+                (gp, vData)
+                (act gp)
 
 instance ToJSON ApiLog where
     toJSON = toJSON . toText

@@ -202,7 +202,7 @@ mainnetBlockchainParameters = W.NetworkParameters
 -- This assumption is _true_ for any user using HD wallets (sequential or
 -- random) which means, any user of cardano-wallet.
 emptyGenesis :: W.GenesisParameters -> W.Block
-emptyGenesis bp = W.Block
+emptyGenesis gp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
@@ -211,7 +211,7 @@ emptyGenesis bp = W.Block
         , blockHeight =
             Quantity 0
         , headerHash =
-            coerce $ W.getGenesisBlockHash bp
+            coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
             W.Hash (BS.replicate 32 0)
         }

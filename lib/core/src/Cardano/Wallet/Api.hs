@@ -594,8 +594,8 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
     type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
     type WorkerMsg (ApiLayer s t k) = WalletLog
     type WorkerKey (ApiLayer s t k) = WalletId
-    hoistResource db transform (ApiLayer tr bp nw tl _ _) =
-        WalletLayer (contramap transform tr) bp nw tl db
+    hoistResource db transform (ApiLayer tr gp nw tl _ _) =
+        WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------
                                Capabilities

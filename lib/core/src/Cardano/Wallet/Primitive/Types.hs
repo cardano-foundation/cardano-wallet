@@ -1297,7 +1297,7 @@ data NetworkParameters = NetworkParameters
 instance NFData NetworkParameters
 
 instance Buildable NetworkParameters where
-    build (NetworkParameters bp txp) = build bp <> build txp
+    build (NetworkParameters gp txp) = build gp <> build txp
 
 data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
@@ -1318,16 +1318,16 @@ data GenesisParameters = GenesisParameters
 instance NFData GenesisParameters
 
 instance Buildable GenesisParameters where
-    build bp = blockListF' "" id
-        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash bp)
+    build gp = blockListF' "" id
+        [ "Genesis block hash: " <> genesisF (getGenesisBlockHash gp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
-            (bp :: GenesisParameters))
+            (gp :: GenesisParameters))
         , "Slot length:        " <> slotLengthF (getSlotLength
-            (bp :: GenesisParameters))
+            (gp :: GenesisParameters))
         , "Epoch length:       " <> epochLengthF (getEpochLength
-            (bp :: GenesisParameters))
-        , "Epoch stability:    " <> epochStabilityF (getEpochStability bp)
-        , "Active slot coeff:  " <> build (bp ^. #getActiveSlotCoefficient)
+            (gp :: GenesisParameters))
+        , "Epoch stability:    " <> epochStabilityF (getEpochStability gp)
+        , "Active slot coeff:  " <> build (gp ^. #getActiveSlotCoefficient)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
@@ -1344,12 +1344,12 @@ newtype ActiveSlotCoefficient
 instance NFData ActiveSlotCoefficient
 
 slotParams :: GenesisParameters -> SlotParameters
-slotParams bp =
+slotParams gp =
     SlotParameters
-        (bp ^. #getEpochLength)
-        (bp ^. #getSlotLength)
-        (bp ^. #getGenesisBlockDate)
-        (bp ^. #getActiveSlotCoefficient)
+        (gp ^. #getEpochLength)
+        (gp ^. #getSlotLength)
+        (gp ^. #getGenesisBlockDate)
+        (gp ^. #getActiveSlotCoefficient)
 
 data ProtocolParameters = ProtocolParameters
     { decentralizationLevel

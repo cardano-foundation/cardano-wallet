@@ -197,7 +197,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
 
-                (discriminant, bp, vData, block0)
+                (discriminant, gp, vData, block0)
                     <- runExceptT (parseGenesisData networkConfig) >>= \case
                             Right x -> pure x
                             Left err -> do
@@ -215,7 +215,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     tlsConfig
                     nodeSocket
                     block0
-                    (bp, vData)
+                    (gp, vData)
                     (beforeMainLoop tr)
 
     whenJust m fn = case m of

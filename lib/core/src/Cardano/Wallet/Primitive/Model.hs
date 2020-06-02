@@ -163,16 +163,16 @@ data Wallet s = Wallet
     } deriving (Generic, Eq, Show)
 
 instance NFData s => NFData (Wallet s) where
-    rnf (Wallet u sl s bp) =
+    rnf (Wallet u sl s gp) =
         deepseq (rnf u) $
         deepseq (rnf sl) $
         deepseq (rnf s) $
-        deepseq (rnf bp) ()
+        deepseq (rnf gp) ()
 
 instance Buildable s => Buildable (Wallet s) where
-    build (Wallet u tip s bp) = "Wallet s\n"
+    build (Wallet u tip s gp) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
-        <> indentF 4 ("Parameters:\n" <> indentF 4 (build bp))
+        <> indentF 4 ("Parameters:\n" <> indentF 4 (build gp))
         <> indentF 4 ("UTxO: " <> build u)
         <> indentF 4 (build s)
 
@@ -192,11 +192,11 @@ initWallet
     -> s
         -- ^ Initial address discovery state
     -> ([(Tx, TxMeta)], Wallet s)
-initWallet block bp s =
+initWallet block gp s =
     let
         ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
     in
-        (txs, Wallet u (header block) s' bp)
+        (txs, Wallet u (header block) s' gp)
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -220,7 +220,7 @@ updateState
     :: s
     -> Wallet s
     -> Wallet s
-updateState s (Wallet u tip _ bp) = Wallet u tip s bp
+updateState s (Wallet u tip _ gp) = Wallet u tip s gp
 
 -- | Represents the subset of data from a single block that are relevant to a
 --   particular wallet, discovered when applying a block to that wallet.
@@ -245,8 +245,8 @@ applyBlock
     => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
-applyBlock !b (Wallet !u _ s bp) =
-    (filteredBlock, Wallet u' (b ^. #header) s' bp)
+applyBlock !b (Wallet !u _ s gp) =
+    (filteredBlock, Wallet u' (b ^. #header) s' gp)
   where
     ((filteredBlock, u'), s') = prefilterBlock b u s
 

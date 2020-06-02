@@ -403,17 +403,17 @@ mockJormungandrClient logLine = JormungandrClient
         pure (block0, NetworkParameters
             { genesisParameters = GenesisParameters
                 { getGenesisBlockHash = blockId
-                , getGenesisBlockDate = error "mock bp"
-                , getSlotLength = error "mock bp"
-                , getEpochLength = error "mock bp"
+                , getGenesisBlockDate = error "mock gp"
+                , getSlotLength = error "mock gp"
+                , getEpochLength = error "mock gp"
                 , getEpochStability = Quantity (fromIntegral k)
-                , getActiveSlotCoefficient = error "mock bp"
+                , getActiveSlotCoefficient = error "mock gp"
                 }
             , protocolParameters = ProtocolParameters
                 { decentralizationLevel = minBound
                 , txParameters = TxParameters
-                    { getFeePolicy = error "mock bp"
-                    , getTxMaxSize = error "mock bp"
+                    { getFeePolicy = error "mock gp"
+                    , getTxMaxSize = error "mock gp"
                     }
                 }
             })

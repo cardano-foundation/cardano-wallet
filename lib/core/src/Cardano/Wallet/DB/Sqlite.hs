@@ -736,20 +736,20 @@ mkCheckpointEntity wid wal =
     header = W.currentTip wal
     sl = header ^. #slotId
     (Quantity bh) = header ^. #blockHeight
-    bp = W.blockchainParameters wal
+    gp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
         , checkpointBlockHeight = bh
-        , checkpointGenesisHash = BlockId (coerce (bp ^. #getGenesisBlockHash))
-        , checkpointGenesisStart = coerce (bp ^. #getGenesisBlockDate)
-        , checkpointSlotLength = coerceSlotLength $ bp ^. #getSlotLength
-        , checkpointEpochLength = coerce (bp ^. #getEpochLength)
-        , checkpointEpochStability = coerce (bp ^. #getEpochStability)
+        , checkpointGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
+        , checkpointGenesisStart = coerce (gp ^. #getGenesisBlockDate)
+        , checkpointSlotLength = coerceSlotLength $ gp ^. #getSlotLength
+        , checkpointEpochLength = coerce (gp ^. #getEpochLength)
+        , checkpointEpochStability = coerce (gp ^. #getEpochStability)
         , checkpointActiveSlotCoeff =
-            W.unActiveSlotCoefficient (bp ^. #getActiveSlotCoefficient)
+            W.unActiveSlotCoefficient (gp ^. #getActiveSlotCoefficient)
         , checkpointFeePolicyUnused = ""
         , checkpointTxMaxSizeUnused = 0
         }
@@ -770,7 +770,7 @@ checkpointFromEntity
     -> s
     -> W.Wallet s
 checkpointFromEntity cp utxo s =
-    W.unsafeInitWallet utxo' header s bp
+    W.unsafeInitWallet utxo' header s gp
   where
     (Checkpoint
         _walletId
@@ -792,7 +792,7 @@ checkpointFromEntity cp utxo s =
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    bp = W.GenesisParameters
+    gp = W.GenesisParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
         , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))

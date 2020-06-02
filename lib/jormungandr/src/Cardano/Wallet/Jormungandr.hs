@@ -220,17 +220,17 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         Left e -> handleNetworkStartupError e
         Right (cp, (block0, np), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let bp = genesisParameters np
-            let byronTl = newTransactionLayer (getGenesisBlockHash bp)
-            let icarusTl = newTransactionLayer (getGenesisBlockHash bp)
-            let jormungandrTl = newTransactionLayer (getGenesisBlockHash bp)
+            let gp = genesisParameters np
+            let byronTl = newTransactionLayer (getGenesisBlockHash gp)
+            let icarusTl = newTransactionLayer (getGenesisBlockHash gp)
+            let jormungandrTl = newTransactionLayer (getGenesisBlockHash gp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md ->
                 withIOManager $ \io ->
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
-                    poolApi <- stakePoolLayer (block0, bp) nl db md
+                    poolApi <- stakePoolLayer (block0, gp) nl db md
                     byronApi <- apiLayer (block0, np) byronTl nl
                     icarusApi <- apiLayer (block0, np) icarusTl nl
                     jormungandrApi <- apiLayer (block0, np) jormungandrTl nl
@@ -252,10 +252,10 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> StakePoolLayer ErrListStakePools IO
         -> NtpClient
         -> IO ()
-    startServer socket nPort bp byron icarus jormungandr pools ntp = do
+    startServer socket nPort gp byron icarus jormungandr pools ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
-                & setBeforeMainLoop (beforeMainLoop sockAddr nPort bp)
+                & setBeforeMainLoop (beforeMainLoop sockAddr nPort gp)
         let application = Server.serve (Proxy @(ApiV2 n))
                 $ server byron icarus jormungandr pools ntp
         Server.start settings apiServerTracer tlsConfig socket application
@@ -292,7 +292,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> Pool.DBLayer IO
         -> FilePath
         -> IO (StakePoolLayer ErrListStakePools IO)
-    stakePoolLayer (block0, bp) nl db metadataDir = do
+    stakePoolLayer (block0, gp) nl db metadataDir = do
         void $ forkFinally (monitorStakePools tr (toSPBlock block0, k) nl' db) onExit
         getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
             J.rankingEpochConstants block0
@@ -301,7 +301,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         nl' = toSPBlock <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
-        k = getEpochStability bp
+        k = getEpochStability gp
         block0H = W.header $ toWLBlock block0
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode

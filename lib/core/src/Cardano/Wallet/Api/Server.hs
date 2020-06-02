@@ -606,8 +606,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , tip = getWalletTip cp
         }
   where
-    (_, NetworkParameters bp _, _) = ctx ^. genesisData
-    sp = W.slotParams bp
+    (_, NetworkParameters gp _, _) = ctx ^. genesisData
+    sp = W.slotParams gp
 
     toApiWalletDelegation W.WalletDelegation{active,next} =
         ApiWalletDelegation
@@ -1627,12 +1627,12 @@ registerWorker
 registerWorker ctx wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
-    (_, NetworkParameters bp _, _) = ctx ^. genesisData
+    (_, NetworkParameters gp _, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker
         { workerBefore = \ctx' _ ->
-            runExceptT (W.checkWalletIntegrity ctx' wid bp)
+            runExceptT (W.checkWalletIntegrity ctx' wid gp)
                 >>= either throwIO pure
 
         , workerMain = \ctx' _ -> do

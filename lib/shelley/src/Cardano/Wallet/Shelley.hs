@@ -274,11 +274,11 @@ serveWallet
         let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient bp)
+            (DefaultFieldValues $ getActiveSlotCoefficient gp)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
       where
-        bp@GenesisParameters
+        gp@GenesisParameters
             { getGenesisBlockHash
             , getEpochLength
             } = genesisParameters np

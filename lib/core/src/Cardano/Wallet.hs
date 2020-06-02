@@ -514,7 +514,7 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
-    let (hist, cp) = initWallet block0 bp s
+    let (hist, cp) = initWallet block0 gp s
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -526,7 +526,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet (PrimaryKey wid) cp meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters bp pps, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp pps, _) = ctx ^. genesisData
     txp = txParameters pps
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
@@ -550,7 +550,7 @@ createIcarusWallet
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials (mkUnboundedAddressPoolGap 10000)
-    let (hist, cp) = initWallet block0 bp s
+    let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = SeqState
@@ -570,7 +570,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
         initializeWallet pk (updateState s' cp) meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters bp pps, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp pps, _) = ctx ^. genesisData
     txp = txParameters pps
 
 -- | Check whether a wallet is in good shape when restarting a worker.
@@ -580,12 +580,12 @@ checkWalletIntegrity
     -> WalletId
     -> GenesisParameters
     -> ExceptT ErrCheckWalletIntegrity IO ()
-checkWalletIntegrity ctx wid bp = db & \DBLayer{..} -> mapExceptT atomically $ do
+checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
         readCheckpoint (PrimaryKey wid)
-    whenDifferentGenesis (blockchainParameters cp) bp $ throwE $
+    whenDifferentGenesis (blockchainParameters cp) gp $ throwE $
         ErrCheckIntegrityDifferentGenesis
-            (getGenesisBlockHash bp)
+            (getGenesisBlockHash gp)
             (getGenesisBlockHash (blockchainParameters cp))
   where
     db = ctx ^. dbLayer @s @k
@@ -628,9 +628,9 @@ walletSyncProgress
     -> Wallet s
     -> IO SyncProgress
 walletSyncProgress ctx w = do
-    let bp = blockchainParameters w
+    let gp = blockchainParameters w
     let h = currentTip w
-    syncProgressRelativeToTime st (slotParams bp) h <$> getCurrentTime
+    syncProgressRelativeToTime st (slotParams gp) h <$> getCurrentTime
   where
     (_, _, st) = ctx ^. genesisData
 
@@ -758,7 +758,7 @@ restoreBlocks
 restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
     meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
-    let bp = blockchainParameters cp
+    let gp = blockchainParameters cp
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
@@ -776,7 +776,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
             , cert <- certs
             ]
     let txs = fold $ view #transactions <$> filteredBlocks
-    let k = bp ^. #getEpochStability
+    let k = gp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
     putTxHistory (PrimaryKey wid) txs
@@ -1250,8 +1250,8 @@ signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLay
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl keyFrom (nodeTip ^. #slotId) ins allOuts
 
-            let bp = blockchainParameters cp
-            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
+            let gp = blockchainParameters cp
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins allOuts
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1282,8 +1282,8 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl keyFrom (nodeTip ^. #slotId) inps outs
 
-            let bp = blockchainParameters cp
-            let (time, meta) = mkTxMeta bp (currentTip cp) (getState cp) inps outs
+            let gp = blockchainParameters cp
+            let (time, meta) = mkTxMeta gp (currentTip cp) (getState cp) inps outs
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1377,8 +1377,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                     Quit ->
                         mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
 
-            let bp = blockchainParameters cp
-            let (time, meta) = mkTxMeta bp (currentTip cp) s' ins allOuts
+            let gp = blockchainParameters cp
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins allOuts
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1395,7 +1395,7 @@ mkTxMeta
     -> [(TxIn, TxOut)]
     -> [TxOut]
     -> (UTCTime, TxMeta)
-mkTxMeta bp blockHeader wState ins outs =
+mkTxMeta gp blockHeader wState ins outs =
     let
         amtOuts =
             sum (mapMaybe ourCoins outs)
@@ -1403,7 +1403,7 @@ mkTxMeta bp blockHeader wState ins outs =
         amtInps = fromIntegral $
             sum (getCoin . coin . snd <$> ins)
     in
-        ( slotStartTime (slotParams bp) (blockHeader ^. #slotId)
+        ( slotStartTime (slotParams gp) (blockHeader ^. #slotId)
         , TxMeta
             { status = Pending
             , direction = Outgoing
