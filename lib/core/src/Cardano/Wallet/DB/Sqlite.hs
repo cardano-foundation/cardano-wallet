@@ -343,7 +343,7 @@ migrateManually tr defaultFieldValues =
         isFieldPresent conn passphraseScheme >>= \case
             Nothing -> pure ()
             Just _  -> do
-                value <- either (fail . show) pure $
+                value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
                     fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
                 traceWith tr $ MsgManualMigrationNeeded passphraseScheme value
                 query <- Sqlite.prepare conn $ T.unwords

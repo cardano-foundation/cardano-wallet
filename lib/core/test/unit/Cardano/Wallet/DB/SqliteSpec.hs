@@ -3,10 +3,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -41,7 +43,7 @@ import Cardano.BM.Trace
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( DBLog (..), SqliteContext, destroyDBLayer )
+    ( DBLog (..), SqliteContext, destroyDBLayer, fieldName )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
@@ -83,6 +85,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -158,14 +162,18 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( fromText )
 import Data.Time.Clock
     ( getCurrentTime )
+import Database.Persist.Sql
+    ( DBName (..), PersistEntity (..), fieldDB )
 import GHC.Conc
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Numeric.Natural
     ( Natural )
 import System.Directory
-    ( doesFileExist, listDirectory, removeFile )
+    ( copyFile, doesFileExist, listDirectory, removeFile )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -198,7 +206,12 @@ import Test.QuickCheck
     ( Property, arbitrary, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Paths
+    ( getTestData )
+import Test.Utils.Trace
+    ( captureLogging )
 
+import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -214,6 +227,9 @@ spec = do
     sqliteSpecRnd
     loggingSpec
     fileModeSpec
+    describe "Manual migrations" $ do
+        it "'migrate' db with no passphrase scheme set."
+            testMigrationPassphraseScheme
 
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = withDB newMemoryDBLayer $ do
@@ -250,6 +266,69 @@ testRegressionInsertSelectRndState db = do
 
   where
     arbitraryRndState = arbitrary @(RndState 'Mainnet)
+
+testMigrationPassphraseScheme
+    :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
+    => IO ()
+testMigrationPassphraseScheme = do
+    let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        copyFile orig path
+        (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path)
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    Just a <- readWalletMeta $ PrimaryKey walNeedMigration
+                    Just b <- readWalletMeta $ PrimaryKey walNewScheme
+                    Just c <- readWalletMeta $ PrimaryKey walOldScheme
+                    Just d <- readWalletMeta $ PrimaryKey walNoPassphrase
+                    pure (a,b,c,d)
+
+        -- Migration is visible from the logs
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 1
+
+        -- The first wallet is stored in the database with only a
+        -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
+        -- after the migration, both should now be `Just`.
+        (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+
+        -- The second wallet was just fine and already has a passphrase
+        -- scheme set to use PBKDF2. Nothing should have changed.
+        (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+
+        -- The third wallet had a scheme too, but was using the legacy
+        -- scheme. Nothing should have changed.
+        (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+
+        -- The last wallet had no passphrase whatsoever (restored from
+        -- account public key), so it should still have NO scheme.
+        (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field ==
+                unDBName (fieldDB $ persistFieldDef DB.WalPassphraseScheme)
+        _ ->
+            False
+
+    -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
+    --
+    --     sqlite3> SELECT wallet_id, passphrase_last_updated_at,passphrase_scheme FROM wallet;
+    --
+    --     wallet_id                                | passphrase_last_updated_at    | passphrase_scheme
+    --     =========================================+===============================+==================
+    --     64581f7393190aed462fc3180ce52c3c1fe580a9 | 2020-06-02T14:22:17.48678659  |
+    --     5e481f55084afda69fc9cd3863ced80fa83734aa | 2020-06-02T14:22:03.234087113 | EncryptWithPBKDF2
+    --     4a6279cd71d5993a288b2c5879daa7c42cebb73d | 2020-06-02T14:21:45.418841818 | EncryptWithScrypt
+    --     ba74a7d2c1157ea7f32a93f255dac30e9ebca62b |                               |
+    --
+    Right walNeedMigration = fromText "64581f7393190aed462fc3180ce52c3c1fe580a9"
+    Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
+    Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
+    Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
