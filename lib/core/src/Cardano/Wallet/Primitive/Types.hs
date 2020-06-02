@@ -1361,9 +1361,9 @@ data ProtocolParameters = ProtocolParameters
 instance NFData ProtocolParameters
 
 instance Buildable ProtocolParameters where
-    build pps = listF' id
-        [ "Decentralization level: " <> build (pps ^. #decentralizationLevel)
-        , "Transaction parameters: " <> build (pps ^. #txParameters)
+    build pp = listF' id
+        [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
+        , "Transaction parameters: " <> build (pp ^. #txParameters)
         ]
 
 -- | Blockchain parameters relating to constructing transactions.

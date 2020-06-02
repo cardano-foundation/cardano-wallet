@@ -504,7 +504,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
-toApiNetworkParameters (NetworkParameters gp pps) = ApiNetworkParameters
+toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
     (ApiT $ getGenesisBlockHash gp)
     (ApiT $ getGenesisBlockDate gp)
     (Quantity $ unSlotLength $ getSlotLength gp)
@@ -514,7 +514,7 @@ toApiNetworkParameters (NetworkParameters gp pps) = ApiNetworkParameters
         $ (*100)
         $ unActiveSlotCoefficient
         $ getActiveSlotCoefficient gp)
-    (view #decentralizationLevel pps)
+    (view #decentralizationLevel pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

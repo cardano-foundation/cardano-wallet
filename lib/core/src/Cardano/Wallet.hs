@@ -526,8 +526,8 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
         initializeWallet (PrimaryKey wid) cp meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters gp pps, _) = ctx ^. genesisData
-    txp = txParameters pps
+    (block0, NetworkParameters gp pp, _) = ctx ^. genesisData
+    txp = txParameters pp
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -570,8 +570,8 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
         initializeWallet pk (updateState s' cp) meta hist txp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters gp pps, _) = ctx ^. genesisData
-    txp = txParameters pps
+    (block0, NetworkParameters gp pp, _) = ctx ^. genesisData
+    txp = txParameters pp
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
