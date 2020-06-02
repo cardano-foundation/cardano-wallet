@@ -108,6 +108,7 @@
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
+            (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))

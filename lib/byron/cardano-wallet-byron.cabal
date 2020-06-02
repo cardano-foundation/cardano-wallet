@@ -138,6 +138,7 @@ test-suite unit
     , cborg
     , containers
     , fmt
+    , generic-lens
     , hspec
     , iohk-monitoring
     , memory

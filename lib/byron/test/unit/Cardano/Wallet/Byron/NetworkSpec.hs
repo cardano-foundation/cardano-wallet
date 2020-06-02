@@ -1,4 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Cardano.Wallet.Byron.NetworkSpec (spec) where
@@ -25,6 +26,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Retry
     ( constantDelay, limitRetries, recoverAll )
+import Data.Function
+    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( set )
+import Data.Generics.Labels
+    ()
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -45,9 +52,8 @@ spec = describe "getTxParameters" $ do
     it "Correct values are queried" $ do
         withTestNode $ \gbp sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
-            let pps = protocolParameters gbp
-            let pps' = pps { txParameters = zeroTxParameters }
-            let gbp' = gbp { protocolParameters = pps' }
+            let gbp' = gbp &
+                    (#protocolParameters . #txParameters) `set` zeroTxParameters
             withNetworkLayer tr gbp' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
