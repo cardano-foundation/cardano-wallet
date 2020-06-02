@@ -175,7 +175,7 @@ data AddressClient = AddressClient
 
 data StakePoolClient apiPool = StakePoolClient
     { listPools
-        :: ClientM [apiPool]
+        :: ApiT WalletId -> ClientM [apiPool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId

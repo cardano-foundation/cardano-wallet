@@ -50,6 +50,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiJormungandrStakePool (..)
+    , ApiJormungandrStakePoolMetrics (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -58,6 +59,7 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiSelectCoinsData (..)
+    , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -290,7 +292,10 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
+            jsonRoundtripAndGolden $ Proxy @ApiStakePool
+            jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiJormungandrStakePool
+            jsonRoundtripAndGolden $ Proxy @ApiJormungandrStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
@@ -354,7 +359,9 @@ spec = do
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
         validateEveryToJSON
-            (Proxy :: Proxy (Api ('Testnet 0)))
+            (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
+        validateEveryToJSON
+            (Proxy :: Proxy (Api ('Testnet 0) ApiJormungandrStakePool))
         -- NOTE See (ToSchema WalletOrAccountPostData)
         validateEveryToJSON
             (Proxy :: Proxy (
@@ -366,7 +373,7 @@ spec = do
     describe
         "verify that every path specified by the servant server matches an \
         \existing path in the specification" $
-        validateEveryPath (Proxy :: Proxy (Api ('Testnet 0)))
+        validateEveryPath (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
 
     describe "verify JSON parsing failures too" $ do
         it "ApiT (Passphrase \"raw\") (too short)" $ do
@@ -995,11 +1002,26 @@ instance Arbitrary PoolId where
         InfiniteList bytes _ <- arbitrary
         return $ PoolId $ BS.pack $ take 32 bytes
 
+instance Arbitrary ApiStakePool where
+    arbitrary = ApiStakePool
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
 instance Arbitrary ApiStakePoolMetrics where
+    arbitrary = ApiStakePoolMetrics
+        <$> (Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000))
+        <*> arbitrary
+        <*> (choose (0.0, 5.0))
+        <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
+
+instance Arbitrary ApiJormungandrStakePoolMetrics where
     arbitrary = do
         stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000)
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
-        pure $ ApiStakePoolMetrics stakes blocks
+        pure $ ApiJormungandrStakePoolMetrics stakes blocks
 
 instance Arbitrary ApiJormungandrStakePool where
     arbitrary = ApiJormungandrStakePool
@@ -1380,10 +1402,16 @@ instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPassphrase"
 
-instance ToSchema ApiJormungandrStakePool where
+instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
 instance ToSchema ApiStakePoolMetrics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
+
+instance ToSchema ApiJormungandrStakePool where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePool"
+
+instance ToSchema ApiJormungandrStakePoolMetrics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
 
 instance ToSchema ApiFee where

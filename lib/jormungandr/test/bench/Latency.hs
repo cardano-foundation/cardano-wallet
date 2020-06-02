@@ -359,7 +359,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         fmtResult "postTransactionFee " t6
 
         t7 <- measureApiLogs tvar $ request @[ApiJormungandrStakePool] ctx
-            Link.listStakePools Default Empty
+            Link.listJormungandrStakePools Default Empty
 
         fmtResult "listStakePools     " t7
 

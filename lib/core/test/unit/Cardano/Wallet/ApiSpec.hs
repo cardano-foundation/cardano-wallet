@@ -51,7 +51,7 @@ import Cardano.Wallet.Api.Malformed
 import Cardano.Wallet.Api.Server
     ( LiftHandler (..) )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+    ( ApiStakePool, DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -303,10 +303,11 @@ application :: Application
 application = serve api server
     & handleRawError (curry handler)
 
-api :: Proxy (Api ('Testnet 0))
-api = Proxy @(Api ('Testnet 0))
+-- Note: Doesn't validate the jormungandr api.
+api :: Proxy (Api ('Testnet 0) ApiStakePool)
+api = Proxy
 
-server :: Server (Api ('Testnet 0))
+server :: Server (Api ('Testnet 0) ApiStakePool)
 server = error
     "No test from this module should actually reach handlers of the server. \
     \Tests are indeed all testing the internal machinery of Servant + Wai and \

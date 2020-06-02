@@ -1506,8 +1506,9 @@ cmdStakePool mkClient =
         <> cmdStakePoolList mkClient
 
 -- | Arguments for 'stake-pool list' command
-newtype StakePoolListArgs = StakePoolListArgs
+data StakePoolListArgs = StakePoolListArgs
     { _port :: Port "Wallet"
+    , _walletId :: WalletId
     }
 
 cmdStakePoolList
@@ -1519,9 +1520,9 @@ cmdStakePoolList mkClient =
         <> progDesc "List all known stake pools."
   where
     cmd = fmap exec $ StakePoolListArgs
-        <$> portOption
-    exec (StakePoolListArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ listPools mkClient
+        <$> portOption <*> walletIdArgument
+    exec (StakePoolListArgs wPort wid) = do
+        runClient wPort Aeson.encodePretty $ listPools mkClient (ApiT wid)
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'

@@ -1,309 +1,343 @@
 {
-    "seed": -4008016348573130322,
+    "seed": 7637326263862953018,
     "samples": [
         {
-            "saturation": 0.898615913346744,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 529160396781,
+                "saturation": 2.3788631031608536,
+                "non_myopic_member_rewards": {
+                    "quantity": 472805044677,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 1180036,
+                    "quantity": 19651921,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 4.24,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 226,
+                "quantity": 242,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 73.85,
+                "quantity": 6.28,
                 "unit": "percent"
             },
-            "apparent_performance": 2.3017198405677464,
             "metadata": {
-                "homepage": "𡟒ix򪋑\u001c􄖪\\i񒺋@\u000fI^q?3\u001a|\"/\u0016\u000e\u0019C=Ntt*\\z񠼀-, m;]G\u0003\u001d(\u0003O4",
-                "owner": "ed25519_pk19yu99sywf35vfr64fwys3ylpk30kf6keklctm3ylhghmttlsqxgq8gyr35",
-                "name": ".\u0000c0 X\u0002㝠a\u0012\\0D\u001eYK%\u0010𰮐M{0񸚌S&WWF7\u0019\u001d񇏙\t2o^P",
-                "ticker": "𢀪􅸣k",
-                "pledge_address": "xT򫱺3:M8\u0019k󪌘\u000e𐥪\thE$􈘲Zd2YJ񘖳\u000e񱉥t0𣔫E𑖭󷙲򼵛\u0003S\nN\u0019\u0011򙦘󁃄H",
-                "description": "?񶖗\u000e\u0010y\u0000w4\u0018_\u0000]𒎐񔧜w\u001d,W5E񺀡𚪠^񲧎񹬙󶪳u񎉅?\t󺭤\u000c5`Y󙠀{\u0000*񚣪_𶶺S/M\u0005V\u001d,\u0000񆌿e@8?\u000fAmAm\u001blz򇹖A򇐆󥘧񁯮P:񀍏MK\u001f\u000fw<.9f\u0003.񙉌󟉵񌠽\u0018LV򟽀򴢚xwaQv\u0016I\u000c򥙹`ycNE=𞌦󟸝<`,􃟸&"
+                "homepage": "o='񀵪o󑎿n􉌂󐦫%J񐄔󨐚G)iU󋫸\u0005)𭩎A+8󃧄󲲡/:-d",
+                "owner": "ed25519_pk15dhf4tttwycza4aypfsf4nuc30nuywwgnapmu5rgs8xfs9ax92zsm3eqpp",
+                "name": "𒚩-U򙘝Z_v.>4󘀣;*񑖫󿔸d?拼^>\\o}󠆧;5\\򇚛󖋓𢃱,񊉄􊸠M%U\u0004y",
+                "ticker": "񣸇\u0015\u001eV",
+                "pledge_address": "񦠜\u0006g\"hz~\u0003Z\"\u001d}@ \u0004;c񪈄񞵯~:|\u0012\u0008񹥿.RPB-!,xg\u000c\u001a𫼂k\u001a`",
+                "description": "Q\u001b𵨐Z\u000b2[񭸑򮣊\u0007Dr*\u001d\u0011]򫴨p󔟮9f\u0013bJ\tꖍI󻗕.bd:;񓶰\u0011*e񏱳*J\"\u0005\t'𺠓\u0000񆷂C𖱟𭑥z󴵕%򹀢\u0006=\u0017.^W07\u000e🷪/\rB\u0019􂓈{󌀠𒚝񞩠^\n\u0001𦋦\u000b "
             },
-            "id": "6295af94eccd054871801c2b026b02d110af3f329834c52339c79c64e24bbdc9",
-            "desirability": 17.46961762922796
+            "id": "58dda16445e34ad518bad49dd36a3ac2753ea42ed80d6176e37de050360887af"
         },
         {
-            "saturation": 0.877235669742114,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 468673891379,
+                "saturation": 1.3102130482287948,
+                "non_myopic_member_rewards": {
+                    "quantity": 651273875109,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 5342000,
+                    "quantity": 12851126,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 50.23,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 224,
+                "quantity": 38,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 90.58,
+                "quantity": 90.75,
                 "unit": "percent"
             },
-            "apparent_performance": 4.562116368940396,
             "metadata": {
-                "homepage": "j~jP\u001c.\u001d񧶨򫱰E\u0005G2iq\u001e\u0008\u0011",
-                "owner": "ed25519_pk12ez74ulds0jr4305jza0u7yjj3h38m0meyd6t6etfus072u8ayhshm2eyj",
-                "name": "󦻗򱗌:qw\u000f",
-                "ticker": " QL7^",
-                "pledge_address": "o􊺜\u000b4\u000fb$\u0006o򤌺]\u0008󶃤~>i\u0018\u001fj󴥍5P\r𨖫\u000e򊅷󼃎qrA[񙶲G򳩄c.?4\u0003Qz\u0015i\u0005",
-                "description": "􂺸+X\r!\u000e|A\u0008z\\4|P\u0001󴊌\n3񸸊v 𨞋N$2:*z7;&򤽨Yal?]3𳑞l]􅟠󁒪U\u000b5񟶸/\\󕕊\u0012󗥋g]e򩡘PzD𻐇7\u0014jOH\u000c[񩒵𭜖633B\u0018;\u001b\u0010 &c𷫆񘖻𲴮#8򦂉\u001ff󜦞𔃟񓯯򏆣^?p񁢶ifr{򛽚\u0002񱝢󁐯"
+                "homepage": "w\u0015\rp񷗭n򃃫\u0017L3*\u0018v\u001bj\u00042X𕏥\u0007\u00071󜸵rrI󻐨x񇠆n\u001f\u001cE6\u0004񣾮?{Ks$wm\u0010\u0015\u0016zaG𰺱\u0011%$\u0017𛿢񂇔+󨁥𰕙R'}%`\u0005el򁸉\u0000𨗽\n\u0016\tb$򾘹m\u0015;\u001c\"y#\t򉙯PP\u0010[𶵹!񴏏o񭗪𑫽",
+                "owner": "ed25519_pk1h7tz09ncw454wnym4gtn9n6yxcrx24w8fr9g3nymualfct0tumaqud5ene",
+                "name": "\u0003󿲷󻼐d󈨹񻙧/􊖙&<񱈥\u0011~泔As]ot\u0004k\u0012\n1󳩰+h6",
+                "ticker": "a$𶹢",
+                "pledge_address": "-\u0003bc",
+                "description": "𝤤W򥚺uK\u001e]ox\u0000xIꀁ񹍦󉔳\u0012-\u0018𫴃\u0012"
             },
-            "id": "d1a2dabdce13e006d017cb80535399c507f19f4a93af9c6879a042d1ad78befe",
-            "desirability": 30.431973625139307
+            "id": "7eed56442f2d39d41284a1cf2146e843815ad83fb2e816c2903b0b7b71d0a51d"
         },
         {
-            "saturation": 0.7504138807550393,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 791462983565,
+                "saturation": 3.3325589192735223,
+                "non_myopic_member_rewards": {
+                    "quantity": 584139097521,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 19744827,
+                    "quantity": 19326162,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 92.13,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 217,
+                "quantity": 167,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 81.9,
+                "quantity": 3.18,
                 "unit": "percent"
             },
-            "apparent_performance": 2.6939802620045494,
             "metadata": {
-                "homepage": "񓞘=\u0016򞸪i\u0015𒤊Tx񝬚\u0019K䀺S_zቂ򏯳𐦸w􊨀\u0002𽖊3t򒨹󗷰񸝏񬅳c\u0008x񞩛\t5)񛈃𖌫󔋶\u0016(h%𶎙񿎄񣵣m􇭀r\u0015C\"",
-                "owner": "ed25519_pk1z3k30w82jd0ls4har4pe5k0gajw5uznrpfkx4nqqaqgnf8xc4peqe5qyua",
-                "name": "\n򩉌\u001d9?O񠁭.\rw\u0017\\𴎘𦥀K:~QWoX𒼩\u0005P𲺌󷬣r񽘗TXG#\u0014D\u000bQ𑄕򐘆6\u0005𵄛Wh'_󜉓",
-                "ticker": "A򡝃a𔲠2",
-                "pledge_address": "𕙻'񚻉񲘢^k\u0015󝁉\u0005'\u000fzOo\u00028񼵦>\u000bG𜱂𽬣^򂞒i𷔣_񍵞p\u0003o&񶐞E\u0002$K󂘉E-\u000f񦂹\t𙆠󒸄񭭉",
-                "description": "\u0014+3Y񡩡󆗚xguwE%;\u001a}\u0012^s\u000bnB;X\u0000`\u0006AfIpn\u000e\u0004?0P=c􅲓H򥀰y\u000c}kjrRG\u00018z\u0011𭵓w󛴠剼󤡾\u0007򎴮\u001c%򿙭󇍉0N ik4?\u0005󂛉\u0007pUWf𭞝iE\u0018񜏚\u0019\\"
+                "homepage": "_\u0000~H񢱫񝆩UFU󪐤@O'\u0015m'\u0016LI=񩫈\u0018D𝍌L#c\u0016Y=Y񪋗򴣡yg~",
+                "owner": "ed25519_pk1jvaugdquujw9xwvy6p822fcla3yvmvjfx099vlkj6ulskuk2qpqq25x0ft",
+                "name": "d􌙥𖖋\u0008񂠤##iHr񦮙jk0􅨀|:h𨴒b\u0001򰿷\u0016dnUd󻥟񧝅\u0015Y| 򘰍\u001cc󥴹",
+                "ticker": "Oie𹬞^",
+                "pledge_address": "p<\u0005N𼩫AF\u0015񆭤3𒖪Gf󕋧IQ+b\u0015rl񘅇\u0014pB󓀛xM}W5𩀵Q[\u000e񯱋",
+                "description": "n\u0019,a\u0017L󾾖썐𼋀Q\u0000u-\u0006Q4񉕐'᫿<\r\u001fvmN[e;󕯽!v񿄛|\n)\u000b{\u001b𗙴[(B.N񞕼l\u0008oYm𘌟2Muw,B\u001a󪤟x\n𲌩JQ𞜬\u0011+󸅞򸬡30He\u0002 􎀒񔶋L([RaWPBt&<N&Q򱘂\u0000m\u001a\u0012L(!cX~I\u001fr;񇃱|`𷩯񔰨󽐎SPtf"
             },
-            "id": "7d04ce03aa838145d28ecdaa7c2289a50300ae465d66f1d7e13a3465b0ae5aa6",
-            "desirability": 72.01923760852162
+            "id": "250aeb63d8199189cd323e1933883cf35cc5514a918d4a029290422d61eba26a"
         },
         {
-            "saturation": 1.852804594984692,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 904612922486,
+                "saturation": 2.229857660857619,
+                "non_myopic_member_rewards": {
+                    "quantity": 799609606090,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 20530939,
+                    "quantity": 4849440,
                     "unit": "block"
-                }
-            },
-            "cost": {
-                "quantity": 120,
-                "unit": "lovelace"
-            },
-            "margin": {
-                "quantity": 9.83,
-                "unit": "percent"
-            },
-            "apparent_performance": 3.594250332521959,
-            "id": "90b83465773ed70e2d18736ad58724c1fd477962bf457657b9e3d6f2da21891a",
-            "desirability": 39.29589602343317
-        },
-        {
-            "saturation": 1.920840774051201,
-            "metrics": {
-                "controlled_stake": {
-                    "quantity": 581963263419,
-                    "unit": "lovelace"
                 },
-                "produced_blocks": {
-                    "quantity": 9625631,
-                    "unit": "block"
+                "relative_stake": {
+                    "quantity": 51.87,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 97,
+                "quantity": 118,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 58.28,
+                "quantity": 85.38,
                 "unit": "percent"
             },
-            "apparent_performance": 3.9223997001407547,
             "metadata": {
-                "homepage": "Z\u0004p򔧙B\u0015f-\u0016K󣧉\u001c(@\u0013~񹙘񺲜C򎾍0ZN??nH#A0\u001a!𵇆 '!񚐖b\u001a񔯘dr\tU񐢊\u0013􎺪񒚬\u0011C󹧈e:~E󡥮\ne󳦖\"󗈲?\u001c",
-                "owner": "ed25519_pk1fpf2vts45gkuzuyn5aq0fdtzjv7xytfmjxc58239tp6alnqy74asd657c3",
-                "name": "[򭛦j򐾯\u0017񃘈*𦳼񄲨񤸂[-?Q\u0014񼾃򠉯L\u000c򿈁\u0016򸙿E􍊂\u001aJ\u001a\u001b󟝟u󷣃񍖍Er5,4򯪹.s",
-                "ticker": "𓞈`(Z",
-                "pledge_address": "\u00192^\u001f򢄳󥡍CU晟\u001f(t􅼦F\u0016vf'򞰥򳘙Bs3\u0001",
-                "description": "OFT1\u0000󑺡港\u0001Ic\"돭uL󆶢^R򨍟񼻷X\u0017e񻆧\u0006VdU{\r󝼾)<󿷧|x?\u001e0?𷴅\u0017.󈕥\u0013Dj\u000f|\u0001Co򐰂`h򣰣񡼨\u001f󾓸aRq\u0011AMZ\u001a񫀾𨱻𡙕w;'9\u0005WS\u001c\t1򁻛>9󁲇\u001fv3񹅆3𵎕򾆝񿇚LW3_\r\u000c\u0011\u0000񢟈Sl󌔥\u0002E\u0012)􂵡=n\u0017>tZ􆅱|/𯗝\u0005U򾎔| \u0001\u0017u\u0013\u0010򶈑:J\u0012)񋵙𤬘G󤡩񁕙T綒\u0016$j\u0008kx\t\u000f󎏉6%\nUjro󒡫󊺧$򚡉}NdP\u0007\u000c1]󝡱q4&hH\n4h\u0001􀬣\u00131\u000c\u0016lz-񷔑~􁴥Sa=\u0015@(K_rFC\u00196m\u0004:\u00167(6\u000fH񒻙𶥾_󷇳^S\u001f⛇󐤄e\u0019&q\u000b\u001f󃤭\u000fc"
+                "homepage": "C\u0018񽁗d\u00130J\u000b5`񄳖ey\u0007𷥣󻩰Qm*\u0005|\u000e*񋃣\u000ci\u000ek\u0001򀈑󅣣8},5",
+                "owner": "ed25519_pk17800h28l4zmrzkfz4j8atwxwaftpmnd6vfkt0jwvrvwwvu5c8fhq9pze4y",
+                "name": "\u0016@\u001b┎0\u0004<cR튃\u0006ue8V`Tx",
+                "ticker": "a󭁇~򜰗l",
+                "pledge_address": "cDV򢃦꿙lw4G򡪇8>򀎬򀏩\u0013N",
+                "description": "fkm[񄕴#큣_,\u001dM\u001b\u001a򔾘f7H􍤱{𮏬_G\u0010)*񿜿\u0002\u0015-h;􊘔8𦵾\u001c\u001a󖀃@!w𞢊(/c󕤹M󑳍MH'\u0016b-\u0001𬁼w򁟇M󹔈$\u001e4􀄼\u0003f򝄁f!\u0012j򸡦\u001er]0O\t.t񵆓聕\u000b\u0000D񰇞򎶤8f􃼗 򶨌$\u001a%qq1_񕟽\u0003_}^(6\u0018񑱱󺖾\u0004b󀽡\\TFI\u0004񜗙񊻚n#\u001b󄭦\u0004\u0016񷟉𕞾r𐡸`󲷮󷚓𑈡MR\u0016Y\u0003\u001e2𭞵񅗚󻓟򲛉򎃤K򿺆>\u0016@UZK\u0008g󡫻\u0004]\u00088򡸊KA\u0007}\u0019Ng򂏝^j\u001b\u0007$򟡞w\\[򦇢a#0Y\u0017r:J򆣰\nY򣤾}󁗖󛱼a񳢢󠮁𔖶\u001e𝍑ZkT\u0008*g\u0013򿂠vX@'󨶅L#򳜑򒦄󀐠3􌜕񦣂𬰻[1\u001a+G\u0011򐜪kB[C񯨒򗽴𭖧񄅤񈥸|\u001f"
             },
-            "id": "47cfcf3ee942e38f85829a7fd15dae4c5e4607f8572cf98b395ed7f7c6a96152",
-            "desirability": 83.83276974368387
+            "id": "cfea66e8716172989c1b5000beb654ce0f19a42c504984d20c85219cc1b7a77a"
         },
         {
-            "saturation": 0.45943835569306524,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 178268162581,
+                "saturation": 2.039064797442939,
+                "non_myopic_member_rewards": {
+                    "quantity": 29062882250,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 8115038,
+                    "quantity": 20389202,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 66.66,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 184,
+                "quantity": 140,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 59.93,
+                "quantity": 73.92,
                 "unit": "percent"
             },
-            "apparent_performance": 4.206502091685358,
             "metadata": {
-                "homepage": "𴴹tYd\u001d;R\n eX\u001dMpv<\u0015j\u0003\u0013\u0016A\u0015G8Z3\u001c\u0001Wt\u000cfM򋲊,򨣏X󣞶񴬡󽻥8.𙿣!+R2tM񕾴\u0017򹦛𶔉;",
-                "owner": "ed25519_pk1yzaxe5pwtuwn63dlc9xcuc0p3j6cdmt6gxfnju95zt52xp6rvk0scvsxju",
-                "name": "a\"n\u0000󪜨񔉛j\u001d𚢏/&e?!󊔨f\u0016\u0006\u0012pma Eci𩫗kt\u00181C񆒼\u0008\u0004o\\\u00028[\u0001B񷬥򬫀r'",
-                "ticker": "h򊅏􃜓󏻾",
-                "pledge_address": "\u000f$\u000b󞯱|B",
-                "description": "\u0005v\u0006\u000e񃭨O4\u0017򗥙>70Sdjo0Q\"L\u00158\r񛉠\u0014-N|򿄓\u001aJ\u0004v񧽦񚡍\u001d\u001f;}.`񶀷󬁽\u0005𜙮\u0011\u0002\u001c\u0013+DTVE)P\nD򮛭񋬾2򰇗QfZ\u0013\u0019U\u00083򐆖\u0001;\nK򑠐A򸨑a񺧜󥗞p<\u001a7-f\u001f:\u0012dmY\u0002򀸎\\4\u000cv󅠙mT𐧸p򶽬_\u001eU\u0014_LW󂋱L"
+                "homepage": "L{\rYU*;\u001c\u0013\u000c\u0011o\u00179𡦌&o\u0018\u001b𰖮񛫠򔛩`-mJ z\u0017񽮜1🮃󯘙\u001aI񖈃9)񶧹^(Nxu𰇈\u0000Ae󓗆\u0007VR)󡃂",
+                "owner": "ed25519_pk1f9rnxa0549aeqsjumzhrfcdkddetez060fzhc4c6lvd27wphudasmt8w0u",
+                "name": "\u00061\u001e\u0008󦱠9򝉶T4QH\u0004W+𧶟i󩞾95#\u00054\u0002B\u0002𺒺-B\u0000#2ver󈿟\u0001񗒓Hmc]",
+                "ticker": "񳢨\u000c\u001e\u0005",
+                "pledge_address": "򑛓𝦃󠛣\u000b0񿼃?󨻦B+-\t",
+                "description": "'찢u𽥬񤙅!ݢz򿴎A󵳗󴻂n\u0012$}󀛖)^\u001b\u0017e󜩇\u0012z\t#U⤅1󇑯󙕺FJ?+򬯣9T\r\n&\u0013Y%\u0010󈲷\u0004|UU󍓴\u001c򂼮Sf\ne#\u0005򸨨(g󤟔%񐤽N󅩥2𣡉R\u0000Tf󾫓A󳻤𕩻򞒪\u0000\u0016GP\u000f\n򗁥匋󲫥𯆘𶜎2J󫅌󗯗\u001b򪤣LK\u0008𾥂\u000f\u0004򉃞jW:O􌳝`󱆏P<󬰜|}:Dy\u0008_I#𺅡8"
             },
-            "id": "f537733a9d7cd66298cfaffb961b2d4197be5719d42cf0e7889d0d711d438882",
-            "desirability": 44.523813132482836
+            "id": "fc6aa4be70078ba187ecb19ab61e8a04aa7fad8c8b456d175f5eedfda36a9a6f"
         },
         {
-            "saturation": 8.641091228501341e-2,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 447168606101,
+                "saturation": 3.719655064680727,
+                "non_myopic_member_rewards": {
+                    "quantity": 225964191754,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 7457091,
+                    "quantity": 16999009,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 58.71,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 47,
+                "quantity": 180,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 4.59,
+                "quantity": 17.7,
                 "unit": "percent"
             },
-            "apparent_performance": 2.526015088676168,
             "metadata": {
-                "homepage": "\u00027􁋉O\u0019I\u0017\\\u0017񤿴`8H𦵿󾤯񾅧6_FW꒝h5DpT􅉯J5\u0014𖐑ik򄬮a_񉅏kg.󞘇}\u0011񽴍i񡿮X򲜒\u0013\u001a򜀵󦌋",
-                "owner": "ed25519_pk1ty3srhkuxrlk7vpfa4wupdcszllr82j9rk7zmnhpgvhm42egqnrs9xdlrx",
-                "name": "X𸛉>/C\u0004𰏷v𔕑򂸉򵑜c0\n'tI򘄱9\u0014\u000c񊾇d-\u000c򨥭.\u000f.\t\u0018\u000e󋌀𗅵&",
-                "ticker": "O􄞨\u0005X6",
-                "pledge_address": "񂒭􀑾|\u001dJ+\u0005/R\t@\u000fAWa",
-                "description": "\u0018P򁄉[2𐴛𾺨]!).v 񷱚bH?Qb=;񃘾Z񪡞)\u001a󇫊󘛔+F񷏵\u0003񶉩j\u0007.p򘉢𢪔:U𷲔(\u0016󥗣\u0010\u001f~\n'\u0006Ja%􎡕A_񰋈HU8b\u0018\u0014o񯬡򅧘񻦅񃎪򔟐\u0006*Ng\u0001񌭘󡭂?\u0003'l\u0015/򰔖򩶩e\u0014Tlkyor򻜶󐡔򹿙2\"񱀼꽃\u001am,\u000b񱋃0\u001fO#1*\u0000퓤$a\u0002JNH𢩰\u0003􁊱w$\u001f𘘑]򡃙𹺬~S򧈅0􊞠񠵔\u0002󪲇+IH\u0010t\u000cZ:Y򑔏􆂣\"\u0019f\u001c򉓇\u001d\u000ee\u0015nY􇐇𬇹IY󑸋i􃎝\u0016CG\u000fjE\tt^Xk򰤳􍤂󌟦s\u0014\u0011􈠅;!L܌2e^Wr*Mso򋿯'C嗺oE;\u0008\u0018\u0006pf)~\u000b񵨶~zUu\u0018DM貖\u0004󄼃\u0010򝛮&b,x񳧯񸝂󵩂u\rUg\u0000\u0004\u0010󸧶Y\u001c򁃜&\u0017򄄍[\t\u0013\u0014x\u0016"
+                "homepage": "(\u001e\u000b&9򀤸򟵀!>5p0\"\u001c,􍨦\u0007\u0016􏄹xu\u0001\u0006==s񍐏񔥊\r",
+                "owner": "ed25519_pk149egrxmcfxf83nnlq0qa4m7eajtt04dnnygyzmgfml5zza7gretqweensj",
+                "name": "򳺦y𷞯!Mb񩀀:-\u0003du4kr򑻖)\u001a2\u0006?򗴑🻺`i\u001es_n\u0014񦺿#\u000bD󉰙\u000fi",
+                "ticker": "d󣐙`𝾻L",
+                "pledge_address": "\tH󉈢񫟗6Y\u0005𯄣r_,F󌊸\u000b\u0017)p񆺾}K󰔕󊵸n",
+                "description": "񫛊2T%򽽒񟒤a)h𫔚񹍅Je:#󒧜4YZ`𞺝🪯%񉛂\u0011V󭛮]𻮈񦛝5C񪤔\u001a񯗫񸰌򫧁M\rl\u0002F>p\u001fE񩥭6A񞋵3\u0006&୲c񍄞1Q򪠋W񄠙򚒄k򒁰񎅏V\u0011\u0019񛗚iY􉕷𫬫c%򠠩򓍓\u000e=Yo&#d򄅠\u0000񙆐\u001fA\u0015I𕱆񸎛u[:󬲃1\u001fg]tEI\u0001Q\u0012r8w#6A\u0013C򸨚hZ#H𺾻'\u0017񭯇"
             },
-            "id": "b5762f1d02345a0ada726cac7e36be4e8b0aee0da55f5d543e1139ca0c709586",
-            "desirability": 51.87186210283098
+            "id": "9b555f498d83c73ffc61400bddbe0fe4b39595eb337c1484336ef10edba631f0"
         },
         {
-            "saturation": 1.968570432425456,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 432625819792,
+                "saturation": 4.368627885182207,
+                "non_myopic_member_rewards": {
+                    "quantity": 644852513442,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 21386781,
+                    "quantity": 9689502,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 4.67,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 197,
+                "quantity": 36,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 62,
+                "quantity": 35.25,
                 "unit": "percent"
             },
-            "apparent_performance": 1.849798195278386,
             "metadata": {
-                "homepage": "q\u000f{񵮙\u0007<\u001c_+\u0012\u001d<𒀝󝇰\u001a򭸯\"􎿓2m/񾆫󮥅󦦥Y򍦵񘣋\u0014f^AQ%?8b𱙂x7񈵰씏y>\u0001\rJ\u000c􋔻󪺭𵙡g󇯗\u001de\u00066򥥨𢑮𳉣42}򧦱\u000f񖓈N񡹧Q𮻤{P4󌴩!'{/󉋢",
-                "owner": "ed25519_pk1qlzqz7pdn04dvh9xtv5pz9724tt0u6gvm4nv2s9qnvk065k6265s4l35ne",
-                "name": "꠿\u001a\u0015",
-                "ticker": "V򡥒񺇫",
-                "pledge_address": "𙟀l񞲼\u0011;,+\u0013򛄅{v5KHe]\u000cT\u0000KfNw|򛅠t\t<\"󐬧򼘬",
-                "description": "\u001e󴝇r\u0011=\u0019\u0015f\u001e򔦰au󡞱񮴒a`󂝌󴜝x*:3򭄺K}w\t(_񑵎N\u001d-\u000f-]'WD𼓡"
+                "homepage": "q㜢쯤󣋊gf󢂁eu\u0004kS)z)K􇉟򐦚\\1񾘾p{M_񖆛򹠡/@⏨l,\u0001+󳀀P򂉬{𵜎p`\u000ev\u0005\u0007 CxUJ\u0000\u0016/r񊎯𣺸\tsC\u000bb򺡦Eyn\u0007P񁏯 %\u0011\u001cxd􊧥Pd\u000b\u0014Q+*I_\t^𐡵u9B",
+                "owner": "ed25519_pk1xn4dxq6ec9r697efc6aku2c2k8lc64qnvdxtedgetk8xslqj84yqq4ma4k",
+                "name": "𺌹\u0010~𷈷w\u0000D8:$\u0004\u0014\u001b#W\n*oP!2\u0013n񺄥=L[𴌲8",
+                "ticker": "G󴲮f\u001c",
+                "pledge_address": "\u000ec󾖿FTn򯝩r󍻗t'W\u0016|gt[H"
             },
-            "id": "48bb5b32efb2527a17a7fd3dc277772a76c912704de7c2dbaf988d69782a1e34",
-            "desirability": 86.6373114351815
+            "id": "ebd4d4498c29f01b22097d2fd22fe2ecc1a7904d4b82f91172da7268ba37f715"
         },
         {
-            "saturation": 1.389256217494885,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 14758319391,
+                "saturation": 1.6169744523952185,
+                "non_myopic_member_rewards": {
+                    "quantity": 235372513004,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 714583,
+                    "quantity": 16305603,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 44.58,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 71,
+                "quantity": 161,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 17.92,
+                "quantity": 54.66,
                 "unit": "percent"
             },
-            "apparent_performance": 3.844049404502597,
             "metadata": {
-                "homepage": "򞘭󥢞\u0002󟨷\u0017򤎙𫖴'򖖋3𺑋\u000ey񓊞iD1򐘗󾹑hT{K\u0008)E\"&I񂱄$򪬘\u0006!y𬾎B\u0018",
-                "owner": "ed25519_pk19le3c8nl6a67r4xa9g3kyqc267qfg6ds7dnsg9ggvjpwlzelmgpqq83ftm",
-                "name": "po󨋤.\u0002ὃ񁟔+{\u001f;\u0000&'W;\\j\u000bS4e{a\u0010F8󽼌Mi񸗶𤖐",
-                "ticker": "r\u0006𭍝򌺲",
-                "pledge_address": "􄧨񦱌B򂫺򟑚i3",
-                "description": ";!\\\u000c򣣽eo\u000cZ񛢰RKw>#"
+                "homepage": "󏳎_1\u001b]K\u0004񚍿\u000e,/񧥈>\"\u001c:v󿃟K(򣘙+\u0013𹢝/t\rJ:=򑧐󝣖vꏨL󱐑L&#j\u0004b=_\u001e\u0007%\u0014\u001fYK:1;V񞤠3?|I!569\u0012`n",
+                "owner": "ed25519_pk1km0er57shej5x8ufnf49qznaurt7k265x8as6g8gyyygltt9p54ssg4wvz",
+                "name": "񽈄\u0015",
+                "ticker": "V\u000b򠉄Jឬ",
+                "pledge_address": "G󌁊𷉹\u00191󣾉𵮕򽬂񶣗ON"
             },
-            "id": "be320f17e351c19b5f1ea05063b9a2d7f3a34de0f189e77ff7746481a8714c15",
-            "desirability": 22.078895143564193
+            "id": "6f208286b4db8ac915e5e0b94e8e5afc4b770c79efac4db1fa70aad31f5bc346"
         },
         {
-            "saturation": 1.9842106543163316,
             "metrics": {
-                "controlled_stake": {
-                    "quantity": 643040994591,
+                "saturation": 3.1719432388071214,
+                "non_myopic_member_rewards": {
+                    "quantity": 885703340892,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 4399474,
+                    "quantity": 10137145,
                     "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 5.41,
+                    "unit": "percent"
                 }
             },
             "cost": {
-                "quantity": 84,
+                "quantity": 57,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 21.64,
+                "quantity": 19.49,
                 "unit": "percent"
             },
-            "apparent_performance": 0.46913468718411677,
-            "id": "0f9a610a136f8fd7b75c5828091bce7ea3bf30424d1620fe069e68512c70a23b",
-            "desirability": 58.09265429721017
+            "metadata": {
+                "homepage": "7c>Cy𹏥zco\u0017񳃪񝐪\u0000U񔛦\u0002h𹽓,\u000ftemdiK\u0017𠂜*򇃮qlOf\u0016򟐴寧\"򗫱q\u0005\"󰝥顀򁙊+\nY(:hv\t?dB󶖓r\u001c񭳰n󅙟:~􆜬X񘬲: p󪧫󈆈",
+                "owner": "ed25519_pk1jnmc6rayp9g99gud8j5wclqgk8myer5utwa0s60edjfnvddue7fs2c6wum",
+                "name": "=𥲨󛤤򢉿B@\u0005685Z=}򋥎5R\u0014\u001b\\񮞄W𶙌z\u0007&FZ\u0000\u0018:\u0008\u0011\u0007P\u0015𳠦",
+                "ticker": "􁪜*\t\u001c񷔭",
+                "pledge_address": "\u001b𣴗\u0017\u0006\u0011G\u001d\u0006񴃔\u0019,&\u0005q\u0007𶋃F񉼌U𽑄\u0000c򈞰􄹜(",
+                "description": "]𔑫1m󮮉\n,2M𸀞e\u0008T\u001e?z򌊱1HZ~i?*7u\u000f󤴘_񥜆򒘫􅷖\u001f󠯇󼉌v󘧡\u001aVLIP\u0001]񰍱wP9\n~M𴻑\u0005[\u0018\u0014\u001a)\u001fqZ%H \u001a:\\|򙀔\u0018AWT@𦬴iMF򔞁Z5DyL􋢊ZOIzU\u0007OTj\u0011'C+i\\@󟆔'*[P@I~󌮋|\u0003\u0019UXwn󮭢^5;RHU~F3.󵃙L򁚎\u001f\u001fF#\u001e\u00108x}"
+            },
+            "id": "3108352d97ad92df9c586a0aedfdd7e256b6c01ec98aa05266ce45705e98f539"
+        },
+        {
+            "metrics": {
+                "saturation": 0.60210517333732,
+                "non_myopic_member_rewards": {
+                    "quantity": 529321579099,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 3761070,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 73.5,
+                    "unit": "percent"
+                }
+            },
+            "cost": {
+                "quantity": 160,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 76.45,
+                "unit": "percent"
+            },
+            "metadata": {
+                "homepage": "\u0004\u0012\u000em򂮣Li󚳨\u0000(􋯲-7|~1\u0015򖷲1A(8𲒭􃌊\u0000EZS𨳞p𚗾\u0007v6􂼋Snhv`4\u0000󌫐)\u001f𮶡#򚝦.`jm􃇏a𤵘\u0000f\u0015\u0013+c\u0016p\u001b",
+                "owner": "ed25519_pk1rv94kx6hlh8xp28n9mu2k4tfnqe0nalq94dwxl64gwfvwctn8rfsae70nk",
+                "name": "F\u00144\u0002\u0010&i9(j𾎨_+8olH+󠋒\u0014&:\u0013CAe䃇b",
+                "ticker": "2걍򺖷s򡡓",
+                "pledge_address": "񎒹%󙗻r𤟣꛼[fD;𮴚b䐧Z%s\u0007\u00192HJ^w",
+                "description": "a\u0006\u0003򁕩󻀬\u0002ᝨ5}򏗥Ӳ_8K&񲣻򢞋𳱚ls󄆡Npx\u0005񸤅W8Qk\u000c^h󻱕x9\r\u001b򉟈#񜵆f򈞠𬯴>\u0007od\u001f3\u0016S\u0004􈊣0𨩩񨈿.\u0010Y.\u000eY\u0001j%\u001b/b\nIX𽚔L򕺄\u001b\u0008\u0006fl7񿲊󇂴$\u0001񑠨໹򚊞)\u0005\u0007񊂷:Q𔠔dsD*ຘ<$,\u001e\u000f󲏽\u0005h񄚇0!nV{$|󴠼s\t񸔢󉭪"
+            },
+            "id": "39afebb50250fb1091c31de27bac3f9685e17016bcb40d9fffaf7bbf2fd2ceb1"
         }
     ]
 }

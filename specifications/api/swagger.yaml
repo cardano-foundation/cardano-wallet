@@ -492,17 +492,6 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
 
-x-stakePoolMetrics: &stakePoolMetrics
-  type: object
-  required:
-    - controlled_stake
-    - produced_blocks
-  properties:
-    controlled_stake: *transactionAmount
-    produced_blocks:
-      <<: *numberOfBlocks
-      description: Number of blocks produced by a given stake pool
-
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
     Apparent performance of the stake pool over past epochs. This indicator is computed
@@ -588,6 +577,45 @@ x-stakePoolDesirability: &stakePoolDesirability
     How desirable / attractive a pool is. To determine a pool's _rank_, we order pools by decreasing desirability.
     The most desirable pool gets rank 1, the second most desirable pool gets rank 2 and so on.
   example: 42
+
+x-non-myopic-member-rewards: &nonMyopicMemberRewards
+  <<: *amount
+  description: |
+    The rewards the wallet can expect to receive at the end of an epoch, in the long term, if delegating to
+    this pool.
+
+    For more details, see the
+    [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec)
+    document.
+
+x-stakePoolMetrics: &stakePoolMetrics
+  type: object
+  required:
+    - relative_stake
+    - non_myopic_member_rewards
+    - produced_blocks
+    - saturation
+  properties:
+    non_myopic_member_rewards: *nonMyopicMemberRewards
+    relative_stake:
+      <<: *percentage
+      description: The pools stake compared to the stake of all pools.
+    saturation: *stakePoolSaturation
+    produced_blocks:
+      <<: *numberOfBlocks
+      description: Number of blocks produced by a given stake pool
+
+x-jormungandrStakePoolMetrics: &jormungandrStakePoolMetrics
+  type: object
+  required:
+    - controlled_stake
+    - produced_blocks
+  properties:
+    controlled_stake: *transactionAmount
+    produced_blocks:
+      <<: *numberOfBlocks
+      description: Number of blocks produced by a given stake pool
+
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
@@ -755,6 +783,19 @@ components:
       type: object
       required:
         - id
+        - cost
+        - margin
+      properties:
+        id: *stakePoolId
+        metrics: *stakePoolMetrics
+        cost: *stakePoolCost
+        margin: *stakePoolMargin
+        metadata: *stakePoolMetadata
+
+    ApiJormungandrStakePool: &ApiJormungandrStakePool
+      type: object
+      required:
+        - id
         - metrics
         - apparent_performance
         - cost
@@ -763,7 +804,7 @@ components:
         - desirability
       properties:
         id: *stakePoolId
-        metrics: *stakePoolMetrics
+        metrics: *jormungandrStakePoolMetrics
         apparent_performance: *stakePoolApparentPerformance
         cost: *stakePoolCost
         margin: *stakePoolMargin
@@ -1574,8 +1615,13 @@ x-responsesListStakePools: &responsesListStakePools
     content:
       application/json:
         schema:
-            type: array
-            items: *ApiStakePool
+          oneOf:
+            - type: array
+              items: *ApiStakePool
+              title: "cardano-node stake pools"
+            - type: array
+              items: *ApiJormungandrStakePool
+              title: "jormungandr stake pools"
 
 x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
@@ -1863,7 +1909,7 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /stake-pools:
+  /wallets/{walletId}/stake-pools:
     get:
       operationId: listStakePools
       tags: ["Stake Pools"]
@@ -1871,9 +1917,16 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        List all known stake pools ordered by descending `desirability`.
-        Some pools _may_ also have metadata attached to them if they have been registered
-        to the metadata registry.
+        List all known stake pools ordered by descending `non_myopic_member_rewards`.
+        The `non_myopic_member_rewards` — and thus the ordering — depends on
+        the balance of the given wallet.
+
+        > /!\ On the incentivized testnet, pools are instead ordered by
+        descending `desirability`.
+
+        Some pools _may_ also have metadata attached to them.
+      parameters:
+        - *parametersWalletId
       responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
