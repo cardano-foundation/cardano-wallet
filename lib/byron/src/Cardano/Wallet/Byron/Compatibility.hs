@@ -29,7 +29,7 @@ module Cardano.Wallet.Byron.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
-    , mainnetBlockchainParameters
+    , mainnetNetworkParameters
 
       -- * Genesis
     , emptyGenesis
@@ -165,8 +165,8 @@ type NodeVersionData =
 -- Chain Parameters
 
 
-mainnetBlockchainParameters :: W.NetworkParameters
-mainnetBlockchainParameters = W.NetworkParameters
+mainnetNetworkParameters :: W.NetworkParameters
+mainnetNetworkParameters = W.NetworkParameters
     { genesisParameters = W.GenesisParameters
         { getGenesisBlockHash = W.Hash $ unsafeFromHex
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"

@@ -44,7 +44,7 @@ import Cardano.Wallet.Byron.Compatibility
     , emptyGenesis
     , fromGenesisData
     , fromProtocolMagicId
-    , mainnetBlockchainParameters
+    , mainnetNetworkParameters
     , mainnetVersionData
     , testnetVersionData
     )
@@ -168,9 +168,9 @@ parseGenesisData
 parseGenesisData = \case
     MainnetConfig (discriminant, vData) -> pure
         ( discriminant
-        , mainnetBlockchainParameters
+        , mainnetNetworkParameters
         , vData
-        , emptyGenesis (genesisParameters mainnetBlockchainParameters)
+        , emptyGenesis (genesisParameters mainnetNetworkParameters)
         )
     TestnetConfig genesisFile -> do
         (genesisData, genesisHash) <-
