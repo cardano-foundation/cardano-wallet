@@ -1297,7 +1297,7 @@ data NetworkParameters = NetworkParameters
 instance NFData NetworkParameters
 
 instance Buildable NetworkParameters where
-    build (NetworkParameters gp txp) = build gp <> build txp
+    build (NetworkParameters gp pp) = build gp <> build pp
 
 data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
