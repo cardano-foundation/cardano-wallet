@@ -268,7 +268,8 @@ newNetworkLayer
     => Tracer IO NetworkLayerLog
     -> BaseUrl
     -> Hash "Genesis"
-    -> ExceptT ErrGetBlockchainParams IO ((J.Block, NetworkParameters), NetworkLayer IO t J.Block)
+    -> ExceptT ErrGetBlockchainParams IO
+        ((J.Block, NetworkParameters), NetworkLayer IO t J.Block)
 newNetworkLayer tr baseUrl block0H = do
     mgr <- liftIO $ newManager defaultManagerSettings
     st <- newMVar emptyBlockHeaders
