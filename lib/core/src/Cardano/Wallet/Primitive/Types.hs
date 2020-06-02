@@ -83,7 +83,7 @@ module Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
 
-    -- * GenesisParameters
+    -- * Network Parameters
     , NetworkParameters (..)
     , GenesisParameters (..)
     , ProtocolParameters (..)
