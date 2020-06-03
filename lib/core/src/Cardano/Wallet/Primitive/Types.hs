@@ -1279,7 +1279,7 @@ computeUtxoStatistics btype utxos =
     (^!) = (^)
 
 {-------------------------------------------------------------------------------
-                             Blockchain Parameters
+                              Network Parameters
 -------------------------------------------------------------------------------}
 
 -- | Initial blockchain parameters loaded from the application configuration and
