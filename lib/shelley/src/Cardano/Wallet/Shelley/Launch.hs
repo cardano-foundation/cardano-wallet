@@ -315,7 +315,7 @@ updateStartTime
     -> IO Aeson.Object
 updateStartTime m = do
     time <- getCurrentTime
-    pure $ HM.insert "startTime" (toJSON time) m
+    pure $ HM.insert "systemStart" (toJSON time) m
 
 -- | Add a "GenesisFile" field in a given object with the current path of
 -- genesis.json in tmp dir as value.
