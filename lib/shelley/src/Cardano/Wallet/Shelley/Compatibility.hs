@@ -63,6 +63,8 @@ import Prelude
 
 import Cardano.Binary
     ( fromCBOR, serialize' )
+import Cardano.Config.Shelley.Genesis
+    ( ShelleyGenesis (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
 import Cardano.Slotting.Slot
@@ -102,9 +104,9 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import Ouroboros.Consensus.Protocol.Abstract
     ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( Crypto, GenTx, ShelleyHash (..) )
+    ( GenTx, ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Node
-    ( ShelleyGenesis (..), initialFundsPseudoTxIn )
+    ( initialFundsPseudoTxIn )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( TPraosStandardCrypto )
 import Ouroboros.Network.Block
@@ -446,11 +448,11 @@ fromShelleyTxIn (SL.TxIn txid ix) =
     unsafeCast :: Natural -> Word32
     unsafeCast = fromIntegral
 
-fromShelleyTxOut :: Crypto crypto => SL.TxOut crypto -> W.TxOut
+fromShelleyTxOut :: SL.TxOut crypto -> W.TxOut
 fromShelleyTxOut (SL.TxOut addr amount) =
   W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
 
-fromShelleyAddress :: Crypto crypto => SL.Addr crypto -> W.Address
+fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address
     . SL.serialiseAddr
 
