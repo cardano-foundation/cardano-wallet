@@ -1299,6 +1299,12 @@ instance NFData NetworkParameters
 instance Buildable NetworkParameters where
     build (NetworkParameters gp pp) = build gp <> build pp
 
+-- | Parameters defined by the __genesis block__.
+--
+-- At present, these values cannot be changed through the update system.
+--
+-- They can only be changed through a soft or hard fork.
+--
 data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
