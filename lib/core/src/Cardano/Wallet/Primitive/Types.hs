@@ -1357,11 +1357,17 @@ slotParams gp =
         (gp ^. #getGenesisBlockDate)
         (gp ^. #getActiveSlotCoefficient)
 
+-- | Protocol parameters that can be changed through the update system.
+--
 data ProtocolParameters = ProtocolParameters
     { decentralizationLevel
         :: Quantity "percent" Percentage
+        -- ^ The current level of decentralization in the network.
+        --   * '  0%' indicates that the network is /completely federalized/.
+        --   * '100%' indicates that the network is /completely decentralized/.
     , txParameters
         :: TxParameters
+        -- ^ Parameters relating to transactions.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
