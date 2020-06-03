@@ -70,6 +70,7 @@ library
       Test.Integration.Framework.Request
       Test.Integration.Framework.TestData
       Test.Integration.Scenario.API.Byron.Wallets
+      Test.Integration.Scenario.API.Byron.HWWallets
       Test.Integration.Scenario.API.Byron.Addresses
       Test.Integration.Scenario.API.Byron.Transactions
       Test.Integration.Scenario.API.Shelley.Addresses
