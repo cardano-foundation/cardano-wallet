@@ -907,25 +907,34 @@ instance ToJSON SomeByronWalletPostData where
             & withExtraField (fieldName, toJSON $ toText Trezor)
         SomeLedgerWallet w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Ledger)
+        SomeAccount w -> toJSON w
       where
         fieldName :: Text
         fieldName = "style"
 
 instance FromJSON SomeByronWalletPostData where
     parseJSON = withObject "SomeByronWallet" $ \obj -> do
-        obj .: "style" >>= \case
-            t | t == toText Random ->
+        choice <- (,) <$> obj .:? "account_public_key" <*> obj .:? "style"
+        case choice of
+            (Nothing, Just t) | t == toText Random ->
                 (obj .:? "passphrase_hash" :: Aeson.Parser (Maybe Text)) >>= \case
                     Nothing ->
                         RandomWalletFromMnemonic <$> parseJSON (Aeson.Object obj)
                     Just _ ->
                         RandomWalletFromXPrv <$> parseJSON (Aeson.Object obj)
-            t | t == toText Icarus ->
+
+            (Nothing, Just t) | t == toText Icarus ->
                 SomeIcarusWallet <$> parseJSON (Aeson.Object obj)
-            t | t == toText Trezor ->
-                SomeTrezorWallet <$> parseJSON (Aeson.Object obj)
-            t | t == toText Ledger ->
-                SomeLedgerWallet <$> parseJSON (Aeson.Object obj)
+
+            (Nothing, Just t) | t == toText Trezor ->
+                    SomeTrezorWallet <$> parseJSON (Aeson.Object obj)
+
+            (Nothing, Just t) | t == toText Ledger ->
+                    SomeLedgerWallet <$> parseJSON (Aeson.Object obj)
+
+            (Just (_ :: ApiAccountPublicKey), _) ->
+                SomeAccount <$> parseJSON (Aeson.Object obj)
+
             _ ->
                 fail "unrecognized wallet's style."
 
