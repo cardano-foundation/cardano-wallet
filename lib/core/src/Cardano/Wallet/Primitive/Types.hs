@@ -1282,16 +1282,13 @@ computeUtxoStatistics btype utxos =
                               Network Parameters
 -------------------------------------------------------------------------------}
 
--- | Initial blockchain parameters loaded from the application configuration and
--- genesis block.
+-- | Records the complete set of parameters currently in use by the network.
+--
 data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
-       -- ^ These parameters are defined by the configuration and genesis
-       -- block. At present, none of these are covered by the update system.
+       -- ^ See 'GenesisParameters'.
     , protocolParameters :: ProtocolParameters
-       -- ^ These parameters may be changed through update proposals. Currently
-       -- the only dynamic blockchain parameters that the wallet needs are
-       -- related to creating transactions.
+       -- ^ See 'ProtocolParameters'.
     } deriving (Generic, Show, Eq)
 
 instance NFData NetworkParameters
