@@ -31,6 +31,7 @@ maxMajorPV: 25446
 initialFunds: {}
 maxLovelaceSupply: 45000000000000000
 networkMagic: 1
+networkId: Mainnet
 epochLength: 1215
 staking:
 slotsPerKESPeriod: 86400

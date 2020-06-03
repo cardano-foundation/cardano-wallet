@@ -107,17 +107,13 @@ import Fmt
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( AppType (..), MuxError (..), MuxErrorType (..), WithMuxBearer )
+    ( MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( CodecConfig (ShelleyCodecConfig)
-    , GenTx
-    , Query (..)
-    , ShelleyNodeToClientVersion (..)
-    )
+    ( GenTx, Query (..), ShelleyNodeToClientVersion (..) )
 import Ouroboros.Consensus.Shelley.Node
-    ()
+    ( CodecConfig (ShelleyCodecConfig) )
 import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
@@ -143,7 +139,11 @@ import Ouroboros.Network.CodecCBORTerm
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer, runPipelinedPeer )
 import Ouroboros.Network.Mux
-    ( MuxPeer (..), OuroborosApplication (..), RunMiniProtocol (..) )
+    ( MuxMode (..)
+    , MuxPeer (..)
+    , OuroborosApplication (..)
+    , RunMiniProtocol (..)
+    )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , Handshake
@@ -221,7 +221,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         (atomically . writeTVar txParamsVar)
     let handlers = retryOnConnectionLost tr
     link =<< async
-        (connectClient tr handlers (const nodeTipClient) versionData addrInfo)
+        (connectClient tr handlers nodeTipClient versionData addrInfo)
 
     action
         NetworkLayer
@@ -245,7 +245,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
         link =<< async
-            (connectClient tr handlers (const client) versionData addrInfo)
+            (connectClient tr handlers client versionData addrInfo)
         let points = reverse $ genesisPoint :
                 (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
@@ -294,8 +294,10 @@ withNetworkLayer tr np addrInfo versionData action = do
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.
 type NetworkClient m = OuroborosApplication
-    'InitiatorApp
+    'InitiatorMode
         -- Initiator ~ Client (as opposed to Responder / Server)
+    LocalAddress
+        -- Address type
     ByteString
         -- Concrete representation for bytes string
     m
@@ -304,8 +306,7 @@ type NetworkClient m = OuroborosApplication
         -- Return type of a network client. Void indicates that the client
         -- never exits.
     Void
-        -- Irrelevant for 'InitiatorApplication'. Return type of 'Responder'
-        -- application.
+        -- Irrelevant for initiator. Return type of 'ResponderMode' application.
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
@@ -318,7 +319,7 @@ mkWalletClient
     -> m (NetworkClient m)
 mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
-    pure $ nodeToClientProtocols NodeToClientProtocols
+    pure $ nodeToClientProtocols (const NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 fromTip' =
@@ -334,7 +335,7 @@ mkWalletClient gp chainSyncQ = do
 
         , localStateQueryProtocol =
             doNothingProtocol
-        }
+        })
         NodeToClientV_2
   where
     W.GenesisParameters
@@ -399,7 +400,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
-    pure $ nodeToClientProtocols NodeToClientProtocols
+    pure $ nodeToClientProtocols (const NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 codec = cChainSyncCodec $ serialisedCodecs @m
@@ -428,7 +429,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
                 $ \channel -> runPeer tr' codec channel
                 $ localStateQueryClientPeer
                 $ localStateQuery localStateQueryQ
-        }
+        })
         NodeToClientV_2
 
 
@@ -444,7 +445,7 @@ debounce action = do
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
-    :: MonadTimer m => RunMiniProtocol 'InitiatorApp ByteString m a Void
+    :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
 doNothingProtocol =
     InitiatorProtocolOnly $ MuxPeerRaw $
     const $ forever $ threadDelay 1e6
@@ -456,7 +457,7 @@ doNothingProtocol =
 connectClient
     :: Tracer IO NetworkLayerLog
     -> [RetryStatus -> Handler IO Bool]
-    -> (ConnectionId LocalAddress -> NetworkClient IO)
+    -> NetworkClient IO
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
     -> FilePath
     -> IO ()
