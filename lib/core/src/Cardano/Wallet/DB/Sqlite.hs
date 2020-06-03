@@ -341,7 +341,8 @@ migrateManually tr defaultFieldValues =
     assignDefaultPassphraseScheme :: Sqlite.Connection -> IO ()
     assignDefaultPassphraseScheme conn = do
         isFieldPresent conn passphraseScheme >>= \case
-            Nothing -> pure ()
+            Nothing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
             Just _  -> do
                 value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
                     fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
