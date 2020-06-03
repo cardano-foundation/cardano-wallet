@@ -20,6 +20,8 @@ module Cardano.Wallet.Shelley.Api.Server
 
 import Prelude
 
+import Cardano.Pool
+    ( StakePoolLayer )
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
@@ -53,6 +55,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkParameters
     , getUTxOsStatistics
     , getWallet
+    , joinStakePool
     , liftHandler
     , listAddresses
     , listTransactions
@@ -124,9 +127,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    -> StakePoolLayer () IO
     -> NtpClient
     -> Server (Api n)
-server byron icarus shelley ntp =
+server byron icarus shelley spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -171,7 +175,7 @@ server byron icarus shelley ntp =
     stakePools :: Server (StakePools n)
     stakePools =
              throwError err501
-        :<|> (\_ _ _ -> throwError err501)
+        :<|> joinStakePool shelley spl
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)
 

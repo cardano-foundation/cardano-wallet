@@ -54,6 +54,8 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
+import Cardano.Pool
+    ( StakePoolLayer (..) )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -96,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , PoolId (..)
     , SyncTolerance
     , WalletId
     )
@@ -144,6 +147,7 @@ import System.IOManager
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -226,8 +230,14 @@ serveWallet
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                startServer proxy socket randomApi icarusApi shelleyApi ntpClient
+                startServer proxy socket randomApi icarusApi shelleyApi mockStakePoolLayer ntpClient
                 pure ExitSuccess
+
+    mockStakePoolLayer :: StakePoolLayer () IO
+    mockStakePoolLayer = StakePoolLayer
+        { listStakePools = pure []
+        , knownStakePools = pure [PoolId (B8.replicate 32 '0')]
+        }
 
     networkDiscriminantValFromProxy
         :: forall n. (NetworkDiscriminantVal n)
@@ -249,14 +259,15 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        -> StakePoolLayer () IO
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley ntp = do
+    startServer _proxy socket byron icarus shelley spl ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                server byron icarus shelley ntp
+                server byron icarus shelley spl ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer
