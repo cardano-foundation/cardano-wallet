@@ -426,6 +426,7 @@ data SomeByronWalletPostData
     | SomeIcarusWallet (ByronWalletPostData (AllowedMnemonics 'Icarus))
     | SomeTrezorWallet (ByronWalletPostData (AllowedMnemonics 'Trezor))
     | SomeLedgerWallet (ByronWalletPostData (AllowedMnemonics 'Ledger))
+    | SomeAccount AccountPostData
     deriving (Eq, Generic, Show)
 
 data ByronWalletPostData mw = ByronWalletPostData

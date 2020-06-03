@@ -57,6 +57,7 @@ import Cardano.Wallet.Api.Server
     , listWallets
     , migrateWallet
     , mkLegacyWallet
+    , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -80,7 +81,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -172,6 +173,7 @@ server byron icarus ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
+            SomeAccount x -> postAccountWallet icarus mkLegacyWallet IcarusKey x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
