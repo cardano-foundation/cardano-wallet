@@ -1,5 +1,5 @@
 name:                cardano-wallet-byron
-version:             2020.6.2
+version:             2020.6.3
 synopsis:            Wallet backend protocol-specific bits implemented using byron nodes
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
