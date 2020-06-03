@@ -993,8 +993,10 @@ components:
     ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
       type: object
       oneOf:
-        - *ApiWalletPostData
-        - *ApiAccountPostData
+        - <<: *ApiWalletPostData
+          title: shelley
+        - <<: *ApiAccountPostData
+          title: shelley (from xpub)
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
@@ -2021,12 +2023,18 @@ paths:
           application/json:
             schema:
               oneOf:
-                - *ApiByronWalletRandomPostData
-                - *ApiByronWalletRandomXPrvPostData
-                - *ApiByronWalletIcarusPostData
-                - *ApiByronWalletTrezorPostData
-                - *ApiByronWalletLedgerPostData
-                - *ApiAccountPostData
+                - <<: *ApiByronWalletRandomPostData
+                  title: random
+                - <<: *ApiByronWalletRandomXPrvPostData
+                  title: random (from xprv)
+                - <<: *ApiByronWalletIcarusPostData
+                  title: icarus
+                - <<: *ApiByronWalletTrezorPostData
+                  title: trezor
+                - <<: *ApiByronWalletLedgerPostData
+                  title: ledger
+                - <<: *ApiAccountPostData
+                  title: icarus/trezor/ledger (from xpub)
       responses: *responsesPostByronWallet
 
   /byron-wallets/{walletId}:

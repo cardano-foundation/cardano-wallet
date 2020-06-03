@@ -15,40 +15,5 @@
 <body>
   <redoc spec-url="./swagger.yaml"></redoc>
   <script src="https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.23/bundles/redoc.standalone.js" async defer></script>
-  <script>
-  /* Little hack to be able to 'name' the oneof selector when showing multiple body choices.
-   * By default, redoc shows a little 'object' labels, which is not really visible nor helpful.
-   *
-   * TODO: Make this configurable upstream in ReDoc.
-   */
-  window.onload = function () {
-    const makeSelector = era => n => document.querySelector(`div#operation\\/${era} > div > div:nth-child(1) span ~ ul li:nth-child(${n})`);
-
-    function renderByron(select) {
-      if (!select(1)) {
-        return setTimeout(() => renderByron(select), 1000);
-      }
-
-      select(1).innerHTML = "random";
-      select(2).innerHTML = "random (from xprv)";
-      select(3).innerHTML = "icarus";
-      select(4).innerHTML = "trezor";
-      select(5).innerHTML = "ledger";
-      select(6).innerHTML = "icarus/trezor/ledger (from xpub)";
-    }
-
-    function renderShelley(select) {
-      if (!select(1)) {
-        return setTimeout(() => renderShelley(select), 1000);
-      }
-
-      select(1).innerHTML = "shelley";
-      select(2).innerHTML = "shelley (from xpub)";
-    }
-
-    renderShelley(makeSelector("postWallet"));
-    renderByron(makeSelector("postByronWallet"));
-  };
-  </script>
 </body>
 </html>
