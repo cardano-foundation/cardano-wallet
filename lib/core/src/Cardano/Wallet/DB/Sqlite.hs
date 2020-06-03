@@ -306,6 +306,13 @@ findDatabases tr dir = do
   where
     expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
+-- | A data-type for capturing column status. Used to be represented as a
+-- 'Maybe Bool' which is somewhat confusing to interpret.
+data SqlColumnStatus
+    = TableMissing
+    | ColumnMissing
+    | ColumnPresent
+
 -- | Executes any manual database migration steps that may be required on
 --   startup.
 --
@@ -341,9 +348,11 @@ migrateManually tr defaultFieldValues =
     assignDefaultPassphraseScheme :: Sqlite.Connection -> IO ()
     assignDefaultPassphraseScheme conn = do
         isFieldPresent conn passphraseScheme >>= \case
-            Nothing -> do
+            TableMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
-            Just _  -> do
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
+            ColumnPresent  -> do
                 value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
                     fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
                 traceWith tr $ MsgManualMigrationNeeded passphraseScheme value
@@ -376,9 +385,11 @@ migrateManually tr defaultFieldValues =
     removeSoftRndAddresses :: Sqlite.Connection -> IO ()
     removeSoftRndAddresses conn = do
         isFieldPresent conn rndAccountIx >>= \case
-            Nothing -> do
+            TableMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
-            Just _  -> do
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
+            ColumnPresent -> do
                 traceWith tr $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
                 stmt <- Sqlite.prepare conn $ T.unwords
                     [ "DELETE FROM", tableName rndAccountIx
@@ -397,14 +408,9 @@ migrateManually tr defaultFieldValues =
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn = do
         isFieldPresent conn activeSlotCoeff >>= \case
-            Nothing ->
-                -- NOTE
-                -- The host table doesn't even exist. Typically, when the db is
-                -- first created.
+            TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
-            Just True ->
-                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
-            Just False -> do
+            ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNeeded activeSlotCoeff value
                 addColumn <- Sqlite.prepare conn $ T.unwords
                     [ "ALTER TABLE", tableName activeSlotCoeff
@@ -414,6 +420,8 @@ migrateManually tr defaultFieldValues =
                     ]
                 _ <- Sqlite.step addColumn
                 Sqlite.finalize addColumn
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
       where
         activeSlotCoeff = DBField CheckpointActiveSlotCoeff
         value = toText
@@ -421,9 +429,7 @@ migrateManually tr defaultFieldValues =
             $ defaultActiveSlotCoefficient defaultFieldValues
 
     -- | Determines whether a field is present in its parent table.
-    --
-    -- Returns 'Nothing' if the parent table doesn't exist. Just Bool otherwise.
-    isFieldPresent :: Sqlite.Connection -> DBField -> IO (Maybe Bool)
+    isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
         getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
@@ -435,9 +441,9 @@ migrateManually tr defaultFieldValues =
         Sqlite.finalize getCheckpointTableInfo
         pure $ case row of
             [PersistText t]
-                | fieldName field `T.isInfixOf` t -> Just True
-                | otherwise                       -> Just False
-            _ -> Nothing
+                | fieldName field `T.isInfixOf` t -> ColumnPresent
+                | otherwise                       -> ColumnMissing
+            _ -> TableMissing
 
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
