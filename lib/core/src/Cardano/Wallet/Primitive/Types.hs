@@ -1279,19 +1279,17 @@ computeUtxoStatistics btype utxos =
     (^!) = (^)
 
 {-------------------------------------------------------------------------------
-                             Blockchain Parameters
+                              Network Parameters
 -------------------------------------------------------------------------------}
 
--- | Initial blockchain parameters loaded from the application configuration and
--- genesis block.
+-- | Records the complete set of parameters currently in use by the network
+--   that are relevant to the wallet.
+--
 data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
-       -- ^ These parameters are defined by the configuration and genesis
-       -- block. At present, none of these are covered by the update system.
+       -- ^ See 'GenesisParameters'.
     , protocolParameters :: ProtocolParameters
-       -- ^ These parameters may be changed through update proposals. Currently
-       -- the only dynamic blockchain parameters that the wallet needs are
-       -- related to creating transactions.
+       -- ^ See 'ProtocolParameters'.
     } deriving (Generic, Show, Eq)
 
 instance NFData NetworkParameters
@@ -1299,6 +1297,12 @@ instance NFData NetworkParameters
 instance Buildable NetworkParameters where
     build (NetworkParameters gp pp) = build gp <> build pp
 
+-- | Parameters defined by the __genesis block__.
+--
+-- At present, these values cannot be changed through the update system.
+--
+-- They can only be changed through a soft or hard fork.
+--
 data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
@@ -1351,11 +1355,18 @@ slotParams gp =
         (gp ^. #getGenesisBlockDate)
         (gp ^. #getActiveSlotCoefficient)
 
+-- | Protocol parameters that can be changed through the update system.
+--
 data ProtocolParameters = ProtocolParameters
     { decentralizationLevel
         :: Quantity "percent" Percentage
+        -- ^ The current level of decentralization in the network.
+        --   (also known as the 'd' parameter).
+        -- * '  0%' indicates that the network is /completely federalized/.
+        -- * '100%' indicates that the network is /completely decentralized/.
     , txParameters
         :: TxParameters
+        -- ^ Parameters that affect transaction construction.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -1366,7 +1377,8 @@ instance Buildable ProtocolParameters where
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         ]
 
--- | Blockchain parameters relating to constructing transactions.
+-- | Parameters that relate to the construction of __transactions__.
+--
 data TxParameters = TxParameters
     { getFeePolicy :: FeePolicy
         -- ^ Formula for calculating the transaction fee.
