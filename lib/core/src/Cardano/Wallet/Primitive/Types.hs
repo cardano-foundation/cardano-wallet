@@ -1360,8 +1360,9 @@ data ProtocolParameters = ProtocolParameters
     { decentralizationLevel
         :: Quantity "percent" Percentage
         -- ^ The current level of decentralization in the network.
-        --   * '  0%' indicates that the network is /completely federalized/.
-        --   * '100%' indicates that the network is /completely decentralized/.
+        --   (also known as the 'd' parameter).
+        -- * '  0%' indicates that the network is /completely federalized/.
+        -- * '100%' indicates that the network is /completely decentralized/.
     , txParameters
         :: TxParameters
         -- ^ Parameters relating to transactions.
