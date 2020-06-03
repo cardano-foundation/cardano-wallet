@@ -101,13 +101,26 @@
             ];
           buildable = if system.isWindows then false else true;
           };
+        "cardano-cli-pioneers" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-cli" or (errorHandler.buildDepError "cardano-cli"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."transformers-except" or (errorHandler.buildDepError "transformers-except"))
+            ];
+          buildable = true;
+          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "f6ef186d1f7280585a245c8565d92117133cf359";
-      sha256 = "1f8n9np96as81avl9k8pb1lqlkp7anppdr3lc7qk43k69932warn";
+      rev = "1c7973665348f6e747d3d5447efc64b4df1cc5f0";
+      sha256 = "1mnfwadi0iydcwrs39p46rm7ls16qjnmzd4axvaaihy8kc2zp02z";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }
