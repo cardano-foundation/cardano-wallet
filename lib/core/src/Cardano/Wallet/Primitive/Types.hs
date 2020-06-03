@@ -1378,7 +1378,8 @@ instance Buildable ProtocolParameters where
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         ]
 
--- | Blockchain parameters relating to constructing transactions.
+-- | Parameters that relate to the construction of __transactions__.
+--
 data TxParameters = TxParameters
     { getFeePolicy :: FeePolicy
         -- ^ Formula for calculating the transaction fee.
