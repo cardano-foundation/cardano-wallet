@@ -1,12 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -17,30 +14,42 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiWallet, DecodeAddress, EncodeAddress, WalletStyle (..) )
+    ( ApiT (..)
+    , ApiTransaction
+    , ApiWallet
+    , DecodeAddress
+    , EncodeAddress
+    , WalletStyle (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( PaymentAddress, fromHex )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( Direction (..), PoolId (..), TxStatus (..) )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( SpecWith, it )
+    ( SpecWith, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyWallet
+    , eventually
     , expectErrorMessage
+    , expectField
+    , expectListField
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
     , joinStakePool
     , request
+    , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
@@ -76,14 +85,28 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool when wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
-        let poolIdMock = PoolId $ BS.pack $ replicate 32 0
         r <- joinStakePool @n ctx (ApiT poolIdMock) (w, "Wrong Passphrase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
     it "STAKE_POOLS_JOIN_01 - Can join existant stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
-        let poolIdMock = PoolId $ BS.pack $ replicate 32 0
-        r <- joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase)
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403WrongPass r
+        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+  where
+    --(Right poolID) = fromHex @ByteString "b59ad95cbbe425071364030fd195fa2ec97fa1382ec041d9bb75a64e896ade4b"
+    (Right poolID) = fromHex @ByteString "7b410944ee6e8b69bc362f84efb6c1bc88ab3cb32c7d311ae6895a4eeff102d6"
+    poolIdMock = PoolId poolID

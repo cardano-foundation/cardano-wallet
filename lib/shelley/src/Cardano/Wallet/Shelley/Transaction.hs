@@ -1,11 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -37,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , Hash (..)
+    , PoolId (..)
     , ProtocolMagic (..)
     , SealedTx (..)
     , SlotId (..)
@@ -61,6 +68,10 @@ import Control.Monad
     ( forM )
 import Crypto.Error
     ( throwCryptoError )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -77,8 +88,10 @@ import GHC.Stack
     ( HasCallStack )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Set as Set
@@ -99,7 +112,7 @@ newTransactionLayer
     -> TransactionLayer t k
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = _mkStdTx
-    , mkDelegationJoinTx = notImplemented "mkDelegationJoinTx"
+    , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = notImplemented "mkDelegationQuitTx"
     , decodeSignedTx = notImplemented "decodeSignedTx"
     , estimateSize = _estimateSize
@@ -134,6 +147,62 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
 
+    _mkDelegationJoinTx
+        :: PoolId
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+    _mkDelegationJoinTx poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
+        let timeToLive = (toSlotNo epochLength slot) + 7200
+
+        let toStakingKeyHash
+                :: (k 'AddressK XPrv)
+                -> Cardano.ShelleyVerificationKeyHashStaking
+            toStakingKeyHash key =
+                SL.KeyHash .
+                Hash.UnsafeHash .
+                blake2b256 .
+                xpubPublicKey .
+                toXPub $
+                getRawKey key
+
+        let toPoolIdHash
+                :: PoolId
+                -> Cardano.ShelleyVerificationKeyHashStakePool
+            toPoolIdHash (PoolId pId) =
+                SL.KeyHash $ Hash.UnsafeHash pId
+                {--SL.KeyHash .
+                hashVerKeyDSIGN .
+                VerKeyEd25519DSIGN .
+                throwCryptoError $
+                Ed25519.publicKey pId
+                --}
+        let registerCert =
+                Cardano.shelleyRegisterStakingAddress
+                (toStakingKeyHash accXPrv)
+        let delegateCert =
+                Cardano.shelleyDelegateStake
+                (toStakingKeyHash accXPrv)
+                (toPoolIdHash poolId)
+        let unsigned =
+                mkUnsignedTx timeToLive ownedIns outs [registerCert, delegateCert]
+
+        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+            (k, pwd) <- lookupPrivateKey keyFrom addr
+            pure $ mkWitness unsigned (getRawKey k, pwd)
+
+        witsForDlgs <-
+            fmap Set.fromList (pure [mkWitness unsigned (getRawKey accXPrv, pwd')])
+
+        let scriptWits = mempty
+        let metadata   = SL.SNothing
+
+        pure $ toSealed $ SL.Tx unsigned (Set.union addrWits witsForDlgs) scriptWits metadata
+
+
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
         -- ^ Transaction max size in bytes
@@ -155,13 +224,17 @@ _estimateSize (CoinSelection inps outs chngs) =
 
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound inps outs' []
+    unsigned = mkUnsignedTx maxBound inps outs' [dummyRegisterCert, dummyDelegateCert]
       where
         outs' :: [TxOut]
         outs' = outs <> (dummyOutput <$> chngs)
 
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 64 0)
+
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (1:replicate 64 0)
+        dummyRegisterCert = Cardano.shelleyRegisterStakingAddress dummyKeyHash
+        dummyDelegateCert = Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
 
     addrWits = Set.map dummyWitness $ Set.fromList (fst <$> inps)
       where
@@ -246,3 +319,6 @@ type instance ErrValidateSelection (IO Shelley) = ErrInvalidTxOutAmount
 
 notImplemented :: HasCallStack => String -> a
 notImplemented what = error ("Not implemented: " <> what)
+
+blake2b256 :: ByteString -> ByteString
+blake2b256 = BA.convert . hash @_ @Blake2b_256

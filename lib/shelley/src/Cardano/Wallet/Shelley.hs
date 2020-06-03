@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
+    , fromHex
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -118,6 +119,8 @@ import Control.Applicative
     ( Const (..) )
 import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
+import Data.ByteString
+    ( ByteString )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -147,7 +150,6 @@ import System.IOManager
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -233,10 +235,13 @@ serveWallet
                 startServer proxy socket randomApi icarusApi shelleyApi mockStakePoolLayer ntpClient
                 pure ExitSuccess
 
+    --(Right poolID) = fromHex @ByteString "b59ad95cbbe425071364030fd195fa2ec97fa1382ec041d9bb75a64e896ade4b"
+    (Right poolID) = fromHex @ByteString "7b410944ee6e8b69bc362f84efb6c1bc88ab3cb32c7d311ae6895a4eeff102d6"
+
     mockStakePoolLayer :: StakePoolLayer () IO
     mockStakePoolLayer = StakePoolLayer
         { listStakePools = pure []
-        , knownStakePools = pure [PoolId (BS.pack $ replicate 32 0)]
+        , knownStakePools = pure [PoolId poolID]
         }
 
     networkDiscriminantValFromProxy
