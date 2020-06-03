@@ -352,6 +352,14 @@ migrateManually tr defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName passphraseScheme
+                    , "ADD COLUMN", fieldName passphraseScheme
+                    , fieldType passphraseScheme, " NULL"
+                    , ";"
+                    ]
+                Sqlite.step query *> Sqlite.finalize query
+                assignDefaultPassphraseScheme conn -- loop to apply case below
             ColumnPresent  -> do
                 value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
                     fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
