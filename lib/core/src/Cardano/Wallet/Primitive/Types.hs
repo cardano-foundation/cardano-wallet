@@ -1282,7 +1282,8 @@ computeUtxoStatistics btype utxos =
                               Network Parameters
 -------------------------------------------------------------------------------}
 
--- | Records the complete set of parameters currently in use by the network.
+-- | Records the complete set of parameters currently in use by the network
+--   that are relevant to the wallet.
 --
 data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
