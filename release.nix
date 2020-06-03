@@ -170,12 +170,6 @@ let
     # alias to old name so download links don't break
     cardano-wallet-jormungandr-tests-win64 = jobs.cardano-wallet-tests-win64;
 
-    # For testing migration tests on windows
-    migration-tests-win64 = import ./nix/windows-migration-tests-bundle.nix {
-      inherit pkgs project;
-      migration-tests = jobs.x86_64-w64-mingw32.migration-tests.x86_64-linux;
-    };
-
     # Fully-static linux binaries
     cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
