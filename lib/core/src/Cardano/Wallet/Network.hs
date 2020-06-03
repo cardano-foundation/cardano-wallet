@@ -310,7 +310,8 @@ follow
     -> Tracer IO FollowLog
     -- ^ Logger trace
     -> [BlockHeader]
-    -- ^ A list of known tips to start from. Blocks /after/ the tip will be yielded.
+    -- ^ A list of known tips to start from.
+    -- Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block -> (BlockHeader, TxParameters) -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.

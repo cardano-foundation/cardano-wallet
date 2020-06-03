@@ -399,9 +399,11 @@ fromGenesisData g =
 
     -- | Construct a ("fake") genesis block from genesis transaction outputs.
     --
-    -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
-    -- jormungandr. This function is a method to deal with the discrepancy.
-    genesisBlockFromTxOuts :: [(SL.Addr TPraosStandardCrypto, SL.Coin)] -> W.Block
+    -- The genesis data on haskell nodes is not a block at all, unlike the
+    -- block0 on jormungandr. This function is a method to deal with the
+    -- discrepancy.
+    genesisBlockFromTxOuts
+        :: [(SL.Addr TPraosStandardCrypto, SL.Coin)] -> W.Block
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
@@ -417,11 +419,13 @@ fromGenesisData g =
         , transactions = mkTx <$> outs
         }
       where
-        mkTx (addr, c) =
-            W.Tx pseudoHash [] [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
+        mkTx (addr, c) = W.Tx
+            pseudoHash
+            []
+            [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
           where
-            W.TxIn pseudoHash _ = fromShelleyTxIn $ initialFundsPseudoTxIn @TPraosStandardCrypto addr
-
+            W.TxIn pseudoHash _ = fromShelleyTxIn $
+                initialFundsPseudoTxIn @TPraosStandardCrypto addr
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =

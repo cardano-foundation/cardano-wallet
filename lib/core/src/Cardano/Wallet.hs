@@ -550,7 +550,8 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv @n credentials (mkUnboundedAddressPoolGap 10000)
+    let s = mkSeqStateFromRootXPrv @n credentials $
+            mkUnboundedAddressPoolGap 10000
     let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap

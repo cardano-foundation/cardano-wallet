@@ -275,7 +275,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         pure (Quantity 0)
 
     _currentNodeTip nodeTipVar =
-        fromTip getGenesisBlockHash getEpochLength <$> atomically (readTVar nodeTipVar)
+        fromTip getGenesisBlockHash getEpochLength <$>
+            atomically (readTVar nodeTipVar)
 
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
@@ -363,7 +364,11 @@ mkTipSyncClient
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> TQueue m (LocalTxSubmissionCmd (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto) m)
+    -> TQueue m
+        (LocalTxSubmissionCmd
+            (GenTx ShelleyBlock)
+            (OC.ApplyTxError TPraosStandardCrypto)
+            (m))
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ShelleyBlock -> m ())
         -- ^ Notifier callback for when tip changes
@@ -380,7 +385,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
     let
         queryLocalState :: Point ShelleyBlock -> m ()
         queryLocalState pt = do
-            st <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetCurrentPParams
+            st <- localStateQueryQ `send`
+                CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
         handleLocalState = \case
@@ -396,7 +402,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
 
     onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
         let tip = castTip tip'
-        traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
+        traceWith tr $ MsgNodeTip $
+            fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -555,9 +562,16 @@ notImplemented what = error ("Not implemented: " <> what)
 data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
-    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto)))
-    | MsgLocalStateQuery (TraceSendRecv (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
-    | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
+    | MsgTxSubmission
+        (TraceSendRecv
+            (LocalTxSubmission
+                (GenTx ShelleyBlock)
+                (OC.ApplyTxError TPraosStandardCrypto)))
+    | MsgLocalStateQuery
+        (TraceSendRecv
+            (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
+    | MsgHandshakeTracer
+        (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout

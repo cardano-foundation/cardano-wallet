@@ -358,7 +358,8 @@ mkTipSyncClient
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> TQueue m (LocalTxSubmissionCmd (GenTx ByronBlock) ApplyMempoolPayloadErr m)
+    -> TQueue m
+        (LocalTxSubmissionCmd (GenTx ByronBlock) ApplyMempoolPayloadErr m)
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ByronBlock -> m ())
         -- ^ Notifier callback for when tip changes
@@ -374,7 +375,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
 
     let
         queryLocalState pt = do
-            st <- localStateQueryQ `send` CmdQueryLocalState pt GetUpdateInterfaceState
+            st <- localStateQueryQ `send`
+                CmdQueryLocalState pt GetUpdateInterfaceState
             handleLocalState st
 
         handleLocalState = \case
@@ -384,7 +386,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
                 onTxParamsUpdate' $ txParametersFromUpdateState ls
 
     onTipUpdate' <- debounce $ \tip -> do
-        traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
+        traceWith tr $
+            MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -550,9 +553,13 @@ notImplemented what = error ("Not implemented: " <> what)
 data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
-    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr))
-    | MsgLocalStateQuery (TraceSendRecv (LocalStateQuery ByronBlock (Query ByronBlock)))
-    | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
+    | MsgTxSubmission
+        (TraceSendRecv
+            (LocalTxSubmission (GenTx ByronBlock) ApplyMempoolPayloadErr))
+    | MsgLocalStateQuery
+        (TraceSendRecv (LocalStateQuery ByronBlock (Query ByronBlock)))
+    | MsgHandshakeTracer
+        (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout

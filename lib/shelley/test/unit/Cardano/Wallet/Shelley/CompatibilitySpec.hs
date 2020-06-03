@@ -128,8 +128,6 @@ epochLength = EpochLength 10
 instance Arbitrary SlotId where
     arbitrary = fromFlatSlot epochLength <$> choose (0, 100)
 
---
-
 instance Arbitrary (ShelleyKey 'AddressK XPrv) where
     shrink _ = []
     arbitrary = ShelleyKey . getRawKey <$> genRootKeys
