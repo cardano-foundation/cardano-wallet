@@ -109,6 +109,7 @@ import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
+import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
@@ -141,6 +142,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
                 HWWallets.spec @n
                 Network.spec
                 Network_.spec
+                StakePools.spec @n
             describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n

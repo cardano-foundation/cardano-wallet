@@ -147,7 +147,7 @@ import System.IOManager
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -236,7 +236,7 @@ serveWallet
     mockStakePoolLayer :: StakePoolLayer () IO
     mockStakePoolLayer = StakePoolLayer
         { listStakePools = pure []
-        , knownStakePools = pure [PoolId (B8.replicate 32 '0')]
+        , knownStakePools = pure [PoolId (BS.pack $ replicate 32 0)]
         }
 
     networkDiscriminantValFromProxy
