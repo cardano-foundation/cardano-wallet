@@ -1365,7 +1365,7 @@ data ProtocolParameters = ProtocolParameters
         -- * '100%' indicates that the network is /completely decentralized/.
     , txParameters
         :: TxParameters
-        -- ^ Parameters relating to transactions.
+        -- ^ Parameters that affect transaction construction.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
