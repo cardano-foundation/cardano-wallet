@@ -364,7 +364,7 @@ fromGenesisData g =
         { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
-                W.StartTime . getSystemStart . sgStartTime $ g
+                W.StartTime . getSystemStart . sgSystemStart $ g
             , getSlotLength =
                 fromSlotLength . sgSlotLength $ g
             , getEpochLength =
