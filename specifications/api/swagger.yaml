@@ -993,8 +993,8 @@ components:
     ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
       type: object
       oneOf:
-        - *ApiAccountPostData
         - *ApiWalletPostData
+        - *ApiAccountPostData
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
