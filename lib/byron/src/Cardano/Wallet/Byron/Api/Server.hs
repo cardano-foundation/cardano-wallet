@@ -22,6 +22,7 @@ import Prelude
 
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
+    , ErrNotASequentialWallet (..)
     , ErrValidateSelection
     , genesisData
     , networkLayer
@@ -57,6 +58,7 @@ import Cardano.Wallet.Api.Server
     , listWallets
     , migrateWallet
     , mkLegacyWallet
+    , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -70,6 +72,7 @@ import Cardano.Wallet.Api.Server
     , putRandomAddress
     , putWallet
     , rndStateChange
+    , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -80,7 +83,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -124,6 +127,7 @@ server byron icarus ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -172,6 +176,7 @@ server byron icarus ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
+            SomeAccount x -> postAccountWallet icarus mkLegacyWallet IcarusKey x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -217,6 +222,11 @@ server byron icarus ntp =
                 (byron , listAddresses byron (const pure) wid s)
                 (icarus, listAddresses icarus (const pure) wid s)
              )
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections wid x = withLegacyLayer wid
+        (byron, liftHandler $ throwE ErrNotASequentialWallet)
+        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

@@ -958,7 +958,7 @@ spec = do
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity 1
             let payment = AddressAmount targetAddress amount
-            selectCoins ctx source (payment :| []) >>= flip verify
+            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))
@@ -977,7 +977,7 @@ spec = do
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
-            selectCoins ctx source payments >>= flip verify
+            selectCoins @_ @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode
                     HTTP.status200
                 , expectField
@@ -994,7 +994,7 @@ spec = do
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-        selectCoins ctx w payments >>= flip verify
+        selectCoins @_ @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
@@ -1053,7 +1053,8 @@ spec = do
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
             let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
             let payload = Json [json| { "payments": #{payments} } |]
-            r <- request @(ApiCoinSelection n) ctx (Link.selectCoins w) headers payload
+            r <- request @(ApiCoinSelection n) ctx
+                (Link.selectCoins @'Shelley w) headers payload
             verify r expectations
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do

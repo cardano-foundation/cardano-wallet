@@ -66,6 +66,9 @@ module Cardano.Wallet.Api
         , PostByronAddress
         , ListByronAddresses
 
+    , ByronCoinSelections
+        , ByronSelectCoins
+
     , ByronTransactions
         , CreateByronTransaction
         , ListByronTransactions
@@ -189,6 +192,7 @@ type Api n =
     :<|> StakePools n
     :<|> ByronWallets
     :<|> ByronAddresses n
+    :<|> ByronCoinSelections n
     :<|> ByronTransactions n
     :<|> ByronMigrations n
     :<|> Network
@@ -471,6 +475,24 @@ type ListByronAddresses n = "byron-wallets"
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddressT n]
+
+{-------------------------------------------------------------------------------
+                               Coin Selections
+
+  See also:
+  https://input-output-hk.github.io/cardano-wallet/api/#tag/Byron-Coin-Selections
+-------------------------------------------------------------------------------}
+
+type ByronCoinSelections n =
+    ByronSelectCoins n
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/byronSelectCoins
+type ByronSelectCoins n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "coin-selections"
+    :> "random"
+    :> ReqBody '[JSON] (ApiSelectCoinsDataT n)
+    :> Post '[JSON] (ApiCoinSelectionT n)
 
 {-------------------------------------------------------------------------------
                                  Byron Transactions

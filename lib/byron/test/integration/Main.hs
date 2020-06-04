@@ -110,6 +110,7 @@ import qualified Data.Text as T
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
 import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
 import qualified Test.Integration.Scenario.API.Byron.Addresses as AddressesByron
+import qualified Test.Integration.Scenario.API.Byron.HWWallets as HWWalletsByron
 import qualified Test.Integration.Scenario.API.Byron.Transactions as TransactionsByronCommon
 import qualified Test.Integration.Scenario.API.Byron.Wallets as WalletsByron
 import qualified Test.Integration.Scenario.API.Network as Network
@@ -135,6 +136,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
         describe "API Specifications" $ specWithServer tr $ do
             WalletsByron.spec @n
+            HWWalletsByron.spec @n
             AddressesByron.spec @n
             TransactionsByron.spec @n
             TransactionsByronCommon.spec @n

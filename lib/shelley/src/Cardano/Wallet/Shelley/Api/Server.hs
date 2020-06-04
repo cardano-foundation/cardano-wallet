@@ -22,6 +22,7 @@ import Prelude
 
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
+    , ErrNotASequentialWallet (..)
     , ErrValidateSelection
     , genesisData
     , networkLayer
@@ -59,6 +60,7 @@ import Cardano.Wallet.Api.Server
     , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
+    , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -85,7 +87,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -133,6 +135,7 @@ server byron icarus shelley ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -151,7 +154,7 @@ server byron icarus shelley ntp =
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley
+    coinSelections = selectCoins shelley (delegationAddress @n)
 
     transactions :: Server (Transactions n)
     transactions =
@@ -180,6 +183,7 @@ server byron icarus shelley ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
+            SomeAccount x -> postAccountWallet icarus mkLegacyWallet IcarusKey x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -225,6 +229,11 @@ server byron icarus shelley ntp =
                 (byron , listAddresses byron (const pure) wid s)
                 (icarus, listAddresses icarus (const pure) wid s)
              )
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections wid x = withLegacyLayer wid
+        (byron, liftHandler $ throwE ErrNotASequentialWallet)
+        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

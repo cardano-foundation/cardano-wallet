@@ -103,6 +103,7 @@ module Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrAdjustForFee (..)
     , ErrValidateSelection
+    , ErrNotASequentialWallet (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -1891,6 +1892,10 @@ data ErrImportRandomAddress
     = ErrImportAddrNoSuchWallet ErrNoSuchWallet
     | ErrImportAddrDoesNotBelong
     | ErrImportAddressNotAByronWallet
+    deriving (Generic, Eq, Show)
+
+data ErrNotASequentialWallet
+    = ErrNotASequentialWallet
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

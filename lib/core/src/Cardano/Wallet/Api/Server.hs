@@ -64,6 +64,8 @@ module Cardano.Wallet.Api.Server
     , postTransactionFee
     , postTrezorWallet
     , postWallet
+    , postShelleyWallet
+    , postAccountWallet
     , putByronWalletPassphrase
     , putRandomAddress
     , putWallet
@@ -104,6 +106,7 @@ import Cardano.Wallet
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
     , ErrNoSuchWallet (..)
+    , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
     , ErrRemovePendingTx (..)
@@ -516,7 +519,7 @@ postWallet
     -> Handler ApiWallet
 postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
     Left  body' -> postShelleyWallet ctx generateKey body'
-    Right body' -> postAccountWallet ctx liftKey body'
+    Right body' -> postAccountWallet ctx mkShelleyWallet liftKey body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -552,7 +555,7 @@ postShelleyWallet ctx generateKey body = do
     wName = getApiT (body ^. #name)
 
 postAccountWallet
-    :: forall ctx s t k n.
+    :: forall ctx s t k n w.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         , SoftDerivation k
@@ -562,15 +565,16 @@ postAccountWallet
         , HasWorkerRegistry s k ctx
         )
     => ctx
+    -> MkApiWallet ctx s w
     -> (XPub -> k 'AccountK XPub)
     -> AccountPostData
-    -> Handler ApiWallet
-postAccountWallet ctx liftKey body = do
+    -> Handler w
+postAccountWallet ctx mkWallet liftKey body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-    fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
+    fst <$> getWallet ctx mkWallet (ApiT wid)
   where
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wName = getApiT (body ^. #name)
@@ -1007,18 +1011,18 @@ selectCoins
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
-        , DelegationAddress n k
         , SoftDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
+    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx (ApiT wid) body =
+selectCoins ctx genChange (ApiT wid) body =
     fmap mkApiCoinSelection
         $ withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid (delegationAddress @n)
+        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid genChange
         $ coerceCoin <$> body ^. #payments
 
 {-------------------------------------------------------------------------------
@@ -2118,6 +2122,14 @@ instance LiftHandler ErrImportRandomAddress where
             apiError err403 KeyNotFoundForAddress $ mconcat
                 [ "I couldn't identify this address as one of mine. It likely "
                 , "belongs to another wallet and I will therefore not import it."
+                ]
+
+instance LiftHandler ErrNotASequentialWallet where
+    handler = \case
+        ErrNotASequentialWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "I cannot derive new address for this wallet type. "
+                , "Make sure to use a sequential wallet style, like Icarus."
                 ]
 
 instance LiftHandler (Request, ServerError) where

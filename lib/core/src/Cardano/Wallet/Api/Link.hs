@@ -290,13 +290,15 @@ listAddresses' w mstate = discriminate @style
 --
 
 selectCoins
-    :: forall w.
+    :: forall style w.
         ( HasType (ApiT WalletId) w
+        , Discriminate style
         )
     => w
     -> (Method, Text)
-selectCoins w =
-    endpoint @(Api.SelectCoins Net) (wid &)
+selectCoins w = discriminate @style
+    (endpoint @(Api.SelectCoins Net) (wid &))
+    (endpoint @(Api.ByronSelectCoins Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

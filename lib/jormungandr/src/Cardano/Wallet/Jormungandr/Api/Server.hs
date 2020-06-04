@@ -67,6 +67,7 @@ import Cardano.Wallet.Api.Server
     , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
+    , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -91,7 +92,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -137,6 +138,7 @@ server byron icarus jormungandr spl ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -155,7 +157,7 @@ server byron icarus jormungandr spl ntp =
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins jormungandr
+    coinSelections = selectCoins jormungandr (delegationAddress @n)
 
     transactions :: Server (Transactions n)
     transactions =
@@ -183,6 +185,7 @@ server byron icarus jormungandr spl ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
+            SomeAccount x -> postAccountWallet icarus mkLegacyWallet IcarusKey x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -219,6 +222,9 @@ server byron icarus jormungandr spl ntp =
              (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections _ _ = throwError err501
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

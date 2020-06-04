@@ -1437,10 +1437,12 @@ instance ToSchema SomeByronWalletPostData where
         let props1 = schema1 ^. properties
         NamedSchema _ schema2 <- declareNamedSchema (Proxy @ByronWalletFromXPrvPostData)
         let props2 = schema2 ^. properties
+        NamedSchema _ accountPostData <- declareNamedSchema (Proxy @AccountPostData)
         pure $ NamedSchema Nothing $ mempty
             & properties .~ mconcat
             [ props1 & at "style" .~ Just (Inline styleSchema)
             , props2 & at "style" .~ Just (Inline styleSchema)
+            , accountPostData ^. properties
             ]
       where
         styleSchema = mempty

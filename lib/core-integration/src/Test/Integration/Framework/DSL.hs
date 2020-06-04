@@ -611,20 +611,30 @@ utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
 -- | Restore HW Wallet from pub key
-restoreWalletFromPubKey :: Context t -> Text -> Text -> IO ApiWallet
+restoreWalletFromPubKey
+    :: forall w (style :: WalletStyle) t.
+        ( Link.Discriminate style
+        , Link.PostWallet style
+        , HasType (ApiT WalletId) w
+        , HasType (ApiT SyncProgress) w
+        , Show w
+        , FromJSON w
+        )
+    => Context t
+    -> Text
+    -> Text
+    -> IO w
 restoreWalletFromPubKey ctx pubKey name = do
     let payloadRestore = Json [aesonQQ| {
             "name": #{name},
             "account_public_key": #{pubKey}
         }|]
-    r <- request @ApiWallet ctx (Link.postWallet @'Shelley)
-           Default payloadRestore
+    r <- request @w ctx (Link.postWallet @style) Default payloadRestore
     expectResponseCode @IO HTTP.status201 r
     let wid = getFromResponse id r
     eventually "restoreWalletFromPubKey: wallet is 100% synced " $ do
-        rg <- request @ApiWallet ctx
-            (Link.getWallet @'Shelley wid) Default Empty
-        expectField (#state . #getApiT) (`shouldBe` Ready) rg
+        rg <- request @w ctx (Link.getWallet @style wid) Default Empty
+        expectField (typed @(ApiT SyncProgress) . #getApiT) (`shouldBe` Ready) rg
     return wid
 
 -- | Create an empty wallet
@@ -1101,10 +1111,11 @@ quitStakePool ctx (w, pass) = do
         (Link.quitStakePool w) Default payload
 
 selectCoins
-    :: forall n t w.
+    :: forall n style t w.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , EncodeAddress n
+        , Link.Discriminate style
         )
     => Context t
     -> w
@@ -1115,7 +1126,7 @@ selectCoins ctx w payments = do
             "payments": #{payments}
         } |]
     request @(ApiCoinSelection n) ctx
-        (Link.selectCoins w) Default payload
+        (Link.selectCoins @style w) Default payload
 
 delegationFee
     :: forall t w. (HasType (ApiT WalletId) w)
