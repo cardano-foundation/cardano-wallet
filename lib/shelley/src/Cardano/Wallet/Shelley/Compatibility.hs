@@ -348,18 +348,11 @@ fromMaxTxSize =
 
 fromPParams :: SL.PParams -> W.ProtocolParameters
 fromPParams pp = W.ProtocolParameters
-    { decentralizationLevel = decentralizationLevelFromPParams pp
-    , txParameters = W.TxParameters
-        { getFeePolicy = W.LinearFee
-            (Quantity (naturalToDouble (SL._minfeeB pp)))
-            (Quantity (fromIntegral (SL._minfeeA pp)))
-            (Quantity 0) -- TODO: it's not as simple as this?
-        , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
-        }
+    { decentralizationLevel =
+        decentralizationLevelFromPParams pp
+    , txParameters =
+        txParametersFromPParams pp
     }
-  where
-    naturalToDouble :: Natural -> Double
-    naturalToDouble = fromIntegral
 
 -- | Extract the current network decentralization level from the given set of
 --   protocol parameters.
@@ -392,6 +385,20 @@ decentralizationLevelFromPParams pp =
         , "encountered invalid decentralization parameter value: "
         , show d
         ]
+
+txParametersFromPParams
+    :: SL.PParams
+    -> W.TxParameters
+txParametersFromPParams pp = W.TxParameters
+    { getFeePolicy = W.LinearFee
+        (Quantity (naturalToDouble (SL._minfeeB pp)))
+        (Quantity (fromIntegral (SL._minfeeA pp)))
+        (Quantity 0) -- TODO: it's not as simple as this?
+    , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
+    }
+  where
+    naturalToDouble :: Natural -> Double
+    naturalToDouble = fromIntegral
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
