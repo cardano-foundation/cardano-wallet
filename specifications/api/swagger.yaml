@@ -1659,6 +1659,7 @@ x-tagGroups:
     tags:
     - Byron Wallets
     - Byron Addresses
+    - Byron Coin Selections
     - Byron Transactions
     - Byron Migrations
 
@@ -2211,6 +2212,27 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
+
+  /byron-wallets/{walletId}/coin-selections/random:
+    post:
+      operationId: byronSelectCoins
+      tags: ["Byron Coin Selections"]
+      summary: Random
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Select coins to cover the given set of payments.
+
+        Uses the <a href="https://iohk.io/blog/self-organisation-in-coin-selection/">
+        Random-Improve coin selection algorithm</a>.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSelectCoinsData
+      responses: *responsesSelectCoins
 
   /byron-wallets/{walletId}/migrations:
     get:
