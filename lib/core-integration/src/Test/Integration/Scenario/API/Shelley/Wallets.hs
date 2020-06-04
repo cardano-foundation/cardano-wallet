@@ -77,7 +77,6 @@ import Test.Hspec
     , describe
     , it
     , pendingWith
-    , runIO
     , shouldBe
     , shouldNotBe
     , shouldSatisfy
@@ -110,7 +109,6 @@ import Test.Integration.Framework.DSL
     , randomAddresses
     , request
     , selectCoins
-    , shelleyAddresses
     , unsafeRequest
     , verify
     , walletId
@@ -1183,43 +1181,29 @@ spec = do
         expectErrorMessage (errMsg404NoWallet wid) ru
 
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
-        addrShelley <- runIO
-            $ encodeAddress @n . head . shelleyAddresses @n
-            . entropyToMnemonic @15 <$> genEntropy
-        addrIcarus <- runIO
-            $ encodeAddress @n . head . icarusAddresses @n
-            . entropyToMnemonic @15 <$> genEntropy
-        addrByron <- runIO
-            $ encodeAddress @n . head . randomAddresses @n
-            . entropyToMnemonic @12 <$> genEntropy
+        forM_ [ ("Byron", emptyRandomWallet)
+              , ("Icarus", emptyIcarusWallet)
+              ] $ \(walType, destWallet) -> do
 
-        forM_ [ ("byron", addrByron)
-              , ("shelley", addrShelley)
-              , ("icarus", addrIcarus)
-              ] $ \(addrType, addr) -> do
-            it ("Wallet: Byron - Address: " ++ addrType) $ \ctx -> do
-                sWallet <- emptyRandomWallet ctx
+            it ("From wallet type: " ++ walType) $ \ctx -> do
+                --shelley address
+                wShelley <- emptyWallet ctx
+                addrs <- listAddresses @n ctx wShelley
+                let addrShelley = (addrs !! 1) ^. #id
+                --icarus address
+                addrIcarus <- encodeAddress @n . head . icarusAddresses @n
+                    . entropyToMnemonic @15 <$> genEntropy
+                --byron address
+                addrByron <- encodeAddress @n . head . randomAddresses @n
+                    . entropyToMnemonic @12 <$> genEntropy
+
+                sWallet <- destWallet ctx
                 r <- request @[ApiTransaction n] ctx
                     (Link.migrateWallet @'Byron sWallet)
                     Default
                     (Json [json|
                         { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr}]
-                        }|])
-                verify r
-                    [ expectResponseCode @IO HTTP.status403
-                    , expectErrorMessage
-                        (errMsg403NothingToMigrate (sWallet ^. walletId))
-                    ]
-
-            it ("Wallet: Icarus - Address: " ++ addrType) $ \ctx -> do
-                sWallet <- emptyIcarusWallet ctx
-                r <- request @[ApiTransaction n] ctx
-                    (Link.migrateWallet @'Byron sWallet)
-                    Default
-                    (Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr}]
+                        , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
                         }|])
                 verify r
                     [ expectResponseCode @IO HTTP.status403
