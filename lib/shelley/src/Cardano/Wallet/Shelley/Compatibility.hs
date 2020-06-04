@@ -88,7 +88,7 @@ import Data.Foldable
 import Data.Maybe
     ( fromMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -139,6 +139,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Address as SL
+import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
@@ -347,7 +348,7 @@ fromMaxTxSize =
 
 fromPParams :: SL.PParams -> W.ProtocolParameters
 fromPParams pp = W.ProtocolParameters
-    { decentralizationLevel = minBound
+    { decentralizationLevel = decentralizationLevelFromPParams pp
     , txParameters = W.TxParameters
         { getFeePolicy = W.LinearFee
             (Quantity (naturalToDouble (SL._minfeeB pp)))
@@ -359,6 +360,38 @@ fromPParams pp = W.ProtocolParameters
   where
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
+
+-- | Extract the current network decentralization level from the given set of
+--   protocol parameters.
+--
+-- According to the Design Specification for Delegation and Incentives in
+-- Cardano, the decentralization parameter __/d/__ is a value in the range
+-- '[0, 1]', where:
+--
+--   * __/d/__ = '1' indicates that the network is /completely federalized/.
+--   * __/d/__ = '0' indicates that the network is /completely decentralized/.
+--
+-- However, in Cardano Wallet, we represent the decentralization level as a
+-- percentage, where:
+--
+--   * '  0 %' indicates that the network is /completely federalized/.
+--   * '100 %' indicates that the network is /completely decentralized/.
+--
+decentralizationLevelFromPParams
+    :: SL.PParams
+    -> W.DecentralizationLevel
+decentralizationLevelFromPParams pp =
+    either reportInvalidValue W.DecentralizationLevel
+        $ mkPercentage
+        $ (1 -)
+        $ SL.intervalValue d
+  where
+    d = SL._d pp
+    reportInvalidValue = error $ mconcat
+        [ "decentralizationLevelFromPParams: "
+        , "encountered invalid decentralization parameter value: "
+        , show d
+        ]
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
