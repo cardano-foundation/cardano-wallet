@@ -108,6 +108,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Test.Integration.Byron.Scenario.API.Transactions as TransactionsByron
+import qualified Test.Integration.Byron.Scenario.API.Migrations as MigrationsByron
 import qualified Test.Integration.Byron.Scenario.CLI.Transactions as TransactionsByronCLI
 import qualified Test.Integration.Scenario.API.Byron.Addresses as AddressesByron
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as HWWalletsByron
@@ -139,6 +140,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             HWWalletsByron.spec @n
             AddressesByron.spec @n
             TransactionsByron.spec @n
+            MigrationsByron.spec @n
             TransactionsByronCommon.spec @n
             Network.spec
         describe "CLI Specifications" $ specWithServer tr $ do

@@ -23,7 +23,6 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiWalletMigrationInfo
     , DecodeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
@@ -62,7 +61,6 @@ import Test.Integration.Framework.DSL
     , emptyByronWalletFromXPrvWith
     , emptyIcarusWallet
     , emptyRandomWallet
-    , emptyRandomWalletMws
     , eventually
     , expectErrorMessage
     , expectField
@@ -94,8 +92,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400ParseError
-    , errMsg403Fee
+    ( errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney_
     , errMsg403UTxO
@@ -175,15 +172,6 @@ spec = do
     describe "BYRON_UTXO" $ do
         scenario_TRANS_UTXO_01 @n fixtureIcarusWallet (fixtureIcarusWalletAddrs @n)
         scenario_TRANS_UTXO_01 @n fixtureRandomWallet (fixtureRandomWalletAddrs @n)
-
-    describe "BYRON_MIGRATE" $ do
-        scenario_MIGRATE_01 @n fixtureRandomWallet
-        scenario_MIGRATE_02 @n fixtureRandomWallet 1
-        scenario_MIGRATE_02 @n fixtureRandomWallet 3
-        scenario_MIGRATE_02 @n fixtureRandomWallet 10
-        scenario_MIGRATE_02 @n fixtureIcarusWallet 1
-        scenario_MIGRATE_02 @n fixtureIcarusWallet 3
-        scenario_MIGRATE_02 @n fixtureIcarusWallet 10
 
 --
 -- Scenarios
@@ -708,86 +696,6 @@ scenario_TRANS_UTXO_01 fixtureSource fixtureTarget = it title $ \ctx -> do
         expectWalletUTxO expectedUtxos (snd rStat)
   where
     title = "TRANS_UTXO_01 - one recipient multiple txs received"
-
-scenario_MIGRATE_01
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        )
-    => (Context t -> IO ApiByronWallet)
-    -> SpecWith (Context t)
-scenario_MIGRATE_01 fixtureSource = it title $ \ctx -> do
-    wSrc <- fixtureSource ctx
-
-    r <- request @[ApiTransaction n] ctx
-         (Link.migrateWallet @'Byron wSrc)
-         Default
-         (NonJson "{passphrase:,}")
-    expectResponseCode @IO HTTP.status400 r
-    expectErrorMessage errMsg400ParseError r
-  where
-    title = "BYRON_MIGRATE_01 - invalid payload, parser error"
-
-scenario_MIGRATE_02
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        )
-    => (Context t -> IO ApiByronWallet)
-    -> Int
-    -> SpecWith (Context t)
-scenario_MIGRATE_02 fixtureSource addrCount = it title $ \ctx -> do
-    -- Restore a Byron wallet with funds, to act as a source wallet:
-    wSrc <- fixtureSource ctx
-    let originalBalance =
-            view (#balance . #available . #getQuantity) wSrc
-
-    -- Create an empty target wallet:
-    (wDest, mw) <- emptyRandomWalletMws ctx
-    let addresses :: [Text] =
-            take addrCount $ encodeAddress @n <$> randomAddresses @n mw
-
-    -- Calculate the expected migration fee:
-    r0 <- request @ApiWalletMigrationInfo ctx
-          (Link.getMigrationInfo @'Byron wSrc) Default Empty
-    verify r0
-        [ expectResponseCode @IO HTTP.status200
-        , expectField #migrationCost (.> Quantity 0)
-        ]
-    let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
-
-    -- Perform a migration from the source wallet to the target wallet:
-    r1 <- request @[ApiTransaction n] ctx
-          (Link.migrateWallet @'Byron wSrc)
-          Default
-          (Json [json|
-              { passphrase: #{fixturePassphrase}
-              , addresses: #{addresses}
-              }|])
-    verify r1
-        [ expectResponseCode @IO HTTP.status202
-        , expectField id (`shouldSatisfy` (not . null))
-        ]
-
-    -- Check that funds become available in the target wallet:
-    let expectedBalance = originalBalance - expectedFee
-    eventually "Wallet has expectedBalance" $ do
-        r2 <- request @ApiByronWallet ctx
-              (Link.getWallet @'Byron wDest) Default Empty
-        verify r2
-            [ expectField
-                (#balance . #available)
-                (`shouldBe` Quantity expectedBalance)
-            , expectField
-                (#balance . #total)
-                (`shouldBe` Quantity expectedBalance)
-            ]
-  where
-    title = "BYRON_MIGRATE_02 - after a migration operation successfully \
-            \completes, the correct amount eventually becomes available \
-            \in the target wallet for an arbitrary number of specified addresses."
 
 scenario_TRANS_REG_1670
     :: forall (n :: NetworkDiscriminant) t.
