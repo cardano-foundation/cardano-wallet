@@ -108,6 +108,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , BlockHeader
     , Coin (..)
+    , DecentralizationLevel
     , DelegationCertificate
     , Direction (..)
     , EpochNo (..)
@@ -807,6 +808,9 @@ instance ToExpr Percentage where
     toExpr = genericToExpr
 
 instance ToExpr ProtocolParameters where
+    toExpr = genericToExpr
+
+instance ToExpr DecentralizationLevel where
     toExpr = genericToExpr
 
 instance ToExpr TxParameters where

@@ -968,13 +968,16 @@ mkProtocolParametersEntity
 mkProtocolParametersEntity wid pp =
     ProtocolParameters wid fp (getQuantity mx) dl
   where
-    (W.ProtocolParameters (Quantity dl) (W.TxParameters fp mx)) = pp
+    (W.ProtocolParameters (W.DecentralizationLevel dl) (W.TxParameters fp mx)) =
+        pp
 
 protocolParametersFromEntity
     :: ProtocolParameters
     -> W.ProtocolParameters
 protocolParametersFromEntity (ProtocolParameters _ fp mx dl) =
-    W.ProtocolParameters (Quantity dl) (W.TxParameters fp (Quantity mx))
+    W.ProtocolParameters
+        (W.DecentralizationLevel dl)
+        (W.TxParameters fp (Quantity mx))
 
 {-------------------------------------------------------------------------------
                                    DB Queries

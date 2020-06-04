@@ -76,6 +76,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DecentralizationLevel (..)
     , DelegationCertificate (..)
     , Direction (..)
     , EpochLength (..)
@@ -604,6 +605,9 @@ instance Arbitrary Percentage where
     arbitrary = unsafeMkPercentage . (% upperLimit) <$> choose (0, upperLimit)
       where
         upperLimit = 10_000
+
+instance Arbitrary DecentralizationLevel where
+    arbitrary = DecentralizationLevel <$> arbitrary
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do

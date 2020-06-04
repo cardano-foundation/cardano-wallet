@@ -149,6 +149,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , BoundType
     , Coin (..)
+    , DecentralizationLevel (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -515,7 +516,7 @@ toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
         $ (*100)
         $ unActiveSlotCoefficient
         $ getActiveSlotCoefficient gp)
-    (view #decentralizationLevel pp)
+    (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
