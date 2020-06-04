@@ -108,6 +108,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Network as Network
+import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
@@ -139,6 +140,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
         specWithServer tr $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
+                ByronMigrations.spec @n
                 Transactions.spec @n
                 Wallets.spec @n
                 HWWallets.spec @n

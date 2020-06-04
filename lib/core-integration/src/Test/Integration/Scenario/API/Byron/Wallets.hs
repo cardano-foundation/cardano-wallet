@@ -29,7 +29,6 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
-    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
@@ -73,23 +72,18 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectWalletUTxO
     , faucetAmt
-    , fixtureIcarusWallet
     , fixturePassphrase
     , fixturePassphraseEncrypted
-    , fixtureRandomWallet
     , getFromResponse
     , json
     , request
     , rootPrvKeyFromMnemonics
-    , unsafeRequest
     , verify
     , walletId
-    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
-    , errMsg403NothingToMigrate
     , errMsg403WrongPass
     , errMsg404NoWallet
     , kanjiWalletName
@@ -111,56 +105,6 @@ spec :: forall n t.
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
 spec = do
-    it "BYRON_CALCULATE_01 - \
-        \for non-empty wallet calculated fee is > zero."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> do
-            w <- fixtureByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status200
-                , expectField (#migrationCost . #getQuantity)
-                    (.> 0)
-                ]
-
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for empty wallet."
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
-            w <- emptyByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
-                ]
-
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for wallet with dust, that cannot be migrated."
-        $ \ctx -> do
-            -- NOTE
-            -- Special mnemonic for which wallet with dust
-            -- (1 utxo with 10 lovelace)
-            let mnemonics =
-                    [ "prison", "census", "discover", "give"
-                    , "sound", "behave", "hundred", "cave"
-                    , "someone", "orchard", "just", "wild"
-                    ] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Byron Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "random"
-                    } |]
-            (_, w) <- unsafeRequest @ApiByronWallet ctx
-                (Link.postWallet @'Byron) payloadRestore
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
-                ]
-
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
