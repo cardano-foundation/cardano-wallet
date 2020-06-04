@@ -106,6 +106,7 @@ import Cardano.Wallet
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
     , ErrNoSuchWallet (..)
+    , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
     , ErrRemovePendingTx (..)
@@ -1010,18 +1011,18 @@ selectCoins
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
         , s ~ SeqState n k
-        , DelegationAddress n k
         , SoftDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
+    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx (ApiT wid) body =
+selectCoins ctx genChange (ApiT wid) body =
     fmap mkApiCoinSelection
         $ withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid (delegationAddress @n)
+        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid genChange
         $ coerceCoin <$> body ^. #payments
 
 {-------------------------------------------------------------------------------
@@ -2121,6 +2122,14 @@ instance LiftHandler ErrImportRandomAddress where
             apiError err403 KeyNotFoundForAddress $ mconcat
                 [ "I couldn't identify this address as one of mine. It likely "
                 , "belongs to another wallet and I will therefore not import it."
+                ]
+
+instance LiftHandler ErrNotASequentialWallet where
+    handler = \case
+        ErrNotASequentialWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "I cannot derive new address for this wallet type. "
+                , "Make sure to use a sequential wallet style, like Icarus."
                 ]
 
 instance LiftHandler (Request, ServerError) where

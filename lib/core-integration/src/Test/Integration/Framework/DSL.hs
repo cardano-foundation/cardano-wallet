@@ -1111,10 +1111,11 @@ quitStakePool ctx (w, pass) = do
         (Link.quitStakePool w) Default payload
 
 selectCoins
-    :: forall n t w.
+    :: forall n style t w.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , EncodeAddress n
+        , Link.Discriminate style
         )
     => Context t
     -> w
@@ -1125,7 +1126,7 @@ selectCoins ctx w payments = do
             "payments": #{payments}
         } |]
     request @(ApiCoinSelection n) ctx
-        (Link.selectCoins w) Default payload
+        (Link.selectCoins @style w) Default payload
 
 delegationFee
     :: forall t w. (HasType (ApiT WalletId) w)

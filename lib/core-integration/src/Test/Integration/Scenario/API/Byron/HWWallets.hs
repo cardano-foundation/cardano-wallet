@@ -26,6 +26,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiFee
+    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , DecodeAddress
@@ -47,20 +48,21 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( (^.) )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , emptyWallet
     , eventually
     , expectErrorMessage
     , expectField
@@ -74,7 +76,6 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , icarusAddresses
     , json
-    , listAddresses
     , request
     , restoreWalletFromPubKey
     , selectCoins
@@ -305,19 +306,17 @@ spec = do
             expectListSize 0 rt
 
         it "Can get coin selection" $ \ctx -> do
-            pendingWith "Soon. Implemented as part of ADP-334"
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
             source <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
-            target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
+            let [addr] = take 1 $ icarusAddresses @n mnemonics
 
             let amount = Quantity 1
-            let payment = AddressAmount targetAddress amount
-            selectCoins @n ctx source (payment :| []) >>= flip verify
+            let payment = AddressAmount (ApiT addr, Proxy @n) amount
+            selectCoins @n @'Byron ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))

@@ -297,7 +297,7 @@ spec = do
 
             let amount = Quantity 1
             let payment = AddressAmount targetAddress amount
-            selectCoins @n ctx source (payment :| []) >>= flip verify
+            selectCoins @n @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))

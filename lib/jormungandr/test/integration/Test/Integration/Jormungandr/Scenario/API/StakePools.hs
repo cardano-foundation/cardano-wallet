@@ -115,7 +115,7 @@ spec = do
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            wk <- restoreWalletFromPubKey ctx pubKey "Wallet from pubkey"
+            wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey "Wallet from pubkey"
             -- cannot join stake pool
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listStakePools Empty
@@ -155,7 +155,7 @@ spec = do
             expectResponseCode @IO HTTP.status204 rDel
 
             -- restore from pub key and make sure delegation preserved
-            wRestored <- restoreWalletFromPubKey ctx accPub "Wallet from pubkey"
+            wRestored <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accPub "Wallet from pubkey"
             request @ApiWallet ctx (Link.getWallet @'Shelley wRestored) Default Empty >>= flip verify
                 expectedDelegation
 

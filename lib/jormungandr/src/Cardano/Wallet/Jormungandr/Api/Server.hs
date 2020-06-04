@@ -138,6 +138,7 @@ server byron icarus jormungandr spl ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -156,7 +157,7 @@ server byron icarus jormungandr spl ntp =
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins jormungandr
+    coinSelections = selectCoins jormungandr (delegationAddress @n)
 
     transactions :: Server (Transactions n)
     transactions =
@@ -221,6 +222,9 @@ server byron icarus jormungandr spl ntp =
              (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections _ _ = throwError err501
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

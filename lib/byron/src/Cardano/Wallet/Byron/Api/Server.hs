@@ -22,6 +22,7 @@ import Prelude
 
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
+    , ErrNotASequentialWallet (..)
     , ErrValidateSelection
     , genesisData
     , networkLayer
@@ -71,6 +72,7 @@ import Cardano.Wallet.Api.Server
     , putRandomAddress
     , putWallet
     , rndStateChange
+    , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -125,6 +127,7 @@ server byron icarus ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -219,6 +222,11 @@ server byron icarus ntp =
                 (byron , listAddresses byron (const pure) wid s)
                 (icarus, listAddresses icarus (const pure) wid s)
              )
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections wid x = withLegacyLayer wid
+        (byron, liftHandler $ throwE ErrNotASequentialWallet)
+        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

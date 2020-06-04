@@ -22,6 +22,7 @@ import Prelude
 
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
+    , ErrNotASequentialWallet (..)
     , ErrValidateSelection
     , genesisData
     , networkLayer
@@ -134,6 +135,7 @@ server byron icarus shelley ntp =
     :<|> stakePools
     :<|> byronWallets
     :<|> byronAddresses
+    :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
     :<|> network
@@ -152,7 +154,7 @@ server byron icarus shelley ntp =
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
 
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley
+    coinSelections = selectCoins shelley (delegationAddress @n)
 
     transactions :: Server (Transactions n)
     transactions =
@@ -227,6 +229,11 @@ server byron icarus shelley ntp =
                 (byron , listAddresses byron (const pure) wid s)
                 (icarus, listAddresses icarus (const pure) wid s)
              )
+
+    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections wid x = withLegacyLayer wid
+        (byron, liftHandler $ throwE ErrNotASequentialWallet)
+        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =
