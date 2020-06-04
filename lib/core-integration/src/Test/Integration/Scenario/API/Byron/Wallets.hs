@@ -116,7 +116,7 @@ spec = do
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
-            let ep = Link.getMigrationInfo w
+            let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status200
@@ -128,7 +128,7 @@ spec = do
         \Cannot calculate fee for empty wallet."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
-            let ep = Link.getMigrationInfo w
+            let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status403
@@ -154,7 +154,7 @@ spec = do
                     } |]
             (_, w) <- unsafeRequest @ApiByronWallet ctx
                 (Link.postWallet @'Byron) payloadRestore
-            let ep = Link.getMigrationInfo w
+            let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status403

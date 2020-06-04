@@ -721,7 +721,7 @@ scenario_MIGRATE_01 fixtureSource = it title $ \ctx -> do
     wSrc <- fixtureSource ctx
 
     r <- request @[ApiTransaction n] ctx
-         (Link.migrateWallet wSrc)
+         (Link.migrateWallet @'Byron wSrc)
          Default
          (NonJson "{passphrase:,}")
     expectResponseCode @IO HTTP.status400 r
@@ -751,7 +751,7 @@ scenario_MIGRATE_02 fixtureSource addrCount = it title $ \ctx -> do
 
     -- Calculate the expected migration fee:
     r0 <- request @ApiWalletMigrationInfo ctx
-          (Link.getMigrationInfo wSrc) Default Empty
+          (Link.getMigrationInfo @'Byron wSrc) Default Empty
     verify r0
         [ expectResponseCode @IO HTTP.status200
         , expectField #migrationCost (.> Quantity 0)
@@ -760,7 +760,7 @@ scenario_MIGRATE_02 fixtureSource addrCount = it title $ \ctx -> do
 
     -- Perform a migration from the source wallet to the target wallet:
     r1 <- request @[ApiTransaction n] ctx
-          (Link.migrateWallet wSrc)
+          (Link.migrateWallet @'Byron wSrc)
           Default
           (Json [json|
               { passphrase: #{fixturePassphrase}

@@ -221,24 +221,28 @@ putWalletPassphrase w = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
 
 migrateWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-migrateWallet w =
-    endpoint @(Api.MigrateByronWallet Net) (wid &)
+migrateWallet w = discriminate @style
+    (endpoint @(Api.MigrateShelleyWallet Net) (wid &))
+    (endpoint @(Api.MigrateByronWallet Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
 getMigrationInfo
-    :: forall w.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-getMigrationInfo w =
-    endpoint @Api.GetByronWalletMigrationInfo (wid &)
+getMigrationInfo w = discriminate @style
+    (endpoint @Api.GetShelleyWalletMigrationInfo (wid &))
+    (endpoint @Api.GetByronWalletMigrationInfo (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

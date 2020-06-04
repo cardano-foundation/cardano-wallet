@@ -367,7 +367,7 @@ spec = do
         forM_ addrsInvalid $ \addr -> do
             sWallet <- fixtureRandomWallet ctx
             r <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet sWallet)
+                (Link.migrateWallet @'Shelley sWallet)
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}

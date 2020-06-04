@@ -1287,7 +1287,7 @@ spec = do
                 { passphrase: #{fixturePassphrase}
                 , addresses: [#{addr1}]
                 }|]
-        let migrEp = Link.migrateWallet sourceWallet
+        let migrEp = Link.migrateWallet @'Byron sourceWallet
         (_, t:_) <- unsafeRequest @[ApiTransaction n] ctx migrEp payload
         t ^. (#status . #getApiT) `shouldBe` Pending
 
