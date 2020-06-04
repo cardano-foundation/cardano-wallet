@@ -60,11 +60,11 @@ spec = describe "getTxParameters" $ do
                 -- the genesis block configuration.
                 let retryPolicy = constantDelay 1_000_000 <> limitRetries 10
                 recoverAll retryPolicy $ const $
-                    getTxParameters nl `shouldReturn`
-                        txParameters (protocolParameters np)
+                    getProtocolParameters nl `shouldReturn`
+                        protocolParameters np
             -- Parameters update should be logged exactly once.
-            msg <- mapMaybe isMsgTxParams <$> getLogs
-            msg `shouldBe` [txParameters (protocolParameters np)]
+            msg <- mapMaybe isMsgProtocolParams <$> getLogs
+            msg `shouldBe` [protocolParameters np]
 
 withTestNode
     :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
@@ -72,9 +72,9 @@ withTestNode
 withTestNode action = withCardanoNode nullTracer $(getTestData) Error $
     \sock _block0 (np, vData) -> action np sock vData
 
-isMsgTxParams :: NetworkLayerLog -> Maybe TxParameters
-isMsgTxParams (MsgTxParameters txp) = Just txp
-isMsgTxParams _ = Nothing
+isMsgProtocolParams :: NetworkLayerLog -> Maybe ProtocolParameters
+isMsgProtocolParams (MsgProtocolParameters pp) = Just pp
+isMsgProtocolParams _ = Nothing
 
 zeroTxParameters :: TxParameters
 zeroTxParameters = TxParameters

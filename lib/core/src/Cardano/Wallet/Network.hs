@@ -46,9 +46,9 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , Hash (..)
     , PoolId (..)
+    , ProtocolParameters
     , SealedTx
     , SlotId
-    , TxParameters
     )
 import Control.Concurrent
     ( threadDelay )
@@ -120,8 +120,8 @@ data NetworkLayer m target block = NetworkLayer
         :: ExceptT ErrCurrentNodeTip m BlockHeader
         -- ^ Get the current tip from the chain producer
 
-    , getTxParameters
-        :: m TxParameters
+    , getProtocolParameters
+        :: m ProtocolParameters
 
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
@@ -312,7 +312,9 @@ follow
     -> [BlockHeader]
     -- ^ A list of known tips to start from.
     -- Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block -> (BlockHeader, TxParameters) -> IO (FollowAction e))
+    -> (NE.NonEmpty block
+        -> (BlockHeader, ProtocolParameters)
+        -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
@@ -369,7 +371,7 @@ follow nl tr cps yield header =
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            params <- getTxParameters nl
+            params <- getProtocolParameters nl
             action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' action

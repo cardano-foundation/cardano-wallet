@@ -67,7 +67,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, dummyTxParameters, mockHash )
+    ( block0, dummyGenesisParameters, dummyProtocolParameters, mockHash )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -112,6 +112,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , PassphraseScheme (..)
+    , ProtocolParameters
     , Range
     , SlotId (..)
     , SortOrder (..)
@@ -119,7 +120,6 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMeta (TxMeta, amount, direction)
     , TxOut (..)
-    , TxParameters
     , TxStatus (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
@@ -258,7 +258,7 @@ testRegressionInsertSelectRndState db = do
     meta <- generate arbitrary
 
     new <- db & \DBLayer{..} -> atomically $ do
-        unsafeRunExceptT $ initializeWallet wid cp meta mempty txp
+        unsafeRunExceptT $ initializeWallet wid cp meta mempty pp
         unsafeRunExceptT $ putCheckpoint wid (updateState old cp)
         (fmap getState) <$> readCheckpoint wid
 
@@ -339,13 +339,13 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet JormungandrKey) @JormungandrKey 
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty txp
+                initializeWallet testPk testCpSeq testMetadata mempty pp
             logs <- getLogs
             logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty txp
+                initializeWallet testPk testCpSeq testMetadata mempty pp
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -478,7 +478,7 @@ fileModeSpec =  do
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCpSeq testMetadata mempty txp
+                    initializeWallet testPk testCpSeq testMetadata mempty pp
                 atomically listWallets `shouldReturn` [testPk]
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
@@ -497,7 +497,7 @@ fileModeSpec =  do
         it "create and list wallet works" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCp testMetadata mempty txp
+                initializeWallet testPk testCp testMetadata mempty pp
             destroyDBLayer ctx
             testOpeningCleaning f listWallets' [testPk] []
 
@@ -507,14 +507,14 @@ fileModeSpec =  do
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCp meta mempty txp
+                initializeWallet testPk testCp meta mempty pp
             destroyDBLayer ctx
             testOpeningCleaning f (`readWalletMeta'` testPk) (Just meta) Nothing
 
         it "create and get private key" $ \f-> do
             (ctx, db@DBLayer{..}) <- newDBLayer' (Just f)
-            atomically $ do
-                unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty txp
+            atomically $ unsafeRunExceptT $
+                initializeWallet testPk testCp testMetadata mempty pp
             (k, h) <- unsafeRunExceptT $ attachPrivateKey db testPk
             destroyDBLayer ctx
             testOpeningCleaning f (`readPrivateKey'` testPk) (Just (k, h)) Nothing
@@ -522,7 +522,8 @@ fileModeSpec =  do
         it "put and read tx history (Ascending)" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
-                unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty txp
+                unsafeRunExceptT $
+                    initializeWallet testPk testCp testMetadata mempty pp
                 unsafeRunExceptT $ putTxHistory testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
@@ -534,7 +535,8 @@ fileModeSpec =  do
         it "put and read tx history (Decending)" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
-                unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty txp
+                unsafeRunExceptT $
+                    initializeWallet testPk testCp testMetadata mempty pp
                 unsafeRunExceptT $ putTxHistory testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
@@ -546,7 +548,8 @@ fileModeSpec =  do
         it "put and read checkpoint" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
-                unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty txp
+                unsafeRunExceptT $
+                    initializeWallet testPk testCp testMetadata mempty pp
                 unsafeRunExceptT $ putCheckpoint testPk testCp
             destroyDBLayer ctx
             testOpeningCleaning f (`readCheckpoint'` testPk) (Just testCp) Nothing
@@ -561,8 +564,8 @@ fileModeSpec =  do
 
                 let ourAddrs = knownAddresses (getState testCp)
 
-                atomically $ do
-                    unsafeRunExceptT $ initializeWallet testPk testCp testMetadata mempty txp
+                atomically $ unsafeRunExceptT $ initializeWallet
+                    testPk testCp testMetadata mempty pp
 
                 let mockApply h mockTxs = do
                         Just cpA <- atomically $ readCheckpoint testPk
@@ -656,7 +659,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             unsafeRunExceptT $ putCheckpoint k cp
             unsafeRunExceptT $ putWalletMeta k meta
         else do
-            atomically $ unsafeRunExceptT $ initializeWallet k cp meta mempty txp
+            atomically $ unsafeRunExceptT $ initializeWallet k cp meta mempty pp
             Set.fromList <$> atomically listWallets
                 `shouldReturn` Set.fromList (k:keys)
 
@@ -838,8 +841,8 @@ testTxs =
       )
     ]
 
-txp :: TxParameters
-txp = dummyTxParameters
+pp :: ProtocolParameters
+pp = dummyProtocolParameters
 
 {-------------------------------------------------------------------------------
                     Helpers for golden rollback tests

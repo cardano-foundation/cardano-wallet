@@ -656,8 +656,8 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: cursorSlotId not implemented"
     , currentNodeTip =
         pure $ BlockHeader (SlotId 0 0) (Quantity 0) dummyHash dummyHash
-    , getTxParameters =
-        error "dummyNetworkLayer: getTxParameters not implemented"
+    , getProtocolParameters =
+        error "dummyNetworkLayer: getProtocolParameters not implemented"
     , postTx =
         error "dummyNetworkLayer: postTx not implemented"
     , stakeDistribution =

@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -83,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PassphraseScheme (..)
     , PoolId (..)
+    , ProtocolParameters (..)
     , Range (..)
     , ShowFmt (..)
     , SlotId (..)
@@ -110,7 +112,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic )
+    ( someDummyMnemonic, unsafeMkPercentage )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -132,7 +134,9 @@ import Data.List
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage (..), Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Text.Class
     ( toText )
 import Data.Typeable
@@ -562,8 +566,12 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
 
 {-------------------------------------------------------------------------------
-                             Blockchain Parameters
+                             Protocol Parameters
 -------------------------------------------------------------------------------}
+
+instance Arbitrary ProtocolParameters where
+    arbitrary = ProtocolParameters <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary TxParameters where
     arbitrary = TxParameters <$> arbitrary <*> arbitrary
@@ -591,6 +599,11 @@ instance Show XPrv where
 -- Necessary unsound Eq instance for QuickCheck properties
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
+
+instance Arbitrary Percentage where
+    arbitrary = unsafeMkPercentage . (% upperLimit) <$> choose (0, upperLimit)
+      where
+        upperLimit = 10_000
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do

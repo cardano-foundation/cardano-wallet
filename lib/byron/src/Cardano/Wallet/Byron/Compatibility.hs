@@ -55,7 +55,7 @@ module Cardano.Wallet.Byron.Compatibility
     , fromTxIn
     , fromTxOut
 
-    , txParametersFromUpdateState
+    , protocolParametersFromUpdateState
     ) where
 
 import Prelude
@@ -423,16 +423,20 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-txParametersFromPP :: Update.ProtocolParameters -> W.TxParameters
-txParametersFromPP pp = W.TxParameters
-    { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
-    , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
+protocolParametersFromPP :: Update.ProtocolParameters -> W.ProtocolParameters
+protocolParametersFromPP pp = W.ProtocolParameters
+    { decentralizationLevel = minBound
+    , txParameters = W.TxParameters
+        { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
+        , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
+        }
     }
 
--- | Pluck the blockchain parameters relevant to creating transactions out of
--- the cardano-chain update state record.
-txParametersFromUpdateState :: Update.State -> W.TxParameters
-txParametersFromUpdateState = txParametersFromPP . Update.adoptedProtocolParameters
+-- | Extract the protocol parameters relevant to the wallet out of the
+--   cardano-chain update state record.
+protocolParametersFromUpdateState :: Update.State -> W.ProtocolParameters
+protocolParametersFromUpdateState =
+    protocolParametersFromPP . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
@@ -457,12 +461,8 @@ fromGenesisData (genesisData, genesisHash) =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , protocolParameters = W.ProtocolParameters
-            { decentralizationLevel =
-                minBound
-            , txParameters =
-                txParametersFromPP . gdProtocolParameters $ genesisData
-            }
+        , protocolParameters =
+            protocolParametersFromPP . gdProtocolParameters $ genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

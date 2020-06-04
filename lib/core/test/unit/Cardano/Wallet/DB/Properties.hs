@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTxParameters )
+    ( dummyProtocolParameters )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..) )
 import Cardano.Wallet.Primitive.Model
@@ -51,13 +51,13 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Direction (..)
     , Hash (..)
+    , ProtocolParameters
     , ShowFmt (..)
     , SlotId (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
-    , TxParameters
     , TxStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -416,7 +416,7 @@ prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
     prop = liftIO $ do
         res <- once pairs $ \(k, (cp, meta)) ->
             atomically $ unsafeRunExceptT $
-            initializeWallet k cp meta mempty txp
+            initializeWallet k cp meta mempty pp
         (length <$> atomically listWallets) `shouldReturn` length res
 
 -- | Trying to create a same wallet twice should yield an error
@@ -433,9 +433,9 @@ prop_createWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
         let err = ErrWalletAlreadyExists wid
-        atomically (runExceptT $ initializeWallet key cp meta mempty txp)
+        atomically (runExceptT $ initializeWallet key cp meta mempty pp)
             `shouldReturn` Right ()
-        atomically (runExceptT $ initializeWallet key cp meta mempty txp)
+        atomically (runExceptT $ initializeWallet key cp meta mempty pp)
             `shouldReturn` Left err
 
 -- | Trying to remove a same wallet twice should yield an error
@@ -451,7 +451,7 @@ prop_removeWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
   where
     setup = liftIO $ do
         cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet key cp meta mempty txp
+        atomically $ unsafeRunExceptT $ initializeWallet key cp meta mempty pp
     prop = liftIO $ do
         let err = ErrNoSuchWallet wid
         atomically (runExceptT $ removeWallet key) `shouldReturn` Right ()
@@ -480,7 +480,7 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
         run $ cleanDB db
         (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
         run $ atomically $ unsafeRunExceptT $
-            initializeWallet key cp meta mempty txp
+            initializeWallet key cp meta mempty pp
     prop = do
         run $ unsafeRunExceptT $ putOp db key a
         res <- run $ readOp db key
@@ -555,7 +555,7 @@ prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
         liftIO (cleanDB db)
         (cp, meta, GenTxHistory txs) <- pick arbitrary
         liftIO $ atomically $ do
-            unsafeRunExceptT $ initializeWallet key cp meta mempty txp
+            unsafeRunExceptT $ initializeWallet key cp meta mempty pp
             unsafeRunExceptT $ putTxHistory key txs
         (b, c, d) <- liftIO $ (,,)
             <$> readB db key
@@ -588,7 +588,7 @@ prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ atomically $ unsafeRunExceptT $
-            initializeWallet key cp meta mempty txp
+            initializeWallet key cp meta mempty pp
     prop = liftIO $ do
         atomically $ unsafeRunExceptT $ removeWallet key
         (ShowFmt <$> readOp db key) `shouldReturn` ShowFmt empty
@@ -624,7 +624,7 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
         run $ cleanDB db
         (InitialCheckpoint cp, meta) <- pick arbitrary
         run $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp meta mempty txp
+            initializeWallet k cp meta mempty pp
     prop = do
         run $ unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- run $ once pairs (readOp db . fst)
@@ -663,7 +663,7 @@ prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp meta mempty txp
+            initializeWallet k cp meta mempty pp
     prop = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
@@ -692,7 +692,7 @@ prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
     setup wid meta = run $ do
         cleanDB db
         atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty txp
+            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty pp
             unsafeRunExceptT $ forM_ cps (putCheckpoint wid)
 
     prop wid point = do
@@ -732,7 +732,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     setup wid meta = run $ do
         cleanDB db
         atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty txp
+            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty pp
             unsafeRunExceptT $ putTxHistory wid txs0
 
     prop wid requestedPoint = do
@@ -832,8 +832,8 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
 int :: Integral a => a -> Int
 int = fromIntegral
 
-txp :: TxParameters
-txp = dummyTxParameters
+pp :: ProtocolParameters
+pp = dummyProtocolParameters
 
 newtype GenSparseCheckpointsArgs
     = GenSparseCheckpointsArgs (Word32, Word32)

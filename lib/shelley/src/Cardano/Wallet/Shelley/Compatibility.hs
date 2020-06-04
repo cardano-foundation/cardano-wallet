@@ -345,13 +345,16 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromPParams :: SL.PParams -> W.TxParameters
-fromPParams pp = W.TxParameters
-    { getFeePolicy = W.LinearFee
-        (Quantity (naturalToDouble (SL._minfeeB pp)))
-        (Quantity (fromIntegral (SL._minfeeA pp)))
-        (Quantity 0) -- TODO: it's not as simple as this?
-    , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
+fromPParams :: SL.PParams -> W.ProtocolParameters
+fromPParams pp = W.ProtocolParameters
+    { decentralizationLevel = minBound
+    , txParameters = W.TxParameters
+        { getFeePolicy = W.LinearFee
+            (Quantity (naturalToDouble (SL._minfeeB pp)))
+            (Quantity (fromIntegral (SL._minfeeA pp)))
+            (Quantity 0) -- TODO: it's not as simple as this?
+        , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
+        }
     }
   where
     naturalToDouble :: Natural -> Double
@@ -376,15 +379,7 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , protocolParameters = W.ProtocolParameters
-            -- TODO: Report live value of decentralization level.
-            -- Related issue:
-            -- https://github.com/input-output-hk/cardano-wallet/issues/1693
-            { decentralizationLevel =
-                minBound
-            , txParameters =
-                fromPParams . sgProtocolParams $ g
-            }
+        , protocolParameters = fromPParams . sgProtocolParams $ g
         }
     , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )

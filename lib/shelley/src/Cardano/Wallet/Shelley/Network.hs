@@ -213,12 +213,11 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't really do anything but sending dummy messages to get the node's
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    txParamsVar <- atomically $ newTVar $
-        W.txParameters $ W.protocolParameters np
+    protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
     nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
-        (atomically . writeTVar txParamsVar)
+        (atomically . writeTVar protocolParamsVar)
     let handlers = retryOnConnectionLost tr
     link =<< async
         (connectClient tr handlers nodeTipClient versionData addrInfo)
@@ -229,7 +228,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
-            , getTxParameters = atomically $ readTVar txParamsVar
+            , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
@@ -372,15 +371,16 @@ mkTipSyncClient
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ShelleyBlock -> m ())
         -- ^ Notifier callback for when tip changes
-    -> (W.TxParameters -> m ())
+    -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
-    (onTxParamsUpdate' :: W.TxParameters -> m ()) <- debounce $ \txParams -> do
-        traceWith tr $ MsgTxParameters txParams
-        onTxParamsUpdate txParams
+    (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
+        debounce $ \pp -> do
+            traceWith tr $ MsgProtocolParameters pp
+            onPParamsUpdate pp
 
     let
         queryLocalState :: Point ShelleyBlock -> m ()
@@ -393,7 +393,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
             Left (e :: AcquireFailure) ->
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right ls ->
-                onTxParamsUpdate' $ fromPParams ls
+                onPParamsUpdate' $ fromPParams ls
 
         W.GenesisParameters
              { getGenesisBlockHash
@@ -577,7 +577,7 @@ data NetworkLayerLog
     | MsgFindIntersectionTimeout
     | MsgPostSealedTx W.SealedTx
     | MsgNodeTip W.BlockHeader
-    | MsgTxParameters W.TxParameters
+    | MsgProtocolParameters W.ProtocolParameters
     | MsgLocalStateQueryError String
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
@@ -616,8 +616,8 @@ instance ToText NetworkLayerLog where
             [ "Network node tip is"
             , pretty bh
             ]
-        MsgTxParameters params -> T.unwords
-            [ "TxParams for tip are:"
+        MsgProtocolParameters params -> T.unwords
+            [ "Protocol parameters for tip are:"
             , pretty params
             ]
         MsgLocalStateQueryError e -> T.unwords
@@ -640,5 +640,5 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgPostSealedTx{}          -> Debug
         MsgLocalStateQuery{}       -> Debug
         MsgNodeTip{}               -> Debug
-        MsgTxParameters{}          -> Info
+        MsgProtocolParameters{}    -> Info
         MsgLocalStateQueryError{}  -> Error
