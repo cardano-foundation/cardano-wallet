@@ -374,6 +374,9 @@ fromPParams pp = W.ProtocolParameters
 --   * '  0 %' indicates that the network is /completely federalized/.
 --   * '100 %' indicates that the network is /completely decentralized/.
 --
+-- Therefore, we must invert the value provided by cardano-node before we
+-- convert it into a percentage.
+--
 decentralizationLevelFromPParams
     :: HasCallStack
     => SL.PParams
@@ -382,6 +385,7 @@ decentralizationLevelFromPParams pp =
     either reportInvalidValue W.DecentralizationLevel
         $ mkPercentage
         $ SL.intervalValue
+        -- We must invert the value provided: (see function comment)
         $ invertUnitInterval d
   where
     d = SL._d pp
