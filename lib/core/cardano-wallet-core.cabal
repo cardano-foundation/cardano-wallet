@@ -75,6 +75,7 @@ library
     , persistent-template
     , process
     , random
+    , random-shuffle
     , retry
     , safe
     , scientific
