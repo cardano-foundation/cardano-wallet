@@ -1390,9 +1390,6 @@ instance Buildable ProtocolParameters where
 --   * '  0 %' indicates that the network is /completely federalized/.
 --   * '100 %' indicates that the network is /completely decentralized/.
 --
--- * '  0%' indicates that the network is /completely federalized/.
--- * '100%' indicates that the network is /completely decentralized/.
---
 newtype DecentralizationLevel = DecentralizationLevel
     { unDecentralizationLevel :: Percentage }
     deriving (Bounded, Eq, Generic, Show)
