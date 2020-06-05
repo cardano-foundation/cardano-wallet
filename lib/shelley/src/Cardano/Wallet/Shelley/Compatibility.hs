@@ -58,6 +58,9 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toSealed
 
+      -- * Internal Conversions
+    , decentralizationLevelFromPParams
+
       -- * Utilities
     , invertUnitInterval
 

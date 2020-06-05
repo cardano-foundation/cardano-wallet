@@ -34,10 +34,17 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), EpochLength (..), Hash (..), SlotId (..), fromFlatSlot )
+    ( Address (..)
+    , DecentralizationLevel (..)
+    , EpochLength (..)
+    , Hash (..)
+    , SlotId (..)
+    , fromFlatSlot
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( ShelleyBlock
     , TPraosStandardCrypto
+    , decentralizationLevelFromPParams
     , fromTip
     , invertUnitInterval
     , toPoint
@@ -45,10 +52,18 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy )
+import Control.Monad
+    ( forM_ )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Ratio
     ( (%) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
@@ -76,6 +91,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
+import qualified Shelley.Spec.Ledger.PParams as SL
 
 spec :: Spec
 spec = do
@@ -114,6 +130,30 @@ spec = do
                     "6194986d1fc893629945058bdb0851478\
                     \fadc57711600cb1430799c95b52b2a3b7"
             fst (isOurs addr s) `shouldBe` True
+
+    describe "decentralizationLevelFromPParams" $ do
+
+        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams
+            mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
+
+        let testCases :: [(Rational, Text)]
+            testCases =
+                [ (10 % 10,   "0.00%")
+                , ( 9 % 10,  "10.00%")
+                , ( 5 % 10,  "50.00%")
+                , ( 1 % 10,  "90.00%")
+                , ( 0 % 10, "100.00%")
+                ]
+
+        forM_ testCases $ \(input, expectedOutput) -> do
+            let title = show input <> " -> " <> show expectedOutput
+            let output = input
+                    & SL.truncateUnitInterval
+                    & mkDecentralizationParam
+                    & decentralizationLevelFromPParams
+                    & unDecentralizationLevel
+                    & toText
+            it title $ output `shouldBe` expectedOutput
 
     describe "Utilities" $ do
 
