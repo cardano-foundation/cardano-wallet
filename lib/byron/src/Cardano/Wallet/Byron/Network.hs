@@ -113,8 +113,12 @@ import Ouroboros.Consensus.Byron.Ledger
     , GenTx
     , Query (..)
     )
+import Ouroboros.Consensus.Byron.Ledger.Config
+    ( CodecConfig (..) )
 import Ouroboros.Consensus.Byron.Node
-    ( CodecConfig (ByronCodecConfig) )
+    ()
+import Ouroboros.Consensus.Config.SecurityParam
+    ( SecurityParam (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Network.Block
@@ -340,10 +344,7 @@ mkWalletClient gp chainSyncQ = do
         } = gp
 
     codecs :: MonadST m => ClientCodecs ByronBlock m
-    codecs = clientCodecs
-        (ByronCodecConfig (toEpochSlots getEpochLength))
-        ByronNodeToClientVersion2
-
+    codecs = clientCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
 
 -- | Construct a network client with the given communication channel, for the
 -- purpose of:
@@ -422,15 +423,19 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
         })
         NodeToClientV_2
   where
-    W.GenesisParameters
+    gp@W.GenesisParameters
         { getGenesisBlockHash
         , getEpochLength
         } = W.genesisParameters np
 
     codecs :: MonadST m => DefaultCodecs ByronBlock m
-    codecs = defaultCodecs
-        (ByronCodecConfig (toEpochSlots getEpochLength))
-        ByronNodeToClientVersion2
+    codecs = defaultCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
+
+byronCodecConfig :: W.GenesisParameters -> CodecConfig ByronBlock
+byronCodecConfig W.GenesisParameters{getEpochLength,getEpochStability} =
+    ByronCodecConfig (toEpochSlots getEpochLength) (SecurityParam k)
+  where
+    k = fromIntegral . getQuantity $ getEpochStability
 
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do
@@ -532,6 +537,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxInitiatorOnly -> pure False
     MuxSDUReadTimeout -> pure False
     MuxSDUWriteTimeout -> pure False
+    MuxShutdown -> pure False
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do

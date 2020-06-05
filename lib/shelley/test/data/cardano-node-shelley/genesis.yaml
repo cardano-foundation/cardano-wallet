@@ -25,7 +25,9 @@ protocolParams:
   a0: 0
 protocolMagicId: 0
 genDelegs:
-  539bfc367f7e67011fc84300f274e0157b73d0a9a79fd7b8955e948b36864ce7: 7b410944ee6e8b69bc362f84efb6c1bc88ab3cb32c7d311ae6895a4eeff102d6
+  109adb1947f63d34cac80d3eed7bfe6bca605782580edfdc7bbc7af7c5089d47:
+    delegate: caad228782456a194fbcbf42be829b09d58f0ef21e604711c19158b1f68b0805
+    vrf: 2c782d9efda66d84cc156530f218181396ad6577c6fc0ec1ca3570088e2c2097
 updateQuorum: 5
 maxMajorPV: 25446
 initialFunds: {}

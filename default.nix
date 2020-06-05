@@ -150,7 +150,8 @@ let
           niv
           pkgconfig
           sqlite-interactive
-          pythonPackages.openapi-spec-validator
+          python3Packages.openapi-spec-validator
+          yq
         ]);
       CARDANO_NODE_CONFIGS = cardano-node.deployments;
       meta.platforms = lib.platforms.unix;

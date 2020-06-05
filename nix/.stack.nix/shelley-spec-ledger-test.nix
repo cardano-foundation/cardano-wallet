@@ -26,8 +26,8 @@
     components = {
       "library" = {
         depends = [
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."bytestring-conversion" or (errorHandler.buildDepError "bytestring-conversion"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -37,12 +37,14 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
-          (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
-          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
+          (hsPkgs."generic-random" or (errorHandler.buildDepError "generic-random"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+          (hsPkgs."hedgehog-quickcheck" or (errorHandler.buildDepError "hedgehog-quickcheck"))
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."multiset" or (errorHandler.buildDepError "multiset"))
           (hsPkgs."process-extras" or (errorHandler.buildDepError "process-extras"))
+          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
@@ -57,8 +59,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "37ea0bb59ff2cc7f6690240f8c4d55e15cd30f2c";
-      sha256 = "1f9idm15yzdlpl9akzy9mkpalw7naz5p4yw16l9835jbdyqxw3sc";
+      rev = "3671fe88f7d62769ed207cda0ee94a0effbb4c7f";
+      sha256 = "00pf3hanch142b7if1kpwi9l5clbm2xays1cq2zka3p3a7xwzwp8";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec/test; echo source root reset to \$sourceRoot";
     }
