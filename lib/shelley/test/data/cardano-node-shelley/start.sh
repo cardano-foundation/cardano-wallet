@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 
-startTime=$(gdate --iso-8601=s --date="5 seconds")
+set -euo pipefail
 
-cat genesis.yaml | yq ".startTime=\"$startTime\"" > tmp-genesis.json
+if type -p gdate > /dev/null; then
+  gnu_date=gdate
+else
+  gnu_date=date
+fi
+
+systemStart=$($gnu_date --iso-8601=s --date="5 seconds")
+
+yq ".systemStart=\"$systemStart\"" < genesis.yaml > tmp-genesis.json
 
 cat node.config \
   | yq -y '.GenesisFile="tmp-genesis.json"' \

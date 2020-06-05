@@ -112,8 +112,8 @@ import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Shelley.Ledger
     ( GenTx, Query (..), ShelleyNodeToClientVersion (..) )
-import Ouroboros.Consensus.Shelley.Node
-    ( CodecConfig (ShelleyCodecConfig) )
+import Ouroboros.Consensus.Shelley.Ledger.Config
+    ( CodecConfig (..) )
 import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
@@ -550,6 +550,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxInitiatorOnly -> pure False
     MuxSDUReadTimeout -> pure False
     MuxSDUWriteTimeout -> pure False
+    MuxShutdown -> pure False
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
