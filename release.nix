@@ -67,6 +67,7 @@ let
   buildNative  = builtins.elem builtins.currentSystem supportedSystems;
   buildLinux   = builtins.elem "x86_64-linux" supportedSystems;
   buildMacOS   = builtins.elem "x86_64-darwin" supportedSystems;
+  buildMusl    = builtins.elem "x86_64-linux" supportedCrossSystems && buildLinux;
   buildWindows = builtins.elem builtins.currentSystem supportedCrossSystems;
 in
 
@@ -107,7 +108,7 @@ let
     # Cross compilation, excluding the dockerImage and shells that we cannnot cross compile
     "${mingwW64.config}" = mapTestOnCross mingwW64
       (packagePlatformsCross (filterJobsCross project));
-  } // optionalAttrs buildLinux {
+  } // optionalAttrs buildMusl {
     musl64 = mapTestOnCross musl64
       (packagePlatformsCross (filterJobsCross project));
   }
@@ -136,7 +137,7 @@ let
           jobs.cardano-wallet-byron-macos64
           jobs.cardano-wallet-shelley-macos64
         ]) ++
-      optionals buildLinux [
+      optionals buildMusl [
           # Release packages for Linux
           jobs.cardano-wallet-jormungandr-linux64
           jobs.cardano-wallet-byron-linux64
@@ -185,7 +186,7 @@ let
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
-  } // optionalAttrs buildLinux {
+  } // optionalAttrs buildMusl {
     # Fully-static linux binaries
     cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
