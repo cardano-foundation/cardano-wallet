@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , ProtocolParameters (..)
     , SlotId (..)
     , SlotLength (..)
     , StakePoolMetadata (..)
@@ -266,7 +267,8 @@ prop_trackRegistrations test = monadicIO $ do
                 pure mempty
             , currentNodeTip =
                 pure header0
-            , getTxParameters = pure genesisTxParameters
+            , getProtocolParameters =
+                pure genesisProtocolParameters
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
@@ -325,8 +327,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: cursorSlotId"
     , currentNodeTip =
         error "mockNetworkLayer: currentNodeTip"
-    , getTxParameters =
-        error "mockNetworkLayer: getTxParameters"
+    , getProtocolParameters =
+        error "mockNetworkLayer: getProtocolParameters"
     , postTx =
         \_ -> error "mockNetworkLayer: postTx"
     , stakeDistribution =
@@ -490,6 +492,12 @@ genesisParameters = GenesisParameters
     , getEpochLength = EpochLength 21600
     , getEpochStability = Quantity 2160
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+    }
+
+genesisProtocolParameters :: ProtocolParameters
+genesisProtocolParameters = ProtocolParameters
+    { decentralizationLevel = minBound
+    , txParameters = genesisTxParameters
     }
 
 genesisTxParameters :: TxParameters

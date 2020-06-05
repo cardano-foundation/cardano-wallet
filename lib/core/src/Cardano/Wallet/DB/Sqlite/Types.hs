@@ -66,6 +66,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Percentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -155,6 +157,17 @@ instance PersistField FeePolicy where
 
 instance PersistFieldSql FeePolicy where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- Percentage
+
+instance PersistField Percentage where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue pv = fromPersistValue pv >>= left (const err) . fromText
+        where err = "not a valid percentage: " <> T.pack (show pv)
+
+instance PersistFieldSql Percentage where
+    sqlType _ = sqlType (Proxy @Rational)
 
 ----------------------------------------------------------------------------
 -- WalletId

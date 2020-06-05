@@ -89,6 +89,7 @@ module Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
+    , DecentralizationLevel (..)
     , EpochLength (..)
     , EpochNo (..)
     , FeePolicy (..)
@@ -1359,11 +1360,8 @@ slotParams gp =
 --
 data ProtocolParameters = ProtocolParameters
     { decentralizationLevel
-        :: Quantity "percent" Percentage
+        :: DecentralizationLevel
         -- ^ The current level of decentralization in the network.
-        --   (also known as the 'd' parameter).
-        -- * '  0%' indicates that the network is /completely federalized/.
-        -- * '100%' indicates that the network is /completely decentralized/.
     , txParameters
         :: TxParameters
         -- ^ Parameters that affect transaction construction.
@@ -1372,10 +1370,37 @@ data ProtocolParameters = ProtocolParameters
 instance NFData ProtocolParameters
 
 instance Buildable ProtocolParameters where
-    build pp = listF' id
+    build pp = blockListF' "" id
         [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         ]
+
+-- | Indicates the current level of decentralization in the network.
+--
+-- According to the Design Specification for Delegation and Incentives in
+-- Cardano, the decentralization parameter __/d/__ is a value in the range
+-- '[0, 1]', where:
+--
+--   * __/d/__ = '1' indicates that the network is /completely federalized/.
+--   * __/d/__ = '0' indicates that the network is /completely decentralized/.
+--
+-- However, in Cardano Wallet, we represent the decentralization level as a
+-- percentage, where:
+--
+--   * '  0 %' indicates that the network is /completely federalized/.
+--   * '100 %' indicates that the network is /completely decentralized/.
+--
+-- * '  0%' indicates that the network is /completely federalized/.
+-- * '100%' indicates that the network is /completely decentralized/.
+--
+newtype DecentralizationLevel = DecentralizationLevel
+    { unDecentralizationLevel :: Percentage }
+    deriving (Bounded, Eq, Generic, Show)
+
+instance NFData DecentralizationLevel
+
+instance Buildable DecentralizationLevel where
+    build = build . unDecentralizationLevel
 
 -- | Parameters that relate to the construction of __transactions__.
 --

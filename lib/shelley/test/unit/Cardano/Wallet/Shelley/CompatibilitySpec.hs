@@ -34,13 +34,36 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), EpochLength (..), Hash (..), SlotId (..), fromFlatSlot )
+    ( Address (..)
+    , DecentralizationLevel (..)
+    , EpochLength (..)
+    , Hash (..)
+    , SlotId (..)
+    , fromFlatSlot
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyBlock, TPraosStandardCrypto, fromTip, toPoint, toShelleyHash )
+    ( ShelleyBlock
+    , TPraosStandardCrypto
+    , decentralizationLevelFromPParams
+    , fromTip
+    , invertUnitInterval
+    , toPoint
+    , toShelleyHash
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy )
+import Control.Monad
+    ( forM_ )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Ratio
+    ( (%) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
@@ -53,8 +76,12 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , checkCoverage
     , choose
+    , cover
     , frequency
+    , genericShrink
+    , oneof
     , property
     , vector
     , (===)
@@ -63,6 +90,8 @@ import Test.QuickCheck
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Shelley.Spec.Ledger.Address as SL
+import qualified Shelley.Spec.Ledger.BaseTypes as SL
+import qualified Shelley.Spec.Ledger.PParams as SL
 
 spec :: Spec
 spec = do
@@ -102,6 +131,63 @@ spec = do
                     \fadc57711600cb1430799c95b52b2a3b7"
             fst (isOurs addr s) `shouldBe` True
 
+    describe "decentralizationLevelFromPParams" $ do
+
+        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams
+            mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
+
+        let testCases :: [(Rational, Text)]
+            testCases =
+                [ (10 % 10,   "0.00%")
+                , ( 9 % 10,  "10.00%")
+                , ( 5 % 10,  "50.00%")
+                , ( 1 % 10,  "90.00%")
+                , ( 0 % 10, "100.00%")
+                ]
+
+        forM_ testCases $ \(input, expectedOutput) -> do
+            let title = show input <> " -> " <> show expectedOutput
+            let output = input
+                    & SL.truncateUnitInterval
+                    & mkDecentralizationParam
+                    & decentralizationLevelFromPParams
+                    & unDecentralizationLevel
+                    & toText
+            it title $ output `shouldBe` expectedOutput
+
+    describe "Utilities" $ do
+
+        describe "UnitInterval" $ do
+
+            it "coverage adequate" $
+                checkCoverage $ property $ \i ->
+                    let half = SL.truncateUnitInterval (1 % 2) in
+                    cover 10 (i == half) "i = 0.5" $
+                    cover 10 (i == SL.interval0) "i = 0" $
+                    cover 10 (i == SL.interval1) "i = 1" $
+                    cover 10 (i > SL.interval0 && i < half) "0 < i < 0.5" $
+                    cover 10 (half < i && i < SL.interval1) "0.5 < i < 1"
+                    True
+
+            it "invertUnitInterval . invertUnitInterval == id" $
+                property $ \i ->
+                    invertUnitInterval (invertUnitInterval i) `shouldBe` i
+
+            it "intervalValue i + intervalValue (invertUnitInterval i) == 1" $
+                property $ \i ->
+                    SL.intervalValue i + SL.intervalValue (invertUnitInterval i)
+                        `shouldBe` 1
+
+            it "invertUnitInterval interval0 == interval1" $
+                invertUnitInterval SL.interval0 `shouldBe` SL.interval1
+
+            it "invertUnitInterval interval1 == interval0" $
+                invertUnitInterval SL.interval1 `shouldBe` SL.interval0
+
+            it "invertUnitInterval half == half" $
+                let half = SL.truncateUnitInterval (1 % 2) in
+                invertUnitInterval half `shouldBe` half
+
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> vector 32
 
@@ -125,10 +211,17 @@ instance Arbitrary (Tip ShelleyBlock) where
 epochLength :: EpochLength
 epochLength = EpochLength 10
 
+instance Arbitrary SL.UnitInterval where
+    arbitrary = oneof
+        [ pure SL.interval0
+        , pure SL.interval1
+        , pure $ SL.truncateUnitInterval (1 % 2)
+        , SL.truncateUnitInterval . (% 1000) <$> choose (0, 1000)
+        ]
+    shrink = genericShrink
+
 instance Arbitrary SlotId where
     arbitrary = fromFlatSlot epochLength <$> choose (0, 100)
-
---
 
 instance Arbitrary (ShelleyKey 'AddressK XPrv) where
     shrink _ = []

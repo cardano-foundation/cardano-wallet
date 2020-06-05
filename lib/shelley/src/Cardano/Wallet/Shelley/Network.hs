@@ -181,6 +181,7 @@ import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Shelley.Spec.Ledger.PParams as SL
 
 {- HLINT ignore "Use readTVarIO" -}
 
@@ -213,12 +214,11 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't really do anything but sending dummy messages to get the node's
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    txParamsVar <- atomically $ newTVar $
-        W.txParameters $ W.protocolParameters np
+    protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
     nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
-        (atomically . writeTVar txParamsVar)
+        (atomically . writeTVar protocolParamsVar)
     let handlers = retryOnConnectionLost tr
     link =<< async
         (connectClient tr handlers nodeTipClient versionData addrInfo)
@@ -229,7 +229,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
-            , getTxParameters = atomically $ readTVar txParamsVar
+            , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
@@ -275,7 +275,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         pure (Quantity 0)
 
     _currentNodeTip nodeTipVar =
-        fromTip getGenesisBlockHash getEpochLength <$> atomically (readTVar nodeTipVar)
+        fromTip getGenesisBlockHash getEpochLength <$>
+            atomically (readTVar nodeTipVar)
 
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
@@ -358,36 +359,49 @@ serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 mkTipSyncClient
-    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
+    :: forall m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> TQueue m (LocalTxSubmissionCmd (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto) m)
+    -> TQueue m
+        (LocalTxSubmissionCmd
+            (GenTx ShelleyBlock)
+            (OC.ApplyTxError TPraosStandardCrypto)
+            (m))
         -- ^ Communication channel with the LocalTxSubmission client
     -> (Tip ShelleyBlock -> m ())
         -- ^ Notifier callback for when tip changes
-    -> (W.TxParameters -> m ())
+    -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> m (NetworkClient m)
-mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
     localStateQueryQ <- atomically newTQueue
 
-    (onTxParamsUpdate' :: W.TxParameters -> m ()) <- debounce $ \txParams -> do
-        traceWith tr $ MsgTxParameters txParams
-        onTxParamsUpdate txParams
+    (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
+        debounce $ \pp -> do
+            traceWith tr $ MsgProtocolParameters pp
+            onPParamsUpdate pp
 
     let
-        queryLocalState :: Point ShelleyBlock -> m ()
+        queryLocalState
+            :: HasCallStack
+            => Point ShelleyBlock
+            -> m ()
         queryLocalState pt = do
-            st <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetCurrentPParams
+            st <- localStateQueryQ `send`
+                CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
+        handleLocalState
+            :: HasCallStack
+            => Either AcquireFailure SL.PParams
+            -> m ()
         handleLocalState = \case
             Left (e :: AcquireFailure) ->
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right ls ->
-                onTxParamsUpdate' $ fromPParams ls
+                onPParamsUpdate' $ fromPParams ls
 
         W.GenesisParameters
              { getGenesisBlockHash
@@ -396,7 +410,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onTxParamsUpdate = do
 
     onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
         let tip = castTip tip'
-        traceWith tr $ MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
+        traceWith tr $ MsgNodeTip $
+            fromTip getGenesisBlockHash getEpochLength tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -555,15 +570,22 @@ notImplemented what = error ("Not implemented: " <> what)
 data NetworkLayerLog
     = MsgCouldntConnect Int
     | MsgConnectionLost (Maybe IOException)
-    | MsgTxSubmission (TraceSendRecv (LocalTxSubmission (GenTx ShelleyBlock) (OC.ApplyTxError TPraosStandardCrypto)))
-    | MsgLocalStateQuery (TraceSendRecv (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
-    | MsgHandshakeTracer (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
+    | MsgTxSubmission
+        (TraceSendRecv
+            (LocalTxSubmission
+                (GenTx ShelleyBlock)
+                (OC.ApplyTxError TPraosStandardCrypto)))
+    | MsgLocalStateQuery
+        (TraceSendRecv
+            (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
+    | MsgHandshakeTracer
+        (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
     | MsgFindIntersection [W.BlockHeader]
     | MsgIntersectionFound (W.Hash "BlockHeader")
     | MsgFindIntersectionTimeout
     | MsgPostSealedTx W.SealedTx
     | MsgNodeTip W.BlockHeader
-    | MsgTxParameters W.TxParameters
+    | MsgProtocolParameters W.ProtocolParameters
     | MsgLocalStateQueryError String
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
@@ -602,8 +624,8 @@ instance ToText NetworkLayerLog where
             [ "Network node tip is"
             , pretty bh
             ]
-        MsgTxParameters params -> T.unwords
-            [ "TxParams for tip are:"
+        MsgProtocolParameters params -> T.unlines
+            [ "Protocol parameters for tip are:"
             , pretty params
             ]
         MsgLocalStateQueryError e -> T.unwords
@@ -626,5 +648,5 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgPostSealedTx{}          -> Debug
         MsgLocalStateQuery{}       -> Debug
         MsgNodeTip{}               -> Debug
-        MsgTxParameters{}          -> Info
+        MsgProtocolParameters{}    -> Info
         MsgLocalStateQueryError{}  -> Error

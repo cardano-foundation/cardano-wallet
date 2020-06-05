@@ -26,6 +26,8 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
+import Data.Quantity
+    ( Percentage (..) )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -144,12 +146,13 @@ Checkpoint
     Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
-TxParameters
-    txParametersWalletId          W.WalletId  sql=wallet_id
-    txParametersFeePolicy         W.FeePolicy sql=fee_policy
-    txParametersTxMaxSize         Word16      sql=tx_max_size
-    Primary txParametersWalletId
-    Foreign Wallet fk_wallet_tx_parameters txParametersWalletId ! ON DELETE CASCADE
+ProtocolParameters
+    protocolParametersWalletId              W.WalletId  sql=wallet_id
+    protocolParametersFeePolicy             W.FeePolicy sql=fee_policy
+    protocolParametersTxMaxSize             Word16      sql=tx_max_size
+    protocolParametersDecentralizationLevel Percentage  sql=decentralization_level
+    Primary protocolParametersWalletId
+    Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Store known delegation certificates for a particular wallet

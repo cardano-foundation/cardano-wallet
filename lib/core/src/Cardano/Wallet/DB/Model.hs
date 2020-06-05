@@ -58,8 +58,8 @@ module Cardano.Wallet.DB.Model
     , mRemovePendingTx
     , mPutPrivateKey
     , mReadPrivateKey
-    , mPutTxParameters
-    , mReadTxParameters
+    , mPutProtocolParameters
+    , mReadProtocolParameters
     ) where
 
 import Prelude
@@ -74,13 +74,13 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , Hash
     , PoolId
+    , ProtocolParameters (..)
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
-    , TxParameters (..)
     , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
@@ -142,7 +142,7 @@ data WalletDatabase s xprv = WalletDatabase
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
-    , txParameters :: !TxParameters
+    , protocolParameters :: !ProtocolParameters
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -193,9 +193,9 @@ mInitializeWallet
     -> Wallet s
     -> WalletMetadata
     -> TxHistory
-    -> TxParameters
+    -> ProtocolParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 txp db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 pp db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -205,7 +205,7 @@ mInitializeWallet wid cp meta txs0 txp db@Database{wallets,txs}
                 , metadata = meta
                 , txHistory = history
                 , xprv = Nothing
-                , txParameters = txp
+                , protocolParameters = pp
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
@@ -426,13 +426,15 @@ mReadPrivateKey :: Ord wid => wid -> ModelOp wid s xprv (Maybe xprv)
 mReadPrivateKey wid db@(Database wallets _) =
     (Right (Map.lookup wid wallets >>= xprv), db)
 
-mPutTxParameters :: Ord wid => wid -> TxParameters -> ModelOp wid s xprv ()
-mPutTxParameters wid txp = alterModel wid $ \wal ->
-    ((), wal { txParameters = txp })
+mPutProtocolParameters
+    :: Ord wid => wid -> ProtocolParameters -> ModelOp wid s xprv ()
+mPutProtocolParameters wid pp = alterModel wid $ \wal ->
+    ((), wal { protocolParameters = pp })
 
-mReadTxParameters :: Ord wid => wid -> ModelOp wid s xprv (Maybe TxParameters)
-mReadTxParameters wid db@(Database wallets _) =
-    (Right (txParameters <$> Map.lookup wid wallets), db)
+mReadProtocolParameters
+    :: Ord wid => wid -> ModelOp wid s xprv (Maybe ProtocolParameters)
+mReadProtocolParameters wid db@(Database wallets _) =
+    (Right (protocolParameters <$> Map.lookup wid wallets), db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers

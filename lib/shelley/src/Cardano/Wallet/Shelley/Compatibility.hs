@@ -57,6 +57,13 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toCardanoLovelace
     , toSealed
+
+      -- * Internal Conversions
+    , decentralizationLevelFromPParams
+
+      -- * Utilities
+    , invertUnitInterval
+
     ) where
 
 import Prelude
@@ -88,7 +95,7 @@ import Data.Foldable
 import Data.Maybe
     ( fromMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -139,6 +146,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Address as SL
+import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
@@ -345,8 +353,55 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromPParams :: SL.PParams -> W.TxParameters
-fromPParams pp = W.TxParameters
+fromPParams :: HasCallStack => SL.PParams -> W.ProtocolParameters
+fromPParams pp = W.ProtocolParameters
+    { decentralizationLevel =
+        decentralizationLevelFromPParams pp
+    , txParameters =
+        txParametersFromPParams pp
+    }
+
+-- | Extract the current network decentralization level from the given set of
+--   protocol parameters.
+--
+-- According to the Design Specification for Delegation and Incentives in
+-- Cardano, the decentralization parameter __/d/__ is a value in the range
+-- '[0, 1]', where:
+--
+--   * __/d/__ = '1' indicates that the network is /completely federalized/.
+--   * __/d/__ = '0' indicates that the network is /completely decentralized/.
+--
+-- However, in Cardano Wallet, we represent the decentralization level as a
+-- percentage, where:
+--
+--   * '  0 %' indicates that the network is /completely federalized/.
+--   * '100 %' indicates that the network is /completely decentralized/.
+--
+-- Therefore, we must invert the value provided by cardano-node before we
+-- convert it into a percentage.
+--
+decentralizationLevelFromPParams
+    :: HasCallStack
+    => SL.PParams
+    -> W.DecentralizationLevel
+decentralizationLevelFromPParams pp =
+    either reportInvalidValue W.DecentralizationLevel
+        $ mkPercentage
+        $ SL.intervalValue
+        -- We must invert the value provided: (see function comment)
+        $ invertUnitInterval d
+  where
+    d = SL._d pp
+    reportInvalidValue = error $ mconcat
+        [ "decentralizationLevelFromPParams: "
+        , "encountered invalid decentralization parameter value: "
+        , show d
+        ]
+
+txParametersFromPParams
+    :: SL.PParams
+    -> W.TxParameters
+txParametersFromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
         (Quantity (naturalToDouble (SL._minfeeB pp)))
         (Quantity (fromIntegral (SL._minfeeA pp)))
@@ -359,7 +414,8 @@ fromPParams pp = W.TxParameters
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: ShelleyGenesis TPraosStandardCrypto
+    :: HasCallStack
+    => ShelleyGenesis TPraosStandardCrypto
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
     ( W.NetworkParameters
@@ -376,15 +432,7 @@ fromGenesisData g =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
-        , protocolParameters = W.ProtocolParameters
-            -- TODO: Report live value of decentralization level.
-            -- Related issue:
-            -- https://github.com/input-output-hk/cardano-wallet/issues/1693
-            { decentralizationLevel =
-                minBound
-            , txParameters =
-                fromPParams . sgProtocolParams $ g
-            }
+        , protocolParameters = fromPParams . sgProtocolParams $ g
         }
     , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
     )
@@ -399,9 +447,11 @@ fromGenesisData g =
 
     -- | Construct a ("fake") genesis block from genesis transaction outputs.
     --
-    -- The genesis data on haskell nodes is not a block at all, unlike the block0 on
-    -- jormungandr. This function is a method to deal with the discrepancy.
-    genesisBlockFromTxOuts :: [(SL.Addr TPraosStandardCrypto, SL.Coin)] -> W.Block
+    -- The genesis data on haskell nodes is not a block at all, unlike the
+    -- block0 on jormungandr. This function is a method to deal with the
+    -- discrepancy.
+    genesisBlockFromTxOuts
+        :: [(SL.Addr TPraosStandardCrypto, SL.Coin)] -> W.Block
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
@@ -417,11 +467,13 @@ fromGenesisData g =
         , transactions = mkTx <$> outs
         }
       where
-        mkTx (addr, c) =
-            W.Tx pseudoHash [] [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
+        mkTx (addr, c) = W.Tx
+            pseudoHash
+            []
+            [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
           where
-            W.TxIn pseudoHash _ = fromShelleyTxIn $ initialFundsPseudoTxIn @TPraosStandardCrypto addr
-
+            W.TxIn pseudoHash _ = fromShelleyTxIn $
+                initialFundsPseudoTxIn @TPraosStandardCrypto addr
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
@@ -533,3 +585,22 @@ instance DecodeAddress 'Mainnet where
 
 instance DecodeAddress ('Testnet pm) where
     decodeAddress = _decodeAddress
+
+{-------------------------------------------------------------------------------
+                                 Utilities
+-------------------------------------------------------------------------------}
+
+-- Inverts a value in the unit interval [0, 1].
+--
+-- Examples:
+--
+-- >>> invertUnitInterval interval0 == interval1
+-- >>> invertUnitInterval interval1 == interval0
+--
+-- Satisfies the following properties:
+--
+-- >>> invertUnitInterval . invertUnitInterval == id
+-- >>> intervalValue (invertUnitInterval i) + intervalValue i == 1
+--
+invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
+invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue

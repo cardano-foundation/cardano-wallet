@@ -135,7 +135,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , ProtocolParameters (..)
     , SlotId (..)
-    , TxParameters
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
@@ -300,8 +299,8 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
-    , getTxParameters =
-        _getTxParameters
+    , getProtocolParameters =
+        _getProtocolParameters
 
     , nextBlocks =
         _nextBlocks
@@ -344,8 +343,8 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
             Just t -> Right (bs', t)
             Nothing -> Left ErrCurrentNodeTipNotFound
 
-    _getTxParameters :: m TxParameters
-    _getTxParameters = pure $ txParameters $ protocolParameters np
+    _getProtocolParameters :: m ProtocolParameters
+    _getProtocolParameters = pure $ protocolParameters np
 
     _initCursor :: [BlockHeader] -> m (Cursor t)
     _initCursor bhs =

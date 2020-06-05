@@ -70,10 +70,10 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , ProtocolParameters
     , SlotId
     , StakePool (..)
     , StakePoolMetadata (..)
-    , TxParameters
     , sameStakePoolMetadata
     )
 import Cardano.Wallet.Unsafe
@@ -181,7 +181,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
 
     forward
         :: NonEmpty Block
-        -> (BlockHeader, TxParameters)
+        -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ErrMonitorStakePools)
     forward blocks (nodeTip, _params) = handler $ do
         let epochs = NE.nub $ view (#header . #slotId . #epochNumber) <$> blocks
