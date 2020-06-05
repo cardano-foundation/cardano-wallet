@@ -603,8 +603,8 @@ instance ToText NetworkLayerLog where
             [ "Network node tip is"
             , pretty bh
             ]
-        MsgProtocolParameters params -> T.unwords
-            [ "ProtocolParams for tip are:"
+        MsgProtocolParameters params -> T.unlines
+            [ "Protocol parameters for tip are:"
             , pretty params
             ]
         MsgLocalStateQueryError e -> T.unwords

@@ -1370,7 +1370,7 @@ data ProtocolParameters = ProtocolParameters
 instance NFData ProtocolParameters
 
 instance Buildable ProtocolParameters where
-    build pp = listF' id
+    build pp = blockListF' "" id
         [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         ]

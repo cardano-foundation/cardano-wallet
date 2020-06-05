@@ -624,7 +624,7 @@ instance ToText NetworkLayerLog where
             [ "Network node tip is"
             , pretty bh
             ]
-        MsgProtocolParameters params -> T.unwords
+        MsgProtocolParameters params -> T.unlines
             [ "Protocol parameters for tip are:"
             , pretty params
             ]
