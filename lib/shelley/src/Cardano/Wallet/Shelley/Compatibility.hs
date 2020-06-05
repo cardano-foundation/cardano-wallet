@@ -57,6 +57,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toCardanoLovelace
     , toSealed
+
+      -- * Utilities
+    , invertUnitInterval
+
     ) where
 
 import Prelude
@@ -377,8 +381,8 @@ decentralizationLevelFromPParams
 decentralizationLevelFromPParams pp =
     either reportInvalidValue W.DecentralizationLevel
         $ mkPercentage
-        $ (1 -)
-        $ SL.intervalValue d
+        $ SL.intervalValue
+        $ invertUnitInterval d
   where
     d = SL._d pp
     reportInvalidValue = error $ mconcat
@@ -574,3 +578,22 @@ instance DecodeAddress 'Mainnet where
 
 instance DecodeAddress ('Testnet pm) where
     decodeAddress = _decodeAddress
+
+{-------------------------------------------------------------------------------
+                                 Utilities
+-------------------------------------------------------------------------------}
+
+-- Inverts a value in the unit interval [0, 1].
+--
+-- Examples:
+--
+-- >>> invertUnitInterval interval0 == interval1
+-- >>> invertUnitInterval interval1 == interval0
+--
+-- Satisfies the following properties:
+--
+-- >>> invertUnitInterval . invertUnitInterval == id
+-- >>> intervalValue (invertUnitInterval i) + intervalValue i == 1
+--
+invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
+invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue
