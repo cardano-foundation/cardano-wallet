@@ -181,6 +181,7 @@ import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Shelley.Spec.Ledger.PParams as SL
 
 {- HLINT ignore "Use readTVarIO" -}
 
@@ -358,7 +359,7 @@ serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 mkTipSyncClient
-    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
+    :: forall m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
@@ -383,12 +384,19 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
             onPParamsUpdate pp
 
     let
-        queryLocalState :: Point ShelleyBlock -> m ()
+        queryLocalState
+            :: HasCallStack
+            => Point ShelleyBlock
+            -> m ()
         queryLocalState pt = do
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
+        handleLocalState
+            :: HasCallStack
+            => Either AcquireFailure SL.PParams
+            -> m ()
         handleLocalState = \case
             Left (e :: AcquireFailure) ->
                 traceWith tr $ MsgLocalStateQueryError $ show e

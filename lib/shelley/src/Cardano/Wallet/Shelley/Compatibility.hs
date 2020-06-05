@@ -346,7 +346,7 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromPParams :: SL.PParams -> W.ProtocolParameters
+fromPParams :: HasCallStack => SL.PParams -> W.ProtocolParameters
 fromPParams pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -371,7 +371,8 @@ fromPParams pp = W.ProtocolParameters
 --   * '100 %' indicates that the network is /completely decentralized/.
 --
 decentralizationLevelFromPParams
-    :: SL.PParams
+    :: HasCallStack
+    => SL.PParams
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
     either reportInvalidValue W.DecentralizationLevel
@@ -402,7 +403,8 @@ txParametersFromPParams pp = W.TxParameters
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: ShelleyGenesis TPraosStandardCrypto
+    :: HasCallStack
+    => ShelleyGenesis TPraosStandardCrypto
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
     ( W.NetworkParameters
