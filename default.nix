@@ -112,8 +112,6 @@ let
     checks = pkgs.recurseIntoAttrs (getPackageChecks (filterCardanoPackages haskellPackages));
     # `benchmarks` are only built, not run.
     benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
-    # `migration-tests` build previous releases then check if the database successfully upgrades.
-    migration-tests = import ./nix/migration-tests.nix { inherit system crossSystem config pkgs; };
 
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };

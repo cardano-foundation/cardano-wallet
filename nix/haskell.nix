@@ -26,36 +26,28 @@ let
 
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
-  filterSubDir = dir: with pkgs.lib; let
-      isFiltered = src ? _isLibCleanSourceWith;
-      origSrc = if isFiltered then src.origSrc else src;
-      hasPathPrefix = prefix: hasPrefix (toString origSrc + toString prefix);
-    in cleanSourceWith {
-      inherit src;
-      filter = path: type:
-        (type == "directory" && hasPathPrefix (dirOf dir) path) ||
-        hasPathPrefix dir path;
-    } + dir;
+  filterSubDir = subDir:
+    haskell.haskellLib.cleanSourceWith { inherit src subDir; };
 
   pkgSet = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet-core.src = filterSubDir /lib/core;
+        packages.cardano-wallet-core.src = filterSubDir "lib/core";
         packages.cardano-wallet-core.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-core-integration.src = filterSubDir /lib/core-integration;
-        packages.cardano-wallet-cli.src = filterSubDir /lib/cli;
-        packages.cardano-wallet-launcher.src = filterSubDir /lib/launcher;
-        packages.cardano-wallet-byron.src = filterSubDir /lib/byron;
+        packages.cardano-wallet-core-integration.src = filterSubDir "lib/core-integration";
+        packages.cardano-wallet-cli.src = filterSubDir "lib/cli";
+        packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
+        packages.cardano-wallet-byron.src = filterSubDir "lib/byron";
         packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-shelley.src = filterSubDir /lib/shelley;
+        packages.cardano-wallet-shelley.src = filterSubDir "lib/shelley";
         packages.cardano-wallet-shelley.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-jormungandr.src = filterSubDir /lib/jormungandr;
+        packages.cardano-wallet-jormungandr.src = filterSubDir "lib/jormungandr";
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
-        packages.cardano-wallet-test-utils.src = filterSubDir /lib/test-utils;
-        packages.text-class.src = filterSubDir /lib/text-class;
+        packages.cardano-wallet-test-utils.src = filterSubDir "lib/test-utils";
+        packages.text-class.src = filterSubDir "lib/text-class";
         packages.text-class.components.tests.unit.keepSource = true;
       }
 
@@ -227,7 +219,7 @@ let
         # systemd can't be statically linked - disable lobemo-scribe-journal
         packages.cardano-config.flags.systemd = false;
 
-        # Haddock not working and not needed for cross builds
+        # Haddock not working for cross builds and is not needed anyway
         doHaddock = false;
       }))
 

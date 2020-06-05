@@ -25,6 +25,13 @@
 # ... or by looking at the jobset evaluated by Hydra:
 #   https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs
 #
+# To build locally when you do not have access to remote builders for
+# either macOS or Linux, change the `supportedSystems` argument.
+# - To build on Linux (without macOS):
+#     nix-build --arg supportedSystems '["x86_64-linux"]' release.nix
+# - To build on macOS (without Linux):
+#     nix-build --arg supportedSystems '["x86_64-darwin"]' supportedCrossSystems '["x86_64-darwin"]' release.nix
+#
 ############################################################################
 
 # The project sources
@@ -56,9 +63,19 @@
 , pr ? null
 }:
 
+let
+  buildNative  = builtins.elem builtins.currentSystem supportedSystems;
+  buildLinux   = builtins.elem "x86_64-linux" supportedSystems;
+  buildMacOS   = builtins.elem "x86_64-darwin" supportedSystems;
+  buildWindows = builtins.elem builtins.currentSystem supportedCrossSystems;
+in
+
 with (import pkgs.iohkNix.release-lib) {
   inherit pkgs;
-  inherit supportedSystems supportedCrossSystems scrubJobs projectArgs;
+  inherit supportedCrossSystems scrubJobs projectArgs;
+  supportedSystems =
+    pkgs.lib.optional buildLinux "x86_64-linux" ++
+    pkgs.lib.optional buildMacOS "x86_64-darwin";
   packageSet = import cardano-wallet;
   gitrev = cardano-wallet.rev;
 };
@@ -66,7 +83,10 @@ with (import pkgs.iohkNix.release-lib) {
 with pkgs.lib;
 
 let
-  testsSupportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
+  testsSupportedSystems =
+    optional buildLinux "x86_64-linux" ++
+    optional buildMacOS "x86_64-darwin";
+
   # Recurse through an attrset, returning all test derivations in a list.
   collectTests' = ds: filter (d: elem d.system testsSupportedSystems) (collect isDerivation ds);
   # Adds the package name to the test derivations for windows-testing-bundle.nix
@@ -81,64 +101,62 @@ let
 
   inherit (systems.examples) mingwW64 musl64;
 
-  jobs = {
+  jobs = optionalAttrs buildNative {
     native = mapTestOn (packagePlatformsOrig project);
+  } // optionalAttrs buildWindows {
     # Cross compilation, excluding the dockerImage and shells that we cannnot cross compile
     "${mingwW64.config}" = mapTestOnCross mingwW64
       (packagePlatformsCross (filterJobsCross project));
+  } // optionalAttrs buildLinux {
     musl64 = mapTestOnCross musl64
       (packagePlatformsCross (filterJobsCross project));
   }
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
-  // (mkRequiredJob (
-      collectTests jobs.native.checks ++
-      collectTests jobs.x86_64-w64-mingw32.checks ++
-      collectTests jobs.native.benchmarks ++
-      [ jobs.native.shell.x86_64-linux
-        jobs.native.shell.x86_64-darwin
+  // mkRequiredJob (
+      optionals buildNative (
+        collectTests jobs.native.checks ++
+        collectTests jobs.native.benchmarks ++
+        optionals buildLinux [
+          jobs.native.shell.x86_64-linux
+          # executables for linux
+          jobs.native.cardano-wallet-jormungandr.x86_64-linux
+          jobs.native.cardano-wallet-byron.x86_64-linux
+          jobs.native.cardano-wallet-shelley.x86_64-linux
+        ] ++
+        optionals buildMacOS [
+          jobs.native.shell.x86_64-darwin
+          # executables for macOS
+          jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+          jobs.native.cardano-wallet-byron.x86_64-darwin
+          jobs.native.cardano-wallet-shelley.x86_64-darwin
 
-        # jormungandr
-        jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+          # Release packages for macOS
+          jobs.cardano-wallet-jormungandr-macos64
+          jobs.cardano-wallet-byron-macos64
+          jobs.cardano-wallet-shelley-macos64
+        ]) ++
+      optionals buildLinux [
+          # Release packages for Linux
+          jobs.cardano-wallet-jormungandr-linux64
+          jobs.cardano-wallet-byron-linux64
+          jobs.cardano-wallet-shelley-linux64
+      ] ++
+      optionals buildWindows (
+        collectTests jobs.x86_64-w64-mingw32.checks ++
+        [ jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
+          jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
+          jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
 
-        # cardano-node (Byron)
-        jobs.native.cardano-wallet-byron.x86_64-linux
-        jobs.native.cardano-wallet-byron.x86_64-darwin
-        jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
+          # Release packages for Windows
+          jobs.cardano-wallet-jormungandr-win64
+          jobs.cardano-wallet-byron-win64
+          jobs.cardano-wallet-shelley-win64
 
-        # cardano-node (Shelley)
-        jobs.native.cardano-wallet-shelley.x86_64-linux
-        jobs.native.cardano-wallet-shelley.x86_64-darwin
-        jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
-
-        # release packages - jormungandr
-        jobs.cardano-wallet-jormungandr-linux64
-        jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-jormungandr-win64
-
-        # release packages - cardano-node (Byron)
-        jobs.cardano-wallet-byron-linux64
-        jobs.cardano-wallet-byron-macos64
-        jobs.cardano-wallet-byron-win64
-
-        # release packages - cardano-node (Shelley)
-        jobs.cardano-wallet-shelley-linux64
-        jobs.cardano-wallet-shelley-macos64
-        jobs.cardano-wallet-shelley-win64
-
-        # Windows testing package - is run nightly in CI.
-        jobs.cardano-wallet-tests-win64
-      ]))
-  // {
-    # These derivations are used for the Daedalus installer.
-    daedalus-jormungandr = with jobs; {
-      linux = native.cardano-wallet-jormungandr.x86_64-linux;
-      macos = native.cardano-wallet-jormungandr.x86_64-darwin;
-      windows = x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-    };
-
+          # Windows testing package - is run nightly in CI.
+          jobs.cardano-wallet-tests-win64
+        ]))
+  // optionalAttrs buildWindows {
     # Windows release ZIP archive - jormungandr
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
@@ -167,15 +185,7 @@ let
       tests = collectTests jobs.x86_64-w64-mingw32.tests;
       benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
     };
-    # alias to old name so download links don't break
-    cardano-wallet-jormungandr-tests-win64 = jobs.cardano-wallet-tests-win64;
-
-    # For testing migration tests on windows
-    migration-tests-win64 = import ./nix/windows-migration-tests-bundle.nix {
-      inherit pkgs project;
-      migration-tests = jobs.x86_64-w64-mingw32.migration-tests.x86_64-linux;
-    };
-
+  } // optionalAttrs buildLinux {
     # Fully-static linux binaries
     cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
@@ -193,7 +203,7 @@ let
       inherit pkgs;
       exes = [ jobs.musl64.cardano-wallet-shelley.x86_64-linux ];
     };
-
+  } // optionalAttrs buildMacOS {
     # macOS binary and dependencies in tarball
     cardano-wallet-jormungandr-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
@@ -207,16 +217,11 @@ let
       inherit pkgs;
       exes = [ jobs.native.cardano-wallet-shelley.x86_64-darwin ];
     };
-
+  } // optionalAttrs buildLinux {
     # Build and cache the build script used on Buildkite
     buildkiteScript = import ./.buildkite/default.nix {
       walletPackages = project;
     };
-  }
-  # Build the shell derivation in Hydra so that all its dependencies
-  # are cached.
-  // mapTestOn (packagePlatforms {
-    inherit (project) shell stackShell;
-  });
+  };
 
 in jobs
