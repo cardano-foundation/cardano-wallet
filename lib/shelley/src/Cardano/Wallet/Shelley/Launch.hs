@@ -289,15 +289,21 @@ withStakePool
     -- ^ A list of ports used by peers and this pool.
     -> IO a
     -- ^ Callback function called once the pool has started.
-    -> IO (Either ProcessHasExited a)
+    -> IO a
 withStakePool tr severity (port, peers) action =
     withSystemTempDirectory "stake-pool" $ \dir -> do
-        (opPrv, _opPub)   <- genOperatorKeyPair dir
-        (vrfPrv, _vrfPub) <- genVrfKeyPair dir
+        (opPrv, opPub, opCount)   <- genOperatorKeyPair dir
+        (vrfPrv, vrfPub) <- genVrfKeyPair dir
         (kesPrv, kesPub) <- genKesKeyPair dir
-        opCert <- issueOpCert dir kesPub opPrv
+        opCert <- issueOpCert dir kesPub opPrv opCount
         (config, _, _, _) <- genConfig dir severity
         topology <- genTopology dir peers
+
+        (stakePrv, stakePub) <- genStakeAddrKeyPair dir
+        stakeCert <- genStakeCert dir stakePub
+        poolCert <- genPoolCert dir opPub vrfPub stakePub
+        dlgCert <- genDlgCert dir stakePub opPub
+
         let args =
                 [ "run"
                 , "--config", config
@@ -371,18 +377,18 @@ genTopology dir peers = do
 
 -- | Create a key pair for a node operator's offline key and a new certificate
 -- issue counter
-genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath)
+genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath)
 genOperatorKeyPair dir = do
     let opPub = dir </> "op.pub"
     let opPrv = dir </> "op.prv"
-    let opCounter = dir </> "op.count"
+    let opCount = dir </> "op.count"
     void $ cli
         [ "shelley", "node", "key-gen"
         , "--verification-key-file", opPub
         , "--signing-key-file", opPrv
-        , "--operational-certificate-issue-counter", opCounter
+        , "--operational-certificate-issue-counter", opCount
         ]
-    pure (opPrv, opPub)
+    pure (opPrv, opPub, opCount)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair :: FilePath -> IO (FilePath, FilePath)
@@ -421,13 +427,14 @@ genStakeAddrKeyPair dir = do
     pure (stakePrv, stakePub)
 
 -- | Issue a node operational certificate
-issueOpCert :: FilePath -> FilePath -> FilePath -> IO FilePath
-issueOpCert dir kesPub opPrv = do
+issueOpCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
+issueOpCert dir kesPub opPrv opCount = do
     let file = dir </> "op.cert"
     void $ cli
         [ "shelley", "node", "issue-op-cert"
-        , "--hot-kes-verification-key-file", kesPub
+        , "--kes-verification-key-file", kesPub
         , "--cold-signing-key-file", opPrv
+        , "--operational-certificate-issue-counter-file", opCount
         , "--kes-period", "0"
         , "--out-file", file
         ]
@@ -455,8 +462,9 @@ genPoolCert dir opPub vrfPub stakePub = do
         , "--pool-pledge", show oneMillionAda
         , "--pool-cost", "0"
         , "--pool-margin", "0.1"
-        , "--reward-account-verification-key-file", stakePub
-        , "--pool-owner-staking-verification-key", stakePub
+        , "--pool-reward-account-verification-key-file", stakePub
+        , "--pool-owner-stake-verification-key-file", stakePub
+        , "--mainnet"
         , "--out-file", file
         ]
     pure file
