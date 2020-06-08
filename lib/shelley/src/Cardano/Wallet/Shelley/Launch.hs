@@ -52,14 +52,18 @@ import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, fromGenesisData, testnetVersionData )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Concurrent.Async
-    ( wait, withAsync )
+    ( race, wait, withAsync )
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
+import Control.Concurrent.MVar
+    ( MVar, newMVar, putMVar, takeMVar )
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, void )
+    ( forM, forM_, replicateM, replicateM_, unless, void )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -71,7 +75,7 @@ import Data.Either
 import Data.Functor
     ( ($>) )
 import Data.List
-    ( nub, permutations, sort )
+    ( isInfixOf, nub, permutations, sort )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -92,6 +96,8 @@ import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
     ( copyFile )
+import System.Environment
+    ( setEnv )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -100,6 +106,8 @@ import System.Info
     ( os )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 import System.Process
     ( readProcess )
 import Test.Utils.Paths
@@ -208,6 +216,8 @@ withCluster
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
     withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
+        setEnv "CARDANO_NODE_SOCKET_PATH" socket
+
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = replicateM  n (readChan waitGroup)
@@ -292,6 +302,7 @@ withStakePool
     -> IO a
 withStakePool tr severity (port, peers) action =
     withSystemTempDirectory "stake-pool" $ \dir -> do
+        -- Node configuration
         (opPrv, opPub, opCount)   <- genOperatorKeyPair dir
         (vrfPrv, vrfPub) <- genVrfKeyPair dir
         (kesPrv, kesPub) <- genKesKeyPair dir
@@ -299,10 +310,25 @@ withStakePool tr severity (port, peers) action =
         (config, _, _, _) <- genConfig dir severity
         topology <- genTopology dir peers
 
+        -- Pool registration
         (stakePrv, stakePub) <- genStakeAddrKeyPair dir
-        stakeCert <- genStakeCert dir stakePub
-        poolCert <- genPoolCert dir opPub vrfPub stakePub
-        dlgCert <- genDlgCert dir stakePub opPub
+        stakeCert <- issueStakeCert dir stakePub
+        poolCert <- issuePoolCert dir opPub vrfPub stakePub
+        dlgCert <- issueDlgCert dir stakePub opPub
+
+        -- In order to get a working stake pool we need to.
+        --
+        -- 1. Register a stake key for our pool.
+        -- 2. Register the stake pool
+        -- 3. Delegate funds to our pool's key.
+        --
+        -- We cheat a bit here by delegating to our stake address right away in
+        -- the transaction used to registered the stake key and the pool itself.
+        -- Thus, in a single transaction, we end up with a registered pool with
+        -- some stake!
+        (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
+        signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
+        timeout 60 ("pool registration", waitUntilRegistered opPub)
 
         let args =
                 [ "run"
@@ -441,8 +467,8 @@ issueOpCert dir kesPub opPrv opCount = do
     pure file
 
 -- | Create a stake address registration certificate
-genStakeCert :: FilePath -> FilePath -> IO FilePath
-genStakeCert dir stakePub = do
+issueStakeCert :: FilePath -> FilePath -> IO FilePath
+issueStakeCert dir stakePub = do
     let file = dir </> "stake.cert"
     void $ cli
         [ "shelley", "stake-address", "registration-certificate"
@@ -452,14 +478,14 @@ genStakeCert dir stakePub = do
     pure file
 
 -- | Create a stake pool registration certificate
-genPoolCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
-genPoolCert dir opPub vrfPub stakePub = do
+issuePoolCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
+issuePoolCert dir opPub vrfPub stakePub = do
     let file = dir </> "pool.cert"
     void $ cli
         [ "shelley", "stake-pool", "registration-certificate"
         , "--cold-verification-key-file", opPub
         , "--vrf-verification-key-file", vrfPub
-        , "--pool-pledge", show oneMillionAda
+        , "--pool-pledge", show pledgeAmt
         , "--pool-cost", "0"
         , "--pool-margin", "0.1"
         , "--pool-reward-account-verification-key-file", stakePub
@@ -468,13 +494,10 @@ genPoolCert dir opPub vrfPub stakePub = do
         , "--out-file", file
         ]
     pure file
-  where
-    oneMillionAda :: Integer
-    oneMillionAda = 1_000_000_000_000
 
--- | Create a stake address delegation certificate
-genDlgCert :: FilePath -> FilePath -> FilePath -> IO FilePath
-genDlgCert dir stakePub opPub = do
+-- | Create a stake address delegation certificate.
+issueDlgCert :: FilePath -> FilePath -> FilePath -> IO FilePath
+issueDlgCert dir stakePub opPub = do
     let file = dir </> "dlg.cert"
     void $ cli
         [ "shelley", "stake-address", "delegation-certificate"
@@ -483,6 +506,147 @@ genDlgCert dir stakePub opPub = do
         , "--out-file", file
         ]
     pure file
+
+-- | Generate a raw transaction. We kill two birds one stone here by also
+-- automatically delegating 'pledge' amount to the given stake key.
+prepareTx :: FilePath -> FilePath -> [FilePath] -> IO (FilePath, FilePath)
+prepareTx dir stakePub certs = do
+    let file = dir </> "tx.raw"
+
+    let sinkPrv = dir </> "sink.prv"
+    let sinkPub = dir </> "sink.pub"
+    void $ cli
+        [ "shelley", "address", "key-gen"
+        , "--signing-key-file", sinkPrv
+        , "--verification-key-file", sinkPub
+        ]
+    addr <- cli
+        [ "shelley", "address", "build"
+        , "--payment-verification-key-file", sinkPub
+        , "--stake-verification-key-file", stakePub
+        , "--mainnet"
+        ]
+
+    (faucetInput, faucetPrv) <- takeFaucet dir
+    void $ cli $
+        [ "shelley", "transaction", "build-raw"
+        , "--tx-in", faucetInput
+        , "--tx-out", init addr <> "+" <> show pledgeAmt
+        , "--ttl", "100"
+        , "--fee", show (faucetAmt - pledgeAmt)
+        , "--out-file", file
+        ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
+
+    pure (file, faucetPrv)
+
+-- | Sign a transaction with all the necessary signatures.
+signTx :: FilePath -> FilePath -> [FilePath] -> IO FilePath
+signTx dir rawTx keys = do
+    let file = dir </> "tx.signed"
+    void $ cli $
+        [ "shelley", "transaction", "sign"
+        , "--tx-body-file", rawTx
+        , "--mainnet"
+        , "--out-file", file
+        ] ++ mconcat ((\key -> ["--signing-key-file", key]) <$> keys)
+    pure file
+
+-- | Submit a transaction through a running node
+--
+-- The node's target is assumed from an ENV var 'CARDANO_NODE_SOCKET_PATH'
+submitTx :: FilePath -> IO ()
+submitTx signedTx = do
+    void $ cli
+        [ "shelley", "transaction", "submit"
+        , "--tx-file", signedTx
+        , "--mainnet"
+        ]
+
+-- | Wait until a stake pool shows as registered on-chain.
+waitUntilRegistered :: FilePath -> IO ()
+waitUntilRegistered opPub = do
+    poolId <- init <$> cli
+        [ "shelley", "stake-pool", "id"
+        , "--verification-key-file", opPub
+        ]
+    distribution <- cli
+        [ "shelley", "query", "stake-distribution"
+        , "--mainnet"
+        ]
+    unless (poolId `isInfixOf` distribution) $ do
+        threadDelay 5000000
+        waitUntilRegistered opPub
+
+-- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
+-- fund some initial transaction for the cluster. Faucet have plenty of money to
+-- pay for certificates and are intended for a one-time usage in a single
+-- transaction.
+takeFaucet :: FilePath -> IO (String, FilePath)
+takeFaucet dir = takeMVar faucets >>= \case
+    []    -> fail "takeFaucet: Awe crap! No more faucet available!"
+    ((input,prv):q) -> do
+        putMVar faucets q
+        let file = dir </> "faucet.prv"
+        writeFile  file prv
+        pure (input, file)
+
+-- | List of faucets also referenced in the shelley 'genesis.yaml'
+faucets :: MVar [(String, String)]
+faucets = unsafePerformIO $ newMVar
+    [ ( "ca2cada0a7c518cecddcdad2ea9b320d7a2d197565c64c37b3638a3428c9988a#0"
+      , unlines
+          [ "type: Genesis UTxO signing key"
+          , "title: Genesis initial UTxO key"
+          , "cbor-hex:"
+          , "  582089574dc85f0359010458a6160836776fe2c8073ad460d3fba6d08ace684a90a3"
+          ]
+      )
+    , ( "cf28494def86c9917c8bef9faa9b3891e9e0a9f30a76f4576921a39b049d9398#0"
+      , unlines
+          [ "type: Genesis UTxO signing key"
+          , "title: Genesis initial UTxO key"
+          , "cbor-hex:"
+          , "  5820cd42926a6a0d1651dbb08aa393322b0f9a0037f3579b5f8062a57c2ff6c025e4"
+          ]
+      )
+    , ( "9b659bf3d026cf49e0387eb19473dad4b96db8480b7e26a3e20f5c63551303a7#0"
+      , unlines
+          [ "type: Genesis UTxO signing key"
+          , "title: Genesis initial UTxO key"
+          , "cbor-hex:"
+          , "  5820863d7c0d65d34bebea180435b13e1c9bb885f2a18d3ff2b47435b91fad0293c0"
+          ]
+      )
+    , ( "3c015335bd3a676a62e3d3c61828fa1ff0eb3dd950331aba93eec68e9e024411#0"
+      , unlines
+          [ "type: Genesis UTxO signing key"
+          , "title: Genesis initial UTxO key"
+          , "cbor-hex:"
+          , "  5820c92896ab4c0af89459acf786315a6b13b23f037e4d9747c8414a0d48f7418075"
+          ]
+      )
+    , ( "82a8981af11569eef547e012232f5306b85016d27aff4c1bbd5801800f83baab#0"
+      , unlines
+          [ "type: Genesis UTxO signing key"
+          , "title: Genesis initial UTxO key"
+          , "cbor-hex:"
+          , "  58207b9de02388f78146cb53e4fb4a4d8917ac367cdfe0ff1d4008cc9da52af6ac74"
+          ]
+      )
+    ]
+{-# NOINLINE faucets #-}
+
+-- | Pledge amount used for each pool.
+pledgeAmt :: Integer
+pledgeAmt = oneMillionAda
+
+-- | Initial amount in each of these special cluster faucet
+faucetAmt :: Integer
+faucetAmt = 10 * oneMillionAda
+
+-- | Just one million Ada, in Lovelace.
+oneMillionAda :: Integer
+oneMillionAda = 1_000_000_000_000
 
 -- | Add a "systemStart" field in a given object with the current POSIX time as a
 -- value.
@@ -521,3 +685,11 @@ withObject action = \case
     _ -> fail
         "withObject: was given an invalid JSON. Expected an Object but got \
         \something else."
+
+-- | Little helper to run an action within a certain delay. Fails if the action
+-- takes too long.
+timeout :: Int -> (String, IO a) -> IO a
+timeout t (title, action) = do
+    race (threadDelay $ t * 1000000) action >>= \case
+        Left _  -> fail ("Waited too long for: " <> title)
+        Right a -> pure a
