@@ -39,9 +39,7 @@ import Control.Monad.IO.Class
 import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.List
-    ( isInfixOf )
-import Data.List
-    ( sort )
+    ( isInfixOf, sort )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word

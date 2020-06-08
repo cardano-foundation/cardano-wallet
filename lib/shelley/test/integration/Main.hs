@@ -180,7 +180,7 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        ((=<<) (either throwIO pure)) $
+        ((either throwIO pure) =<<) $
         withCluster tr Info 0 $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet @(IO Shelley)
