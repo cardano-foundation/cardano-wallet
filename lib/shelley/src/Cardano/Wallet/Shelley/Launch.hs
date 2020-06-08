@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -401,6 +402,18 @@ genVrfKeyPair dir = do
         ]
     pure (vrfPrv, vrfPub)
 
+-- | Create a stake address key pair
+genStakeAddrKeyPair :: FilePath -> IO (FilePath, FilePath)
+genStakeAddrKeyPair dir = do
+    let stakePub = dir </> "stake.pub"
+    let stakePrv = dir </> "stake.prv"
+    void $ cli
+        [ "shelley", "stake-address", "key-gen"
+        , "--verification-key-file", stakePub
+        , "--signing-key-file", stakePrv
+        ]
+    pure (stakePrv, stakePub)
+
 -- | Issue a node operational certificate
 issueOpCert :: FilePath -> FilePath -> FilePath -> IO FilePath
 issueOpCert dir kesPub opPrv = do
@@ -410,6 +423,49 @@ issueOpCert dir kesPub opPrv = do
         , "--hot-kes-verification-key-file", kesPub
         , "--cold-signing-key-file", opPrv
         , "--kes-period", "0"
+        , "--out-file", file
+        ]
+    pure file
+
+-- | Create a stake address registration certificate
+genStakeCert :: FilePath -> FilePath -> IO FilePath
+genStakeCert dir stakePub = do
+    let file = dir </> "stake.cert"
+    void $ cli
+        [ "shelley", "stake-address", "registration-certificate"
+        , "--staking-verification-key-file", stakePub
+        , "--out-file", file
+        ]
+    pure file
+
+-- | Create a stake pool registration certificate
+genPoolCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
+genPoolCert dir opPub vrfPub stakePub = do
+    let file = dir </> "pool.cert"
+    void $ cli
+        [ "shelley", "stake-pool", "registration-certificate"
+        , "--cold-verification-key-file", opPub
+        , "--vrf-verification-key-file", vrfPub
+        , "--pool-pledge", show oneMillionAda
+        , "--pool-cost", "0"
+        , "--pool-margin", "0.1"
+        , "--reward-account-verification-key-file", stakePub
+        , "--pool-owner-staking-verification-key", stakePub
+        , "--out-file", file
+        ]
+    pure file
+  where
+    oneMillionAda :: Integer
+    oneMillionAda = 1_000_000_000_000
+
+-- | Create a stake address delegation certificate
+genDlgCert :: FilePath -> FilePath -> FilePath -> IO FilePath
+genDlgCert dir stakePub opPub = do
+    let file = dir </> "dlg.cert"
+    void $ cli
+        [ "shelley", "stake-address", "delegation-certificate"
+        , "--staking-verification-key-file", stakePub
+        , "--stake-pool-verification-key-file", opPub
         , "--out-file", file
         ]
     pure file
