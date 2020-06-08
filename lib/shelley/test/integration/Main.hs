@@ -180,21 +180,20 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        ((either throwIO pure) =<<) $
-        withCluster tr Info 0 $ \socketPath block0 (gp,vData) ->
-        withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
-            serveWallet @(IO Shelley)
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                (setupTracers (tracerSeverities (Just Info)) tr)
-                (SyncTolerance 10)
-                (Just db)
-                "127.0.0.1"
-                ListenOnRandomPort
-                Nothing
-                socketPath
-                block0
-                (gp, vData)
-                (action gp)
+        withCluster tr Info 1 $ \socketPath block0 (gp,vData) ->
+            withSystemTempDirectory "cardano-wallet-databases" $ \db ->
+                serveWallet @(IO Shelley)
+                    (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                    (setupTracers (tracerSeverities (Just Info)) tr)
+                    (SyncTolerance 10)
+                    (Just db)
+                    "127.0.0.1"
+                    ListenOnRandomPort
+                    Nothing
+                    socketPath
+                    block0
+                    (gp, vData)
+                    (action gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()

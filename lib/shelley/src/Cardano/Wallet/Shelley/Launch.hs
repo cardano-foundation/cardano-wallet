@@ -53,11 +53,11 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, fromGenesisData, testnetVersionData )
 import Control.Concurrent.Async
-    ( withAsync )
+    ( wait, withAsync )
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Exception
-    ( finally, throwIO )
+    ( SomeException, finally, handle, throwIO )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, void )
 import Control.Monad.Fail
@@ -66,12 +66,12 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Aeson
     ( eitherDecode, toJSON, (.=) )
+import Data.Either
+    ( isLeft, isRight )
 import Data.Functor
     ( ($>) )
 import Data.List
     ( nub, permutations, sort )
-import Data.Maybe
-    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -204,7 +204,7 @@ withCluster
     -- ^ How many pools should the cluster spawn.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Action to run with the cluster up
-    -> IO (Either ProcessHasExited a)
+    -> IO a
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
     withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
@@ -213,17 +213,21 @@ withCluster tr severity n action = do
         let waitAll   = replicateM  n (readChan waitGroup)
         let cancelAll = replicateM_ n (writeChan doneGroup ())
 
+        let onException :: SomeException -> IO ()
+            onException = writeChan waitGroup . Left
+
         forM_ (init $ rotate ports) $ \(port, peers) -> do
-            withAsync
-                (withStakePool tr severity (port, peers) $ readChan doneGroup)
-                (writeChan waitGroup . Just) -- FIXME: register pool
-              `finally` (writeChan waitGroup Nothing)
+            handle onException $ withAsync
+                (withStakePool tr severity (port, peers) $ do
+                    writeChan waitGroup $ Right port -- FIXME: register pool
+                    readChan doneGroup
+                ) wait
 
         group <- waitAll
-        if length (catMaybes group) /= n then do
+        if length (filter isRight group) /= n then do
             cancelAll
             throwIO $ ProcessHasExited
-                "cluster didn't start correctly"
+                ("cluster didn't start correctly: " <> show (filter isLeft group))
                 (ExitFailure 1)
         else do
             action socket block0 params `finally` cancelAll
@@ -245,7 +249,7 @@ withBFTNode
     -- ^ A list of ports used by peers and this pool.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
-    -> IO (Either ProcessHasExited a)
+    -> IO a
 withBFTNode tr severity (port, peers) action =
     withSystemTempDirectory "stake-pool" $ \dir -> do
         [vrfPrv, kesPrv, opCert] <- forM
@@ -268,8 +272,9 @@ withBFTNode tr severity (port, peers) action =
                 , "--shelley-operational-certificate", opCert
                 ]
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        withBackendProcess (trMessageText tr) cmd $
-            action socket block0 (networkParams, versionData)
+        ((either throwIO pure) =<<)
+            $ withBackendProcess (trMessageText tr) cmd
+            $ action socket block0 (networkParams, versionData)
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
@@ -305,7 +310,8 @@ withStakePool tr severity (port, peers) action =
                 , "--shelley-operational-certificate", opCert
                 ]
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        withBackendProcess (trMessageText tr) cmd action
+        ((either throwIO pure) =<<)
+            $ withBackendProcess (trMessageText tr) cmd action
 
 genConfig
     :: FilePath
