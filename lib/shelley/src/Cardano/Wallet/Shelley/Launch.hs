@@ -68,7 +68,7 @@ import Data.Aeson
 import Data.Functor
     ( ($>) )
 import Data.List
-    ( subsequences, (\\) )
+    ( nub, permutations, sort )
 import Data.Maybe
     ( catMaybes )
 import Data.Proxy
@@ -206,14 +206,13 @@ withCluster
     -> IO (Either ProcessHasExited a)
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
-    print $ permutations ports
-    withBFTNode tr severity (head $ permutations ports) $ \socket block0 params -> do
+    withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = replicateM  n (readChan waitGroup)
         let cancelAll = replicateM_ n (writeChan doneGroup ())
 
-        forM_ (init $ permutations ports) $ \(port, peers) -> do
+        forM_ (init $ rotate ports) $ \(port, peers) -> do
             withAsync
                 (withStakePool tr severity (port, peers) $ readChan doneGroup)
                 (writeChan waitGroup . Just) -- FIXME: register pool
@@ -231,17 +230,10 @@ withCluster tr severity n action = do
     -- | Get permutations of the size (n-1) for a list of n elements, alongside with
     -- the element left aside. `[a]` is really expected to be `Set a`.
     --
-    -- >>> permutations [1,2,3]
+    -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
-    permutations :: Eq a => [a] -> [(a, [a])]
-    permutations [x] = [(x, [])]
-    permutations xs  =
-        map (\ys -> (head (xs \\ ys), ys)) (sizedSubsequences (length xs - 1) xs)
-      where
-        -- | Get all subsequences of a given size
-        sizedSubsequences :: Int -> [a] -> [[a]]
-        sizedSubsequences 0 = const []
-        sizedSubsequences i = filter ((== i) . length) . subsequences
+    rotate :: Ord a => [a] -> [(a, [a])]
+    rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
 withBFTNode
     :: Trace IO Text
