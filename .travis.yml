@@ -60,6 +60,7 @@ addons:
 
 # Define custom set of stages
 stages:
+- pre-cache 💾
 - cache 💾
 - build project 🔨
 - documentation 📚
