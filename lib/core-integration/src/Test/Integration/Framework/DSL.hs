@@ -1227,7 +1227,7 @@ listAllTransactions
     -> w
     -> IO [ApiTransaction n]
 listAllTransactions ctx w =
-    listTransactions ctx w Nothing Nothing Nothing
+    listTransactions ctx w Nothing Nothing (Just Descending)
 
 listTransactions
     :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
