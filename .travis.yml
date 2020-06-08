@@ -74,6 +74,7 @@ jobs:
     name: "Pre-cache Dependencies"
     script:
     - stack --no-terminal build --only-snapshot --stack-yaml .travis/stack.yaml
+    - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: cache 💾
     if: type != pull_request AND (branch = master OR tag =~ ^v)
