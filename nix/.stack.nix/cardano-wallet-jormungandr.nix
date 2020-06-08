@@ -204,7 +204,6 @@
             (hsPkgs."monad-control" or (errorHandler.buildDepError "monad-control"))
             (hsPkgs."persistent" or (errorHandler.buildDepError "persistent"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
-            (hsPkgs."random-shuffle" or (errorHandler.buildDepError "random-shuffle"))
             (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
             (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
             (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
