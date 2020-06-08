@@ -70,7 +70,7 @@ jobs:
   fast_finish: true
   include:
   - stage: pre-cache 💾
-    if: commit_message =~ "TRAVIS_PRE_CACHE"
+    if: commit_message =~ /TRAVIS_PRE_CACHE/
     name: "Pre-cache Dependencies"
     script:
     - stack --no-terminal build --only-snapshot --stack-yaml .travis/stack.yaml
