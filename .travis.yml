@@ -114,21 +114,21 @@ jobs:
     # Fetch the linux archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-linux64/latest/download/1 | tar xz
     - find . -maxdepth 1 -type d -name "cardano-wallet-shelley-*" -exec mv \{} cardano-wallet-shelley-linux64 \;
-    - mv cardano-wallet-shelley-linux64/cardano-wallet-shelley cardano-wallet-shelley-linux64/cardano-wallet-shelley
+    - mv cardano-wallet-shelley-linux64/cardano-wallet-shelley cardano-wallet-shelley-linux64/cardano-wallet
     - tar czf cardano-wallet-shelley-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-shelley-linux64
     - rm -r cardano-wallet-shelley-linux64
 
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-macos64/latest/download/1 | tar xz
     - find . -maxdepth 1 -type d -name "cardano-wallet-shelley-*" -exec mv \{} cardano-wallet-shelley-macos64 \;
-    - mv cardano-wallet-shelley-macos64/cardano-wallet-shelley cardano-wallet-shelley-macos64/cardano-wallet-shelley
+    - mv cardano-wallet-shelley-macos64/cardano-wallet-shelley cardano-wallet-shelley-macos64/cardano-wallet
     - tar czf cardano-wallet-shelley-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-shelley-macos64
     - rm -r cardano-wallet-shelley-macos64
 
     # Fetch the Windows archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-win64/latest/download/1 --output cardano-wallet-shelley-win64.zip
     - unzip -d cardano-wallet-shelley-win64 cardano-wallet-shelley-win64.zip
-    - mv cardano-wallet-shelley-win64/cardano-wallet-shelley.exe cardano-wallet-shelley-win64/cardano-wallet-shelley.exe
+    - mv cardano-wallet-shelley-win64/cardano-wallet-shelley.exe cardano-wallet-shelley-win64/cardano-wallet.exe
     - zip -r cardano-wallet-shelley-$TRAVIS_TAG-win64.zip cardano-wallet-shelley-win64
     - rm -r cardano-wallet-shelley-win64
     - rm cardano-wallet-shelley-win64.zip
