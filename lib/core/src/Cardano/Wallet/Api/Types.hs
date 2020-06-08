@@ -45,7 +45,7 @@ module Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiStakePool (..)
+    , ApiJormungandrStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
@@ -391,7 +391,7 @@ newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
 
-data ApiStakePool = ApiStakePool
+data ApiJormungandrStakePool = ApiJormungandrStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , apparentPerformance :: !Double
@@ -1056,9 +1056,9 @@ instance FromJSON ApiWalletDelegationNext where
 instance ToJSON ApiWalletDelegationNext where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiStakePool where
+instance FromJSON ApiJormungandrStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiStakePool where
+instance ToJSON ApiJormungandrStakePool where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiStakePoolMetrics where

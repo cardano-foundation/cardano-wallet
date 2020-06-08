@@ -77,7 +77,7 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiJormungandrStakePool, ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -161,7 +161,7 @@ server byron icarus ntp =
              (\_   -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
-    stakePools :: Server (StakePools n)
+    stakePools :: Server (StakePools n ApiJormungandrStakePool)
     stakePools =
              throwError err501
         :<|> (\_ _ _ -> throwError err501)

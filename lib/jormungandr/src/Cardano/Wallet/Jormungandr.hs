@@ -61,14 +61,17 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Pool.Jormungandr.Metrics
-    ( ErrListStakePools, StakePoolLog, monitorStakePools, newStakePoolLayer )
+    ( ErrListStakePools
+    , StakePoolLayer (..)
+    , StakePoolLog
+    , monitorStakePools
+    , newStakePoolLayer
+    )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2 )
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
@@ -76,7 +79,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Api.Server
-    ( server )
+    ( ApiV2, server )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network

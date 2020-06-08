@@ -85,8 +85,6 @@ module Cardano.Wallet.Api.Link
 
 import Prelude
 
-import Cardano.Wallet.Api
-    ( Api )
 import Cardano.Wallet.Api.Types
     ( ApiPoolId (..)
     , ApiT (..)
@@ -383,7 +381,7 @@ deleteTransaction w t = discriminate @style
 listStakePools
     :: (Method, Text)
 listStakePools =
-    endpoint @Api.ListStakePools id
+    endpoint @(Api.ListStakePools ()) id
 
 joinStakePool
     :: forall s w.
@@ -491,15 +489,15 @@ postExternalTransaction =
 --   ( "GET", "v2/wallets/2512a00e9653fe49a44a5886202e24d77eeb998f" )
 endpoint
     :: forall endpoint.
-        ( IsElem  endpoint (Api Net)
-        , HasLink endpoint
+        ( HasLink endpoint
+        , IsElem endpoint endpoint
         , HasVerb endpoint
         )
     => (MkLink endpoint Text -> Text)
     -> (Method, Text)
 endpoint mk =
     ( method (Proxy @endpoint)
-    , "v2/" <> mk (safeLink' toUrlPiece (Proxy @(Api Net)) (Proxy @endpoint))
+    , "v2/" <> mk (safeLink' toUrlPiece (Proxy @endpoint) (Proxy @endpoint))
     )
 
 -- Returns first argument for Shelley style wallet, second argument otherwise.
