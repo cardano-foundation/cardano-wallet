@@ -267,7 +267,7 @@ withBFTNode tr severity (port, peers) action =
                 [ "run"
                 , "--config", config
                 , "--topology", topology
-                , "--database-path", dir
+                , "--database-path", dir </> "db"
                 , "--socket-path", socket
                 , "--port", show port
                 , "--shelley-kes-key", kesPrv
@@ -304,7 +304,7 @@ withStakePool tr severity (port, peers) action =
                 [ "run"
                 , "--config", config
                 , "--topology", topology
-                , "--database-path", dir
+                , "--database-path", dir </> "db"
                 , "--socket-path", genSocketPath dir
                 , "--port", show port
                 , "--shelley-kes-key", kesPrv
