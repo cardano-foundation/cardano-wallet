@@ -55,7 +55,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( race, wait, withAsync )
+    ( async, link, race )
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Concurrent.MVar
@@ -226,12 +226,11 @@ withCluster tr severity n action = do
         let onException :: SomeException -> IO ()
             onException = writeChan waitGroup . Left
 
-        forM_ (init $ rotate ports) $ \(port, peers) -> do
-            handle onException $ withAsync
-                (withStakePool tr severity (port, peers) $ do
-                    writeChan waitGroup $ Right port -- FIXME: register pool
-                    readChan doneGroup
-                ) wait
+        forM_ (tail $ rotate ports) $ \(port, peers) -> do
+            link =<< async (handle onException $
+                withStakePool tr severity (port, peers) $ do
+                    writeChan waitGroup $ Right port
+                    readChan doneGroup)
 
         group <- waitAll
         if length (filter isRight group) /= n then do
@@ -316,20 +315,6 @@ withStakePool tr severity (port, peers) action =
         poolCert <- issuePoolCert dir opPub vrfPub stakePub
         dlgCert <- issueDlgCert dir stakePub opPub
 
-        -- In order to get a working stake pool we need to.
-        --
-        -- 1. Register a stake key for our pool.
-        -- 2. Register the stake pool
-        -- 3. Delegate funds to our pool's key.
-        --
-        -- We cheat a bit here by delegating to our stake address right away in
-        -- the transaction used to registered the stake key and the pool itself.
-        -- Thus, in a single transaction, we end up with a registered pool with
-        -- some stake!
-        (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
-        signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
-        timeout 60 ("pool registration", waitUntilRegistered opPub)
-
         let args =
                 [ "run"
                 , "--config", config
@@ -343,7 +328,22 @@ withStakePool tr severity (port, peers) action =
                 ]
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
         ((either throwIO pure) =<<)
-            $ withBackendProcess (trMessageText tr) cmd action
+            $ withBackendProcess (trMessageText tr) cmd
+            $ do
+                -- In order to get a working stake pool we need to.
+                --
+                -- 1. Register a stake key for our pool.
+                -- 2. Register the stake pool
+                -- 3. Delegate funds to our pool's key.
+                --
+                -- We cheat a bit here by delegating to our stake address right away in
+                -- the transaction used to registered the stake key and the pool itself.
+                -- Thus, in a single transaction, we end up with a registered pool with
+                -- some stake!
+                (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
+                signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
+                timeout 120 ("pool registration", waitUntilRegistered opPub)
+                action
 
 genConfig
     :: FilePath

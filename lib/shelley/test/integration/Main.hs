@@ -120,6 +120,9 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
+import Test.Hspec
+    ( it )
+
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Shelley where
     commandName = "cardano-wallet-shelley"
@@ -145,6 +148,10 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             HWWalletsCLI.spec @n
             PortCLI.spec @t
             NetworkCLI.spec @t
+        describe "TEMPORARY" $ specWithServer tr $ do
+            it "PATATE" $ \_ -> do
+                pure () :: IO ()
+                -- threadDelay 10000000
 
 specWithServer
     :: Trace IO Text
@@ -180,7 +187,7 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCluster tr Info 1 $ \socketPath block0 (gp,vData) ->
+        withCluster tr Error 1 $ \socketPath block0 (gp,vData) ->
             withSystemTempDirectory "cardano-wallet-databases" $ \db ->
                 serveWallet @(IO Shelley)
                     (SomeNetworkDiscriminant $ Proxy @'Mainnet)
