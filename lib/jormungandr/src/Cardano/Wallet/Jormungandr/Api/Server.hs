@@ -17,6 +17,7 @@
 
 module Cardano.Wallet.Jormungandr.Api.Server
     ( server
+    , ApiV2
     ) where
 
 import Prelude
@@ -33,9 +34,9 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Api
     ( Addresses
-    , Api
     , ApiLayer (..)
     , ByronAddresses
+    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -86,7 +87,10 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), SomeByronWalletPostData (..) )
+    ( ApiErrorCode (..)
+    , ApiJormungandrStakePool
+    , SomeByronWalletPostData (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -112,7 +116,24 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server, err501, err503, throwError )
+    ( (:<|>) (..), (:>), Server, err501, err503, throwError )
+
+type ApiV2 n = "v2" :> Api n
+
+type Api (n :: NetworkDiscriminant ) =
+         Wallets
+    :<|> Addresses n
+    :<|> CoinSelections n
+    :<|> Transactions n
+    :<|> ShelleyMigrations n
+    :<|> StakePools n ApiJormungandrStakePool
+    :<|> ByronWallets
+    :<|> ByronAddresses n
+    :<|> ByronCoinSelections n
+    :<|> ByronTransactions n
+    :<|> ByronMigrations n
+    :<|> Network
+    :<|> Proxy_
 
 -- | A Servant server for our wallet API
 server
@@ -171,7 +192,7 @@ server byron icarus jormungandr spl ntp =
              (\_ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
-    stakePools :: Server (StakePools n)
+    stakePools :: Server (StakePools n ApiJormungandrStakePool)
     stakePools = listPools spl
         :<|> joinStakePool jormungandr spl
         :<|> quitStakePool jormungandr

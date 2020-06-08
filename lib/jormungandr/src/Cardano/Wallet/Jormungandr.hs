@@ -68,7 +68,7 @@ import Cardano.Pool.Jormungandr.Metrics
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2 )
+    ( ApiLayer )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
@@ -76,7 +76,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Api.Server
-    ( server )
+    ( ApiV2, server )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Network

@@ -152,6 +152,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiJormungandrStakePool (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -160,7 +161,6 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiSelectCoinsData (..)
-    , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -1205,16 +1205,16 @@ postTransactionFee ctx (ApiT wid) body = do
 listPools
     :: LiftHandler e
     => StakePoolLayer e IO
-    -> Handler [ApiStakePool]
+    -> Handler [ApiJormungandrStakePool]
 listPools spl =
-    liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
+    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
   where
-    mkApiStakePool
+    mkApiJormungandrStakePool
         :: StakePool
         -> Maybe StakePoolMetadata
-        -> ApiStakePool
-    mkApiStakePool sp meta =
-        ApiStakePool
+        -> ApiJormungandrStakePool
+    mkApiJormungandrStakePool sp meta =
+        ApiJormungandrStakePool
             (ApiT $ poolId sp)
             (ApiStakePoolMetrics
                 (Quantity $ fromIntegral $ getQuantity $ stake sp)
