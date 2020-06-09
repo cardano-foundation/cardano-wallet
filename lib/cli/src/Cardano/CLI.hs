@@ -305,13 +305,14 @@ import Options.Applicative.Builder.Internal
 import Options.Applicative.Common
     ( mapParser )
 import Options.Applicative.Help.Pretty
-    ( string, vsep )
+    ( Doc, displayS, renderSmart, string, text, vcat, vsep )
 import Options.Applicative.Types
-    ( OptHelpInfo
+    ( OptHelpInfo (..)
     , OptReader (..)
     , Option (..)
     , Parser (..)
     , ReadM (..)
+    , propHelp
     , readerAsk
     )
 import Servant.Client
@@ -402,35 +403,53 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
 
 
 -- | Name and description for every CLI command recusively
-data DCommand = DCommand String String [DCommand]
+data DCommand = DCommand String Doc [DCommand]
 
 
 dev :: IO ()
 dev = putStrLn cliDocs
 
 cliDocs :: String
-cliDocs = do
-    fmt $ commandF $ toDCommand "" "" (cli (cmdWallet cmdByronWalletCreate undefined <> cmdKey <> cmdMnemonic <> cmdNetwork undefined))
+cliDocs =
+    let
+        render = renderSmart 1.0 80
+        c = cli (cmdWallet cmdByronWalletCreate undefined <> cmdKey <> cmdMnemonic <> cmdNetwork undefined)
+    in
+        displayS (render $ commandF $ toDCommand "" "" c) ""
   where
-    toDCommand :: String -> String -> ParserInfo a -> DCommand
+    toDCommand :: String -> Doc -> ParserInfo a -> DCommand
     toDCommand n docs c = DCommand n docs $ join $ mapParser desc (infoParser c)
       where
         desc _ opt =
           case optMain opt of
             CmdReader gn cmds p ->
                     -- TODO: Replace newlines with spaces?
-                  [ toDCommand cmd (filter (/= '\n') $ show $ extractChunk d) (fromJust $ p cmd)
+                  [ toDCommand cmd (extractChunk d) (fromJust $ p cmd)
                     | cmd <- reverse cmds,
                       d <- maybeToList . fmap infoProgDesc $ p cmd
                   ]
             _ -> []
 
-    commandF :: DCommand -> Builder
-    commandF (DCommand n docs []) =
-        ("" +|n|+" - " <> (replicate 10 ' ') <> docs|+"\n")
-    commandF (DCommand n docs xs) =
-        ("" +|n|+" - " <> indentF 10 ""+|docs|+"\n")
-        <> (indentF 2 $ blockListF' " " commandF xs)
+    commandF :: DCommand -> Doc
+    commandF = extractChunk . tabulate . go 0
+      where
+        -- Example output from go:
+        -- [ ("wallet", "Manage wallets.")
+        -- , ("  list", "List all known wallets")
+        -- ]
+        -- which after tabulation will look like:
+        --
+        -- wallet                  Manage wallets.
+        --   list                  List all known wallets.
+        --
+        -- I.e. the first column contains indentation, but not the second one.
+        go :: Int -> DCommand -> [(Doc, Doc)]
+        go lvl (DCommand n' d c') =
+              (text (replicate lvl ' ' ++ n'), d)
+            : (c' >>= go (lvl + 1))
+
+        -- TODO: Add links
+        -- TODO: Also regenrate defails to link to.
 
 
 -- | Runs a specific command parser using appropriate preferences
