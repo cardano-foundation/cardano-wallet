@@ -1,12 +1,12 @@
 ---
-activeSlotsCoeff: 1
+activeSlotsCoeff: 0.1
 protocolParams:
   poolDecayRate: 0
   poolDeposit: 0
   protocolVersion:
     minor: 0
     major: 0
-  decentralisationParam: 1
+  decentralisationParam: 0.25
   maxTxSize: 4096
   minFeeA: 100
   maxBlockBodySize: 239857
