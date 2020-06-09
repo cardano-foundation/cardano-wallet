@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -59,7 +58,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( withCardanoNode )
+    ( withCluster )
 import Cardano.Wallet.Shelley.Transaction
     ( _estimateSize )
 import Control.Concurrent.Async
@@ -101,8 +100,6 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     )
-import Test.Utils.Paths
-    ( getTestData )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
@@ -183,7 +180,8 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        withCardanoNode tr $(getTestData) Info $ \socketPath block0 (gp,vData) ->
+        ((either throwIO pure) =<<) $
+        withCluster tr Info 0 $ \socketPath block0 (gp,vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
             serveWallet @(IO Shelley)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)

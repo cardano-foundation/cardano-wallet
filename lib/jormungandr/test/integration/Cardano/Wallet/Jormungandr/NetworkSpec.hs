@@ -57,6 +57,8 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Network.BlockHeaders
     ( emptyBlockHeaders )
+import Cardano.Wallet.Network.Ports
+    ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -122,8 +124,6 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..), generate, vector )
-import Test.Utils.Ports
-    ( randomUnusedTCPPorts )
 
 import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
 import qualified Data.ByteString as BS

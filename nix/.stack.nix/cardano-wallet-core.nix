@@ -71,6 +71,7 @@
           (hsPkgs."persistent-template" or (errorHandler.buildDepError "persistent-template"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
+          (hsPkgs."random-shuffle" or (errorHandler.buildDepError "random-shuffle"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))

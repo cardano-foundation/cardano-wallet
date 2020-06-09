@@ -20,6 +20,8 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
     ( ApiWallet )
+import Cardano.Wallet.Network.Ports
+    ( findPort )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
 import Control.Exception
@@ -68,8 +70,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Utils.Paths
     ( getTestData )
-import Test.Utils.Ports
-    ( findPort )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

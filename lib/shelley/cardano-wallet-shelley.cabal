@@ -43,6 +43,7 @@ library
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , cborg
     , containers
     , contra-tracer

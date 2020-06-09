@@ -26,16 +26,20 @@ module Cardano.Wallet.Network.Ports
     -- * Helpers
     , waitForPort
     , unsafePortNumber
+    , findPort
+    , randomUnusedTCPPorts
     ) where
 
 import Prelude
 
+import Control.Monad
+    ( filterM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.List
-    ( isInfixOf )
+    ( isInfixOf, sort )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word
@@ -54,6 +58,8 @@ import Network.Socket
     , socket
     , tupleToHostAddress
     )
+import System.Random.Shuffle
+    ( shuffleM )
 import UnliftIO.Exception
     ( bracket, throwIO, try )
 
@@ -113,3 +119,21 @@ unsafePortNumber = \case
     SockAddrInet p _ -> p
     SockAddrInet6 p _ _ _ -> p
     SockAddrUnix _ -> error "unsafePortNumber: no port for unix sockets."
+
+-- | Get a list of random TCPv4 ports that currently do not have any servers
+-- listening on them. It may return less than the requested number of ports.
+--
+-- Note that this method of allocating ports is subject to race
+-- conditions. Production code should use better methods such as passing a
+-- listening socket to the child process.
+randomUnusedTCPPorts :: Int -> IO [Int]
+randomUnusedTCPPorts count = do
+    usablePorts <- shuffleM [1024..49151]
+    sort <$> filterM unused (take count usablePorts)
+  where
+    unused = fmap not . isPortOpen . simpleSockAddr (127,0,0,1) . fromIntegral
+
+-- | Returen a single TCP port that was unused at the time this function was
+-- called.
+findPort :: IO Int
+findPort = head <$> randomUnusedTCPPorts 1
