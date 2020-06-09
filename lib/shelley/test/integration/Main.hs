@@ -132,19 +132,20 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
-        describe "API Specifications" $ specWithServer tr $ do
-            Addresses.spec @n
-            Transactions.spec @n
-            Wallets.spec @n
-            HWWallets.spec @n
-            Network.spec
-        describe "CLI Specifications" $ specWithServer tr $ do
-            AddressesCLI.spec @n
-            TransactionsCLI.spec @n
-            WalletsCLI.spec @n
-            HWWalletsCLI.spec @n
-            PortCLI.spec @t
-            NetworkCLI.spec @t
+        specWithServer tr $ do
+            describe "API Specifications" $ do
+                Addresses.spec @n
+                Transactions.spec @n
+                Wallets.spec @n
+                HWWallets.spec @n
+                Network.spec
+            describe "CLI Specifications" $ do
+                AddressesCLI.spec @n
+                TransactionsCLI.spec @n
+                WalletsCLI.spec @n
+                HWWalletsCLI.spec @n
+                PortCLI.spec @t
+                NetworkCLI.spec @t
 
 specWithServer
     :: Trace IO Text
