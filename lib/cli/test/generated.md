@@ -26,28 +26,29 @@
 ## 
 
 ```
-
+Usage:  
 ```
 ###  wallet
 Manage wallets.
 ```
-  -h,--help                Show this help text
+Usage:  wallet COMMAND  -h,--help                Show this help text
 ```
 ####  wallet list
 List all known wallets.
 ```
-  -h,--help                Show this help text
+Usage:  wallet list [--port INT]  -h,--help                Show this help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  wallet create
 Create a new Byron wallet.
 ```
-  -h,--help                Show this help text
+Usage:  wallet create COMMAND  -h,--help                Show this help text
 ```
 #####  wallet create from-mnemonic
 Create a new wallet using a mnemonic.
 ```
-  -h,--help                Show this help text
+Usage:  wallet create from-mnemonic [--port INT] STRING
+[--wallet-style WALLET_STYLE]  -h,--help                Show this help text
   --port INT               port used for serving the wallet API. (default: 8090)
   --wallet-style WALLET_STYLE
                            Any of the following (default: icarus)
@@ -59,47 +60,53 @@ Create a new wallet using a mnemonic.
 ####  wallet get
 Fetch the wallet with specified id.
 ```
-  -h,--help                Show this help text
+Usage:  wallet get [--port INT] WALLET_ID  -h,--help                Show this
+                                                                    help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  wallet update
 Update a wallet.
 ```
-  -h,--help                Show this help text
+Usage:  wallet update COMMAND  -h,--help                Show this help text
 ```
 #####  wallet update name
 Update a wallet's name.
 ```
-  -h,--help                Show this help text
+Usage:  wallet update name [--port INT] WALLET_ID
+STRING  -h,--help                Show this help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 #####  wallet update passphrase
 Update a wallet's passphrase.
 ```
-  -h,--help                Show this help text
+Usage:  wallet update passphrase [--port INT]
+WALLET_ID  -h,--help                Show this help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  wallet delete
 Deletes wallet with specified wallet id.
 ```
-  -h,--help                Show this help text
+Usage:  wallet delete [--port INT] WALLET_ID  -h,--help                Show this
+                                                                       help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  wallet utxo
 Get UTxO statistics for the wallet with specified id.
 ```
-  -h,--help                Show this help text
+Usage:  wallet utxo [--port INT] WALLET_ID  -h,--help                Show this
+                                                                     help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ###  key
 Derive and manipulate keys.
 ```
-  -h,--help                Show this help text
+Usage:  key COMMAND  -h,--help                Show this help text
 ```
 ####  key root
 Extract root extended private key from a mnemonic sentence.
 ```
-  -h,--help                Show this help text
+Usage:  key root [--wallet-style WALLET_STYLE] [--encoding KEY-ENCODING]
+MNEMONIC_WORD...  -h,--help                Show this help text
   --wallet-style WALLET_STYLE
                            Any of the following (default: icarus)
                              icarus (15 mnemonic words)
@@ -110,56 +117,61 @@ Extract root extended private key from a mnemonic sentence.
 ####  key child
 Derive child keys.
 ```
-  -h,--help                Show this help text
+Usage:  key child --path DER-PATH  -h,--help                Show this help text
   --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0
 ```
 ####  key public
 Extract the public key from a private key.
 ```
-  -h,--help                Show this help text
+Usage:  key public   -h,--help                Show this help text
 ```
 ####  key inspect
 Show information about a key.
 ```
-  -h,--help                Show this help text
+Usage:  key inspect   -h,--help                Show this help text
 ```
 ###  mnemonic
 Manage mnemonic phrases.
 ```
-  -h,--help                Show this help text
+Usage:  mnemonic COMMAND  -h,--help                Show this help text
 ```
 ####  mnemonic generate
 Generate English BIP-0039 compatible mnemonic words.
 ```
-  -h,--help                Show this help text
+Usage:  mnemonic generate [--size INT]  -h,--help                Show this help
+                                                                 text
   --size INT               number of mnemonic words to generate. (default: 15)
 ```
 ####  mnemonic reward-credentials
 Derive reward account private key from a given mnemonic.
 ```
-  -h,--help                Show this help text
+Usage:  mnemonic reward-credentials   -h,--help                Show this help
+                                                               text
 ```
 ###  network
 Manage network.
 ```
-  -h,--help                Show this help text
+Usage:  network COMMAND  -h,--help                Show this help text
 ```
 ####  network information
 View network information.
 ```
-  -h,--help                Show this help text
+Usage:  network information [--port INT]  -h,--help                Show this
+                                                                   help text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  network parameters
 View network parameters for the current epoch.
 ```
-  -h,--help                Show this help text
+Usage:  network parameters [--port INT]  -h,--help                Show this help
+                                                                  text
   --port INT               port used for serving the wallet API. (default: 8090)
 ```
 ####  network clock
 View NTP offset.
 ```
-  -h,--help                Show this help text
+Usage:  network clock [--port INT]
+[--force-ntp-check]  -h,--help                Show this help text
   --port INT               port used for serving the wallet API. (default: 8090)
   --force-ntp-check        When set, will block and force an NTP check with the
                            server. Otherwise, uses an available cached result.

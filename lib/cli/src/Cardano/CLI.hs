@@ -428,14 +428,19 @@ cliDocs =
       where
         desc _ opt =
           case optMain opt of
-            CmdReader gn cmds p ->
-                    -- TODO: Replace newlines with spaces?
-                  [ toDCommand cmd (extractChunk d)
-                      (extractChunk $ fullDesc defaultPrefs (infoParser $ fromJust (p cmd)))
-                      (fromJust $ p cmd)
-                    | cmd <- reverse cmds,
-                      d <- maybeToList . fmap infoProgDesc $ p cmd
-                  ]
+            -- TODO: Make sure to print flags
+            -- Maybe be inspired by:
+            -- https://github.com/pcapriotti/optparse-applicative/blob/260c0ef45671bd660cee7890ff880ba5db8cfe68/src/Options/Applicative/Help/Core.hs
+            CmdReader gn cmds p -> do
+                cmd <- reverse cmds
+                d <- maybeToList . fmap infoProgDesc $ p cmd
+                let p' = fromJust (p cmd)
+                let h = extractChunk $ infoHeader p'
+                let args = extractChunk $ briefDesc defaultPrefs $ infoParser p'
+                let fd = extractChunk $ fullDesc defaultPrefs $ infoParser p'
+                return $ toDCommand cmd (extractChunk d)
+                    (args <> fd)
+                    p'
             _ -> []
 
 
@@ -465,7 +470,7 @@ cliDocs =
             [ mdHeader (intercalate " " fullN)
             , d
             , text "```"
-            , h
+            , text ("Usage: " <> intercalate " " fullN) <> " " <> h
             , text "```"
             ]
           where
