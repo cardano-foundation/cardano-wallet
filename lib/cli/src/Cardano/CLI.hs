@@ -275,6 +275,7 @@ import Options.Applicative
     , abortOption
     , argument
     , auto
+    , columns
     , command
     , customExecParser
     , eitherReader
@@ -311,6 +312,7 @@ import Options.Applicative.Types
     , OptReader (..)
     , Option (..)
     , Parser (..)
+    , ParserPrefs
     , ReadM (..)
     , propHelp
     , readerAsk
@@ -403,7 +405,7 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
 
 
 -- | Name and description for every CLI command recusively
-data DCommand = DCommand String Doc [DCommand]
+data DCommand = DCommand String Doc Doc [DCommand]
 
 
 dev :: IO ()
@@ -414,21 +416,45 @@ cliDocs =
     let
         render = renderSmart 1.0 80
         c = cli (cmdWallet cmdByronWalletCreate undefined <> cmdKey <> cmdMnemonic <> cmdNetwork undefined)
+
+        summary = commandF $ toDCommand "" "" mempty c
+        detail = fullCommandF $ toDCommand "" "" mempty c
+
     in
-        displayS (render $ commandF $ toDCommand "" "" c) ""
+        displayS (render $ vsep [summary, detail]) ""
   where
-    toDCommand :: String -> Doc -> ParserInfo a -> DCommand
-    toDCommand n docs c = DCommand n docs $ join $ mapParser desc (infoParser c)
+    toDCommand :: String -> Doc -> Doc -> ParserInfo a -> DCommand
+    toDCommand n docs help' c = DCommand n docs help' $ join $ mapParser desc (infoParser c)
       where
         desc _ opt =
           case optMain opt of
             CmdReader gn cmds p ->
                     -- TODO: Replace newlines with spaces?
-                  [ toDCommand cmd (extractChunk d) (fromJust $ p cmd)
+                  [ toDCommand cmd (extractChunk d)
+                      (extractChunk $ fullDesc defaultPrefs (infoParser $ fromJust (p cmd)))
+                      (fromJust $ p cmd)
                     | cmd <- reverse cmds,
                       d <- maybeToList . fmap infoProgDesc $ p cmd
                   ]
             _ -> []
+
+
+    defaultPrefs :: ParserPrefs
+    defaultPrefs = prefs (mempty <> columns 65)
+
+    fullCommandF :: DCommand -> Doc
+    fullCommandF = vsep . go 0
+      where
+        go :: Int -> DCommand -> [Doc]
+        go lvl (DCommand n' d h c') = vsep
+            [ mdHeader n'
+            , d
+            , text "```"
+            , h
+            , text "```"
+            ] : (c' >>= go (lvl + 1))
+          where
+            mdHeader x = text $ (replicate (lvl + 2) '#') <> " " <> x
 
     commandF :: DCommand -> Doc
     commandF = extractChunk . tabulate . go 0
@@ -444,7 +470,7 @@ cliDocs =
         --
         -- I.e. the first column contains indentation, but not the second one.
         go :: Int -> DCommand -> [(Doc, Doc)]
-        go lvl (DCommand n' d c') =
+        go lvl (DCommand n' d _ c') =
               (text (replicate lvl ' ' ++ n'), d)
             : (c' >>= go (lvl + 1))
 
