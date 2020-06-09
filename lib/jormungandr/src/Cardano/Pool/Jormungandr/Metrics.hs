@@ -20,6 +20,8 @@
 module Cardano.Pool.Jormungandr.Metrics
     ( -- * Types
       Block (..)
+    , StakePoolLayer (..)
+    , listPools
 
     -- * Listing stake-pools from the DB
     , newStakePoolLayer
@@ -45,8 +47,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
@@ -55,6 +55,10 @@ import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
 import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative )
+import Cardano.Wallet.Api.Server
+    ( LiftHandler (liftHandler) )
+import Cardano.Wallet.Api.Types
+    ( ApiJormungandrStakePool (..), ApiStakePoolMetrics (..), ApiT (..) )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
     , ErrNetworkUnavailable
@@ -118,6 +122,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import Servant
+    ( Handler )
 import System.Random
     ( StdGen )
 
@@ -138,6 +144,48 @@ data Block = Block
     , poolRegistrations :: ![PoolRegistrationCertificate]
     -- ^ Any stake pools that were registered in this block.
     } deriving (Eq, Show, Generic)
+
+
+-- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
+-- can easily be passed to the API-server, where it can be used in a simple way.
+data StakePoolLayer e m = StakePoolLayer
+    { listStakePools
+        :: ExceptT e m [(StakePool, Maybe StakePoolMetadata)]
+
+    , knownStakePools
+        :: m [PoolId]
+        -- ^ Get a list of known pools that doesn't require fetching things from
+        -- any registry. This list comes from the registration certificates
+        -- that have been seen on chain.
+    }
+
+--------------------------------------------------------------------------------
+-- Api Handler
+--------------------------------------------------------------------------------
+
+listPools
+    :: LiftHandler e
+    => StakePoolLayer e IO
+    -> Handler [ApiJormungandrStakePool]
+listPools spl =
+    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
+  where
+    mkApiJormungandrStakePool
+        :: StakePool
+        -> Maybe StakePoolMetadata
+        -> ApiJormungandrStakePool
+    mkApiJormungandrStakePool sp meta =
+        ApiJormungandrStakePool
+            (ApiT $ view #poolId sp)
+            (ApiStakePoolMetrics
+                (Quantity $ fromIntegral $ getQuantity $ stake sp)
+                (Quantity $ fromIntegral $ getQuantity $ production sp))
+            (sp ^. #performance)
+            (ApiT <$> meta)
+            (fromIntegral <$> sp ^. #cost)
+            (Quantity $ sp ^. #margin)
+            (sp ^. #desirability)
+            (sp ^. #saturation)
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring
@@ -356,7 +404,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
                 )
 
     sortByDesirability :: [(StakePool, a)] -> [(StakePool, a)]
-    sortByDesirability = sortOn (Down . desirability . fst)
+    sortByDesirability = sortOn (Down . view #desirability . fst)
 
     sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith

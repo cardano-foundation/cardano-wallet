@@ -50,7 +50,6 @@ module Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAddresses
-    , listPools
     , listTransactions
     , listWallets
     , migrateWallet
@@ -90,8 +89,6 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCannotJoin (..)
@@ -1197,35 +1194,6 @@ postTransactionFee ctx (ApiT wid) body = do
 
         e -> throwE e
 
-
-{-------------------------------------------------------------------------------
-                                    Stake Pools
--------------------------------------------------------------------------------}
-
-listPools
-    :: LiftHandler e
-    => StakePoolLayer e IO
-    -> Handler [ApiJormungandrStakePool]
-listPools spl =
-    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
-  where
-    mkApiJormungandrStakePool
-        :: StakePool
-        -> Maybe StakePoolMetadata
-        -> ApiJormungandrStakePool
-    mkApiJormungandrStakePool sp meta =
-        ApiJormungandrStakePool
-            (ApiT $ poolId sp)
-            (ApiStakePoolMetrics
-                (Quantity $ fromIntegral $ getQuantity $ stake sp)
-                (Quantity $ fromIntegral $ getQuantity $ production sp))
-            (sp ^. #performance)
-            (ApiT <$> meta)
-            (fromIntegral <$> sp ^. #cost)
-            (Quantity $ sp ^. #margin)
-            (sp ^. #desirability)
-            (sp ^. #saturation)
-
 joinStakePool
     :: forall ctx s t n k e.
         ( DelegationAddress n k
@@ -1237,19 +1205,21 @@ joinStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> StakePoolLayer e IO
+    -> IO [PoolId]
+       -- ^ Known pools
+       -- We could maybe replace this with a @IO (PoolId -> Bool)@
     -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx spl apiPoolId (ApiT wid) body = do
+joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     pid <- case apiPoolId of
         ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
 
-    pools <- liftIO $ knownStakePools spl
+    pools <- liftIO $ knownPools
 
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd

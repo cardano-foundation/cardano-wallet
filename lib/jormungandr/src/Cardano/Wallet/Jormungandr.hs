@@ -61,10 +61,13 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Pool.Jormungandr.Metrics
-    ( ErrListStakePools, StakePoolLog, monitorStakePools, newStakePoolLayer )
+    ( ErrListStakePools
+    , StakePoolLayer (..)
+    , StakePoolLog
+    , monitorStakePools
+    , newStakePoolLayer
+    )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api

@@ -22,10 +22,8 @@ module Cardano.Wallet.Jormungandr.Api.Server
 
 import Prelude
 
-import Cardano.Pool
-    ( StakePoolLayer )
 import Cardano.Pool.Jormungandr.Metrics
-    ( ErrListStakePools (..) )
+    ( ErrListStakePools (..), StakePoolLayer (..), listPools )
 import Cardano.Wallet
     ( ErrValidateSelection
     , genesisData
@@ -62,7 +60,6 @@ import Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAddresses
-    , listPools
     , listTransactions
     , listWallets
     , migrateWallet
@@ -194,7 +191,7 @@ server byron icarus jormungandr spl ntp =
 
     stakePools :: Server (StakePools n ApiJormungandrStakePool)
     stakePools = listPools spl
-        :<|> joinStakePool jormungandr spl
+        :<|> joinStakePool jormungandr (knownStakePools spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
 

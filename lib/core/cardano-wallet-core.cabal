@@ -110,7 +110,6 @@ library
       Cardano.Byron.Codec.Cbor
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete
-      Cardano.Pool
       Cardano.Pool.Metadata
       Cardano.Pool.DB
       Cardano.Pool.DB.MVar
