@@ -17,13 +17,6 @@ notifications:
     on_error: always # Send a Slack notification when the build is failing on master
     email: false
 
-env:
-  global:
-    - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
-    - STACK_WORK_CACHE=$HOME/.stack/stack-work.tar.gz
-    - PATH=$PATH:$HOME/.local/bin
-    - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
-
 # We use a hybrid setup with Rust and Haskell, so we handle the compilation ourselves
 language: generic
 
@@ -32,80 +25,28 @@ language: generic
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
 if: "(branch = master) OR (tag =~ /^v(2019|2020|2021)-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$/)"
 
-# Caching so the next build will be fast too:
-cache:
-  timeout: 1337
-  directories:
-  - $HOME/.stack
-
-before_cache:
-  # Remove extra unused and heavy stuff from stack directory to avoid caching useless files
-  - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
-  - rm -rf $HOME/.stack/indices/Hackage/00-index.tar $HOME/.stack/indices/Hackage/00-index.tar.gz
-  - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
-
-before_install:
-  - mkdir -p $HOME/.local/bin
-  - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
-  - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C $HOME/.local/bin '*/stack'
-  - travis_retry stack --no-terminal setup
-
-# Ensure necessary system libraries are present:
-addons:
-  apt:
-    packages:
-      - libgmp-dev
-      - librocksdb-dev
-      - libsystemd-dev
-
 # Define custom set of stages
 stages:
-- pre-cache 💾
-- cache 💾
-- build project 🔨
 - documentation 📚
 - deploy 🚀
 
 jobs:
   fast_finish: true
   include:
-  - stage: pre-cache 💾
-    if: commit_message =~ /TRAVIS_PRE_CACHE/
-    name: "Pre-cache Dependencies"
-    script:
-    - stack --no-terminal build --only-snapshot --stack-yaml .travis/stack.yaml
-    - tar czf $STACK_WORK_CACHE .stack-work
-
-  - stage: cache 💾
-    if: type != pull_request AND (branch = master OR tag =~ ^v)
-    name: "Caching Dependencies"
-    script:
-    - stack --no-terminal build --only-snapshot
-    - stack --no-terminal build --only-dependencies
-    - tar czf $STACK_WORK_CACHE .stack-work
-
-  - stage: build project 🔨
-    if: type != pull_request AND (branch = master OR tag =~ ^v)
-    name: "Compiling Project"
-    script:
-    - stack --no-terminal build --haddock --no-haddock-deps --skip cardano-wallet-core-integration
-    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
-
   - stage: documentation 📚
     if: type != pull_request AND (branch = master OR tag =~ ^v)
-    name: "Haddock"
+    name: "API Documentation"
     script:
-    - mkdir -p haddock/edge api/edge
+    - mkdir -p api/edge
     - cp -Rv specifications/api/* api/edge
-    - mv $(stack path --local-doc-root)/* haddock/edge
     - git checkout --orphan gh-pages-deploy && git reset
-    - git add api haddock && git commit -m $TRAVIS_COMMIT
+    - git add api && git commit -m $TRAVIS_COMMIT
     - git fetch origin
     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
-    if: type != pull_request AND (tag =~ ^v OR commit_message =~ "TRAVIS_TRIGGER_RELEASE")
+    if: type != pull_request AND (tag =~ ^v OR commit_message =~ /TRAVIS_TRIGGER_RELEASE/)
     name: "Executables"
     script:
     ############################
@@ -187,11 +128,10 @@ jobs:
     - rm cardano-wallet-jormungandr-win64.zip
 
     # Deploy documentation snapshot
-    - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
+    - mkdir -p api/$TRAVIS_TAG
     - cp -Rv specifications/api/* api/$TRAVIS_TAG
-    - mv $(stack path --local-doc-root)/* haddock/$TRAVIS_TAG
     - git checkout --orphan gh-pages-deploy && git reset
-    - git add api haddock && git commit -m $TRAVIS_COMMIT
+    - git add api && git commit -m $TRAVIS_COMMIT
     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
     - travis_retry git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
