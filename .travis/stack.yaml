@@ -1,3 +1,0 @@
-resolver: lts-14.25
-packages:
-- ../lib/text-class
