@@ -112,6 +112,8 @@ module Cardano.CLI
     , setupDirectory
     , waitForService
     , WaitForServiceLog (..)
+
+    , cliDocs
     ) where
 
 import Prelude hiding
@@ -402,9 +404,13 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
 -- | Name and description for every CLI command recusively
 data DCommand = DCommand String String [DCommand]
 
+
 dev :: IO ()
-dev = do
-    putStrLn $ fmt $ commandF $ toDCommand "" "" (cli (cmdKey <> cmdMnemonic <> cmdNetwork undefined <> cmdWallet cmdByronWalletCreate undefined))
+dev = putStrLn cliDocs
+
+cliDocs :: String
+cliDocs = do
+    fmt $ commandF $ toDCommand "" "" (cli (cmdWallet cmdByronWalletCreate undefined <> cmdKey <> cmdMnemonic <> cmdNetwork undefined))
   where
     toDCommand :: String -> String -> ParserInfo a -> DCommand
     toDCommand n docs c = DCommand n docs $ join $ mapParser desc (infoParser c)

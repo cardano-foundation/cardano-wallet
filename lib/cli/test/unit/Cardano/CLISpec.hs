@@ -27,6 +27,7 @@ import Cardano.CLI
     , TxId
     , XPrvOrXPub (..)
     , cli
+    , cliDocs
     , cmdAddress
     , cmdKey
     , cmdMnemonic
@@ -156,6 +157,12 @@ import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
+    describe "Automatic CLI docs" $ do
+        it "maches golden" $ do
+
+            g <- T.unpack <$> TIO.readFile "lib/cli/test/cli-docs.md"
+            TIO.writeFile "lib/cli/test/generated.md" (T.pack cliDocs)
+            cliDocs `shouldBe` g
     describe "Specification / Usage Overview" $ do
 
         ["--help"] `shouldShowUsage`
