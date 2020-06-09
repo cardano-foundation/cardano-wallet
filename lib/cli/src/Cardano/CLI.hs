@@ -159,6 +159,10 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration (..) )
 import Control.Monad
+import Data.List
+    ( intercalate )
+import Data.Tree
+    ( Tree (..) )
 import Options.Applicative.Help.Chunk
 import Options.Applicative.Help.Core
 import Prelude hiding
@@ -404,10 +408,6 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
         ])
 
 
--- | Name and description for every CLI command recusively
-data DCommand = DCommand String Doc Doc [DCommand]
-
-
 dev :: IO ()
 dev = putStrLn cliDocs
 
@@ -423,8 +423,8 @@ cliDocs =
     in
         displayS (render $ vsep [summary, detail]) ""
   where
-    toDCommand :: String -> Doc -> Doc -> ParserInfo a -> DCommand
-    toDCommand n docs help' c = DCommand n docs help' $ join $ mapParser desc (infoParser c)
+    toDCommand :: String -> Doc -> Doc -> ParserInfo a -> Tree (String, Doc, Doc)
+    toDCommand n docs help' c = Node (n, docs, help') $ join $ mapParser desc (infoParser c)
       where
         desc _ opt =
           case optMain opt of
@@ -442,22 +442,37 @@ cliDocs =
     defaultPrefs :: ParserPrefs
     defaultPrefs = prefs (mempty <> columns 65)
 
-    fullCommandF :: DCommand -> Doc
-    fullCommandF = vsep . go 0
+    markDepth :: Tree a -> Tree (Int, a)
+    markDepth = go 0
       where
-        go :: Int -> DCommand -> [Doc]
-        go lvl (DCommand n' d h c') = vsep
-            [ mdHeader n'
+        go depth (Node a f) = Node (depth, a) (map (go (depth + 1)) f)
+
+    recordFullPath
+        :: Tree (Int, (String, Doc, Doc))
+        -> Tree (Int, [String], (String, Doc, Doc))
+    recordFullPath = go []
+      where
+        -- TODO: Fix leading white space caused by root tree
+        go parents (Node (i, (n, x, y)) f) =
+            let fullN = parents ++ [n] -- Slow, but simpler than reversing.
+            in Node (i, fullN, (n, x, y)) $ map (go fullN) f
+
+    fullCommandF :: Tree (String, Doc, Doc) -> Doc
+    fullCommandF = vsep . foldMap go . recordFullPath . markDepth
+      where
+        go :: (Int, [String], (String, Doc, Doc)) -> [Doc]
+        go (depth, fullN, (n', d, h)) =
+            [ mdHeader (intercalate " " fullN)
             , d
             , text "```"
             , h
             , text "```"
-            ] : (c' >>= go (lvl + 1))
+            ]
           where
-            mdHeader x = text $ (replicate (lvl + 2) '#') <> " " <> x
+            mdHeader y = text $ (replicate (depth + 2) '#') <> " " <> y
 
-    commandF :: DCommand -> Doc
-    commandF = extractChunk . tabulate . go 0
+    commandF :: Tree (String, Doc, Doc) -> Doc
+    commandF = extractChunk . tabulate . foldMap (return . go) . markDepth
       where
         -- Example output from go:
         -- [ ("wallet", "Manage wallets.")
@@ -469,10 +484,10 @@ cliDocs =
         --   list                  List all known wallets.
         --
         -- I.e. the first column contains indentation, but not the second one.
-        go :: Int -> DCommand -> [(Doc, Doc)]
-        go lvl (DCommand n' d _ c') =
-              (text (replicate lvl ' ' ++ n'), d)
-            : (c' >>= go (lvl + 1))
+        go :: (Int, (String, Doc, Doc)) -> (Doc, Doc)
+        go (depth, (n', d, _)) =
+              (text (replicate depth ' ' ++ n'), d)
+
 
         -- TODO: Add links
         -- TODO: Also regenrate defails to link to.
