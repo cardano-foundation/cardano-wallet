@@ -910,7 +910,7 @@ spec = do
                 , TestCase -- 2
                     { query = toQueryString
                         [ ("start", utcIso8601ToText t1)
-                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
                         , ("order", "descending")
                         ]
                     , assertions =
@@ -922,7 +922,7 @@ spec = do
                 , TestCase -- 3
                     { query = toQueryString
                         [ ("start", utcIso8601ToText t1)
-                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
                         ]
                     , assertions =
                         [ expectListSize 1
@@ -940,8 +940,8 @@ spec = do
                     }
                 , TestCase --5
                     { query = toQueryString
-                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
-                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
                         ]
                     , assertions =
                         [ expectListSize 1
@@ -950,15 +950,15 @@ spec = do
                     }
                 , TestCase -- 6
                     { query = toQueryString
-                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
-                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
                         ]
                     , assertions =
                         [ expectListSize 0 ]
                     }
                 , TestCase -- 7
                     { query = toQueryString
-                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        [ ("start", utcIso8601ToText $ plusDelta t1)
                         , ("order", "ascending")
                         ]
                     , assertions =
@@ -969,7 +969,7 @@ spec = do
                 , TestCase -- 8
                     { query = toQueryString
                         [ ("order", "descending")
-                        , ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("start", utcIso8601ToText $ plusDelta t1)
                         , ("end", utcIso8601ToText t2)
                         ]
                     , assertions =
@@ -980,8 +980,8 @@ spec = do
                 , TestCase -- 9
                     { query = toQueryString
                         [ ("order", "ascending")
-                        , ("start", utcIso8601ToText $ minusOneSecond t1)
-                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        , ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ minusDelta t2)
                         ]
                     , assertions =
                         [ expectListSize 1
@@ -991,7 +991,7 @@ spec = do
                 , TestCase -- 10
                     { query = toQueryString
                         [ ("order", "descending")
-                        , ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("start", utcIso8601ToText $ minusDelta t1)
                         ]
                     , assertions =
                         [ expectListSize 2
@@ -1001,7 +1001,7 @@ spec = do
                     }
                 , TestCase -- 11
                     { query = toQueryString
-                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
                         , ("end", utcIso8601ToText t2)
                         ]
                     , assertions =
@@ -1012,8 +1012,8 @@ spec = do
                     }
                 , TestCase -- 12
                     { query = toQueryString
-                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
-                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        [ ("start", utcIso8601ToText $ minusDelta t1)
+                        , ("end", utcIso8601ToText $ plusDelta t2)
                         ]
                     , assertions =
                         [ expectListSize 2
@@ -1040,7 +1040,7 @@ spec = do
                     }
                 , TestCase -- 15
                     { query = toQueryString
-                        [ ("end", utcIso8601ToText $ plusOneSecond t2) ]
+                        [ ("end", utcIso8601ToText $ plusDelta t2) ]
                     , assertions =
                         [ expectListSize 2
                         , expectListField 0 #amount (`shouldBe` a2)
@@ -1049,7 +1049,7 @@ spec = do
                     }
                 , TestCase -- 16
                     { query = toQueryString
-                        [ ("end", utcIso8601ToText $ minusOneSecond t2) ]
+                        [ ("end", utcIso8601ToText $ minusDelta t2) ]
                     , assertions =
                         [ expectListSize 1
                         , expectListField 0 #amount (`shouldBe` a1)
@@ -1511,6 +1511,6 @@ spec = do
             }|]
         return (wSrc, payload)
 
-    plusOneSecond, minusOneSecond :: UTCTime -> UTCTime
-    plusOneSecond = addUTCTime 1
-    minusOneSecond = addUTCTime (-1)
+    plusDelta, minusDelta :: UTCTime -> UTCTime
+    plusDelta = addUTCTime (toEnum 1000000000)
+    minusDelta = addUTCTime (toEnum (-1000000000))
