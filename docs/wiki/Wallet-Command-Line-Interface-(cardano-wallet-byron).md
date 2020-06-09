@@ -38,6 +38,9 @@ Available COMMANDS:
     <a href="#address-list">list</a>                List all known addresses of a wallet
     <a href="#address-create">create</a>              Create a new random address. Only available for random wallets.
                         The address index is optional, give none to let the wallet generate a random one.
+    <a href="#address-import">import</a>              Import a random address generated elsewhere. Only
+                        available for random wallets. The address must belong
+                        to the target wallet.
   network
     <a href="#network-information">information</a>         View network information
     <a href="#network-parameters">parameters</a>          View network parameters
@@ -426,6 +429,14 @@ Ok.
     "id": "2w1sdSJu3GVgr1ic6aP3CEwZo9GAhLzigdBvCGY4JzEDRbWV4HUNpZdHf2n5fV41dGjPpisDX77BztujAJ1Xs38zS8aXvN7Qxoe"
 }
 ```
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## address import
+
+> `cardano-wallet address import [--port INT] WALLET_ID ADDRESS`
+
+Import address belonging to random wallet.
+
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## network information
