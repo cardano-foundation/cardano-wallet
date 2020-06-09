@@ -117,6 +117,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
 
 data NetworkConfiguration where
@@ -232,6 +233,7 @@ withCluster tr severity n action = do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
+        TIO.putStrLn cartouche
         group <- waitAll
         if length (filter isRight group) /= n then do
             cancelAll
@@ -693,3 +695,21 @@ timeout t (title, action) = do
     race (threadDelay $ t * 1000000) action >>= \case
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
+
+-- | A little disclaimer shown in the logs when setting up the cluster.
+cartouche :: Text
+cartouche = T.unlines
+    [ ""
+    , "################################################################################"
+    , "#                                                                              #"
+    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
+    , "#                                                                              #"
+    , "#        Cluster is booting. Stake pools are being registered on chain.        #"
+    , "#                                                                              #"
+    , "#        This may take roughly 30s, after what pools will become active        #"
+    , "#        and will start producing blocks. Please be patient...                 #"
+    , "#                                                                              #"
+    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
+    , "#                                                                              #"
+    , "################################################################################"
+    ]
