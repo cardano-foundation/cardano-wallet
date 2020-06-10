@@ -19,7 +19,8 @@ import Cardano.Wallet.Byron.Network
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..)
+    ( DecentralizationLevel (..)
+    , FeePolicy (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , TxParameters (..)
@@ -35,7 +36,7 @@ import Data.Generics.Labels
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.Utils.Paths
@@ -49,11 +50,12 @@ import Test.Utils.Trace
 
 spec :: Spec
 spec = describe "getTxParameters" $ do
-    it "Correct values are queried" $ do
+    it "Correct values are queried" $
         withTestNode $ \np sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
             let np' = np &
-                    (#protocolParameters . #txParameters) `set` zeroTxParameters
+                    (#protocolParameters . #txParameters) `set` zeroTxParameters &
+                    (#protocolParameters . #decentralizationLevel) `set` halfD
             withNetworkLayer tr np' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
@@ -80,3 +82,8 @@ zeroTxParameters :: TxParameters
 zeroTxParameters = TxParameters
     (LinearFee (Quantity 0) (Quantity 0) (Quantity 0))
     (Quantity 0)
+
+-- | A value that is not the same as what's in the test data genesis.
+halfD :: DecentralizationLevel
+halfD = DecentralizationLevel p
+    where Right p = mkPercentage (1/2)
