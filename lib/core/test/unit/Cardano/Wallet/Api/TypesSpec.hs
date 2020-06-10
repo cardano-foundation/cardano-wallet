@@ -1380,7 +1380,7 @@ instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPassphrase"
 
-instance ToSchema ApiJormungandrStakePool wher hgcue
+instance ToSchema ApiJormungandrStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
 instance ToSchema ApiStakePoolMetrics where

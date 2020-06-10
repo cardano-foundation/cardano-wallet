@@ -21,8 +21,6 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( nullTracer )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.MVar
@@ -32,6 +30,7 @@ import Cardano.Pool.Jormungandr.Metadata
 import Cardano.Pool.Jormungandr.Metrics
     ( Block (..)
     , ErrListStakePools (..)
+    , StakePoolLayer (..)
     , StakePoolLog (..)
     , associateMetadata
     , combineMetrics

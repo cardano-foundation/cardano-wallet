@@ -149,7 +149,6 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
-    , ApiJormungandrStakePool (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -158,7 +157,6 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiSelectCoinsData (..)
-    , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
@@ -244,8 +242,6 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
-    , StakePool (..)
-    , StakePoolMetadata
     , SyncProgress
     , SyncTolerance
     , TransactionInfo (TransactionInfo)
@@ -1195,7 +1191,7 @@ postTransactionFee ctx (ApiT wid) body = do
         e -> throwE e
 
 joinStakePool
-    :: forall ctx s t n k e.
+    :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
         , IsOwned s k
@@ -1219,7 +1215,7 @@ joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
         ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
 
-    pools <- liftIO $ knownPools
+    pools <- liftIO knownPools
 
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
