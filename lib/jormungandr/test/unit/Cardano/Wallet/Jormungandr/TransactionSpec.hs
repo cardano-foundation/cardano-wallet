@@ -518,7 +518,7 @@ goldenTestDelegationCertTx
     -> ByteString
     -> SpecWith ()
 goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
-    let res = mkDelegationJoinTx tl pool (accountXPrv, pass) keystore (SlotId 0 0) inps outs
+    let res = mkDelegationJoinTx () tl pool (accountXPrv, pass) keystore (SlotId 0 0) inps outs
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` (Right $ unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))

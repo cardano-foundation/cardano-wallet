@@ -81,7 +81,7 @@ newTransactionLayer
 newTransactionLayer block0H = TransactionLayer
     { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
 
-    , mkDelegationJoinTx = \pool accXPrv ->
+    , mkDelegationJoinTx = \_ pool accXPrv ->
         let acc = toChimericAccount' . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)

@@ -51,6 +51,8 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -145,20 +147,25 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
 
     _mkDelegationJoinTx
-        :: PoolId
+        :: WalletDelegation
+        -> PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption")
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationJoinTx poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
+    _mkDelegationJoinTx wDeleg poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
         let accXPub    = toXPub $ getRawKey accXPrv
-        let unsigned   = mkUnsignedTx timeToLive ownedIns outs
-                [ toStakeKeyRegCert  accXPub
-                , toStakePoolDlgCert accXPub poolId
-                ]
+        let certs = case wDeleg of
+                (WalletDelegation NotDelegating []) ->
+                    [ toStakeKeyRegCert  accXPub
+                    , toStakePoolDlgCert accXPub poolId
+                    ]
+                _ ->
+                    [ toStakePoolDlgCert accXPub poolId ]
+        let unsigned   = mkUnsignedTx timeToLive ownedIns outs certs
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do

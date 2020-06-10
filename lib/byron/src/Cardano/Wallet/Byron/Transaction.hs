@@ -49,6 +49,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , WalletDelegation
     )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
@@ -190,7 +191,8 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
                 )
 
     _mkDelegationJoinTx
-        :: PoolId
+        :: WalletDelegation
+        -> PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId

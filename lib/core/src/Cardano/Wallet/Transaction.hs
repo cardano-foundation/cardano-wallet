@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , WalletDelegation
     )
 import Data.ByteString
     ( ByteString )
@@ -69,7 +70,8 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: PoolId
+        :: WalletDelegation
+        -> PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId

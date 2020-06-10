@@ -1364,13 +1364,14 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                 assignChangeAddresses argGenChange outs chgs (getState cp)
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-
+            (WalletMetadata _ _ _ wDeleg) <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
+                readWalletMeta (PrimaryKey wid)
             let rewardAcc = deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join poolId ->
-                        mkDelegationJoinTx tl poolId (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
+                        mkDelegationJoinTx tl wDeleg poolId (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
                     Quit ->
                         mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
 
