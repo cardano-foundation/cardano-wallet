@@ -93,7 +93,7 @@ import Data.Coerce
 import Data.Foldable
     ( toList )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Quantity
     ( Quantity (..), mkPercentage )
 import Data.Text
@@ -149,8 +149,12 @@ import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
+import qualified Shelley.Spec.Ledger.Credential as SL
+import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
+import qualified Shelley.Spec.Ledger.Scripts as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
+import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 data Shelley
@@ -271,7 +275,7 @@ fromShelleyBlock genesisHash epLength blk =
     let
        O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) headerHash = blk
        SL.TxSeq txs' = txSeq
-       txs = map fromShelleyTx $ toList txs'
+       (txs, certs) = unzip $ map fromShelleyTx $ toList txs'
 
     in W.Block
         { header = W.BlockHeader
@@ -286,7 +290,7 @@ fromShelleyBlock genesisHash epLength blk =
                     SL.bheaderPrev header
             }
         , transactions = txs
-        , delegations  = []
+        , delegations  = mconcat certs
         }
 
 fromShelleyHash :: ShelleyHash c -> W.Hash "BlockHeader"
@@ -516,17 +520,51 @@ fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
     unsafeCast = fromIntegral
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
-fromShelleyTx :: SL.Tx TPraosStandardCrypto -> W.Tx
-fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs _ _ _ _ _ _) _ _ _) = W.Tx
-    (fromShelleyTxId $ SL.txid bod)
-    (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
-    (map fromShelleyTxOut (toList outs))
+fromShelleyTx :: SL.Tx TPraosStandardCrypto -> (W.Tx, [W.DelegationCertificate])
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _ _) =
+    ( W.Tx
+        (fromShelleyTxId $ SL.txid bod)
+        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
+        (map fromShelleyTxOut (toList outs))
+    , mapMaybe fromShelleyCert (toList certs)
+    )
+
+-- Convert & filter Shelley certificate into delegation certificate. Returns
+-- 'Nothing' if certificates aren't delegation certificate.
+fromShelleyCert :: SL.DCert TPraosStandardCrypto -> Maybe W.DelegationCertificate
+fromShelleyCert = \case
+    SL.DCertDeleg (SL.Delegate delegation)  ->
+        Just $ W.CertDelegateFull
+            (fromStakeCredential (SL._delegator delegation))
+            (fromPoolKeyHash (SL._delegatee delegation))
+
+    SL.DCertDeleg (SL.DeRegKey credentials) ->
+        Just $ W.CertDelegateNone (fromStakeCredential credentials)
+
+    SL.DCertDeleg SL.RegKey{} -> Nothing
+    SL.DCertPool{}            -> Nothing
+    SL.DCertGenesis{}         -> Nothing
+    SL.DCertMir{}             -> Nothing
+
+-- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
+-- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH
+-- of a public key.
+fromStakeCredential :: SL.StakeCredential TPraosStandardCrypto -> W.ChimericAccount
+fromStakeCredential = \case
+    SL.ScriptHashObj (SL.ScriptHash h) ->
+        W.ChimericAccount (getHash h)
+    SL.KeyHashObj (SL.KeyHash h) ->
+        W.ChimericAccount (getHash h)
+
+fromPoolKeyHash :: SL.KeyHash 'SL.StakePool TPraosStandardCrypto -> W.PoolId
+fromPoolKeyHash (SL.KeyHash h) =
+    W.PoolId (getHash h)
 
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
 toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
 toSealed tx =
     let
-        wtx = fromShelleyTx tx
+        (wtx, _) = fromShelleyTx tx
         sealed = W.SealedTx $ serialize' $ O.mkShelleyTx tx
     in (wtx, sealed)
 
