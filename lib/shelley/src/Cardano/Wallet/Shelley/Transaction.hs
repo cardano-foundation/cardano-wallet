@@ -86,6 +86,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Stack
     ( HasCallStack )
+import Ouroboros.Network.Block
+    ( SlotNo )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Hash.Class as Hash
@@ -128,14 +130,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
     _mkStdTx keyFrom slot ownedIns outs = do
-        -- TODO: The SlotId-SlotNo conversion based on epoch length would not
-        -- work if the epoch length changed in a hard fork.
-
-        -- NOTE: The (+7200) was selected arbitrarily when we were trying to get
-        -- this working on the FF testnet. Perhaps a better motivated and/or
-        -- configurable value would be better.
-        let timeToLive = (toSlotNo epochLength slot) + 7200
-
+        let timeToLive = defaultTTL epochLength slot
         let unsigned = mkUnsignedTx timeToLive ownedIns outs []
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
@@ -156,7 +151,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
-        let timeToLive = (toSlotNo epochLength slot) + 7200
+        let timeToLive = defaultTTL epochLength slot
 
         let toStakingKeyHash
                 :: (k 'AddressK XPrv)
@@ -271,6 +266,16 @@ mkUnsignedTx ttl ownedIns outs certs =
             Nothing -- Update
     in
         unsigned
+
+-- TODO: The SlotId-SlotNo conversion based on epoch length would not
+-- work if the epoch length changed in a hard fork.
+
+-- NOTE: The (+7200) was selected arbitrarily when we were trying to get
+-- this working on the FF testnet. Perhaps a better motivated and/or
+-- configurable value would be better.
+defaultTTL :: EpochLength -> SlotId -> SlotNo
+defaultTTL epochLength slot =
+    (toSlotNo epochLength slot) + 7200
 
 realFee :: [TxOut] -> [TxOut] -> Cardano.Lovelace
 realFee inps outs = toCardanoLovelace $ Coin
