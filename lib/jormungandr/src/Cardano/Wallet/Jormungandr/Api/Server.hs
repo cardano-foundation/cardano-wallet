@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -23,7 +24,7 @@ module Cardano.Wallet.Jormungandr.Api.Server
 import Prelude
 
 import Cardano.Pool.Jormungandr.Metrics
-    ( ErrListStakePools (..), StakePoolLayer (..), listPools )
+    ( ErrListStakePools (..), StakePoolLayer (..) )
 import Cardano.Wallet
     ( ErrValidateSelection
     , genesisData
@@ -85,7 +86,9 @@ import Cardano.Wallet.Api.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiErrorCode (..)
-    , ApiJormungandrStakePool
+    , ApiJormungandrStakePool (..)
+    , ApiStakePoolMetrics (..)
+    , ApiT (..)
     , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -100,12 +103,16 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Types
+    ( StakePool (..), StakePoolMetadata )
 import Control.Applicative
     ( liftA2 )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.List
     ( sortOn )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Fmt
@@ -113,7 +120,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), (:>), Server, err501, err503, throwError )
+    ( (:<|>) (..), (:>), Handler, Server, err501, err503, throwError )
 
 type ApiV2 n = "v2" :> Api n
 
@@ -281,6 +288,35 @@ server byron icarus jormungandr spl ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction jormungandr
+
+
+--------------------------------------------------------------------------------
+-- List stake pools API handler
+--------------------------------------------------------------------------------
+
+listPools
+    :: LiftHandler e
+    => StakePoolLayer e IO
+    -> Handler [ApiJormungandrStakePool]
+listPools spl =
+    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
+  where
+    mkApiJormungandrStakePool
+        :: StakePool
+        -> Maybe StakePoolMetadata
+        -> ApiJormungandrStakePool
+    mkApiJormungandrStakePool sp meta =
+        ApiJormungandrStakePool
+            (ApiT $ view #poolId sp)
+            (ApiStakePoolMetrics
+                (Quantity $ fromIntegral $ getQuantity $ stake sp)
+                (Quantity $ fromIntegral $ getQuantity $ production sp))
+            (sp ^. #performance)
+            (ApiT <$> meta)
+            (fromIntegral <$> sp ^. #cost)
+            (Quantity $ sp ^. #margin)
+            (sp ^. #desirability)
+            (sp ^. #saturation)
 
 instance LiftHandler ErrListStakePools where
      handler = \case
