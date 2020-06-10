@@ -40,6 +40,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
@@ -47,6 +49,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
+    , WithDelegation (..)
     )
 import Control.Arrow
     ( first, second )
@@ -100,11 +103,7 @@ newTransactionLayer block0H = TransactionLayer
                 Transaction tx -> return (tx, SealedTx payload)
                 _ -> Left errInvalidPayload
 
-    -- NOTE
-    -- Jörmungandr fee calculation is a linear function where the coefficient
-    -- is multiplied by the total number of inputs and outputs.
-    , estimateSize = \(CoinSelection inps outs chgs) ->
-        Quantity $ length inps + length outs + length chgs
+    , minimumFee = _minimumFee
 
     , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
@@ -132,6 +131,21 @@ newTransactionLayer block0H = TransactionLayer
                 }
             , finalizeFragment fragment
             )
+
+    -- NOTE
+    -- Jörmungandr fee calculation is a linear function where the coefficient
+    -- is multiplied by the total number of inputs and outputs.
+    _minimumFee
+        :: FeePolicy
+        -> WithDelegation
+        -> CoinSelection
+        -> Fee
+    _minimumFee policy (WithDelegation withCert) (CoinSelection inps outs chgs) =
+        Fee $ ceiling (a + b*fromIntegral ios + c*certs)
+      where
+        LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
+        certs = if withCert then 1 else 0
+        ios   = length inps + length outs + length chgs
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

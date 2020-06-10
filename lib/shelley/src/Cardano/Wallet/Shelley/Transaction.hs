@@ -8,7 +8,6 @@
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -21,7 +20,7 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
-    , _estimateSize
+    , _minimumFee
     ) where
 
 import Prelude
@@ -38,6 +37,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), Passphrase, WalletKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -63,7 +64,11 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), ErrValidateSelection, TransactionLayer (..) )
+    ( ErrMkTx (..)
+    , ErrValidateSelection
+    , TransactionLayer (..)
+    , WithDelegation (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
 import Control.Monad
@@ -114,7 +119,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = notImplemented "mkDelegationQuitTx"
     , decodeSignedTx = notImplemented "decodeSignedTx"
-    , estimateSize = _estimateSize
+    , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
@@ -178,18 +183,27 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- FIXME Implement.
         100
 
-_estimateSize
-    :: CoinSelection
-    -> Quantity "byte" Int
-_estimateSize (CoinSelection inps outs chngs) =
-    Quantity $ fromIntegral $ SL.txsize $
+_minimumFee
+    :: FeePolicy
+    -> WithDelegation
+    -> CoinSelection
+    -> Fee
+_minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
+    computeFee $ SL.txsize $
         SL.Tx unsigned addrWits scriptWits metadata
   where
+    computeFee :: Integer -> Fee
+    computeFee size =
+        Fee $ ceiling (a + b*fromIntegral size)
+      where
+        LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
+
     scriptWits = mempty
 
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound inps outs' [dummyRegisterCert, dummyDelegateCert]
+    unsigned = mkUnsignedTx maxBound inps outs'
+        $ if withDelegation then [dummyRegisterCert, dummyDelegateCert] else []
       where
         outs' :: [TxOut]
         outs' = outs <> (dummyOutput <$> chngs)

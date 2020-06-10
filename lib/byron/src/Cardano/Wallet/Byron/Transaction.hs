@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -53,6 +55,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
+    , WithDelegation (..)
     )
 import Control.Arrow
     ( second )
@@ -104,7 +107,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , estimateSize = _estimateSize
+    , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
     , validateSelection = _validateSelection
     , allowUnbalancedTx = True
@@ -132,14 +135,19 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
         lookupPrivateKey addr =
             maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
 
-    _estimateSize
-        :: CoinSelection
-        -> Quantity "byte" Int
-    _estimateSize (CoinSelection inps outs chngs) =
-        Quantity $ sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
+    _minimumFee
+        :: FeePolicy
+        -> WithDelegation
+        -> CoinSelection
+        -> Fee
+    _minimumFee policy _ (CoinSelection inps outs chngs) =
+        computeFee $ sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
       where
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut (dummyAddress @n)
+
+        LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
+        computeFee size = Fee $ ceiling (a + b*fromIntegral size)
 
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16

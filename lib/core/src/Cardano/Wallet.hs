@@ -231,12 +231,9 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
-    , Fee (..)
     , FeeOptions (..)
     , OnDanglingChange (..)
     , adjustForFee
-    , computeCertFee
-    , computeFee
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -301,6 +298,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
+    , WithDelegation (..)
     )
 import Control.Exception
     ( Exception )
@@ -1017,11 +1015,11 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 
 feeOpts
     :: TransactionLayer t k
-    -> ( FeePolicy -> Quantity "byte" Int -> Fee )
+    -> WithDelegation
     -> FeePolicy
     -> FeeOptions
-feeOpts tl feeCompute feePolicy = FeeOptions
-    { estimateFee = feeCompute feePolicy . estimateSize tl
+feeOpts tl withDelegation feePolicy = FeeOptions
+    { estimateFee = minimumFee tl feePolicy withDelegation
     , dustThreshold = minBound
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     }
@@ -1076,7 +1074,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl computeFee (txp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl (WithDelegation False) (txp ^. #getFeePolicy)
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1112,7 +1110,7 @@ selectCoinsForDelegationFromUTxO
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp = do
     let sel = CoinSelection [] [] []
-    let feePolicy = feeOpts tl (computeCertFee 1) (txp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl (WithDelegation True) (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
@@ -1170,7 +1168,7 @@ selectCoinsForMigrationFromUTxO
     -> ExceptT ErrSelectForMigration IO [CoinSelection]
 selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl computeFee feePolicy)
+    let feeOptions = (feeOpts tl (WithDelegation False) feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
     case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of

@@ -34,7 +34,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Fee
-    ( Fee (..), computeFee )
+    ( Fee (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -60,7 +60,9 @@ import Cardano.Wallet.Shelley.Faucet
 import Cardano.Wallet.Shelley.Launch
     ( withCluster )
 import Cardano.Wallet.Shelley.Transaction
-    ( _estimateSize )
+    ( _minimumFee )
+import Cardano.Wallet.Transaction
+    ( WithDelegation (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -214,7 +216,21 @@ specWithServer tr = aroundAll withContext . after tearDown
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
-    PaymentDescription nInps nOuts nChgs ->
+    PaymentDescription i o c ->
+        let
+            fee = computeFee (dummySelection i o c) (WithDelegation False)
+        in
+            ( fee, fee )
+
+    DelegDescription i o _ ->
+        let
+            fee = computeFee (dummySelection i o 0) (WithDelegation True)
+        in
+            ( fee, fee )
+  where
+    genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)
+
+    dummySelection nInps nOuts nChgs =
         let
             inps = take nInps
                 [ ( TxIn (genTxId ix) ix
@@ -225,14 +241,8 @@ mkFeeEstimator policy = \case
 
             outs =
                 replicate (nOuts + nChgs) (Coin minBound)
-
-            size = _estimateSize $ CoinSelection inps [] outs
-
-            fee = fromIntegral $ getFee $ computeFee policy size
         in
-            ( fee, fee )
+            CoinSelection inps [] outs
 
-    DelegDescription{} ->
-        error "mkFeeEstimator: can't estimate fee for certificate in Byron!"
-  where
-    genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)
+    computeFee selection dlg =
+        fromIntegral $ getFee $ _minimumFee policy dlg selection

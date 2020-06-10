@@ -62,7 +62,6 @@ import Cardano.Wallet.Primitive.Fee
     , FeePolicy (..)
     , OnDanglingChange (..)
     , adjustForFee
-    , computeFee
     , rebalanceChangeOutputs
     )
 import Cardano.Wallet.Primitive.Types
@@ -78,7 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , testnetMagic
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
+    ( TransactionLayer (..), WithDelegation (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
@@ -135,7 +134,7 @@ spec = do
     describe "Coin Selection w/ Byron" $ do
         it "REG #1561 - Correct balancing of amounts close to the limit" $ do
             let opts = FeeOptions
-                    { estimateFee = computeFee feePolicy . estimateSize tlayer
+                    { estimateFee = minimumFee tlayer feePolicy (WithDelegation False)
                     , dustThreshold = minBound
                     , onDanglingChange = SaveMoney
                     }
@@ -306,7 +305,7 @@ prop_rebalanceChangeOutputs sel onDangling = do
   where
     delta s = inputBalance s - (outputBalance s + changeBalance s)
     opts = FeeOptions
-        { estimateFee = computeFee feePolicy . estimateSize tlayer
+        { estimateFee = minimumFee tlayer feePolicy (WithDelegation False)
         , dustThreshold = minBound
         , onDanglingChange = onDangling
         }
@@ -356,6 +355,15 @@ propSizeEstimation pm genSel genChngAddrs =
                 , "estimated size:  " <> show (getQuantity calcSize)
                 ])
   where
+    estimateSize :: TransactionLayer t k -> CoinSelection -> Quantity "bytes" Int
+    estimateSize tl sel =
+        let
+            Fee fee = minimumFee tl idPolicy (WithDelegation False) sel
+        in
+            Quantity $ fromIntegral fee
+      where
+        idPolicy = LinearFee (Quantity 0) (Quantity 1) (Quantity 0)
+
     fromCoinSelection :: CoinSelection -> [Address] -> CBOR.Encoding
     fromCoinSelection (CoinSelection inps outs chngs) chngAddrs =
         CBOR.encodeSignedTx (fst <$> inps, outs <> outs') wits

@@ -631,8 +631,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: mkDelegationJoinTx not implemented"
     , mkDelegationQuitTx =
         error "dummyTransactionLayer: mkDelegationQuitTx not implemented"
-    , estimateSize =
-        error "dummyTransactionLayer: estimateSize not implemented"
+    , minimumFee =
+        error "dummyTransactionLayer: minimumFee not implemented"
     , estimateMaxNumberOfInputs =
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
     , validateSelection =
