@@ -106,13 +106,15 @@ import Cardano.Wallet.Shelley.Api.Server
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, ShelleyBlock, fromNetworkMagic, fromShelleyBlock )
 import Cardano.Wallet.Shelley.Network
-    ( NetworkLayerLog, withNetworkLayer )
+    ( NetworkLayerLog, StakePoolMetrics, withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
+import Control.Concurrent.MVar
+    ( MVar )
 import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
@@ -219,7 +221,7 @@ serveWallet
         Right (_, socket) -> serveApp socket
   where
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer np socketPath vData $ \nl -> do
+        withNetworkLayer networkTracer np socketPath vData $ \(nl, poolsVar) -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 let el = getEpochLength $ genesisParameters np
@@ -232,7 +234,7 @@ serveWallet
                     randomApi
                     icarusApi
                     shelleyApi
-                    nl
+                    poolsVar
                     ntpClient
                 pure ExitSuccess
 
@@ -244,7 +246,7 @@ serveWallet
         networkDiscriminantVal @n
 
     startServer
-        :: forall n b.
+        :: forall n.
             ( PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
             , DelegationAddress n ShelleyKey
@@ -256,15 +258,15 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        -> NetworkLayer IO (IO Shelley) b
+        -> MVar [StakePoolMetrics]
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley nl ntp = do
+    startServer _proxy socket byron icarus shelley poolsVar ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n)) $
-                server byron icarus shelley nl ntp
+                server byron icarus shelley poolsVar ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer

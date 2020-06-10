@@ -83,8 +83,6 @@ import Cardano.Wallet.Api.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiT (..), SomeByronWalletPostData (..) )
-import Cardano.Wallet.Network
-    ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), NetworkDiscriminant, PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -97,10 +95,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Shelley.Network
+    ( StakePoolMetrics (..) )
 import Cardano.Wallet.Shelley.Pools
     ( ApiStakePool, listPools )
 import Control.Applicative
     ( liftA2 )
+import Control.Concurrent.MVar
+    ( MVar )
 import Control.Monad.Trans.Except
     ( throwE )
 import Data.Coerce
@@ -136,7 +138,7 @@ type Api (n :: NetworkDiscriminant ) =
     :<|> Proxy_
 
 server
-    :: forall t n b.
+    :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
@@ -145,10 +147,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> NetworkLayer IO t b
+    -> MVar [StakePoolMetrics]
     -> NtpClient
     -> Server (Api n)
-server byron icarus shelley nw ntp =
+server byron icarus shelley poolVar ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -192,7 +194,7 @@ server byron icarus shelley nw ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             listPools nw
+             listPools poolVar
         :<|> (\_ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ -> throwError err501)

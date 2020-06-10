@@ -18,12 +18,14 @@ import Cardano.Wallet.Api.Server
     ( LiftHandler (..), apiError )
 import Cardano.Wallet.Api.Types
     ( ApiErrorCode (NotSynced), ApiT (..), defaultRecordTypeOptions )
-import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId )
-import Control.Monad.Trans.Except
-    ( withExceptT )
+import Cardano.Wallet.Shelley.Network
+    ( StakePoolMetrics (..) )
+import Control.Concurrent.MVar
+    ( MVar, takeMVar )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import Data.Quantity
@@ -32,8 +34,6 @@ import GHC.Generics
     ( Generic )
 import Servant
     ( Handler, err503 )
-
-import qualified Data.Map as Map
 
 --
 -- Api Types
@@ -52,6 +52,7 @@ instance LiftHandler ErrListStakePools where
 data ApiStakePool = ApiStakePool
     { _id :: !(ApiT PoolId)
     , _stake :: Double
+    , _nonMyopicMemberRewards :: Int
     } deriving (Eq, Show, Generic)
 
 -- TODO: Add fields:
@@ -69,16 +70,13 @@ instance ToJSON ApiStakePool where
 --
 
 listPools
-    :: NetworkLayer IO t b
+    :: MVar [StakePoolMetrics]
     -> Handler [ApiStakePool]
-listPools nw = liftHandler $ do
-        let dummyEpoch = error "todo: epoch not actually needed"
-        distr <- withExceptT (const ErrNoStakeDistribution) $
-            stakeDistribution nw dummyEpoch
-        return $ map mkApiPool $ Map.toList distr
+listPools var = do
+        liftIO $ map mkApiPool <$> takeMVar var
   where
-    mkApiPool (pid, pstake) = ApiStakePool
+    mkApiPool (StakePoolMetrics pid s r) = ApiStakePool
         { _id = ApiT pid
-        -- FIXME: Hack to workaround type signature of network layer.
-        , _stake = fromIntegral (getQuantity pstake) / 1000000
+        , _stake = fromIntegral $ getQuantity s
+        , _nonMyopicMemberRewards = fromIntegral $ getQuantity r
         }

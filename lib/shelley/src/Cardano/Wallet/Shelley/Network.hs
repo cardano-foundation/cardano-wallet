@@ -28,10 +28,11 @@ module Cardano.Wallet.Shelley.Network
 
       -- * Logging
     , NetworkLayerLog
+      -- * Stake pools (to be moved)
+    , StakePoolMetrics (..)
     ) where
 
 import Prelude
-
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
@@ -53,6 +54,8 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Concurrent.Async
     ( async, link )
+import Control.Concurrent.MVar
+    ( MVar, newEmptyMVar, putMVar )
 import Control.Exception
     ( IOException )
 import Control.Monad
@@ -82,7 +85,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( ExceptT (..), runExceptT, throwE )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -97,6 +100,8 @@ import Data.List
     ( isInfixOf )
 import Data.Map
     ( Map )
+import Data.Map.Merge.Strict
+    ( dropMissing, zipWithMatched )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -183,7 +188,9 @@ import System.IO.Error
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
-import qualified Data.Map as Map
+import qualified Data.Map.Merge.Strict as Map
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
@@ -198,6 +205,12 @@ data instance Cursor (m Shelley) = Cursor
     (Point ShelleyBlock)
     (TQueue m (ChainSyncCmd ShelleyBlock m))
 
+data StakePoolMetrics = StakePoolMetrics
+    { poolId :: !W.PoolId
+    , stake :: !(Quantity "lovelace" Word64)
+    , nonMyopicMemberRewards :: !(Quantity "lovelace" Word64)
+    }
+
 -- | Create an instance of the network layer
 withNetworkLayer
     :: Tracer IO NetworkLayerLog
@@ -209,7 +222,9 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO Shelley) ShelleyBlock -> IO a)
+    -> ( (NetworkLayer IO (IO Shelley) ShelleyBlock
+         , MVar [StakePoolMetrics]
+         ) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo versionData action = do
@@ -222,27 +237,27 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-    stakeDistrVar <- atomically $ newTVar Nothing
+    poolMetrics <- newEmptyMVar
     nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
         (atomically . writeTVar protocolParamsVar)
-        (atomically . writeTVar stakeDistrVar . Just)
+        poolMetrics
     let handlers = retryOnConnectionLost tr
     link =<< async
         (connectClient tr handlers nodeTipClient versionData addrInfo)
 
-    action
-        NetworkLayer
+    let nl = NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
-            , stakeDistribution = _stakeDistribution stakeDistrVar
+            , stakeDistribution = error "not implemented"
             , getAccountBalance = _getAccountBalance
             }
+    action (nl, poolMetrics)
   where
     gp@W.GenesisParameters
         { getGenesisBlockHash
@@ -305,18 +320,35 @@ withNetworkLayer tr np addrInfo versionData action = do
                 -- actually mean something...
                 error "todo: handle error. Wallet hasn't queried the node yet."
 
-    fromPoolDistr
-        :: SL.PoolDistr TPraosStandardCrypto
-        -> Map W.PoolId (Quantity "lovelace" Word64)
-    fromPoolDistr =
-        -- NOTE: We have to round here...
-        Map.map (Quantity . round . (* totalStake) . fst)
-        . Map.mapKeys fromPoolId
-        . SL.unPoolDistr
-      where
-        -- TODO: How can we get the total stake?
-        -- Multiplying by 1e6 for now.
-        totalStake = 1000000
+fromPoolDistr
+    :: SL.PoolDistr TPraosStandardCrypto
+    -> Map W.PoolId (Quantity "lovelace" Word64)
+fromPoolDistr =
+    -- NOTE: We have to round here...
+    Map.map (Quantity . round . (* totalStake) . fst)
+    . Map.mapKeys fromPoolId
+    . SL.unPoolDistr
+  where
+    -- TODO: How can we get the total stake?
+    -- Multiplying by 1e6 for now.
+    totalStake = 1000000
+
+fromRewards
+    :: OC.NonMyopicMemberRewards TPraosStandardCrypto
+    -> Map W.PoolId (Quantity "lovelace" Word64)
+fromRewards (OC.NonMyopicMemberRewards r) = head $ Map.toList r
+	-- TODO: Fix
+
+combine
+    :: Map W.PoolId (Quantity "lovelace" Word64)
+    -> Map W.PoolId (Quantity "lovelace" Word64)
+    -> [StakePoolMetrics]
+combine stakeMap rewMap = map snd $ Map.toList $
+    Map.merge stakeButNoRew rewardsButNoStake bothPresent stakeMap rewMap
+  where
+    stakeButNoRew     = dropMissing -- Or set rewards to 0?
+    rewardsButNoStake = dropMissing
+    bothPresent       = zipWithMatched  $ \k s r -> StakePoolMetrics k s r
 
 --------------------------------------------------------------------------------
 --
@@ -389,7 +421,7 @@ serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
 mkTipSyncClient
-    :: forall m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m)
+    :: forall m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m, m ~ IO)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
@@ -404,10 +436,10 @@ mkTipSyncClient
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
-    -> (SL.PoolDistr TPraosStandardCrypto -> m ())
-        -- ^ Notifier callback for when the stake distribution changes.
+    -> MVar [StakePoolMetrics]
+        -- ^ A place to store stake pool metrics
     -> m (NetworkClient m)
-mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onStakeDistr = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate poolsVar = do
     localStateQueryQ <- atomically newTQueue
 
     (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
@@ -424,8 +456,19 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onStakeDist
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
-            distr <- localStateQueryQ `send` CmdQueryLocalState pt OC.GetStakeDistribution
-            handleStakeDistr distr
+
+            res <- runExceptT $ do
+                (,) <$> ExceptT (localStateQueryQ `send` CmdQueryLocalState pt OC.GetStakeDistribution)
+                    <*> ExceptT (localStateQueryQ `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards Set.empty))
+
+            case res of
+                Right (stake, rew) ->
+                    let
+                        stakeMap = fromPoolDistr stake
+                        rewardMap = fromRewards rew
+                    in putMVar poolsVar $ combine stakeMap rewardMap
+                Left _ -> return ()
+            return ()
 
         handleLocalState
             :: HasCallStack
@@ -436,12 +479,6 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onStakeDist
                 traceWith tr $ MsgLocalStateQueryError $ show e
             Right ls ->
                 onPParamsUpdate' $ fromPParams ls
-
-        handleStakeDistr = \case
-            Left (e :: AcquireFailure) ->
-                traceWith tr $ MsgLocalStateQueryError $ show e
-            Right ls -> do
-                onStakeDistr ls
 
         W.GenesisParameters
              { getGenesisBlockHash
