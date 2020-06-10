@@ -106,7 +106,43 @@ spec = do
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
+    it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> do
+        w <- fixtureWallet ctx
+        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        -- join another stake pool
+        joinStakePool @n ctx (ApiT poolIdMock') (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
   where
-    --(Right poolID) = fromHex @ByteString "b59ad95cbbe425071364030fd195fa2ec97fa1382ec041d9bb75a64e896ade4b"
     (Right poolID) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
     poolIdMock = PoolId poolID
+    (Right poolID') = fromHex @ByteString "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+    poolIdMock' = PoolId poolID'

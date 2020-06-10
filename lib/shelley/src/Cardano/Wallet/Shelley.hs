@@ -235,13 +235,13 @@ serveWallet
                 startServer proxy socket randomApi icarusApi shelleyApi mockStakePoolLayer ntpClient
                 pure ExitSuccess
 
-    --(Right poolID) = fromHex @ByteString "b59ad95cbbe425071364030fd195fa2ec97fa1382ec041d9bb75a64e896ade4b"
-    (Right poolID) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+    (Right poolID1) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+    (Right poolID2) = fromHex @ByteString "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
 
     mockStakePoolLayer :: StakePoolLayer () IO
     mockStakePoolLayer = StakePoolLayer
         { listStakePools = pure []
-        , knownStakePools = pure [PoolId poolID]
+        , knownStakePools = pure [PoolId poolID1, PoolId poolID2]
         }
 
     networkDiscriminantValFromProxy
