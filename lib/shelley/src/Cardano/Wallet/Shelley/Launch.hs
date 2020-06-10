@@ -95,7 +95,7 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile )
+    ( copyFile, doesPathExist )
 import System.Environment
     ( setEnv )
 import System.Exit
@@ -217,8 +217,7 @@ withCluster
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
     withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
-        setEnv "CARDANO_NODE_SOCKET_PATH" socket
-
+        timeout 30 ("socket is created", eventually $ doesPathExist socket)
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = replicateM  n (readChan waitGroup)
@@ -228,7 +227,8 @@ withCluster tr severity n action = do
             onException = writeChan waitGroup . Left
 
         forM_ (tail $ rotate ports) $ \(port, peers) -> do
-            link =<< async (handle onException $
+            link =<< async (handle onException $ do
+                setEnv "CARDANO_NODE_SOCKET_PATH" socket
                 withStakePool tr severity (port, peers) $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
@@ -695,6 +695,14 @@ timeout t (title, action) = do
     race (threadDelay $ t * 1000000) action >>= \case
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
+
+-- | Wait until some action returns true
+eventually :: IO Bool -> IO ()
+eventually action = do
+    action >>= \case
+        True  -> pure ()
+        False -> threadDelay 100000 *> eventually action
+
 
 -- | A little disclaimer shown in the logs when setting up the cluster.
 cartouche :: Text
