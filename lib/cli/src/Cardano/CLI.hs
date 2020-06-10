@@ -414,7 +414,7 @@ dev = putStrLn cliDocs
 cliDocs :: String
 cliDocs =
     let
-        render = renderSmart 1.0 80
+        render = renderSmart 1.0 300
         c = cli (cmdWallet cmdByronWalletCreate undefined <> cmdKey <> cmdMnemonic <> cmdNetwork undefined)
 
         summary = commandF $ toDCommand "" "" mempty c
@@ -477,7 +477,11 @@ cliDocs =
             mdHeader y = text $ (replicate (depth + 2) '#') <> " " <> y
 
     commandF :: Tree (String, Doc, Doc) -> Doc
-    commandF = extractChunk . tabulate . foldMap (return . go) . markDepth
+    commandF = extractChunk
+        . tabulate
+        . foldMap (return . go)
+        . recordFullPath
+        . markDepth
       where
         -- Example output from go:
         -- [ ("wallet", "Manage wallets.")
@@ -489,9 +493,18 @@ cliDocs =
         --   list                  List all known wallets.
         --
         -- I.e. the first column contains indentation, but not the second one.
-        go :: (Int, (String, Doc, Doc)) -> (Doc, Doc)
-        go (depth, (n', d, _)) =
-              (text (replicate depth ' ' ++ n'), d)
+        go :: (Int, [String], (String, Doc, Doc)) -> (Doc, Doc)
+        go (depth, fp, (n', d, _)) =
+              (text (replicate depth ' ' ++ link), d)
+          where
+            anchor = intercalate "-" fp
+            link = mconcat
+                [ "<a href=\"#"
+                , drop 1 anchor
+                , "\">"
+                , n'
+                , "</a>"
+                ]
 
 
         -- TODO: Add links
