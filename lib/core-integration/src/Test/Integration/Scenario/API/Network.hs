@@ -14,10 +14,8 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiNetworkClock
     , ApiNetworkInformation
-    , ApiNetworkParameters (..)
     , NtpSyncingStatus (..)
     , WalletStyle (..)
-    , toApiNetworkParameters
     )
 import Cardano.Wallet.Primitive.Types
     ( SyncProgress (..) )
@@ -25,10 +23,6 @@ import Control.Monad
     ( when )
 import Control.Monad.IO.Class
     ( liftIO )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Quantity
-    ( Quantity (..), mkPercentage )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
@@ -96,17 +90,6 @@ spec = do
                     , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
-
-    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
-        let endpoint = ( "GET", "v2/network/parameters" )
-        r <- request @ApiNetworkParameters ctx endpoint Default Empty
-        expectResponseCode @IO HTTP.status200 r
-        let networkParams = getFromResponse id r
-        networkParams `shouldBe`
-            toApiNetworkParameters (ctx ^. #_networkParameters)
-        let Right d = Quantity <$> mkPercentage .75 -- d is set to 0.25 in genesis
-        verify r
-            [ expectField (#decentralizationLevel) (`shouldBe` d) ]
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
         sandboxed <- inNixBuild
