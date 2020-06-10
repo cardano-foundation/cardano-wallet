@@ -47,11 +47,13 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
+    ( Block (..), NetworkParameters (..), PoolId (..), ProtocolMagic (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, fromGenesisData, testnetVersionData )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -414,15 +416,18 @@ genTopology dir peers = do
 -- issue counter
 genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath)
 genOperatorKeyPair dir = do
+    (_poolId, pub, prv, count) <- takeMVar operators >>= \case
+        [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
+        (op:q) -> putMVar operators q $> op
+
     let opPub = dir </> "op.pub"
     let opPrv = dir </> "op.prv"
     let opCount = dir </> "op.count"
-    void $ cli
-        [ "shelley", "node", "key-gen"
-        , "--verification-key-file", opPub
-        , "--signing-key-file", opPrv
-        , "--operational-certificate-issue-counter", opCount
-        ]
+
+    writeFile opPub pub
+    writeFile opPrv prv
+    writeFile opCount count
+
     pure (opPrv, opPub, opCount)
 
 -- | Create a key pair for a node KES operational key
@@ -609,16 +614,14 @@ waitUntilRegistered opPub = do
         [ "shelley", "stake-pool", "id"
         , "--verification-key-file", opPub
         ]
-    (exitCode, distribution, err) <- readProcessWithExitCode
-        "cardano-cli"
+    (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "shelley", "query", "stake-distribution"
         , "--mainnet"
-        ]
-        mempty
+        ] mempty
     when (exitCode /= ExitSuccess) $
         B8.putStrLn $ B8.pack $
             "query of stake-distribution " ++ show exitCode ++ "\n" ++ err
-
+    B8.putStrLn $ B8.pack distribution
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
         waitUntilRegistered opPub
@@ -681,6 +684,75 @@ faucets = unsafePerformIO $ newMVar
       )
     ]
 {-# NOINLINE faucets #-}
+
+operators :: MVar [(PoolId, String, String, String)]
+operators = unsafePerformIO $ newMVar
+    [ ( PoolId $ unsafeFromHex
+          "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    , ( PoolId $ unsafeFromHex
+          "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    , ( PoolId $ unsafeFromHex
+          "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    ]
+{-# NOINLINE operators #-}
+
 
 -- | Pledge amount used for each pool.
 pledgeAmt :: Integer
