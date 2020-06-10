@@ -35,7 +35,7 @@
         "hspec-discover" = (((hackage.hspec-discover)."2.7.0").revisions).default;
         "io-streams" = (((hackage.io-streams)."1.5.1.0").revisions).default;
         "io-streams-haproxy" = (((hackage.io-streams-haproxy)."1.0.1.0").revisions).default;
-        "katip" = (((hackage.katip)."0.8.3.0").revisions).default;
+        "katip" = (((hackage.katip)."0.8.4.0").revisions).default;
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
         "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
