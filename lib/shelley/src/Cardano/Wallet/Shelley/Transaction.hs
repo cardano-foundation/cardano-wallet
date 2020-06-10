@@ -59,6 +59,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toSealed
     , toSlotNo
+    , toStakeKeyRegCert
+    , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), ErrValidateSelection, TransactionLayer (..) )
@@ -68,10 +70,6 @@ import Control.Monad
     ( forM )
 import Crypto.Error
     ( throwCryptoError )
-import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -93,7 +91,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Set as Set
@@ -152,50 +149,23 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
-
-        let toStakingKeyHash
-                :: (k 'AddressK XPrv)
-                -> Cardano.ShelleyVerificationKeyHashStaking
-            toStakingKeyHash key =
-                SL.KeyHash .
-                Hash.UnsafeHash .
-                blake2b256 .
-                xpubPublicKey .
-                toXPub $
-                getRawKey key
-
-        let toPoolIdHash
-                :: PoolId
-                -> Cardano.ShelleyVerificationKeyHashStakePool
-            toPoolIdHash (PoolId pId) =
-                SL.KeyHash $ Hash.UnsafeHash pId
-                {--SL.KeyHash .
-                hashVerKeyDSIGN .
-                VerKeyEd25519DSIGN .
-                throwCryptoError $
-                Ed25519.publicKey pId
-                --}
-        let registerCert =
-                Cardano.shelleyRegisterStakingAddress
-                (toStakingKeyHash accXPrv)
-        let delegateCert =
-                Cardano.shelleyDelegateStake
-                (toStakingKeyHash accXPrv)
-                (toPoolIdHash poolId)
-        let unsigned =
-                mkUnsignedTx timeToLive ownedIns outs [registerCert, delegateCert]
+        let accXPub    = toXPub $ getRawKey accXPrv
+        let unsigned   = mkUnsignedTx timeToLive ownedIns outs
+                [ toStakeKeyRegCert  accXPub
+                , toStakePoolDlgCert accXPub poolId
+                ]
+        let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
+        let certWits =
+                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
+        let scriptWits =
+                mempty
+        let wits = Set.unions [addrWits,certWits]
 
-        witsForDlgs <-
-            fmap Set.fromList (pure [mkWitness unsigned (getRawKey accXPrv, pwd')])
-
-        let scriptWits = mempty
-        let metadata   = SL.SNothing
-
-        pure $ toSealed $ SL.Tx unsigned (Set.union addrWits witsForDlgs) scriptWits metadata
+        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
 
 
     _estimateMaxNumberOfInputs
@@ -324,6 +294,3 @@ type instance ErrValidateSelection (IO Shelley) = ErrInvalidTxOutAmount
 
 notImplemented :: HasCallStack => String -> a
 notImplemented what = error ("Not implemented: " <> what)
-
-blake2b256 :: ByteString -> ByteString
-blake2b256 = BA.convert . hash @_ @Blake2b_256

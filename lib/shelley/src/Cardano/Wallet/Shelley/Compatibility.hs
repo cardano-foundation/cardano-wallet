@@ -40,6 +40,13 @@ module Cardano.Wallet.Shelley.Compatibility
     , toGenTx
     , toPoint
     , toSlotNo
+    , toCardanoTxId
+    , toCardanoTxIn
+    , toCardanoTxOut
+    , toCardanoLovelace
+    , toSealed
+    , toStakeKeyRegCert
+    , toStakePoolDlgCert
 
     , fromBlockNo
     , fromShelleyBlock
@@ -52,22 +59,17 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromPParams
 
-    , toCardanoTxId
-    , toCardanoTxIn
-    , toCardanoTxOut
-    , toCardanoLovelace
-    , toSealed
-
       -- * Internal Conversions
     , decentralizationLevelFromPParams
 
       -- * Utilities
     , invertUnitInterval
-
     ) where
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubPublicKey )
 import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Config.Shelley.Genesis
@@ -84,6 +86,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor )
 import Control.Arrow
     ( left )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -138,6 +142,8 @@ import Ouroboros.Network.Point
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Crypto.Hash as Crypto
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
@@ -593,6 +599,17 @@ toCardanoTxOut :: W.TxOut -> Cardano.TxOut
 toCardanoTxOut (W.TxOut addr coin) =
     Cardano.TxOut (toCardanoAddress addr) (toCardanoLovelace coin)
 
+toStakeKeyRegCert :: XPub -> Cardano.Certificate
+toStakeKeyRegCert xpub =
+    Cardano.shelleyRegisterStakingAddress
+        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
+
+toStakePoolDlgCert :: XPub -> W.PoolId -> Cardano.Certificate
+toStakePoolDlgCert xpub (W.PoolId pid) =
+    Cardano.shelleyDelegateStake
+        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
+        (SL.KeyHash $ UnsafeHash pid)
+
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
@@ -642,3 +659,7 @@ instance DecodeAddress ('Testnet pm) where
 --
 invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
 invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue
+
+-- | Hash a bytestring using Blake2b_256
+blake2b256 :: ByteString -> ByteString
+blake2b256 = BA.convert . Crypto.hash @_ @Blake2b_256
