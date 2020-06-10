@@ -331,6 +331,8 @@ migrateManually tr defaultFieldValues =
         -- really be removed as soon as we have a fix for the cardano-sl:wallet
         -- currently in production.
         removeSoftRndAddresses conn
+
+        removeOldTxParametersTable conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -435,6 +437,13 @@ migrateManually tr defaultFieldValues =
         value = toText
             $ W.unActiveSlotCoefficient
             $ defaultActiveSlotCoefficient defaultFieldValues
+
+    -- | This table became @protocol_parameters@.
+    removeOldTxParametersTable :: Sqlite.Connection -> IO ()
+    removeOldTxParametersTable conn = do
+        dropTable <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
+        void $ Sqlite.stepConn conn dropTable
+        Sqlite.finalize dropTable
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
