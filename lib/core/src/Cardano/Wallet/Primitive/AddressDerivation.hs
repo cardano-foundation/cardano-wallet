@@ -337,7 +337,9 @@ toChimericAccount
     => k 'AddressK XPub
     -> ChimericAccount
 toChimericAccount =
-    ChimericAccount . BS.take 32 . xpubToBytes . getRawKey
+    ChimericAccount . blake2b256 . BS.take 32 . xpubToBytes . getRawKey
+  where
+    blake2b256 = BA.convert . hash @_ @Blake2b_256
 
 {-------------------------------------------------------------------------------
                                  Passphrases
