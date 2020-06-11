@@ -10,19 +10,21 @@ fi
 
 systemStart=$($gnu_date --iso-8601=s --date="5 seconds")
 
-yq ".systemStart=\"$systemStart\"" < genesis.yaml > tmp-genesis.json
+config_dir=lib/shelley/test/data/cardano-node-shelley
 
-cat node.config \
-  | yq -y '.GenesisFile="tmp-genesis.json"' \
-  | yq -y '.minSeverity="Info"' \
-  > tmp-node.config
+mkdir -p ${state_dir:=bft-node}
 
-cardano-node run \
-     --config tmp-node.config \
-     --topology node.topology \
-     --database-path node.db \
-     --socket-path node.socket \
-     --port 50068 \
-     --shelley-vrf-key node-vrf.skey \
-     --shelley-kes-key node-kes.skey \
-     --shelley-operational-certificate node.opcert
+yq -y '. + { GenesisFile: "genesis.json", minSeverity: "Info" }' < $config_dir/node.config > $state_dir/node.config
+
+yq ".systemStart=\"$(date --iso-8601=s --date='5 seconds')\"" < $config_dir/genesis.yaml > $state_dir/genesis.json
+
+set -x
+
+exec cardano-node run --port 40000 \
+     --config $state_dir/node.config \
+     --topology lib/byron/test/data/cardano-node-byron/node.topology \
+     --database-path $state_dir/node.db \
+     --socket-path $state_dir/node.socket \
+     --shelley-vrf-key $config_dir/node-vrf.skey \
+     --shelley-kes-key $config_dir/node-kes.skey \
+     --shelley-operational-certificate $config_dir/node.opcert
