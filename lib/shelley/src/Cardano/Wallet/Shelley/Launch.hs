@@ -68,6 +68,8 @@ import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Retry
+    ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Data.Aeson
     ( eitherDecode, toJSON, (.=) )
 import Data.Either
@@ -97,7 +99,7 @@ import Ouroboros.Network.NodeToClient
 import System.Directory
     ( copyFile, doesPathExist )
 import System.Environment
-    ( getEnv, setEnv, lookupEnv )
+    ( getEnv, lookupEnv, setEnv )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -105,7 +107,10 @@ import System.FilePath
 import System.Info
     ( os )
 import System.IO.Temp
-    ( withSystemTempDirectory, createTempDirectory, getCanonicalTemporaryDirectory )
+    ( createTempDirectory
+    , getCanonicalTemporaryDirectory
+    , withSystemTempDirectory
+    )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process
@@ -218,8 +223,7 @@ withCluster
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
     withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
-        timeout 30 ("socket is created", eventually $ doesPathExist socket)
-        setEnv "CARDANO_NODE_SOCKET_PATH" socket
+        waitForSocket socket
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = replicateM  n (readChan waitGroup)
@@ -586,6 +590,28 @@ submitTx signedTx = do
         , "--mainnet"
         ]
 
+-- | Wait for a command which depends on connecting to the given socket path to
+-- succeed.
+--
+-- It retries every second, for up to 30 seconds. An exception is thrown if
+-- it has waited for too long.
+--
+-- As a side effect, after this subroutine finishes, the environment variable
+-- @CARDANO_NODE_SOCKET_PATH@ is set.
+waitForSocket :: FilePath -> IO ()
+waitForSocket socketPath = do
+    setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
+    (st, _, err) <- retrying pol (const isSuccess) (const queryTip)
+    unless (st == ExitSuccess) $
+       throwIO $ ProcessHasExited
+           ("cluster bft node didn't start correctly: " <> err) st
+  where
+    queryTip = readProcessWithExitCode
+        "cardano-cli" ["shelley", "query", "tip", "--mainnet"]
+        mempty
+    isSuccess (st, _, _) = pure (st == ExitSuccess)
+    pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
+
 -- | Wait until a stake pool shows as registered on-chain.
 waitUntilRegistered :: FilePath -> IO ()
 waitUntilRegistered opPub = do
@@ -723,14 +749,6 @@ timeout t (title, action) = do
     race (threadDelay $ t * 1000000) action >>= \case
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
-
--- | Wait until some action returns true
-eventually :: IO Bool -> IO ()
-eventually action = do
-    action >>= \case
-        True  -> pure ()
-        False -> threadDelay 100000 *> eventually action
-
 
 -- | A little disclaimer shown in the logs when setting up the cluster.
 cartouche :: Text
