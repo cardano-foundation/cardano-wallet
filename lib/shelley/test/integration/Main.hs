@@ -108,6 +108,7 @@ import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
+import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
@@ -132,19 +133,21 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
-        describe "API Specifications" $ specWithServer tr $ do
-            Addresses.spec @n
-            Transactions.spec @n
-            Wallets.spec @n
-            HWWallets.spec @n
-            Network.spec
-        describe "CLI Specifications" $ specWithServer tr $ do
-            AddressesCLI.spec @n
-            TransactionsCLI.spec @n
-            WalletsCLI.spec @n
-            HWWalletsCLI.spec @n
-            PortCLI.spec @t
-            NetworkCLI.spec @t
+        specWithServer tr $ do
+            describe "API Specifications" $ do
+                Addresses.spec @n
+                Transactions.spec @n
+                Wallets.spec @n
+                HWWallets.spec @n
+                Network.spec
+                Network_.spec
+            describe "CLI Specifications" $ do
+                AddressesCLI.spec @n
+                TransactionsCLI.spec @n
+                WalletsCLI.spec @n
+                HWWalletsCLI.spec @n
+                PortCLI.spec @t
+                NetworkCLI.spec @t
 
 specWithServer
     :: Trace IO Text
@@ -180,21 +183,20 @@ specWithServer tr = aroundAll withContext . after tearDown
             either pure (throwIO . ProcessHasExited "integration")
 
     withServer action =
-        ((either throwIO pure) =<<) $
-        withCluster tr Info 0 $ \socketPath block0 (gp,vData) ->
-        withSystemTempDirectory "cardano-wallet-databases" $ \db -> do
-            serveWallet @(IO Shelley)
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                (setupTracers (tracerSeverities (Just Info)) tr)
-                (SyncTolerance 10)
-                (Just db)
-                "127.0.0.1"
-                ListenOnRandomPort
-                Nothing
-                socketPath
-                block0
-                (gp, vData)
-                (action gp)
+        withCluster tr Info 3 $ \socketPath block0 (gp,vData) ->
+            withSystemTempDirectory "cardano-wallet-databases" $ \db ->
+                serveWallet @(IO Shelley)
+                    (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                    (setupTracers (tracerSeverities (Just Info)) tr)
+                    (SyncTolerance 10)
+                    (Just db)
+                    "127.0.0.1"
+                    ListenOnRandomPort
+                    Nothing
+                    socketPath
+                    block0
+                    (gp, vData)
+                    (action gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()

@@ -98,8 +98,8 @@ let
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
           integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
 
-          # provide cardano-node command to integration tests
-          integration.build-tools = [ pkgs.cardano-node ];
+          # provide cardano-node & cardano-cli to integration tests
+          integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we

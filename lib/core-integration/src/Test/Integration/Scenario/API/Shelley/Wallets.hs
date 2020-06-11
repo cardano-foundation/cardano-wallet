@@ -70,8 +70,6 @@ import Data.Text.Class
     ( toText )
 import Data.Word
     ( Word64 )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith
     , describe
@@ -1071,41 +1069,39 @@ spec = do
         --send funds
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        let coins = [13::Natural, 43, 66, 101, 1339]
-        let matrix = zip coins [1..]
-        forM_ matrix $ \(c, alreadyAbsorbed) -> do
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": #{c},
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
+        let coins = [13::Word64, 43, 66, 101, 1339]
+        let payments = flip map coins $ \c -> [json|{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{c},
+                    "unit": "lovelace"
+                }}|]
+        let payload = [json|{
+                "payments": #{payments},
+                "passphrase": "cardano-wallet"
                 }|]
-            rTrans <- request @(ApiTransaction n) ctx
-                (Link.createTransaction @'Shelley wSrc) Default payload
-            expectResponseCode @IO HTTP.status202 rTrans
 
-            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            eventually "Wallet balance is as expected" $ do
-                rGet <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley wDest) Default Empty
-                verify rGet
-                    [ expectField
-                            (#balance . #getApiT . #total)
-                            (`shouldBe` Quantity (fromIntegral $ sum coinsSent))
-                    , expectField
-                            (#balance . #getApiT . #available)
-                            (`shouldBe` Quantity (fromIntegral $ sum coinsSent))
-                    ]
+        rTrans <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default (Json payload)
+        expectResponseCode @IO HTTP.status202 rTrans
 
-            --verify utxo
-            rStat1 <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley wDest) Default Empty
-            expectResponseCode @IO HTTP.status200 rStat1
-            expectWalletUTxO coinsSent (snd rStat1)
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #getApiT . #total)
+                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                , expectField
+                        (#balance . #getApiT . #available)
+                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                ]
+
+        --verify utxo
+        rStat1 <- request @ApiUtxoStatistics ctx
+            (Link.getUTxOsStatistics @'Shelley wDest) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat1
+        expectWalletUTxO coins (snd rStat1)
 
     it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> do
         w <- emptyWallet ctx
