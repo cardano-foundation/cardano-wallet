@@ -63,7 +63,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, when, void )
+    ( forM, forM_, replicateM, replicateM_, unless, void, when )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -73,7 +73,7 @@ import Data.Aeson
 import Data.Either
     ( isLeft, isRight )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.List
     ( isInfixOf, nub, permutations, sort )
 import Data.Proxy
@@ -97,7 +97,7 @@ import Ouroboros.Network.NodeToClient
 import System.Directory
     ( copyFile, doesPathExist )
 import System.Environment
-    ( getEnv, setEnv )
+    ( getEnv, setEnv, lookupEnv )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -105,7 +105,7 @@ import System.FilePath
 import System.Info
     ( os )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory, createTempDirectory, getCanonicalTemporaryDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process
@@ -263,7 +263,7 @@ withBFTNode
     -- ^ Callback function with genesis parameters
     -> IO a
 withBFTNode tr severity (port, peers) action =
-    withSystemTempDirectory "bft-node" $ \dir -> do
+    withTempDir "bft-node" $ \dir -> do
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
@@ -305,7 +305,7 @@ withStakePool
     -- ^ Callback function called once the pool has started.
     -> IO a
 withStakePool tr severity idx (port, peers) action =
-    withSystemTempDirectory ("stake-pool-" ++ show idx) $ \dir -> do
+    withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
         -- Node configuration
         (opPrv, opPub, opCount) <- genOperatorKeyPair dir
         (vrfPrv, vrfPub) <- genVrfKeyPair dir
@@ -749,3 +749,23 @@ cartouche = T.unlines
     , "#                                                                              #"
     , "################################################################################"
     ]
+
+-- | Create a temporary directory and remove it after the given IO action has
+-- finished -- unless the @NO_CLEANUP@ environment variable has been set.
+withTempDir
+    :: String   -- ^ Directory name template
+    -> (FilePath -> IO a) -- ^ Callback that can use the directory
+    -> IO a
+withTempDir name action = isEnvSet "NO_CLEANUP" >>= \case
+    True -> do
+        parent <- getCanonicalTemporaryDirectory
+        dir <- createTempDirectory parent name
+        res <- action dir
+        putStrLn $ "NO_CLEANUP of temporary directory " ++ dir
+        pure res
+    False -> withSystemTempDirectory name action
+  where
+    isEnvSet ev = lookupEnv ev <&> \case
+        Nothing -> False
+        Just "" -> False
+        Just _ -> True
