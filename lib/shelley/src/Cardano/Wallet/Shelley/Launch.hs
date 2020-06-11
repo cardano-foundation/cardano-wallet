@@ -97,9 +97,9 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile, doesPathExist )
+    ( copyFile )
 import System.Environment
-    ( getEnv, lookupEnv, setEnv )
+    ( lookupEnv, setEnv )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
@@ -339,25 +339,6 @@ withStakePool tr severity idx (port, peers) action =
         ((either throwIO pure) =<<)
             $ withBackendProcess (trMessageText tr) cmd
             $ do
-                path <- getEnv "CARDANO_NODE_SOCKET_PATH"
-                doesExist <- doesPathExist path
-                B8.putStrLn $ B8.pack $ unlines
-                    [ "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , path
-                    , "does exist? " <> if doesExist then "yes" else "no"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    , "@@@@@@@@@@@@@@@@@@@@"
-                    ]
-
                 -- In order to get a working stake pool we need to.
                 --
                 -- 1. Register a stake key for our pool.
