@@ -6,7 +6,7 @@ protocolParams:
   protocolVersion:
     minor: 0
     major: 0
-  decentralisationParam: 0.25
+  decentralisationParam: 0.75
   maxTxSize: 4096
   minFeeA: 100
   maxBlockBodySize: 239857
@@ -39,7 +39,7 @@ staking:
 slotsPerKESPeriod: 86400
 slotLength: 0.2
 maxKESEvolutions: 90
-securityParam: 2160
+securityParam: 10
 initialFunds:
   # Cluster Faucets, used for setting up stake pools
   #

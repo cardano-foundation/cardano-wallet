@@ -39,6 +39,6 @@ spec = do
         let networkParams = getFromResponse id r
         networkParams `shouldBe`
             toApiNetworkParameters (ctx ^. #_networkParameters)
-        let Right d = Quantity <$> mkPercentage 0.75 -- d is set to 0.25 in genesis
+        let Right d = Quantity <$> mkPercentage 0.25 -- d is set to 0.75 in genesis
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d) ]
