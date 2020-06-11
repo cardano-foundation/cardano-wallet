@@ -219,6 +219,7 @@ withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
     withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
         timeout 30 ("socket is created", eventually $ doesPathExist socket)
+        setEnv "CARDANO_NODE_SOCKET_PATH" socket
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = replicateM  n (readChan waitGroup)
@@ -229,7 +230,6 @@ withCluster tr severity n action = do
 
         forM_ (tail $ rotate ports) $ \(port, peers) -> do
             link =<< async (handle onException $ do
-                setEnv "CARDANO_NODE_SOCKET_PATH" socket
                 withStakePool tr severity (port, peers) $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
@@ -263,7 +263,7 @@ withBFTNode
     -- ^ Callback function with genesis parameters
     -> IO a
 withBFTNode tr severity (port, peers) action =
-    withSystemTempDirectory "stake-pool" $ \dir -> do
+    withSystemTempDirectory "bft-node" $ \dir -> do
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
