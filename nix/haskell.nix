@@ -88,7 +88,7 @@ let
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
           # staging build and test results.
-          integration.doCheck = !isHydraPRJobset;
+          integration.doCheck = !isHydraPRJobset || stdenv.isDarwin; # fixme: rvl temp
 
           # Running Windows integration tests under Wine is disabled
           # because ouroboros-network doesn't fully work under Wine.
