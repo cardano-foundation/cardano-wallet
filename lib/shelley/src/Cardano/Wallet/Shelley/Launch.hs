@@ -609,12 +609,14 @@ waitForSocket socketPath = do
     -- TODO: check whether querying the tip works just as well.
     query = do
         B8.putStrLn . B8.pack $
-            "Waiting checking for usable socket file " <> socketPath
+            "Checking for usable socket file " <> socketPath
         (st, _, err) <- readProcessWithExitCode
             "cardano-cli"
             ["shelley", "query", "stake-distribution", "--mainnet"]
             mempty
-        unless (st == ExitSuccess) $ B8.putStrLn $ B8.pack err
+        B8.putStrLn $ B8.pack $ case st of
+            ExitSuccess -> socketPath ++ " is ready."
+            _ -> err
         pure (st, err)
     isFail (st, _) = pure (st /= ExitSuccess)
     pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
@@ -632,9 +634,9 @@ waitUntilRegistered opPub = do
         , "--mainnet"
         ]
         mempty
-    when (exitCode /= ExitSuccess) $ do
-        putStrLn $ "query of stake-distribution " ++ show exitCode
-        putStrLn err
+    when (exitCode /= ExitSuccess) $
+        B8.putStrLn $ B8.pack $
+            "query of stake-distribution " ++ show exitCode ++ "\n" ++ err
 
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
