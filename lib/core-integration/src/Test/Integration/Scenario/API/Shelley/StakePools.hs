@@ -77,7 +77,7 @@ spec :: forall n t.
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
-    it "STAKE_POOLS_JOIN_01 - Cannot join with empty wallet" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant wallet" $ \ctx -> do
         w <- emptyWallet ctx
         let wid = w ^. walletId
         _ <- request @ApiWallet ctx
@@ -94,7 +94,7 @@ spec = do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool when wrong password" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool with wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
         joinStakePool @n ctx (ApiT poolIdMock) (w, "Wrong Passphrase") >>= flip verify
             [ expectResponseCode HTTP.status403
@@ -156,10 +156,6 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
-
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation (`shouldBe` notDelegating [])
-            ]
 
         -- make sure we are at the beginning of new epoch
         (currentEpoch, sp) <- getSlotParams ctx
@@ -236,29 +232,6 @@ spec = do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
-
-        -- I can join after quitting
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-
-        -- Wait for the certificate to be inserted
-        eventually "Certificates are inserted" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 3
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 3
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-
-        eventually "Wallet is delegating once again to p1" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
-                ]
-
   where
     (Right poolID) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
     poolIdMock = PoolId poolID

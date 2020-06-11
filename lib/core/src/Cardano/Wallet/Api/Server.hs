@@ -930,7 +930,6 @@ listWallets
     -> Handler [(apiWallet, UTCTime)]
 listWallets ctx mkApiWallet = do
     wids <- liftIO $ listDatabases df
-    -- FIXME
     sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
   where
     df = ctx ^. dbFactory @s @k
