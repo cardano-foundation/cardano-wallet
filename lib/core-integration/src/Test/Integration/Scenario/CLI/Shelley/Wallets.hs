@@ -42,7 +42,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -709,35 +709,33 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
-        let coins = [13, 43, 66, 101, 1339] :: [Integer]
-        let matrix = zip coins [1..]
+        let coins = [13, 43, 66, 101, 1339] :: [Word64]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-        forM_ matrix $ \(amount, alreadyAbsorbed) -> do
-            let args = T.unpack <$>
-                    [ wSrc ^. walletId
-                    , "--payment", T.pack (show amount) <> "@" <> addr
-                    ]
-            (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-            T.unpack ep `shouldContain` cmdOk
-            _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
-            cp `shouldBe` ExitSuccess
-            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
-            eventually "Wallet balance is as expected" $ do
-                Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-                jg <- expectValidJSON (Proxy @ApiWallet) og
-                expectCliField (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
-                expectCliField (#balance . #getApiT . #total)
-                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
 
-            --verify utxo
-            (Exit c, Stdout o, Stderr e)
-                    <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            c `shouldBe` ExitSuccess
-            e `shouldBe` cmdOk
-            utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
-            expectWalletUTxO coinsSent (Right utxoStats1)
+        let payments = flip map coins $ \c ->
+                ["--payment", show c <> "@" <> T.unpack addr ]
+        let args = T.unpack (wSrc ^. walletId) : mconcat payments
+
+        (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        T.unpack ep `shouldContain` cmdOk
+        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
+        cp `shouldBe` ExitSuccess
+        eventually "Wallet balance is as expected" $ do
+            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            jg <- expectValidJSON (Proxy @ApiWallet) og
+            expectCliField (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+            expectCliField (#balance . #getApiT . #total)
+                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+
+        --verify utxo
+        (Exit c, Stdout o, Stderr e) <-
+            getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+        c `shouldBe` ExitSuccess
+        e `shouldBe` cmdOk
+        utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
+        expectWalletUTxO coins (Right utxoStats1)
 
     describe "WALLETS_UTXO_03 - non-existing wallets" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
