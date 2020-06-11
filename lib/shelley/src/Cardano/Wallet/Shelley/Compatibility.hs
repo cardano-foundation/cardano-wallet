@@ -46,6 +46,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toSealed
     , toStakeKeyRegCert
+    , toStakeKeyDeregCert
     , toStakePoolDlgCert
 
     , fromBlockNo
@@ -598,6 +599,11 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
 toCardanoTxOut :: W.TxOut -> Cardano.TxOut
 toCardanoTxOut (W.TxOut addr coin) =
     Cardano.TxOut (toCardanoAddress addr) (toCardanoLovelace coin)
+
+toStakeKeyDeregCert :: XPub -> Cardano.Certificate
+toStakeKeyDeregCert xpub =
+    Cardano.shelleyDeregisterStakingAddress
+        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
 
 toStakeKeyRegCert :: XPub -> Cardano.Certificate
 toStakeKeyRegCert xpub =

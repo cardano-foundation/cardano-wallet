@@ -62,6 +62,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toSealed
     , toSlotNo
+    , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
     )
@@ -119,7 +120,7 @@ newTransactionLayer
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
-    , mkDelegationQuitTx = notImplemented "mkDelegationQuitTx"
+    , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = notImplemented "decodeSignedTx"
     , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
@@ -166,6 +167,31 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                 _ ->
                     [ toStakePoolDlgCert accXPub poolId ]
         let unsigned   = mkUnsignedTx timeToLive ownedIns outs certs
+        let metadata = SL.SNothing
+
+        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+            (k, pwd) <- lookupPrivateKey keyFrom addr
+            pure $ mkWitness unsigned (getRawKey k, pwd)
+        let certWits =
+                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
+        let scriptWits =
+                mempty
+        let wits = Set.unions [addrWits,certWits]
+
+        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
+
+    _mkDelegationQuitTx
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+    _mkDelegationQuitTx (accXPrv, pwd') keyFrom slot ownedIns outs = do
+        let timeToLive = defaultTTL epochLength slot
+        let accXPub    = toXPub $ getRawKey accXPrv
+        let cert = [toStakeKeyDeregCert accXPub]
+        let unsigned   = mkUnsignedTx timeToLive ownedIns outs cert
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
