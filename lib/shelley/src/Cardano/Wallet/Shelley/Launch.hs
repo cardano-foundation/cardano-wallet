@@ -601,15 +601,22 @@ submitTx signedTx = do
 waitForSocket :: FilePath -> IO ()
 waitForSocket socketPath = do
     setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
-    (st, _, err) <- retrying pol (const isFail) (const queryTip)
+    (st, err) <- retrying pol (const isFail) (const query)
     unless (st == ExitSuccess) $
        throwIO $ ProcessHasExited
            ("cluster bft node didn't start correctly: " <> err) st
   where
-    queryTip = readProcessWithExitCode
-        "cardano-cli" ["shelley", "query", "tip", "--mainnet"]
-        mempty
-    isFail (st, _, _) = pure (st /= ExitSuccess)
+    -- TODO: check whether querying the tip works just as well.
+    query = do
+        B8.putStrLn . B8.pack $
+            "Waiting checking for usable socket file " <> socketPath
+        (st, _, err) <- readProcessWithExitCode
+            "cardano-cli"
+            ["shelley", "query", "stake-distribution", "--mainnet"]
+            mempty
+        unless (st == ExitSuccess) $ B8.putStrLn $ B8.pack err
+        pure (st, err)
+    isFail (st, _) = pure (st /= ExitSuccess)
     pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
 
 -- | Wait until a stake pool shows as registered on-chain.
