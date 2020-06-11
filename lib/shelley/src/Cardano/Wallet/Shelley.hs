@@ -78,7 +78,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
-    , fromHex
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -115,12 +114,12 @@ import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Applicative
     ( Const (..) )
 import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
-import Data.ByteString
-    ( ByteString )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -235,15 +234,6 @@ serveWallet
                 startServer proxy socket randomApi icarusApi shelleyApi mockStakePoolLayer ntpClient
                 pure ExitSuccess
 
-    (Right poolID1) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
-    (Right poolID2) = fromHex @ByteString "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
-
-    mockStakePoolLayer :: StakePoolLayer () IO
-    mockStakePoolLayer = StakePoolLayer
-        { listStakePools = pure []
-        , knownStakePools = pure [PoolId poolID1, PoolId poolID2]
-        }
-
     networkDiscriminantValFromProxy
         :: forall n. (NetworkDiscriminantVal n)
         => Proxy n
@@ -314,6 +304,22 @@ exitCodeApiServer = \case
     ListenErrorInvalidAddress _ -> 11
     ListenErrorAddressAlreadyInUse _ -> 12
     ListenErrorOperationNotPermitted -> 13
+
+-- | FIXME: Temporary mock stake pool layer until we can get the stake pool
+-- listing working. These IDs match hard-wired operator credentials in our
+-- integration setup. See 'Cardano.Wallet.Shelley.Launch'.
+mockStakePoolLayer :: StakePoolLayer () IO
+mockStakePoolLayer = StakePoolLayer
+    { listStakePools  = pure []
+    , knownStakePools = pure
+        [ PoolId $ unsafeFromHex
+            "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+        , PoolId $ unsafeFromHex
+            "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+        , PoolId $ unsafeFromHex
+            "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
+        ]
+    }
 
 {-------------------------------------------------------------------------------
                                     Logging

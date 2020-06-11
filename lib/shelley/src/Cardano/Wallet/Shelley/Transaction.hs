@@ -158,7 +158,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx wDeleg poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
-        let accXPub    = toXPub $ getRawKey accXPrv
+        let accXPub = toXPub $ getRawKey accXPrv
         let certs = case wDeleg of
                 (WalletDelegation NotDelegating []) ->
                     [ toStakeKeyRegCert  accXPub
@@ -166,7 +166,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                     ]
                 _ ->
                     [ toStakePoolDlgCert accXPub poolId ]
-        let unsigned   = mkUnsignedTx timeToLive ownedIns outs certs
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
@@ -189,9 +189,9 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationQuitTx (accXPrv, pwd') keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
-        let accXPub    = toXPub $ getRawKey accXPrv
+        let accXPub = toXPub $ getRawKey accXPrv
         let cert = [toStakeKeyDeregCert accXPub]
-        let unsigned   = mkUnsignedTx timeToLive ownedIns outs cert
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs cert
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
