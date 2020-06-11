@@ -87,7 +87,6 @@ import Test.Integration.Framework.DSL
     , rootPrvKeyFromMnemonics
     , verify
     , walletId
-    , (.>)
     )
 import Test.Integration.Framework.Request
     ( RequestException )

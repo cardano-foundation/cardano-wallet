@@ -107,10 +107,11 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
+import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
+import qualified Test.Integration.Scenario.API.Shelley.Migrations as Migrations
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
@@ -141,6 +142,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             describe "API Specifications" $ do
                 Addresses.spec @n
                 ByronMigrations.spec @n
+                Migrations.spec @n
                 Transactions.spec @n
                 Wallets.spec @n
                 HWWallets.spec @n

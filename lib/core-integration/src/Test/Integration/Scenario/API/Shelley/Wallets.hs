@@ -67,16 +67,8 @@ import Data.Text.Class
     ( toText )
 import Data.Word
     ( Word64 )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
-    ( SpecWith
-    , describe
-    , it
-    , shouldBe
-    , shouldNotBe
-    , shouldSatisfy
-    )
+    ( SpecWith, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
