@@ -38,6 +38,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Crypto.Hash.Class
+    ( Hash (UnsafeHash) )
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
 import Cardano.Wallet.Shelley.Compatibility
@@ -54,8 +56,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Concurrent.Async
     ( async, link )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar )
 import Control.Exception
     ( IOException )
 import Control.Monad
@@ -69,6 +69,7 @@ import Control.Monad.Class.MonadST
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
+    , TVar
     , atomically
     , newTMVarM
     , newTQueue
@@ -101,7 +102,7 @@ import Data.List
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
-    ( dropMissing, zipWithMatched )
+    ( dropMissing, traverseMissing, zipWithMatched )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -188,13 +189,16 @@ import System.IO.Error
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.Delegation.Certificates as SL
+import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -209,7 +213,7 @@ data StakePoolMetrics = StakePoolMetrics
     { poolId :: !W.PoolId
     , stake :: !(Quantity "lovelace" Word64)
     , nonMyopicMemberRewards :: !(Quantity "lovelace" Word64)
-    }
+    } deriving Show
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -223,7 +227,7 @@ withNetworkLayer
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
     -> ( (NetworkLayer IO (IO Shelley) ShelleyBlock
-         , MVar [StakePoolMetrics]
+         , TVar IO [StakePoolMetrics]
          ) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
@@ -237,7 +241,7 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- tip. It doesn't rely on the intersection to be up-to-date.
     nodeTipVar <- atomically $ newTVar TipGenesis
     protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-    poolMetrics <- newEmptyMVar
+    poolMetrics <- atomically $ newTVar []
     nodeTipClient <- mkTipSyncClient tr np
         localTxSubmissionQ
         (atomically . writeTVar nodeTipVar)
@@ -336,8 +340,14 @@ fromPoolDistr =
 fromRewards
     :: OC.NonMyopicMemberRewards TPraosStandardCrypto
     -> Map W.PoolId (Quantity "lovelace" Word64)
-fromRewards (OC.NonMyopicMemberRewards r) = head $ Map.toList r
-	-- TODO: Fix
+fromRewards =
+    Map.map (Quantity . fromIntegral)
+    . Map.mapKeys fromPoolId
+    . snd
+    . head
+    . Map.toList
+    . OC.unNonMyopicMemberRewards
+    -- TODO: Fix
 
 combine
     :: Map W.PoolId (Quantity "lovelace" Word64)
@@ -346,8 +356,12 @@ combine
 combine stakeMap rewMap = map snd $ Map.toList $
     Map.merge stakeButNoRew rewardsButNoStake bothPresent stakeMap rewMap
   where
-    stakeButNoRew     = dropMissing -- Or set rewards to 0?
+    -- Haven't figured out how to fetch non-myopic member rewards properly yet.
+    -- Let's provide a default value of 0, at least for now.
+    stakeButNoRew     = traverseMissing $ \k s -> pure $ StakePoolMetrics  k s (Quantity 0)
+
     rewardsButNoStake = dropMissing
+
     bothPresent       = zipWithMatched  $ \k s r -> StakePoolMetrics k s r
 
 --------------------------------------------------------------------------------
@@ -436,7 +450,7 @@ mkTipSyncClient
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
-    -> MVar [StakePoolMetrics]
+    -> TVar IO [StakePoolMetrics]
         -- ^ A place to store stake pool metrics
     -> m (NetworkClient m)
 mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate poolsVar = do
@@ -457,16 +471,22 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate poolsVar = 
                 CmdQueryLocalState pt OC.GetCurrentPParams
             handleLocalState st
 
+            let cred = Set.singleton $ SL.KeyHashObj $ SL.KeyHash $ UnsafeHash
+                    $ BS.pack $ replicate 32 0
             res <- runExceptT $ do
                 (,) <$> ExceptT (localStateQueryQ `send` CmdQueryLocalState pt OC.GetStakeDistribution)
-                    <*> ExceptT (localStateQueryQ `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards Set.empty))
+                    <*> ExceptT (localStateQueryQ `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards cred))
+
+            putStrLn $ "### " <> show res
 
             case res of
                 Right (stake, rew) ->
                     let
                         stakeMap = fromPoolDistr stake
                         rewardMap = fromRewards rew
-                    in putMVar poolsVar $ combine stakeMap rewardMap
+                        combined = combine stakeMap rewardMap
+                    in do
+                        atomically $ writeTVar poolsVar combined
                 Left _ -> return ()
             return ()
 

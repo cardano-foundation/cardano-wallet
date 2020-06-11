@@ -22,8 +22,8 @@ import Cardano.Wallet.Primitive.Types
     ( PoolId )
 import Cardano.Wallet.Shelley.Network
     ( StakePoolMetrics (..) )
-import Control.Concurrent.MVar
-    ( MVar, takeMVar )
+import Control.Monad.Class.MonadSTM
+    ( TVar, atomically, readTVar )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson
@@ -70,10 +70,10 @@ instance ToJSON ApiStakePool where
 --
 
 listPools
-    :: MVar [StakePoolMetrics]
+    :: TVar IO [StakePoolMetrics]
     -> Handler [ApiStakePool]
 listPools var = do
-        liftIO $ map mkApiPool <$> takeMVar var
+        liftIO $ atomically $ map mkApiPool <$> readTVar var
   where
     mkApiPool (StakePoolMetrics pid s r) = ApiStakePool
         { _id = ApiT pid

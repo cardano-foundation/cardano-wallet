@@ -113,8 +113,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
-import Control.Concurrent.MVar
-    ( MVar )
+import Control.Monad.Class.MonadSTM
+    ( TVar )
 import Control.Tracer
     ( Tracer (..), nullTracer, traceWith )
 import Data.Function
@@ -258,7 +258,7 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        -> MVar [StakePoolMetrics]
+        -> TVar IO [StakePoolMetrics]
         -> NtpClient
         -> IO ()
     startServer _proxy socket byron icarus shelley poolsVar ntp = do

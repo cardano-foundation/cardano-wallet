@@ -101,8 +101,8 @@ import Cardano.Wallet.Shelley.Pools
     ( ApiStakePool, listPools )
 import Control.Applicative
     ( liftA2 )
-import Control.Concurrent.MVar
-    ( MVar )
+import Control.Monad.Class.MonadSTM
+    ( TVar )
 import Control.Monad.Trans.Except
     ( throwE )
 import Data.Coerce
@@ -147,7 +147,7 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> MVar [StakePoolMetrics]
+    -> TVar IO [StakePoolMetrics]
     -> NtpClient
     -> Server (Api n)
 server byron icarus shelley poolVar ntp =
