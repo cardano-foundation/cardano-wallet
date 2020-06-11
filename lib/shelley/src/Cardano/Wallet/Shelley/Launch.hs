@@ -63,7 +63,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void )
+    ( forM, forM_, replicateM, replicateM_, unless, when, void )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -109,7 +109,7 @@ import System.IO.Temp
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process
-    ( readProcess )
+    ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
     ( getTestData )
 
@@ -593,10 +593,16 @@ waitUntilRegistered opPub = do
         [ "shelley", "stake-pool", "id"
         , "--verification-key-file", opPub
         ]
-    distribution <- cli
+    (exitCode, distribution, err) <- readProcessWithExitCode
+        "cardano-cli"
         [ "shelley", "query", "stake-distribution"
         , "--mainnet"
         ]
+        mempty
+    when (exitCode /= ExitSuccess) $ do
+        putStrLn $ "query of stake-distribution " ++ show exitCode
+        putStrLn err
+
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
         waitUntilRegistered opPub
