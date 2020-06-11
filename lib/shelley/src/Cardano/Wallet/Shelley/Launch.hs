@@ -228,9 +228,9 @@ withCluster tr severity n action = do
         let onException :: SomeException -> IO ()
             onException = writeChan waitGroup . Left
 
-        forM_ (tail $ rotate ports) $ \(port, peers) -> do
+        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
-                withStakePool tr severity (port, peers) $ do
+                withStakePool tr severity idx (port, peers) $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
@@ -297,15 +297,17 @@ withStakePool
     -- ^ Trace for subprocess control logging
     -> Severity
     -- ^ Minimal logging severity
+    -> Int
+    -- ^ Unique stake pool number
     -> (Int, [Int])
     -- ^ A list of ports used by peers and this pool.
     -> IO a
     -- ^ Callback function called once the pool has started.
     -> IO a
-withStakePool tr severity (port, peers) action =
-    withSystemTempDirectory "stake-pool" $ \dir -> do
+withStakePool tr severity idx (port, peers) action =
+    withSystemTempDirectory ("stake-pool-" ++ show idx) $ \dir -> do
         -- Node configuration
-        (opPrv, opPub, opCount)   <- genOperatorKeyPair dir
+        (opPrv, opPub, opCount) <- genOperatorKeyPair dir
         (vrfPrv, vrfPub) <- genVrfKeyPair dir
         (kesPrv, kesPub) <- genKesKeyPair dir
         opCert <- issueOpCert dir kesPub opPrv opCount
