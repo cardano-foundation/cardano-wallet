@@ -39,6 +39,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , delegating
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -47,9 +48,13 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
+    , getSlotParams
     , joinStakePool
+    , mkEpochInfo
+    , notDelegating
     , request
     , verify
+    , waitForNextEpoch
     , walletId
     )
 import Test.Integration.Framework.TestData
@@ -108,6 +113,15 @@ spec = do
                 ]
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
+
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation (`shouldBe` notDelegating [])
+            ]
+
+        -- make sure we are at the beginning of new epoch
+        (currentEpoch, sp) <- getSlotParams ctx
+        waitForNextEpoch ctx
+
         joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
@@ -124,6 +138,19 @@ spec = do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
+        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            [ expectField #delegation
+                (`shouldBe` notDelegating
+                    [ (Just (ApiT poolIdMock), mkEpochInfo (currentEpoch + 3) sp)
+                    ]
+                )
+            ]
+        eventually "Wallet is delegating to p1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                ]
+
+
         -- join another stake pool
         joinStakePool @n ctx (ApiT poolIdMock') (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -139,6 +166,11 @@ spec = do
                     (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectListField 1
                     (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        eventually "Wallet is delegating to p2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock') [])
                 ]
 
   where
