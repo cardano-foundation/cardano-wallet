@@ -78,6 +78,7 @@ import Cardano.Wallet.Api.Server
     , putRandomAddress
     , putWallet
     , putWalletPassphrase
+    , quitStakePool
     , rndStateChange
     , selectCoins
     , withLegacyLayer
@@ -176,7 +177,7 @@ server byron icarus shelley spl ntp =
     stakePools =
              throwError err501
         :<|> joinStakePool shelley spl
-        :<|> (\_ _ -> throwError err501)
+        :<|> quitStakePool shelley
         :<|> (\_ -> throwError err501)
 
     byronWallets :: Server ByronWallets

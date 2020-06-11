@@ -52,13 +52,19 @@ import Test.Integration.Framework.DSL
     , joinStakePool
     , mkEpochInfo
     , notDelegating
+    , quitStakePool
     , request
     , verify
     , waitForNextEpoch
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403WrongPass, errMsg404NoSuchPool, errMsg404NoWallet )
+    ( errMsg403NotDelegating
+    , errMsg403PoolAlreadyJoined
+    , errMsg403WrongPass
+    , errMsg404NoSuchPool
+    , errMsg404NoWallet
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
@@ -90,11 +96,12 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool when wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
-        r <- joinStakePool @n ctx (ApiT poolIdMock) (w, "Wrong Passphrase")
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403WrongPass r
+        joinStakePool @n ctx (ApiT poolIdMock) (w, "Wrong Passphrase") >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403WrongPass
+            ]
 
-    it "STAKE_POOLS_JOIN_01 - Can join existant stakepool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_02 - Cannot join already joined stake pool" $ \ctx -> do
         w <- fixtureWallet ctx
         joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -111,6 +118,42 @@ spec = do
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
+        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText poolIdMock)
+            ]
+
+    it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
+        w <- fixtureWallet ctx
+        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+        let wrongPassphrase = "Incorrect Passphrase"
+        quitStakePool @n ctx (w, wrongPassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403WrongPass
+            ]
+
+    it "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
+        $ \ctx -> do
+        w <- fixtureWallet ctx
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotDelegating
+            ]
+
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
 
@@ -150,7 +193,6 @@ spec = do
                 [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
                 ]
 
-
         -- join another stake pool
         joinStakePool @n ctx (ApiT poolIdMock') (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -171,6 +213,50 @@ spec = do
         eventually "Wallet is delegating to p2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock') [])
+                ]
+
+        --quiting
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 2
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 2
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        eventually "Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` notDelegating [])
+                ]
+
+        -- I can join after quitting
+        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 3
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 3
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        eventually "Wallet is delegating once again to p1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
                 ]
 
   where
