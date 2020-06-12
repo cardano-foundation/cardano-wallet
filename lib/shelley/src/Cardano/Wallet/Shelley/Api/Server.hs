@@ -37,6 +37,7 @@ import Cardano.Wallet.Api
     , ByronTransactions
     , ByronWallets
     , CoinSelections
+    , ListStakePools
     , Network
     , Proxy_
     , ShelleyMigrations
@@ -116,9 +117,8 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server, err501, throwError )
+    ( (:<|>) (..), Server )
 
--- | A diminished servant server to serve Byron wallets only.
 server
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
@@ -130,9 +130,10 @@ server
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> IO [PoolId]
+    -> Server (ListStakePools ApiStakePool)
     -> NtpClient
     -> Server (Api n ApiStakePool)
-server byron icarus shelley knownPools ntp =
+server byron icarus shelley knownPools listPoolsHandler ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -176,7 +177,7 @@ server byron icarus shelley knownPools ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             (\_ -> throwError err501)
+             listPoolsHandler
         :<|> joinStakePool shelley knownPools
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
@@ -291,3 +292,4 @@ server byron icarus shelley knownPools ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
+

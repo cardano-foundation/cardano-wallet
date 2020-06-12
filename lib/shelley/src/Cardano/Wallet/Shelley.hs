@@ -57,7 +57,7 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2 )
+    ( ApiLayer, ApiV2, ListStakePools )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
@@ -94,6 +94,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
     , ChimericAccount
+    , Coin (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
     , PoolId
@@ -109,12 +110,12 @@ import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, ShelleyBlock, fromNetworkMagic, fromShelleyBlock )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePoolLayer (..), newStakePoolLayer )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Control.Applicative
     ( Const (..) )
 import Control.Tracer
@@ -141,6 +142,8 @@ import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
+import Servant
+    ( Server )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager
@@ -230,7 +233,17 @@ serveWallet
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                startServer proxy socket randomApi icarusApi shelleyApi mockKnownPools ntpClient
+                let spl = newStakePoolLayer (genesisParameters np) nl
+                startServer
+                    proxy
+                    socket
+                    randomApi
+                    icarusApi
+                    shelleyApi
+                    (\_wid -> listStakePools spl (Coin 0))
+                    -- TODO: read wallt balance
+                    (knownPools spl)
+                    ntpClient
                 pure ExitSuccess
 
     networkDiscriminantValFromProxy
@@ -253,15 +266,16 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        -> Server (ListStakePools ApiStakePool)
         -> IO [PoolId]
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley spl ntp = do
+    startServer _proxy socket byron icarus shelley listPoolsServer kp ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
-                server byron icarus shelley spl ntp
+                server byron icarus shelley kp listPoolsServer ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer
@@ -303,19 +317,6 @@ exitCodeApiServer = \case
     ListenErrorInvalidAddress _ -> 11
     ListenErrorAddressAlreadyInUse _ -> 12
     ListenErrorOperationNotPermitted -> 13
-
--- | FIXME: Temporary mock stake pool layer until we can get the stake pool
--- listing working. These IDs match hard-wired operator credentials in our
--- integration setup. See 'Cardano.Wallet.Shelley.Launch'.
-mockKnownPools :: IO [PoolId]
-mockKnownPools = pure
-        [ PoolId $ unsafeFromHex
-            "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
-        , PoolId $ unsafeFromHex
-            "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
-        , PoolId $ unsafeFromHex
-            "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
-        ]
 
 {-------------------------------------------------------------------------------
                                     Logging
