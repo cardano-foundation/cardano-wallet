@@ -109,6 +109,7 @@ import qualified Test.Integration.Jormungandr.Scenario.CLI.Port as PortCLIJormun
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
+import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
@@ -147,6 +148,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ Wallets.spec @n
             withCtxOnly $ ByronWallets.spec @n
             withCtxOnly $ ByronTransactions.spec @n
+            withCtxOnly $ ByronMigrations.spec @n
             withCtxOnly $ HWWallets.spec @n
             withCtxOnly $ TransactionsApiJormungandr.spec @n @t
             withCtxOnly $ TransactionsCliJormungandr.spec @n @t

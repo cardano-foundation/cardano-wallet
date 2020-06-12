@@ -203,6 +203,7 @@ test-suite integration
   other-modules:
       Cardano.Wallet.Byron.Faucet
       Test.Integration.Byron.Scenario.API.Transactions
+      Test.Integration.Byron.Scenario.API.Migrations
       Test.Integration.Byron.Scenario.CLI.Transactions
 
 benchmark restore

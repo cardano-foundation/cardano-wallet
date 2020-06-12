@@ -29,7 +29,6 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
-    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
@@ -72,24 +71,18 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
-    , faucetAmt
-    , fixtureIcarusWallet
     , fixturePassphrase
     , fixturePassphraseEncrypted
-    , fixtureRandomWallet
     , getFromResponse
     , json
     , request
     , rootPrvKeyFromMnemonics
-    , unsafeRequest
     , verify
     , walletId
-    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
-    , errMsg403NothingToMigrate
     , errMsg403WrongPass
     , errMsg404NoWallet
     , kanjiWalletName
@@ -111,56 +104,6 @@ spec :: forall n t.
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
 spec = do
-    it "BYRON_CALCULATE_01 - \
-        \for non-empty wallet calculated fee is > zero."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> do
-            w <- fixtureByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status200
-                , expectField (#migrationCost . #getQuantity)
-                    (.> 0)
-                ]
-
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for empty wallet."
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
-            w <- emptyByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
-                ]
-
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for wallet with dust, that cannot be migrated."
-        $ \ctx -> do
-            -- NOTE
-            -- Special mnemonic for which wallet with dust
-            -- (1 utxo with 10 lovelace)
-            let mnemonics =
-                    [ "prison", "census", "discover", "give"
-                    , "sound", "behave", "hundred", "cave"
-                    , "someone", "orchard", "just", "wild"
-                    ] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Byron Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "random"
-                    } |]
-            (_, w) <- unsafeRequest @ApiByronWallet ctx
-                (Link.postWallet @'Byron) payloadRestore
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
-                ]
-
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
@@ -374,52 +317,6 @@ spec = do
                 r <- request
                     @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
                 verify r expectations
-
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
-        -- NOTE
-        -- Special Icarus mnemonic where address indexes are all after the index
-        -- 500. Because we don't have the whole history, restoring sequential
-        -- wallets like Icarus ones is tricky from just a snapshot and we need
-        -- to use arbitrarily big address pool gaps.
-        let mnemonics =
-                [ "erosion", "ahead", "vibrant", "air", "day"
-                , "timber", "thunder", "general", "dice", "into"
-                , "chest", "enrich", "social", "neck", "shine"
-                ] :: [Text]
-        let payload = Json [json| {
-                "name": "High Index Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "icarus"
-                } |]
-
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
-
-    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
-        -- NOTE
-        -- Special legacy wallets where addresses have been generated from a
-        -- seed derived using the auxiliary method used by Ledger.
-        let mnemonics =
-                [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
-                , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
-                , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
-                ] :: [Text]
-        let payload = Json [json| {
-                "name": "Ledger Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "ledger"
-                } |]
-
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
 
     it "BYRON_UPDATE_NAME_01 - Update names of wallets" $ \ctx ->
         forM_ [ (emptyRandomWallet ctx, "Random Wallet")
