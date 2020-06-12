@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cardano.Wallet.Byron.NetworkSpec (spec) where
+module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
 import Prelude
 
@@ -10,20 +10,21 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer )
-import Cardano.Wallet.Byron.Compatibility
-    ( NodeVersionData )
-import Cardano.Wallet.Byron.Launch
-    ( withCardanoNode )
-import Cardano.Wallet.Byron.Network
-    ( NetworkLayerLog (..), withNetworkLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..)
+    ( DecentralizationLevel (..)
+    , FeePolicy (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Shelley.Compatibility
+    ( NodeVersionData )
+import Cardano.Wallet.Shelley.Launch
+    ( withBFTNode )
+import Cardano.Wallet.Shelley.Network
+    ( NetworkLayerLog (..), withNetworkLayer )
 import Control.Retry
     ( constantDelay, limitRetries, recoverAll )
 import Data.Function
@@ -35,11 +36,9 @@ import Data.Generics.Labels
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
-import Test.Utils.Paths
-    ( getTestData )
 import Test.Utils.Trace
     ( withLogging )
 
@@ -53,7 +52,8 @@ spec = describe "getTxParameters" $ do
         withTestNode $ \np sock vData -> withLogging $ \(tr, getLogs) -> do
             -- Initial TxParameters for NetworkLayer are all zero
             let np' = np &
-                    (#protocolParameters . #txParameters) `set` zeroTxParameters
+                    (#protocolParameters . #txParameters) `set` zeroTxParameters &
+                    (#protocolParameters . #decentralizationLevel) `set` fakeD
             withNetworkLayer tr np' sock vData $ \nl -> do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
@@ -69,7 +69,7 @@ spec = describe "getTxParameters" $ do
 withTestNode
     :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
-withTestNode action = withCardanoNode nullTracer $(getTestData) Error $
+withTestNode action = withBFTNode nullTracer Error (0, []) $
     \sock _block0 (np, vData) -> action np sock vData
 
 isMsgProtocolParams :: NetworkLayerLog -> Maybe ProtocolParameters
@@ -80,3 +80,8 @@ zeroTxParameters :: TxParameters
 zeroTxParameters = TxParameters
     (LinearFee (Quantity 0) (Quantity 0) (Quantity 0))
     (Quantity 0)
+
+-- | A value that is not the same as what's in the test data genesis.
+fakeD :: DecentralizationLevel
+fakeD = DecentralizationLevel p
+    where Right p = mkPercentage (5/32)

@@ -27,7 +27,7 @@ module Cardano.Wallet.Shelley.Network
     , withNetworkLayer
 
       -- * Logging
-    , NetworkLayerLog
+    , NetworkLayerLog (..)
     ) where
 
 import Prelude
