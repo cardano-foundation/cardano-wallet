@@ -251,7 +251,9 @@ withCluster
     -> IO a
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
-    withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
+    -- FIXME: should simply be `head $ rotate ports` once cluster issues are solved
+    let peers = (fst $ head $ rotate ports, [])
+    withBFTNode tr severity peers $ \socket block0 params -> do
         waitForSocket socket
         waitGroup <- newChan
         doneGroup <- newChan
@@ -261,11 +263,12 @@ withCluster tr severity n action = do
         let onException :: SomeException -> IO ()
             onException = writeChan waitGroup . Left
 
-        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
+        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, _peers)) -> do
             link =<< async (handle onException $ do
-                withStakePool tr severity idx (port, peers) $ do
-                    writeChan waitGroup $ Right port
-                    readChan doneGroup)
+                -- FIXME: withStakePool tr severity idx (port, peers) $ do
+                registerStakePool socket idx
+                writeChan waitGroup $ Right port
+                readChan doneGroup)
 
         TIO.putStrLn cartouche
         group <- waitAll
@@ -323,6 +326,28 @@ withBFTNode tr severity (port, peers) action =
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
+
+-- | Only register stake pools but do not start their corresponding process.
+-- This is _hopefully_ temporary while we get the cluster running correctly on
+-- CI.
+registerStakePool
+    :: FilePath
+    -> Int
+    -> IO ()
+registerStakePool socket idx = do
+    setEnv "CARDANO_NODE_SOCKET_PATH" socket
+    withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
+        (opPrv, opPub, _opCount) <- genOperatorKeyPair dir
+        (_vrfPrv, vrfPub) <- genVrfKeyPair dir
+
+        (stakePrv, stakePub) <- genStakeAddrKeyPair dir
+        stakeCert <- issueStakeCert dir stakePub
+        poolCert <- issuePoolCert dir opPub vrfPub stakePub
+        dlgCert <- issueDlgCert dir stakePub opPub
+
+        (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
+        signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
+        timeout 120 ("pool registration", waitUntilRegistered opPub)
 
 -- | Start a "stake pool node". The pool will register itself.
 withStakePool
