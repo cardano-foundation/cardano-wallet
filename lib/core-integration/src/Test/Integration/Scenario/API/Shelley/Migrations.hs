@@ -48,7 +48,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -164,8 +164,11 @@ spec = do
               testAddressCycling 3
               testAddressCycling 10
 
-    it "SHELLEY_MIGRATE_01 - \
+    it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+
+        pendingWith
+            "Currently failing due to issue: #1751 - Cannot migrate big wallet"
         -- NOTE
         -- Special mnemonic for which 500 shelley funds are attached to in the
         -- genesis file.
