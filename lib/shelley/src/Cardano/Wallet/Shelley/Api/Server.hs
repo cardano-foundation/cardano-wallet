@@ -47,7 +47,8 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( deleteTransaction
+    ( delegationFee
+    , deleteTransaction
     , deleteWallet
     , getMigrationInfo
     , getNetworkClock
@@ -178,7 +179,7 @@ server byron icarus shelley spl ntp =
              throwError err501
         :<|> joinStakePool shelley spl
         :<|> quitStakePool shelley
-        :<|> (\_ -> throwError err501)
+        :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
