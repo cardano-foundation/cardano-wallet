@@ -205,6 +205,33 @@ cli args =
   where
     stdin = ""
 
+-- | Runs a @cardano-cli@ command and retries for up to 30 seconds if the
+-- command failed.
+--
+-- Assumes @cardano-cli@ is available in @PATH@ and that the env var
+-- @CARDANO_NODE_SOCKET_PATH@ has already been set.
+cliRetry
+    :: String -- ^ message to print before running command
+    -> [String] -- ^ arguments to @cardano-cli@
+    -> IO String
+cliRetry msg args = do
+    (st, out, err) <- retrying pol (const isFail) (const cmd)
+    case st of
+        ExitSuccess -> pure out
+        ExitFailure _ -> throwIO $ ProcessHasExited
+            (unwords (prog:args) <> " failed: " <> err) st
+  where
+    prog = "cardano-cli"
+    cmd = do
+        unless (null msg) $ B8.putStrLn $ B8.pack msg
+        (st, out, err) <- readProcessWithExitCode "cardano-cli" args mempty
+        case st of
+            ExitSuccess -> pure ()
+            _ -> B8.putStrLn $ B8.pack err
+        pure (st, out, err)
+    isFail (st, _, _) = pure (st /= ExitSuccess)
+    pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
+
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
 -- test data.
@@ -565,12 +592,10 @@ signTx dir rawTx keys = do
         ] ++ mconcat ((\key -> ["--signing-key-file", key]) <$> keys)
     pure file
 
--- | Submit a transaction through a running node
---
--- The node's target is assumed from an ENV var 'CARDANO_NODE_SOCKET_PATH'
+-- | Submit a transaction through a running node.
 submitTx :: FilePath -> IO ()
 submitTx signedTx = do
-    void $ cli
+    void $ cliRetry "Submitting transaction"
         [ "shelley", "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet"
@@ -587,25 +612,10 @@ submitTx signedTx = do
 waitForSocket :: FilePath -> IO ()
 waitForSocket socketPath = do
     setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
-    (st, err) <- retrying pol (const isFail) (const query)
-    unless (st == ExitSuccess) $
-       throwIO $ ProcessHasExited
-           ("cluster bft node didn't start correctly: " <> err) st
-  where
+    let msg = "Checking for usable socket file " <> socketPath
     -- TODO: check whether querying the tip works just as well.
-    query = do
-        B8.putStrLn . B8.pack $
-            "Checking for usable socket file " <> socketPath
-        (st, _, err) <- readProcessWithExitCode
-            "cardano-cli"
-            ["shelley", "query", "stake-distribution", "--mainnet"]
-            mempty
-        B8.putStrLn $ B8.pack $ case st of
-            ExitSuccess -> socketPath ++ " is ready."
-            _ -> err
-        pure (st, err)
-    isFail (st, _) = pure (st /= ExitSuccess)
-    pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
+    void $ cliRetry msg ["shelley", "query", "stake-distribution", "--mainnet"]
+    B8.putStrLn $ B8.pack $ socketPath ++ " is ready."
 
 -- | Wait until a stake pool shows as registered on-chain.
 waitUntilRegistered :: FilePath -> IO ()
