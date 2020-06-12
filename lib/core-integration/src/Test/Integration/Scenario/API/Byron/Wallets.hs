@@ -71,7 +71,6 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
-    , faucetAmt
     , fixturePassphrase
     , fixturePassphraseEncrypted
     , getFromResponse
@@ -318,52 +317,6 @@ spec = do
                 r <- request
                     @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
                 verify r expectations
-
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
-        -- NOTE
-        -- Special Icarus mnemonic where address indexes are all after the index
-        -- 500. Because we don't have the whole history, restoring sequential
-        -- wallets like Icarus ones is tricky from just a snapshot and we need
-        -- to use arbitrarily big address pool gaps.
-        let mnemonics =
-                [ "erosion", "ahead", "vibrant", "air", "day"
-                , "timber", "thunder", "general", "dice", "into"
-                , "chest", "enrich", "social", "neck", "shine"
-                ] :: [Text]
-        let payload = Json [json| {
-                "name": "High Index Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "icarus"
-                } |]
-
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
-
-    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
-        -- NOTE
-        -- Special legacy wallets where addresses have been generated from a
-        -- seed derived using the auxiliary method used by Ledger.
-        let mnemonics =
-                [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
-                , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
-                , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
-                ] :: [Text]
-        let payload = Json [json| {
-                "name": "Ledger Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "ledger"
-                } |]
-
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
 
     it "BYRON_UPDATE_NAME_01 - Update names of wallets" $ \ctx ->
         forM_ [ (emptyRandomWallet ctx, "Random Wallet")

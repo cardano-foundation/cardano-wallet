@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -20,10 +21,12 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( fromText )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -31,10 +34,14 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWallet
     , emptyRandomWallet
     , expectErrorMessage
+    , expectField
     , expectListSize
     , expectResponseCode
+    , faucetAmt
     , fixtureIcarusWallet
+    , fixturePassphrase
     , fixtureRandomWallet
+    , json
     , request
     , toQueryString
     , verify
@@ -58,6 +65,53 @@ spec :: forall n t.
     ( DecodeAddress n
     ) => SpecWith (Context t)
 spec = do
+
+    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
+        -- NOTE
+        -- Special Icarus mnemonic where address indexes are all after the index
+        -- 500. Because we don't have the whole history, restoring sequential
+        -- wallets like Icarus ones is tricky from just a snapshot and we need
+        -- to use arbitrarily big address pool gaps.
+        let mnemonics =
+                [ "erosion", "ahead", "vibrant", "air", "day"
+                , "timber", "thunder", "general", "dice", "into"
+                , "chest", "enrich", "social", "neck", "shine"
+                ] :: [T.Text]
+        let payload = Json [json| {
+                    "name": "High Index Wallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": #{fixturePassphrase},
+                    "style": "icarus"
+                    } |]
+
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status201
+            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
+            ]
+
+    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
+        -- NOTE
+        -- Special legacy wallets where addresses have been generated from a
+        -- seed derived using the auxiliary method used by Ledger.
+        let mnemonics =
+                [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
+                , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
+                , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
+                ] :: [T.Text]
+        let payload = Json [json| {
+                    "name": "Ledger Wallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": #{fixturePassphrase},
+                    "style": "ledger"
+                    } |]
+
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status201
+            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
+            ]
+
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx

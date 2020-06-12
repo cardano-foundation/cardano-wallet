@@ -107,7 +107,13 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
+-- TODO: enable when byron transactions/addresses supported in the cardano-node
+-- import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
+-- import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
+-- import qualified Test.Integration.Byron.Scenario.API.Transactions as ByronTransactions
+-- import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactionsCommon
+-- import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
+import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
@@ -141,7 +147,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
         specWithServer tr $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
-                ByronMigrations.spec @n
+                ByronWallets.spec @n
                 Migrations.spec @n
                 Transactions.spec @n
                 Wallets.spec @n
