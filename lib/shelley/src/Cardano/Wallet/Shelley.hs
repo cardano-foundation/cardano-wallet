@@ -54,8 +54,6 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -98,6 +96,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , PoolId
     , PoolId (..)
     , SyncTolerance
     , WalletId
@@ -231,7 +230,7 @@ serveWallet
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                startServer proxy socket randomApi icarusApi shelleyApi mockStakePoolLayer ntpClient
+                startServer proxy socket randomApi icarusApi shelleyApi mockKnownPools ntpClient
                 pure ExitSuccess
 
     networkDiscriminantValFromProxy
@@ -254,7 +253,7 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        -> StakePoolLayer () IO
+        -> IO [PoolId]
         -> NtpClient
         -> IO ()
     startServer _proxy socket byron icarus shelley spl ntp = do
@@ -308,10 +307,8 @@ exitCodeApiServer = \case
 -- | FIXME: Temporary mock stake pool layer until we can get the stake pool
 -- listing working. These IDs match hard-wired operator credentials in our
 -- integration setup. See 'Cardano.Wallet.Shelley.Launch'.
-mockStakePoolLayer :: StakePoolLayer () IO
-mockStakePoolLayer = StakePoolLayer
-    { listStakePools  = pure []
-    , knownStakePools = pure
+mockKnownPools :: IO [PoolId]
+mockKnownPools = pure
         [ PoolId $ unsafeFromHex
             "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
         , PoolId $ unsafeFromHex
@@ -319,7 +316,6 @@ mockStakePoolLayer = StakePoolLayer
         , PoolId $ unsafeFromHex
             "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
         ]
-    }
 
 {-------------------------------------------------------------------------------
                                     Logging

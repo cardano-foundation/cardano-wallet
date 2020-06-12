@@ -49,6 +49,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
+    , ApiJormungandrStakePool (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -57,7 +58,6 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiSelectCoinsData (..)
-    , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -290,7 +290,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
-            jsonRoundtripAndGolden $ Proxy @ApiStakePool
+            jsonRoundtripAndGolden $ Proxy @ApiJormungandrStakePool
             jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
@@ -1001,8 +1001,8 @@ instance Arbitrary ApiStakePoolMetrics where
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
         pure $ ApiStakePoolMetrics stakes blocks
 
-instance Arbitrary ApiStakePool where
-    arbitrary = ApiStakePool
+instance Arbitrary ApiJormungandrStakePool where
+    arbitrary = ApiJormungandrStakePool
         <$> arbitrary
         <*> arbitrary
         <*> choose (0.0, 5.0)
@@ -1380,7 +1380,7 @@ instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPassphrase"
 
-instance ToSchema ApiStakePool where
+instance ToSchema ApiJormungandrStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
 instance ToSchema ApiStakePoolMetrics where

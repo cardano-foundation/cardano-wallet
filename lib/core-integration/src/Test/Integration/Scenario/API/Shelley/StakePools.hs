@@ -31,15 +31,19 @@ import Data.ByteString
     ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( SpecWith, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , TxDescription (..)
     , delegating
+    , delegationFee
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -48,6 +52,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
+    , fixtureWalletWith
     , getSlotParams
     , joinStakePool
     , mkEpochInfo
@@ -57,9 +62,11 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
+    , (.<=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NotDelegating
+    ( errMsg403DelegationFee
+    , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg404NoSuchPool
@@ -232,8 +239,102 @@ spec = do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
+
+    describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
+        it "STAKE_POOLS_JOIN_01x - \
+            \I can join if I have just the right amount" $ \ctx -> do
+            let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
+            w <- fixtureWalletWith @n ctx [fee]
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd)>>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+        it "STAKE_POOLS_JOIN_01x - \
+           \I cannot join if I have not enough fee to cover" $ \ctx -> do
+            let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
+            w <- fixtureWalletWith @n ctx [fee - 1]
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403DelegationFee 1)
+                ]
+
+    describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
+        it "STAKE_POOLS_QUIT_01x - \
+            \I can quit if I have enough to cover fee" $ \ctx -> do
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
+            let initBalance = [feeJoin + feeQuit]
+            w <- fixtureWalletWith @n ctx initBalance
+
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+            eventually "Wallet is delegating to p1" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    ]
+
+            quitStakePool @n ctx (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is not delegating and has balance = 0" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    -- balance is 0 because the rest was used for fees
+                    , expectField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+                    , expectField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                    ]
+
+        it "STAKE_POOLS_QUIT_01x - \
+            \I cannot quit if I have not enough fee to cover" $ \ctx -> do
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
+            let initBalance = [feeJoin+1]
+            w <- fixtureWalletWith @n ctx initBalance
+
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+            eventually "Wallet is delegating to p1" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    ]
+            quitStakePool @n ctx (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
+                ]
+
+    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
+        w <- fixtureWalletWith @n ctx [feeMin + 1, feeMin + 1]
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 2 1 1
+        delegationFee ctx w >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectField (#estimatedMin . #getQuantity) (.<= fee)
+            ]
+
+    it "STAKE_POOLS_ESTIMATE_FEE_02 - \
+        \empty wallet cannot estimate fee" $ \ctx -> do
+        w <- emptyWallet ctx
+        let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
+        delegationFee ctx w >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage $ errMsg403DelegationFee fee
+            ]
+
   where
     (Right poolID) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
     poolIdMock = PoolId poolID
     (Right poolID') = fromHex @ByteString "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
     poolIdMock' = PoolId poolID'
+    passwd = "Secure Passphrase"

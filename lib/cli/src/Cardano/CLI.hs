@@ -1495,7 +1495,8 @@ cmdVersion = command "version" $ info cmd $ mempty
 -------------------------------------------------------------------------------}
 
 cmdStakePool
-    :: StakePoolClient
+    :: ToJSON apiPool
+    => StakePoolClient apiPool
     -> Mod CommandFields (IO ())
 cmdStakePool mkClient =
     command "stake-pool" $ info (helper <*> cmds) $ mempty
@@ -1510,7 +1511,8 @@ newtype StakePoolListArgs = StakePoolListArgs
     }
 
 cmdStakePoolList
-    :: StakePoolClient
+    :: ToJSON apiPool
+    => StakePoolClient apiPool
     -> Mod CommandFields (IO ())
 cmdStakePoolList mkClient =
     command "list" $ info (helper <*> cmd) $ mempty

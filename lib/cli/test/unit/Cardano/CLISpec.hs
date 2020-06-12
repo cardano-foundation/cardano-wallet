@@ -1031,7 +1031,7 @@ parser = cli $ mempty
     <> cmdWallet cmdWalletCreate walletClient
     <> cmdTransaction transactionClient walletClient
     <> cmdAddress addressClient
-    <> cmdStakePool stakePoolClient
+    <> cmdStakePool (stakePoolClient @()) -- Type of pool not important here.
     <> cmdNetwork networkClient
     <> cmdKey
 

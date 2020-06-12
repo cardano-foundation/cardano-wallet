@@ -20,6 +20,7 @@
 module Cardano.Pool.Jormungandr.Metrics
     ( -- * Types
       Block (..)
+    , StakePoolLayer (..)
 
     -- * Listing stake-pools from the DB
     , newStakePoolLayer
@@ -45,8 +46,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Pool
-    ( StakePoolLayer (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
@@ -138,6 +137,20 @@ data Block = Block
     , poolRegistrations :: ![PoolRegistrationCertificate]
     -- ^ Any stake pools that were registered in this block.
     } deriving (Eq, Show, Generic)
+
+
+-- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
+-- can easily be passed to the API-server, where it can be used in a simple way.
+data StakePoolLayer e m = StakePoolLayer
+    { listStakePools
+        :: ExceptT e m [(StakePool, Maybe StakePoolMetadata)]
+
+    , knownStakePools
+        :: m [PoolId]
+        -- ^ Get a list of known pools that doesn't require fetching things from
+        -- any registry. This list comes from the registration certificates
+        -- that have been seen on chain.
+    }
 
 --------------------------------------------------------------------------------
 -- Stake Pool Monitoring
@@ -356,7 +369,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
                 )
 
     sortByDesirability :: [(StakePool, a)] -> [(StakePool, a)]
-    sortByDesirability = sortOn (Down . desirability . fst)
+    sortByDesirability = sortOn (Down . view #desirability . fst)
 
     sortArbitrarily :: StdGen -> [a] -> IO [a]
     sortArbitrarily = shuffleWith

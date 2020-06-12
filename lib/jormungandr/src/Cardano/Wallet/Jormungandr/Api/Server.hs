@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,14 +18,13 @@
 
 module Cardano.Wallet.Jormungandr.Api.Server
     ( server
+    , ApiV2
     ) where
 
 import Prelude
 
-import Cardano.Pool
-    ( StakePoolLayer )
 import Cardano.Pool.Jormungandr.Metrics
-    ( ErrListStakePools (..) )
+    ( ErrListStakePools (..), StakePoolLayer (..) )
 import Cardano.Wallet
     ( ErrValidateSelection
     , genesisData
@@ -33,9 +33,9 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Api
     ( Addresses
-    , Api
     , ApiLayer (..)
     , ByronAddresses
+    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -61,7 +61,6 @@ import Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAddresses
-    , listPools
     , listTransactions
     , listWallets
     , migrateWallet
@@ -86,7 +85,12 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), SomeByronWalletPostData (..) )
+    ( ApiErrorCode (..)
+    , ApiJormungandrStakePool (..)
+    , ApiStakePoolMetrics (..)
+    , ApiT (..)
+    , SomeByronWalletPostData (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -99,12 +103,16 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Types
+    ( StakePool (..), StakePoolMetadata )
 import Control.Applicative
     ( liftA2 )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.List
     ( sortOn )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Fmt
@@ -112,7 +120,24 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server, err501, err503, throwError )
+    ( (:<|>) (..), (:>), Handler, Server, err501, err503, throwError )
+
+type ApiV2 n = "v2" :> Api n
+
+type Api (n :: NetworkDiscriminant ) =
+         Wallets
+    :<|> Addresses n
+    :<|> CoinSelections n
+    :<|> Transactions n
+    :<|> ShelleyMigrations n
+    :<|> StakePools n ApiJormungandrStakePool
+    :<|> ByronWallets
+    :<|> ByronAddresses n
+    :<|> ByronCoinSelections n
+    :<|> ByronTransactions n
+    :<|> ByronMigrations n
+    :<|> Network
+    :<|> Proxy_
 
 -- | A Servant server for our wallet API
 server
@@ -171,9 +196,9 @@ server byron icarus jormungandr spl ntp =
              (\_ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
-    stakePools :: Server (StakePools n)
+    stakePools :: Server (StakePools n ApiJormungandrStakePool)
     stakePools = listPools spl
-        :<|> joinStakePool jormungandr spl
+        :<|> joinStakePool jormungandr (knownStakePools spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
 
@@ -263,6 +288,35 @@ server byron icarus jormungandr spl ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction jormungandr
+
+
+--------------------------------------------------------------------------------
+-- List stake pools API handler
+--------------------------------------------------------------------------------
+
+listPools
+    :: LiftHandler e
+    => StakePoolLayer e IO
+    -> Handler [ApiJormungandrStakePool]
+listPools spl =
+    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
+  where
+    mkApiJormungandrStakePool
+        :: StakePool
+        -> Maybe StakePoolMetadata
+        -> ApiJormungandrStakePool
+    mkApiJormungandrStakePool sp meta =
+        ApiJormungandrStakePool
+            (ApiT $ view #poolId sp)
+            (ApiStakePoolMetrics
+                (Quantity $ fromIntegral $ getQuantity $ stake sp)
+                (Quantity $ fromIntegral $ getQuantity $ production sp))
+            (sp ^. #performance)
+            (ApiT <$> meta)
+            (fromIntegral <$> sp ^. #cost)
+            (Quantity $ sp ^. #margin)
+            (sp ^. #desirability)
+            (sp ^. #saturation)
 
 instance LiftHandler ErrListStakePools where
      handler = \case

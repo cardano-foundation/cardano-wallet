@@ -37,6 +37,7 @@ module Test.Integration.Framework.DSL
     , expectWalletUTxO
     , between
     , (.>=)
+    , (.<=)
     , (.>)
     , verify
     , Headers(..)
@@ -571,6 +572,18 @@ a .>= b
         = fail $ mconcat
             [ show a
             , " does not satisfy (>= "
+            , show b
+            , ")"
+            ]
+
+(.<=) :: (Ord a, Show a) => a -> a -> Expectation
+a .<= b
+    | a <= b
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show a
+            , " does not satisfy (<= "
             , show b
             , ")"
             ]

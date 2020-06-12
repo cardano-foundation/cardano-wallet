@@ -20,8 +20,6 @@ module Cardano.Wallet.Shelley.Api.Server
 
 import Prelude
 
-import Cardano.Pool
-    ( StakePoolLayer )
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
@@ -47,7 +45,8 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( deleteTransaction
+    ( delegationFee
+    , deleteTransaction
     , deleteWallet
     , getMigrationInfo
     , getNetworkClock
@@ -85,7 +84,7 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiJormungandrStakePool, ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -98,6 +97,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Types
+    ( PoolId )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
@@ -128,10 +129,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> StakePoolLayer () IO
+    -> IO [PoolId]
     -> NtpClient
     -> Server (Api n)
-server byron icarus shelley spl ntp =
+server byron icarus shelley knownPools ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -173,12 +174,12 @@ server byron icarus shelley spl ntp =
              getMigrationInfo shelley
         :<|> migrateWallet shelley
 
-    stakePools :: Server (StakePools n)
+    stakePools :: Server (StakePools n ApiJormungandrStakePool)
     stakePools =
              throwError err501
-        :<|> joinStakePool shelley spl
+        :<|> joinStakePool shelley knownPools
         :<|> quitStakePool shelley
-        :<|> (\_ -> throwError err501)
+        :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
