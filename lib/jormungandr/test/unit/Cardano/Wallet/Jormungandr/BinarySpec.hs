@@ -24,6 +24,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , StakeDelegationType (..)
     , TaxParameters (..)
     , TxWitnessTag (..)
+    , blake2b256
     , getBlock
     , getBlockHeader
     , getFragment
@@ -262,8 +263,10 @@ data TestFragment = TestFragment
 
 fragmentAccountId :: TestFragment -> Maybe ChimericAccount
 fragmentAccountId test = case fragmentTag test of
-    MkFragmentStakeDelegation _ _ accountId _ -> Just accountId
-    _ -> Nothing
+    MkFragmentStakeDelegation _ _ (ChimericAccount accountId) _ ->
+        Just $ ChimericAccount $ blake2b256 accountId
+    _ ->
+        Nothing
 
 fragmentPoolId :: TestFragment -> Maybe PoolId
 fragmentPoolId test = case fragmentTag test of

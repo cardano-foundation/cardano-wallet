@@ -1,11 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -15,7 +20,7 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
-    , _estimateSize
+    , _minimumFee
     ) where
 
 import Prelude
@@ -32,17 +37,22 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), Passphrase, WalletKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , EpochLength (..)
     , Hash (..)
+    , PoolId (..)
     , ProtocolMagic (..)
     , SealedTx (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -52,9 +62,16 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toSealed
     , toSlotNo
+    , toStakeKeyDeregCert
+    , toStakeKeyRegCert
+    , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), ErrValidateSelection, TransactionLayer (..) )
+    ( ErrMkTx (..)
+    , ErrValidateSelection
+    , TransactionLayer (..)
+    , WithDelegation (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
 import Control.Monad
@@ -75,8 +92,11 @@ import Fmt
     ( Buildable (..) )
 import GHC.Stack
     ( HasCallStack )
+import Ouroboros.Network.Block
+    ( SlotNo )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
@@ -99,10 +119,10 @@ newTransactionLayer
     -> TransactionLayer t k
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = _mkStdTx
-    , mkDelegationJoinTx = notImplemented "mkDelegationJoinTx"
-    , mkDelegationQuitTx = notImplemented "mkDelegationQuitTx"
+    , mkDelegationJoinTx = _mkDelegationJoinTx
+    , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = notImplemented "decodeSignedTx"
-    , estimateSize = _estimateSize
+    , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
@@ -115,14 +135,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
     _mkStdTx keyFrom slot ownedIns outs = do
-        -- TODO: The SlotId-SlotNo conversion based on epoch length would not
-        -- work if the epoch length changed in a hard fork.
-
-        -- NOTE: The (+7200) was selected arbitrarily when we were trying to get
-        -- this working on the FF testnet. Perhaps a better motivated and/or
-        -- configurable value would be better.
-        let timeToLive = (toSlotNo epochLength slot) + 7200
-
+        let timeToLive = defaultTTL epochLength slot
         let unsigned = mkUnsignedTx timeToLive ownedIns outs []
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
@@ -134,6 +147,65 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
 
+    _mkDelegationJoinTx
+        :: WalletDelegation
+        -> PoolId
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+    _mkDelegationJoinTx wDeleg poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
+        let timeToLive = defaultTTL epochLength slot
+        let accXPub = toXPub $ getRawKey accXPrv
+        let certs = case wDeleg of
+                (WalletDelegation NotDelegating []) ->
+                    [ toStakeKeyRegCert  accXPub
+                    , toStakePoolDlgCert accXPub poolId
+                    ]
+                _ ->
+                    [ toStakePoolDlgCert accXPub poolId ]
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs
+        let metadata = SL.SNothing
+
+        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+            (k, pwd) <- lookupPrivateKey keyFrom addr
+            pure $ mkWitness unsigned (getRawKey k, pwd)
+        let certWits =
+                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
+        let scriptWits =
+                mempty
+        let wits = Set.unions [addrWits,certWits]
+
+        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
+
+    _mkDelegationQuitTx
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        -> SlotId
+        -> [(TxIn, TxOut)]
+        -> [TxOut]
+        -> Either ErrMkTx (Tx, SealedTx)
+    _mkDelegationQuitTx (accXPrv, pwd') keyFrom slot ownedIns outs = do
+        let timeToLive = defaultTTL epochLength slot
+        let accXPub = toXPub $ getRawKey accXPrv
+        let cert = [toStakeKeyDeregCert accXPub]
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs cert
+        let metadata = SL.SNothing
+
+        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+            (k, pwd) <- lookupPrivateKey keyFrom addr
+            pure $ mkWitness unsigned (getRawKey k, pwd)
+        let certWits =
+                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
+        let scriptWits =
+                mempty
+        let wits = Set.unions [addrWits,certWits]
+
+        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
+
+
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
         -- ^ Transaction max size in bytes
@@ -144,24 +216,37 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- FIXME Implement.
         100
 
-_estimateSize
-    :: CoinSelection
-    -> Quantity "byte" Int
-_estimateSize (CoinSelection inps outs chngs) =
-    Quantity $ fromIntegral $ SL.txsize $
+_minimumFee
+    :: FeePolicy
+    -> WithDelegation
+    -> CoinSelection
+    -> Fee
+_minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
+    computeFee $ SL.txsize $
         SL.Tx unsigned addrWits scriptWits metadata
   where
+    computeFee :: Integer -> Fee
+    computeFee size =
+        Fee $ ceiling (a + b*fromIntegral size)
+      where
+        LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
+
     scriptWits = mempty
 
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound inps outs' []
+    unsigned = mkUnsignedTx maxBound inps outs'
+        $ if withDelegation then [dummyRegisterCert, dummyDelegateCert] else []
       where
         outs' :: [TxOut]
         outs' = outs <> (dummyOutput <$> chngs)
 
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 64 0)
+
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (1:replicate 64 0)
+        dummyRegisterCert = Cardano.shelleyRegisterStakingAddress dummyKeyHash
+        dummyDelegateCert = Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
 
     addrWits = Set.map dummyWitness $ Set.fromList (fst <$> inps)
       where
@@ -198,6 +283,16 @@ mkUnsignedTx ttl ownedIns outs certs =
             Nothing -- Update
     in
         unsigned
+
+-- TODO: The SlotId-SlotNo conversion based on epoch length would not
+-- work if the epoch length changed in a hard fork.
+
+-- NOTE: The (+7200) was selected arbitrarily when we were trying to get
+-- this working on the FF testnet. Perhaps a better motivated and/or
+-- configurable value would be better.
+defaultTTL :: EpochLength -> SlotId -> SlotNo
+defaultTTL epochLength slot =
+    (toSlotNo epochLength slot) + 7200
 
 realFee :: [TxOut] -> [TxOut] -> Cardano.Lovelace
 realFee inps outs = toCardanoLovelace $ Coin

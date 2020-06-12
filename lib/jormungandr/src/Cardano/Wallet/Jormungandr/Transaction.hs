@@ -15,6 +15,8 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( xpubToBytes )
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
@@ -31,7 +33,7 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth, WalletKey (..), toChimericAccount )
+    ( Depth, WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -40,13 +42,16 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SealedTx (..), Tx (..), TxOut (..) )
+    ( ChimericAccount (..), Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
+    , WithDelegation (..)
     )
 import Control.Arrow
     ( first, second )
@@ -61,6 +66,7 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Jormungandr and 'Jörmungandr'
@@ -75,8 +81,8 @@ newTransactionLayer
 newTransactionLayer block0H = TransactionLayer
     { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
 
-    , mkDelegationJoinTx = \pool accXPrv ->
-        let acc = toChimericAccount . publicKey . fst $ accXPrv
+    , mkDelegationJoinTx = \_ pool accXPrv ->
+        let acc = toChimericAccount' . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     (DlgFull pool)
@@ -84,7 +90,7 @@ newTransactionLayer block0H = TransactionLayer
                     (first getRawKey accXPrv)
 
     , mkDelegationQuitTx = \accXPrv ->
-        let acc = toChimericAccount . publicKey . fst $ accXPrv
+        let acc = toChimericAccount' . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     DlgNone
@@ -100,11 +106,7 @@ newTransactionLayer block0H = TransactionLayer
                 Transaction tx -> return (tx, SealedTx payload)
                 _ -> Left errInvalidPayload
 
-    -- NOTE
-    -- Jörmungandr fee calculation is a linear function where the coefficient
-    -- is multiplied by the total number of inputs and outputs.
-    , estimateSize = \(CoinSelection inps outs chgs) ->
-        Quantity $ length inps + length outs + length chgs
+    , minimumFee = _minimumFee
 
     , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
@@ -132,6 +134,26 @@ newTransactionLayer block0H = TransactionLayer
                 }
             , finalizeFragment fragment
             )
+
+    -- NOTE
+    -- Jörmungandr fee calculation is a linear function where the coefficient
+    -- is multiplied by the total number of inputs and outputs.
+    _minimumFee
+        :: FeePolicy
+        -> WithDelegation
+        -> CoinSelection
+        -> Fee
+    _minimumFee policy (WithDelegation withCert) (CoinSelection inps outs chgs) =
+        Fee $ ceiling (a + b*fromIntegral ios + c*certs)
+      where
+        LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
+        certs = if withCert then 1 else 0
+        ios   = length inps + length outs + length chgs
+
+    -- Not using 'toChimericAccount' from Primitive.AddressDerivation as we must
+    -- not hash this one.
+    toChimericAccount' =
+        ChimericAccount . BS.take 32 . xpubToBytes . getRawKey . publicKey
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

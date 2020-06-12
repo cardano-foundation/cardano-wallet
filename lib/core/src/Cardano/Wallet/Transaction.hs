@@ -17,6 +17,7 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
+    , WithDelegation (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -32,6 +33,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , PoolId
@@ -40,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , WalletDelegation
     )
 import Data.ByteString
     ( ByteString )
@@ -66,7 +70,8 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: PoolId
+        :: WalletDelegation
+        -> PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId
@@ -92,21 +97,10 @@ data TransactionLayer t k = TransactionLayer
         --
         -- The certificate is the public key of the reward account.
 
-    , estimateSize :: CoinSelection -> Quantity "byte" Int
-        -- ^ Estimate the size of a 'CoinSelection', in bytes. This operation is
-        -- seemingly coupled to the binary representation of a 'Transaction'.
-        -- This estimation is therefore only a best-effort here as many of the
-        -- encoding values actually depends on the value of parameters at
-        -- runtime.
-        --
-        -- For instance, with a CBOR encoding, an amount of `50` lovelace would
-        -- be encoded using 2 bytes, whereas an amount of `1000000` would be
-        -- encoded using 4 bytes. In Byron, we have only one piece of unknown
-        -- from the 'CoinSelection' and it's the value of the 'crc32' computed
-        -- on the address payload, which can be 1,2,3 or 5 bytes and we therefore
-        -- always consider the worst-case scenario of a 5-byte crc.
-        -- As a consequence, our estimate may be slightly bigger than the actual
-        -- transaction fee (up-to 4 extra bytes per change output).
+    , minimumFee :: FeePolicy -> WithDelegation -> CoinSelection -> Fee
+        -- ^ Compute a minimal fee amount necessary to pay for a given
+        -- coin-selection. 'WithDelegation' can be used to communicate whether
+        -- or not the transaction carries (un)delegation certificates.
 
     , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
@@ -152,4 +146,8 @@ data ErrDecodeSignedTx
 newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
+    deriving (Eq, Show)
+
+newtype WithDelegation
+    = WithDelegation Bool
     deriving (Eq, Show)

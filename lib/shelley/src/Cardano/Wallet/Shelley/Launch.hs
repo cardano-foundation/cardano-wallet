@@ -47,11 +47,13 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
+    ( Block (..), NetworkParameters (..), PoolId (..), ProtocolMagic (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, fromGenesisData, testnetVersionData )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -203,6 +205,33 @@ cli args =
   where
     stdin = ""
 
+-- | Runs a @cardano-cli@ command and retries for up to 30 seconds if the
+-- command failed.
+--
+-- Assumes @cardano-cli@ is available in @PATH@ and that the env var
+-- @CARDANO_NODE_SOCKET_PATH@ has already been set.
+cliRetry
+    :: String -- ^ message to print before running command
+    -> [String] -- ^ arguments to @cardano-cli@
+    -> IO String
+cliRetry msg args = do
+    (st, out, err) <- retrying pol (const isFail) (const cmd)
+    case st of
+        ExitSuccess -> pure out
+        ExitFailure _ -> throwIO $ ProcessHasExited
+            (unwords (prog:args) <> " failed: " <> err) st
+  where
+    prog = "cardano-cli"
+    cmd = do
+        unless (null msg) $ B8.putStrLn $ B8.pack msg
+        (st, out, err) <- readProcessWithExitCode "cardano-cli" args mempty
+        case st of
+            ExitSuccess -> pure ()
+            _ -> B8.putStrLn $ B8.pack err
+        pure (st, out, err)
+    isFail (st, _, _) = pure (st /= ExitSuccess)
+    pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
+
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
 -- test data.
@@ -222,7 +251,9 @@ withCluster
     -> IO a
 withCluster tr severity n action = do
     ports <- randomUnusedTCPPorts (n + 1)
-    withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
+    -- FIXME: should simply be `head $ rotate ports` once cluster issues are solved
+    let peers = (fst $ head $ rotate ports, [])
+    withBFTNode tr severity peers $ \socket block0 params -> do
         waitForSocket socket
         waitGroup <- newChan
         doneGroup <- newChan
@@ -232,11 +263,12 @@ withCluster tr severity n action = do
         let onException :: SomeException -> IO ()
             onException = writeChan waitGroup . Left
 
-        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
+        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, _peers)) -> do
             link =<< async (handle onException $ do
-                withStakePool tr severity idx (port, peers) $ do
-                    writeChan waitGroup $ Right port
-                    readChan doneGroup)
+                -- FIXME: withStakePool tr severity idx (port, peers) $ do
+                registerStakePool socket idx
+                writeChan waitGroup $ Right port
+                readChan doneGroup)
 
         TIO.putStrLn cartouche
         group <- waitAll
@@ -294,6 +326,28 @@ withBFTNode tr severity (port, peers) action =
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
+
+-- | Only register stake pools but do not start their corresponding process.
+-- This is _hopefully_ temporary while we get the cluster running correctly on
+-- CI.
+registerStakePool
+    :: FilePath
+    -> Int
+    -> IO ()
+registerStakePool socket idx = do
+    setEnv "CARDANO_NODE_SOCKET_PATH" socket
+    withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
+        (opPrv, opPub, _opCount) <- genOperatorKeyPair dir
+        (_vrfPrv, vrfPub) <- genVrfKeyPair dir
+
+        (stakePrv, stakePub) <- genStakeAddrKeyPair dir
+        stakeCert <- issueStakeCert dir stakePub
+        poolCert <- issuePoolCert dir opPub vrfPub stakePub
+        dlgCert <- issueDlgCert dir stakePub opPub
+
+        (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
+        signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
+        timeout 120 ("pool registration", waitUntilRegistered opPub)
 
 -- | Start a "stake pool node". The pool will register itself.
 withStakePool
@@ -414,15 +468,18 @@ genTopology dir peers = do
 -- issue counter
 genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath)
 genOperatorKeyPair dir = do
+    (_poolId, pub, prv, count) <- takeMVar operators >>= \case
+        [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
+        (op:q) -> putMVar operators q $> op
+
     let opPub = dir </> "op.pub"
     let opPrv = dir </> "op.prv"
     let opCount = dir </> "op.count"
-    void $ cli
-        [ "shelley", "node", "key-gen"
-        , "--verification-key-file", opPub
-        , "--signing-key-file", opPrv
-        , "--operational-certificate-issue-counter", opCount
-        ]
+
+    writeFile opPub pub
+    writeFile opPrv prv
+    writeFile opCount count
+
     pure (opPrv, opPub, opCount)
 
 -- | Create a key pair for a node KES operational key
@@ -560,12 +617,10 @@ signTx dir rawTx keys = do
         ] ++ mconcat ((\key -> ["--signing-key-file", key]) <$> keys)
     pure file
 
--- | Submit a transaction through a running node
---
--- The node's target is assumed from an ENV var 'CARDANO_NODE_SOCKET_PATH'
+-- | Submit a transaction through a running node.
 submitTx :: FilePath -> IO ()
 submitTx signedTx = do
-    void $ cli
+    void $ cliRetry "Submitting transaction"
         [ "shelley", "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet"
@@ -582,25 +637,10 @@ submitTx signedTx = do
 waitForSocket :: FilePath -> IO ()
 waitForSocket socketPath = do
     setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
-    (st, err) <- retrying pol (const isFail) (const query)
-    unless (st == ExitSuccess) $
-       throwIO $ ProcessHasExited
-           ("cluster bft node didn't start correctly: " <> err) st
-  where
+    let msg = "Checking for usable socket file " <> socketPath
     -- TODO: check whether querying the tip works just as well.
-    query = do
-        B8.putStrLn . B8.pack $
-            "Checking for usable socket file " <> socketPath
-        (st, _, err) <- readProcessWithExitCode
-            "cardano-cli"
-            ["shelley", "query", "stake-distribution", "--mainnet"]
-            mempty
-        B8.putStrLn $ B8.pack $ case st of
-            ExitSuccess -> socketPath ++ " is ready."
-            _ -> err
-        pure (st, err)
-    isFail (st, _) = pure (st /= ExitSuccess)
-    pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
+    void $ cliRetry msg ["shelley", "query", "stake-distribution", "--mainnet"]
+    B8.putStrLn $ B8.pack $ socketPath ++ " is ready."
 
 -- | Wait until a stake pool shows as registered on-chain.
 waitUntilRegistered :: FilePath -> IO ()
@@ -609,16 +649,14 @@ waitUntilRegistered opPub = do
         [ "shelley", "stake-pool", "id"
         , "--verification-key-file", opPub
         ]
-    (exitCode, distribution, err) <- readProcessWithExitCode
-        "cardano-cli"
+    (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "shelley", "query", "stake-distribution"
         , "--mainnet"
-        ]
-        mempty
+        ] mempty
     when (exitCode /= ExitSuccess) $
         B8.putStrLn $ B8.pack $
             "query of stake-distribution " ++ show exitCode ++ "\n" ++ err
-
+    B8.putStrLn $ B8.pack distribution
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
         waitUntilRegistered opPub
@@ -681,6 +719,75 @@ faucets = unsafePerformIO $ newMVar
       )
     ]
 {-# NOINLINE faucets #-}
+
+operators :: MVar [(PoolId, String, String, String)]
+operators = unsafePerformIO $ newMVar
+    [ ( PoolId $ unsafeFromHex
+          "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    , ( PoolId $ unsafeFromHex
+          "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    , ( PoolId $ unsafeFromHex
+          "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+      , unlines
+          [ "type: Node operator verification key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+          ]
+      , unlines
+          [ "type: Node operator signing key"
+          , "title: Stake pool operator key"
+          , "cbor-hex:"
+          , " 5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
+          ]
+      , unlines
+          [ "type: Node operational certificate issue counter"
+          , "title: Next certificate issue number: 0"
+          , "cbor-hex:"
+          , " 00"
+          ]
+      )
+    ]
+{-# NOINLINE operators #-}
+
 
 -- | Pledge amount used for each pool.
 pledgeAmt :: Integer
