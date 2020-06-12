@@ -62,6 +62,7 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
+    , (.<=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -316,11 +317,10 @@ spec = do
     it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
         w <- fixtureWalletWith @n ctx [feeMin + 1, feeMin + 1]
-        r <- delegationFee ctx w
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 2 1 1
-        verify r
+        delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status200
-            , expectField #estimatedMin (`shouldBe` Quantity fee)
+            , expectField (#estimatedMin . #getQuantity) (.<= fee)
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
