@@ -52,6 +52,15 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
     , toStakeCredential
+    , toShelleyCoin
+    , fromShelleyCoin
+
+      -- ** Stake pools
+    , fromPoolId
+    , fromPoolDistr
+    , fromRewards
+    , optimumNumberOfPools
+
 
     , fromBlockNo
     , fromShelleyBlock
@@ -89,7 +98,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor )
+    ( unsafeDeserialiseCbor, unsafeMkPercentage )
 import Control.Arrow
     ( left )
 import Crypto.Hash.Algorithms
@@ -107,7 +116,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Percentage, Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -164,6 +173,7 @@ import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
+import qualified Shelley.Spec.Ledger.Delegation.Certificates as SL
 import qualified Shelley.Spec.Ledger.Genesis as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
@@ -514,6 +524,39 @@ fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
 
 --
+-- Stake pools
+--
+
+fromPoolId :: SL.KeyHash 'SL.StakePool crypto -> W.PoolId
+fromPoolId (SL.KeyHash x) = W.PoolId $ getHash x
+
+fromPoolDistr
+    :: SL.PoolDistr TPraosStandardCrypto
+    -> Map W.PoolId Percentage
+fromPoolDistr =
+    Map.map (unsafeMkPercentage . fst)
+    . Map.mapKeys fromPoolId
+    . SL.unPoolDistr
+
+-- TODO: Change to return a map of maps, instead of using head
+fromRewards
+    :: O.NonMyopicMemberRewards TPraosStandardCrypto
+    -> Map W.PoolId (Quantity "lovelace" Word64)
+fromRewards =
+    Map.map (Quantity . fromIntegral)
+    . Map.mapKeys fromPoolId
+    . snd
+    . head
+    . Map.toList
+    . O.unNonMyopicMemberRewards
+
+optimumNumberOfPools :: SL.PParams -> Int
+optimumNumberOfPools = safeConvert . SL._nOpt
+  where
+    safeConvert :: Natural -> Int
+    safeConvert = fromIntegral
+
+--
 -- Txs
 --
 
@@ -548,6 +591,12 @@ fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
     -- (but probably safe)
     unsafeCast :: Integer -> Word64
     unsafeCast = fromIntegral
+
+toShelleyCoin :: W.Coin -> SL.Coin
+toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
+  where
+    safeCast :: Word64 -> Integer
+    safeCast = fromIntegral
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx :: SL.Tx TPraosStandardCrypto -> (W.Tx, [W.DelegationCertificate])

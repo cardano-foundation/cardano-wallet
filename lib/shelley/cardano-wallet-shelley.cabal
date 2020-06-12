@@ -67,6 +67,7 @@ library
     , retry
     , servant-server
     , shelley-spec-ledger
+    , sort
     , temporary
     , text
     , text-class
@@ -85,6 +86,7 @@ library
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Transaction
       Cardano.Wallet.Shelley.Launch
+      Cardano.Wallet.Shelley.Pools
 
 executable cardano-wallet-shelley
   default-language:

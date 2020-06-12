@@ -203,6 +203,7 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 data instance Cursor (m Shelley) = Cursor
     (Point ShelleyBlock)
     (TQueue m (ChainSyncCmd ShelleyBlock m))
+    (TQueue m (LocalStateQueryCmd ShelleyBlock m))
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -231,8 +232,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    action
-        NetworkLayer
+    action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
@@ -268,7 +268,8 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient gp chainSyncQ
+        stateQueryQ <- atomically newTQueue
+        client <- mkWalletClient tr gp chainSyncQ stateQueryQ
         let handlers = failOnConnectionLost tr
         link =<< async
             (connectClient tr handlers client versionData addrInfo)
@@ -283,18 +284,18 @@ withNetworkLayer tr np addrInfo versionData action = do
                     $ MsgIntersectionFound
                     $ fromChainHash getGenesisBlockHash
                     $ pointHash intersection
-                pure $ Cursor intersection chainSyncQ
+                pure $ Cursor intersection chainSyncQ stateQueryQ
             _ -> fail $ unwords
                 [ "initCursor: intersection not found? This can't happen"
                 , "because we always give at least the genesis point."
                 , "Here are the points we gave: " <> show headers
                 ]
 
-    _nextBlocks (Cursor _ chainSyncQ) = do
-        let toCursor point = Cursor point chainSyncQ
+    _nextBlocks (Cursor _ chainSyncQ lsqQ) = do
+        let toCursor point = Cursor point chainSyncQ lsqQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor point _) = do
+    _cursorSlotId (Cursor point _ _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance nodeTipVar queryRewardQ acct = do
@@ -357,20 +358,20 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => W.GenesisParameters
+    => Tracer m NetworkLayerLog
+    -> W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
+    -> TQueue m (LocalStateQueryCmd ShelleyBlock m)
+        -- ^ Communication channel with the local state query
     -> m (NetworkClient m)
-mkWalletClient gp chainSyncQ = do
+mkWalletClient tr gp chainSyncQ lsqQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
-            let
-                codec = cChainSyncCodec codecs
-            in
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPipelinedPeer nullTracer codec channel
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
+                runPipelinedPeer nullTracer (cChainSyncCodec codecs) channel
                 $ chainSyncClientPeerPipelined
                 $ chainSyncWithBlocks (fromTip' gp) chainSyncQ stash
 
@@ -378,9 +379,14 @@ mkWalletClient gp chainSyncQ = do
             doNothingProtocol
 
         , localStateQueryProtocol =
-            doNothingProtocol
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer tr' (cStateQueryCodec codecs) channel
+                $ localStateQueryClientPeer
+                $ localStateQuery lsqQ
         })
         NodeToClientV_2
+  where
+    tr' = contramap MsgLocalStateQuery tr
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -388,8 +394,7 @@ mkDelegationRewardsClient
     :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> TQueue m
-       (LocalStateQueryCmd ShelleyBlock (Delegations, RewardAccounts) m)
+    -> TQueue m (LocalStateQueryCmd ShelleyBlock m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
 mkDelegationRewardsClient tr queryRewardQ =
