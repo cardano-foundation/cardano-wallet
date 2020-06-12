@@ -1,6 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
