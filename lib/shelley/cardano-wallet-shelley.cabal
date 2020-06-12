@@ -32,6 +32,9 @@ library
       base
     , aeson
     , async
+    , base58-bytestring
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -39,6 +42,7 @@ library
     , cardano-config
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-ledger
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
