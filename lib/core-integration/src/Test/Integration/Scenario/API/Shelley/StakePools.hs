@@ -31,6 +31,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -254,6 +256,60 @@ spec = do
             joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee 1)
+                ]
+
+    describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
+        it "STAKE_POOLS_QUIT_01x - \
+            \I can quit if I have enough to cover fee" $ \ctx -> do
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
+            let initBalance = [feeJoin + feeQuit]
+            w <- fixtureWalletWith @n ctx initBalance
+
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+            eventually "Wallet is delegating to p1" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    ]
+
+            quitStakePool @n ctx (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is not delegating and has balance = 0" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    -- balance is 0 because the rest was used for fees
+                    , expectField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+                    , expectField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                    ]
+
+        it "STAKE_POOLS_QUIT_01x - \
+            \I cannot quit if I have not enough fee to cover" $ \ctx -> do
+            let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
+            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
+            let initBalance = [feeJoin+1]
+            w <- fixtureWalletWith @n ctx initBalance
+
+            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+            eventually "Wallet is delegating to p1" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    ]
+            quitStakePool @n ctx (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
   where
