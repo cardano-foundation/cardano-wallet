@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TupleSections #-}
@@ -22,6 +23,8 @@
 module Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , ShelleyBlock
+    , Delegations
+    , RewardAccounts
 
     , NodeVersionData
     , TPraosStandardCrypto
@@ -48,6 +51,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
+    , toStakeCredential
 
     , fromBlockNo
     , fromShelleyBlock
@@ -58,6 +62,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromNetworkMagic
     , fromSlotNo
     , fromTip
+    , fromTip'
     , fromPParams
 
       -- * Internal Conversions
@@ -107,6 +112,8 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Word
     ( Word16, Word32, Word64 )
+import Fmt
+    ( Buildable (..), hexF )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
@@ -137,7 +144,11 @@ import Ouroboros.Network.CodecCBORTerm
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
+    ( ConnectionId (..)
+    , LocalAddress (..)
+    , NodeToClientVersionData (..)
+    , nodeToClientCodecCBORTerm
+    )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
@@ -158,6 +169,7 @@ import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
+import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 import qualified Shelley.Spec.Ledger.Scripts as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
@@ -169,7 +181,17 @@ data Shelley
 type NodeVersionData =
     (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
+-- | Concrete block type, using shelley crypto.
 type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
+
+-- | Shorthand for shelley delegations. Maps staking credentials to stake pool
+-- key hash.
+type Delegations = Map.Map
+    (SL.Credential 'SL.Staking TPraosStandardCrypto)
+    (SL.KeyHash 'SL.StakePool TPraosStandardCrypto)
+
+-- | Concrete type for a shelley reward account.
+type RewardAccounts = SL.RewardAccounts TPraosStandardCrypto
 
 --------------------------------------------------------------------------------
 --
@@ -354,6 +376,14 @@ fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
         -- possibility.
         , parentHeaderHash = W.Hash "parentHeaderHash - unused in Shelley"
         }
+
+fromTip' :: W.GenesisParameters -> Tip ShelleyBlock -> W.BlockHeader
+fromTip' gp = fromTip getGenesisBlockHash getEpochLength
+  where
+    W.GenesisParameters
+        { getEpochLength
+        , getGenesisBlockHash
+        } = gp
 
 fromSlotLength :: SlotLength -> W.SlotLength
 fromSlotLength = W.SlotLength
@@ -556,7 +586,7 @@ fromShelleyCert = \case
 -- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
 -- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH
 -- of a public key.
-fromStakeCredential :: SL.StakeCredential TPraosStandardCrypto -> W.ChimericAccount
+fromStakeCredential :: Cardano.ShelleyCredentialStaking -> W.ChimericAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
         W.ChimericAccount (getHash h)
@@ -599,6 +629,12 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
 toCardanoTxOut :: W.TxOut -> Cardano.TxOut
 toCardanoTxOut (W.TxOut addr coin) =
     Cardano.TxOut (toCardanoAddress addr) (toCardanoLovelace coin)
+
+-- | Convert from a chimeric account address (which is a hash of a public key)
+-- to a shelley ledger stake credential.
+toStakeCredential :: W.ChimericAccount -> Cardano.ShelleyCredentialStaking
+toStakeCredential = Cardano.mkShelleyStakingCredential
+    . SL.KeyHash . UnsafeHash . W.unChimericAccount
 
 toStakeKeyDeregCert :: XPub -> Cardano.Certificate
 toStakeKeyDeregCert xpub =
@@ -646,6 +682,20 @@ instance DecodeAddress 'Mainnet where
 
 instance DecodeAddress ('Testnet pm) where
     decodeAddress = _decodeAddress
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+-- Compact representation of connection id for log messages.
+instance Buildable addr => Buildable (ConnectionId addr) where
+   build (ConnectionId a b) = "conn:" <> build a <> ":" <> build b
+
+instance Buildable LocalAddress where
+    build (LocalAddress p) = build p
+
+instance Buildable W.ChimericAccount where
+    build (W.ChimericAccount addr) = hexF addr
 
 {-------------------------------------------------------------------------------
                                  Utilities
