@@ -49,7 +49,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -100,7 +100,6 @@ spec = do
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
-            pendingWith "Byron wallets not support in cardano-node yet"
             w <- fixtureByronWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -206,7 +205,6 @@ spec = do
 
     it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
-        pendingWith "Byron wallets not support in cardano-node yet"
         -- NOTE
         -- Special mnemonic for which 500 legacy funds are attached to in the
         -- genesis file.
@@ -293,7 +291,6 @@ spec = do
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
-            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -345,7 +342,6 @@ spec = do
     it "BYRON_MIGRATE_02 - \
         \migrating wallet with dust should fail."
         $ \ctx -> do
-            pendingWith "Byron wallets not supported in cardano-node yet."
             -- NOTE
             -- Special mnemonic for which wallet with dust
             -- (5 utxos with 60 lovelace in total)
@@ -390,7 +386,6 @@ spec = do
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
-            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -428,7 +423,6 @@ spec = do
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
-        pendingWith "Byron wallets not supported in cardano-node yet."
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 
@@ -467,7 +461,6 @@ spec = do
     testAddressCycling ctx addrNum =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
-            pendingWith "Byron wallets not supported in cardano-node yet."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =
