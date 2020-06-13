@@ -364,7 +364,7 @@ mkWalletClient
     -> m (NetworkClient m)
 mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 codec = cChainSyncCodec codecs
@@ -393,7 +393,7 @@ mkDelegationRewardsClient
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
 mkDelegationRewardsClient tr queryRewardQ =
-    nodeToClientProtocols (const NodeToClientProtocols
+    nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             doNothingProtocol
 
@@ -480,7 +480,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 codec = cChainSyncCodec $ serialisedCodecs @m

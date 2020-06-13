@@ -21,6 +21,7 @@ protocolParams:
   nOpt: 100
   rho: 0
   poolMinRefund: 0
+  minPoolCost: 0
   tau: 0
   a0: 0
 genDelegs:
