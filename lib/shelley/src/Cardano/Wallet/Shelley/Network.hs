@@ -235,7 +235,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
-            , initCursor = _initCursor queryRewardQ
+            , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
@@ -266,9 +266,9 @@ withNetworkLayer tr np addrInfo versionData action = do
         link =<< async (connectClient tr handlers cl versionData addrInfo)
         pure cmdQ
 
-    _initCursor queryRewardQ headers = do
+    _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient tr gp chainSyncQ queryRewardQ
+        client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
         link =<< async
             (connectClient tr handlers client versionData addrInfo)
@@ -357,21 +357,12 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => Tracer m NetworkLayerLog
-        -- ^ Base trace for underlying protocols
-    -> W.GenesisParameters
+    => W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
-    -> TQueue m
-        (LocalStateQueryCmd
-            ShelleyBlock
-            (Delegations, RewardAccounts)
-            m
-        )
-        -- ^ Communication channel with the LocalStateQuery client
     -> m (NetworkClient m)
-mkWalletClient tr gp chainSyncQ queryRewardQ = do
+mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const NodeToClientProtocols
         { localChainSyncProtocol =
@@ -387,14 +378,7 @@ mkWalletClient tr gp chainSyncQ queryRewardQ = do
             doNothingProtocol
 
         , localStateQueryProtocol =
-            let
-                tr' = contramap MsgLocalStateQuery tr
-                codec = cStateQueryCodec serialisedCodecs
-            in
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPeer tr' codec channel
-                $ localStateQueryClientPeer
-                $ localStateQuery queryRewardQ
+            doNothingProtocol
         })
         NodeToClientV_2
 
