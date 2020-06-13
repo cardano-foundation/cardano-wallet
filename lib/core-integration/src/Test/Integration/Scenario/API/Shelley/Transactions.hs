@@ -819,6 +819,55 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
+    it "TRANS_ESTIMATE_08 - Fee estimation edge case" $ \ctx -> do
+        wSrc <- fixtureWalletWith @n ctx [5_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 1
+                , nOutputs = 1
+                , nChanges = 1
+                }
+
+        let amt = 4834719 :: Natural
+        let payload1 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        r1 <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload1
+        verify r1
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity)
+                (`shouldBe` feeMin)
+            ]
+
+        let payload2 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt+1},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r2 <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload2
+        verify r2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity)
+                (`shouldBe` feeMin)
+            ]
+
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
         -- Make tx from fixtureWallet
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
