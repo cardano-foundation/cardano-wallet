@@ -191,12 +191,14 @@ test-suite integration
     , cardano-wallet-launcher
     , cardano-wallet-shelley
     , cardano-wallet-test-utils
+    , contra-tracer
     , hspec
     , http-client
     , iohk-monitoring
     , random
     , temporary
     , text
+    , text-class
   build-tools:
       cardano-wallet-shelley
   type:

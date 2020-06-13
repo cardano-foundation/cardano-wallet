@@ -62,6 +62,7 @@ module Cardano.CLI
     , helperTracing
     , loggingOptions
     , loggingSeverities
+    , parseLoggingSeverity
     , loggingSeverityOrOffReader
     , loggingSeverityReader
 
@@ -1783,24 +1784,18 @@ forceNtpCheckOption = flag False True $ mempty
     <> help "When set, will block and force an NTP check with the server. \
             \Otherwise, uses an available cached result."
 
+-- | The lower-case names of all 'Severity' values.
 loggingSeverities :: [(String, Severity)]
-loggingSeverities =
-    [ ("debug", Debug)
-    , ("info", Info)
-    , ("notice", Notice)
-    , ("warning", Warning)
-    , ("error", Error)
-    , ("critical", Critical)
-    , ("alert", Alert)
-    , ("emergency", Emergency)
-    ]
+loggingSeverities = [(toLower <$> show s, s) | s <- [minBound .. maxBound]]
 
-loggingSeverityReader :: ReadM Severity
-loggingSeverityReader = do
-    arg <- readerAsk
+parseLoggingSeverity :: String -> Either String Severity
+parseLoggingSeverity arg =
     case lookup (map toLower arg) loggingSeverities of
         Just sev -> pure sev
         Nothing -> fail $ "unknown logging severity: " ++ arg
+
+loggingSeverityReader :: ReadM Severity
+loggingSeverityReader = eitherReader parseLoggingSeverity
 
 loggingSeverityOrOffReader :: ReadM (Maybe Severity)
 loggingSeverityOrOffReader = do

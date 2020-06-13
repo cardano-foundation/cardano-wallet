@@ -15,10 +15,12 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
-    ( Trace, logInfo )
+    ( appendName )
 import Cardano.CLI
-    ( Port (..), withLogging )
+    ( Port (..), parseLoggingSeverity, withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -27,6 +29,8 @@ import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiWallet, WalletStyle (..) )
+import Cardano.Wallet.Logging
+    ( BracketLog (..), bracketTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -49,6 +53,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
+    , Tracers
     , serveWallet
     , setupTracers
     , tracerSeverities
@@ -58,7 +63,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( withCluster )
+    ( ClusterLog, withCluster )
 import Cardano.Wallet.Shelley.Transaction
     ( _minimumFee )
 import Cardano.Wallet.Transaction
@@ -71,10 +76,14 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( forM_, void )
+import Control.Tracer
+    ( Tracer (..), contramap, traceWith )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -83,6 +92,10 @@ import Network.HTTP.Client
     )
 import Numeric.Natural
     ( Natural )
+import System.Environment
+    ( lookupEnv )
+import System.Exit
+    ( die )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import System.IO.Temp
@@ -137,14 +150,14 @@ instance KnownCommand Shelley where
     commandName = "cardano-wallet-shelley"
 
 main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
-main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
+main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
     hspec $ do
         describe "No backend required" $ do
             describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
-        specWithServer tr $ do
+        specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
                 ByronWallets.spec @n
@@ -164,17 +177,17 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
                 NetworkCLI.spec @t
 
 specWithServer
-    :: Trace IO Text
+    :: (Tracer IO TestsLog, Tracers IO)
     -> SpecWith (Context Shelley)
     -> Spec
-specWithServer tr = aroundAll withContext . after tearDown
+specWithServer (tr, tracers) = aroundAll withContext . after tearDown
   where
     withContext :: (Context Shelley -> IO ()) -> IO ()
-    withContext action = do
+    withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
-        let setupContext np wAddr = do
+        let setupContext np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
-                logInfo tr baseUrl
+                traceWith tr $ MsgBaseUrl baseUrl
                 let sixtySeconds = 60*1000*1000 -- 60s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
@@ -193,15 +206,18 @@ specWithServer tr = aroundAll withContext . after tearDown
                     , _networkParameters = np
                     , _target = Proxy
                     }
-        race (takeMVar ctx >>= action) (withServer setupContext) >>=
+        let action' = bracketTracer' tr "spec" . action
+        race (takeMVar ctx >>= action') (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer action =
-        withCluster tr Error 3 $ \socketPath block0 (gp,vData) ->
+    withServer onStart = bracketTracer' tr "withServer" $ do
+        minSev <- nodeMinSeverityFromEnv
+        let tr' = contramap MsgCluster tr
+        withCluster tr' minSev 3 $ \socketPath block0 (gp, vData) ->
             withSystemTempDirectory "cardano-wallet-databases" $ \db ->
                 serveWallet @(IO Shelley)
                     (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                    (setupTracers (tracerSeverities (Just Info)) tr)
+                    tracers
                     (SyncTolerance 10)
                     (Just db)
                     "127.0.0.1"
@@ -210,11 +226,11 @@ specWithServer tr = aroundAll withContext . after tearDown
                     socketPath
                     block0
                     (gp, vData)
-                    (action gp)
+                    (onStart gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
-    tearDown ctx = do
+    tearDown ctx = bracketTracer' tr "tearDown" $ do
         (_, byronWallets) <- unsafeRequest @[ApiByronWallet] ctx
             (Link.listWallets @'Byron) Empty
         forM_ byronWallets $ \w -> void $ request @Aeson.Value ctx
@@ -256,3 +272,57 @@ mkFeeEstimator policy = \case
 
     computeFee selection dlg =
         fromIntegral $ getFee $ _minimumFee policy dlg selection
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data TestsLog
+    = MsgBracket BracketLog
+    | MsgBaseUrl Text
+    | MsgCluster ClusterLog
+    deriving (Show)
+
+instance ToText TestsLog where
+    toText = \case
+        MsgBracket b -> toText b
+        MsgBaseUrl txt -> txt
+        MsgCluster msg -> toText msg
+
+instance HasPrivacyAnnotation TestsLog
+instance HasSeverityAnnotation TestsLog where
+    getSeverityAnnotation = \case
+        MsgBracket _ -> Debug
+        MsgBaseUrl _ -> Notice
+        MsgCluster msg -> getSeverityAnnotation msg
+
+withTracers
+    :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
+    -> IO a
+withTracers action = do
+    minSeverity <- walletMinSeverityFromEnv
+    withLogging Nothing minSeverity $ \(_, tr) -> do
+        let trTests = appendName "integration" tr
+        let tracers = setupTracers (tracerSeverities (Just Info)) tr
+        action (trMessageText trTests, tracers)
+
+bracketTracer' :: Monad m => Tracer m TestsLog -> Text -> m a -> m a
+bracketTracer' tr = bracketTracer (contramap MsgBracket tr)
+
+-- Allow configuring @cardano-node@ log level with the
+-- @CARDANO_NODE_TRACING_MIN_SEVERITY@ environment variable.
+nodeMinSeverityFromEnv :: IO Severity
+nodeMinSeverityFromEnv =
+    minSeverityFromEnv Error "CARDANO_NODE_TRACING_MIN_SEVERITY"
+
+-- Allow configuring integration tests and wallet log level with
+-- @CARDANO_WALLET_TRACING_MIN_SEVERITY@ environment variable.
+walletMinSeverityFromEnv :: IO Severity
+walletMinSeverityFromEnv =
+    minSeverityFromEnv Info "CARDANO_WALLET_TRACING_MIN_SEVERITY"
+
+minSeverityFromEnv :: Severity -> String -> IO Severity
+minSeverityFromEnv def var = lookupEnv var >>= \case
+    Nothing -> pure def
+    Just "" -> pure def
+    Just arg -> either die pure (parseLoggingSeverity arg)
