@@ -102,6 +102,8 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Quantity
@@ -186,9 +188,8 @@ type ShelleyBlock = O.ShelleyBlock TPraosStandardCrypto
 
 -- | Shorthand for shelley delegations. Maps staking credentials to stake pool
 -- key hash.
-type Delegations = Map.Map
-    (SL.Credential 'SL.Staking TPraosStandardCrypto)
-    (SL.KeyHash 'SL.StakePool TPraosStandardCrypto)
+type Delegations =
+    Map Cardano.ShelleyCredentialStaking Cardano.ShelleyVerificationKeyHashStakePool
 
 -- | Concrete type for a shelley reward account.
 type RewardAccounts = SL.RewardAccounts TPraosStandardCrypto

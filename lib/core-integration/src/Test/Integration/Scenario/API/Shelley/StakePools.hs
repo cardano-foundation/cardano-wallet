@@ -36,7 +36,7 @@ import Data.Quantity
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe, xit )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -242,7 +242,7 @@ spec = do
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
 
-    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+    xit "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx
         -- Join a pool
         joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
