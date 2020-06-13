@@ -38,17 +38,27 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Network
-    ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
+    ( Cursor
+    , ErrGetAccountBalance (..)
+    , ErrNetworkUnavailable (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
+    , mapCursor
+    )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
+    ( Delegations
+    , RewardAccounts
+    , Shelley
     , ShelleyBlock
     , TPraosStandardCrypto
     , fromChainHash
     , fromPParams
     , fromSlotNo
     , fromTip
+    , fromTip'
     , toGenTx
     , toPoint
+    , toStakeCredential
     )
 import Control.Concurrent.Async
     ( async, link )
@@ -107,7 +117,7 @@ import Fmt
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
-    ( MuxError (..), MuxErrorType (..), WithMuxBearer )
+    ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Shelley.Ledger
@@ -178,9 +188,12 @@ import System.IO.Error
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -195,7 +208,6 @@ data instance Cursor (m Shelley) = Cursor
 withNetworkLayer
     :: Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
-        -- FIXME: Use a typed message instead of a 'Text'
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> FilePath
@@ -206,33 +218,29 @@ withNetworkLayer
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo versionData action = do
-    localTxSubmissionQ <- atomically newTQueue
-
-    -- NOTE: We keep a client connection running for accessing the node tip,
-    -- submitting transactions, and querying parameters.
+    -- NOTE: We keep client connections running for accessing the node tip,
+    -- submitting transactions, querying parameters and delegations/rewards.
+    --
     -- It is safe to retry when the connection is lost here because this client
-    -- doesn't really do anything but sending dummy messages to get the node's
-    -- tip. It doesn't rely on the intersection to be up-to-date.
-    nodeTipVar <- atomically $ newTVar TipGenesis
-    protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-    nodeTipClient <- mkTipSyncClient tr np
-        localTxSubmissionQ
-        (atomically . writeTVar nodeTipVar)
-        (atomically . writeTVar protocolParamsVar)
+    -- doesn't really do anything but sending messages to get the node's tip. It
+    -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
-    link =<< async
-        (connectClient tr handlers nodeTipClient versionData addrInfo)
+
+    (nodeTipVar, protocolParamsVar, localTxSubmissionQ) <-
+        connectNodeTipClient handlers
+
+    queryRewardQ <- connectDelegationRewardsClient handlers
 
     action
         NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
-            , initCursor = _initCursor
+            , initCursor = _initCursor queryRewardQ
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
-            , getAccountBalance = _getAccountBalance
+            , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
             }
   where
     gp@W.GenesisParameters
@@ -240,9 +248,27 @@ withNetworkLayer tr np addrInfo versionData action = do
         , getEpochLength
         } = W.genesisParameters np
 
-    _initCursor headers = do
+    connectNodeTipClient handlers = do
+        localTxSubmissionQ <- atomically newTQueue
+        nodeTipVar <- atomically $ newTVar TipGenesis
+        protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
+        nodeTipClient <- mkTipSyncClient tr np
+            localTxSubmissionQ
+            (atomically . writeTVar nodeTipVar)
+            (atomically . writeTVar protocolParamsVar)
+        link =<< async
+            (connectClient tr handlers nodeTipClient versionData addrInfo)
+        pure (nodeTipVar, protocolParamsVar, localTxSubmissionQ)
+
+    connectDelegationRewardsClient handlers = do
+        cmdQ <- atomically newTQueue
+        let cl = mkDelegationRewardsClient tr cmdQ
+        link =<< async (connectClient tr handlers cl versionData addrInfo)
+        pure cmdQ
+
+    _initCursor queryRewardQ headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient gp chainSyncQ
+        client <- mkWalletClient tr gp chainSyncQ queryRewardQ
         let handlers = failOnConnectionLost tr
         link =<< async
             (connectClient tr handlers client versionData addrInfo)
@@ -271,8 +297,26 @@ withNetworkLayer tr np addrInfo versionData action = do
     _cursorSlotId (Cursor point _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
-    _getAccountBalance _ =
-        pure (Quantity 0)
+    _getAccountBalance nodeTipVar queryRewardQ acct = do
+        tip <- liftIO . atomically $ readTVar nodeTipVar
+        let bh = fromTip' gp tip
+        liftIO $ traceWith tr $ MsgGetRewardAccountBalance bh acct
+        let cred = toStakeCredential acct
+        let q = OC.GetFilteredDelegationsAndRewardAccounts (Set.singleton cred)
+        let cmd = CmdQueryLocalState (getTipPoint tip) q
+        liftIO (queryRewardQ `send` cmd) >>= \case
+            Right (deleg, rewardAccounts) -> do
+                liftIO $ traceWith tr $
+                    MsgAccountDelegationAndRewards acct deleg rewardAccounts
+                case Map.elems rewardAccounts of
+                    [SL.Coin amt] -> pure (Quantity (fromIntegral amt))
+                    _ -> throwE $ ErrGetAccountBalanceAccountNotFound acct
+            Left acqFail ->
+                -- NOTE: this could possibly happen in rare circumstances when
+                -- the chain is switched and the local state query is made
+                -- before the node tip variable is updated.
+                throwE $ ErrGetAccountBalanceNetworkUnreachable $
+                ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show acqFail
 
     _currentNodeTip nodeTipVar =
         fromTip getGenesisBlockHash getEpochLength <$>
@@ -313,38 +357,75 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => W.GenesisParameters
+    => Tracer m NetworkLayerLog
+        -- ^ Base trace for underlying protocols
+    -> W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
+    -> TQueue m
+        (LocalStateQueryCmd
+            ShelleyBlock
+            (Delegations, RewardAccounts)
+            m
+        )
+        -- ^ Communication channel with the LocalStateQuery client
     -> m (NetworkClient m)
-mkWalletClient gp chainSyncQ = do
+mkWalletClient tr gp chainSyncQ queryRewardQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                fromTip' =
-                    fromTip getGenesisBlockHash getEpochLength
+                codec = cChainSyncCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks fromTip' chainSyncQ stash
+                $ chainSyncWithBlocks (fromTip' gp) chainSyncQ stash
 
         , localTxSubmissionProtocol =
             doNothingProtocol
 
         , localStateQueryProtocol =
+            let
+                tr' = contramap MsgLocalStateQuery tr
+                codec = cStateQueryCodec serialisedCodecs
+            in
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer tr' codec channel
+                $ localStateQueryClientPeer
+                $ localStateQuery queryRewardQ
+        })
+        NodeToClientV_2
+
+-- | Construct a network client with the given communication channel, for the
+-- purposes of querying delegations and rewards.
+mkDelegationRewardsClient
+    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
+    => Tracer m NetworkLayerLog
+        -- ^ Base trace for underlying protocols
+    -> TQueue m
+       (LocalStateQueryCmd ShelleyBlock (Delegations, RewardAccounts) m)
+        -- ^ Communication channel with the LocalStateQuery client
+    -> NetworkClient m
+mkDelegationRewardsClient tr queryRewardQ =
+    nodeToClientProtocols (const NodeToClientProtocols
+        { localChainSyncProtocol =
             doNothingProtocol
+
+        , localTxSubmissionProtocol =
+            doNothingProtocol
+
+        , localStateQueryProtocol =
+            InitiatorProtocolOnly $ MuxPeerRaw
+                $ \channel -> runPeer tr' codec channel
+                $ localStateQueryClientPeer
+                $ localStateQuery queryRewardQ
         })
         NodeToClientV_2
   where
-    W.GenesisParameters
-        { getEpochLength
-        , getGenesisBlockHash
-        } = gp
-
-    codec = cChainSyncCodec codecs
+    tr' = contramap MsgLocalStateQuery tr
+    codec = cStateQueryCodec serialisedCodecs
 
 codecs :: MonadST m => ClientCodecs ShelleyBlock m
 codecs = clientCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
@@ -588,6 +669,9 @@ data NetworkLayerLog
     | MsgNodeTip W.BlockHeader
     | MsgProtocolParameters W.ProtocolParameters
     | MsgLocalStateQueryError String
+    | MsgGetRewardAccountBalance W.BlockHeader W.ChimericAccount
+    | MsgAccountDelegationAndRewards W.ChimericAccount
+        Delegations RewardAccounts
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
@@ -605,8 +689,8 @@ instance ToText NetworkLayerLog where
             ]
         MsgTxSubmission msg ->
             T.pack (show msg)
-        MsgHandshakeTracer msg ->
-            T.pack (show msg)
+        MsgHandshakeTracer (WithMuxBearer conn h) ->
+            pretty conn <> " " <> T.pack (show h)
         MsgFindIntersectionTimeout ->
             "Couldn't find an intersection in a timely manner. Retrying..."
         MsgFindIntersection points -> T.unwords
@@ -633,21 +717,34 @@ instance ToText NetworkLayerLog where
             [ "Error when querying local state parameters:"
             , T.pack e
             ]
+        MsgGetRewardAccountBalance bh acct -> T.unwords
+            [ "Querying the reward account balance for"
+            , pretty acct
+            , "at"
+            , pretty bh
+            ]
+        MsgAccountDelegationAndRewards acct delegations rewards -> T.unlines
+            [ "Result for account " <> pretty acct <> ":"
+            , "  delegations = " <> T.pack (show delegations)
+            , "  rewards = " <> T.pack (show rewards)
+            ]
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
     getSeverityAnnotation = \case
-        MsgCouldntConnect 0        -> Debug
-        MsgCouldntConnect 1        -> Notice
-        MsgCouldntConnect{}        -> Warning
-        MsgConnectionLost{}        -> Warning
-        MsgTxSubmission{}          -> Info
-        MsgHandshakeTracer{}       -> Info
-        MsgFindIntersectionTimeout -> Warning
-        MsgFindIntersection{}      -> Info
-        MsgIntersectionFound{}     -> Info
-        MsgPostSealedTx{}          -> Debug
-        MsgLocalStateQuery{}       -> Debug
-        MsgNodeTip{}               -> Debug
-        MsgProtocolParameters{}    -> Info
-        MsgLocalStateQueryError{}  -> Error
+        MsgCouldntConnect 0              -> Debug
+        MsgCouldntConnect 1              -> Notice
+        MsgCouldntConnect{}              -> Warning
+        MsgConnectionLost{}              -> Warning
+        MsgTxSubmission{}                -> Info
+        MsgHandshakeTracer{}             -> Info
+        MsgFindIntersectionTimeout       -> Warning
+        MsgFindIntersection{}            -> Info
+        MsgIntersectionFound{}           -> Info
+        MsgPostSealedTx{}                -> Debug
+        MsgLocalStateQuery{}             -> Debug
+        MsgNodeTip{}                     -> Debug
+        MsgProtocolParameters{}          -> Info
+        MsgLocalStateQueryError{}        -> Error
+        MsgGetRewardAccountBalance{}     -> Info
+        MsgAccountDelegationAndRewards{} -> Info
