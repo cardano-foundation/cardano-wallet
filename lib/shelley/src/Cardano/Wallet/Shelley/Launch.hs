@@ -470,12 +470,13 @@ genConfig
 genConfig dir severity systemStart = do
     -- we need to specify genesis file location every run in tmp
     Yaml.decodeFileThrow (source </> "node.config")
-        >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
-        >>= withObject (addMinSeverity (T.pack $ show severity))
+        >>= withObject (pure . addGenesisFilePath (T.pack nodeGenesisFile))
+        >>= withObject (addMinSeverityStdout severity)
+        >>= withObject (pure . addMinSeverity severity) -- fixme: use Debug
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-        >>= withObject (updateSystemStart systemStart)
+        >>= withObject (pure . updateSystemStart systemStart)
         >>= Aeson.encodeFile nodeGenesisFile
 
     (genesisData :: ShelleyGenesis TPraosStandardCrypto)
@@ -897,25 +898,44 @@ oneMillionAda = 1_000_000_000_000
 updateSystemStart
     :: UTCTime
     -> Aeson.Object
-    -> IO Aeson.Object
+    -> Aeson.Object
 updateSystemStart systemStart =
-    pure . HM.insert "systemStart" (toJSON systemStart)
+    HM.insert "systemStart" (toJSON systemStart)
 
 -- | Add a "GenesisFile" field in a given object with the current path of
 -- genesis.json in tmp dir as value.
 addGenesisFilePath
     :: Text
     -> Aeson.Object
-    -> IO Aeson.Object
-addGenesisFilePath path = pure . HM.insert "GenesisFile" (toJSON path)
-
--- | Add a "minSeverity" field in a given object with the current path of
--- genesis.json in tmp dir as value.
-addMinSeverity
-    :: Text
     -> Aeson.Object
-    -> IO Aeson.Object
-addMinSeverity severity = pure . HM.insert "minSeverity" (toJSON severity)
+addGenesisFilePath path = HM.insert "GenesisFile" (toJSON path)
+
+-- | Add a @setupScribes[1].scMinSev@ field in a given config object.
+-- The full lens library would be quite helpful here.
+addMinSeverityStdout
+    :: Monad m
+    => Severity
+    -> Aeson.Object
+    -> m Aeson.Object
+addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
+    Just (Aeson.Array scribes) -> do
+        let scribes' = Aeson.Array $ fmap setMinSev scribes
+        pure $ HM.insert "setupScribes" scribes' ob
+    _ -> fail "setupScribes logging config is missing or the wrong type"
+  where
+    sev = toJSON $ show severity
+    setMinSev (Aeson.Object scribe)
+        | HM.lookup "scKind" scribe == Just (Aeson.String "StdoutSK")
+            = Aeson.Object (HM.insert "scMinSev" sev scribe)
+        | otherwise = Aeson.Object scribe
+    setMinSev a = a
+
+-- | Add a global "minSeverity" field in a given config object.
+addMinSeverity
+    :: Severity
+    -> Aeson.Object
+    -> Aeson.Object
+addMinSeverity severity = HM.insert "minSeverity" (toJSON $ show severity)
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
