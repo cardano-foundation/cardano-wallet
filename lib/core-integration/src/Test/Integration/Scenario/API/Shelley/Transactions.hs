@@ -820,7 +820,8 @@ spec = do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "TRANS_ESTIMATE_08 - Fee estimation edge case" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [5_000_000]
+        let walletBalance = 5000000
+        wSrc <- fixtureWalletWith @n ctx [walletBalance]
         wDest <- emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -830,7 +831,7 @@ spec = do
                 , nChanges = 1
                 }
 
-        let amt = 4834719 :: Natural
+        let amt = walletBalance - feeMin :: Natural
         let payload1 = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -862,6 +863,43 @@ spec = do
         r2 <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wSrc) Default payload2
         verify r2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity)
+                (`shouldBe` feeMin)
+            ]
+
+        let amt1 = walletBalance - 122500 :: Natural
+        let payload3 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt1},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r3 <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload3
+        verify r3
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity)
+                (`shouldBe` feeMin)
+            ]
+
+        let payload4 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt1+1},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r4 <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload4
+        verify r4
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#estimatedMin . #getQuantity)
