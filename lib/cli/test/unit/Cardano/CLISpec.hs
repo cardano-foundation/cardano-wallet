@@ -485,7 +485,7 @@ spec = do
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  stake-pool list [--port INT]"
+            [ "Usage:  stake-pool list [--port INT] WALLET_ID"
             , "  List all known stake pools."
             , ""
             , "Available options:"

@@ -84,7 +84,7 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiJormungandrStakePool, ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiStakePool, ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -131,7 +131,7 @@ server
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
     -> IO [PoolId]
     -> NtpClient
-    -> Server (Api n)
+    -> Server (Api n ApiStakePool)
 server byron icarus shelley knownPools ntp =
          wallets
     :<|> addresses
@@ -174,9 +174,9 @@ server byron icarus shelley knownPools ntp =
              getMigrationInfo shelley
         :<|> migrateWallet shelley
 
-    stakePools :: Server (StakePools n ApiJormungandrStakePool)
+    stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             throwError err501
+             (\_ -> throwError err501)
         :<|> joinStakePool shelley knownPools
         :<|> quitStakePool shelley
         :<|> delegationFee shelley

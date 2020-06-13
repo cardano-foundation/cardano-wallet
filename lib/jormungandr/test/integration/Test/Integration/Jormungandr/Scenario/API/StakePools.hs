@@ -118,7 +118,7 @@ spec = do
             wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey "Wallet from pubkey"
             -- cannot join stake pool
             (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
             rJoin <- joinStakePool @n ctx (p ^. #id) (wk, fixturePassphrase)
             expectResponseCode @IO HTTP.status403 rJoin
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
@@ -135,7 +135,7 @@ spec = do
 
             -- join stake pool
             (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
             r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
             expectResponseCode @IO HTTP.status202 r
             waitAllTxsInLedger @n ctx w
@@ -166,7 +166,7 @@ spec = do
 
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> do
         eventually "Listing stake pools shows expected information" $ do
-            r <- request @[ApiJormungandrStakePool] ctx Link.listStakePools Default Empty
+            r <- request @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Default Empty
             expectResponseCode HTTP.status200 r
             verify r
                 [ expectListSize 3
@@ -232,7 +232,7 @@ spec = do
         eventuallyUsingDelay (50*ms)
             "Shows error when listing stake pools on epoch boundaries"
             $ do
-            r <- request @[ApiJormungandrStakePool] ctx Link.listStakePools Default Empty
+            r <- request @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Default Empty
             verify r
                 [ expectResponseCode HTTP.status503
                 , expectErrorMessage
@@ -246,7 +246,7 @@ spec = do
         let nWithoutMetadata = length . filter (isNothing . view #metadata)
 
         (_, pools) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         (poolIdA, poolAOwner)  <- registerStakePool nPort feePolicy WithMetadata
         (poolIdB, _poolBOwner) <- registerStakePool nPort feePolicy WithoutMetadata
@@ -254,7 +254,7 @@ spec = do
 
         waitForNextEpoch ctx
         (_, pools') <- eventually "Stake pools are listed again" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         nWithoutMetadata pools' `shouldBe` nWithoutMetadata pools + 1
         nWithMetadata pools' `shouldBe` nWithMetadata pools + 2
@@ -271,7 +271,7 @@ spec = do
     it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         -- Join a pool
         joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
@@ -293,7 +293,7 @@ spec = do
     it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, Right (p:_)) <- eventually "Stake pools are listed" $
-            request @[ApiJormungandrStakePool] ctx Link.listStakePools Default Empty
+            request @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Default Empty
 
         -- Join a pool
         joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
@@ -316,7 +316,7 @@ spec = do
         let existingPoolStake = getQuantity $ p ^. #metrics . #controlledStake
         let contributedStake = faucetUtxoAmt - fee
         eventually "Controlled stake increases for the stake pool" $ do
-            v <- request @[ApiJormungandrStakePool] ctx Link.listStakePools Default Empty
+            v <- request @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Default Empty
             verify v
                 [ expectListField 0 (#metrics . #controlledStake)
                     (.> Quantity (existingPoolStake + contributedStake))
@@ -327,7 +327,7 @@ spec = do
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         -- Join a pool
         joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase) >>= flip verify
@@ -386,7 +386,7 @@ spec = do
         \Delegate, stop in the next epoch, and still earn rewards" $ \(_,_,ctx) -> do
         w <- fixtureWallet ctx
         (_, p1:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         joinStakePool @n ctx (p1 ^. #id) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -420,7 +420,7 @@ spec = do
         it "STAKE_POOLS_JOIN_01x - \
             \I can join if I have just the right amount" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith @n ctx [fee]
             joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
@@ -432,7 +432,7 @@ spec = do
         it "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith @n ctx [fee - 1]
             r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
@@ -441,7 +441,7 @@ spec = do
 
         it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \(_,_,ctx) -> do
             (_, p:_) <- eventually "Stake pools are listed" $
-                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
             w <- emptyWallet ctx
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
             r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
@@ -500,7 +500,7 @@ spec = do
         \ If a wallet joins a stake pool, others are not affected" $ \(_,_,ctx) -> do
         (wA, wB) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
 
         -- Join a pool
         joinStakePool @n ctx (p ^. #id) (wA, fixturePassphrase) >>= flip verify
@@ -537,7 +537,7 @@ spec = do
     describe "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ do
         let verifyIt ctx wallet pass expectations = do
                 (_, p:_) <- eventually "Stake pools are listed" $ do
-                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- wallet ctx
                 r <- joinStakePool @n ctx (p ^. #id) (w, pass)
                 verify r expectations
@@ -584,7 +584,7 @@ spec = do
 
         let verifyIt ctx doStakePool pass expec = do
                 (_, p:_) <- eventually "Stake pools are listed" $ do
-                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- emptyWallet ctx
                 r <- doStakePool ctx (p ^. #id) (w, T.pack pass)
                 expectResponseCode HTTP.status400 r
@@ -599,7 +599,7 @@ spec = do
     describe "STAKE_POOLS_JOIN/QUIT_02 - Passphrase must be text" $ do
         let verifyIt ctx sPoolEndp = do
                 (_, p:_) <- eventually "Stake pools are listed" $
-                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+                    unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- emptyWallet ctx
                 let payload = Json [json| { "passphrase": 123 } |]
                 r <- request @(ApiTransaction n) ctx (sPoolEndp p w)
@@ -613,7 +613,7 @@ spec = do
 
     it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \(_,_,ctx) -> do
         (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
         w <- emptyRandomWallet ctx
         r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passprase")
         expectResponseCode HTTP.status404 r
@@ -626,7 +626,7 @@ spec = do
     -- value) and therefore, the random selection has no influence.
     it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \(_,_,ctx) -> do
         (_, p:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
         r <- delegationFee ctx w
         verify r
@@ -694,7 +694,7 @@ spec = do
 
     it "STAKE_POOL_NEXT_01 - Can join/re-join another/quit stake pool" $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
@@ -763,7 +763,7 @@ spec = do
     it "STAKE_POOL_NEXT_02 - Override join with join in the same epoch =>\
         \ delegating to the last one in the end" $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
@@ -795,7 +795,7 @@ spec = do
         \ and 2nd in epoch X + 3"
         $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
-            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+            unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
@@ -861,7 +861,7 @@ joinStakePoolWithWalletBalance
 joinStakePoolWithWalletBalance ctx balance = do
     w <- fixtureWalletWith @n ctx balance
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithWalletBalance" $
-        unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+        unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
     r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
     expectResponseCode HTTP.status202 r
     -- Verify the certificate was discovered
@@ -880,7 +880,7 @@ joinStakePoolWithFixtureWallet
 joinStakePoolWithFixtureWallet ctx = do
     w <- fixtureWallet ctx
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithFixtureWallet" $
-        unsafeRequest @[ApiJormungandrStakePool] ctx Link.listStakePools Empty
+        unsafeRequest @[ApiJormungandrStakePool] ctx Link.listJormungandrStakePools Empty
     r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
     expectResponseCode HTTP.status202 r
     -- Verify the certificate was discovered

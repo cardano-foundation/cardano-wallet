@@ -106,7 +106,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
-    , ApiJormungandrStakePool
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -181,18 +180,18 @@ import Servant.API.Verbs
     , PutNoContent
     )
 
-type ApiV2 n = "v2" :> Api n
+type ApiV2 n apiPool = "v2" :> Api n apiPool
 
 -- | The full cardano-wallet API.
 --
 -- The API used in cardano-wallet-jormungandr may differ from this one.
-type Api n =
+type Api n apiPool =
          Wallets
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
     :<|> ShelleyMigrations n
-    :<|> StakePools n ApiJormungandrStakePool -- TODO: Make haskell specific
+    :<|> StakePools n apiPool
     :<|> ByronWallets
     :<|> ByronAddresses n
     :<|> ByronCoinSelections n
@@ -368,7 +367,9 @@ type StakePools n apiPool =
     :<|> DelegationFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
-type ListStakePools apiPool = "stake-pools"
+type ListStakePools apiPool = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "stake-pools"
     :> Get '[JSON] [apiPool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool

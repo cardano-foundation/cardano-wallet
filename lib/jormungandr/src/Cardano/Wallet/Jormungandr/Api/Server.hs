@@ -18,7 +18,6 @@
 
 module Cardano.Wallet.Jormungandr.Api.Server
     ( server
-    , ApiV2
     ) where
 
 import Prelude
@@ -33,9 +32,9 @@ import Cardano.Wallet
     )
 import Cardano.Wallet.Api
     ( Addresses
+    , Api
     , ApiLayer (..)
     , ByronAddresses
-    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -87,7 +86,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiErrorCode (..)
     , ApiJormungandrStakePool (..)
-    , ApiStakePoolMetrics (..)
+    , ApiJormungandrStakePoolMetrics (..)
     , ApiT (..)
     , SomeByronWalletPostData (..)
     )
@@ -104,7 +103,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( StakePool (..), StakePoolMetadata )
+    ( StakePool (..), StakePoolMetadata, WalletId )
 import Control.Applicative
     ( liftA2 )
 import Data.Generics.Internal.VL.Lens
@@ -120,24 +119,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), (:>), Handler, Server, err501, err503, throwError )
-
-type ApiV2 n = "v2" :> Api n
-
-type Api (n :: NetworkDiscriminant ) =
-         Wallets
-    :<|> Addresses n
-    :<|> CoinSelections n
-    :<|> Transactions n
-    :<|> ShelleyMigrations n
-    :<|> StakePools n ApiJormungandrStakePool
-    :<|> ByronWallets
-    :<|> ByronAddresses n
-    :<|> ByronCoinSelections n
-    :<|> ByronTransactions n
-    :<|> ByronMigrations n
-    :<|> Network
-    :<|> Proxy_
+    ( (:<|>) (..), Handler, Server, err501, err503, throwError )
 
 -- | A Servant server for our wallet API
 server
@@ -153,7 +135,7 @@ server
     -> jormungandr
     -> StakePoolLayer ErrListStakePools IO
     -> NtpClient
-    -> Server (Api n)
+    -> Server (Api n ApiJormungandrStakePool)
 server byron icarus jormungandr spl ntp =
          wallets
     :<|> addresses
@@ -197,7 +179,7 @@ server byron icarus jormungandr spl ntp =
         :<|> (\_ _ -> throwError err501)
 
     stakePools :: Server (StakePools n ApiJormungandrStakePool)
-    stakePools = listPools spl
+    stakePools = (listPools spl)
         :<|> joinStakePool jormungandr (knownStakePools spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
@@ -297,8 +279,10 @@ server byron icarus jormungandr spl ntp =
 listPools
     :: LiftHandler e
     => StakePoolLayer e IO
+    -> ApiT WalletId
+    -- ^ Not needed, but there for consistency with haskell node.
     -> Handler [ApiJormungandrStakePool]
-listPools spl =
+listPools spl _walletId =
     liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
   where
     mkApiJormungandrStakePool
@@ -308,7 +292,7 @@ listPools spl =
     mkApiJormungandrStakePool sp meta =
         ApiJormungandrStakePool
             (ApiT $ view #poolId sp)
-            (ApiStakePoolMetrics
+            (ApiJormungandrStakePoolMetrics
                 (Quantity $ fromIntegral $ getQuantity $ stake sp)
                 (Quantity $ fromIntegral $ getQuantity $ production sp))
             (sp ^. #performance)

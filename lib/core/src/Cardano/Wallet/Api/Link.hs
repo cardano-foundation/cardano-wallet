@@ -66,6 +66,7 @@ module Cardano.Wallet.Api.Link
 
       -- * StakePools
     , listStakePools
+    , listJormungandrStakePools
     , joinStakePool
     , quitStakePool
     , getDelegationFee
@@ -95,7 +96,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Hash, PoolId, SortOrder, WalletId )
+    ( AddressState, Hash, PoolId, SortOrder, WalletId (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -106,6 +107,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( fromText )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Types.Method
@@ -128,6 +131,7 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api as Api
+import qualified Data.Text as T
 
 --
 -- Wallets
@@ -379,9 +383,22 @@ deleteTransaction w t = discriminate @style
 --
 
 listStakePools
-    :: (Method, Text)
-listStakePools =
-    endpoint @(Api.ListStakePools ()) id
+    :: forall  w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+listStakePools w =
+    endpoint @(Api.ListStakePools ()) (\mk -> mk wid)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+-- | Like @listStakePools@, but with a dummy wallet id.
+listJormungandrStakePools :: (Method, Text)
+listJormungandrStakePools =
+    endpoint @(Api.ListStakePools ()) (\mk -> mk wid)
+  where
+    wid = ApiT $ either (error . show) id $ fromText $ T.pack $replicate 40 '0'
 
 joinStakePool
     :: forall s w.

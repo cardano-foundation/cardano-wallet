@@ -45,8 +45,10 @@ module Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiJormungandrStakePool (..)
+    , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
+    , ApiJormungandrStakePool (..)
+    , ApiJormungandrStakePoolMetrics (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -391,9 +393,24 @@ newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
 
-data ApiJormungandrStakePool = ApiJormungandrStakePool
+data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
+    , metadata :: !(Maybe (ApiT StakePoolMetadata))
+    , cost :: !(Quantity "lovelace" Natural)
+    , margin :: !(Quantity "percent" Percentage)
+    } deriving (Eq, Generic, Show)
+
+data ApiStakePoolMetrics = ApiStakePoolMetrics
+    { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
+    , relativeStake :: !(Quantity "percent" Percentage)
+    , saturation :: !Double
+    , producedBlocks :: !(Quantity "block" Natural)
+    } deriving (Eq, Generic, Show)
+
+data ApiJormungandrStakePool = ApiJormungandrStakePool
+    { id :: !(ApiT PoolId)
+    , metrics :: !ApiJormungandrStakePoolMetrics
     , apparentPerformance :: !Double
     , metadata :: !(Maybe (ApiT StakePoolMetadata))
     , cost :: !(Quantity "lovelace" Natural)
@@ -402,7 +419,7 @@ data ApiJormungandrStakePool = ApiJormungandrStakePool
     , saturation :: !Double
     } deriving (Eq, Generic, Show)
 
-data ApiStakePoolMetrics = ApiStakePoolMetrics
+data ApiJormungandrStakePoolMetrics = ApiJormungandrStakePoolMetrics
     { controlledStake :: !(Quantity "lovelace" Natural)
     , producedBlocks :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
@@ -1056,14 +1073,24 @@ instance FromJSON ApiWalletDelegationNext where
 instance ToJSON ApiWalletDelegationNext where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiJormungandrStakePool where
+instance FromJSON ApiStakePool where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiJormungandrStakePool where
+instance ToJSON ApiStakePool where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiStakePoolMetrics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePoolMetrics where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiJormungandrStakePool where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiJormungandrStakePool where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiJormungandrStakePoolMetrics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiJormungandrStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT WalletName) where
