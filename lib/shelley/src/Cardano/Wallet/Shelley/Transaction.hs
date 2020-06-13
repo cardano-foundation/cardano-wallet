@@ -106,6 +106,7 @@ import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
+import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 newTransactionLayer
@@ -142,10 +143,10 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
 
-        let scriptWits = mempty
-        let metadata   = SL.SNothing
+        let metadata = SL.SNothing
 
-        pure $ toSealed $ SL.Tx unsigned addrWits scriptWits metadata
+        let wits = SL.WitnessSet addrWits mempty mempty
+        pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _mkDelegationJoinTx
         :: WalletDelegation
@@ -174,11 +175,9 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
                 Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
-        let scriptWits =
-                mempty
-        let wits = Set.unions [addrWits,certWits]
+        let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
-        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
+        pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption")
@@ -199,11 +198,9 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
                 Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
-        let scriptWits =
-                mempty
-        let wits = Set.unions [addrWits,certWits]
+        let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
-        pure $ toSealed $ SL.Tx unsigned wits scriptWits metadata
+        pure $ toSealed $ SL.Tx unsigned wits metadata
 
 
     _estimateMaxNumberOfInputs
@@ -223,7 +220,7 @@ _minimumFee
     -> Fee
 _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
     computeFee $ SL.txsize $
-        SL.Tx unsigned addrWits scriptWits metadata
+        SL.Tx unsigned wits metadata
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -231,7 +228,7 @@ _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chng
       where
         LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
 
-    scriptWits = mempty
+    wits = SL.WitnessSet addrWits mempty mempty
 
     metadata = SL.SNothing
 
@@ -280,7 +277,9 @@ mkUnsignedTx ttl ownedIns outs certs =
             ttl
             (realFee (snd <$> ownedIns) outs)
             certs
+            (Cardano.WithdrawalsShelley $ SL.Wdrl mempty) -- Withdrawals
             Nothing -- Update
+            Nothing -- Metadata hash
     in
         unsigned
 

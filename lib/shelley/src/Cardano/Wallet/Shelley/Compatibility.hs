@@ -120,14 +120,8 @@ import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( SlotLength (..), getSystemStart )
-import Ouroboros.Consensus.Protocol.Abstract
-    ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Ledger
     ( GenTx, ShelleyHash (..) )
-import Ouroboros.Consensus.Shelley.Node
-    ( initialFundsPseudoTxIn )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( TPraosStandardCrypto )
 import Ouroboros.Network.Block
@@ -170,6 +164,7 @@ import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
+import qualified Shelley.Spec.Ledger.Genesis as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
@@ -386,10 +381,6 @@ fromTip' gp = fromTip getGenesisBlockHash getEpochLength
         , getGenesisBlockHash
         } = gp
 
-fromSlotLength :: SlotLength -> W.SlotLength
-fromSlotLength = W.SlotLength
-    . getSlotLength
-
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
@@ -429,6 +420,7 @@ decentralizationLevelFromPParams
 decentralizationLevelFromPParams pp =
     either reportInvalidValue W.DecentralizationLevel
         $ mkPercentage
+        $ toRational
         $ SL.intervalValue
         -- We must invert the value provided: (see function comment)
         $ invertUnitInterval d
@@ -464,13 +456,13 @@ fromGenesisData g =
         { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
-                W.StartTime . getSystemStart . sgSystemStart $ g
+                W.StartTime . sgSystemStart $ g
             , getSlotLength =
-                fromSlotLength . sgSlotLength $ g
+                W.SlotLength $ sgSlotLength g
             , getEpochLength =
                 W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
             , getEpochStability =
-                Quantity . fromIntegral . maxRollbacks . sgSecurityParam $ g
+                Quantity . fromIntegral . sgSecurityParam $ g
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
@@ -515,7 +507,7 @@ fromGenesisData g =
             [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
-                initialFundsPseudoTxIn @TPraosStandardCrypto addr
+                SL.initialFundsPseudoTxIn @TPraosStandardCrypto addr
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
@@ -559,7 +551,7 @@ fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx :: SL.Tx TPraosStandardCrypto -> (W.Tx, [W.DelegationCertificate])
-fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _ _) =
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))

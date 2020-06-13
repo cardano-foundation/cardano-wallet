@@ -29,6 +29,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
+          (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
@@ -104,6 +105,7 @@
         "cardano-cli-pioneers" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."cardano-cli" or (errorHandler.buildDepError "cardano-cli"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
@@ -119,8 +121,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "9925ef37dccbe7f423f3ceb81a5e1da3d924393b";
-      sha256 = "1yw5axs33g33znqxjkmjlrgks8ky79mc6lj2f28m2i2qfifyz12y";
+      rev = "478230484677e1940291eff6004e93d71692a242";
+      sha256 = "0v9f2bn3zq181wdzlkf3klibbmf3jkq5q6sd2y564ramq9yh4k45";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }

@@ -182,7 +182,7 @@ parseGenesisData = \case
     TestnetConfig genesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
             <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
-        let nm = unNetworkMagic $ sgNetworkMagic genesis
+        let nm = sgNetworkMagic genesis
         let (discriminant, vData) =
                 someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
         let (np, block0) = fromGenesisData genesis
@@ -434,7 +434,7 @@ genConfig dir severity = do
         ( dir </> "node.config"
         , block0
         , networkParameters
-        , (NodeToClientVersionData nm, nodeToClientCodecCBORTerm)
+        , (NodeToClientVersionData $ NetworkMagic nm, nodeToClientCodecCBORTerm)
         )
   where
     source :: FilePath

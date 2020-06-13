@@ -318,7 +318,7 @@ mkWalletClient
     -> m (NetworkClient m)
 mkWalletClient gp chainSyncQ = do
     responsesBuffer <- atomically newTQueue
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ pure $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 fromTip' =
@@ -391,7 +391,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ pure $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 codec = cChainSyncCodec codecs
