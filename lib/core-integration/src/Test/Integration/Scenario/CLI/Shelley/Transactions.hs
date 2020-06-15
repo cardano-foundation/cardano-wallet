@@ -1064,7 +1064,8 @@ spec = do
           , (Just validTime1, Just validTime2)
           ]
 
-      encodeErr = "Unable to decode Address:"
+      encodeErr = "Unrecognized address encoding"
+      encodeErr2 = "Unable to decode address"
       parseErr = "Parse error. Expecting format \"<amount>@<address>\""
       matrixInvalidAddrs =
 -- TODO: For the haskell node, hex is valid. For jormungandr it is not.
@@ -1073,14 +1074,14 @@ spec = do
 --          [ ( "long hex", longAddr, encodeErr )
 --          , ( "short hex", "1", encodeErr )
           [ ( "-1000", "-1000", encodeErr )
-          , ( "q", "q", encodeErr )
-          , ( "empty", "", encodeErr )
+          , ( "q", "q", encodeErr2 )
+          , ( "empty", "", encodeErr2 )
           , ( "wildcards", T.unpack wildcardsWalletName, parseErr )
           , ( "arabic", T.unpack arabicWalletName, encodeErr )
           , ( "kanji", T.unpack kanjiWalletName, encodeErr )
           , ( "polish", T.unpack polishWalletName, encodeErr )
           , ( "[]", "[]", encodeErr )
-          , ( "no address", "", encodeErr )
+          , ( "no address", "", encodeErr2 )
           , ( "address is space", " ", encodeErr )
           ]
       errNum = "Expecting natural number"

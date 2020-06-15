@@ -6,6 +6,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -87,17 +89,23 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), hex )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor )
-import Control.Arrow
-    ( left )
+import Codec.Binary.Bech32
+    ( dataPartFromBytes, dataPartToBytes )
+import Control.Applicative
+    ( (<|>) )
+import Control.Monad
+    ( when )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Coerce
     ( coerce )
 import Data.Foldable
@@ -105,7 +113,7 @@ import Data.Foldable
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Quantity
     ( Quantity (..), mkPercentage )
 import Data.Text
@@ -155,7 +163,11 @@ import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Crypto.Hash as Crypto
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -658,31 +670,88 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
 -------------------------------------------------------------------------------}
 
 instance EncodeAddress 'Mainnet where
-    encodeAddress = T.decodeUtf8 . hex . W.unAddress
+    encodeAddress = _encodeAddress
 
 instance EncodeAddress ('Testnet pm) where
-    encodeAddress = T.decodeUtf8 . hex . W.unAddress
+    encodeAddress = _encodeAddress
 
-_decodeAddress :: Text -> Either TextDecodingError W.Address
-_decodeAddress x = validateWithLedger =<< W.Address <$> fromHex x
+_encodeAddress :: W.Address -> Text
+_encodeAddress (W.Address bytes) =
+    if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
+        then base58
+        else bech32
   where
-    fromHex :: Text -> Either TextDecodingError ByteString
-    fromHex =
-        left (const $ TextDecodingError "Unable to decode Address: not valid hex encoding.")
-        .  convertFromBase @ByteString @ByteString Base16
-        . T.encodeUtf8
-
-    validateWithLedger addr@(W.Address bytes) =
-        case SL.deserialiseAddr @TPraosStandardCrypto bytes of
-            Just _ -> Right addr
-            Nothing -> Left $ TextDecodingError
-                "Unable to decode Address: not a well-formed Shelley Address."
+    base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+    bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+    hrp = [Bech32.humanReadablePart|addr|]
 
 instance DecodeAddress 'Mainnet where
-    decodeAddress = _decodeAddress
+    decodeAddress = _decodeAddress SL.Mainnet
 
 instance DecodeAddress ('Testnet pm) where
-    decodeAddress = _decodeAddress
+    decodeAddress = _decodeAddress SL.Testnet
+
+-- Note that for 'Byron', we always assume no discrimination. In
+-- practice, there is one discrimination for 'Shelley' addresses, and one for
+-- 'Byron' addresses. Yet, on Mainnet, 'Byron' addresses have no explicit
+-- discrimination.
+_decodeAddress
+    :: SL.Network
+    -> Text
+    -> Either TextDecodingError W.Address
+_decodeAddress serverNetwork text =
+    case tryBase16 <|> tryBech32 <|> tryBase58 of
+        Just bytes ->
+            decodeShelleyAddress bytes
+        _ ->
+            Left $ TextDecodingError
+                "Unrecognized address encoding: must be either bech32, base58 or base16"
+  where
+    -- | Attempt decoding an 'Address' using a Bech32 encoding.
+    tryBech32 :: Maybe ByteString
+    tryBech32 = do
+        (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
+        dataPartToBytes dp
+
+    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+    tryBase58 :: Maybe ByteString
+    tryBase58 =
+        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
+
+    -- | Attempt decoding an 'Address' using Base16 encoding
+    tryBase16 :: Maybe ByteString
+    tryBase16 =
+        either (const Nothing) Just $ convertFromBase Base16 (T.encodeUtf8 text)
+
+    decodeShelleyAddress :: ByteString -> Either TextDecodingError W.Address
+    decodeShelleyAddress bytes = do
+        case SL.deserialiseAddr @TPraosStandardCrypto bytes of
+            Just (SL.Addr addrNetwork _ _) -> do
+                guardNetwork addrNetwork
+                pure (W.Address bytes)
+
+            Just (SL.AddrBootstrap addr) -> do
+                guardNetwork (toNetwork (Byron.addrNetworkMagic addr))
+                pure (W.Address bytes)
+
+            Nothing -> Left $ TextDecodingError
+                "Unable to decode address: not a well-formed Shelley nor Byron address."
+
+      where
+        guardNetwork :: SL.Network -> Either TextDecodingError ()
+        guardNetwork addrNetwork =
+            when (addrNetwork /= serverNetwork) $
+                Left $ TextDecodingError $
+                    "Invalid network discrimination on address. Expecting "
+                    <> show serverNetwork
+                    <> " but got "
+                    <> show addrNetwork
+                    <> "."
+
+        toNetwork :: Byron.NetworkMagic -> SL.Network
+        toNetwork = \case
+            Byron.NetworkMainOrStage -> SL.Mainnet
+            Byron.NetworkTestnet{}   -> SL.Testnet
 
 {-------------------------------------------------------------------------------
                                     Logging
