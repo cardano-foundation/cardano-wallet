@@ -83,13 +83,15 @@ data PoolLsqMetrics = PoolLsqMetrics
 data ErrFetchMetrics = ErrFetchMetrics
   deriving Show
 
-askNode
+-- | Fetches information about pools availible over LSQ from the node, at the
+-- nodes' tip.
+fetchLsqPoolMetrics
     :: MonadSTM m
     => TQueue m (LocalStateQueryCmd ShelleyBlock m)
     -> Point ShelleyBlock
     -> Coin
     -> ExceptT ErrFetchMetrics m (Map PoolId PoolLsqMetrics)
-askNode queue pt coin = do
+fetchLsqPoolMetrics queue pt coin = do
     stakeMap <- fromPoolDistr <$> handleQueryFailure
         (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
     let toStake = Set.singleton $ Left $ toShelleyCoin coin
@@ -173,7 +175,8 @@ newStakePoolLayer gp nl = StakePoolLayer
     _knownPools = do
         Cursor _workerTip _ lsqQ <- initCursor nl []
         pt <- getTip
-        res <- runExceptT $ map fst . Map.toList <$> askNode lsqQ pt dummyCoin
+        res <- runExceptT $ map fst . Map.toList
+            <$> fetchLsqPoolMetrics lsqQ pt dummyCoin
         case res of
             Right x -> return x
             Left _e -> return []
@@ -189,7 +192,7 @@ newStakePoolLayer gp nl = StakePoolLayer
             pt <- liftIO getTip
             map mkApiPool
                 . sortOn (Down . nonMyopicMemberRewards . snd)
-                . Map.toList <$> askNode lsqQ pt s
+                . Map.toList <$> fetchLsqPoolMetrics lsqQ pt s
       where
         mkApiPool (pid, PoolLsqMetrics prew pstk psat) = Api.ApiStakePool
             { Api.id = (ApiT pid)
