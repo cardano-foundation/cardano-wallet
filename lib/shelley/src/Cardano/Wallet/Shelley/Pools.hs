@@ -75,7 +75,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as OC
 -- | Stake Pool Data fields fetched from the node via LSQ
 data PoolLsqMetrics = PoolLsqMetrics
     { nonMyopicMemberRewards :: Quantity "lovelace" Word64
-    , stake :: Percentage
+    , relativeStake :: Percentage
     , saturation :: Double
     } deriving (Eq, Show, Generic)
 
@@ -124,7 +124,7 @@ askNode queue pt coin = do
         -- Let's provide a default value of 0, at least for now.
         stakeButNoRew     = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
             { nonMyopicMemberRewards = Quantity 0
-            , stake = s
+            , relativeStake = s
             , saturation = (sat s)
             }
 
