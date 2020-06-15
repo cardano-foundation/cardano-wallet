@@ -62,7 +62,7 @@ import Ouroboros.Network.Block
 import Ouroboros.Network.Client.Wallet
     ( LocalStateQueryCmd (..), send )
 import Servant
-    ( Handler, err500 )
+    ( err500 )
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Map.Merge.Strict as Map
@@ -142,8 +142,7 @@ instance LiftHandler ErrFetchMetrics where
 
 data StakePoolLayer = StakePoolLayer
     { knownPools :: IO [PoolId]
-    , listStakePools :: Coin -> Handler [Api.ApiStakePool]
-      -- TODO: Maybe weird type, but let's do it for now.
+    , listStakePools :: Coin -> ExceptT ErrFetchMetrics IO [Api.ApiStakePool]
     }
 
 
@@ -178,8 +177,8 @@ newStakePoolLayer gp nl = StakePoolLayer
         :: Coin
         -- ^ The amount of stake the user intends to delegate, which may affect the
         -- ranking of the pools.
-        -> Handler [Api.ApiStakePool]
-    _listPools s = liftHandler $ do
+        -> ExceptT ErrFetchMetrics IO [Api.ApiStakePool]
+    _listPools s = do
             Cursor _workerTip _ lsqQ <- liftIO $ initCursor nl []
             pt <- liftIO getTip
             map mkApiPool

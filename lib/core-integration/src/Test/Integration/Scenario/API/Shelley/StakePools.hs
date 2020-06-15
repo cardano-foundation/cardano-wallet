@@ -27,13 +27,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), PoolId (..), TxStatus (..) )
+    ( Direction (..), PoolId (..), TxStatus (..), WalletId )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, xit )
 import Test.Integration.Framework.DSL
@@ -79,6 +79,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -469,5 +470,13 @@ spec = do
                     (#metrics . #saturation) (.>= 0)
                 ]
 
+    it "STAKE_POOLS_LIST_05 - Fails for unknown wallets" $ \ctx -> do
+        -- FIXME: Type inference breaks without this line:
+        _w <- fixtureWallet ctx
+
+        r <- request @[ApiStakePool] ctx (Link.listStakePools (ApiT invalidWalletId, ())) Default Empty
+        expectResponseCode HTTP.status404 r
   where
+    invalidWalletId :: WalletId
+    invalidWalletId = either (error . show) id $ fromText $ T.pack $ replicate 40 '0'
     passwd = "Secure Passphrase"
