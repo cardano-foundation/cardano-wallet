@@ -36,11 +36,8 @@ Available COMMANDS:
     <a href="#transaction-forget">forget</a>              Forget a pending transaction with specified id
   address
     <a href="#address-list">list</a>                List all known addresses of a wallet
-    <a href="#address-create">create</a>              Create a new random address. Only available for random wallets.
-                        The address index is optional, give none to let the wallet generate a random one.
-    <a href="#address-import">import</a>              Import a random address generated elsewhere. Only
-                        available for random wallets. The address must belong
-                        to the target wallet.
+    <a href="#address-create">create</a>              Create a new random address.
+    <a href="#address-import">import</a>              Import a random address generated elsewhere.
   network
     <a href="#network-information">information</a>         View network information
     <a href="#network-parameters">parameters</a>          View network parameters
