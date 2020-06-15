@@ -1398,9 +1398,11 @@ getNetworkInformation (_block0, np, st) nl = do
 
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
+    -> NetworkLayer IO t Block
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, np, _st) =
-    pure $ toApiNetworkParameters np
+getNetworkParameters (_block0, np, _st) nl = do
+    pp <- liftIO $ NW.getProtocolParameters nl
+    pure $ toApiNetworkParameters np { protocolParameters = pp }
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client

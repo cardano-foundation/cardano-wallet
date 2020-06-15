@@ -262,8 +262,8 @@ server byron icarus jormungandr spl ntp =
     network :: Server Network
     network =
         getNetworkInformation genesis nl
-        :<|> (getNetworkParameters genesis)
-        :<|> (getNetworkClock ntp)
+        :<|> getNetworkParameters genesis nl
+        :<|> getNetworkClock ntp
       where
         nl = jormungandr ^. networkLayer @t
         genesis = jormungandr ^. genesisData
