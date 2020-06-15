@@ -118,6 +118,7 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
+
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
@@ -218,7 +219,7 @@ _estimateMaxNumberOfInputs
     -- ^ Number of outputs in transaction
     -> Word8
 _estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
-        fromIntegral $ pinpointNumInputs (constructPair 1)
+      fromIntegral $ pinpointNumInputs (constructPair 1)
   where
       pinpointNumInputs (n,m)
           | m - n == 1 =
@@ -236,7 +237,7 @@ _estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
         where
             calNum = searchUpperBound num
       searchUpperBound n =
-          if check n then
+          if not (check n) then
               n
           else searchUpperBound (n*2)
 
@@ -246,12 +247,12 @@ _estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
 
       dummyTxHash = Hash $ BS.pack (1:replicate 64 0)
       dummyAddr = Address $ BS.pack (1:replicate 64 0)
-      dummyTxIn = TxIn dummyTxHash 0
+      dummyTxIn = TxIn dummyTxHash
       dummyTxOut = TxOut dummyAddr (Coin 1)
       constructCoinSel numInps = CoinSelection
-          (replicate numInps (dummyTxIn, dummyTxOut))
+          (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..numInps-1])
           (replicate (fromIntegral nOuts) dummyTxOut)
-          []
+          (replicate (fromIntegral nOuts) (Coin 1))
 
 _decodeSignedTx
     :: ByteString

@@ -48,7 +48,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -84,7 +84,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
-
 
 spec :: forall n t.
     ( DecodeAddress n
@@ -166,9 +165,6 @@ spec = do
 
     it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
-
-        pendingWith
-            "Currently failing due to issue: #1751 - Cannot migrate big wallet"
         -- NOTE
         -- Special mnemonic for which 500 shelley funds are attached to in the
         -- genesis file.
@@ -222,7 +218,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 2). length)
+            , expectField id ((`shouldBe` 9). length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -246,9 +242,8 @@ spec = do
             Empty >>= flip verify
             [ expectField
                 #distribution
-                ((`shouldBe` (Just 400)) . Map.lookup 10_000_000_000)
+                ((`shouldBe` (Just 129)) . Map.lookup 100_000_000_000)
             ]
-
 
     it "SHELLEY_MIGRATE_02 - \
         \migrating an empty wallet should fail."
