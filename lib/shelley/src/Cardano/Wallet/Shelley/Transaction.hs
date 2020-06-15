@@ -217,9 +217,41 @@ _estimateMaxNumberOfInputs
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs _maxTxSize _numOuts =
-    -- FIXME Implement.
-    100
+_estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
+        fromIntegral $ pinpointNumInputs (constructPair 1)
+  where
+      pinpointNumInputs (n,m)
+          | m - n == 1 =
+            if check m then
+                m
+            else n
+          | otherwise =
+            if check middle then
+              pinpointNumInputs (middle,m)
+          else pinpointNumInputs (n,middle)
+        where
+          middle = n + ((m-n) `div` 2)
+
+      constructPair num = (calNum `div` 2,  calNum)
+        where
+            calNum = searchUpperBound num
+      searchUpperBound n =
+          if check n then
+              n
+          else searchUpperBound (n*2)
+
+      check numInps =
+          computeTxSize (WithDelegation False) (constructCoinSel numInps)
+          <= fromIntegral maxTxSize
+
+      dummyTxHash = Hash $ BS.pack (1:replicate 64 0)
+      dummyAddr = Address $ BS.pack (1:replicate 64 0)
+      dummyTxIn = TxIn dummyTxHash 0
+      dummyTxOut = TxOut dummyAddr (Coin 1)
+      constructCoinSel numInps = CoinSelection
+          (replicate numInps (dummyTxIn, dummyTxOut))
+          (replicate (fromIntegral nOuts) dummyTxOut)
+          []
 
 _decodeSignedTx
     :: ByteString
