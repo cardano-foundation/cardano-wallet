@@ -115,14 +115,14 @@ askNode queue pt coin = do
         -> Map PoolId (Quantity "lovelace" Word64)
         -> Map PoolId PoolLsqMetrics
     combine nOpt =
-        Map.merge stakeButNoRew rewardsButNoStake bothPresent
+        Map.merge stakeButNoRewards rewardsButNoStake bothPresent
       where
         -- calculate the saturation from the relative stake
         sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
 
         -- Haven't figured out how to fetch non-myopic member rewards properly yet.
         -- Let's provide a default value of 0, at least for now.
-        stakeButNoRew     = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
+        stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
             { nonMyopicMemberRewards = Quantity 0
             , relativeStake = s
             , saturation = (sat s)
