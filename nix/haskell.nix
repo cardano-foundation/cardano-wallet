@@ -96,7 +96,10 @@ let
 
           # cardano-node socket path becomes too long otherwise
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
-          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+          integration.preCheck = lib.optionalString stdenv.isDarwin ''export TMPDIR=/tmp'' + ''
+              export CARDANO_WALLET_TRACING_MIN_SEVERITY=debug
+              export CARDANO_NODE_TRACING_MIN_SEVERITY=info
+            '';
 
           # provide cardano-node & cardano-cli to tests
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
