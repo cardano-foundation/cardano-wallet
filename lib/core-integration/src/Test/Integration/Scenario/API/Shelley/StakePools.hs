@@ -476,6 +476,21 @@ spec = do
 
         r <- request @[ApiStakePool] ctx (Link.listStakePools (ApiT invalidWalletId, ())) Default Empty
         expectResponseCode HTTP.status404 r
+
+    it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 for empty wallets" $ \ctx -> do
+        w <- emptyWallet ctx
+        eventually "Listing stake pools shows expected information" $ do
+            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
+            expectResponseCode HTTP.status200 r
+            verify r
+                [ expectListSize 3
+                , expectListField 0
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                , expectListField 1
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                , expectListField 2
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                ]
   where
     invalidWalletId :: WalletId
     invalidWalletId = either (error . show) id $ fromText $ T.pack $ replicate 40 '0'
