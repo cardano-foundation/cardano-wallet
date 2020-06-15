@@ -564,10 +564,11 @@ fromNonMyopicMemberRewards =
     . O.unNonMyopicMemberRewards
 
 optimumNumberOfPools :: SL.PParams -> Int
-optimumNumberOfPools = safeConvert . SL._nOpt
+optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
-    safeConvert :: Natural -> Int
-    safeConvert = fromIntegral
+    -- A value of ~100 can be expected, so should be fine.
+    unsafeConvert :: Natural -> Int
+    unsafeConvert = fromIntegral
 
 --
 -- Txs
