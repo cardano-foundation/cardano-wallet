@@ -211,15 +211,15 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
-    _estimateMaxNumberOfInputs
-        :: Quantity "byte" Word16
-        -- ^ Transaction max size in bytes
-        -> Word8
-        -- ^ Number of outputs in transaction
-        -> Word8
-    _estimateMaxNumberOfInputs _ _ =
-        -- FIXME Implement.
-        100
+_estimateMaxNumberOfInputs
+    :: Quantity "byte" Word16
+     -- ^ Transaction max size in bytes
+    -> Word8
+    -- ^ Number of outputs in transaction
+    -> Word8
+_estimateMaxNumberOfInputs _maxTxSize _numOuts =
+    -- FIXME Implement.
+    100
 
 _decodeSignedTx
     :: ByteString
@@ -251,9 +251,8 @@ _minimumFee
     -> WithDelegation
     -> CoinSelection
     -> Fee
-_minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
-    computeFee $ SL.txsize $
-        SL.Tx unsigned wits metadata
+_minimumFee policy withDelegation coinSel =
+    computeFee $ computeTxSize withDelegation coinSel
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -261,7 +260,14 @@ _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chng
       where
         LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
 
-    wits = SL.WitnessSet addrWits mempty mempty
+computeTxSize
+    :: WithDelegation
+    -> CoinSelection
+    -> Integer
+computeTxSize (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
+    SL.txsize $ SL.Tx unsigned wits metadata
+ where
+    scriptWits = mempty
 
     metadata = SL.SNothing
 
@@ -287,6 +293,8 @@ _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chng
         dummyXPrv (TxIn (Hash txid) ix) =
             unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 $
                 txid <> B8.pack (show ix)
+
+    wits = SL.WitnessSet addrWits mempty mempty
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
