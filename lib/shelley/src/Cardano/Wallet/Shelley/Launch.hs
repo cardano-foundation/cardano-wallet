@@ -24,6 +24,8 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , withBFTNode
     , withStakePool
+    , NodeConfig (..)
+    , singleNodeConfig
 
     -- * Utils
     , NetworkConfiguration (..)
@@ -107,7 +109,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( UTCTime, addUTCTime, getCurrentTime )
 import GHC.TypeLits
     ( SomeNat (..), someNatVal )
 import Options.Applicative
@@ -277,8 +279,10 @@ withCluster
     -- ^ Action to run with the cluster up
     -> IO a
 withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
+    systemStart <- addUTCTime 1 <$> getCurrentTime
     ports <- randomUnusedTCPPorts (n + 1)
-    withBFTNode tr severity (head $ rotate ports) $ \socket block0 params -> do
+    let bftCfg = NodeConfig severity systemStart (head $ rotate ports)
+    withBFTNode tr bftCfg $ \socket block0 params -> do
         waitForSocket tr socket
         waitGroup <- newChan
         doneGroup <- newChan
@@ -297,7 +301,8 @@ withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
 
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
-                withStakePool tr severity idx (port, peers) $ do
+                let spCfg = NodeConfig severity systemStart (port, peers)
+                withStakePool tr idx spCfg $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
@@ -319,23 +324,29 @@ withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
+-- | Configuration parameters which update the @node.config@ test data file.
+data NodeConfig = NodeConfig
+    { minSeverity :: Severity -- ^ Minimum logging severity
+    , systemStart :: UTCTime -- ^ Genesis block start time
+    , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
+    } deriving (Show)
+
 withBFTNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> Severity
-    -- ^ Minimal logging severity
-    -> (Int, [Int])
-    -- ^ A list of ports used by peers and this pool.
+    -> NodeConfig
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr severity (port, peers) action = bracketTracer' tr "withBFTNode" $
+withBFTNode tr (NodeConfig severity systemStart (port, peers)) action =
+    bracketTracer' tr "withBFTNode" $
     withTempDir tr name $ \dir -> do
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
-        (config, block0, networkParams, versionData) <- genConfig dir severity
+        (config, block0, networkParams, versionData)
+            <- genConfig dir severity systemStart
         topology <- genTopology dir peers
         let socket = genSocketPath dir
 
@@ -359,16 +370,20 @@ withBFTNode tr severity (port, peers) action = bracketTracer' tr "withBFTNode" $
 
     name = "bft-node"
 
+singleNodeConfig :: Severity -> IO NodeConfig
+singleNodeConfig severity = do
+    systemStart <- getCurrentTime
+    pure $ NodeConfig severity systemStart (0, [])
+
 -- | Populates the configuration directory of a stake pool @cardano-node@. Sets
 -- up a transaction which can be used to register the pool.
 setupStakePoolData
     :: Tracer IO ClusterLog
     -> FilePath
-    -> Severity
-    -> (Int, [Int])
+    -> NodeConfig
     -> String
     -> IO (Command, FilePath, FilePath)
-setupStakePoolData tr dir severity (port, peers) url = do
+setupStakePoolData tr dir (NodeConfig severity systemStart (port, peers)) url = do
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
     (kesPrv, kesPub) <- genKesKeyPair tr dir
@@ -379,7 +394,7 @@ setupStakePoolData tr dir severity (port, peers) url = do
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
-    (config, _, _, _) <- genConfig dir severity
+    (config, _, _, _) <- genConfig dir severity systemStart
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -414,24 +429,24 @@ setupStakePoolData tr dir severity (port, peers) url = do
 withStakePool
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> Severity
-    -- ^ Minimal logging severity
     -> Int
     -- ^ Stake pool index in the cluster
-    -> (Int, [Int])
-    -- ^ Stake pool own allocated TCP port, and its peers
+    -> NodeConfig
+    -- ^ Configuration for the underlying node
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr severity idx (port, peers) action = do
-    let name = "stake-pool-" ++ show idx
-    withTempDir tr name $ \dir -> do
-        withStaticServer dir $ \url -> do
-            (cmd, opPub, tx) <- setupStakePoolData tr dir severity (port, peers) url
-            withCardanoNodeProcess tr name cmd $ do
-                submitTx tr name tx
-                timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
-                action
+withStakePool tr idx cfg action =
+    bracketTracer' tr "withStakePool" $
+        withTempDir tr name $ \dir -> do
+            withStaticServer dir $ \url -> do
+                (cmd, opPub, tx) <- setupStakePoolData tr dir cfg url
+                withCardanoNodeProcess tr name cmd $ do
+                    submitTx tr name tx
+                    timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                    action
+  where
+    name = "stake-pool-" ++ show idx
 
 withCardanoNodeProcess
     :: Tracer IO ClusterLog
@@ -449,8 +464,10 @@ genConfig
     -- ^ A top-level directory where to put the configuration.
     -> Severity
     -- ^ Minimum severity level for logging
+    -> UTCTime
+    -- ^ Genesis block start time
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity = do
+genConfig dir severity systemStart = do
     -- we need to specify genesis file location every run in tmp
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
@@ -458,7 +475,7 @@ genConfig dir severity = do
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-        >>= withObject updateStartTime
+        >>= withObject (updateSystemStart systemStart)
         >>= Aeson.encodeFile nodeGenesisFile
 
     (genesisData :: ShelleyGenesis TPraosStandardCrypto)
@@ -877,12 +894,12 @@ oneMillionAda = 1_000_000_000_000
 
 -- | Add a "systemStart" field in a given object with the current POSIX time as a
 -- value.
-updateStartTime
-    :: Aeson.Object
+updateSystemStart
+    :: UTCTime
+    -> Aeson.Object
     -> IO Aeson.Object
-updateStartTime m = do
-    time <- getCurrentTime
-    pure $ HM.insert "systemStart" (toJSON time) m
+updateSystemStart systemStart =
+    pure . HM.insert "systemStart" (toJSON systemStart)
 
 -- | Add a "GenesisFile" field in a given object with the current path of
 -- genesis.json in tmp dir as value.
