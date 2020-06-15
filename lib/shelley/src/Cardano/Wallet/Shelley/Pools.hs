@@ -122,8 +122,9 @@ fetchLsqPoolMetrics queue pt coin = do
         -- calculate the saturation from the relative stake
         sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
 
-        -- Haven't figured out how to fetch non-myopic member rewards properly yet.
-        -- Let's provide a default value of 0, at least for now.
+        -- If we fetch non-myopic member rewards of pools using the wallet
+        -- balance of 0, the resulting map will be empty. So we set the rewards
+        -- to 0 here:
         stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
             { nonMyopicMemberRewards = Quantity 0
             , relativeStake = s
