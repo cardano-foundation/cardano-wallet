@@ -1655,7 +1655,7 @@ estimateFeeForCoinSelection
             (_, samples') ->
                 Right samples'
 
-    repeats = 1 -- TODO: modify repeats based on data
+    repeats = 100 -- TODO: modify repeats based on data
 
 {-------------------------------------------------------------------------------
                                   Key Store

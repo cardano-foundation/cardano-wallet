@@ -743,7 +743,7 @@ spec = do
             ]
 
     it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
-        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
         wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest

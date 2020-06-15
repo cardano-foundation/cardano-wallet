@@ -225,14 +225,6 @@ spec = do
     describe "Tx fee estimation" $ do
         it "Fee estimates are sound"
             (property prop_estimateFee)
-        it "Fee estimation for some edge cases" $ do
-            let cs1 = Right $ CoinSelection
-                    { inputs = [(TxIn (Hash "") 0, TxOut (Address "") (Coin 5000000))]
-                    , outputs = [TxOut (Address "") (Coin 4877501)]
-                    , change = [Coin 122499]
-                    }
-            runTest [cs1] (W.estimateFeeForCoinSelection mkCoinSelections)
-                `shouldBe` Right (W.FeeEstimation 10 10)
 
     describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
@@ -290,10 +282,6 @@ spec = do
          knownPools = [pidA, pidB]
          next epoch dlgStatus =
              WalletDelegationNext {changesAt = epoch, status = dlgStatus}
-         runTest vals action = evalState (runExceptT action) vals
-         mkCoinSelections
-             :: ExceptT String (State [Either String CoinSelection]) CoinSelection
-         mkCoinSelections = ExceptT $ state (\(r:rs) -> (r,rs))
 
 {-------------------------------------------------------------------------------
                                     Properties

@@ -424,7 +424,7 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
             { nInputs  = 1
             , nOutputs = 1
-            , nChanges = 0
+            , nChanges = 1
             }
     verify r
         [ expectResponseCode HTTP.status202
