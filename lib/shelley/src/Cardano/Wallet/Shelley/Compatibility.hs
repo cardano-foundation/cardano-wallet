@@ -178,6 +178,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
@@ -324,7 +325,7 @@ fromShelleyBlock genesisHash epLength blk =
     let
        O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) headerHash = blk
        SL.TxSeq txs' = txSeq
-       (txs, certs) = unzip $ map fromShelleyTx $ toList txs'
+       (txs, certs, _) = unzip3 $ map fromShelleyTx $ toList txs'
 
     in W.Block
         { header = W.BlockHeader
@@ -438,23 +439,14 @@ fromPParams pp = W.ProtocolParameters
 -- convert it into a percentage.
 --
 decentralizationLevelFromPParams
-    :: HasCallStack
-    => SL.PParams
+    :: SL.PParams
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
-    either reportInvalidValue W.DecentralizationLevel
-        $ mkPercentage
-        $ toRational
-        $ SL.intervalValue
+    W.DecentralizationLevel $ fromUnitInterval
         -- We must invert the value provided: (see function comment)
         $ invertUnitInterval d
   where
     d = SL._d pp
-    reportInvalidValue = error $ mconcat
-        [ "decentralizationLevelFromPParams: "
-        , "encountered invalid decentralization parameter value: "
-        , show d
-        ]
 
 txParametersFromPParams
     :: SL.PParams
@@ -611,19 +603,24 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
     safeCast = fromIntegral
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
-fromShelleyTx :: SL.Tx TPraosStandardCrypto -> (W.Tx, [W.DelegationCertificate])
+fromShelleyTx
+    :: SL.Tx TPraosStandardCrypto
+    -> (W.Tx, [W.DelegationCertificate], [W.PoolRegistrationCertificate])
 fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
-    , mapMaybe fromShelleyCert (toList certs)
+    , mapMaybe fromShelleyDelegationCert (toList certs)
+    , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
-fromShelleyCert :: SL.DCert TPraosStandardCrypto -> Maybe W.DelegationCertificate
-fromShelleyCert = \case
+fromShelleyDelegationCert
+    :: SL.DCert TPraosStandardCrypto
+    -> Maybe W.DelegationCertificate
+fromShelleyDelegationCert = \case
     SL.DCertDeleg (SL.Delegate delegation)  ->
         Just $ W.CertDelegateFull
             (fromStakeCredential (SL._delegator delegation))
@@ -636,6 +633,27 @@ fromShelleyCert = \case
     SL.DCertPool{}            -> Nothing
     SL.DCertGenesis{}         -> Nothing
     SL.DCertMir{}             -> Nothing
+
+-- Convert & filter Shelley certificate into delegation certificate. Returns
+-- 'Nothing' if certificates aren't delegation certificate.
+fromShelleyRegistrationCert
+    :: SL.DCert TPraosStandardCrypto
+    -> Maybe W.PoolRegistrationCertificate
+fromShelleyRegistrationCert = \case
+    SL.DCertPool (SL.RegPool pp) ->
+        Just $ W.PoolRegistrationCertificate
+            { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
+            , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
+            , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
+            , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
+            }
+
+    SL.DCertPool (SL.RetirePool{}) ->
+        Nothing -- FIXME We need to acknowledge pool retirement
+
+    SL.DCertDeleg{}   -> Nothing
+    SL.DCertGenesis{} -> Nothing
+    SL.DCertMir{}     -> Nothing
 
 -- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
 -- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH
@@ -651,11 +669,25 @@ fromPoolKeyHash :: SL.KeyHash 'SL.StakePool TPraosStandardCrypto -> W.PoolId
 fromPoolKeyHash (SL.KeyHash h) =
     W.PoolId (getHash h)
 
+fromOwnerKeyHash :: SL.KeyHash 'SL.Staking TPraosStandardCrypto -> W.PoolOwner
+fromOwnerKeyHash (SL.KeyHash h) =
+    W.PoolOwner (getHash h)
+
+fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
+fromUnitInterval x =
+    either bomb id . mkPercentage . toRational . SL.intervalValue $ x
+  where
+    bomb = error $ mconcat
+        [ "fromUnitInterval: "
+        , "encountered invalid parameter value: "
+        , show x
+        ]
+
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
 toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
 toSealed tx =
     let
-        (wtx, _) = fromShelleyTx tx
+        (wtx, _, _) = fromShelleyTx tx
         sealed = W.SealedTx $ serialize' $ O.mkShelleyTx tx
     in (wtx, sealed)
 
