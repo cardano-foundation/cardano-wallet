@@ -63,9 +63,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
 
-
     , fromBlockNo
     , fromShelleyBlock
+    , fromShelleyBlock'
+    , toBlockHeader
     , fromShelleyHash
     , fromPrevHash
     , fromChainHash
@@ -316,6 +317,27 @@ toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotNo epLength =
     SlotNo . W.flatSlot epLength
 
+toBlockHeader
+    :: W.Hash "Genesis"
+    -> W.EpochLength
+    -> ShelleyBlock
+    -> W.BlockHeader
+toBlockHeader genesisHash epLength blk =
+    let
+        O.ShelleyBlock (SL.Block (SL.BHeader header _) _) headerHash = blk
+    in
+    W.BlockHeader
+        { slotId =
+            fromSlotNo epLength $ SL.bheaderSlotNo header
+        , blockHeight =
+            fromBlockNo $ SL.bheaderBlockNo header
+        , headerHash =
+            fromShelleyHash headerHash
+        , parentHeaderHash =
+            fromPrevHash (coerce genesisHash) $
+                SL.bheaderPrev header
+        }
+
 fromShelleyBlock
     :: W.Hash "Genesis"
     -> W.EpochLength
@@ -323,25 +345,27 @@ fromShelleyBlock
     -> W.Block
 fromShelleyBlock genesisHash epLength blk =
     let
-       O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) headerHash = blk
+       O.ShelleyBlock (SL.Block _ txSeq) _ = blk
        SL.TxSeq txs' = txSeq
        (txs, certs, _) = unzip3 $ map fromShelleyTx $ toList txs'
 
     in W.Block
-        { header = W.BlockHeader
-            { slotId =
-                fromSlotNo epLength $ SL.bheaderSlotNo header
-            , blockHeight =
-                fromBlockNo $ SL.bheaderBlockNo header
-            , headerHash =
-                fromShelleyHash headerHash
-            , parentHeaderHash =
-                fromPrevHash (coerce genesisHash) $
-                    SL.bheaderPrev header
-            }
+        { header = toBlockHeader genesisHash epLength blk
         , transactions = txs
         , delegations  = mconcat certs
         }
+
+fromShelleyBlock'
+    :: W.EpochLength
+    -> ShelleyBlock
+    -> (W.SlotId, [W.PoolRegistrationCertificate])
+fromShelleyBlock' epLength blk =
+    let
+        O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) _ = blk
+        SL.TxSeq txs' = txSeq
+        (_, _, certs) = unzip3 $ map fromShelleyTx $ toList txs'
+    in
+        (fromSlotNo epLength $ SL.bheaderSlotNo header, mconcat certs)
 
 fromShelleyHash :: ShelleyHash c -> W.Hash "BlockHeader"
 fromShelleyHash (ShelleyHash (SL.HashHeader h)) = W.Hash (getHash h)
@@ -411,7 +435,7 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromPParams :: HasCallStack => SL.PParams -> W.ProtocolParameters
+fromPParams :: SL.PParams -> W.ProtocolParameters
 fromPParams pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -464,8 +488,7 @@ txParametersFromPParams pp = W.TxParameters
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: HasCallStack
-    => ShelleyGenesis TPraosStandardCrypto
+    :: ShelleyGenesis TPraosStandardCrypto
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g =
     ( W.NetworkParameters
