@@ -231,6 +231,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
+    , Fee (..)
     , FeeOptions (..)
     , OnDanglingChange (..)
     , adjustForFee
@@ -368,9 +369,11 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+
 
 -- $Development
 -- __Naming Conventions__
@@ -1192,8 +1195,23 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection $
+    let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
+    let feeOptions = (feeOpts tl (WithDelegation False) feePolicy)
+            { dustThreshold = Coin $ ceiling a }
+    let totalBalance = W.balance' $ Map.toList $ W.getUTxO utxo
+    let outs = sum $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList recipients
+    let wholeSel =
+            CoinSelection
+            (Map.toList $ W.getUTxO utxo)
+            (NE.toList recipients)
+            [Coin (totalBalance - outs)]
+    let feeMin = getFee $ estimateFee feeOptions wholeSel
+    if (totalBalance - outs < feeMin && totalBalance >= outs) then
+            pure $ FeeEstimation feeMin feeMin
+    else estimateFeeForCoinSelection $
         selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+  where
+    tl = ctx ^. transactionLayer @t @k
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
@@ -1637,7 +1655,7 @@ estimateFeeForCoinSelection
             (_, samples') ->
                 Right samples'
 
-    repeats = 100 -- TODO: modify repeats based on data
+    repeats = 1 -- TODO: modify repeats based on data
 
 {-------------------------------------------------------------------------------
                                   Key Store

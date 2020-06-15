@@ -819,7 +819,7 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "TRANS_ESTIMATE_08 - Fee estimation edge case" $ \ctx -> do
+    it "TRANS_ESTIMATE_08 - Fee estimation of edge cases" $ \ctx -> do
         let walletBalance = 5000000
         wSrc <- fixtureWalletWith @n ctx [walletBalance]
         wDest <- emptyWallet ctx
@@ -870,6 +870,7 @@ spec = do
             ]
 
         let amt1 = walletBalance - 122500 :: Natural
+
         let payload3 = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -897,6 +898,7 @@ spec = do
                     }
                 }]
             }|]
+
         r4 <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wSrc) Default payload4
         verify r4
