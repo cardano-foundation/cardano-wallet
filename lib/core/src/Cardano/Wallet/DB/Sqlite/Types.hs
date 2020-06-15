@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
+    , StakePoolTicker
     , TxStatus (..)
     , WalletId (..)
     , flatSlot
@@ -454,3 +455,13 @@ instance PersistField PassphraseScheme where
 
 instance PersistFieldSql PassphraseScheme where
     sqlType _ = sqlType (Proxy @String)
+
+----------------------------------------------------------------------------
+-- StakePoolTicker
+
+instance PersistField StakePoolTicker where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql StakePoolTicker where
+    sqlType _ = sqlType (Proxy @Text)

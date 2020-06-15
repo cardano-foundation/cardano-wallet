@@ -22,6 +22,10 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
+import Data.ByteString
+    ( ByteString )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word32, Word64, Word8 )
 import Database.Persist.Class
@@ -88,5 +92,27 @@ PoolRegistration sql=pool_registration
     poolRegistrationCost               Word64    sql=cost
 
     Primary poolRegistrationPoolId
+    deriving Show Generic
+
+-- Temporary queue where metadata to fetch are stored.
+PoolMetadataQueue sql=pool_metadata_queue
+    poolMetadataQueuePoolId            W.PoolId           sql=pool_id
+    poolMetadataQueueUrl               Text               sql=metadata_url
+    poolMetadataQueueHash              ByteString         sql=metadata_hash
+
+    Primary poolMetadataQueuePoolId
+    deriving Show Generic
+
+-- Cached metadata after they've been fetched from a remote server.
+PoolMetadata sql=pool_metadata
+    poolMetadataPoolId                 W.PoolId           sql=pool_id
+    poolMetadataName                   Text               sql=name
+    poolMetadataTicker                 W.StakePoolTicker  sql=ticker
+    poolMetadataDescription            Text Maybe         sql=description
+    poolMetadataHomepage               Text               sql=homepage
+    poolMetadataPledge                 Word64             sql=pledge
+    poolMetadataOwner                  ByteString         sql=owner
+
+    Primary poolMetadataPoolId
     deriving Show Generic
 |]
