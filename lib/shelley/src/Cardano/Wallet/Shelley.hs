@@ -57,7 +57,7 @@ import Cardano.DB.Sqlite
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
-    ( ApiLayer, ApiV2, ListStakePools )
+    ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
@@ -94,11 +94,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
     , ChimericAccount
-    , Coin (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , PoolId
-    , PoolId (..)
     , SyncTolerance
     , WalletId
     )
@@ -142,8 +139,6 @@ import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
-import Servant
-    ( Server )
 import System.Exit
     ( ExitCode (..) )
 import System.IOManager
@@ -240,9 +235,7 @@ serveWallet
                     randomApi
                     icarusApi
                     shelleyApi
-                    (\_wid -> listStakePools spl (Coin 0))
-                    -- TODO: read wallt balance
-                    (knownPools spl)
+                    spl
                     ntpClient
                 pure ExitSuccess
 
@@ -266,16 +259,15 @@ serveWallet
         -> ApiLayer (RndState n) t ByronKey
         -> ApiLayer (SeqState n IcarusKey) t IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-        -> Server (ListStakePools ApiStakePool)
-        -> IO [PoolId]
+        -> StakePoolLayer
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley listPoolsServer kp ntp = do
+    startServer _proxy socket byron icarus shelley spl ntp = do
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
-                server byron icarus shelley kp listPoolsServer ntp
+                server byron icarus shelley spl ntp
         Server.start settings apiServerTracer tlsConfig socket application
 
     apiLayer

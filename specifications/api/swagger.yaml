@@ -1927,7 +1927,9 @@ paths:
         Some pools _may_ also have metadata attached to them.
       parameters:
         - *parametersWalletId
-      responses: *responsesListStakePools
+      responses:
+        - *responsesListStakePools
+        - *responsesErr404
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
     put:

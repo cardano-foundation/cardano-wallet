@@ -37,7 +37,6 @@ import Cardano.Wallet.Api
     , ByronTransactions
     , ByronWallets
     , CoinSelections
-    , ListStakePools
     , Network
     , Proxy_
     , ShelleyMigrations
@@ -46,7 +45,8 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( delegationFee
+    ( LiftHandler (liftE)
+    , delegationFee
     , deleteTransaction
     , deleteWallet
     , getMigrationInfo
@@ -83,6 +83,7 @@ import Cardano.Wallet.Api.Server
     , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
+    , withWorkerCtx
     )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool, ApiT (..), SomeByronWalletPostData (..) )
@@ -98,8 +99,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Model
+    ( totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId )
+    ( Coin (..) )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
@@ -119,6 +124,8 @@ import Network.Ntp
 import Servant
     ( (:<|>) (..), Server )
 
+import qualified Cardano.Wallet as W
+
 server
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
@@ -129,11 +136,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> IO [PoolId]
-    -> Server (ListStakePools ApiStakePool)
+    -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
-server byron icarus shelley knownPools listPoolsHandler ntp =
+server byron icarus shelley spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -177,8 +183,13 @@ server byron icarus shelley knownPools listPoolsHandler ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             listPoolsHandler
-        :<|> joinStakePool shelley knownPools
+        (\(ApiT wid) -> do
+            stake <- withWorkerCtx shelley wid liftE liftE $ \wrk -> do
+                (w, _, pending) <- liftHandler $ W.readWallet wrk wid
+                return $ Coin $ fromIntegral $ totalBalance pending w
+            liftHandler $ listStakePools spl stake
+        )
+        :<|> joinStakePool shelley (knownPools spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
 
