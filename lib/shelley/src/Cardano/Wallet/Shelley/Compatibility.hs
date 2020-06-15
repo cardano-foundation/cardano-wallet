@@ -700,7 +700,7 @@ _decodeAddress
     -> Text
     -> Either TextDecodingError W.Address
 _decodeAddress serverNetwork text =
-    case tryBech32 <|> tryBase58 <|> tryBase16 of
+    case tryBase16 <|> tryBech32 <|> tryBase58 of
         Just bytes ->
             decodeShelleyAddress bytes
         _ ->

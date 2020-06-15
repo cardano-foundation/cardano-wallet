@@ -1,9 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.Shelley.CompatibilitySpec
     ( spec
     ) where
@@ -11,7 +14,7 @@ module Cardano.Wallet.Shelley.CompatibilitySpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Crypto.Hash.Class
     ( digest )
 import Cardano.Mnemonic
@@ -22,6 +25,8 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkMnemonic
     )
+import Cardano.Wallet.Api.Types
+    ( DecodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -52,8 +57,16 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy )
+import Codec.Binary.Bech32.TH
+    ( humanReadablePart )
 import Control.Monad
     ( forM_ )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, encodeBase58 )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -72,12 +85,16 @@ import Ouroboros.Network.Block
     ( BlockNo (..), SlotNo (..), Tip (..), getTipPoint )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
     , checkCoverage
     , choose
+    , conjoin
+    , counterexample
     , cover
     , frequency
     , genericShrink
@@ -87,8 +104,10 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as T
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
@@ -102,12 +121,22 @@ spec = do
             toPoint' (fromTip' tip) === (getTipPoint tip)
 
     describe "Shelley Addresses" $ do
-        it "(Mainnet) can be deserialised by shelley ledger spec" $
-            property $ \(k::ShelleyKey 'AddressK XPrv) -> do
-            let Address addr = paymentAddress @'Mainnet $ publicKey k
+        prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
+            let Address addr = paymentAddress @'Mainnet @ShelleyKey k
             case SL.deserialiseAddr @TPraosStandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
+
+        prop "Shelley addresses from base16, bech32 and base58" $ \k -> do
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey k
+            conjoin
+                [ decodeAddress @'Mainnet (base16 bytes) === Right addr
+                    & counterexample (show $ base16 bytes)
+                , decodeAddress @'Mainnet (bech32 bytes) === Right addr
+                    & counterexample (show $ bech32 bytes)
+                , decodeAddress @'Mainnet (base58 bytes) === Right addr
+                    & counterexample (show $ base58 bytes)
+                ]
 
         it "can deserialise golden faucet addresses" $ do
             let addr = unsafeFromHex
@@ -227,6 +256,11 @@ instance Arbitrary (ShelleyKey 'AddressK XPrv) where
     shrink _ = []
     arbitrary = ShelleyKey . getRawKey <$> genRootKeys
 
+instance Arbitrary (ShelleyKey 'AddressK XPub) where
+    shrink _ = []
+    arbitrary = publicKey <$> arbitrary
+
+
 genRootKeys :: Gen (ShelleyKey 'RootK XPrv)
 genRootKeys = do
     mnemonic <- arbitrary
@@ -256,3 +290,18 @@ genMnemonic = do
 
 instance Show XPrv where
     show _ = "<xprv>"
+
+--
+-- Helpers
+--
+--
+
+base16 :: ByteString -> Text
+base16 = T.decodeUtf8 . convertToBase Base16
+
+bech32 :: ByteString -> Text
+bech32 = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
+  where hrp = [humanReadablePart|addr|]
+
+base58 :: ByteString -> Text
+base58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet
