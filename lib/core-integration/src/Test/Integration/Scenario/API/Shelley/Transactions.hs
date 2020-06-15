@@ -869,7 +869,12 @@ spec = do
                 (`shouldBe` feeMin)
             ]
 
-        let amt1 = walletBalance - 122500 :: Natural
+        let (feeMin', _) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 1
+                , nOutputs = 1
+                , nChanges = 0
+                }
+        let amt1 = walletBalance - feeMin' :: Natural
 
         let payload3 = Json [json|{
                 "payments": [{
