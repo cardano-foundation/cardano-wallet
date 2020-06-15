@@ -8,7 +8,7 @@ special unicode characters that look alike: `ᐸ` and `ᐳ`
 -->
 
 <pre>
-Usage: cardano-wallet-byron COMMAND
+Usage: cardano-wallet COMMAND
   Cardano Wallet Command-Line Interface (CLI)
 
 Available OPTIONS:
@@ -120,18 +120,28 @@ Serve API that listens for commands/actions. Before launching user should start 
 ##### example
 
 Start cardano-node:
+
+- on Byron Mainnet:
+
 ```
 git clone https://github.com/input-output-hk/cardano-node.git
 cd cardano-node
 nix-build -A scripts.mainnet.node -o mainnet-node-local && ./mainnet-node-local
 ```
 
-Serve cardano-wallet-byron:
+- on Shelley F&F Testnet:
+
+```
+git clone https://github.com/input-output-hk/cardano-node.git
+cd cardano-node
+nix-build -A scripts.ff.node -o ff-node-local && ./ff-node-local
+```
+
+Serve cardano-wallet:
+
 ```
 cardano-wallet serve --node-socket ~/cardano-node/state-node-mainnet/node.socket --mainnet --database /tmp/mainnet
 ```
-
-
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
@@ -418,10 +428,10 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 > `cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID`
 
-Create new address for random wallet.
+Create new address for random wallet. 
 
 ```
-$ cardano-wallet-byron address create 03f4c150aa4626e28d02be95f31d3c79df344877
+$ cardano-wallet address create 03f4c150aa4626e28d02be95f31d3c79df344877
 Please enter your passphrase: *****************
 Ok.
 {
