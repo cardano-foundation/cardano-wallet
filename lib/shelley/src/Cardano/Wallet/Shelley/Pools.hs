@@ -27,8 +27,8 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , ShelleyBlock
+    , fromNonMyopicMemberRewards
     , fromPoolDistr
-    , fromRewards
     , optimumNumberOfPools
     , toPoint
     , toShelleyCoin
@@ -47,6 +47,8 @@ import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithMatched )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -91,10 +93,14 @@ askNode queue pt coin = do
     stakeMap <- fromPoolDistr <$> handleQueryFailure
         (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
     let toStake = Set.singleton $ Left $ toShelleyCoin coin
-    rewardMap <- fromRewards <$> handleQueryFailure
+    rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
         (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
     pparams <- handleQueryFailure
         (queue `send` CmdQueryLocalState pt OC.GetCurrentPParams)
+
+    let rewardMap = fromMaybe
+            (error "askNode: requested rewards not included in response")
+            (Map.lookup (Left coin) rewardsPerAccount)
 
     return $ combine
         (optimumNumberOfPools pparams)

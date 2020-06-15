@@ -58,7 +58,7 @@ module Cardano.Wallet.Shelley.Compatibility
       -- ** Stake pools
     , fromPoolId
     , fromPoolDistr
-    , fromRewards
+    , fromNonMyopicMemberRewards
     , optimumNumberOfPools
 
 
@@ -103,6 +103,8 @@ import Control.Arrow
     ( left )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -538,16 +540,13 @@ fromPoolDistr =
     . Map.mapKeys fromPoolId
     . SL.unPoolDistr
 
--- TODO: Change to return a map of maps, instead of using head
-fromRewards
+-- NOTE: This function disregards results that are using staking keys
+fromNonMyopicMemberRewards
     :: O.NonMyopicMemberRewards TPraosStandardCrypto
-    -> Map W.PoolId (Quantity "lovelace" Word64)
-fromRewards =
-    Map.map (Quantity . fromIntegral)
-    . Map.mapKeys fromPoolId
-    . snd
-    . head
-    . Map.toList
+    -> Map (Either W.Coin W.ChimericAccount) (Map W.PoolId (Quantity "lovelace" Word64))
+fromNonMyopicMemberRewards =
+    Map.map (Map.map (Quantity . fromIntegral) . Map.mapKeys fromPoolId)
+    . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
 optimumNumberOfPools :: SL.PParams -> Int
