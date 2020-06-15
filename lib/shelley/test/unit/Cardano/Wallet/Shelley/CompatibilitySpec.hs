@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -30,14 +31,18 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
-    , getRawKey
+    , WalletKey
     , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
+    ( isOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , DecentralizationLevel (..)
@@ -90,7 +95,6 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , InfiniteList (..)
     , checkCoverage
     , choose
     , conjoin
@@ -104,8 +108,9 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.Binary.Bech32 as Bech32
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
 import qualified Shelley.Spec.Ledger.Address as SL
@@ -138,6 +143,17 @@ spec = do
                     & counterexample (show $ base58 bytes)
                 ]
 
+        prop "Byron addresses from base16, bech32 and base58" $ \k -> do
+            let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey k
+            conjoin
+                [ decodeAddress @'Mainnet (base16 bytes) === Right addr
+                    & counterexample (show $ base16 bytes)
+                , decodeAddress @'Mainnet (bech32 bytes) === Right addr
+                    & counterexample (show $ bech32 bytes)
+                , decodeAddress @'Mainnet (base58 bytes) === Right addr
+                    & counterexample (show $ base58 bytes)
+                ]
+
         it "can deserialise golden faucet addresses" $ do
             let addr = unsafeFromHex
                     "6194986d1fc893629945058bdb0851478\
@@ -153,7 +169,7 @@ spec = do
                     , "pelican", "find", "coffee", "jar", "april", "permit"
                     , "ticket", "explain", "crime"
                     ]
-            let rootK = unsafeGenerateKeyFromSeed (mw, Nothing) pwd
+            let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) pwd
             let s = mkSeqStateFromRootXPrv (rootK, pwd) (toEnum 20)
             let addr = Address $ unsafeFromHex
                     "6194986d1fc893629945058bdb0851478\
@@ -254,24 +270,22 @@ instance Arbitrary SlotId where
 
 instance Arbitrary (ShelleyKey 'AddressK XPrv) where
     shrink _ = []
-    arbitrary = ShelleyKey . getRawKey <$> genRootKeys
+    arbitrary = do
+        mnemonic <- arbitrary
+        return $ Shelley.unsafeGenerateKeyFromSeed mnemonic mempty
 
-instance Arbitrary (ShelleyKey 'AddressK XPub) where
+instance Arbitrary (ByronKey 'AddressK XPrv) where
+    shrink _ = []
+    arbitrary = do
+        mnemonic <- arbitrary
+        acctIx <- toEnum <$> arbitrary
+        addrIx <- toEnum <$> arbitrary
+        return $ Byron.unsafeGenerateKeyFromSeed (acctIx, addrIx) mnemonic mempty
+
+instance (WalletKey k, Arbitrary (k 'AddressK XPrv)) => Arbitrary (k 'AddressK XPub)
+  where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
-
-
-genRootKeys :: Gen (ShelleyKey 'RootK XPrv)
-genRootKeys = do
-    mnemonic <- arbitrary
-    e <- genPassphrase @"encryption" (0, 16)
-    return $ generateKeyFromSeed mnemonic e
-  where
-    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-    genPassphrase range = do
-        n <- choose range
-        InfiniteList bytes _ <- arbitrary
-        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
