@@ -48,6 +48,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectListField
+    , expectListSize
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
@@ -65,6 +66,7 @@ import Test.Integration.Framework.DSL
     , walletId
     , (.<=)
     , (.>)
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -412,6 +414,60 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
+
+    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
+        w <- fixtureWallet ctx
+        eventually "Listing stake pools shows expected information" $ do
+            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
+            expectResponseCode HTTP.status200 r
+            verify r
+                [ expectListSize 3
+
+-- Pending a mock metadata registry
+--                , expectListField 0
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+--                , expectListField 1
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+--                , expectListField 2
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+
+                , expectListField 0
+                    #cost (`shouldBe` (Quantity 0))
+                , expectListField 1
+                    #cost (`shouldBe` (Quantity 0))
+                , expectListField 2
+                    #cost (`shouldBe` (Quantity 0))
+
+                , expectListField 0
+                    #margin (`shouldBe` (Quantity minBound))
+                , expectListField 1
+                    #margin (`shouldBe` (Quantity minBound))
+                , expectListField 2
+                    #margin (`shouldBe` (Quantity minBound))
+
+-- Pending stake pools producing blocks in our setup,
+-- AND pending keeping track of block producions
+--                , expectListField 0
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--                , expectListField 1
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--                , expectListField 2
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--
+--                , expectListField 0
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+--                , expectListField 1
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+--                , expectListField 2
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+
+                , expectListField 0
+                    (#metrics . #saturation) (.>= 0)
+                , expectListField 1
+                    (#metrics . #saturation) (.>= 0)
+                , expectListField 2
+                    (#metrics . #saturation) (.>= 0)
+                ]
 
   where
     passwd = "Secure Passphrase"
