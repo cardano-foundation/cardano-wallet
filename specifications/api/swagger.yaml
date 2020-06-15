@@ -1610,6 +1610,7 @@ x-responsesListAddresses: &responsesListAddresses
 
 x-responsesListStakePools: &responsesListStakePools
   <<: *responsesErr405
+  <<: *responsesErr404
   200:
     description: Ok
     content:
@@ -1927,9 +1928,7 @@ paths:
         Some pools _may_ also have metadata attached to them.
       parameters:
         - *parametersWalletId
-      responses:
-        - *responsesListStakePools
-        - *responsesErr404
+      responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
     put:
