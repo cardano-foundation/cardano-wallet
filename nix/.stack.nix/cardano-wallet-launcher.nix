@@ -33,6 +33,7 @@
           (hsPkgs."code-page" or (errorHandler.buildDepError "code-page"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))

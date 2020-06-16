@@ -77,7 +77,7 @@ packages:
   - shelley/chain-and-ledger/executable-spec/test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 478230484677e1940291eff6004e93d71692a242
+  commit: a1dd8ebb7b0a959619abceb34ef1044b9ea696b0
   subdirs:
   - cardano-api
   - cardano-cli
@@ -102,7 +102,7 @@ packages:
   commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
 
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 2a1afe23d88b91027f972dd7c70cd4aadfb19768
+  commit: efa4b5ecd7f0a13124616b12679cd42517cd905a
   subdirs:
   - contra-tracer
   - iohk-monitoring
@@ -143,4 +143,3 @@ packages:
   commit: 1a75bdfca014723dd5d40760fad854b3f0f37156
   subdirs:
   - http-client
-
