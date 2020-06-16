@@ -105,8 +105,6 @@ import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( (<|>) )
-import Control.Arrow
-    ( left )
 import Control.Monad
     ( when )
 import Crypto.Hash.Algorithms
@@ -773,7 +771,7 @@ _decodeAddress serverNetwork text =
                 guardNetwork addrNetwork
                 pure (W.Address bytes)
 
-            Just (SL.AddrBootstrap addr) -> do
+            Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
                 guardNetwork (toNetwork (Byron.addrNetworkMagic addr))
                 pure (W.Address bytes)
 
