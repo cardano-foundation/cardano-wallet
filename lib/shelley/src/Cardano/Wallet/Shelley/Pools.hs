@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,39 +16,26 @@ module Cardano.Wallet.Shelley.Pools where
 
 import Prelude
 
-import Cardano.Wallet.Api.Server
-    ( LiftHandler (..), apiError )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), ApiT (..) )
+    ( ApiT (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( ErrNetworkUnavailable, NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), GenesisParameters (..), PoolId )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
-    , ShelleyBlock
-    , fromNonMyopicMemberRewards
-    , fromPoolDistr
-    , optimumNumberOfPools
-    , toPoint
-    , toShelleyCoin
-    )
+    ( Shelley, toPoint )
 import Cardano.Wallet.Shelley.Network
-    ( pattern Cursor )
+    ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage, unsafeRunExceptT )
-import Control.Monad.Class.MonadSTM
-    ( MonadSTM, TQueue )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, withExceptT )
+    ( ExceptT (..), runExceptT )
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithMatched )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -59,18 +46,10 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
-import Ouroboros.Network.Block
-    ( Point )
-import Ouroboros.Network.Client.Wallet
-    ( LocalStateQueryCmd (..), send )
-import Servant
-    ( err500 )
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Ouroboros.Consensus.Shelley.Ledger as OC
 
 -- | Stake Pool Data fields fetched from the node via LSQ
 data PoolLsqMetrics = PoolLsqMetrics
@@ -79,61 +58,27 @@ data PoolLsqMetrics = PoolLsqMetrics
     , saturation :: Double
     } deriving (Eq, Show, Generic)
 
-
-data ErrFetchMetrics = ErrFetchMetrics
-  deriving Show
-
--- | Fetches information about pools availible over LSQ from the node, at the
--- nodes' tip.
-fetchLsqPoolMetrics
-    :: MonadSTM m
-    => TQueue m (LocalStateQueryCmd ShelleyBlock m)
-    -> Point ShelleyBlock
-    -> Coin
-    -> ExceptT ErrFetchMetrics m (Map PoolId PoolLsqMetrics)
-fetchLsqPoolMetrics queue pt coin = do
-    stakeMap <- fromPoolDistr <$> handleQueryFailure
-        (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
-    let toStake = Set.singleton $ Left $ toShelleyCoin coin
-    rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
-        (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
-    pparams <- handleQueryFailure
-        (queue `send` CmdQueryLocalState pt OC.GetCurrentPParams)
-
-    let rewardMap = fromMaybe
-            (error "askNode: requested rewards not included in response")
-            (Map.lookup (Left coin) rewardsPerAccount)
-
-    return $ combine
-        (optimumNumberOfPools pparams)
-        stakeMap
-        rewardMap
+combineLsqData
+    :: NodePoolLsqData
+    -> Map PoolId PoolLsqMetrics
+combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
+    Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
-    handleQueryFailure = withExceptT (const ErrFetchMetrics) . ExceptT
+    -- calculate the saturation from the relative stake
+    sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
 
-    combine
-        :: Int -- ^ Desired number of pools
-        -> Map PoolId Percentage
-        -> Map PoolId (Quantity "lovelace" Word64)
-        -> Map PoolId PoolLsqMetrics
-    combine nOpt =
-        Map.merge stakeButNoRewards rewardsButNoStake bothPresent
-      where
-        -- calculate the saturation from the relative stake
-        sat s = fromRational $ (getPercentage s) / (1 / fromIntegral nOpt)
+    -- If we fetch non-myopic member rewards of pools using the wallet
+    -- balance of 0, the resulting map will be empty. So we set the rewards
+    -- to 0 here:
+    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
+        { nonMyopicMemberRewards = Quantity 0
+        , relativeStake = s
+        , saturation = (sat s)
+        }
 
-        -- If we fetch non-myopic member rewards of pools using the wallet
-        -- balance of 0, the resulting map will be empty. So we set the rewards
-        -- to 0 here:
-        stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
-            { nonMyopicMemberRewards = Quantity 0
-            , relativeStake = s
-            , saturation = (sat s)
-            }
+    rewardsButNoStake = dropMissing
 
-        rewardsButNoStake = dropMissing
-
-        bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
+    bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
 
 readBlockProductions :: IO (Map PoolId Int)
 readBlockProductions = return Map.empty
@@ -142,18 +87,10 @@ readBlockProductions = return Map.empty
 -- Api Server Handler
 --
 
-instance LiftHandler ErrFetchMetrics where
-    handler = \case
-        ErrFetchMetrics ->
-            apiError err500 NotSynced $ mconcat
-                [ "There was a problem fetching metrics from the node."
-                ]
-
 data StakePoolLayer = StakePoolLayer
     { knownPools :: IO [PoolId]
-    , listStakePools :: Coin -> ExceptT ErrFetchMetrics IO [Api.ApiStakePool]
+    , listStakePools :: Coin -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     }
-
 
 newStakePoolLayer
     :: GenesisParameters
@@ -174,10 +111,9 @@ newStakePoolLayer gp nl = StakePoolLayer
     _knownPools
         :: IO [PoolId]
     _knownPools = do
-        Cursor _workerTip _ lsqQ <- initCursor nl []
         pt <- getTip
         res <- runExceptT $ map fst . Map.toList
-            <$> fetchLsqPoolMetrics lsqQ pt dummyCoin
+            . combineLsqData <$> stakeDistribution nl pt dummyCoin
         case res of
             Right x -> return x
             Left _e -> return []
@@ -187,13 +123,14 @@ newStakePoolLayer gp nl = StakePoolLayer
         :: Coin
         -- ^ The amount of stake the user intends to delegate, which may affect the
         -- ranking of the pools.
-        -> ExceptT ErrFetchMetrics IO [Api.ApiStakePool]
+        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools s = do
-            Cursor _workerTip _ lsqQ <- liftIO $ initCursor nl []
             pt <- liftIO getTip
             map mkApiPool
                 . sortOn (Down . nonMyopicMemberRewards . snd)
-                . Map.toList <$> fetchLsqPoolMetrics lsqQ pt s
+                . Map.toList
+                . combineLsqData
+                <$> stakeDistribution nl pt s
       where
         mkApiPool (pid, PoolLsqMetrics prew pstk psat) = Api.ApiStakePool
             { Api.id = (ApiT pid)

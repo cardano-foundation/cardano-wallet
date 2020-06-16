@@ -17,6 +17,7 @@ module Cardano.Wallet.Network
     , follow
     , FollowAction (..)
     , FollowExit (..)
+    , GetStakeDistribution
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -43,9 +44,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChimericAccount (..)
-    , EpochNo
     , Hash (..)
-    , PoolId (..)
     , ProtocolParameters
     , SealedTx
     , SlotId
@@ -71,8 +70,6 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map
-    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -128,9 +125,7 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: EpochNo
-        -> ExceptT ErrNetworkUnavailable m
-            (Map PoolId (Quantity "lovelace" Word64))
+        :: GetStakeDistribution target m
 
     , getAccountBalance
         :: ChimericAccount
@@ -224,6 +219,12 @@ defaultRetryPolicy =
     limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
   where
     second = 1000*1000
+
+{-------------------------------------------------------------------------------
+                                 Queries
+-------------------------------------------------------------------------------}
+
+type family GetStakeDistribution target (m :: * -> *) :: *
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

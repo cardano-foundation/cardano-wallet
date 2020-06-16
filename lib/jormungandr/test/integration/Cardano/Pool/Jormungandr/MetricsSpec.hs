@@ -11,13 +11,17 @@ import Cardano.BM.Trace
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.Jormungandr.Metrics
-    ( monitorStakePools )
+    ( Block, monitorStakePools )
 import Cardano.Wallet.Jormungandr
     ( toSPBlock )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..), withJormungandr, withNetworkLayer )
+import Cardano.Wallet.Network
+    ( NetworkLayer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , GenesisParameters (..)
@@ -109,7 +113,8 @@ spec = around setup $ do
 
     withMonitorStakePoolsThread (block0, k) nl db action = do
         bracket
-            (forkIO $ void $ monitorStakePools nullTracer (block0, k) nl db)
+            (forkIO $ void $ monitorStakePools nullTracer (block0, k)
+                (nl :: NetworkLayer IO Jormungandr Block) db)
             killThread
             action
 
