@@ -23,7 +23,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -44,7 +44,13 @@ import Cardano.Wallet.Primitive.Types
     , SlotId
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, ShelleyBlock, fromShelleyBlock', toBlockHeader, toPoint )
+    ( Shelley
+    , ShelleyBlock
+    , fromShelleyBlock'
+    , getProducer
+    , toBlockHeader
+    , toPoint
+    )
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
@@ -220,6 +226,9 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
             let (slot, registrations) = fromShelleyBlock' getEpochLength blk
+            runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
+                Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
+                Right () -> pure ()
             forM_ registrations $ \(pool, metadata) -> do
                 liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 putPoolRegistration slot pool
@@ -233,6 +242,7 @@ data StakePoolLog
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotId
     | MsgStakePoolRegistration PoolRegistrationCertificate
+    | MsgErrProduction ErrPointAlreadyExists
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolLog
@@ -244,6 +254,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
         MsgStakePoolRegistration{} -> Info
+        MsgErrProduction{} -> Error
 
 instance ToText StakePoolLog where
     toText = \case
@@ -263,3 +274,7 @@ instance ToText StakePoolLog where
             "Rolling back to " <> pretty point
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
+        MsgErrProduction (ErrPointAlreadyExists blk) ->  mconcat
+            [ "Couldn't store production for given block before it conflicts "
+            , "with another block. Conflicting block header is: ", pretty blk
+            ]

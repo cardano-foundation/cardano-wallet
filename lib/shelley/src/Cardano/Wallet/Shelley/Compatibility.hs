@@ -62,6 +62,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromPoolDistr
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
+    , getProducer
 
     , fromBlockNo
     , fromShelleyBlock
@@ -339,6 +340,13 @@ toBlockHeader genesisHash epLength blk =
             fromPrevHash (coerce genesisHash) $
                 SL.bheaderPrev header
         }
+
+getProducer :: ShelleyBlock -> W.PoolId
+getProducer blk =
+    let
+        O.ShelleyBlock (SL.Block (SL.BHeader header _) _) _ = blk
+    in
+        fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromShelleyBlock
     :: W.Hash "Genesis"
@@ -668,16 +676,15 @@ fromShelleyRegistrationCert
     :: SL.DCert TPraosStandardCrypto
     -> Maybe (W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)
 fromShelleyRegistrationCert = \case
-    SL.DCertPool (SL.RegPool pp) ->
-        Just $
-            ( W.PoolRegistrationCertificate
-                { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
-                , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
-                , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
-                , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
-                }
-            , fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
-            )
+    SL.DCertPool (SL.RegPool pp) -> Just
+        ( W.PoolRegistrationCertificate
+            { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
+            , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
+            , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
+            , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
+            }
+        , fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
+        )
 
     SL.DCertPool (SL.RetirePool{}) ->
         Nothing -- FIXME We need to acknowledge pool retirement
@@ -703,7 +710,7 @@ fromStakeCredential = \case
     SL.KeyHashObj (SL.KeyHash h) ->
         W.ChimericAccount (getHash h)
 
-fromPoolKeyHash :: SL.KeyHash 'SL.StakePool TPraosStandardCrypto -> W.PoolId
+fromPoolKeyHash :: SL.KeyHash rol TPraosStandardCrypto -> W.PoolId
 fromPoolKeyHash (SL.KeyHash h) =
     W.PoolId (getHash h)
 
