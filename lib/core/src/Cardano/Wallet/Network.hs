@@ -391,6 +391,8 @@ follow nl tr cps yield header =
             -- initiates the protocol by asking clients to rollback to the last
             -- known intersection.
             case (cursorSlotId nl cursor', cps) of
+                (_, []) ->
+                    step delay0 cursor'
                 (sl, _:_) | sl == slotId (last cps) ->
                     step delay0 cursor'
                 (sl, _) ->
