@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
@@ -38,7 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , GenesisParameters (..)
     , PoolId
-    , PoolRegistrationCertificate
+    , PoolRegistrationCertificate (..)
     , ProtocolParameters
     , SlotId
     )
@@ -218,11 +219,11 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         -> IO (FollowAction ())
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
-            -- FIXME: Also extract & store metadata information from the block
             let (slot, registrations) = fromShelleyBlock' getEpochLength blk
-            forM_ registrations $ \pool -> do
+            forM_ registrations $ \(pool, metadata) -> do
                 liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 putPoolRegistration slot pool
+                maybe (pure ()) (putPoolMetadataRef (poolId pool)) metadata
         pure Continue
 
 data StakePoolLog

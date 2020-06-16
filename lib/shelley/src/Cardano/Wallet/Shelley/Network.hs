@@ -355,6 +355,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     handleQueryFailure = withExceptT
         (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected" ++ show e) . ExceptT
+
     _stakeDistribution queue pt coin = do
         stakeMap <- fromPoolDistr <$> handleQueryFailure
             (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)

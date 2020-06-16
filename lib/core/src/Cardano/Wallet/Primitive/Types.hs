@@ -143,6 +143,7 @@ module Cardano.Wallet.Primitive.Types
     , StakeDistribution (..)
     , poolIdBytesLength
     , StakePoolMetadata (..)
+    , StakePoolMetadataRef (..)
     , StakePoolOffChainMetadata (..)
     , StakePoolTicker (..)
     , sameStakePoolMetadata
@@ -582,6 +583,14 @@ data StakePool = StakePool
     , margin :: Percentage
     , saturation :: Double
     } deriving (Show, Generic)
+
+-- | Metadata references, in order to fetch them from a remote.
+data StakePoolMetadataRef = StakePoolMetadataRef
+    { metadataURL :: Text
+        -- ^ A URL location where to find pools metadata
+    , metadataHash :: ByteString
+        -- ^ A blake2b_256 hash of the pools' metadata. For verification.
+    } deriving (Eq, Show, Generic)
 
 -- | Information about a stake pool, published by a stake pool owner in the
 -- stake pool registry.

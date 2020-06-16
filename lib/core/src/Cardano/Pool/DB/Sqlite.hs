@@ -46,6 +46,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , StakePoolMetadataRef (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -74,6 +75,7 @@ import Database.Persist.Sql
     , deleteWhere
     , insertMany_
     , insert_
+    , putMany
     , selectFirst
     , selectList
     , (<.)
@@ -214,6 +216,15 @@ newDBLayer trace fp = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
                 [ Desc PoolRegistrationSlot ]
 
+        , putPoolMetadataRef = \poolId ref -> do
+            putMany [PoolMetadataQueue poolId (metadataURL ref) (metadataHash ref)]
+
+        , deletePoolMetadataRef = \poolId -> do
+            deleteWhere [PoolMetadataQueuePoolId ==. poolId]
+
+        , peekPoolMetadataRef = \n -> do
+            fmap (fromPoolMetadataQueue . entityVal) <$> selectList [] [ LimitTo n ]
+
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
@@ -326,3 +337,10 @@ fromStakeDistribution distribution =
     ( stakeDistributionPoolId distribution
     , Quantity (stakeDistributionStake distribution)
     )
+
+
+fromPoolMetadataQueue
+    :: PoolMetadataQueue
+    -> (PoolId, StakePoolMetadataRef)
+fromPoolMetadataQueue (PoolMetadataQueue poolId url hash) =
+    (poolId, StakePoolMetadataRef url hash)

@@ -167,6 +167,8 @@ import Ouroboros.Network.NodeToClient
     )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
+import Shelley.Spec.Ledger.BaseTypes
+    ( strictMaybeToMaybe, urlToText )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -358,7 +360,7 @@ fromShelleyBlock genesisHash epLength blk =
 fromShelleyBlock'
     :: W.EpochLength
     -> ShelleyBlock
-    -> (W.SlotId, [W.PoolRegistrationCertificate])
+    -> (W.SlotId, [(W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)])
 fromShelleyBlock' epLength blk =
     let
         O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) _ = blk
@@ -628,7 +630,10 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
     :: SL.Tx TPraosStandardCrypto
-    -> (W.Tx, [W.DelegationCertificate], [W.PoolRegistrationCertificate])
+    -> ( W.Tx
+       , [W.DelegationCertificate]
+       , [(W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)]
+       )
 fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
@@ -661,15 +666,18 @@ fromShelleyDelegationCert = \case
 -- 'Nothing' if certificates aren't delegation certificate.
 fromShelleyRegistrationCert
     :: SL.DCert TPraosStandardCrypto
-    -> Maybe W.PoolRegistrationCertificate
+    -> Maybe (W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)
 fromShelleyRegistrationCert = \case
     SL.DCertPool (SL.RegPool pp) ->
-        Just $ W.PoolRegistrationCertificate
-            { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
-            , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
-            , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
-            , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
-            }
+        Just $
+            ( W.PoolRegistrationCertificate
+                { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
+                , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
+                , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
+                , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
+                }
+            , fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
+            )
 
     SL.DCertPool (SL.RetirePool{}) ->
         Nothing -- FIXME We need to acknowledge pool retirement
@@ -677,6 +685,13 @@ fromShelleyRegistrationCert = \case
     SL.DCertDeleg{}   -> Nothing
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
+
+fromPoolMetaData :: SL.PoolMetaData -> W.StakePoolMetadataRef
+fromPoolMetaData meta =
+    W.StakePoolMetadataRef
+        { W.metadataURL  = urlToText (SL._poolMDUrl meta)
+        , W.metadataHash = SL._poolMDHash meta
+        }
 
 -- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
 -- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH

@@ -265,6 +265,8 @@ prop_trackRegistrations test = monadicIO $ do
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
                 pure . const (Cursor header0)
+            , destroyCursor =
+                const (pure ())
             , stakeDistribution = \_ ->
                 pure mempty
             , currentNodeTip =

@@ -41,6 +41,9 @@ module Cardano.Pool.DB.Model
     , mPutPoolRegistration
     , mReadPoolRegistration
     , mListRegisteredPools
+    , mPutPoolMetadataRef
+    , mDeletePoolMetadataRef
+    , mPeekPoolMetadataRef
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -55,6 +58,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , StakePoolMetadataRef
     )
 import Data.Foldable
     ( fold )
@@ -94,6 +98,9 @@ data PoolDatabase = PoolDatabase
     , metadata :: !(Map (SlotId, PoolId) (Percentage, Quantity "lovelace" Word64))
     -- ^ On-chain metadata associated with pools
 
+    , metadataRef :: [(PoolId, StakePoolMetadataRef)]
+    -- ^ On-chain metadata references needed to fetch metadata
+
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     } deriving (Generic, Show, Eq)
@@ -111,7 +118,7 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty NotSeededYet
+emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -206,6 +213,22 @@ mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
 mListRegisteredPools db@PoolDatabase{metadata} =
     ( snd <$> Map.keys metadata, db )
 
+mPutPoolMetadataRef :: PoolId -> StakePoolMetadataRef -> ModelPoolOp ()
+mPutPoolMetadataRef pid ref db@PoolDatabase{metadataRef} =
+    ( Right ()
+    , db { metadataRef = (pid, ref):metadataRef }
+    )
+
+mDeletePoolMetadataRef :: PoolId -> ModelPoolOp ()
+mDeletePoolMetadataRef pid db@PoolDatabase{metadataRef} =
+    ( Right ()
+    , db { metadataRef = filter ((/= pid) . fst) metadataRef }
+    )
+
+mPeekPoolMetadataRef :: Int -> PoolDatabase -> ([(PoolId, StakePoolMetadataRef)], PoolDatabase)
+mPeekPoolMetadataRef n db@PoolDatabase{metadataRef} =
+    ( take n metadataRef, db )
+
 mReadSystemSeed
     :: PoolDatabase
     -> IO (StdGen, PoolDatabase)
@@ -225,7 +248,7 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
+mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, metadataRef, seed} =
     let
         metadata' = Map.mapMaybeWithKey (discardBy id . fst) metadata
         owners' = Map.restrictKeys owners
@@ -238,6 +261,7 @@ mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
             , distributions = Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
             , metadata = metadata'
+            , metadataRef
             , seed
             }
         )
