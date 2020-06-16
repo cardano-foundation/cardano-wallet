@@ -67,8 +67,10 @@ import Cardano.Wallet.Shelley.Compatibility
     , toShelleyCoin
     , toStakeCredential
     )
+import Control.Concurrent
+    ( ThreadId )
 import Control.Concurrent.Async
-    ( async, link )
+    ( Async, async, asyncThreadId, cancel, link )
 import Control.Exception
     ( IOException )
 import Control.Monad
@@ -214,6 +216,7 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 -- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Shelley) = Cursor
+    (Async ())
     (Point ShelleyBlock)
     (TQueue m (ChainSyncCmd ShelleyBlock m))
 
@@ -248,6 +251,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
+            , destroyCursor = _destroyCursor
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
@@ -282,8 +286,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
-        link =<< async
-            (connectClient tr handlers client versionData addrInfo)
+        thread <- async (connectClient tr handlers client versionData addrInfo)
+        link thread
         let points = reverse $ genesisPoint :
                 (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
@@ -295,18 +299,22 @@ withNetworkLayer tr np addrInfo versionData action = do
                     $ MsgIntersectionFound
                     $ fromChainHash getGenesisBlockHash
                     $ pointHash intersection
-                pure $ Cursor intersection chainSyncQ
+                pure $ Cursor thread intersection chainSyncQ
             _ -> fail $ unwords
                 [ "initCursor: intersection not found? This can't happen"
                 , "because we always give at least the genesis point."
                 , "Here are the points we gave: " <> show headers
                 ]
 
-    _nextBlocks (Cursor _ chainSyncQ) = do
-        let toCursor point = Cursor point chainSyncQ
+    _destroyCursor (Cursor thread _ _) = do
+        liftIO $ traceWith tr $ MsgDestroyCursor (asyncThreadId thread)
+        cancel thread
+
+    _nextBlocks (Cursor thread _ chainSyncQ) = do
+        let toCursor point = Cursor thread point chainSyncQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor point _) = do
+    _cursorSlotId (Cursor _ point _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance nodeTipVar queryRewardQ acct = do
@@ -490,8 +498,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
 
     let
         queryLocalState
-            :: HasCallStack
-            => Point ShelleyBlock
+            :: Point ShelleyBlock
             -> m ()
         queryLocalState pt = do
             st <- localStateQueryQ `send`
@@ -499,8 +506,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
             handleLocalState st
 
         handleLocalState
-            :: HasCallStack
-            => Either AcquireFailure SL.PParams
+            :: Either AcquireFailure SL.PParams
             -> m ()
         handleLocalState = \case
             Left (e :: AcquireFailure) ->
@@ -689,6 +695,7 @@ data NetworkLayerLog
     | MsgGetRewardAccountBalance W.BlockHeader W.ChimericAccount
     | MsgAccountDelegationAndRewards W.ChimericAccount
         Delegations RewardAccounts
+    | MsgDestroyCursor ThreadId
 
 data QueryClientName
     = TipSyncClient
@@ -752,6 +759,10 @@ instance ToText NetworkLayerLog where
             , "  delegations = " <> T.pack (show delegations)
             , "  rewards = " <> T.pack (show rewards)
             ]
+        MsgDestroyCursor threadId -> T.unwords
+            [ "Destroying cursor connection at"
+            , T.pack (show threadId)
+            ]
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -772,3 +783,4 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgLocalStateQueryError{}        -> Error
         MsgGetRewardAccountBalance{}     -> Info
         MsgAccountDelegationAndRewards{} -> Info
+        MsgDestroyCursor{}               -> Notice

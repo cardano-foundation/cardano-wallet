@@ -330,6 +330,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: nextBlocks"
     , initCursor =
         \_ -> error "mockNetworkLayer: initCursor"
+    , destroyCursor =
+        \_ -> error "mockNetworkLayer: destroyCursor"
     , cursorSlotId =
         \_ -> error "mockNetworkLayer: cursorSlotId"
     , currentNodeTip =

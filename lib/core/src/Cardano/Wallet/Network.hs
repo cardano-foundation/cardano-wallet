@@ -68,6 +68,8 @@ import Control.Retry
     ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Quantity
@@ -108,6 +110,10 @@ data NetworkLayer m target block = NetworkLayer
         :: [BlockHeader] -> m (Cursor target)
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
+
+    , destroyCursor
+        :: Cursor target -> m ()
+        -- ^ Cleanup network connection once we're done with them.
 
     , cursorSlotId
         :: Cursor target -> SlotId
@@ -340,18 +346,18 @@ follow nl tr cps yield header =
         step delay cursor
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
-            Just ThreadKilled ->
-                return FollowInterrupted
-            Just UserInterrupt ->
-                return FollowInterrupted
+            Just ThreadKilled -> do
+                destroyCursor nl cursor $> FollowInterrupted
+            Just UserInterrupt -> do
+                destroyCursor nl cursor $> FollowInterrupted
             Nothing | fromException e == Just AsyncCancelled -> do
-                return FollowInterrupted
+                destroyCursor nl cursor $> FollowInterrupted
             Just _ -> do
                 traceWith tr $ MsgUnhandledException eT
-                return FollowFailure
+                destroyCursor nl cursor $> FollowFailure
             _ -> do
                 traceWith tr $ MsgUnhandledException eT
-                return FollowFailure
+                destroyCursor nl cursor $> FollowFailure
           where
             eT = T.pack (show e)
 
@@ -388,7 +394,7 @@ follow nl tr cps yield header =
                 (sl, _:_) | sl == slotId (last cps) ->
                     step delay0 cursor'
                 (sl, _) ->
-                    pure (FollowRollback sl)
+                    destroyCursor nl cursor' $> FollowRollback sl
       where
         continueWith :: Cursor target -> FollowAction e -> IO FollowExit
         continueWith cursor' = \case
