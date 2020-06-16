@@ -45,7 +45,8 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( delegationFee
+    ( LiftHandler (liftE)
+    , delegationFee
     , deleteTransaction
     , deleteWallet
     , getMigrationInfo
@@ -82,6 +83,7 @@ import Cardano.Wallet.Api.Server
     , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
+    , withWorkerCtx
     )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool, ApiT (..), SomeByronWalletPostData (..) )
@@ -97,8 +99,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Model
+    ( totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId )
+    ( Coin (..) )
+import Cardano.Wallet.Shelley.Pools
+    ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
@@ -116,9 +122,10 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server, err501, throwError )
+    ( (:<|>) (..), Server )
 
--- | A diminished servant server to serve Byron wallets only.
+import qualified Cardano.Wallet as W
+
 server
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
@@ -129,10 +136,10 @@ server
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
-    -> IO [PoolId]
+    -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
-server byron icarus shelley knownPools ntp =
+server byron icarus shelley spl ntp =
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -176,8 +183,13 @@ server byron icarus shelley knownPools ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-             (\_ -> throwError err501)
-        :<|> joinStakePool shelley knownPools
+        (\(ApiT wid) -> do
+            stake <- withWorkerCtx shelley wid liftE liftE $ \wrk -> do
+                (w, _, pending) <- liftHandler $ W.readWallet wrk wid
+                return $ Coin $ fromIntegral $ totalBalance pending w
+            liftHandler $ listStakePools spl stake
+        )
+        :<|> joinStakePool shelley (knownPools spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
 
@@ -291,3 +303,4 @@ server byron icarus shelley knownPools ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
+

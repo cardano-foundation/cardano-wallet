@@ -54,6 +54,15 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
     , toStakeCredential
+    , toShelleyCoin
+    , fromShelleyCoin
+
+      -- ** Stake pools
+    , fromPoolId
+    , fromPoolDistr
+    , fromNonMyopicMemberRewards
+    , optimumNumberOfPools
+
 
     , fromBlockNo
     , fromShelleyBlock
@@ -91,7 +100,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor )
+    ( unsafeDeserialiseCbor, unsafeMkPercentage )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
@@ -100,6 +109,8 @@ import Control.Monad
     ( when )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -115,7 +126,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Percentage, Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -128,14 +139,8 @@ import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( SlotLength (..), getSystemStart )
-import Ouroboros.Consensus.Protocol.Abstract
-    ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Ledger
     ( GenTx, ShelleyHash (..) )
-import Ouroboros.Consensus.Shelley.Node
-    ( initialFundsPseudoTxIn )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( TPraosStandardCrypto )
 import Ouroboros.Network.Block
@@ -182,6 +187,8 @@ import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
+import qualified Shelley.Spec.Ledger.Delegation.Certificates as SL
+import qualified Shelley.Spec.Ledger.Genesis as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
@@ -398,10 +405,6 @@ fromTip' gp = fromTip getGenesisBlockHash getEpochLength
         , getGenesisBlockHash
         } = gp
 
-fromSlotLength :: SlotLength -> W.SlotLength
-fromSlotLength = W.SlotLength
-    . getSlotLength
-
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
@@ -441,6 +444,7 @@ decentralizationLevelFromPParams
 decentralizationLevelFromPParams pp =
     either reportInvalidValue W.DecentralizationLevel
         $ mkPercentage
+        $ toRational
         $ SL.intervalValue
         -- We must invert the value provided: (see function comment)
         $ invertUnitInterval d
@@ -476,13 +480,13 @@ fromGenesisData g =
         { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
-                W.StartTime . getSystemStart . sgSystemStart $ g
+                W.StartTime . sgSystemStart $ g
             , getSlotLength =
-                fromSlotLength . sgSlotLength $ g
+                W.SlotLength $ sgSlotLength g
             , getEpochLength =
                 W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
             , getEpochStability =
-                Quantity . fromIntegral . maxRollbacks . sgSecurityParam $ g
+                Quantity . fromIntegral . sgSecurityParam $ g
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
@@ -527,11 +531,42 @@ fromGenesisData g =
             [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
-                initialFundsPseudoTxIn @TPraosStandardCrypto addr
+                SL.initialFundsPseudoTxIn @TPraosStandardCrypto addr
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
     W.ProtocolMagic (fromIntegral magic)
+
+--
+-- Stake pools
+--
+
+fromPoolId :: SL.KeyHash 'SL.StakePool crypto -> W.PoolId
+fromPoolId (SL.KeyHash x) = W.PoolId $ getHash x
+
+fromPoolDistr
+    :: SL.PoolDistr TPraosStandardCrypto
+    -> Map W.PoolId Percentage
+fromPoolDistr =
+    Map.map (unsafeMkPercentage . fst)
+    . Map.mapKeys fromPoolId
+    . SL.unPoolDistr
+
+-- NOTE: This function disregards results that are using staking keys
+fromNonMyopicMemberRewards
+    :: O.NonMyopicMemberRewards TPraosStandardCrypto
+    -> Map (Either W.Coin W.ChimericAccount) (Map W.PoolId (Quantity "lovelace" Word64))
+fromNonMyopicMemberRewards =
+    Map.map (Map.map (Quantity . fromIntegral) . Map.mapKeys fromPoolId)
+    . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
+    . O.unNonMyopicMemberRewards
+
+optimumNumberOfPools :: SL.PParams -> Int
+optimumNumberOfPools = unsafeConvert . SL._nOpt
+  where
+    -- A value of ~100 can be expected, so should be fine.
+    unsafeConvert :: Natural -> Int
+    unsafeConvert = fromIntegral
 
 --
 -- Txs
@@ -569,9 +604,15 @@ fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
     unsafeCast :: Integer -> Word64
     unsafeCast = fromIntegral
 
+toShelleyCoin :: W.Coin -> SL.Coin
+toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
+  where
+    safeCast :: Word64 -> Integer
+    safeCast = fromIntegral
+
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx :: SL.Tx TPraosStandardCrypto -> (W.Tx, [W.DelegationCertificate])
-fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _ _) =
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
@@ -730,7 +771,7 @@ _decodeAddress serverNetwork text =
                 guardNetwork addrNetwork
                 pure (W.Address bytes)
 
-            Just (SL.AddrBootstrap addr) -> do
+            Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
                 guardNetwork (toNetwork (Byron.addrNetworkMagic addr))
                 pure (W.Address bytes)
 

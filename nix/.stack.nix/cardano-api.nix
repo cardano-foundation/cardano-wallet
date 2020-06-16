@@ -97,6 +97,7 @@
             (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
+            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
             ];
           buildable = true;
@@ -106,8 +107,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "9925ef37dccbe7f423f3ceb81a5e1da3d924393b";
-      sha256 = "1yw5axs33g33znqxjkmjlrgks8ky79mc6lj2f28m2i2qfifyz12y";
+      rev = "478230484677e1940291eff6004e93d71692a242";
+      sha256 = "0v9f2bn3zq181wdzlkf3klibbmf3jkq5q6sd2y564ramq9yh4k45";
       });
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }

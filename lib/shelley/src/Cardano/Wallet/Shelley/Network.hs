@@ -26,6 +26,8 @@ module Cardano.Wallet.Shelley.Network
       pattern Cursor
     , withNetworkLayer
 
+    , NodePoolLsqData (..)
+
       -- * Logging
     , NetworkLayerLog (..)
     ) where
@@ -42,6 +44,7 @@ import Cardano.Wallet.Network
     , ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
+    , GetStakeDistribution
     , NetworkLayer (..)
     , mapCursor
     )
@@ -52,12 +55,16 @@ import Cardano.Wallet.Shelley.Compatibility
     , ShelleyBlock
     , TPraosStandardCrypto
     , fromChainHash
+    , fromNonMyopicMemberRewards
     , fromPParams
+    , fromPoolDistr
     , fromSlotNo
     , fromTip
     , fromTip'
+    , optimumNumberOfPools
     , toGenTx
     , toPoint
+    , toShelleyCoin
     , toStakeCredential
     )
 import Control.Concurrent.Async
@@ -91,7 +98,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -104,14 +111,20 @@ import Data.Function
     ( (&) )
 import Data.List
     ( isInfixOf )
+import Data.Map
+    ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Void
     ( Void )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Stack
@@ -231,15 +244,14 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    action
-        NetworkLayer
+    action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
-            , stakeDistribution = _stakeDistribution
+            , stakeDistribution = _stakeDistribution queryRewardQ
             , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
             }
   where
@@ -329,8 +341,36 @@ withNetworkLayer tr np addrInfo versionData action = do
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-    _stakeDistribution =
-        notImplemented "stakeDistribution"
+    handleQueryFailure = withExceptT
+        (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected" ++ show e) . ExceptT
+    _stakeDistribution queue pt coin = do
+        stakeMap <- fromPoolDistr <$> handleQueryFailure
+            (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
+        let toStake = Set.singleton $ Left $ toShelleyCoin coin
+        rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
+            (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
+        pparams <- handleQueryFailure
+            (queue `send` CmdQueryLocalState pt OC.GetCurrentPParams)
+
+        let rewardMap = fromMaybe
+                (error "stakeDistribution: requested rewards not included in response")
+                (Map.lookup (Left coin) rewardsPerAccount)
+
+        return $ NodePoolLsqData
+            (optimumNumberOfPools pparams)
+            rewardMap
+            stakeMap
+
+type instance GetStakeDistribution (IO Shelley) m
+    = (Point ShelleyBlock
+   -> W.Coin
+   -> ExceptT ErrNetworkUnavailable m NodePoolLsqData)
+
+data NodePoolLsqData = NodePoolLsqData
+    { nOpt :: Int
+    , rewards :: Map W.PoolId (Quantity "lovelace" Word64)
+    , stake :: Map W.PoolId Percentage
+    }
 
 --------------------------------------------------------------------------------
 --
@@ -364,13 +404,10 @@ mkWalletClient
     -> m (NetworkClient m)
 mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
-            let
-                codec = cChainSyncCodec codecs
-            in
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPipelinedPeer nullTracer codec channel
+            InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
+                runPipelinedPeer nullTracer (cChainSyncCodec codecs) channel
                 $ chainSyncClientPeerPipelined
                 $ chainSyncWithBlocks (fromTip' gp) chainSyncQ stash
 
@@ -388,12 +425,11 @@ mkDelegationRewardsClient
     :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> TQueue m
-       (LocalStateQueryCmd ShelleyBlock (Delegations, RewardAccounts) m)
+    -> TQueue m (LocalStateQueryCmd ShelleyBlock m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
 mkDelegationRewardsClient tr queryRewardQ =
-    nodeToClientProtocols (const NodeToClientProtocols
+    nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             doNothingProtocol
 
@@ -480,7 +516,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
-    pure $ nodeToClientProtocols (const NodeToClientProtocols
+    pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
                 codec = cChainSyncCodec $ serialisedCodecs @m
@@ -621,13 +657,6 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-
---------------------------------------------------------------------------------
---
--- Temporary
-
-notImplemented :: HasCallStack => String -> a
-notImplemented what = error ("Not implemented: " <> what)
 
 {-------------------------------------------------------------------------------
                                     Logging

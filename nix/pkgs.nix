@@ -6,7 +6,10 @@ let
   inherit (import ./default.nix {}) commonLib;
 in pkgs: super: with pkgs; {
   jmPkgs = import ./jormungandr.nix { inherit (pkgs) commonLib; inherit pkgs; };
-  cardanoNodePkgs = import sources.cardano-node { inherit system crossSystem config; };
+  cardanoNodePkgs = import sources.cardano-node {
+    inherit system crossSystem config;
+    gitrev = sources.cardano-node.rev;
+  };
   cardano-node = cardanoNodePkgs.cardano-node // {
     # Provide real deployment configurations for use in dev/tests/benchmarks.
     # https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html

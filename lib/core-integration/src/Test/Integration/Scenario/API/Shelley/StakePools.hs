@@ -14,7 +14,8 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
+    ( ApiStakePool
+    , ApiT (..)
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
@@ -22,19 +23,17 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress, fromHex )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), PoolId (..), TxStatus (..) )
-import Data.ByteString
-    ( ByteString )
+    ( Direction (..), PoolId (..), TxStatus (..), WalletId )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, xit )
 import Test.Integration.Framework.DSL
@@ -49,6 +48,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectListField
+    , expectListSize
     , expectResponseCode
     , fixturePassphrase
     , fixtureWallet
@@ -60,11 +60,13 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , quitStakePool
     , request
+    , unsafeRequest
     , verify
     , waitForNextEpoch
     , walletId
     , (.<=)
     , (.>)
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -77,6 +79,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -105,14 +108,18 @@ spec = do
 
     it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool with wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
-        joinStakePool @n ctx (ApiT poolIdMock) (w, "Wrong Passphrase") >>= flip verify
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+        joinStakePool @n ctx pool (w, "Wrong Passphrase") >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
             ]
 
     it "STAKE_POOLS_JOIN_02 - Cannot join already joined stake pool" $ \ctx -> do
         w <- fixtureWallet ctx
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -127,14 +134,16 @@ spec = do
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText poolIdMock)
+            , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText $ getApiT pool)
             ]
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         w <- fixtureWallet ctx
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -170,7 +179,10 @@ spec = do
         (currentEpoch, sp) <- getSlotParams ctx
         waitForNextEpoch ctx
 
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+        pool1:pool2:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+
+        joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -189,17 +201,17 @@ spec = do
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
-                    [ (Just (ApiT poolIdMock), mkEpochInfo (currentEpoch + 3) sp)
+                    [ (Just pool1, mkEpochInfo (currentEpoch + 3) sp)
                     ]
                 )
             ]
         eventually "Wallet is delegating to p1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                [ expectField #delegation (`shouldBe` delegating pool1 [])
                 ]
 
         -- join another stake pool
-        joinStakePool @n ctx (ApiT poolIdMock') (w, fixturePassphrase) >>= flip verify
+        joinStakePool @n ctx pool2 (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -217,7 +229,7 @@ spec = do
 
         eventually "Wallet is delegating to p2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock') [])
+                [ expectField #delegation (`shouldBe` delegating pool2 [])
                 ]
 
         --quiting
@@ -244,8 +256,10 @@ spec = do
 
     xit "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
         -- Join a pool
-        joinStakePool @n ctx (ApiT poolIdMock) (w, fixturePassphrase) >>= flip verify
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -305,7 +319,11 @@ spec = do
             \I can join if I have just the right amount" $ \ctx -> do
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith @n ctx [fee]
-            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd)>>= flip verify
+
+            pool:_ <- map (view #id) . snd
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+
+            joinStakePool @n ctx pool (w, passwd)>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -315,7 +333,9 @@ spec = do
            \I cannot join if I have not enough fee to cover" $ \ctx -> do
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith @n ctx [fee - 1]
-            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+            pool:_ <- map (view #id) . snd
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee 1)
                 ]
@@ -327,8 +347,9 @@ spec = do
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             let initBalance = [feeJoin + feeQuit]
             w <- fixtureWalletWith @n ctx initBalance
-
-            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+            pool:_ <- map (view #id) . snd
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -336,7 +357,7 @@ spec = do
 
             eventually "Wallet is delegating to p1" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
 
             quitStakePool @n ctx (w, passwd) >>= flip verify
@@ -359,7 +380,10 @@ spec = do
             let initBalance = [feeJoin+1]
             w <- fixtureWalletWith @n ctx initBalance
 
-            joinStakePool @n ctx (ApiT poolIdMock) (w, passwd) >>= flip verify
+            pool:_ <- map (view #id) . snd
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+
+            joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -367,7 +391,7 @@ spec = do
 
             eventually "Wallet is delegating to p1" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating (ApiT poolIdMock) [])
+                    [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
             quitStakePool @n ctx (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status403
@@ -392,9 +416,82 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
+    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
+        w <- fixtureWallet ctx
+        eventually "Listing stake pools shows expected information" $ do
+            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
+            expectResponseCode HTTP.status200 r
+            verify r
+                [ expectListSize 3
+
+-- Pending a mock metadata registry
+--                , expectListField 0
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+--                , expectListField 1
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+--                , expectListField 2
+--                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
+
+                , expectListField 0
+                    #cost (`shouldBe` (Quantity 0))
+                , expectListField 1
+                    #cost (`shouldBe` (Quantity 0))
+                , expectListField 2
+                    #cost (`shouldBe` (Quantity 0))
+
+                , expectListField 0
+                    #margin (`shouldBe` (Quantity minBound))
+                , expectListField 1
+                    #margin (`shouldBe` (Quantity minBound))
+                , expectListField 2
+                    #margin (`shouldBe` (Quantity minBound))
+
+-- Pending stake pools producing blocks in our setup,
+-- AND pending keeping track of block producions
+--                , expectListField 0
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--                , expectListField 1
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--                , expectListField 2
+--                    (#metrics . #producedBlocks) (.>= Quantity 0)
+--
+--                , expectListField 0
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+--                , expectListField 1
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+--                , expectListField 2
+--                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
+
+                , expectListField 0
+                    (#metrics . #saturation) (.>= 0)
+                , expectListField 1
+                    (#metrics . #saturation) (.>= 0)
+                , expectListField 2
+                    (#metrics . #saturation) (.>= 0)
+                ]
+
+    it "STAKE_POOLS_LIST_05 - Fails for unknown wallets" $ \ctx -> do
+        -- FIXME: Type inference breaks without this line:
+        _w <- fixtureWallet ctx
+
+        r <- request @[ApiStakePool] ctx (Link.listStakePools (ApiT invalidWalletId, ())) Default Empty
+        expectResponseCode HTTP.status404 r
+
+    it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 for empty wallets" $ \ctx -> do
+        w <- emptyWallet ctx
+        eventually "Listing stake pools shows expected information" $ do
+            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
+            expectResponseCode HTTP.status200 r
+            verify r
+                [ expectListSize 3
+                , expectListField 0
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                , expectListField 1
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                , expectListField 2
+                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+                ]
   where
-    (Right poolID) = fromHex @ByteString "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
-    poolIdMock = PoolId poolID
-    (Right poolID') = fromHex @ByteString "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
-    poolIdMock' = PoolId poolID'
+    invalidWalletId :: WalletId
+    invalidWalletId = either (error . show) id $ fromText $ T.pack $ replicate 40 '0'
     passwd = "Secure Passphrase"

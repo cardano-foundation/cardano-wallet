@@ -77,11 +77,13 @@ import Data.Function
 import Data.Proxy
     ( Proxy (..) )
 import Data.Ratio
-    ( (%) )
+    ( Ratio, (%) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Data.Word
+    ( Word64 )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
@@ -181,7 +183,7 @@ spec = do
         let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams
             mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
 
-        let testCases :: [(Rational, Text)]
+        let testCases :: [(Ratio Word64, Text)]
             testCases =
                 [ (10 % 10,   "0.00%")
                 , ( 9 % 10,  "10.00%")

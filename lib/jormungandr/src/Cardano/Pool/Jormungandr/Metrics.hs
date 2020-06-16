@@ -9,6 +9,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | This module can fold over a blockchain to collect metrics about
 -- Stake pools.
@@ -54,12 +55,17 @@ import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
 import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Network
+    ()
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip
     , ErrNetworkUnavailable
     , FollowAction (..)
     , FollowExit (..)
     , FollowLog
+    , GetStakeDistribution
     , NetworkLayer (currentNodeTip, stakeDistribution)
     , follow
     )
@@ -163,7 +169,8 @@ data StakePoolLayer e m = StakePoolLayer
 -- The pool productions and stake distrubtions in the db can /never/ be from
 -- different forks such that it's safe for readers to access it.
 monitorStakePools
-    :: Tracer IO StakePoolLog
+    :: GetStakeDistribution t IO ~ GetStakeDistribution Jormungandr IO
+    => Tracer IO StakePoolLog
     -> (Block, Quantity "block" Word32)
         -- ^ Genesis block and 'k'
     -> NetworkLayer IO t Block
@@ -201,7 +208,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
         distributions <- forM epochs $ \ep -> do
             liftIO $ traceWith tr $ MsgStakeDistribution ep
             withExceptT ErrMonitorStakePoolsNetworkUnavailable $
-                (ep,) <$> stakeDistribution nl ep
+                (ep,) <$> (stakeDistribution nl ep)
 
         currentTip <- withExceptT ErrMonitorStakePoolsCurrentNodeTip $
             currentNodeTip nl
@@ -253,7 +260,7 @@ newStakePoolLayer
     -- ^ Genesis block header
     -> (EpochNo -> Quantity "lovelace" Word64 -> EpochConstants)
     -> DBLayer IO
-    -> NetworkLayer IO t Block
+    -> NetworkLayer IO Jormungandr Block
     -> FilePath
     -- ^ A directory to cache downloaded stake pool metadata. Will be created if
     -- it does not exist.

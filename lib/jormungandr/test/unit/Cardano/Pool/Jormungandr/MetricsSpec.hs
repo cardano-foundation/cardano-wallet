@@ -39,10 +39,13 @@ import Cardano.Pool.Jormungandr.Metrics
     )
 import Cardano.Pool.Jormungandr.Ranking
     ( EpochConstants (..), unsafeMkNonNegative, unsafeMkPositive )
+import Cardano.Wallet.Jormungandr.Network
+    ()
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetBlock (..)
     , ErrNetworkUnavailable (..)
+    , GetStakeDistribution
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
@@ -271,6 +274,11 @@ prop_trackRegistrations test = monadicIO $ do
             }
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
+
+type instance GetStakeDistribution RegistrationsTest m =
+    EpochNo
+    -> ExceptT ErrNetworkUnavailable m
+        (Map PoolId (Quantity "lovelace" Word64))
 
 test_emptyDatabaseNotSynced :: IO ()
 test_emptyDatabaseNotSynced = do
