@@ -67,7 +67,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..)
+    ( ErrDecodeSignedTx (..)
+    , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
     , WithDelegation (..)
@@ -90,8 +91,6 @@ import Data.Word
     ( Word16, Word8 )
 import Fmt
     ( Buildable (..) )
-import GHC.Stack
-    ( HasCallStack )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -122,7 +121,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
-    , decodeSignedTx = notImplemented "decodeSignedTx"
+    , decodeSignedTx = _decodeSignedTx
     , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
     , validateSelection = const $ return ()
@@ -202,6 +201,18 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
+    _decodeSignedTx
+        :: ByteString
+        -> Either ErrDecodeSignedTx (Tx, SealedTx)
+    _decodeSignedTx bytes = do
+        case Cardano.txSignedFromCBOR bytes of
+            Right (Cardano.TxSignedShelley txValid) -> pure $ toSealed txValid
+            Right (Cardano.TxSignedByron{}) ->
+                Left $ ErrDecodeSignedTxWrongPayload
+                "Detected Byron signed tx. Was expecting Shelley signed one!"
+            Left apiErr ->
+                Left $ ErrDecodeSignedTxWrongPayload
+                (Cardano.renderApiError apiErr)
 
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
@@ -337,6 +348,3 @@ instance Buildable ErrInvalidTxOutAmount where
     build _ = "Invalid coin selection: at least one output is null."
 
 type instance ErrValidateSelection (IO Shelley) = ErrInvalidTxOutAmount
-
-notImplemented :: HasCallStack => String -> a
-notImplemented what = error ("Not implemented: " <> what)
