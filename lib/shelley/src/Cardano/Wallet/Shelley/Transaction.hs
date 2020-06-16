@@ -303,8 +303,6 @@ computeTxSize
 computeTxSize (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
-    scriptWits = mempty
-
     metadata = SL.SNothing
 
     unsigned = mkUnsignedTx maxBound inps outs'
