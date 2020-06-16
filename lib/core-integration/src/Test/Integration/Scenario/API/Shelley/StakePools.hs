@@ -26,9 +26,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), Direction (..), PoolId (..), TxStatus (..) )
+    ( Coin (..)
+    , Direction (..)
+    , PoolId (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker (..)
+    , TxStatus (..)
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkPercentage )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.List
+    ( sortOn )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -65,7 +77,6 @@ import Test.Integration.Framework.DSL
     , walletId
     , (.<=)
     , (.>)
-    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -415,68 +426,107 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
-    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
-        eventually "Listing stake pools shows expected information" $ do
-            r <- request @[ApiStakePool] ctx
-                (Link.listStakePools arbitraryStake) Default Empty
+    let fixTypeInference = True `shouldBe` True
+    let listPools ctx = request @[ApiStakePool] @IO ctx (Link.listStakePools arbitraryStake) Default Empty
+    describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
+        it "immediately has non-zero saturation & stake" $ \ctx -> do
+            r <- listPools ctx
             expectResponseCode HTTP.status200 r
             verify r
                 [ expectListSize 3
-
--- Pending a mock metadata registry
---                , expectListField 0
---                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
---                , expectListField 1
---                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
---                , expectListField 2
---                    #metadata ((`shouldBe` Just "Genesis Pool") . fmap (view #name . getApiT))
-
+                -- At the time of setup, the pools have 1/3 stake each, but
+                -- this could potentially be changed by other tests. Hence,
+                -- we try to be forgiving here.
                 , expectListField 0
-                    #cost (`shouldBe` (Quantity 0))
+                    (#metrics . #relativeStake)
+                        (.> Quantity (unsafeMkPercentage 0))
                 , expectListField 1
-                    #cost (`shouldBe` (Quantity 0))
+                    (#metrics . #relativeStake)
+                        (.> Quantity (unsafeMkPercentage 0))
                 , expectListField 2
-                    #cost (`shouldBe` (Quantity 0))
-
+                    (#metrics . #relativeStake)
+                        (.> Quantity (unsafeMkPercentage 0))
                 , expectListField 0
-                    #margin (`shouldBe` (Quantity minBound))
+                    (#metrics . #saturation) (.> 0)
                 , expectListField 1
-                    #margin (`shouldBe` (Quantity minBound))
+                    (#metrics . #saturation) (.> 0)
                 , expectListField 2
-                    #margin (`shouldBe` (Quantity minBound))
-
--- Pending stake pools producing blocks in our setup,
--- AND pending keeping track of block producions
---                , expectListField 0
---                    (#metrics . #producedBlocks) (.>= Quantity 0)
---                , expectListField 1
---                    (#metrics . #producedBlocks) (.>= Quantity 0)
---                , expectListField 2
---                    (#metrics . #producedBlocks) (.>= Quantity 0)
---
---                , expectListField 0
---                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
---                , expectListField 1
---                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
---                , expectListField 2
---                    (#metrics . #nonMyopicMemberRewards) (.>= Quantity 0)
-
-                , expectListField 0
-                    (#metrics . #saturation) (.>= 0)
-                , expectListField 1
-                    (#metrics . #saturation) (.>= 0)
-                , expectListField 2
-                    (#metrics . #saturation) (.>= 0)
+                    (#metrics . #saturation) (.> 0)
                 ]
 
+        it "eventually has correct margin and cost" $ \ctx -> do
+            eventually "pool worker finds the certificate" $ do
+                r <- listPools ctx
+                expectResponseCode HTTP.status200 r
+                verify r
+                    [ expectListField 0
+                        (#cost) (`shouldBe` Just (Quantity 0))
+                    , expectListField 1
+                        (#cost) (`shouldBe` Just (Quantity 0))
+                    , expectListField 2
+                        (#cost) (`shouldBe` Just (Quantity 0))
+
+                    , expectListField 0
+                        #margin (`shouldBe` Just
+                            (Quantity $ unsafeMkPercentage 0.1 ))
+                    , expectListField 1
+                        #margin (`shouldBe` Just
+                            (Quantity $ unsafeMkPercentage 0.1 ))
+                    , expectListField 2
+                        #margin (`shouldBe` Just
+                            (Quantity $ unsafeMkPercentage 0.1 ))
+
+                    , expectListField 0
+                        (#metrics . #producedBlocks) (.> Quantity 0)
+                    , expectListField 1
+                        (#metrics . #producedBlocks) (.> Quantity 0)
+                    , expectListField 2
+                        (#metrics . #producedBlocks) (.> Quantity 0)
+                    -- TODO: Test that we have non-zero non-myopic member
+                    -- rewards, and sort by it.
+                    ]
+
+        it "contains pool metadata" $ \ctx -> do
+            eventually "metadata is fetched" $ do
+                r <- listPools ctx
+                let metadataList =
+                        [ StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPA")
+                            , name = "Genesis Pool A"
+                            , description = Nothing
+                            , homepage = "https://iohk.io"
+                            }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPB")
+                            , name = "Genesis Pool B"
+                            , description = Nothing
+                            , homepage = "https://iohk.io"
+                            }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPC")
+                            , name = "Genesis Pool C"
+                            , description = Just "Lorem Ipsum Dolor Sit Amet."
+                            , homepage = "https://iohk.io"
+                            }
+                        ]
+
+                verify r
+                    [ expectListSize 3
+                    , expectField id $ \pools ->
+                        -- To ignore the arbitrary order,
+                        -- we sort on the names before comparing
+                        sortOn name ( mapMaybe (fmap getApiT . view #metadata) pools)
+                        `shouldBe` metadataList
+                    ]
+
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
-        _w <- fixtureWallet ctx -- Ambiguous type error without this line
+        fixTypeInference
         r <- request @[ApiStakePool] ctx
             (Link.listStakePools Nothing) Default Empty
         expectResponseCode HTTP.status400 r
 
     it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 when stake is 0" $ \ctx -> do
-        _w <- fixtureWallet ctx
+        fixTypeInference
         let stake = Just $ Coin 0
         r <- request @[ApiStakePool] ctx (Link.listStakePools stake) Default Empty
         expectResponseCode HTTP.status200 r

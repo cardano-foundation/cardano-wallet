@@ -393,8 +393,8 @@ data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , metadata :: !(Maybe (ApiT StakePoolMetadata))
-    , cost :: !(Quantity "lovelace" Natural)
-    , margin :: !(Quantity "percent" Percentage)
+    , cost :: !(Maybe (Quantity "lovelace" Natural))
+    , margin :: !(Maybe (Quantity "percent" Percentage))
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

@@ -3,6 +3,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -11,9 +13,18 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Haskell-node "shelley" implementation of the @StakePoolLayer@ abstraction,
--- i.e. some boring glue.
-module Cardano.Wallet.Shelley.Pools where
+-- This module provides tools to collect a consistent view of stake pool data,
+-- as provided through @StakePoolLayer@.
+module Cardano.Wallet.Shelley.Pools
+    ( StakePoolLayer (..)
+    , newStakePoolLayer
+    , monitorStakePools
+    , monitorMetadata
+
+    -- * Logs
+    , StakePoolLog (..)
+    )
+    where
 
 import Prelude
 
@@ -58,7 +69,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage, unsafeRunExceptT )
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -69,6 +80,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -97,13 +110,129 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
--- | Stake Pool Data fields fetched from the node via LSQ
+--
+-- Stake Pool Layer
+--
+
+data StakePoolLayer = StakePoolLayer
+    { knownPools
+        :: IO [PoolId]
+
+    -- | List pools based given the the amount of stake the user intends to
+    -- delegate, which affects the size of the rewards and the ranking of the
+    -- pools.
+    , listStakePools
+        :: Coin
+        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
+    }
+
+newStakePoolLayer
+    :: GenesisParameters
+    -> NetworkLayer IO (IO Shelley) b
+    -> DBLayer IO
+    -> StakePoolLayer
+newStakePoolLayer gp nl db = StakePoolLayer
+    { knownPools = _knownPools
+    , listStakePools = _listPools
+    }
+  where
+    _knownPools
+        :: IO [PoolId]
+    _knownPools = do
+        tip <- getTip
+        let dummyCoin = Coin 0
+        res <- runExceptT $ map fst . Map.toList
+            . combineLsqData <$> stakeDistribution nl tip dummyCoin
+        case res of
+            Right x -> return x
+            Left _e -> return []
+
+    _listPools
+        :: Coin
+        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
+    _listPools userStake = do
+            tip <- liftIO getTip
+            lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
+            chainData <- liftIO $ readDBPoolData db
+            return
+              . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
+              . map snd
+              . Map.toList
+              $ combineDbAndLsqData lsqData chainData
+
+    -- Note: We shouldn't have to do this conversion.
+    el = getEpochLength gp
+    gh = getGenesisBlockHash gp
+    getTip = fmap (toPoint gh el) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
+
+--
+-- Data Combination functions
+--
+--
+
+-- | Stake Pool data fields that we can fetch from the node over Local State
+-- Query.
 data PoolLsqMetrics = PoolLsqMetrics
     { nonMyopicMemberRewards :: Quantity "lovelace" Word64
     , relativeStake :: Percentage
     , saturation :: Double
     } deriving (Eq, Show, Generic)
 
+-- | Stake Pool data fields that we read from the DB.
+data PoolDBMetrics = PoolDBMetrics
+    { regCert :: PoolRegistrationCertificate
+    , nProducedBlocks :: Quantity "block" Word64
+    , metadata :: Maybe StakePoolMetadata
+    }
+
+-- | Top level combine-function that merges DB and LSQ data.
+combineDbAndLsqData
+    :: Map PoolId PoolLsqMetrics
+    -> Map PoolId PoolDBMetrics
+    -> Map PoolId Api.ApiStakePool
+combineDbAndLsqData =
+    Map.merge lsqButNoChain chainButNoLsq bothPresent
+  where
+    lsqButNoChain = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
+
+    -- In case our chain following has missed a retirement certificate, we
+    -- treat the lsq data as the source of truth, and dropMissing here.
+    chainButNoLsq = dropMissing
+
+    bothPresent = zipWithMatched  $ \k lsq chain -> mkApiPool k lsq (Just chain)
+
+    mkApiPool
+        :: PoolId
+        -> PoolLsqMetrics
+        -> Maybe PoolDBMetrics
+        -> Api.ApiStakePool
+    mkApiPool
+        pid
+        (PoolLsqMetrics prew pstk psat)
+        dbData
+        = Api.ApiStakePool
+        { Api.id = (ApiT pid)
+        , Api.metrics = Api.ApiStakePoolMetrics
+            { Api.nonMyopicMemberRewards = mapQ fromIntegral prew
+            , Api.relativeStake = Quantity pstk
+            , Api.saturation = psat
+            , Api.producedBlocks = maybe (Quantity 0)
+                    (mapQ fromIntegral . nProducedBlocks) dbData
+            }
+        , Api.metadata = dbData >>= metadata >>= (return . ApiT)
+        , Api.cost = mapQ fromIntegral . poolCost . regCert <$> dbData
+        , Api.margin = Quantity . poolMargin . regCert <$> dbData
+        }
+
+    mapQ f (Quantity x) = Quantity $ f x
+
+-- | Combines all the LSQ data into a single map.
+--
+-- This is the data we can ask the node for the most recent version of, over the
+-- local state query protocol.
+--
+-- Calculating e.g. the nonMyopicMemberRewards ourselves through chain-following
+-- would be completely impractical.
 combineLsqData
     :: NodePoolLsqData
     -> Map PoolId PoolLsqMetrics
@@ -122,77 +251,54 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
         , saturation = (sat s)
         }
 
-    rewardsButNoStake = dropMissing
+    rewardsButNoStake = traverseMissing $ \k r ->
+        error $ "Rewards but no stake: " <> show (k, r)
 
     bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
 
-readBlockProductions :: IO (Map PoolId Int)
-readBlockProductions = return Map.empty
-
---
--- Api Server Handler
---
-
-data StakePoolLayer = StakePoolLayer
-    { knownPools :: IO [PoolId]
-    , listStakePools :: Coin -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
-    }
-
-newStakePoolLayer
-    :: GenesisParameters
-    -> NetworkLayer IO (IO Shelley) b
-    -> StakePoolLayer
-newStakePoolLayer gp nl = StakePoolLayer
-    { knownPools = _knownPools
-    , listStakePools = _listPools
-    }
+-- | Combines all the chain-following data into a single map
+-- (doesn't include metadata)
+combineChainData
+    :: Map PoolId PoolRegistrationCertificate
+    -> Map PoolId (Quantity "block" Word64)
+    -> Map PoolId
+        (PoolRegistrationCertificate, Quantity "block" Word64)
+combineChainData =
+    Map.merge registeredNoProductions notRegisteredButProducing bothPresent
   where
-    dummyCoin = Coin 0
+    registeredNoProductions  = traverseMissing $ \_k cert ->
+        pure (cert, Quantity 0)
 
-    -- Note: We shouldn't have to do this conversion.
-    el = getEpochLength gp
-    gh = getGenesisBlockHash gp
-    getTip = fmap (toPoint gh el) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
+    -- Ignore blocks produced by BFT nodes.
+    notRegisteredButProducing = dropMissing
 
-    _knownPools
-        :: IO [PoolId]
-    _knownPools = do
-        pt <- getTip
-        res <- runExceptT $ map fst . Map.toList
-            . combineLsqData <$> stakeDistribution nl pt dummyCoin
-        case res of
-            Right x -> return x
-            Left _e -> return []
+    bothPresent = zipWithMatched $ const (,)
 
-
-    _listPools
-        :: Coin
-        -- ^ The amount of stake the user intends to delegate, which may affect the
-        -- ranking of the pools.
-        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
-    _listPools s = do
-            pt <- liftIO getTip
-            map mkApiPool
-                . sortOn (Down . nonMyopicMemberRewards . snd)
-                . Map.toList
-                . combineLsqData
-                <$> stakeDistribution nl pt s
-      where
-        mkApiPool (pid, PoolLsqMetrics prew pstk psat) = Api.ApiStakePool
-            { Api.id = (ApiT pid)
-            , Api.metrics = Api.ApiStakePoolMetrics
-                { Api.nonMyopicMemberRewards = (mapQ fromIntegral prew)
-                , Api.relativeStake = Quantity pstk
-                , Api.saturation = psat
-                , Api.producedBlocks = Quantity 0 -- TODO: Implement
-                }
-            , Api.metadata = Nothing -- TODO: Implement
-            , Api.cost = Quantity 0 -- TODO: Implement
-            , Api.margin = Quantity $ unsafeMkPercentage 0 -- TODO: Implement
-            }
-
-        mapQ f (Quantity x) = Quantity $ f x
-
+-- NOTE: If performance becomes a problem, we could try replacing all
+-- the individual DB queries, and combbination functions with a single
+-- hand-written Sqlite query.
+readDBPoolData
+    :: DBLayer IO
+    -> IO (Map PoolId PoolDBMetrics)
+readDBPoolData DBLayer{..} = atomically $ do
+    pools <- listRegisteredPools
+    registrations <- mapM readPoolRegistration pools
+    let certMap = Map.fromList
+            [(poolId, cert) | (poolId, Just cert) <- zip pools registrations]
+    prodMap <- readTotalProduction
+    metaMap <- readPoolMetadata
+    return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
+  where
+    lookupMetaIn
+        :: Map StakePoolMetadataHash StakePoolMetadata
+        -> (PoolRegistrationCertificate, Quantity "block" Word64)
+        -> PoolDBMetrics
+    lookupMetaIn m (cert, n) =
+        let
+            metaHash = snd <$> poolMetadata cert
+            meta = flip Map.lookup m =<< metaHash
+        in
+            PoolDBMetrics cert n meta
 
 --
 -- Monitoring stake pool
