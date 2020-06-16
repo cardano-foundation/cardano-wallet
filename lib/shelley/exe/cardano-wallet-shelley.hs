@@ -302,6 +302,8 @@ tracerSeveritiesOption = Tracers
     <*> traceOpt apiServerTracer (Just Info)
     <*> traceOpt walletEngineTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
+    <*> traceOpt poolsEngineTracer (Just Info)
+    <*> traceOpt poolsDbTracer (Just Info)
     <*> traceOpt ntpClientTracer (Just Info)
     <*> traceOpt networkTracer (Just Info)
   where

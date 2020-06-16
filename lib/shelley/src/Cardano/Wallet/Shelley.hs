@@ -100,7 +100,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     )
 import Cardano.Wallet.Registry
-    ( WorkerLog (..) )
+    ( WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
@@ -108,15 +108,19 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..), newStakePoolLayer )
+    ( StakePoolLayer (..), StakePoolLog, monitorStakePools, newStakePoolLayer )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
+import Control.Concurrent
+    ( forkFinally )
+import Control.Monad
+    ( void )
 import Control.Tracer
-    ( Tracer (..), nullTracer, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -144,6 +148,7 @@ import System.Exit
 import System.IOManager
     ( withIOManager )
 
+import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Text as T
@@ -229,15 +234,16 @@ serveWallet
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 let spl = newStakePoolLayer (genesisParameters np) nl
-                startServer
-                    proxy
-                    socket
-                    randomApi
-                    icarusApi
-                    shelleyApi
-                    spl
-                    ntpClient
-                pure ExitSuccess
+                withPoolsMonitoring databaseDir (genesisParameters np) nl $ do
+                    startServer
+                        proxy
+                        socket
+                        randomApi
+                        icarusApi
+                        shelleyApi
+                        spl
+                        ntpClient
+                    pure ExitSuccess
 
     networkDiscriminantValFromProxy
         :: forall n. (NetworkDiscriminantVal n)
@@ -269,6 +275,20 @@ serveWallet
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
                 server byron icarus shelley spl ntp
         Server.start settings apiServerTracer tlsConfig socket application
+
+    withPoolsMonitoring
+        :: Maybe FilePath
+        -> GenesisParameters
+        -> NetworkLayer IO t ShelleyBlock
+        -> IO a
+        -> IO a
+    withPoolsMonitoring dir gp nl action =
+        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) $ \db -> do
+            void $ forkFinally (monitorStakePools tr gp nl db) onExit
+            action
+      where
+        tr = contramap (MsgFromWorker mempty) poolsEngineTracer
+        onExit = defaultWorkerAfter poolsEngineTracer
 
     apiLayer
         :: forall s k.
@@ -364,6 +384,8 @@ data Tracers' f = Tracers
     , apiServerTracer    :: f ApiLog
     , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
     , walletDbTracer     :: f DBLog
+    , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
+    , poolsDbTracer      :: f DBLog
     , ntpClientTracer    :: f NtpTrace
     , networkTracer      :: f NetworkLayerLog
     }
@@ -386,6 +408,8 @@ tracerSeverities sev = Tracers
     , apiServerTracer    = Const sev
     , walletDbTracer     = Const sev
     , walletEngineTracer = Const sev
+    , poolsEngineTracer  = Const sev
+    , poolsDbTracer      = Const sev
     , ntpClientTracer    = Const sev
     , networkTracer      = Const sev
     }
@@ -400,6 +424,8 @@ setupTracers sev tr = Tracers
     , apiServerTracer    = mkTrace apiServerTracer    $ onoff apiServerTracer tr
     , walletEngineTracer = mkTrace walletEngineTracer $ onoff walletEngineTracer tr
     , walletDbTracer     = mkTrace walletDbTracer     $ onoff walletDbTracer tr
+    , poolsEngineTracer  = mkTrace poolsEngineTracer  $ onoff poolsEngineTracer tr
+    , poolsDbTracer      = mkTrace poolsDbTracer      $ onoff poolsDbTracer tr
     , ntpClientTracer    = mkTrace ntpClientTracer    $ onoff ntpClientTracer tr
     , networkTracer      = mkTrace networkTracer      $ onoff networkTracer tr
     }
@@ -428,6 +454,8 @@ tracerLabels = Tracers
     , apiServerTracer    = Const "api-server"
     , walletEngineTracer = Const "wallet-engine"
     , walletDbTracer     = Const "wallet-db"
+    , poolsEngineTracer  = Const "pools-engine"
+    , poolsDbTracer      = Const "pools-db"
     , ntpClientTracer    = Const "ntp-client"
     , networkTracer      = Const "network"
     }
@@ -447,6 +475,12 @@ tracerDescriptions =
     , ( lbl walletDbTracer
       , "About database operations of each wallet."
       )
+    , ( lbl poolsEngineTracer
+      , "About the background worker monitoring stake pools and stake pools engine."
+      )
+    , ( lbl poolsDbTracer
+      , "About database operations on stake pools."
+      )
     , ( lbl ntpClientTracer
       , "About ntp-client."
       )
@@ -464,6 +498,8 @@ nullTracers = Tracers
     , apiServerTracer    = nullTracer
     , walletEngineTracer = nullTracer
     , walletDbTracer     = nullTracer
+    , poolsEngineTracer  = nullTracer
+    , poolsDbTracer      = nullTracer
     , ntpClientTracer    = nullTracer
     , networkTracer      = nullTracer
     }
