@@ -128,7 +128,7 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( pretty )
+    ( Buildable (..), listF', mapF, pretty )
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
@@ -369,10 +369,12 @@ withNetworkLayer tr np addrInfo versionData action = do
                 (error "stakeDistribution: requested rewards not included in response")
                 (Map.lookup (Left coin) rewardsPerAccount)
 
-        return $ NodePoolLsqData
-            (optimumNumberOfPools pparams)
-            rewardMap
-            stakeMap
+        let res = NodePoolLsqData
+                (optimumNumberOfPools pparams)
+                rewardMap
+                stakeMap
+        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData res
+        return res
 
 type instance GetStakeDistribution (IO Shelley) m
     = (Point ShelleyBlock
@@ -383,7 +385,14 @@ data NodePoolLsqData = NodePoolLsqData
     { nOpt :: Int
     , rewards :: Map W.PoolId (Quantity "lovelace" Word64)
     , stake :: Map W.PoolId Percentage
-    }
+    } deriving (Show, Eq)
+
+instance Buildable NodePoolLsqData where
+    build NodePoolLsqData{nOpt,rewards,stake} = listF' id
+        [ "Stake: " <> mapF (Map.toList stake)
+        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
+        , "Optimum number of pools: " <> pretty nOpt
+        ]
 
 --------------------------------------------------------------------------------
 --
@@ -697,6 +706,7 @@ data NetworkLayerLog
     | MsgAccountDelegationAndRewards W.ChimericAccount
         Delegations RewardAccounts
     | MsgDestroyCursor ThreadId
+    | MsgFetchedNodePoolLsqData NodePoolLsqData
 
 data QueryClientName
     = TipSyncClient
@@ -764,6 +774,8 @@ instance ToText NetworkLayerLog where
             [ "Destroying cursor connection at"
             , T.pack (show threadId)
             ]
+        MsgFetchedNodePoolLsqData d ->
+            "Fetched pool data from node tip using LSQ: " <> pretty d
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -785,3 +797,4 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgGetRewardAccountBalance{}     -> Info
         MsgAccountDelegationAndRewards{} -> Info
         MsgDestroyCursor{}               -> Notice
+        MsgFetchedNodePoolLsqData{}      -> Info
