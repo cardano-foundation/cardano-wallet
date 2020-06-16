@@ -107,6 +107,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetAccountBalance (..)
+    , GetStakeDistribution
     , NetworkLayer (..)
     , NextBlocksResult (..)
     , defaultRetryPolicy
@@ -454,6 +455,16 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
                 RollBackward (cursorBackward baseH cursor)
             _ ->
                 RollBackward $ Cursor emptyBlockHeaders
+
+
+{-------------------------------------------------------------------------------
+                                 Queries
+-------------------------------------------------------------------------------}
+
+type instance GetStakeDistribution Jormungandr m =
+    EpochNo
+    -> ExceptT ErrNetworkUnavailable m
+        (Map PoolId (Quantity "lovelace" Word64))
 
 {-------------------------------------------------------------------------------
                              Jormungandr Cursor

@@ -26,6 +26,8 @@ module Cardano.Wallet.Shelley.Network
       pattern Cursor
     , withNetworkLayer
 
+    , NodePoolLsqData (..)
+
       -- * Logging
     , NetworkLayerLog (..)
     ) where
@@ -42,6 +44,7 @@ import Cardano.Wallet.Network
     , ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
+    , GetStakeDistribution
     , NetworkLayer (..)
     , mapCursor
     )
@@ -52,12 +55,16 @@ import Cardano.Wallet.Shelley.Compatibility
     , ShelleyBlock
     , TPraosStandardCrypto
     , fromChainHash
+    , fromNonMyopicMemberRewards
     , fromPParams
+    , fromPoolDistr
     , fromSlotNo
     , fromTip
     , fromTip'
+    , optimumNumberOfPools
     , toGenTx
     , toPoint
+    , toShelleyCoin
     , toStakeCredential
     )
 import Control.Concurrent.Async
@@ -91,7 +98,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -104,14 +111,20 @@ import Data.Function
     ( (&) )
 import Data.List
     ( isInfixOf )
+import Data.Map
+    ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Void
     ( Void )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Stack
@@ -203,7 +216,6 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 data instance Cursor (m Shelley) = Cursor
     (Point ShelleyBlock)
     (TQueue m (ChainSyncCmd ShelleyBlock m))
-    (TQueue m (LocalStateQueryCmd ShelleyBlock m))
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -239,7 +251,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
-            , stakeDistribution = _stakeDistribution
+            , stakeDistribution = _stakeDistribution queryRewardQ
             , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
             }
   where
@@ -268,8 +280,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        stateQueryQ <- atomically newTQueue
-        client <- mkWalletClient tr gp chainSyncQ stateQueryQ
+        client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
         link =<< async
             (connectClient tr handlers client versionData addrInfo)
@@ -284,18 +295,18 @@ withNetworkLayer tr np addrInfo versionData action = do
                     $ MsgIntersectionFound
                     $ fromChainHash getGenesisBlockHash
                     $ pointHash intersection
-                pure $ Cursor intersection chainSyncQ stateQueryQ
+                pure $ Cursor intersection chainSyncQ
             _ -> fail $ unwords
                 [ "initCursor: intersection not found? This can't happen"
                 , "because we always give at least the genesis point."
                 , "Here are the points we gave: " <> show headers
                 ]
 
-    _nextBlocks (Cursor _ chainSyncQ lsqQ) = do
-        let toCursor point = Cursor point chainSyncQ lsqQ
+    _nextBlocks (Cursor _ chainSyncQ) = do
+        let toCursor point = Cursor point chainSyncQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor point _ _) = do
+    _cursorSlotId (Cursor point _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance nodeTipVar queryRewardQ acct = do
@@ -330,8 +341,36 @@ withNetworkLayer tr np addrInfo versionData action = do
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-    _stakeDistribution =
-        notImplemented "stakeDistribution"
+    handleQueryFailure = withExceptT
+        (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected" ++ show e) . ExceptT
+    _stakeDistribution queue pt coin = do
+        stakeMap <- fromPoolDistr <$> handleQueryFailure
+            (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
+        let toStake = Set.singleton $ Left $ toShelleyCoin coin
+        rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
+            (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
+        pparams <- handleQueryFailure
+            (queue `send` CmdQueryLocalState pt OC.GetCurrentPParams)
+
+        let rewardMap = fromMaybe
+                (error "stakeDistribution: requested rewards not included in response")
+                (Map.lookup (Left coin) rewardsPerAccount)
+
+        return $ NodePoolLsqData
+            (optimumNumberOfPools pparams)
+            rewardMap
+            stakeMap
+
+type instance GetStakeDistribution (IO Shelley) m
+    = (Point ShelleyBlock
+   -> W.Coin
+   -> ExceptT ErrNetworkUnavailable m NodePoolLsqData)
+
+data NodePoolLsqData = NodePoolLsqData
+    { nOpt :: Int
+    , rewards :: Map W.PoolId (Quantity "lovelace" Word64)
+    , stake :: Map W.PoolId Percentage
+    }
 
 --------------------------------------------------------------------------------
 --
@@ -358,15 +397,12 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => Tracer m NetworkLayerLog
-    -> W.GenesisParameters
+    => W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
-    -> TQueue m (LocalStateQueryCmd ShelleyBlock m)
-        -- ^ Communication channel with the local state query
     -> m (NetworkClient m)
-mkWalletClient tr gp chainSyncQ lsqQ = do
+mkWalletClient gp chainSyncQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
@@ -379,14 +415,9 @@ mkWalletClient tr gp chainSyncQ lsqQ = do
             doNothingProtocol
 
         , localStateQueryProtocol =
-            InitiatorProtocolOnly $ MuxPeerRaw
-                $ \channel -> runPeer tr' (cStateQueryCodec codecs) channel
-                $ localStateQueryClientPeer
-                $ localStateQuery lsqQ
+            doNothingProtocol
         })
         NodeToClientV_2
-  where
-    tr' = contramap MsgLocalStateQuery tr
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -626,13 +657,6 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-
---------------------------------------------------------------------------------
---
--- Temporary
-
-notImplemented :: HasCallStack => String -> a
-notImplemented what = error ("Not implemented: " <> what)
 
 {-------------------------------------------------------------------------------
                                     Logging
