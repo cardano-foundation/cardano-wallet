@@ -43,7 +43,7 @@ module Cardano.Pool.DB.Model
     , mListRegisteredPools
     , mPutPoolMetadataRef
     , mDeletePoolMetadataRef
-    , mPeekPoolMetadataRef
+    , mReadPoolMetadataRef
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -225,8 +225,8 @@ mDeletePoolMetadataRef pid db@PoolDatabase{metadataRef} =
     , db { metadataRef = filter ((/= pid) . fst) metadataRef }
     )
 
-mPeekPoolMetadataRef :: Int -> PoolDatabase -> ([(PoolId, StakePoolMetadataRef)], PoolDatabase)
-mPeekPoolMetadataRef n db@PoolDatabase{metadataRef} =
+mReadPoolMetadataRef :: Int -> PoolDatabase -> ([(PoolId, StakePoolMetadataRef)], PoolDatabase)
+mReadPoolMetadataRef n db@PoolDatabase{metadataRef} =
     ( take n metadataRef, db )
 
 mReadSystemSeed

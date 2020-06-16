@@ -33,7 +33,7 @@ import Test.Utils.Trace
     ( captureLogging )
 
 spec :: Spec
-spec = describe "PATATE" $ do
+spec = do
     withDB newMemoryDBLayer $ do
         describe "Sqlite" properties
 

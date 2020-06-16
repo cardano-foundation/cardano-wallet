@@ -222,7 +222,7 @@ newDBLayer trace fp = do
         , deletePoolMetadataRef = \poolId -> do
             deleteWhere [PoolMetadataQueuePoolId ==. poolId]
 
-        , peekPoolMetadataRef = \n -> do
+        , readPoolMetadataRef = \n -> do
             fmap (fromPoolMetadataQueue . entityVal) <$> selectList [] [ LimitTo n ]
 
         , rollbackTo = \point -> do
@@ -251,6 +251,8 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter StakeDistribution])
+            deleteWhere ([] :: [Filter PoolMetadata])
+            deleteWhere ([] :: [Filter PoolMetadataQueue])
 
         , atomically = runQuery
         })

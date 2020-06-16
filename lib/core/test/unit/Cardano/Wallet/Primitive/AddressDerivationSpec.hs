@@ -92,7 +92,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
-spec = describe "PATATE" $ do
+spec = do
     describe "Bounded / Enum relationship" $ do
         it "The calls Index.succ maxBound should result in a runtime err (hard)"
             prop_succMaxBoundHardIx

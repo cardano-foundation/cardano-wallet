@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
+    , StakePoolMetadataRef (..)
     , slotSucc
     , unsafeEpochNo
     )
@@ -58,6 +59,7 @@ import Test.QuickCheck
     , vector
     )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
@@ -170,3 +172,14 @@ instance Arbitrary StakePoolsFixture where
         appendPair pools pairs slot = do
             pool <- elements pools
             return $ (pool,slot):pairs
+
+instance Arbitrary StakePoolMetadataRef where
+    arbitrary = StakePoolMetadataRef <$> genURL <*> genHash
+      where
+        genHash = BS.pack <$> vector 32
+        genURL  = do
+            protocol <- elements [ "http", "https" ]
+            fstP <- elements [ "cardano", "ada", "pool", "staking", "reward" ]
+            sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
+            extP <- elements [ ".io", ".dev", ".com", ".eu" ]
+            pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
