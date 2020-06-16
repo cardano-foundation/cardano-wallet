@@ -139,10 +139,12 @@ test-suite unit
     , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto-class
     , cardano-wallet-core
     , cardano-wallet-shelley
     , cardano-wallet-test-utils
+    , containers
     , generic-lens
     , hspec
     , iohk-monitoring
@@ -165,6 +167,7 @@ test-suite unit
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
       Cardano.Wallet.Shelley.NetworkSpec
+      Cardano.Wallet.Shelley.TransactionSpec
 
 test-suite integration
   default-language:

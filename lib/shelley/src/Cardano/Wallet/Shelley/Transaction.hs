@@ -21,6 +21,9 @@
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
     , _minimumFee
+    , _decodeSignedTx
+    , mkUnsignedTx
+    , mkWitness
     ) where
 
 import Prelude
@@ -201,19 +204,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
-    _decodeSignedTx
-        :: ByteString
-        -> Either ErrDecodeSignedTx (Tx, SealedTx)
-    _decodeSignedTx bytes = do
-        case Cardano.txSignedFromCBOR bytes of
-            Right (Cardano.TxSignedShelley txValid) -> pure $ toSealed txValid
-            Right (Cardano.TxSignedByron{}) ->
-                Left $ ErrDecodeSignedTxWrongPayload
-                "Detected Byron signed tx. Was expecting Shelley signed one!"
-            Left apiErr ->
-                Left $ ErrDecodeSignedTxWrongPayload
-                (Cardano.renderApiError apiErr)
-
     _estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
         -- ^ Transaction max size in bytes
@@ -223,6 +213,19 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     _estimateMaxNumberOfInputs _ _ =
         -- FIXME Implement.
         100
+
+_decodeSignedTx
+    :: ByteString
+    -> Either ErrDecodeSignedTx (Tx, SealedTx)
+_decodeSignedTx bytes = do
+    case Cardano.txSignedFromCBOR bytes of
+        Right (Cardano.TxSignedShelley txValid) -> pure $ toSealed txValid
+        Right (Cardano.TxSignedByron{}) ->
+            Left $ ErrDecodeSignedTxWrongPayload
+            "TO_DO"
+        Left apiErr ->
+            Left $ ErrDecodeSignedTxWrongPayload
+            (Cardano.renderApiError apiErr)
 
 _minimumFee
     :: FeePolicy
