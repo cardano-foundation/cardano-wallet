@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -164,3 +165,63 @@ instance Arbitrary (Passphrase "raw") where
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = preparePassphrase EncryptWithPBKDF2
         <$> arbitrary @(Passphrase "raw")
+||||||| merged common ancestors
+=======
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Cardano.Wallet.Shelley.TransactionSpec
+    ( spec
+    ) where
+
+import Prelude
+
+import Cardano.Wallet.Shelley.Transaction
+    ( computeTxSize, constructDummyCoinSel, _estimateMaxNumberOfInputs )
+import Cardano.Wallet.Transaction
+    ( WithDelegation (..) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word16, Word8 )
+import Test.Hspec
+    ( Spec, describe, it )
+import Test.QuickCheck
+    ( Arbitrary (..), Property, choose, property, suchThat, (===), (==>) )
+
+spec :: Spec
+spec = do
+    describe "Estimating maximum number of inputs" $
+        it "can properly retrieve maximum number of inputs"
+            (property prop_canProperlyEstimate)
+
+-- | Can retrieve maximum number of inputs
+prop_canProperlyEstimate
+    :: EstimateSetup
+    -> Property
+prop_canProperlyEstimate (EstimateSetup nInps nOuts) =
+    calculatedTxSize <= fromIntegral (maxBound @Word16) ==>
+    _estimateMaxNumberOfInputs (Quantity $ fromIntegral $ calculatedTxSize + 1)
+    (fromIntegral nOuts)
+    === fromIntegral nInps
+  where
+    calculatedTxSize =
+        computeTxSize (WithDelegation False) (constructDummyCoinSel nInps nOuts)
+
+data EstimateSetup = EstimateSetup
+    { numberOfInps :: Integer
+    , numberOfOuts :: Word8
+    } deriving Show
+
+instance Arbitrary EstimateSetup where
+    arbitrary = do
+        nInps <- choose (1, 1000)
+        nOuts <- choose (1, maxBound) `suchThat` (\o -> fromIntegral o <= nInps)
+        pure $ EstimateSetup nInps nOuts
+>>>>>>> add property and make some performance optimisation

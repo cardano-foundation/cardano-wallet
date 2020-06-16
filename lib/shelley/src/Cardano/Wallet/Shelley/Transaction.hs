@@ -23,6 +23,9 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSignedTx
     , mkUnsignedTx
     , mkWitness
+    , _estimateMaxNumberOfInputs
+    , computeTxSize
+    , constructDummyCoinSel
     ) where
 
 import Prelude
@@ -117,7 +120,6 @@ import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
-
 
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
@@ -223,8 +225,7 @@ _estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
   where
       pinpointNumInputs (n,m)
           | m - n == 1 =
-            if check m then
-                m
+            if check m then m
             else n
           | otherwise =
             if check middle then
@@ -233,26 +234,28 @@ _estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
         where
           middle = n + ((m-n) `div` 2)
 
-      constructPair num = (calNum `div` 2,  calNum)
+      constructPair num = (calNum `div` 16,  calNum)
         where
             calNum = searchUpperBound num
       searchUpperBound n =
-          if not (check n) then
-              n
-          else searchUpperBound (n*2)
+          if not (check n) then n
+          else searchUpperBound (n*16)
 
       check numInps =
-          computeTxSize (WithDelegation False) (constructCoinSel numInps)
+          computeTxSize (WithDelegation False)
+          (constructDummyCoinSel numInps nOuts)
           <= fromIntegral maxTxSize
 
+constructDummyCoinSel :: Integer -> Word8 -> CoinSelection
+constructDummyCoinSel numInps nOuts = CoinSelection
+    (map (\ix -> (dummyTxIn (fromIntegral ix), dummyTxOut)) [0..numInps-1])
+    (replicate (fromIntegral nOuts) dummyTxOut)
+    (replicate (fromIntegral nOuts) (Coin 1))
+  where
       dummyTxHash = Hash $ BS.pack (1:replicate 64 0)
       dummyAddr = Address $ BS.pack (1:replicate 64 0)
       dummyTxIn = TxIn dummyTxHash
       dummyTxOut = TxOut dummyAddr (Coin 1)
-      constructCoinSel numInps = CoinSelection
-          (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..numInps-1])
-          (replicate (fromIntegral nOuts) dummyTxOut)
-          (replicate (fromIntegral nOuts) (Coin 1))
 
 _decodeSignedTx
     :: ByteString
