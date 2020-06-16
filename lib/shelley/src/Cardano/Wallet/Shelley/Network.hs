@@ -323,12 +323,16 @@ withNetworkLayer tr np addrInfo versionData action = do
                 case Map.elems rewardAccounts of
                     [SL.Coin amt] -> pure (Quantity (fromIntegral amt))
                     _ -> throwE $ ErrGetAccountBalanceAccountNotFound acct
-            Left acqFail ->
+            Left acqFail -> do
                 -- NOTE: this could possibly happen in rare circumstances when
                 -- the chain is switched and the local state query is made
                 -- before the node tip variable is updated.
+                liftIO $ traceWith tr $
+                    MsgLocalStateQueryError DelegationRewardsClient $
+                    show acqFail
                 throwE $ ErrGetAccountBalanceNetworkUnreachable $
-                ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show acqFail
+                    ErrNetworkUnreachable $
+                    T.pack $ "Unexpected " ++ show acqFail
 
     _currentNodeTip nodeTipVar =
         fromTip getGenesisBlockHash getEpochLength <$>
@@ -444,7 +448,7 @@ mkDelegationRewardsClient tr queryRewardQ =
         })
         NodeToClientV_2
   where
-    tr' = contramap MsgLocalStateQuery tr
+    tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
     codec = cStateQueryCodec serialisedCodecs
 
 codecs :: MonadST m => ClientCodecs ShelleyBlock m
@@ -500,7 +504,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
             -> m ()
         handleLocalState = \case
             Left (e :: AcquireFailure) ->
-                traceWith tr $ MsgLocalStateQueryError $ show e
+                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
             Right ls ->
                 onPParamsUpdate' $ fromPParams ls
 
@@ -538,7 +542,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
 
         , localStateQueryProtocol =
             let
-                tr' = contramap MsgLocalStateQuery tr
+                tr' = contramap (MsgLocalStateQuery TipSyncClient) tr
                 codec = cStateQueryCodec serialisedCodecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
@@ -670,7 +674,7 @@ data NetworkLayerLog
             (LocalTxSubmission
                 (GenTx ShelleyBlock)
                 (OC.ApplyTxError TPraosStandardCrypto)))
-    | MsgLocalStateQuery
+    | MsgLocalStateQuery QueryClientName
         (TraceSendRecv
             (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
     | MsgHandshakeTracer
@@ -681,10 +685,15 @@ data NetworkLayerLog
     | MsgPostSealedTx W.SealedTx
     | MsgNodeTip W.BlockHeader
     | MsgProtocolParameters W.ProtocolParameters
-    | MsgLocalStateQueryError String
+    | MsgLocalStateQueryError QueryClientName String
     | MsgGetRewardAccountBalance W.BlockHeader W.ChimericAccount
     | MsgAccountDelegationAndRewards W.ChimericAccount
         Delegations RewardAccounts
+
+data QueryClientName
+    = TipSyncClient
+    | DelegationRewardsClient
+    deriving (Show, Eq)
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
@@ -716,8 +725,8 @@ instance ToText NetworkLayerLog where
             [ "Posting transaction, serialized as:"
             , T.decodeUtf8 $ convertToBase Base16 bytes
             ]
-        MsgLocalStateQuery msg ->
-            T.pack (show msg)
+        MsgLocalStateQuery client msg ->
+            T.pack (show client <> " " <> show msg)
         MsgNodeTip bh -> T.unwords
             [ "Network node tip is"
             , pretty bh
@@ -726,9 +735,11 @@ instance ToText NetworkLayerLog where
             [ "Protocol parameters for tip are:"
             , pretty params
             ]
-        MsgLocalStateQueryError e -> T.unwords
-            [ "Error when querying local state parameters:"
-            , T.pack e
+        MsgLocalStateQueryError client e -> T.pack $ mconcat
+            [ "Error when querying local state parameters for "
+            , show client
+            , ": "
+            , e
             ]
         MsgGetRewardAccountBalance bh acct -> T.unwords
             [ "Querying the reward account balance for"
