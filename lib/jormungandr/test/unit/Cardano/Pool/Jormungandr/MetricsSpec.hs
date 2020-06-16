@@ -340,6 +340,8 @@ mockNetworkLayer = NetworkLayer
         error "mockNetworkLayer: stakeDistribution"
     , getAccountBalance =
         \_ -> error "mockNetworkLayer: getAccountBalance"
+    , watchNodeTip =
+        \_ -> error "mockNetworkLayer: watchNodeTip"
     }
 
 header0 :: BlockHeader

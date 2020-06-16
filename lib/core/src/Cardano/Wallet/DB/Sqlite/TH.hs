@@ -165,6 +165,16 @@ DelegationCertificate
     Foreign Wallet delegationCertificate certWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
+-- Latest balance of the reward account associated with
+-- the stake key of this wallet.
+DelegationReward
+    rewardWalletId           W.WalletId     sql=wallet_id
+    rewardAccountBalance     Word64         sql=account_balance
+
+    Primary rewardWalletId
+    Foreign Wallet delegationReward rewardWalletId ! ON DELETE CASCADE
+    deriving Show Generic
+
 -- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn ->
 -- TxOut. This table does not need to refer to the TxIn or TxOut tables. All
 -- necessary information for the UTxO is in this table.

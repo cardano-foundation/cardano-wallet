@@ -34,7 +34,6 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
-
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -70,11 +69,11 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Concurrent
     ( ThreadId )
 import Control.Concurrent.Async
-    ( Async, async, asyncThreadId, cancel, link )
+    ( Async, async, asyncThreadId, cancel, forConcurrently, link )
 import Control.Exception
     ( IOException )
 import Control.Monad
-    ( forever, unless, (>=>) )
+    ( forever, join, unless, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -83,14 +82,20 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
+    , MonadSTMTx
     , TQueue
+    , TVar_
     , atomically
+    , modifyTVar
+    , newEmptyTMVar
     , newTMVarM
     , newTQueue
     , newTVar
     , putTMVar
+    , readTQueue
     , readTVar
     , takeTMVar
+    , writeTQueue
     , writeTVar
     )
 import Control.Monad.Class.MonadThrow
@@ -100,7 +105,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -123,6 +128,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Tuple.Extra
+    ( fst3 )
 import Data.Void
     ( Void )
 import Data.Word
@@ -242,13 +249,20 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
 
-    (nodeTipVar, protocolParamsVar, localTxSubmissionQ) <-
+    (nodeTipUpdate, protocolParamsVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
+    registerCallback <- setupWatchers (contramap MsgWatchTip tr) nodeTipUpdate
+
+    nodeTipVar <- atomically $ newTVar TipGenesis
+    updateNodeTip <- registerCallback (fmap Right . atomically . writeTVar nodeTipVar)
+    async updateNodeTip >>= link
+
     action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
+            , watchNodeTip = _watchNodeTip registerCallback
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , destroyCursor = _destroyCursor
@@ -266,15 +280,16 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
-        nodeTipVar <- atomically $ newTVar TipGenesis
+        nodeTipQ <- atomically newTQueue
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
-            (atomically . writeTVar nodeTipVar)
+            (atomically . writeTQueue nodeTipQ)
             (atomically . writeTVar protocolParamsVar)
         link =<< async
             (connectClient tr handlers nodeTipClient versionData addrInfo)
-        pure (nodeTipVar, protocolParamsVar, localTxSubmissionQ)
+        let nodeTipUpdate = atomically $ readTQueue nodeTipQ
+        pure (nodeTipUpdate, protocolParamsVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
@@ -375,6 +390,10 @@ withNetworkLayer tr np addrInfo versionData action = do
                 stakeMap
         liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData res
         return res
+
+    _watchNodeTip registerCallback cb =
+        ExceptT $ join $ registerCallback $
+            runExceptT . cb . fromTip getGenesisBlockHash getEpochLength
 
 type instance GetStakeDistribution (IO Shelley) m
     = (Point ShelleyBlock
@@ -679,6 +698,51 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
         pure onResourceVanished
 
 {-------------------------------------------------------------------------------
+                                  Tip Watcher
+-------------------------------------------------------------------------------}
+
+setupWatchers
+    :: Tracer IO (WatcherLog e)
+    -> IO v
+    -> IO ((v -> IO (Either e ())) -> IO (IO (Either e a)))
+setupWatchers tr nodeTipUpdate = do
+    watchersVar <- atomically $ newTVar (0 :: Int, [])
+
+    let register cb = do
+            done <- atomically newEmptyTMVar
+            let finish = atomically . putTMVar done
+            i <- atomically $ stateTVar watchersVar $ \(nextId, watchers) ->
+                (nextId, (nextId + 1, ((nextId, cb, finish):watchers)))
+            traceWith tr $ MsgWatcherRegister i
+            pure $ atomically $ takeTMVar done
+
+    worker <- async $ forever $ do
+        update <- nodeTipUpdate
+        watchers <- fmap snd $ atomically $ readTVar watchersVar
+        forConcurrently watchers $ \(i, cb, finish) -> do
+            traceWith tr $ MsgWatcherUpdate i
+            cb update >>= \case
+                Right () -> pure ()
+                Left msg -> do
+                    traceWith tr $ MsgWatcherDone i msg
+                    -- unregister watcher
+                    atomically $ modifyTVar watchersVar $ \(nextId, ws) ->
+                        (nextId, filter ((/= i) . fst3) ws)
+                    -- signal watcher to stop waiting
+                    finish $ Left msg
+    link worker
+
+    pure register
+
+stateTVar :: MonadSTMTx m => TVar_ m a -> (a -> (b, a)) -> m b
+stateTVar var f = do
+   s <- readTVar var
+   let (a, s') = f s -- since we destructure this, we are strict in f
+   writeTVar var s'
+   return a
+{-# INLINE stateTVar #-}
+
+{-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
@@ -707,6 +771,7 @@ data NetworkLayerLog
         Delegations RewardAccounts
     | MsgDestroyCursor ThreadId
     | MsgFetchedNodePoolLsqData NodePoolLsqData
+    | MsgWatchTip (WatcherLog String)
 
 data QueryClientName
     = TipSyncClient
@@ -776,6 +841,7 @@ instance ToText NetworkLayerLog where
             ]
         MsgFetchedNodePoolLsqData d ->
             "Fetched pool data from node tip using LSQ: " <> pretty d
+        MsgWatchTip msg -> toText msg
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -798,3 +864,19 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgAccountDelegationAndRewards{} -> Info
         MsgDestroyCursor{}               -> Notice
         MsgFetchedNodePoolLsqData{}      -> Info
+        MsgWatchTip{}                    -> Debug
+
+data WatcherLog e
+    = MsgWatcherRegister Int
+    | MsgWatcherUpdate Int
+    | MsgWatcherDone Int e
+    deriving (Show, Eq)
+
+instance ToText e => ToText (WatcherLog e) where
+    toText = \case
+        MsgWatcherRegister n ->
+            "watcher register " <> toText n
+        MsgWatcherUpdate n ->
+            "watcher update " <> toText n
+        MsgWatcherDone n msg ->
+            "watcher done " <> toText n <> " " <> toText msg

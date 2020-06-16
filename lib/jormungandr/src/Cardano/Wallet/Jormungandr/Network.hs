@@ -139,12 +139,16 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
+import Control.Concurrent.STM
+    ( atomically )
+import Control.Concurrent.STM.TChan
+    ( TChan, dupTChan, newBroadcastTChanIO, readTChan, writeTChan )
 import Control.Exception
     ( Exception )
 import Control.Monad
-    ( void )
+    ( forever, unless, void )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO (..), liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Control
@@ -157,6 +161,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
+import Data.IORef
+    ( newIORef, readIORef, writeIORef )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -278,7 +284,8 @@ newNetworkLayer tr baseUrl block0H = do
     liftIO $ waitForService "Jörmungandr" tr' (Port $ baseUrlPort baseUrl) $
         waitForNetwork (void $ getTipId jor) defaultRetryPolicy
     (block0, np) <- getInitialBlockchainParameters jor (coerce block0H)
-    return ((block0, np), mkRawNetworkLayer np 1000 st jor)
+    chan <- liftIO newBroadcastTChanIO
+    return ((block0, np), mkRawNetworkLayer np 1000 st chan jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 --
@@ -287,6 +294,7 @@ newNetworkLayer tr baseUrl block0H = do
 mkRawNetworkLayer
     :: forall m t block.
         ( MonadBaseControl IO m
+        , MonadIO m
         , t ~ Jormungandr
         , block ~ J.Block
         )
@@ -294,9 +302,10 @@ mkRawNetworkLayer
     -> Word
         -- ^ Batch size when fetching blocks from Jörmungandr
     -> MVar BlockHeaders
+    -> TChan BlockHeader
     -> JormungandrClient m
     -> NetworkLayer m t block
-mkRawNetworkLayer np batchSize st j = NetworkLayer
+mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
     { currentNodeTip =
         _currentNodeTip
 
@@ -323,6 +332,9 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
 
     , getAccountBalance =
         _getAccountBalance
+
+    , watchNodeTip =
+        _watchNodeTip
     }
   where
     -- security parameter, the maximum number of unstable blocks.
@@ -343,9 +355,11 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
     _currentNodeTip = modifyMVar st $ \bs -> do
         let tip = withExceptT liftE $ getTipId j
         bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader j) bs
-        ExceptT . pure $ case blockHeadersTip bs' of
-            Just t -> Right (bs', t)
-            Nothing -> Left ErrCurrentNodeTipNotFound
+        ExceptT $ case blockHeadersTip bs' of
+            Just t -> do
+                liftIO $ notifyWatchers t
+                pure $ Right (bs', t)
+            Nothing -> pure $ Left ErrCurrentNodeTipNotFound
 
     _getProtocolParameters :: m ProtocolParameters
     _getProtocolParameters = pure $ protocolParameters np
@@ -458,6 +472,18 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
                 RollBackward (cursorBackward baseH cursor)
             _ ->
                 RollBackward $ Cursor emptyBlockHeaders
+
+    _watchNodeTip cb = do
+        watcher <- liftIO . atomically $ dupTChan tipNotify
+        prevVar <- liftIO $ newIORef Nothing
+        forever $ do
+            bh <- liftIO . atomically $ readTChan watcher
+            prev <- liftIO $ readIORef prevVar
+            unless (Just bh == prev) $ do
+                cb bh
+                liftIO $ writeIORef prevVar (Just bh)
+
+    notifyWatchers = atomically . writeTChan tipNotify
 
 
 {-------------------------------------------------------------------------------

@@ -287,6 +287,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock block0, np, sTolerance) nl' tl db
+            (\_ _ -> pure ())
       where
         nl' = toWLBlock <$> nl
 

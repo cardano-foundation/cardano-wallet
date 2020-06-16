@@ -84,6 +84,8 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.MVar
     ( newMVar )
+import Control.Concurrent.STM.TChan
+    ( newBroadcastTChanIO )
 import Control.DeepSeq
     ( deepseq )
 import Control.Exception
@@ -198,9 +200,10 @@ spec = do
             newBrokenNetworkLayer baseUrl = do
                 mgr <- newManager defaultManagerSettings
                 st <- newMVar emptyBlockHeaders
+                chan <- newBroadcastTChanIO
                 let jor = Jormungandr.mkJormungandrClient mgr baseUrl
                 let g0 = error "GenesisParameters"
-                return (void $ mkRawNetworkLayer g0 1000 st jor)
+                return (void $ mkRawNetworkLayer g0 1000 st chan jor)
 
         let makeUnreachableNetworkLayer = do
                 port <- head <$> randomUnusedTCPPorts 1

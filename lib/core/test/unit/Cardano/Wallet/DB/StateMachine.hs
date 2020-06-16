@@ -75,11 +75,13 @@ import Cardano.Wallet.DB.Model
     , mListWallets
     , mPutCheckpoint
     , mPutDelegationCertificate
+    , mPutDelegationRewardBalance
     , mPutPrivateKey
     , mPutProtocolParameters
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
+    , mReadDelegationRewardBalance
     , mReadPrivateKey
     , mReadProtocolParameters
     , mReadTxHistory
@@ -162,6 +164,8 @@ import Data.Set
     ( Set )
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
+import Data.Word
+    ( Word64 )
 import GHC.Generics
     ( Generic )
 import System.Random
@@ -294,6 +298,8 @@ data Cmd s wid
     | RollbackTo wid SlotId
     | RemovePendingTx wid (Hash "Tx")
     | PutDelegationCertificate wid DelegationCertificate SlotId
+    | PutDelegationRewardBalance wid (Quantity "lovelace" Word64)
+    | ReadDelegationRewardBalance wid
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success s wid
@@ -307,6 +313,7 @@ data Success s wid
     | ProtocolParams (Maybe ProtocolParameters)
     | BlockHeaders [BlockHeader]
     | Point SlotId
+    | DelegationRewardBalance (Quantity "lovelace" Word64)
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
@@ -362,6 +369,10 @@ runMock = \case
         first (Resp . fmap Unit) . mPutProtocolParameters wid pp
     ReadProtocolParameters wid ->
         first (Resp . fmap ProtocolParams) . mReadProtocolParameters wid
+    PutDelegationRewardBalance wid amt ->
+        first (Resp . fmap Unit) . mPutDelegationRewardBalance wid amt
+    ReadDelegationRewardBalance wid ->
+        first (Resp . fmap DelegationRewardBalance) . mReadDelegationRewardBalance wid
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
@@ -422,6 +433,10 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putProtocolParameters (PrimaryKey wid) pp
         ReadProtocolParameters wid -> Right . ProtocolParams <$>
             atomically (readProtocolParameters $ PrimaryKey wid)
+        PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
+            mapExceptT atomically $ putDelegationRewardBalance (PrimaryKey wid) amt
+        ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
+            atomically (readDelegationRewardBalance $ PrimaryKey wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
             mapExceptT atomically $ rollbackTo (PrimaryKey wid) sl
 
@@ -692,6 +707,8 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
     cmdName (At PutProtocolParameters{}) = "PutProtocolParameters"
     cmdName (At ReadProtocolParameters{}) = "ReadProtocolParameters"
+    cmdName (At PutDelegationRewardBalance{}) = "PutDelegationRewardBalance"
+    cmdName (At ReadDelegationRewardBalance{}) = "ReadDelegationRewardBalance"
     cmdName (At RollbackTo{}) = "RollbackTo"
     cmdName (At RemovePendingTx{}) = "RemovePendingTx"
     cmdNames _ =
@@ -702,6 +719,7 @@ instance CommandNames (At (Cmd s)) where
         , "PutTxHistory", "ReadTxHistory", "RemovePendingTx"
         , "PutPrivateKey", "ReadPrivateKey"
         , "PutProtocolParameters", "ReadProtocolParameters"
+        , "PutDelegationRewardBalance", "ReadDelegationRewardBalance"
         ]
 
 instance Functor f => Rank2.Functor (At f) where
