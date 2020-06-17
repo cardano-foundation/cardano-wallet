@@ -10,6 +10,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+-- NOTE Temporary until we can fully enable the cluster
+{-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -72,8 +75,16 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
 import Data.Aeson
     ( eitherDecode, toJSON, (.=) )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Either
     ( isLeft, isRight )
 import Data.Functor
@@ -119,12 +130,17 @@ import System.Process
     ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.StaticServer
+    ( withStaticServer )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
 
@@ -265,10 +281,9 @@ withCluster tr severity n action = do
 
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, _peers)) -> do
             link =<< async (handle onException $ do
-                -- FIXME: withStakePool tr severity idx (port, peers) $ do
-                registerStakePool socket idx
-                writeChan waitGroup $ Right port
-                readChan doneGroup)
+                withStakePool socket idx $ do
+                    writeChan waitGroup $ Right port
+                    readChan doneGroup)
 
         TIO.putStrLn cartouche
         group <- waitAll
@@ -330,83 +345,27 @@ withBFTNode tr severity (port, peers) action =
 -- | Only register stake pools but do not start their corresponding process.
 -- This is _hopefully_ temporary while we get the cluster running correctly on
 -- CI.
-registerStakePool
+withStakePool
     :: FilePath
     -> Int
-    -> IO ()
-registerStakePool socket idx = do
+    -> IO a
+    -> IO a
+withStakePool socket idx action = do
     setEnv "CARDANO_NODE_SOCKET_PATH" socket
     withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
-        (opPrv, opPub, _opCount) <- genOperatorKeyPair dir
-        (_vrfPrv, vrfPub) <- genVrfKeyPair dir
+        withStaticServer dir $ \url -> do
+            (opPrv, opPub, _opCount, metadata) <- genOperatorKeyPair dir
+            (_vrfPrv, vrfPub) <- genVrfKeyPair dir
 
-        (stakePrv, stakePub) <- genStakeAddrKeyPair dir
-        stakeCert <- issueStakeCert dir stakePub
-        poolCert <- issuePoolCert dir opPub vrfPub stakePub
-        dlgCert <- issueDlgCert dir stakePub opPub
+            (stakePrv, stakePub) <- genStakeAddrKeyPair dir
+            stakeCert <- issueStakeCert dir stakePub
+            poolCert <- issuePoolCert dir opPub vrfPub stakePub url metadata
+            dlgCert <- issueDlgCert dir stakePub opPub
 
-        (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
-        signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
-        timeout 120 ("pool registration", waitUntilRegistered opPub)
-
--- | Start a "stake pool node". The pool will register itself.
-withStakePool
-    :: Trace IO Text
-    -- ^ Trace for subprocess control logging
-    -> Severity
-    -- ^ Minimal logging severity
-    -> Int
-    -- ^ Unique stake pool number
-    -> (Int, [Int])
-    -- ^ A list of ports used by peers and this pool.
-    -> IO a
-    -- ^ Callback function called once the pool has started.
-    -> IO a
-withStakePool tr severity idx (port, peers) action =
-    withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
-        -- Node configuration
-        (opPrv, opPub, opCount) <- genOperatorKeyPair dir
-        (vrfPrv, vrfPub) <- genVrfKeyPair dir
-        (kesPrv, kesPub) <- genKesKeyPair dir
-        opCert <- issueOpCert dir kesPub opPrv opCount
-        (config, _, _, _) <- genConfig dir severity
-        topology <- genTopology dir peers
-
-        -- Pool registration
-        (stakePrv, stakePub) <- genStakeAddrKeyPair dir
-        stakeCert <- issueStakeCert dir stakePub
-        poolCert <- issuePoolCert dir opPub vrfPub stakePub
-        dlgCert <- issueDlgCert dir stakePub opPub
-
-        let args =
-                [ "run"
-                , "--config", config
-                , "--topology", topology
-                , "--database-path", dir </> "db"
-                , "--socket-path", genSocketPath dir
-                , "--port", show port
-                , "--shelley-kes-key", kesPrv
-                , "--shelley-vrf-key", vrfPrv
-                , "--shelley-operational-certificate", opCert
-                ]
-        let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        ((either throwIO pure) =<<)
-            $ withBackendProcess (trMessageText tr) cmd
-            $ do
-                -- In order to get a working stake pool we need to.
-                --
-                -- 1. Register a stake key for our pool.
-                -- 2. Register the stake pool
-                -- 3. Delegate funds to our pool's key.
-                --
-                -- We cheat a bit here by delegating to our stake address right away in
-                -- the transaction used to registered the stake key and the pool itself.
-                -- Thus, in a single transaction, we end up with a registered pool with
-                -- some stake!
-                (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
-                signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
-                timeout 120 ("pool registration", waitUntilRegistered opPub)
-                action
+            (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
+            signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
+            timeout 120 ("pool registration", waitUntilRegistered opPub)
+            action
 
 genConfig
     :: FilePath
@@ -466,9 +425,9 @@ genTopology dir peers = do
 
 -- | Create a key pair for a node operator's offline key and a new certificate
 -- issue counter
-genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath)
+genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
 genOperatorKeyPair dir = do
-    (_poolId, pub, prv, count) <- takeMVar operators >>= \case
+    (_poolId, pub, prv, count, metadata) <- takeMVar operators >>= \case
         [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
         (op:q) -> putMVar operators q $> op
 
@@ -480,7 +439,7 @@ genOperatorKeyPair dir = do
     writeFile opPrv prv
     writeFile opCount count
 
-    pure (opPrv, opPub, opCount)
+    pure (opPrv, opPub, opCount, metadata)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair :: FilePath -> IO (FilePath, FilePath)
@@ -544,9 +503,18 @@ issueStakeCert dir stakePub = do
     pure file
 
 -- | Create a stake pool registration certificate
-issuePoolCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
-issuePoolCert dir opPub vrfPub stakePub = do
-    let file = dir </> "pool.cert"
+issuePoolCert
+    :: FilePath
+    -> FilePath
+    -> FilePath
+    -> FilePath
+    -> String
+    -> Aeson.Value
+    -> IO FilePath
+issuePoolCert dir opPub vrfPub stakePub baseURL metadata = do
+    let file  = dir </> "pool.cert"
+    let bytes = Aeson.encode metadata
+    BL8.writeFile (dir </> "metadata.json") bytes
     void $ cli
         [ "shelley", "stake-pool", "registration-certificate"
         , "--cold-verification-key-file", opPub
@@ -556,6 +524,8 @@ issuePoolCert dir opPub vrfPub stakePub = do
         , "--pool-margin", "0.1"
         , "--pool-reward-account-verification-key-file", stakePub
         , "--pool-owner-stake-verification-key-file", stakePub
+        , "--metadata-url", baseURL </> "metadata.json"
+        , "--metadata-hash", blake2b256 (BL.toStrict bytes)
         , "--mainnet"
         , "--out-file", file
         ]
@@ -720,7 +690,7 @@ faucets = unsafePerformIO $ newMVar
     ]
 {-# NOINLINE faucets #-}
 
-operators :: MVar [(PoolId, String, String, String)]
+operators :: MVar [(PoolId, String, String, String, Aeson.Value)]
 operators = unsafePerformIO $ newMVar
     [ ( PoolId $ unsafeFromHex
           "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
@@ -741,6 +711,12 @@ operators = unsafePerformIO $ newMVar
           , "title: Next certificate issue number: 0"
           , "cbor-hex:"
           , " 00"
+          ]
+      , Aeson.object
+          [ "name" .= Aeson.String "Genesis Pool A"
+          , "ticker" .= Aeson.String "GPA"
+          , "description" .= Aeson.Null
+          , "homepage" .= Aeson.String "https://iohk.io"
           ]
       )
     , ( PoolId $ unsafeFromHex
@@ -763,6 +739,12 @@ operators = unsafePerformIO $ newMVar
           , "cbor-hex:"
           , " 00"
           ]
+      , Aeson.object
+          [ "name" .= Aeson.String "Genesis Pool B"
+          , "ticker" .= Aeson.String "GPB"
+          , "description" .= Aeson.Null
+          , "homepage" .= Aeson.String "https://iohk.io"
+          ]
       )
     , ( PoolId $ unsafeFromHex
           "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
@@ -783,6 +765,12 @@ operators = unsafePerformIO $ newMVar
           , "title: Next certificate issue number: 0"
           , "cbor-hex:"
           , " 00"
+          ]
+      , Aeson.object
+          [ "name" .= Aeson.String "Genesis Pool C"
+          , "ticker" .= Aeson.String "GPC"
+          , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
+          , "homepage" .= Aeson.String "https://iohk.io"
           ]
       )
     ]
@@ -864,6 +852,15 @@ cartouche = T.unlines
     , "#                                                                              #"
     , "################################################################################"
     ]
+
+-- | Hash a ByteString using blake2b_256 and encode it in base16
+blake2b256 :: ByteString -> String
+blake2b256 =
+    T.unpack
+    . T.decodeUtf8
+    . convertToBase Base16
+    . BA.convert @_ @ByteString
+    . hash @_ @Blake2b_256
 
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
