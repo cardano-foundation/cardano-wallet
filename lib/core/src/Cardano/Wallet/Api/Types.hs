@@ -163,7 +163,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , StakePoolMetadata
-    , StakePoolOffChainMetadata
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -1236,11 +1235,6 @@ instance ToJSON ApiNetworkClock where
 instance FromJSON (ApiT StakePoolMetadata) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
 instance ToJSON (ApiT StakePoolMetadata) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
-instance FromJSON (ApiT StakePoolOffChainMetadata) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT StakePoolOffChainMetadata) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
 instance FromJSON (ApiT StartTime) where
