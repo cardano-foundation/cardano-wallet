@@ -1193,6 +1193,19 @@ x-parametersWalletId: &parametersWalletId
     maxLength: 40
     minLength: 40
 
+  x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
+    in: query
+    name: stake
+    required: false
+    schema:
+      type: integer
+      minimum: 0
+      maximum: 45_000_000_000_000_000 # 45 B ada (in Lovelace)
+    description: |
+      The stake the user intends to delegate in Lovelace. Required.
+
+      > ⚠️  On the incentivized testnet, this parameter is not requred, but rather completely ignored.
+
 x-parametersTransactionId: &parametersTransactionId
   in: path
   name: transactionId
@@ -1910,7 +1923,7 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /wallets/{walletId}/stake-pools:
+  /stake-pools:
     get:
       operationId: listStakePools
       tags: ["Stake Pools"]
@@ -1919,15 +1932,15 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         List all known stake pools ordered by descending `non_myopic_member_rewards`.
-        The `non_myopic_member_rewards` — and thus the ordering — depends on
-        the balance of the given wallet.
+        The `non_myopic_member_rewards` — and thus the ordering — depends on the `?stake` query
+        parameter.
 
-        > /!\ On the incentivized testnet, pools are instead ordered by
+        > ⚠️  On the incentivized testnet, pools are instead ordered by
         descending `desirability`.
 
         Some pools _may_ also have metadata attached to them.
       parameters:
-        - *parametersWalletId
+        - *parametersIntendedStakeAmount
       responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
