@@ -26,6 +26,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate
     , SlotId (..)
     , StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
     )
 import Control.Monad.Fail
     ( MonadFail )
@@ -110,6 +112,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm (Maybe PoolRegistrationCertificate)
         -- ^ Find a registration certificate associated to a given pool
 
+    , unfetchedPoolMetadataRefs
+        :: stm [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
+        -- ^ Read the list of metadata remaining to fetch from remote server,
+        -- possibly empty if every pool already has an associated metadata
+        -- cached.
+
     , listRegisteredPools
         :: stm [PoolId]
         -- ^ List the list of known pools, based on their registration
@@ -119,6 +127,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , putPoolMetadata
         :: PoolId
+        -> StakePoolMetadataHash
         -> StakePoolMetadata
         -> stm ()
         -- ^ Store metadata fetched from a remote server.
