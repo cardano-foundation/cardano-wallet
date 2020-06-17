@@ -36,6 +36,7 @@ library
     , code-page
     , contra-tracer
     , extra
+    , filepath
     , fmt
     , iohk-monitoring
     , process
@@ -45,6 +46,7 @@ library
       src
   exposed-modules:
       Cardano.Launcher
+    , Cardano.Launcher.Node
     , Cardano.Startup
   if os(windows)
     build-depends: Win32
