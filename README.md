@@ -71,9 +71,10 @@ See **Installation Instructions** for each available [release](https://github.co
 > | cardano-wallet                                                                            | jörmungandr (compatible versions)                                              | cardano-node (compatible versions)
 > | ---                                                                                       | ---                                                                            | ---
 > | `master` branch                                                                           | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [93ca68b](https://github.com/input-output-hk/cardano-node/tree/93ca68b8004031df297063a3715178b664c61bac)
+> | [v2020-06-05](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-06-05)                                                                           | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.13.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.13.0)
 > | [v2020-05-06](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-05-06) | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.11.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.11.0)
 > | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) | [v0.8.18](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.18) | [1.11.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.11.0)
-> | [v2020-04-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-07) | [v0.8.15](https://github.com/input-output-hk/jormungandr/releases/tag/v0.8.15) | [1.9.3](https://github.com/input-output-hk/cardano-node/releases/tag/1.9.3)
+
 
 ## How to build from sources
 
