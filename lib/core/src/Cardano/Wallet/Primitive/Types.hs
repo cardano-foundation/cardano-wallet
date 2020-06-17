@@ -188,7 +188,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (>=>) )
+    ( (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -1091,6 +1091,18 @@ instance ToText AddressState where
 newtype Coin = Coin
     { getCoin :: Word64
     } deriving stock (Show, Ord, Eq, Generic)
+
+instance ToText Coin where
+    toText (Coin c) = T.pack $ show c
+
+instance FromText Coin where
+    fromText = validate <=< (fmap (Coin . fromIntegral) . fromText @Natural)
+      where
+        validate x
+            | isValidCoin x =
+                return x
+            | otherwise =
+                Left $ TextDecodingError "Coin value is out of bounds"
 
 instance NFData Coin
 

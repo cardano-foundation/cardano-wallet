@@ -83,7 +83,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, SortOrder, WalletId )
+    ( AddressState, Coin (..), SortOrder, WalletId )
 import Control.Monad
     ( void )
 import Data.Coerce
@@ -175,7 +175,7 @@ data AddressClient = AddressClient
 
 data StakePoolClient apiPool = StakePoolClient
     { listPools
-        :: ApiT WalletId -> ClientM [apiPool]
+        :: Maybe (ApiT Coin) -> ClientM [apiPool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId

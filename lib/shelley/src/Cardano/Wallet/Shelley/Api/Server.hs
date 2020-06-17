@@ -45,7 +45,7 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( LiftHandler (liftE)
+    ( apiError
     , delegationFee
     , deleteTransaction
     , deleteWallet
@@ -83,10 +83,13 @@ import Cardano.Wallet.Api.Server
     , selectCoins
     , withLegacyLayer
     , withLegacyLayer'
-    , withWorkerCtx
     )
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiErrorCode (..)
+    , ApiStakePool
+    , ApiT (..)
+    , SomeByronWalletPostData (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -99,10 +102,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.Model
-    ( totalBalance )
-import Cardano.Wallet.Primitive.Types
-    ( Coin (..) )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Control.Applicative
@@ -122,9 +121,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Server )
-
-import qualified Cardano.Wallet as W
+    ( (:<|>) (..), Handler (..), Server, err400 )
 
 server
     :: forall t n.
@@ -183,11 +180,13 @@ server byron icarus shelley spl ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-        (\(ApiT wid) -> do
-            stake <- withWorkerCtx shelley wid liftE liftE $ \wrk -> do
-                (w, _, pending) <- liftHandler $ W.readWallet wrk wid
-                return $ Coin $ fromIntegral $ totalBalance pending w
-            liftHandler $ listStakePools spl stake
+        (\case
+            Just (ApiT stake) -> liftHandler $ listStakePools spl stake
+            Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $ mconcat
+                [ "The stake intended to delegate must be provided as a query "
+                , "parameter as it affects the rewards and ranking."
+                ]
+
         )
         :<|> joinStakePool shelley (knownPools spl)
         :<|> quitStakePool shelley

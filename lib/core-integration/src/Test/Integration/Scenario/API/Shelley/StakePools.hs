@@ -27,13 +27,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), PoolId (..), TxStatus (..), WalletId )
+    ( Coin (..), Direction (..), PoolId (..), TxStatus (..) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( fromText, toText )
+    ( toText )
 import Test.Hspec
     ( SpecWith, describe, it, shouldBe, xit )
 import Test.Integration.Framework.DSL
@@ -79,7 +79,6 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
-import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -109,7 +108,7 @@ spec = do
     it "STAKE_POOLS_JOIN_01 - Cannot join existant stakepool with wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx pool (w, "Wrong Passphrase") >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
@@ -118,7 +117,7 @@ spec = do
     it "STAKE_POOLS_JOIN_02 - Cannot join already joined stake pool" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
@@ -142,7 +141,7 @@ spec = do
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
@@ -180,7 +179,8 @@ spec = do
         waitForNextEpoch ctx
 
         pool1:pool2:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            <$> unsafeRequest @[ApiStakePool] ctx
+                (Link.listStakePools arbitraryStake) Empty
 
         joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -257,7 +257,7 @@ spec = do
     xit "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
-            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
         -- Join a pool
         joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -321,7 +321,7 @@ spec = do
             w <- fixtureWalletWith @n ctx [fee]
 
             pool:_ <- map (view #id) . snd
-                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
 
             joinStakePool @n ctx pool (w, passwd)>>= flip verify
                 [ expectResponseCode HTTP.status202
@@ -334,7 +334,7 @@ spec = do
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
             w <- fixtureWalletWith @n ctx [fee - 1]
             pool:_ <- map (view #id) . snd
-                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
             joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee 1)
@@ -348,7 +348,7 @@ spec = do
             let initBalance = [feeJoin + feeQuit]
             w <- fixtureWalletWith @n ctx initBalance
             pool:_ <- map (view #id) . snd
-                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
             joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
@@ -381,7 +381,7 @@ spec = do
             w <- fixtureWalletWith @n ctx initBalance
 
             pool:_ <- map (view #id) . snd
-                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools w) Empty
+                <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
 
             joinStakePool @n ctx pool (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status202
@@ -417,9 +417,9 @@ spec = do
             ]
 
     it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
-        w <- fixtureWallet ctx
         eventually "Listing stake pools shows expected information" $ do
-            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
+            r <- request @[ApiStakePool] ctx
+                (Link.listStakePools arbitraryStake) Default Empty
             expectResponseCode HTTP.status200 r
             verify r
                 [ expectListSize 3
@@ -470,28 +470,29 @@ spec = do
                     (#metrics . #saturation) (.>= 0)
                 ]
 
-    it "STAKE_POOLS_LIST_05 - Fails for unknown wallets" $ \ctx -> do
-        -- FIXME: Type inference breaks without this line:
+    it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
+        _w <- fixtureWallet ctx -- Ambiguous type error without this line
+        r <- request @[ApiStakePool] ctx
+            (Link.listStakePools Nothing) Default Empty
+        expectResponseCode HTTP.status400 r
+
+    it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 when stake is 0" $ \ctx -> do
         _w <- fixtureWallet ctx
-
-        r <- request @[ApiStakePool] ctx (Link.listStakePools (ApiT invalidWalletId, ())) Default Empty
-        expectResponseCode HTTP.status404 r
-
-    it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 for empty wallets" $ \ctx -> do
-        w <- emptyWallet ctx
-        eventually "Listing stake pools shows expected information" $ do
-            r <- request @[ApiStakePool] ctx (Link.listStakePools w) Default Empty
-            expectResponseCode HTTP.status200 r
-            verify r
-                [ expectListSize 3
-                , expectListField 0
-                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-                , expectListField 1
-                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-                , expectListField 2
-                    (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-                ]
+        let stake = Just $ Coin 0
+        r <- request @[ApiStakePool] ctx (Link.listStakePools stake) Default Empty
+        expectResponseCode HTTP.status200 r
+        verify r
+            [ expectListSize 3
+            , expectListField 0
+                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+            , expectListField 1
+                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+            , expectListField 2
+                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
+            ]
   where
-    invalidWalletId :: WalletId
-    invalidWalletId = either (error . show) id $ fromText $ T.pack $ replicate 40 '0'
+    arbitraryStake :: Maybe Coin
+    arbitraryStake = Just $ ada 10000
+      where ada = Coin . (1000*1000*)
+
     passwd = "Secure Passphrase"

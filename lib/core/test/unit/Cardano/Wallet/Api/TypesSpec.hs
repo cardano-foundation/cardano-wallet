@@ -338,6 +338,7 @@ spec = do
         describe "Can perform roundtrip textual encoding & decoding" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
+            textRoundtrip $ Proxy @Coin
 
     describe "AddressAmount" $ do
         it "fromText \"22323\"" $

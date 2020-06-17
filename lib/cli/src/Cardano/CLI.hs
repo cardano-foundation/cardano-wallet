@@ -190,7 +190,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Hash, SortOrder, SyncTolerance (..), WalletId, WalletName )
+    ( AddressState
+    , Coin (..)
+    , Hash
+    , SortOrder
+    , SyncTolerance (..)
+    , WalletId
+    , WalletName
+    )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Codec.Binary.Bech32
@@ -1508,7 +1515,7 @@ cmdStakePool mkClient =
 -- | Arguments for 'stake-pool list' command
 data StakePoolListArgs = StakePoolListArgs
     { _port :: Port "Wallet"
-    , _walletId :: WalletId
+    , _stake :: Maybe Coin
     }
 
 cmdStakePoolList
@@ -1520,9 +1527,9 @@ cmdStakePoolList mkClient =
         <> progDesc "List all known stake pools."
   where
     cmd = fmap exec $ StakePoolListArgs
-        <$> portOption <*> walletIdArgument
-    exec (StakePoolListArgs wPort wid) = do
-        runClient wPort Aeson.encodePretty $ listPools mkClient (ApiT wid)
+        <$> portOption <*> stakeOption
+    exec (StakePoolListArgs wPort stake) = do
+        runClient wPort Aeson.encodePretty $ listPools mkClient (ApiT <$> stake)
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'
@@ -1882,6 +1889,14 @@ tlsOption = TlsConfiguration
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
+
+-- | <stake=STAKE>
+stakeOption :: Parser (Maybe Coin)
+stakeOption = optional $ optionT $ mempty
+    <> long "stake"
+    <> metavar "STAKE"
+    <> help ("The stake you intend to delegate, which affects the rewards and "
+            <> "the ranking of pools.")
 
 -- | <transaction-id=TX_ID>
 transactionIdArgument :: Parser TxId
