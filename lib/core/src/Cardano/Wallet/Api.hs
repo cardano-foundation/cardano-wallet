@@ -139,6 +139,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
+    , Coin (..)
     , NetworkParameters
     , SortOrder (..)
     , SyncTolerance
@@ -367,9 +368,8 @@ type StakePools n apiPool =
     :<|> DelegationFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
-type ListStakePools apiPool = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "stake-pools"
+type ListStakePools apiPool = "stake-pools"
+    :> QueryParam "stake" (ApiT Coin)
     :> Get '[JSON] [apiPool]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool

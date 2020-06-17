@@ -103,7 +103,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( StakePool (..), StakePoolMetadata, WalletId )
+    ( Coin, StakePool (..), StakePoolMetadata )
 import Control.Applicative
     ( liftA2 )
 import Data.Generics.Internal.VL.Lens
@@ -279,7 +279,7 @@ server byron icarus jormungandr spl ntp =
 listPools
     :: LiftHandler e
     => StakePoolLayer e IO
-    -> ApiT WalletId
+    -> Maybe (ApiT Coin)
     -- ^ Not needed, but there for consistency with haskell node.
     -> Handler [ApiJormungandrStakePool]
 listPools spl _walletId =

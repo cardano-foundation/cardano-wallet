@@ -485,13 +485,16 @@ spec = do
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  stake-pool list [--port INT] WALLET_ID"
+            [ "Usage:  stake-pool list [--port INT] [--stake STAKE]"
             , "  List all known stake pools."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
+            , "  --stake STAKE            The stake you intend to delegate,"
+            , "                           which affects the rewards and the"
+            , "                           ranking of pools."
             ]
 
         ["network", "--help"] `shouldShowUsage`
