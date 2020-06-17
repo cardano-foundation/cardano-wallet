@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -16,6 +17,7 @@ module Cardano.Launcher
     , ProcessHasExited(..)
     , withBackendProcess
     , withBackendProcessHandle
+    , withBackendCreateProcess
 
     -- * Logging
     , LauncherLog(..)
@@ -66,6 +68,7 @@ import System.IO
     ( Handle )
 import System.Process
     ( CreateProcess (..)
+    , CmdSpec (..)
     , ProcessHandle
     , StdStream (..)
     , getPid
@@ -105,28 +108,29 @@ instance Show Command where
 instance Eq Command where
     a == b = build a == build b
 
--- Format a command nicely with one argument / option per line.
+-- | Format a command nicely with one argument / option per line.
 --
 -- e.g.
 --
--- >>> fmt $ build $ Command "cardano-wallet-server" ["--port", "8080", "--network", "mainnet"] (return ())
+-- >>> fmt $ buildCommand "cardano-wallet-server" ["--port", "8080", "--network", "mainnet"] (return ())
 -- cardano-wallet-server
 --     --port 8080
 --     --network mainnet
+buildCommand :: String -> [String] -> Builder
+buildCommand name args = mconcat [build name, "\n", indentF 4 argsBuilder]
+  where
+    argsBuilder = blockListF' "" build $ snd $ foldl buildOptions ("", []) args
+    buildOptions :: (String, [String]) -> String -> (String, [String])
+    buildOptions ("", grp) arg =
+        (arg, grp)
+    buildOptions (partial, grp) arg =
+        if ("--" `isPrefixOf` partial) && not ("--" `isPrefixOf` arg) then
+            ("", grp ++ [partial <> " " <> arg])
+        else
+            (arg, grp ++ [partial])
+
 instance Buildable Command where
-    build (Command name args _ _ _) = build name
-        <> "\n"
-        <> indentF 4
-            (blockListF' "" build $ snd $ foldl buildOptions ("", []) args)
-      where
-        buildOptions :: (String, [String]) -> String -> (String, [String])
-        buildOptions ("", grp) arg =
-            (arg, grp)
-        buildOptions (partial, grp) arg =
-            if ("--" `isPrefixOf` partial) && not ("--" `isPrefixOf` arg) then
-                ("", grp ++ [partial <> " " <> arg])
-            else
-                (arg, grp ++ [partial])
+    build (Command name args _ _ _) = buildCommand name args
 
 -- | ProcessHasExited is used by a monitoring thread to signal that the process
 -- has exited.
@@ -161,11 +165,24 @@ withBackendProcessHandle
     -> (Maybe Handle -> ProcessHandle -> IO a)
     -- ^ Action to execute while process is running.
     -> IO (Either ProcessHasExited a)
-withBackendProcessHandle tr cmd@(Command name args before input output) action = do
-    before
-    traceWith tr $ MsgLauncherStart cmd
-    let process = (proc name args)
-            { std_in = input, std_out = output, std_err = output }
+withBackendProcessHandle tr (Command name args before std_in std_out) action =
+    before >> withBackendCreateProcess tr process action
+  where
+    process = (proc name args)  { std_in, std_out, std_err = std_out }
+
+
+-- | A variant of 'withBackendProcess' which accepts a general 'CreateProcess'
+-- object.
+withBackendCreateProcess
+    :: Tracer IO LauncherLog
+    -- ^ Logging
+    -> CreateProcess
+    -- ^ 'Command' description
+    -> (Maybe Handle -> ProcessHandle -> IO a)
+    -- ^ Action to execute while process is running.
+    -> IO (Either ProcessHasExited a)
+withBackendCreateProcess tr process action = do
+    traceWith tr $ MsgLauncherStart name args
     res <- fmap join $ tryJust spawnPredicate $
         withCreateProcess process $ \mstdin _ _ h -> do
             pid <- maybe "-" (T.pack . show) <$> getPid h
@@ -212,12 +229,20 @@ withBackendProcessHandle tr cmd@(Command name args before input output) action =
             traceWith tr' MsgLauncherCancel
             putMVar var (ExitFailure 256)
 
+    (name, args) = getCreateProcessNameArgs process
+
+-- | Recover the command name and arguments from a 'proc', just for logging.
+getCreateProcessNameArgs :: CreateProcess -> (FilePath, [String])
+getCreateProcessNameArgs process = case cmdspec process of
+    ShellCommand cmd -> (cmd, [])
+    RawCommand cmd args -> (cmd, args)
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
 data LauncherLog
-    = MsgLauncherStart Command
+    = MsgLauncherStart String [String]
     | WithProcessInfo String Text LaunchedProcessLog
     | MsgLauncherFinish ProcessHasExited
     deriving (Show, Eq, Generic, ToJSON)
@@ -247,7 +272,7 @@ exitStatus (ExitFailure n) = n
 instance HasPrivacyAnnotation LauncherLog
 instance HasSeverityAnnotation LauncherLog where
     getSeverityAnnotation = \case
-        MsgLauncherStart _ -> Notice
+        MsgLauncherStart _ _ -> Notice
         WithProcessInfo _ _ msg -> getSeverityAnnotation msg
         MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
         MsgLauncherFinish (ProcessHasExited _ st) -> case st of
@@ -268,8 +293,8 @@ instance ToText LauncherLog where
     toText = fmt . launcherLogText
 
 launcherLogText :: LauncherLog -> Builder
-launcherLogText (MsgLauncherStart cmd) =
-    "Starting process "+|cmd|+""
+launcherLogText (MsgLauncherStart cmd args) =
+    "Starting process "+|buildCommand cmd args|+""
 launcherLogText (WithProcessInfo name pid msg) =
     "["+|name|+"."+|pid|+"] "+|launchedProcessText msg|+""
 launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
