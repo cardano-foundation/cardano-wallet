@@ -144,6 +144,7 @@ module Cardano.Wallet.Primitive.Types
     , poolIdBytesLength
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
 
     -- * Querying
@@ -597,6 +598,19 @@ instance ToText StakePoolMetadataHash where
 
 instance FromText StakePoolMetadataHash where
     fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
+
+-- | A newtype to wrap metadata Url, mostly needed for database lookups and
+-- signature clarity.
+newtype StakePoolMetadataUrl = StakePoolMetadataUrl Text
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData StakePoolMetadataUrl
+
+instance ToText StakePoolMetadataUrl where
+    toText (StakePoolMetadataUrl url) = url
+
+instance FromText StakePoolMetadataUrl where
+    fromText = pure . StakePoolMetadataUrl
 
 -- | Information about a stake pool.
 --
@@ -1823,7 +1837,7 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolMargin :: Percentage
     , poolCost :: Quantity "lovelace" Word64
     , poolPledge :: Quantity "lovelace" Word64
-    , poolMetadata :: Maybe (Text, StakePoolMetadataHash)
+    , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate

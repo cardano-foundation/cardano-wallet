@@ -89,7 +89,7 @@ PoolRegistration sql=pool_registration
     poolRegistrationMarginDenominator  Word64                        sql=margin_denominator
     poolRegistrationCost               Word64                        sql=cost
     poolRegistrationPledge             Word64                        sql=pledge
-    poolRegistrationMetadataUrl        Text Maybe                    sql=metadata_url
+    poolRegistrationMetadataUrl        W.StakePoolMetadataUrl  Maybe sql=metadata_url
     poolRegistrationMetadataHash       W.StakePoolMetadataHash Maybe sql=metadata_hash
 
     Primary poolRegistrationPoolId

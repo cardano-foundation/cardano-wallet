@@ -37,6 +37,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     , StakePoolTicker
     , TxStatus (..)
     , WalletId (..)
@@ -496,3 +497,14 @@ instance PathPiece StakePoolMetadataHash where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 
+
+----------------------------------------------------------------------------
+-- StakePoolMetadataUrl
+
+
+instance PersistField StakePoolMetadataUrl where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql StakePoolMetadataUrl where
+    sqlType _ = sqlType (Proxy @Text)

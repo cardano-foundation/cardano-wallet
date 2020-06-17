@@ -694,9 +694,9 @@ fromShelleyRegistrationCert = \case
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
 
-fromPoolMetaData :: SL.PoolMetaData -> (Text, W.StakePoolMetadataHash)
+fromPoolMetaData :: SL.PoolMetaData -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetaData meta =
-    ( urlToText (SL._poolMDUrl meta)
+    ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
     , W.StakePoolMetadataHash (SL._poolMDHash meta)
     )
 

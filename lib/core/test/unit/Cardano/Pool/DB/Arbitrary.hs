@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     , slotSucc
     , unsafeEpochNo
     )
@@ -129,7 +130,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> oneof [pure Nothing, Just <$> genMetadata]
       where
         genMetadata = (,)
-            <$> genURL
+            <$> fmap StakePoolMetadataUrl genURL
             <*> fmap (StakePoolMetadataHash . BS.pack) (vector 32)
         genURL  = do
             protocol <- elements [ "http", "https" ]
