@@ -128,9 +128,8 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove pool metadata references from the database.
 
-    , readPoolMetadataRef
-        :: Int
-        -> stm [(PoolId, StakePoolMetadataRef)]
+    , peekPoolMetadataRef
+        :: stm (Maybe (PoolId, StakePoolMetadataRef))
         -- ^ Peek at some pool metadata ref. Returns at most 'n' elements, where
         -- 'n' is the first parameter.
 

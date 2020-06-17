@@ -147,8 +147,8 @@ properties = do
             (property . prop_listRegisteredPools)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
-        it "putPoolMetadataRef . readPoolMetadataRef"
-            (property . prop_putReadMetadataRef)
+        it "putPoolMetadataRef . peekPoolMetadataRef"
+            (property . prop_putPeekMetadataRef)
         it "propDeleteMetadataRef"
             (property . prop_deleteMetadataRef)
 
@@ -463,23 +463,24 @@ prop_listRegisteredPools DBLayer {..} entries =
             ]
         assert (pools == (poolId <$> reverse entries))
 
-prop_putReadMetadataRef
+prop_putPeekMetadataRef
     :: DBLayer IO
     -> [(PoolId, StakePoolMetadataRef)]
     -> Property
-prop_putReadMetadataRef DBLayer{..} entries =
+prop_putPeekMetadataRef DBLayer{..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
     prop  = do
         run . atomically $ mapM_ (uncurry putPoolMetadataRef) entries
-        refs <- run . atomically $ readPoolMetadataRef (length entries)
+        mref <- run . atomically $ peekPoolMetadataRef
         monitor $ counterexample $ unlines
             [ "Stored " <> show (length entries) <> " entries"
-            , "Read " <> show (length refs) <> " entries"
-            , "Read from DB: " <> show refs
+            , "Read from DB: " <> show mref
             ]
-        assert (L.sort refs == L.sort entries)
+        case mref of
+            Just ref -> assert (ref `elem` entries)
+            Nothing  -> assert (null entries)
 
 prop_deleteMetadataRef
     :: DBLayer IO
@@ -490,17 +491,19 @@ prop_deleteMetadataRef DBLayer{..} (NonEmpty entries) =
   where
     setup = run $ atomically cleanDB
     prop  = do
-        let removed = fst $ head entries
         run . atomically $ mapM_ (uncurry putPoolMetadataRef) entries
-        run . atomically $ deletePoolMetadataRef removed
-        refs <- run . atomically $ readPoolMetadataRef (length entries)
+        removed <- run . atomically $ replicateM (length entries) $ do
+            mref <- peekPoolMetadataRef
+            mref <$ case mref of
+                Nothing -> pure ()
+                Just (pid,_) -> deletePoolMetadataRef pid
+        let refs = catMaybes removed
         monitor $ counterexample $ unlines
             [ "Stored " <> show (length entries) <> " entries"
-            , "Read " <> show (length refs) <> " entries"
-            , "Removed: " <> show removed
-            , "Read from DB: " <> show refs
+            , "Removed " <> show (length refs) <> " entries"
+            , show removed
             ]
-        assert (removed `notElem` (fst <$> refs))
+        assert (L.sort refs == L.sort entries)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

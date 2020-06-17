@@ -26,12 +26,12 @@ import Cardano.Pool.DB.Model
     , mCleanPoolProduction
     , mDeletePoolMetadataRef
     , mListRegisteredPools
+    , mPeekPoolMetadataRef
     , mPutPoolMetadataRef
     , mPutPoolProduction
     , mPutPoolRegistration
     , mPutStakeDistribution
     , mReadCursor
-    , mReadPoolMetadataRef
     , mReadPoolProduction
     , mReadPoolRegistration
     , mReadStakeDistribution
@@ -93,8 +93,8 @@ newDBLayer = do
         , deletePoolMetadataRef =
             void . alterPoolDB (const Nothing) db . mDeletePoolMetadataRef
 
-        , readPoolMetadataRef = \a0 ->
-            modifyMVar db (pure . swap . mReadPoolMetadataRef a0)
+        , peekPoolMetadataRef =
+            modifyMVar db (pure . swap . mPeekPoolMetadataRef)
 
         , readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)

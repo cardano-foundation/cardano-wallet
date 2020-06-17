@@ -222,8 +222,8 @@ newDBLayer trace fp = do
         , deletePoolMetadataRef = \poolId -> do
             deleteWhere [PoolMetadataQueuePoolId ==. poolId]
 
-        , readPoolMetadataRef = \n -> do
-            fmap (fromPoolMetadataQueue . entityVal) <$> selectList [] [ LimitTo n ]
+        , peekPoolMetadataRef = do
+            fmap (fromPoolMetadataQueue . entityVal) <$> selectFirst [] []
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
