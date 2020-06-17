@@ -62,6 +62,8 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( StdStream (..) )
+import Cardano.Pool.Jormungandr.Metadata
+    ( ApiStakePool )
 import Cardano.Startup
     ( ShutdownHandlerLog
     , installSignalHandlers
@@ -77,8 +79,6 @@ import Cardano.Wallet.Api.Client
     )
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiJormungandrStakePool )
 import Cardano.Wallet.Jormungandr
     ( TracerSeverities
     , Tracers
@@ -180,7 +180,7 @@ main = withUtf8Encoding $ do
         <> cmdWallet cmdWalletCreate walletClient
         <> cmdTransaction transactionClient walletClient
         <> cmdAddress addressClient
-        <> cmdStakePool @ApiJormungandrStakePool stakePoolClient
+        <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdNetwork networkClient
         <> cmdVersion
         <> cmdKey

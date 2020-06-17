@@ -145,7 +145,6 @@ module Cardano.Wallet.Primitive.Types
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolTicker (..)
-    , sameStakePoolMetadata
 
     -- * Querying
     , SortOrder (..)
@@ -599,18 +598,12 @@ instance ToText StakePoolMetadataHash where
 instance FromText StakePoolMetadataHash where
     fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
 
--- | Information about a stake pool, published by a stake pool owner in the
--- stake pool registry.
---
--- The wallet searches for registrations involving the owner, to find metadata
--- for a given PoolID.
+-- | Information about a stake pool.
 --
 -- The metadata information is not used directly by cardano-wallet, but rather
 -- passed straight through to API consumers.
 data StakePoolMetadata = StakePoolMetadata
-    { owner :: PoolOwner
-    -- ^ Bech32-encoded ed25519 public key.
-    , ticker :: StakePoolTicker
+    { ticker :: StakePoolTicker
     -- ^ Very short human-readable ID for the stake pool.
     , name :: Text
     -- ^ Name of the stake pool.
@@ -618,15 +611,7 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
-    , pledgeAddress :: Text
-    -- ^ Bech32-encoded address.
     } deriving (Eq, Show, Generic)
-
--- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
-sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
-sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
-  where
-    same = PoolOwner mempty
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }

@@ -61,6 +61,8 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Pool.Jormungandr.Metadata
+    ( ApiStakePool )
 import Cardano.Pool.Jormungandr.Metrics
     ( ErrListStakePools
     , StakePoolLayer (..)
@@ -75,7 +77,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiJormungandrStakePool, DecodeAddress, EncodeAddress )
+    ( DecodeAddress, EncodeAddress )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Api.Server
@@ -259,7 +261,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         sockAddr <- getSocketName socket
         let settings = Warp.defaultSettings
                 & setBeforeMainLoop (beforeMainLoop sockAddr nPort gp)
-        let application = Server.serve (Proxy @(ApiV2 n ApiJormungandrStakePool))
+        let application = Server.serve (Proxy @(ApiV2 n ApiStakePool))
                 $ server byron icarus jormungandr pools ntp
         Server.start settings apiServerTracer tlsConfig socket application
       where

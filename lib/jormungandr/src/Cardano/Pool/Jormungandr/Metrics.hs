@@ -50,7 +50,12 @@ import Cardano.BM.Data.Tracer
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
-    ( RegistryLog, getMetadataConfig, getStakePoolMetadata )
+    ( RegistryLog
+    , StakePoolMetadata
+    , getMetadataConfig
+    , getStakePoolMetadata
+    , sameStakePoolMetadata
+    )
 import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
 import Cardano.Pool.Jormungandr.Ranking
@@ -78,8 +83,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotId
     , StakePool (..)
-    , StakePoolMetadata (..)
-    , sameStakePoolMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )

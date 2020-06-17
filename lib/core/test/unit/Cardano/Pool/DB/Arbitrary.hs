@@ -52,6 +52,7 @@ import Test.QuickCheck
     , choose
     , elements
     , listOf
+    , oneof
     , scale
     , shrinkIntegral
     , shrinkList

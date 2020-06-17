@@ -26,7 +26,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
 import Cardano.Pool.Jormungandr.Metadata
-    ( envVarMetadataRegistry )
+    ( StakePoolMetadata (..), envVarMetadataRegistry, sameStakePoolMetadata )
 import Cardano.Pool.Jormungandr.Metrics
     ( Block (..)
     , ErrListStakePools (..)
@@ -64,13 +64,11 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , SlotId (..)
     , SlotLength (..)
-    , StakePoolMetadata (..)
     , StartTime (..)
     , TxParameters (..)
     , flatSlot
     , flatSlot
     , fromFlatSlot
-    , sameStakePoolMetadata
     , slotParams
     , slotSucc
     )
