@@ -46,7 +46,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
-    , StakePoolMetadataRef (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -75,7 +74,6 @@ import Database.Persist.Sql
     , deleteWhere
     , insertMany_
     , insert_
-    , putMany
     , selectFirst
     , selectList
     , (<.)
@@ -187,43 +185,58 @@ newDBLayer trace fp = do
             , poolOwners
             , poolMargin
             , poolCost
+            , poolPledge
+            , poolMetadata
             } -> do
             let poolMarginN = fromIntegral $ numerator $ getPercentage poolMargin
             let poolMarginD = fromIntegral $ denominator $ getPercentage poolMargin
             let poolCost_ = getQuantity poolCost
+            let poolPledge_ = getQuantity poolPledge
+            let poolMetadataUrl = fst <$> poolMetadata
+            let poolMetadataHash = snd <$> poolMetadata
             insert_ $ PoolRegistration
                     poolId
                     point
                     poolMarginN
                     poolMarginD
                     poolCost_
+                    poolPledge_
+                    poolMetadataUrl
+                    poolMetadataHash
             insertMany_ $ zipWith (PoolOwner poolId) poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
             selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
-                    let (PoolRegistration _ _ marginNum marginDen poolCost_) = entityVal meta
+                    let PoolRegistration
+                            _poolId
+                            _point
+                            marginNum
+                            marginDen
+                            poolCost_
+                            poolPledge_
+                            poolMetadataUrl
+                            poolMetadataHash = entityVal meta
                     let poolMargin = unsafeMkPercentage $ toRational $ marginNum % marginDen
                     let poolCost = Quantity poolCost_
+                    let poolPledge = Quantity poolPledge_
+                    let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
                         [ PoolOwnerPoolId ==. poolId ]
                         [ Asc PoolOwnerIndex ]
                     pure $ Just $ PoolRegistrationCertificate
-                        { poolId, poolOwners, poolMargin, poolCost }
+                        { poolId
+                        , poolOwners
+                        , poolMargin
+                        , poolCost
+                        , poolPledge
+                        , poolMetadata
+                        }
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
                 [ Desc PoolRegistrationSlot ]
-
-        , putPoolMetadataRef = \poolId ref -> do
-            putMany [PoolMetadataQueue poolId (metadataURL ref) (metadataHash ref)]
-
-        , deletePoolMetadataRef = \poolId -> do
-            deleteWhere [PoolMetadataQueuePoolId ==. poolId]
-
-        , peekPoolMetadataRef = do
-            fmap (fromPoolMetadataQueue . entityVal) <$> selectFirst [] []
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
@@ -252,7 +265,6 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
-            deleteWhere ([] :: [Filter PoolMetadataQueue])
 
         , atomically = runQuery
         })
@@ -339,10 +351,3 @@ fromStakeDistribution distribution =
     ( stakeDistributionPoolId distribution
     , Quantity (stakeDistributionStake distribution)
     )
-
-
-fromPoolMetadataQueue
-    :: PoolMetadataQueue
-    -> (PoolId, StakePoolMetadataRef)
-fromPoolMetadataQueue (PoolMetadataQueue poolId url hash) =
-    (poolId, StakePoolMetadataRef url hash)

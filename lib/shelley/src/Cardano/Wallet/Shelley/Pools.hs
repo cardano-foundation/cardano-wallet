@@ -229,10 +229,9 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
                 Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
                 Right () -> pure ()
-            forM_ registrations $ \(pool, metadata) -> do
+            forM_ registrations $ \pool -> do
                 liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 putPoolRegistration slot pool
-                maybe (pure ()) (putPoolMetadataRef (poolId pool)) metadata
         pure Continue
 
 data StakePoolLog

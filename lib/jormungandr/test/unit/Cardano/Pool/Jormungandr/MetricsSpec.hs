@@ -228,9 +228,7 @@ prop_trackRegistrations test = monadicIO $ do
     assert (numDiscoveryLogs == numRegistrations)
   where
     getExpected :: RegistrationsTest -> [PoolRegistrationCertificate]
-    getExpected =
-        fmap (\p -> p { poolOwners = L.sortOn toText (poolOwners p) })
-        . L.sort
+    getExpected = L.sort
         . concatMap poolRegistrations
         . mconcat
         . getRegistrationsTest
@@ -436,14 +434,16 @@ instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p o m c) =
-        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c)
+    shrink (PoolRegistrationCertificate p o m c pl md) =
+        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c pl md)
         <$> shrink (p, NonEmpty o)
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> fmap (L.nub . getNonEmpty) (scale (`mod` 3) arbitrary)
         <*> genPercentage
         <*> fmap Quantity arbitrary
+        <*> pure (Quantity 0)
+        <*> pure Nothing
 
 instance Arbitrary RegistrationsTest where
     shrink (RegistrationsTest xs) = RegistrationsTest <$> shrink xs

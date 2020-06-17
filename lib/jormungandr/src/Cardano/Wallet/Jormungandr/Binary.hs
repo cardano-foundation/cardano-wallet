@@ -1088,7 +1088,8 @@ poolRegistrationsFromBlock (Block _hdr fragments) = do
     PoolRegistration (poolId, owners, taxes, _tx) <- fragments
     let margin = fromRight maxBound $ mkPercentage $ toRational $ taxRatio taxes
     let cost = Quantity (taxFixed taxes)
-    pure $ W.PoolRegistrationCertificate poolId owners margin cost
+    let dummyPledge = Quantity 0
+    pure $ W.PoolRegistrationCertificate poolId owners margin cost dummyPledge Nothing
 
 -- | If all incentives parameters are present in the blocks, returns a function
 -- that computes reward based on a given epoch.

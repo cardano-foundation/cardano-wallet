@@ -143,7 +143,7 @@ module Cardano.Wallet.Primitive.Types
     , StakeDistribution (..)
     , poolIdBytesLength
     , StakePoolMetadata (..)
-    , StakePoolMetadataRef (..)
+    , StakePoolMetadataHash (..)
     , StakePoolOffChainMetadata (..)
     , StakePoolTicker (..)
     , sameStakePoolMetadata
@@ -584,13 +584,21 @@ data StakePool = StakePool
     , saturation :: Double
     } deriving (Show, Generic)
 
--- | Metadata references, in order to fetch them from a remote.
-data StakePoolMetadataRef = StakePoolMetadataRef
-    { metadataURL :: Text
-        -- ^ A URL location where to find pools metadata
-    , metadataHash :: ByteString
-        -- ^ A blake2b_256 hash of the pools' metadata. For verification.
-    } deriving (Eq, Ord, Show, Generic)
+-- | A newtype to wrap metadata hash.
+--
+-- NOTE: not using the 'Hash' type as this newtype is primarily for database
+-- interop which doesn't quite like DataKinds.
+newtype StakePoolMetadataHash = StakePoolMetadataHash ByteString
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData StakePoolMetadataHash
+
+instance ToText StakePoolMetadataHash where
+    toText (StakePoolMetadataHash bytes) =
+        toText (Hash bytes)
+
+instance FromText StakePoolMetadataHash where
+    fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
 
 -- | Information about a stake pool, published by a stake pool owner in the
 -- stake pool registry.
@@ -1844,12 +1852,14 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolOwners :: ![PoolOwner]
     , poolMargin :: Percentage
     , poolCost :: Quantity "lovelace" Word64
+    , poolPledge :: Quantity "lovelace" Word64
+    , poolMetadata :: Maybe (Text, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o _ _) = mempty
+    build (PoolRegistrationCertificate p o _ _ _ _) = mempty
         <> "Registration of "
         <> build p
         <> " owned by "

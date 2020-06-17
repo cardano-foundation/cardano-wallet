@@ -368,7 +368,7 @@ fromShelleyBlock genesisHash epLength blk =
 fromShelleyBlock'
     :: W.EpochLength
     -> ShelleyBlock
-    -> (W.SlotId, [(W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)])
+    -> (W.SlotId, [W.PoolRegistrationCertificate])
 fromShelleyBlock' epLength blk =
     let
         O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) _ = blk
@@ -640,7 +640,7 @@ fromShelleyTx
     :: SL.Tx TPraosStandardCrypto
     -> ( W.Tx
        , [W.DelegationCertificate]
-       , [(W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)]
+       , [W.PoolRegistrationCertificate]
        )
 fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
@@ -674,7 +674,7 @@ fromShelleyDelegationCert = \case
 -- 'Nothing' if certificates aren't delegation certificate.
 fromShelleyRegistrationCert
     :: SL.DCert TPraosStandardCrypto
-    -> Maybe (W.PoolRegistrationCertificate, Maybe W.StakePoolMetadataRef)
+    -> Maybe (W.PoolRegistrationCertificate)
 fromShelleyRegistrationCert = \case
     SL.DCertPool (SL.RegPool pp) -> Just
         ( W.PoolRegistrationCertificate
@@ -682,8 +682,9 @@ fromShelleyRegistrationCert = \case
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
             , W.poolCost = Quantity $ fromIntegral (SL._poolCost pp)
+            , W.poolPledge = Quantity $ fromIntegral (SL._poolPledge pp)
+            , W.poolMetadata = fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
             }
-        , fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
         )
 
     SL.DCertPool (SL.RetirePool{}) ->
@@ -693,12 +694,11 @@ fromShelleyRegistrationCert = \case
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
 
-fromPoolMetaData :: SL.PoolMetaData -> W.StakePoolMetadataRef
+fromPoolMetaData :: SL.PoolMetaData -> (Text, W.StakePoolMetadataHash)
 fromPoolMetaData meta =
-    W.StakePoolMetadataRef
-        { W.metadataURL  = urlToText (SL._poolMDUrl meta)
-        , W.metadataHash = SL._poolMDHash meta
-        }
+    ( urlToText (SL._poolMDUrl meta)
+    , W.StakePoolMetadataHash (SL._poolMDHash meta)
+    )
 
 -- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
 -- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH

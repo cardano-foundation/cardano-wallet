@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
-    , StakePoolMetadataRef
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -71,13 +70,7 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( NonEmptyList (..)
-    , Positive (..)
-    , Property
-    , classify
-    , counterexample
-    , property
-    )
+    ( Positive (..), Property, classify, counterexample, property )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 
@@ -147,10 +140,6 @@ properties = do
             (property . prop_listRegisteredPools)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
-        it "putPoolMetadataRef . peekPoolMetadataRef"
-            (property . prop_putPeekMetadataRef)
-        it "propDeleteMetadataRef"
-            (property . prop_deleteMetadataRef)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -462,48 +451,6 @@ prop_listRegisteredPools DBLayer {..} entries =
             [ "Read from DB: " <> show pools
             ]
         assert (pools == (poolId <$> reverse entries))
-
-prop_putPeekMetadataRef
-    :: DBLayer IO
-    -> [(PoolId, StakePoolMetadataRef)]
-    -> Property
-prop_putPeekMetadataRef DBLayer{..} entries =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop  = do
-        run . atomically $ mapM_ (uncurry putPoolMetadataRef) entries
-        mref <- run . atomically $ peekPoolMetadataRef
-        monitor $ counterexample $ unlines
-            [ "Stored " <> show (length entries) <> " entries"
-            , "Read from DB: " <> show mref
-            ]
-        case mref of
-            Just ref -> assert (ref `elem` entries)
-            Nothing  -> assert (null entries)
-
-prop_deleteMetadataRef
-    :: DBLayer IO
-    -> NonEmptyList (PoolId, StakePoolMetadataRef)
-    -> Property
-prop_deleteMetadataRef DBLayer{..} (NonEmpty entries) =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop  = do
-        run . atomically $ mapM_ (uncurry putPoolMetadataRef) entries
-        removed <- run . atomically $ replicateM (length entries) $ do
-            mref <- peekPoolMetadataRef
-            mref <$ case mref of
-                Nothing -> pure ()
-                Just (pid,_) -> deletePoolMetadataRef pid
-        let refs = catMaybes removed
-        monitor $ counterexample $ unlines
-            [ "Stored " <> show (length entries) <> " entries"
-            , "Removed " <> show (length refs) <> " entries"
-            , show removed
-            ]
-        assert (L.sort refs == L.sort entries)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

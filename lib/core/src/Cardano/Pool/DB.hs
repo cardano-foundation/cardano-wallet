@@ -25,7 +25,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate
     , SlotId (..)
-    , StakePoolMetadataRef
     )
 import Control.Monad.Fail
     ( MonadFail )
@@ -116,22 +115,6 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- certificate. This list doesn't necessarily match the keys of the
         -- map we would get from 'readPoolProduction' because not all registered
         -- pools have necessarily produced any block yet!
-
-    , putPoolMetadataRef
-        :: PoolId
-        -> StakePoolMetadataRef
-        -> stm ()
-        -- ^ Store references to a stake pool metadata found on chain.
-
-    , deletePoolMetadataRef
-        :: PoolId
-        -> stm ()
-        -- ^ Remove pool metadata references from the database.
-
-    , peekPoolMetadataRef
-        :: stm (Maybe (PoolId, StakePoolMetadataRef))
-        -- ^ Peek at some pool metadata ref. Returns at most 'n' elements, where
-        -- 'n' is the first parameter.
 
     , readSystemSeed
         :: stm StdGen
