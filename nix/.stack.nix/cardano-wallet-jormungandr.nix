@@ -138,6 +138,7 @@
             (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+            (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
             (hsPkgs."generic-arbitrary" or (errorHandler.buildDepError "generic-arbitrary"))
             (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
@@ -151,11 +152,15 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
             (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
+            (hsPkgs."servant-swagger" or (errorHandler.buildDepError "servant-swagger"))
+            (hsPkgs."swagger2" or (errorHandler.buildDepError "swagger2"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+            (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
             (hsPkgs."zip" or (errorHandler.buildDepError "zip"))
             ];
           build-tools = [
