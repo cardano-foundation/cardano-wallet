@@ -155,6 +155,7 @@ test-suite unit
     , deepseq
     , directory
     , filepath
+    , file-embed
     , fmt
     , generic-arbitrary
     , generic-lens
@@ -168,11 +169,15 @@ test-suite unit
     , QuickCheck
     , safe
     , servant
+    , servant-swagger
+    , swagger2
     , temporary
     , text
     , text-class
     , time
     , transformers
+    , unordered-containers
+    , yaml
     , zip
   build-tools:
       hspec-discover

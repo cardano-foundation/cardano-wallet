@@ -153,8 +153,12 @@ let
         packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
         '';
+        packages.cardano-wallet-jormungandr.components.tests.unit.preBuild = ''
+          export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
+        '';
 
         # Workaround for Haskell.nix issue
+        packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
         packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";

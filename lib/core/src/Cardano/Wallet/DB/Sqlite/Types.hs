@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolTicker
     , TxStatus (..)
     , WalletId (..)
     , flatSlot
@@ -454,3 +456,43 @@ instance PersistField PassphraseScheme where
 
 instance PersistFieldSql PassphraseScheme where
     sqlType _ = sqlType (Proxy @String)
+
+----------------------------------------------------------------------------
+-- StakePoolTicker
+
+instance PersistField StakePoolTicker where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql StakePoolTicker where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- StakePoolMetadataHash
+
+instance PersistField StakePoolMetadataHash where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql StakePoolMetadataHash where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read StakePoolMetadataHash where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToHttpApiData StakePoolMetadataHash where
+    toUrlPiece = toText
+
+instance FromHttpApiData StakePoolMetadataHash where
+    parseUrlPiece = fromText'
+
+instance ToJSON StakePoolMetadataHash where
+    toJSON = String . toText
+
+instance FromJSON StakePoolMetadataHash where
+    parseJSON = aesonFromText "StakePoolMetadataHash"
+
+instance PathPiece StakePoolMetadataHash where
+    fromPathPiece = fromTextMaybe
+    toPathPiece = toText
+

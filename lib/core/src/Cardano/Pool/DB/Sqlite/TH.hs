@@ -22,6 +22,8 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word32, Word64, Word8 )
 import Database.Persist.Class
@@ -69,7 +71,7 @@ StakeDistribution sql=stake_distribution
     Primary stakeDistributionPoolId stakeDistributionEpoch
     deriving Show Generic
 
--- Mapping from pool id to owner
+-- Mapping from pool id to owner.
 PoolOwner sql=pool_owner
     poolOwnerPoolId     W.PoolId     sql=pool_id
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
@@ -81,12 +83,28 @@ PoolOwner sql=pool_owner
 
 -- Mapping of registration certificate to pool
 PoolRegistration sql=pool_registration
-    poolRegistrationPoolId             W.PoolId  sql=pool_id
-    poolRegistrationSlot               W.SlotId  sql=slot
-    poolRegistrationMarginNumerator    Word64    sql=margin_numerator
-    poolRegistrationMarginDenominator  Word64    sql=margin_denominator
-    poolRegistrationCost               Word64    sql=cost
+    poolRegistrationPoolId             W.PoolId                      sql=pool_id
+    poolRegistrationSlot               W.SlotId                      sql=slot
+    poolRegistrationMarginNumerator    Word64                        sql=margin_numerator
+    poolRegistrationMarginDenominator  Word64                        sql=margin_denominator
+    poolRegistrationCost               Word64                        sql=cost
+    poolRegistrationPledge             Word64                        sql=pledge
+    poolRegistrationMetadataUrl        Text Maybe                    sql=metadata_url
+    poolRegistrationMetadataHash       W.StakePoolMetadataHash Maybe sql=metadata_hash
 
     Primary poolRegistrationPoolId
+    deriving Show Generic
+
+-- Cached metadata after they've been fetched from a remote server.
+PoolMetadata sql=pool_metadata
+    poolMetadataHash                   W.StakePoolMetadataHash sql=metadata_hash
+    poolMetadataPoolId                 W.PoolId                sql=pool_id
+    poolMetadataName                   Text                    sql=name
+    poolMetadataTicker                 W.StakePoolTicker       sql=ticker
+    poolMetadataDescription            Text Maybe              sql=description
+    poolMetadataHomepage               Text                    sql=homepage
+
+    Primary poolMetadataHash
+    Foreign PoolRegistration fk_registration_metadata_hash poolMetadataPoolId ! ON DELETE CASCADE
     deriving Show Generic
 |]

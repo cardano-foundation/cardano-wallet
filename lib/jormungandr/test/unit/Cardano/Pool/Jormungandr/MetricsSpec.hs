@@ -26,7 +26,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.MVar
     ( newDBLayer )
 import Cardano.Pool.Jormungandr.Metadata
-    ( envVarMetadataRegistry )
+    ( StakePoolMetadata (..), envVarMetadataRegistry, sameStakePoolMetadata )
 import Cardano.Pool.Jormungandr.Metrics
     ( Block (..)
     , ErrListStakePools (..)
@@ -64,13 +64,11 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , SlotId (..)
     , SlotLength (..)
-    , StakePoolMetadata (..)
     , StartTime (..)
     , TxParameters (..)
     , flatSlot
     , flatSlot
     , fromFlatSlot
-    , sameStakePoolMetadata
     , slotParams
     , slotSucc
     )
@@ -228,9 +226,7 @@ prop_trackRegistrations test = monadicIO $ do
     assert (numDiscoveryLogs == numRegistrations)
   where
     getExpected :: RegistrationsTest -> [PoolRegistrationCertificate]
-    getExpected =
-        fmap (\p -> p { poolOwners = L.sortOn toText (poolOwners p) })
-        . L.sort
+    getExpected = L.sort
         . concatMap poolRegistrations
         . mconcat
         . getRegistrationsTest
@@ -265,6 +261,8 @@ prop_trackRegistrations test = monadicIO $ do
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
                 pure . const (Cursor header0)
+            , destroyCursor =
+                const (pure ())
             , stakeDistribution = \_ ->
                 pure mempty
             , currentNodeTip =
@@ -330,6 +328,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: nextBlocks"
     , initCursor =
         \_ -> error "mockNetworkLayer: initCursor"
+    , destroyCursor =
+        \_ -> error "mockNetworkLayer: destroyCursor"
     , cursorSlotId =
         \_ -> error "mockNetworkLayer: cursorSlotId"
     , currentNodeTip =
@@ -432,14 +432,16 @@ instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p o m c) =
-        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c)
+    shrink (PoolRegistrationCertificate p o m c pl md) =
+        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c pl md)
         <$> shrink (p, NonEmpty o)
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> fmap (L.nub . getNonEmpty) (scale (`mod` 3) arbitrary)
         <*> genPercentage
         <*> fmap Quantity arbitrary
+        <*> pure (Quantity 0)
+        <*> pure Nothing
 
 instance Arbitrary RegistrationsTest where
     shrink (RegistrationsTest xs) = RegistrationsTest <$> shrink xs

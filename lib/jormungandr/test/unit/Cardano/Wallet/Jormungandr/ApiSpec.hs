@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -12,6 +14,10 @@ module Cardano.Wallet.Jormungandr.ApiSpec
 
 import Prelude
 
+import Cardano.Pool.Jormungandr.Metadata
+    ( ApiStakePool (..), ApiStakePoolMetrics (..), StakePoolMetadata (..) )
+import Cardano.Wallet.Api
+    ( ListStakePools )
 import Cardano.Wallet.Jormungandr.Api.Types
     ( AccountState (..)
     , ApiStakeDistribution (..)
@@ -22,37 +28,68 @@ import Cardano.Wallet.Jormungandr.Api.Types
 import Cardano.Wallet.Jormungandr.Binary
     ( Block )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( PoolId (..), PoolOwner (..), StakePoolTicker (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText )
+    ( unsafeFromText, unsafeMkPercentage )
 import Control.Monad
     ( replicateM )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Aeson
-    ( eitherDecode )
+    ( FromJSON, ToJSON, eitherDecode )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Either
     ( isLeft )
+import Data.FileEmbed
+    ( embedFile, makeRelativeToProject )
+import Data.List
+    ( foldl' )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage (..), Quantity (..) )
+import Data.Swagger
+    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
+import Data.Swagger.Declare
+    ( Declare )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
+import Numeric.Natural
+    ( Natural )
 import Servant.API
     ( MimeUnrender (..) )
+import Servant.Swagger.Test
+    ( validateEveryToJSON )
+import System.Environment
+    ( lookupEnv )
+import System.FilePath
+    ( (</>) )
 import Test.Aeson.Internal.RoundtripSpecs
     ( roundtripSpecs )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), applyArbitrary3 )
+    ( Arbitrary (..), Gen, applyArbitrary3, choose, frequency, vector )
+import Test.Utils.Paths
+    ( getTestData )
 
+import qualified Cardano.Wallet.Api.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
+import qualified Data.Yaml as Yaml
+import qualified Test.Utils.Roundtrip as Utils
 
 spec :: Spec
 spec = do
@@ -152,12 +189,67 @@ spec = do
                 mimeUnrender (Proxy @JormungandrBinary) ""
                     `shouldSatisfy` (isLeft @_ @Block)
 
+    describe
+        "verify that every type used with JSON content type in a servant API \
+        \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
+        validateEveryToJSON
+            (Proxy :: Proxy (ListStakePools ApiStakePool))
+
+
+    describe
+        "can perform roundtrip JSON serialization & deserialization, \
+        \and match existing golden files" $ do
+            jsonRoundtripAndGolden $ Proxy @ApiStakePool
+            jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
+
   where
     decodeJSON = eitherDecode :: BL.ByteString -> Either String StakeApiResponse
+    jsonRoundtripAndGolden
+        :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
+        => Proxy a
+        -> Spec
+    jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
+        ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+-- | Specification file, embedded at compile-time and decoded right away
+specification :: Aeson.Value
+specification =
+    unsafeDecode bytes
+  where
+    bytes = $(
+        let swaggerYaml = "../../specifications/api/swagger.yaml"
+        in liftIO (lookupEnv "SWAGGER_YAML") >>=
+        maybe (makeRelativeToProject swaggerYaml) pure >>=
+        embedFile
+        )
+    unsafeDecode =
+        either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
+    msg = "Whoops! Failed to parse or find the api specification document: "
+
+-- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
+-- we simply look it up within the Swagger specification.
+declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
+declareSchemaForDefinition ref = do
+    let json = foldl' unsafeLookupKey specification ["components","schemas",ref]
+    case Aeson.eitherDecode' (Aeson.encode json) of
+        Left err -> error $
+            "unable to decode schema for definition '" <> T.unpack ref <> "': " <> show err
+        Right schema ->
+            return $ NamedSchema (Just ref) schema
+
+unsafeLookupKey :: Aeson.Value -> Text -> Aeson.Value
+unsafeLookupKey json k = case json of
+    Aeson.Object m -> fromMaybe bombMissing (HM.lookup k m)
+    m -> bombNotObject m
+  where
+    bombNotObject m =
+        error $ "given JSON value is NOT an object: " <> show m
+    bombMissing =
+        error $ "no value found in map for key: " <> T.unpack k
 
 instance Arbitrary AccountState where
     arbitrary = applyArbitrary3 AccountState
@@ -177,6 +269,71 @@ instance Arbitrary (Quantity "stake-pool-ratio" Word64) where
 instance Arbitrary (Quantity "transaction-count" Word64) where
     arbitrary = Quantity <$> arbitrary
     shrink (Quantity q) = Quantity <$> shrink q
+
+instance Arbitrary a => Arbitrary (W.ApiT a) where
+    arbitrary = W.ApiT <$> arbitrary
+    shrink = fmap W.ApiT . shrink . W.getApiT
+
+instance Arbitrary ApiStakePoolMetrics where
+    arbitrary = do
+        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000)
+        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
+        pure $ ApiStakePoolMetrics stakes blocks
+
+instance Arbitrary ApiStakePool where
+    arbitrary = ApiStakePool
+        <$> arbitrary
+        <*> arbitrary
+        <*> choose (0.0, 5.0)
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> choose (0.0, 100.0)
+        <*> choose (0.0, 2.0)
+
+instance Arbitrary (Quantity "lovelace" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Quantity "percent" Percentage) where
+    shrink _  = []
+    arbitrary = Quantity <$> genPercentage
+      where
+        genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
+          where
+            genDouble :: Gen Double
+            genDouble = choose (0, 1)
+
+instance Arbitrary StakePoolMetadata where
+    arbitrary = StakePoolMetadata
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitraryText 50
+        <*> arbitraryMaybeText 255
+        <*> arbitraryText 100
+        <*> arbitraryText 50
+      where
+        arbitraryText maxLen = do
+            len <- choose (1, maxLen)
+            T.pack <$> vector len
+        arbitraryMaybeText maxLen = frequency
+            [ (9, Just <$> arbitraryText maxLen)
+            , (1, pure Nothing) ]
+
+instance Arbitrary PoolOwner where
+    arbitrary = PoolOwner . BS.pack <$> vector 32
+
+instance Arbitrary StakePoolTicker where
+    arbitrary = unsafeFromText . T.pack <$> do
+        len <- choose (3, 5)
+        replicateM len arbitrary
+
+instance ToSchema ApiStakePool where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePool"
+
+instance ToSchema ApiStakePoolMetrics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePoolMetrics"
 
 {-------------------------------------------------------------------------------
                                   Test data

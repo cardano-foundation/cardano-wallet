@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,8 +14,14 @@
 -- external registry.
 
 module Cardano.Pool.Jormungandr.Metadata
-    ( -- * Fetching metadata
-      MetadataConfig (..)
+    ( -- * Types
+      StakePoolMetadata(..)
+    , ApiStakePool (..)
+    , ApiStakePoolMetrics (..)
+    , sameStakePoolMetadata
+
+      -- * Fetching metadata
+    , MetadataConfig (..)
     , cacheArchive
     , getMetadataConfig
     , getStakePoolMetadata
@@ -36,7 +44,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolOwner (..), StakePoolMetadata (..) )
+    ( PoolId, PoolOwner (..), StakePoolTicker )
 import Codec.Archive.Zip
     ( EntrySelector
     , ZipArchive
@@ -55,13 +63,25 @@ import Control.Monad.IO.Class
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
-    ( eitherDecodeStrict )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , camelTo2
+    , eitherDecodeStrict
+    , fieldLabelModifier
+    , genericParseJSON
+    , genericToJSON
+    , omitNothingFields
+    )
 import Data.Either
     ( isLeft )
 import Data.List
     ( find )
 import Data.Maybe
     ( fromMaybe )
+import Data.Quantity
+    ( Percentage, Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -74,6 +94,8 @@ import Network.HTTP.Client
     ( HttpException, parseUrlThrow )
 import Network.HTTP.Simple
     ( httpSink )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( createDirectoryIfMissing, getModificationTime, removeFile )
 import System.Environment
@@ -83,10 +105,77 @@ import System.FilePath
 import System.IO
     ( IOMode (WriteMode), hTell, withFile )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.Conduit.Combinators as Conduit
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+
+-- | Information about a stake pool, published by a stake pool owner in the
+-- stake pool registry.
+--
+-- The wallet searches for registrations involving the owner, to find metadata
+-- for a given PoolID.
+--
+-- The metadata information is not used directly by cardano-wallet, but rather
+-- passed straight through to API consumers.
+data StakePoolMetadata = StakePoolMetadata
+    { owner :: PoolOwner
+    -- ^ Bech32-encoded ed25519 public key.
+    , ticker :: StakePoolTicker
+    -- ^ Very short human-readable ID for the stake pool.
+    , name :: Text
+    -- ^ Name of the stake pool.
+    , description :: Maybe Text
+    -- ^ Short description of the stake pool.
+    , homepage :: Text
+    -- ^ Absolute URL for the stake pool's homepage link.
+    , pledgeAddress :: Text
+    -- ^ Bech32-encoded address.
+    } deriving (Eq, Show, Generic)
+
+-- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
+sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
+sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
+  where
+    same = PoolOwner mempty
+
+data ApiStakePool = ApiStakePool
+    { id :: !(ApiT PoolId)
+    , metrics :: !ApiStakePoolMetrics
+    , apparentPerformance :: !Double
+    , metadata :: !(Maybe (ApiT StakePoolMetadata))
+    , cost :: !(Quantity "lovelace" Natural)
+    , margin :: !(Quantity "percent" Percentage)
+    , desirability :: !Double
+    , saturation :: !Double
+    } deriving (Eq, Generic, Show)
+
+data ApiStakePoolMetrics = ApiStakePoolMetrics
+    { controlledStake :: !(Quantity "lovelace" Natural)
+    , producedBlocks :: !(Quantity "block" Natural)
+    } deriving (Eq, Generic, Show)
+
+instance FromJSON (ApiT StakePoolMetadata) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT StakePoolMetadata) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON ApiStakePool where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiStakePool where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiStakePoolMetrics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiStakePoolMetrics where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+defaultRecordTypeOptions :: Aeson.Options
+defaultRecordTypeOptions = Aeson.defaultOptions
+    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+    , omitNothingFields = True
+    }
 
 {-------------------------------------------------------------------------------
                        Fetching metadata from a registry

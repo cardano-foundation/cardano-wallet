@@ -49,8 +49,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
-    , ApiJormungandrStakePool (..)
-    , ApiJormungandrStakePoolMetrics (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -294,8 +292,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
-            jsonRoundtripAndGolden $ Proxy @ApiJormungandrStakePool
-            jsonRoundtripAndGolden $ Proxy @ApiJormungandrStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
@@ -361,8 +357,6 @@ spec = do
         \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
         validateEveryToJSON
             (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
-        validateEveryToJSON
-            (Proxy :: Proxy (Api ('Testnet 0) ApiJormungandrStakePool))
         -- NOTE See (ToSchema WalletOrAccountPostData)
         validateEveryToJSON
             (Proxy :: Proxy (
@@ -1018,31 +1012,12 @@ instance Arbitrary ApiStakePoolMetrics where
         <*> (choose (0.0, 5.0))
         <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
 
-instance Arbitrary ApiJormungandrStakePoolMetrics where
-    arbitrary = do
-        stakes <- Quantity . fromIntegral <$> choose (1::Integer, 1_000_000_000_000)
-        blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
-        pure $ ApiJormungandrStakePoolMetrics stakes blocks
-
-instance Arbitrary ApiJormungandrStakePool where
-    arbitrary = ApiJormungandrStakePool
-        <$> arbitrary
-        <*> arbitrary
-        <*> choose (0.0, 5.0)
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> choose (0.0, 100.0)
-        <*> choose (0.0, 2.0)
-
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
         <$> arbitrary
-        <*> arbitrary
         <*> arbitraryText 50
         <*> arbitraryMaybeText 255
         <*> arbitraryText 100
-        <*> arbitraryText 50
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)
@@ -1407,12 +1382,6 @@ instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"
 
 instance ToSchema ApiStakePoolMetrics where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
-
-instance ToSchema ApiJormungandrStakePool where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePool"
-
-instance ToSchema ApiJormungandrStakePoolMetrics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePoolMetrics"
 
 instance ToSchema ApiFee where

@@ -63,9 +63,7 @@ import Data.Map.Strict
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
-import Data.Text.Class
-    ( toText )
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -91,7 +89,7 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , metadata :: !(Map (SlotId, PoolId) (Percentage, Quantity "lovelace" Word64))
+    , metadata :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain metadata associated with pools
 
     , seed :: !SystemSeed
@@ -173,30 +171,15 @@ mPutPoolRegistration :: SlotId -> PoolRegistrationCertificate -> ModelPoolOp ()
 mPutPoolRegistration sl registration db@PoolDatabase{owners,metadata} =
     ( Right ()
     , db { owners = Map.insert poolId poolOwners owners
-         , metadata = Map.insert (sl, poolId) (poolMargin, poolCost) metadata
+         , metadata = Map.insert (sl, poolId) registration metadata
          }
     )
   where
-    PoolRegistrationCertificate
-        { poolId
-        , poolOwners
-        , poolCost
-        , poolMargin
-        } = registration
+    PoolRegistrationCertificate { poolId , poolOwners } = registration
 
 mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
-mReadPoolRegistration poolId db@PoolDatabase{owners, metadata} =
-    ( Right $
-        case Map.lookupMax $ Map.filterWithKey (only poolId) metadata of
-            Nothing -> Nothing
-            Just (_, (poolMargin, poolCost)) ->
-                let poolOwners = maybe [] (L.sortOn toText) $ Map.lookup poolId owners
-                in Just PoolRegistrationCertificate
-                    { poolId
-                    , poolOwners
-                    , poolMargin
-                    , poolCost
-                    }
+mReadPoolRegistration poolId db@PoolDatabase{metadata} =
+    ( Right $ fmap snd $ Map.lookupMax $ Map.filterWithKey (only poolId) metadata
     , db
     )
   where

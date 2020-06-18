@@ -185,30 +185,54 @@ newDBLayer trace fp = do
             , poolOwners
             , poolMargin
             , poolCost
+            , poolPledge
+            , poolMetadata
             } -> do
             let poolMarginN = fromIntegral $ numerator $ getPercentage poolMargin
             let poolMarginD = fromIntegral $ denominator $ getPercentage poolMargin
             let poolCost_ = getQuantity poolCost
+            let poolPledge_ = getQuantity poolPledge
+            let poolMetadataUrl = fst <$> poolMetadata
+            let poolMetadataHash = snd <$> poolMetadata
             insert_ $ PoolRegistration
                     poolId
                     point
                     poolMarginN
                     poolMarginD
                     poolCost_
+                    poolPledge_
+                    poolMetadataUrl
+                    poolMetadataHash
             insertMany_ $ zipWith (PoolOwner poolId) poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
             selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
-                    let (PoolRegistration _ _ marginNum marginDen poolCost_) = entityVal meta
+                    let PoolRegistration
+                            _poolId
+                            _point
+                            marginNum
+                            marginDen
+                            poolCost_
+                            poolPledge_
+                            poolMetadataUrl
+                            poolMetadataHash = entityVal meta
                     let poolMargin = unsafeMkPercentage $ toRational $ marginNum % marginDen
                     let poolCost = Quantity poolCost_
+                    let poolPledge = Quantity poolPledge_
+                    let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
                         [ PoolOwnerPoolId ==. poolId ]
                         [ Asc PoolOwnerIndex ]
                     pure $ Just $ PoolRegistrationCertificate
-                        { poolId, poolOwners, poolMargin, poolCost }
+                        { poolId
+                        , poolOwners
+                        , poolMargin
+                        , poolCost
+                        , poolPledge
+                        , poolMetadata
+                        }
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
@@ -240,6 +264,7 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter StakeDistribution])
+            deleteWhere ([] :: [Filter PoolMetadata])
 
         , atomically = runQuery
         })

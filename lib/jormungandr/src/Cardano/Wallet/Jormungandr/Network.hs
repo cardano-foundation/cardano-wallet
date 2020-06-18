@@ -309,6 +309,9 @@ mkRawNetworkLayer np batchSize st j = NetworkLayer
     , initCursor =
         _initCursor
 
+    , destroyCursor =
+        const (pure ())
+
     , cursorSlotId =
         _cursorSlotId
 

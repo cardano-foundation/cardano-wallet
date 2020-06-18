@@ -40,8 +40,8 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
-    , ApiJormungandrStakePool
     , ApiNetworkInformation
+    , ApiStakePool
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -358,7 +358,7 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
 
         fmtResult "postTransactionFee " t6
 
-        t7 <- measureApiLogs tvar $ request @[ApiJormungandrStakePool] ctx
+        t7 <- measureApiLogs tvar $ request @[ApiStakePool] ctx
             Link.listJormungandrStakePools Default Empty
 
         fmtResult "listStakePools     " t7

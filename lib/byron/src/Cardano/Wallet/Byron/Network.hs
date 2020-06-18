@@ -49,8 +49,10 @@ import Cardano.Wallet.Byron.Compatibility
     )
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
+import Control.Concurrent
+    ( ThreadId )
 import Control.Concurrent.Async
-    ( async, link )
+    ( Async, async, asyncThreadId, cancel, link )
 import Control.Exception
     ( IOException )
 import Control.Monad
@@ -192,6 +194,7 @@ import qualified Data.Text.Encoding as T
 -- | Network layer cursor for Byron. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Byron) = Cursor
+    (Async ())
     (Point ByronBlock)
     (TQueue m (ChainSyncCmd ByronBlock m))
 
@@ -232,6 +235,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
+            , destroyCursor = _destroyCursor
             , cursorSlotId = _cursorSlotId
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
@@ -248,8 +252,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient gp chainSyncQ
         let handlers = failOnConnectionLost tr
-        link =<< async
-            (connectClient tr handlers client versionData addrInfo)
+        thread <- async (connectClient tr handlers client versionData addrInfo)
+        link thread
         let points = reverse $ genesisPoint :
                 (toPoint getGenesisBlockHash getEpochLength <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
@@ -261,18 +265,22 @@ withNetworkLayer tr np addrInfo versionData action = do
                     $ MsgIntersectionFound
                     $ fromChainHash getGenesisBlockHash
                     $ pointHash intersection
-                pure $ Cursor intersection chainSyncQ
+                pure $ Cursor thread intersection chainSyncQ
             _ -> fail $ unwords
                 [ "initCursor: intersection not found? This can't happen"
                 , "because we always give at least the genesis point."
                 , "Here are the points we gave: " <> show headers
                 ]
 
-    _nextBlocks (Cursor _ chainSyncQ) = do
-        let toCursor point = Cursor point chainSyncQ
+    _destroyCursor (Cursor thread _ _) = do
+        liftIO $ traceWith tr $ MsgDestroyCursor (asyncThreadId thread)
+        cancel thread
+
+    _nextBlocks (Cursor thread _ chainSyncQ) = do
+        let toCursor point = Cursor thread point chainSyncQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor point _) = do
+    _cursorSlotId (Cursor _ point _) = do
         fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance _ =
@@ -572,6 +580,7 @@ data NetworkLayerLog
     | MsgNodeTip W.BlockHeader
     | MsgProtocolParameters W.ProtocolParameters
     | MsgLocalStateQueryError String
+    | MsgDestroyCursor ThreadId
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
@@ -617,6 +626,10 @@ instance ToText NetworkLayerLog where
             [ "Error when querying local state parameters:"
             , T.pack e
             ]
+        MsgDestroyCursor threadId -> T.unwords
+            [ "Destroying cursor connection at"
+            , T.pack (show threadId)
+            ]
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -635,3 +648,4 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgNodeTip{}               -> Debug
         MsgProtocolParameters{}    -> Info
         MsgLocalStateQueryError{}  -> Error
+        MsgDestroyCursor{}         -> Notice

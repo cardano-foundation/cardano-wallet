@@ -12,6 +12,7 @@ import Cardano.Pool.Jormungandr.Metadata
     , MetadataConfig (..)
     , RegistryLog (..)
     , RegistryLogMsg (..)
+    , StakePoolMetadata (..)
     , cacheArchive
     , getMetadataConfig
     , getStakePoolMetadata
@@ -19,7 +20,7 @@ import Cardano.Pool.Jormungandr.Metadata
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolOwner (..), StakePoolMetadata (..), StakePoolTicker )
+    ( PoolOwner (..), StakePoolTicker )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Codec.Archive.Zip

@@ -22,6 +22,8 @@ module Cardano.Wallet.Jormungandr.Api.Server
 
 import Prelude
 
+import Cardano.Pool.Jormungandr.Metadata
+    ( ApiStakePool (..), ApiStakePoolMetrics (..), StakePoolMetadata )
 import Cardano.Pool.Jormungandr.Metrics
     ( ErrListStakePools (..), StakePoolLayer (..) )
 import Cardano.Wallet
@@ -84,12 +86,7 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..)
-    , ApiJormungandrStakePool (..)
-    , ApiJormungandrStakePoolMetrics (..)
-    , ApiT (..)
-    , SomeByronWalletPostData (..)
-    )
+    ( ApiErrorCode (..), ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -103,7 +100,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Coin, StakePool (..), StakePoolMetadata )
+    ( Coin, StakePool (..) )
 import Control.Applicative
     ( liftA2 )
 import Data.Generics.Internal.VL.Lens
@@ -135,7 +132,7 @@ server
     -> jormungandr
     -> StakePoolLayer ErrListStakePools IO
     -> NtpClient
-    -> Server (Api n ApiJormungandrStakePool)
+    -> Server (Api n ApiStakePool)
 server byron icarus jormungandr spl ntp =
          wallets
     :<|> addresses
@@ -178,7 +175,7 @@ server byron icarus jormungandr spl ntp =
              (\_ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
-    stakePools :: Server (StakePools n ApiJormungandrStakePool)
+    stakePools :: Server (StakePools n ApiStakePool)
     stakePools = (listPools spl)
         :<|> joinStakePool jormungandr (knownStakePools spl)
         :<|> quitStakePool jormungandr
@@ -281,18 +278,18 @@ listPools
     => StakePoolLayer e IO
     -> Maybe (ApiT Coin)
     -- ^ Not needed, but there for consistency with haskell node.
-    -> Handler [ApiJormungandrStakePool]
+    -> Handler [ApiStakePool]
 listPools spl _walletId =
-    liftHandler $ map (uncurry mkApiJormungandrStakePool) <$> listStakePools spl
+    liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
   where
-    mkApiJormungandrStakePool
+    mkApiStakePool
         :: StakePool
         -> Maybe StakePoolMetadata
-        -> ApiJormungandrStakePool
-    mkApiJormungandrStakePool sp meta =
-        ApiJormungandrStakePool
+        -> ApiStakePool
+    mkApiStakePool sp meta =
+        ApiStakePool
             (ApiT $ view #poolId sp)
-            (ApiJormungandrStakePoolMetrics
+            (ApiStakePoolMetrics
                 (Quantity $ fromIntegral $ getQuantity $ stake sp)
                 (Quantity $ fromIntegral $ getQuantity $ production sp))
             (sp ^. #performance)

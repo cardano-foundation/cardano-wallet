@@ -143,9 +143,8 @@ module Cardano.Wallet.Primitive.Types
     , StakeDistribution (..)
     , poolIdBytesLength
     , StakePoolMetadata (..)
-    , StakePoolOffChainMetadata (..)
+    , StakePoolMetadataHash (..)
     , StakePoolTicker (..)
-    , sameStakePoolMetadata
 
     -- * Querying
     , SortOrder (..)
@@ -583,18 +582,28 @@ data StakePool = StakePool
     , saturation :: Double
     } deriving (Show, Generic)
 
--- | Information about a stake pool, published by a stake pool owner in the
--- stake pool registry.
+-- | A newtype to wrap metadata hash.
 --
--- The wallet searches for registrations involving the owner, to find metadata
--- for a given PoolID.
+-- NOTE: not using the 'Hash' type as this newtype is primarily for database
+-- interop which doesn't quite like DataKinds.
+newtype StakePoolMetadataHash = StakePoolMetadataHash ByteString
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData StakePoolMetadataHash
+
+instance ToText StakePoolMetadataHash where
+    toText (StakePoolMetadataHash bytes) =
+        toText (Hash bytes)
+
+instance FromText StakePoolMetadataHash where
+    fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
+
+-- | Information about a stake pool.
 --
 -- The metadata information is not used directly by cardano-wallet, but rather
 -- passed straight through to API consumers.
 data StakePoolMetadata = StakePoolMetadata
-    { owner :: PoolOwner
-    -- ^ Bech32-encoded ed25519 public key.
-    , ticker :: StakePoolTicker
+    { ticker :: StakePoolTicker
     -- ^ Very short human-readable ID for the stake pool.
     , name :: Text
     -- ^ Name of the stake pool.
@@ -602,29 +611,7 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
-    , pledgeAddress :: Text
-    -- ^ Bech32-encoded address.
     } deriving (Eq, Show, Generic)
-
--- | A subset of the 'StakePoolMetadata' but with the information that is
--- available off-chain. The 'pledgeAddress' and 'owner' are actually part of the
--- pool registration certificates published on-chain.
-data StakePoolOffChainMetadata = StakePoolOffChainMetadata
-    { ticker :: StakePoolTicker
-    -- ^ Very short human-readable ID for the stake pool.
-    , name :: Text
-    -- ^ Name of the stake pool.
-    , description :: Text
-    -- ^ Short description of the stake pool.
-    , homepage :: Text
-    -- ^ Absolute URL for the stake pool's homepage link.
-    } deriving (Eq, Show, Generic)
-
--- | Returns 'True' iff metadata is exactly equal, modulo 'PoolOwner'.
-sameStakePoolMetadata :: StakePoolMetadata -> StakePoolMetadata -> Bool
-sameStakePoolMetadata a b = a { owner = same } == b { owner = same }
-  where
-    same = PoolOwner mempty
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
@@ -1835,12 +1822,14 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolOwners :: ![PoolOwner]
     , poolMargin :: Percentage
     , poolCost :: Quantity "lovelace" Word64
+    , poolPledge :: Quantity "lovelace" Word64
+    , poolMetadata :: Maybe (Text, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o _ _) = mempty
+    build (PoolRegistrationCertificate p o _ _ _ _) = mempty
         <> "Registration of "
         <> build p
         <> " owned by "

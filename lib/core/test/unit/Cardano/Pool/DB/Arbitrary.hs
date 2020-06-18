@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
+    , StakePoolMetadataHash (..)
     , slotSucc
     , unsafeEpochNo
     )
@@ -51,6 +52,7 @@ import Test.QuickCheck
     , choose
     , elements
     , listOf
+    , oneof
     , scale
     , shrinkIntegral
     , shrinkList
@@ -58,6 +60,7 @@ import Test.QuickCheck
     , vector
     )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
@@ -114,14 +117,26 @@ instance Arbitrary PoolOwner where
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p xs m c) =
-        (\xs' -> PoolRegistrationCertificate p xs' m c)
+    shrink (PoolRegistrationCertificate p xs m c pl md) =
+        (\xs' -> PoolRegistrationCertificate p xs' m c pl md)
             <$> shrinkList (const []) xs
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> scale (`mod` 8) (listOf arbitrary)
         <*> genPercentage
         <*> fmap Quantity arbitrary
+        <*> fmap Quantity arbitrary
+        <*> oneof [pure Nothing, Just <$> genMetadata]
+      where
+        genMetadata = (,)
+            <$> genURL
+            <*> fmap (StakePoolMetadataHash . BS.pack) (vector 32)
+        genURL  = do
+            protocol <- elements [ "http", "https" ]
+            fstP <- elements [ "cardano", "ada", "pool", "staking", "reward" ]
+            sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
+            extP <- elements [ ".io", ".dev", ".com", ".eu" ]
+            pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do

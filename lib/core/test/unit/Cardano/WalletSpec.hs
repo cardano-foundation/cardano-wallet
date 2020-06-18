@@ -652,6 +652,8 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: nextBlocks not implemented"
     , initCursor =
         error "dummyNetworkLayer: initCursor not implemented"
+    , destroyCursor =
+        error "dummyNetworkLayer: destroyCursor not implemented"
     , cursorSlotId =
         error "dummyNetworkLayer: cursorSlotId not implemented"
     , currentNodeTip =

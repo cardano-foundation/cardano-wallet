@@ -50,7 +50,12 @@ import Cardano.BM.Data.Tracer
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
-    ( RegistryLog, getMetadataConfig, getStakePoolMetadata )
+    ( RegistryLog
+    , StakePoolMetadata
+    , getMetadataConfig
+    , getStakePoolMetadata
+    , sameStakePoolMetadata
+    )
 import Cardano.Pool.Jormungandr.Performance
     ( readPoolsPerformances )
 import Cardano.Pool.Jormungandr.Ranking
@@ -78,8 +83,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotId
     , StakePool (..)
-    , StakePoolMetadata (..)
-    , sameStakePoolMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -169,7 +172,7 @@ data StakePoolLayer e m = StakePoolLayer
 -- The pool productions and stake distrubtions in the db can /never/ be from
 -- different forks such that it's safe for readers to access it.
 monitorStakePools
-    :: GetStakeDistribution t IO ~ GetStakeDistribution Jormungandr IO
+    :: (GetStakeDistribution t IO ~ GetStakeDistribution Jormungandr IO)
     => Tracer IO StakePoolLog
     -> (Block, Quantity "block" Word32)
         -- ^ Genesis block and 'k'

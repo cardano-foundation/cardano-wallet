@@ -47,8 +47,6 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
-    , ApiJormungandrStakePool (..)
-    , ApiJormungandrStakePoolMetrics (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -163,7 +161,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , StakePoolMetadata
-    , StakePoolOffChainMetadata
     , StartTime (..)
     , SyncProgress (..)
     , TxIn (..)
@@ -405,22 +402,6 @@ data ApiStakePoolMetrics = ApiStakePoolMetrics
     { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
     , relativeStake :: !(Quantity "percent" Percentage)
     , saturation :: !Double
-    , producedBlocks :: !(Quantity "block" Natural)
-    } deriving (Eq, Generic, Show)
-
-data ApiJormungandrStakePool = ApiJormungandrStakePool
-    { id :: !(ApiT PoolId)
-    , metrics :: !ApiJormungandrStakePoolMetrics
-    , apparentPerformance :: !Double
-    , metadata :: !(Maybe (ApiT StakePoolMetadata))
-    , cost :: !(Quantity "lovelace" Natural)
-    , margin :: !(Quantity "percent" Percentage)
-    , desirability :: !Double
-    , saturation :: !Double
-    } deriving (Eq, Generic, Show)
-
-data ApiJormungandrStakePoolMetrics = ApiJormungandrStakePoolMetrics
-    { controlledStake :: !(Quantity "lovelace" Natural)
     , producedBlocks :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -1084,16 +1065,6 @@ instance FromJSON ApiStakePoolMetrics where
 instance ToJSON ApiStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiJormungandrStakePool where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiJormungandrStakePool where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON ApiJormungandrStakePoolMetrics where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiJormungandrStakePoolMetrics where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
 instance ToJSON (ApiT WalletName) where
@@ -1236,11 +1207,6 @@ instance ToJSON ApiNetworkClock where
 instance FromJSON (ApiT StakePoolMetadata) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
 instance ToJSON (ApiT StakePoolMetadata) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
-instance FromJSON (ApiT StakePoolOffChainMetadata) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT StakePoolOffChainMetadata) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
 instance FromJSON (ApiT StartTime) where
