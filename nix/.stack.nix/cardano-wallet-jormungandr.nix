@@ -45,7 +45,6 @@
           (hsPkgs."conduit" or (errorHandler.buildDepError "conduit"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."either" or (errorHandler.buildDepError "either"))
