@@ -514,7 +514,35 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   minimum: 0
   example: 0.5053763440860215
 
+
 x-stakePoolMetadata: &stakePoolMetadata
+  description: |
+    Information about the stake pool.
+  type: object
+  required:
+    - ticker
+    - name
+    - homepage
+  additionalProperties: false
+  properties:
+    ticker:
+      type: string
+      minLength: 3
+      maxLength: 5
+      example: IOHK
+    name:
+      type: string
+      minLength: 1
+      maxLength: 50
+    description:
+      type: string
+      maxLength: 255
+    homepage:
+      type: string
+      format: uri
+      example: https://iohk.io
+
+x-jormungandrStakePoolMetadata: &jormungandrStakePoolMetadata
   description: |
     Information about the stake pool.
   type: object
@@ -808,7 +836,7 @@ components:
         apparent_performance: *stakePoolApparentPerformance
         cost: *stakePoolCost
         margin: *stakePoolMargin
-        metadata: *stakePoolMetadata
+        metadata: *jormungandrStakePoolMetadata
         saturation: *stakePoolSaturation
         desirability: *stakePoolDesirability
 
