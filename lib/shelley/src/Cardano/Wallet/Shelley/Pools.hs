@@ -89,7 +89,7 @@ import Data.Text.Class
 import Data.Word
     ( Word64 )
 import Fmt
-    ( pretty )
+    ( fixedF, pretty )
 import GHC.Generics
     ( Generic )
 
@@ -340,5 +340,5 @@ instance ToText StakePoolLog where
             ]
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, back to it in about "
-            , T.pack (show delay), "ms"
+            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]
