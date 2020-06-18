@@ -82,6 +82,8 @@ import Control.Monad
     ( forM )
 import Crypto.Error
     ( throwCryptoError )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -98,12 +100,18 @@ import Ouroboros.Network.Block
     ( SlotNo )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.CBOR.Read as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
@@ -219,13 +227,25 @@ _decodeSignedTx
     -> Either ErrDecodeSignedTx (Tx, SealedTx)
 _decodeSignedTx bytes = do
     case Cardano.txSignedFromCBOR bytes of
-        Right (Cardano.TxSignedShelley txValid) -> pure $ toSealed txValid
+        Right (Cardano.TxSignedShelley txValid) ->
+            pure $ toSealed txValid
         Right (Cardano.TxSignedByron{}) ->
-            Left $ ErrDecodeSignedTxWrongPayload
-            "TO_DO"
+            case CBOR.deserialiseFromBytes CBOR.decodeSignedTx (BL.fromStrict bytes) of
+                Left e ->
+                    Left $ ErrDecodeSignedTxWrongPayload $ T.pack $ show e
+                Right (_, ((inps, outs), _)) -> Right
+                    ( W.Tx
+                        { W.txId = Hash
+                            $ blake2b256
+                            $ CBOR.toStrictByteString
+                            $ CBOR.encodeTx (inps, outs)
+                        , W.resolvedInputs = (,Coin 0) <$> inps
+                        , W.outputs = outs
+                        }
+                    , SealedTx bytes
+                    )
         Left apiErr ->
-            Left $ ErrDecodeSignedTxWrongPayload
-            (Cardano.renderApiError apiErr)
+            Left $ ErrDecodeSignedTxWrongPayload (Cardano.renderApiError apiErr)
 
 _minimumFee
     :: FeePolicy
