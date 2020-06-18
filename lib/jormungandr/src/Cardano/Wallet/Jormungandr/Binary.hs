@@ -366,17 +366,19 @@ getFragment = label "getFragment" $ do
     let typeLabelStr = "fragmentType " ++ show fragSpec
 
     label typeLabelStr $ isolate remaining $ case fragSpec of
-        0 -> Initial <$> getInitial
-        1 -> Transaction <$> getLegacyTransaction fragId
-        2 -> Transaction <$> getTransaction fragId
-        3 -> unimpl -- OwnerStakeDelegation
-        4 -> lookAheadM (getStakeDelegation fragId)
-            >>= maybe unimpl (pure . StakeDelegation)
-        5 -> PoolRegistration <$> getPoolRegistration fragId
-        6 -> unimpl -- PoolRetirement
-        7 -> unimpl -- PoolUpdate
-        8 -> unimpl -- UpdateProposal
-        9 -> unimpl -- UpdateVote
+        0  -> Initial <$> getInitial
+        1  -> Transaction <$> getLegacyTransaction fragId
+        2  -> Transaction <$> getTransaction fragId
+        3  -> unimpl -- OwnerStakeDelegation
+        4  -> lookAheadM (getStakeDelegation fragId) >>= maybe unimpl (pure . StakeDelegation)
+        5  -> PoolRegistration <$> getPoolRegistration fragId
+        6  -> unimpl -- PoolRetirement
+        7  -> unimpl -- PoolUpdate
+        8  -> unimpl -- UpdateProposal
+        9  -> unimpl -- UpdateVote
+        10 -> unimpl -- VotePlan
+        11 -> unimpl -- VoteCast
+        12 -> unimpl -- VoteTally
         other -> fail $ "Unexpected content type tag " ++ show other
 
 -- | Decode the contents of a @Initial@-fragment.
@@ -778,7 +780,8 @@ getConfigParam = label "getConfigParam" $ do
     let tag = taglen `shift` (-6)
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     let unimpl = skip len >> return (UnimplementedConfigParam tag)
-    isolate len $ case tag of
+    let lbl = "tag: " <> show tag <> "(" <> show len <> " bytes)"
+    label lbl $ isolate len $ case tag of
         1 -> ConfigDiscrimination <$> getDiscrimination
         2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral
             <$> getWord64be
@@ -804,6 +807,9 @@ getConfigParam = label "getConfigParam" $ do
         23 -> pure (ConfigRewardLimit RewardLimitNone)
         24 -> ConfigRewardLimit . RewardLimitByAbsoluteStake <$> getRatio
         25 -> ConfigPoolCapping <$> getPoolCapping
+        26 -> unimpl -- add committee id
+        27 -> unimpl -- remove committee id
+        28 -> unimpl -- per vote certificate fee
         other -> fail $ "Invalid config param with tag " ++ show other
   where
     -- NOTE
