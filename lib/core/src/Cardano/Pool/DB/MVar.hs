@@ -25,6 +25,7 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanPoolProduction
     , mListRegisteredPools
+    , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
     , mPutStakeDistribution
@@ -35,6 +36,7 @@ import Cardano.Pool.DB.Model
     , mReadSystemSeed
     , mReadTotalProduction
     , mRollbackTo
+    , mUnfetchedPoolMetadataRefs
     )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
@@ -81,8 +83,14 @@ newDBLayer = do
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
 
+        , unfetchedPoolMetadataRefs =
+            readPoolDB db . mUnfetchedPoolMetadataRefs
+
         , listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)
+
+        , putPoolMetadata = \a0 a1 a2 ->
+            void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1 a2)
 
         , readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)
