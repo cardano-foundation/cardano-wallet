@@ -25,6 +25,7 @@ let
         inherit name version installPhase;
         phases = [ "installPhase" ];
         nativeBuildInputs = nativeBuildInputs ++ [ haskellBuildUtils pkgs.buildPackages.nix ];
+        passthru.backend = jormungandr;
         meta.platforms = platforms.all;
       };
 
