@@ -37,6 +37,7 @@ module Cardano.Pool.DB.Model
     , mReadTotalProduction
     , mPutStakeDistribution
     , mReadStakeDistribution
+    , mReadPoolMetadata
     , mPutPoolRegistration
     , mReadPoolRegistration
     , mUnfetchedPoolMetadataRefs
@@ -227,6 +228,10 @@ mPutPoolMetadata _ hash meta db@PoolDatabase{metadata} =
     ( Right ()
     , db { metadata = Map.insert hash meta metadata }
     )
+
+mReadPoolMetadata
+    :: ModelPoolOp (Map StakePoolMetadataHash StakePoolMetadata)
+mReadPoolMetadata db@PoolDatabase{metadata} = (Right metadata, db)
 
 mReadSystemSeed
     :: PoolDatabase
