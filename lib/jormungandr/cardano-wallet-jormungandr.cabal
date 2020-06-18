@@ -46,7 +46,6 @@ library
     , conduit
     , containers
     , contra-tracer
-    , cryptonite
     , deepseq
     , directory
     , either

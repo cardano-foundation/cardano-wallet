@@ -7,7 +7,6 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..)
-    , genStakePoolTicker
     , genStakePoolMetadata
     ) where
 

@@ -45,7 +45,6 @@ library
     , cborg
     , containers
     , contra-tracer
-    , cryptonite
     , directory
     , either
     , extra
