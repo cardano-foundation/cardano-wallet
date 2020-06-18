@@ -251,7 +251,7 @@ monitorMetadata
     -> DBLayer IO
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
-    refs <- atomically unfetchedPoolMetadataRefs
+    refs <- atomically (unfetchedPoolMetadataRefs 100)
 
     successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
         traceWith tr $ MsgFetchPoolMetadata pid url

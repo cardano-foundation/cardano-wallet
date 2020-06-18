@@ -113,10 +113,13 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- ^ Find a registration certificate associated to a given pool
 
     , unfetchedPoolMetadataRefs
-        :: stm [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
+        :: Int
+        -> stm [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
         -- ^ Read the list of metadata remaining to fetch from remote server,
         -- possibly empty if every pool already has an associated metadata
         -- cached.
+        --
+        -- It returns at most `n` results, where `n` is the first argument.
 
     , listRegisteredPools
         :: stm [PoolId]

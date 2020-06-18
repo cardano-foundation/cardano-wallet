@@ -18,7 +18,7 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
-    ( StakePoolsFixture (..) )
+    ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
@@ -33,7 +33,7 @@ import Cardano.Wallet.Unsafe
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_, replicateM, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -72,7 +72,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Positive (..), Property, classify, counterexample, property )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( PropertyM, assert, monadicIO, monitor, pick, run )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L
@@ -140,10 +140,19 @@ properties = do
             (property . prop_listRegisteredPools)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
+        it "unfetchedPoolMetadataRefs"
+            (property . prop_unfetchedPoolMetadataRefs)
 
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
+
+-- | Like 'assert', but allow giving a label / title before running a assertion
+assertWith :: String -> Bool -> PropertyM IO ()
+assertWith lbl condition = do
+    let flag = if condition then "✓" else "✗"
+    monitor (counterexample $ lbl <> " " <> flag)
+    assert condition
 
 -- | Can read put pool production
 prop_putReadPoolProduction
@@ -451,6 +460,45 @@ prop_listRegisteredPools DBLayer {..} entries =
             [ "Read from DB: " <> show pools
             ]
         assert (pools == (poolId <$> reverse entries))
+
+prop_unfetchedPoolMetadataRefs
+    :: DBLayer IO
+    -> [PoolRegistrationCertificate]
+    -> Property
+prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
+    monadicIO (setup >> propWellFormedResult >> propInteractionWithPutPoolMetadata)
+  where
+    setup = do
+        run . atomically $ cleanDB
+        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
+        monitor $ classify (length entries > 10) "10+ entries"
+        monitor $ classify (length entries > 50) "50+ entries"
+
+    propWellFormedResult = do
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
+        monitor $ counterexample $ unlines
+            [ "Read from DB (" <> show (length refs) <> "): " <> show refs
+            ]
+        assertWith "fewer unfetchedPoolMetadataRefs than registrations"
+            (length refs <= length entries)
+        assertWith "all pool ids are indeed known"
+            (all (\(pid,_,_) -> pid `elem` (poolId <$> entries)) refs)
+        assertWith "no duplicate"
+            (L.nub refs == refs)
+
+    propInteractionWithPutPoolMetadata = do
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
+        unless (null refs) $ do
+            let [(poolId, url, hash)] = take 1 refs
+            metadata <- pick $ genStakePoolMetadata url
+            run . atomically $ putPoolMetadata poolId hash metadata
+            refs' <- run . atomically $ unfetchedPoolMetadataRefs 10
+            monitor $ counterexample $ unlines
+                [ "Read from DB (" <> show (length refs') <> "): " <> show refs'
+                ]
+            assertWith "fetching metadata removes it from unfetchedPoolMetadataRefs"
+                (hash `notElem` ((\(_,_,c) -> c) <$> refs'))
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

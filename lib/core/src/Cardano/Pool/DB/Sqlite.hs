@@ -245,7 +245,8 @@ newDBLayer trace fp = do
                         , poolMetadata
                         }
 
-        , unfetchedPoolMetadataRefs = do
+        , unfetchedPoolMetadataRefs = \limit -> do
+            let nLimit = T.pack (show limit)
             let fields = T.intercalate ", "
                     [ fieldName (DBField PoolRegistrationPoolId)
                     , fieldName (DBField PoolRegistrationMetadataUrl)
@@ -258,7 +259,7 @@ newDBLayer trace fp = do
                     [ "SELECT", fields, "FROM", registrations
                     , "WHERE", metadataHash, "NOT", "IN"
                     , "(", "SELECT", metadataHash, "FROM", metadata, ")"
-                    , "LIMIT 100"
+                    , "LIMIT", nLimit
                     , ";"
                     ]
 
