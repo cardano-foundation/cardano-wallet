@@ -188,7 +188,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (<=<), (>=>) )
+    ( guard, (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -196,7 +196,7 @@ import Crypto.Number.Generate
 import Crypto.Random.Types
     ( MonadRandom )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray
@@ -626,6 +626,21 @@ data StakePoolMetadata = StakePoolMetadata
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
     } deriving (Eq, Show, Generic)
+
+instance FromJSON StakePoolMetadata where
+    parseJSON = withObject "StakePoolMetadta" $ \obj -> do
+        ticker <- obj .: "ticker"
+
+        name <- obj .: "name"
+        guard (T.length name <= 50)
+
+        description <- obj .:? "description"
+        guard ((T.length <$> description) <= Just 250)
+
+        homepage <- obj .: "homepage"
+        guard (T.length homepage <= 100)
+
+        pure $ StakePoolMetadata{ticker,name,description,homepage}
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }

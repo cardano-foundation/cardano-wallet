@@ -54,6 +54,8 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
+import Cardano.Pool.Metadata
+    ( defaultManagerSettings, fetchFromRemote, newManager )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -108,7 +110,12 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
-    ( StakePoolLayer (..), StakePoolLog, monitorStakePools, newStakePoolLayer )
+    ( StakePoolLayer (..)
+    , StakePoolLog
+    , monitorMetadata
+    , monitorStakePools
+    , newStakePoolLayer
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Transaction
@@ -285,6 +292,8 @@ serveWallet
     withPoolsMonitoring dir gp nl action =
         Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) $ \db -> do
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
+            fetch <- fetchFromRemote <$> newManager defaultManagerSettings
+            void $ forkFinally (monitorMetadata tr gp fetch db) onExit
             action
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
