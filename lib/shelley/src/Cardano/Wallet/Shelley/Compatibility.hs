@@ -511,7 +511,7 @@ fromGenesisData g =
             , getEpochStability =
                 Quantity . fromIntegral . sgSecurityParam $ g
             , getActiveSlotCoefficient =
-                W.ActiveSlotCoefficient 1.0
+                W.ActiveSlotCoefficient . sgActiveSlotsCoeff $ g
             }
         , protocolParameters = fromPParams . sgProtocolParams $ g
         }
