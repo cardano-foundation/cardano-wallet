@@ -75,10 +75,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
-import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.Aeson
     ( eitherDecode, toJSON, (.=) )
 import Data.ByteArray.Encoding
@@ -134,7 +132,6 @@ import Test.Utils.StaticServer
     ( withStaticServer )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -525,7 +522,7 @@ issuePoolCert dir opPub vrfPub stakePub baseURL metadata = do
         , "--pool-reward-account-verification-key-file", stakePub
         , "--pool-owner-stake-verification-key-file", stakePub
         , "--metadata-url", baseURL </> "metadata.json"
-        , "--metadata-hash", blake2b256 (BL.toStrict bytes)
+        , "--metadata-hash", blake2b256S (BL.toStrict bytes)
         , "--mainnet"
         , "--out-file", file
         ]
@@ -854,13 +851,12 @@ cartouche = T.unlines
     ]
 
 -- | Hash a ByteString using blake2b_256 and encode it in base16
-blake2b256 :: ByteString -> String
-blake2b256 =
+blake2b256S :: ByteString -> String
+blake2b256S =
     T.unpack
     . T.decodeUtf8
     . convertToBase Base16
-    . BA.convert @_ @ByteString
-    . hash @_ @Blake2b_256
+    . blake2b256
 
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.

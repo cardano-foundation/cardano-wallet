@@ -62,10 +62,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( forM, when )
-import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -88,7 +86,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -273,10 +270,6 @@ mkWitness (ProtocolMagic pm) sigData (xPrv, Passphrase pwd) =
         , CBOR.toStrictByteString (CBOR.encodeInt32 pm)
         , CBOR.toStrictByteString (CBOR.encodeBytes sigData)
         ]
-
-blake2b256 :: ByteString -> ByteString
-blake2b256 =
-    BA.convert . hash @_ @Blake2b_256
 
 notImplemented :: HasCallStack => String -> a
 notImplemented what = error ("Not implemented: " <> what)

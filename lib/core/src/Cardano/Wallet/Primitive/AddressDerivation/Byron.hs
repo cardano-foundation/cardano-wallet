@@ -85,7 +85,9 @@ import Control.Monad
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_256, SHA512 (..) )
+    ( SHA512 (..) )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
@@ -253,13 +255,9 @@ unsafeGenerateKeyFromSeed derivationPath (SomeMnemonic mw) (Passphrase pwd) = By
 -- 2. Seeds for redeeming paper wallets. The seed entropy is hashed using
 --    Blake2b_256, without any serialization.
 hashSeed :: ScrubbedBytes -> ScrubbedBytes
-hashSeed = serialize . blake2b256 . serialize
+hashSeed = BA.convert . cbor . blake2b256 . cbor . BA.convert
   where
-    serialize = BA.convert . cbor . BA.convert
     cbor = CBOR.toStrictByteString . CBOR.encodeBytes
-
-blake2b256 :: ScrubbedBytes -> ScrubbedBytes
-blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
 
 -- | Derive a symmetric key for encrypting and authenticating the address
 -- derivation path. PBKDF2 encryption using HMAC with the hash algorithm SHA512
