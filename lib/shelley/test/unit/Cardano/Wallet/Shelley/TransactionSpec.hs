@@ -123,7 +123,7 @@ instance Arbitrary TxOut where
 
 instance Arbitrary UTxO where
     arbitrary = do
-        n <- choose (1,100)
+        n <- choose (1,10)
         inps <- vectorOf n arbitrary
         let addr = Address $ BS.pack (1:replicate 64 0)
         coins <- vectorOf n arbitrary
