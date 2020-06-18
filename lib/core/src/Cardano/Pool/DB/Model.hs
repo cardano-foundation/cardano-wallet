@@ -40,6 +40,8 @@ module Cardano.Pool.DB.Model
     , mReadStakeDistribution
     , mPutPoolRegistration
     , mReadPoolRegistration
+    , mUnfetchedPoolMetadataRefs
+    , mPutPoolMetadata
     , mListRegisteredPools
     , mReadSystemSeed
     , mRollbackTo
@@ -55,6 +57,9 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
     )
 import Data.Foldable
     ( fold )
@@ -89,8 +94,11 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , metadata :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
-    -- ^ On-chain metadata associated with pools
+    , registrations :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
+    -- ^ On-chain registrations associated with pools
+
+    , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
+    -- ^ Off-chain metadata cached in database
 
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
@@ -109,7 +117,7 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty NotSeededYet
+emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -168,26 +176,58 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     )
 
 mPutPoolRegistration :: SlotId -> PoolRegistrationCertificate -> ModelPoolOp ()
-mPutPoolRegistration sl registration db@PoolDatabase{owners,metadata} =
+mPutPoolRegistration sl registration db@PoolDatabase{owners,registrations} =
     ( Right ()
     , db { owners = Map.insert poolId poolOwners owners
-         , metadata = Map.insert (sl, poolId) registration metadata
+         , registrations = Map.insert (sl, poolId) registration registrations
          }
     )
   where
     PoolRegistrationCertificate { poolId , poolOwners } = registration
 
 mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
-mReadPoolRegistration poolId db@PoolDatabase{metadata} =
-    ( Right $ fmap snd $ Map.lookupMax $ Map.filterWithKey (only poolId) metadata
+mReadPoolRegistration poolId db@PoolDatabase{registrations} =
+    ( Right $ fmap snd $ Map.lookupMax $ Map.filterWithKey (only poolId) registrations
     , db
     )
   where
     only k (_, k') _ = k == k'
 
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
-mListRegisteredPools db@PoolDatabase{metadata} =
-    ( snd <$> Map.keys metadata, db )
+mListRegisteredPools db@PoolDatabase{registrations} =
+    ( snd <$> Map.keys registrations, db )
+
+mUnfetchedPoolMetadataRefs
+    :: Int
+    -> ModelPoolOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
+mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
+    ( Right (toTriple <$> take n (Map.elems unfetched))
+    , db
+    )
+  where
+    unfetched :: Map (SlotId, PoolId) PoolRegistrationCertificate
+    unfetched = flip Map.filter registrations $ \r ->
+        case poolMetadata r of
+            Nothing -> False
+            Just (_, hash) -> hash `notElem` Map.keys metadata
+
+    toTriple
+        :: PoolRegistrationCertificate
+        -> (PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)
+    toTriple PoolRegistrationCertificate{poolId,poolMetadata} =
+        (poolId, metadataUrl, metadataHash)
+      where
+        Just (metadataUrl, metadataHash) = poolMetadata
+
+mPutPoolMetadata
+    :: PoolId
+    -> StakePoolMetadataHash
+    -> StakePoolMetadata
+    -> ModelPoolOp ()
+mPutPoolMetadata _ hash meta db@PoolDatabase{metadata} =
+    ( Right ()
+    , db { metadata = Map.insert hash meta metadata }
+    )
 
 mReadSystemSeed
     :: PoolDatabase
@@ -208,19 +248,20 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions, owners, metadata, seed} =
+mRollbackTo point PoolDatabase{pools, distributions, owners, registrations, metadata, seed} =
     let
-        metadata' = Map.mapMaybeWithKey (discardBy id . fst) metadata
+        registrations' = Map.mapMaybeWithKey (discardBy id . fst) registrations
         owners' = Map.restrictKeys owners
             $ Set.fromList
-            $ snd <$> Map.keys metadata'
+            $ snd <$> Map.keys registrations'
     in
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
             , distributions = Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
-            , metadata = metadata'
+            , registrations = registrations'
+            , metadata
             , seed
             }
         )

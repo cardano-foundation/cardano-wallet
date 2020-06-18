@@ -28,13 +28,16 @@ module Cardano.Pool.DB.Sqlite
 import Prelude
 
 import Cardano.DB.Sqlite
-    ( DBLog (..)
+    ( DBField (..)
+    , DBLog (..)
     , ManualMigration (..)
     , MigrationError (..)
     , SqliteContext (..)
     , destroyDBLayer
+    , fieldName
     , handleConstraint
     , startSqliteBackend
+    , tableName
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
@@ -46,6 +49,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , StakePoolMetadata (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -57,6 +61,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, traceWith )
+import Data.Either
+    ( rights )
 import Data.List
     ( foldl' )
 import Data.Map.Strict
@@ -71,9 +77,13 @@ import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
+    , Single (..)
     , deleteWhere
+    , fromPersistValue
     , insertMany_
     , insert_
+    , putMany
+    , rawSql
     , selectFirst
     , selectList
     , (<.)
@@ -93,6 +103,7 @@ import System.Random
 import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
 -- parent directory.
@@ -233,6 +244,35 @@ newDBLayer trace fp = do
                         , poolPledge
                         , poolMetadata
                         }
+
+        , unfetchedPoolMetadataRefs = \limit -> do
+            let nLimit = T.pack (show limit)
+            let fields = T.intercalate ", "
+                    [ fieldName (DBField PoolRegistrationPoolId)
+                    , fieldName (DBField PoolRegistrationMetadataUrl)
+                    , fieldName (DBField PoolRegistrationMetadataHash)
+                    ]
+            let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
+            let registrations = tableName (DBField PoolRegistrationPoolId)
+            let metadata = tableName (DBField PoolMetadataPoolId)
+            let query = T.unwords
+                    [ "SELECT", fields, "FROM", registrations
+                    , "WHERE", metadataHash, "NOT", "IN"
+                    , "(", "SELECT", metadataHash, "FROM", metadata, ")"
+                    , "LIMIT", nLimit
+                    , ";"
+                    ]
+
+            let safeCast (Single a, Single b, Single c) = (,,)
+                    <$> fromPersistValue a
+                    <*> fromPersistValue b
+                    <*> fromPersistValue c
+
+            rights . fmap safeCast <$> rawSql query []
+
+        , putPoolMetadata = \poolId hash metadata -> do
+            let StakePoolMetadata{ticker,name,description,homepage} = metadata
+            putMany [PoolMetadata hash poolId name ticker description homepage]
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]

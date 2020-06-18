@@ -24,7 +24,6 @@ import Cardano.Wallet.Jormungandr.Binary
     , StakeDelegationType (..)
     , TaxParameters (..)
     , TxWitnessTag (..)
-    , blake2b256
     , getBlock
     , getBlockHeader
     , getFragment
@@ -64,6 +63,8 @@ import Control.Monad
     ( forM_, void )
 import Control.Monad.Loops
     ( whileM )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.Binary.Get as Get
     ( getWord16be, isEmpty, isolate, label )
 import Data.Either

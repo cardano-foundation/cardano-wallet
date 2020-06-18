@@ -109,8 +109,8 @@ import Control.Applicative
     ( (<|>) )
 import Control.Monad
     ( when )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 (..) )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -177,8 +177,6 @@ import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
-import qualified Crypto.Hash as Crypto
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
@@ -513,7 +511,7 @@ fromGenesisData g =
             , getEpochStability =
                 Quantity . fromIntegral . sgSecurityParam $ g
             , getActiveSlotCoefficient =
-                W.ActiveSlotCoefficient 1.0
+                W.ActiveSlotCoefficient . sgActiveSlotsCoeff $ g
             }
         , protocolParameters = fromPParams . sgProtocolParams $ g
         }
@@ -694,9 +692,9 @@ fromShelleyRegistrationCert = \case
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
 
-fromPoolMetaData :: SL.PoolMetaData -> (Text, W.StakePoolMetadataHash)
+fromPoolMetaData :: SL.PoolMetaData -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetaData meta =
-    ( urlToText (SL._poolMDUrl meta)
+    ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
     , W.StakePoolMetadataHash (SL._poolMDHash meta)
     )
 
@@ -903,7 +901,3 @@ instance Buildable W.ChimericAccount where
 --
 invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
 invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue
-
--- | Hash a bytestring using Blake2b_256
-blake2b256 :: ByteString -> ByteString
-blake2b256 = BA.convert . Crypto.hash @_ @Blake2b_256

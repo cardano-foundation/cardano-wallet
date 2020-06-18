@@ -57,6 +57,7 @@ library
     , foldl
     , generic-lens
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , io-sim-classes
@@ -114,6 +115,7 @@ library
       Cardano.Pool.DB.Model
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
+      Cardano.Pool.Metadata
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Client
@@ -151,6 +153,7 @@ library
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
+      Crypto.Hash.Utils
       Data.Binary.Get.Safe
       Data.Function.Utils
       Data.Time.Text

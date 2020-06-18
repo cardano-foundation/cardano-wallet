@@ -78,6 +78,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
@@ -126,10 +127,8 @@ spec = do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                    (#balance . #getApiT . #total)
-                    $ between
-                    ( Quantity $ faucetAmt - feeMin - amt
-                    , Quantity $ faucetAmt - feeMax - amt)
+                (#balance . #getApiT . #total)
+                (.>= Quantity (faucetAmt - feeMax - amt))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -179,11 +178,8 @@ spec = do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                    (#balance . #getApiT . #total)
-                    (between
-                        ( Quantity $ faucetAmt - feeMax - (2*amt)
-                        , Quantity $ faucetAmt - feeMin - (2*amt)
-                        ))
+                (#balance . #getApiT . #total)
+                (.>= Quantity (faucetAmt - feeMax - (2*amt)))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -192,64 +188,9 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
+                    (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
                 , expectCliField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
-                ]
-
-    it "TRANS_CREATE_02 - Multiple Output Tx to different wallets via CLI" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest1 <- emptyWallet ctx
-        wDest2 <- emptyWallet ctx
-        addr1:_ <- listAddresses @n ctx wDest1
-        addr2:_ <- listAddresses @n ctx wDest2
-        let addr1' = encodeAddress @n (getApiT $ fst $ addr1 ^. #id)
-        let addr2' = encodeAddress @n (getApiT $ fst $ addr2 ^. #id)
-        let amt = 14
-        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
-                { nInputs = 2
-                , nOutputs = 2
-                , nChanges = 2
-                }
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", T.pack (show amt) <> "@" <> addr1'
-                , "--payment", T.pack (show amt) <> "@" <> addr2'
-                ]
-
-        -- post transaction
-        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
-        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
-        verify txJson
-            [ expectCliField
-                (#amount . #getQuantity)
-                (between (feeMin + (2*amt), feeMax + (2*amt)))
-            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            ]
-        c `shouldBe` ExitSuccess
-
-        -- verify balance on src wallet
-        Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
-        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
-        verify gJson
-            [ expectCliField (#balance . #getApiT . #total)
-                $ between
-                    ( Quantity (faucetAmt - feeMax - (2*amt))
-                    , Quantity (faucetAmt - feeMin - (2*amt))
-                    )
-            ]
-
-        eventually "balance on dest wallets is OK" $ forM_ [wDest1, wDest2] $ \wDest -> do
-            Stdout gOutDest <- getWalletViaCLI @t ctx
-                (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
-            verify destJson
-                [ expectCliField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
-                , expectCliField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                    (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do

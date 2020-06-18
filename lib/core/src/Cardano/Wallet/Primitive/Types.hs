@@ -144,6 +144,7 @@ module Cardano.Wallet.Primitive.Types
     , poolIdBytesLength
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
 
     -- * Querying
@@ -187,7 +188,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (<=<), (>=>) )
+    ( guard, (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -195,7 +196,7 @@ import Crypto.Number.Generate
 import Crypto.Random.Types
     ( MonadRandom )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray
@@ -598,6 +599,19 @@ instance ToText StakePoolMetadataHash where
 instance FromText StakePoolMetadataHash where
     fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
 
+-- | A newtype to wrap metadata Url, mostly needed for database lookups and
+-- signature clarity.
+newtype StakePoolMetadataUrl = StakePoolMetadataUrl Text
+    deriving (Eq, Ord, Show, Generic)
+
+instance NFData StakePoolMetadataUrl
+
+instance ToText StakePoolMetadataUrl where
+    toText (StakePoolMetadataUrl url) = url
+
+instance FromText StakePoolMetadataUrl where
+    fromText = pure . StakePoolMetadataUrl
+
 -- | Information about a stake pool.
 --
 -- The metadata information is not used directly by cardano-wallet, but rather
@@ -612,6 +626,21 @@ data StakePoolMetadata = StakePoolMetadata
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
     } deriving (Eq, Show, Generic)
+
+instance FromJSON StakePoolMetadata where
+    parseJSON = withObject "StakePoolMetadta" $ \obj -> do
+        ticker <- obj .: "ticker"
+
+        name <- obj .: "name"
+        guard (T.length name <= 50)
+
+        description <- obj .:? "description"
+        guard ((T.length <$> description) <= Just 250)
+
+        homepage <- obj .: "homepage"
+        guard (T.length homepage <= 100)
+
+        pure $ StakePoolMetadata{ticker,name,description,homepage}
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
@@ -1823,7 +1852,7 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolMargin :: Percentage
     , poolCost :: Quantity "lovelace" Word64
     , poolPledge :: Quantity "lovelace" Word64
-    , poolMetadata :: Maybe (Text, StakePoolMetadataHash)
+    , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate

@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -66,7 +65,6 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Helpers
     , whileM
-    , blake2b256
     , maxNumberOfInputs
     , maxNumberOfOutputs
 
@@ -123,10 +121,8 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
-import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -180,7 +176,6 @@ import Safe
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -997,11 +992,6 @@ withHeader spec content = do
 -- | Write given serializer and returns it.
 returnPut :: Put -> PutM Put
 returnPut putData = putData $> putData
-
--- | Compute a Blake2b_256 hash of a given 'ByteString'
-blake2b256 :: ByteString -> ByteString
-blake2b256 =
-    BA.convert . hash @_ @Blake2b_256
 
 -- | Run a decoder and return its result, along with the raw bytes that encoded
 -- this result.

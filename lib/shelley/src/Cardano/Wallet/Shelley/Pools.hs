@@ -35,13 +35,18 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( ActiveSlotCoefficient (..)
+    , BlockHeader
     , Coin (..)
     , GenesisParameters (..)
     , PoolId
     , PoolRegistrationCertificate (..)
     , ProtocolParameters
     , SlotId
+    , SlotLength (..)
+    , StakePoolMetadata
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -55,8 +60,10 @@ import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage, unsafeRunExceptT )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_, forever, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -69,6 +76,8 @@ import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithMatched )
+import Data.Maybe
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -80,13 +89,14 @@ import Data.Text.Class
 import Data.Word
     ( Word64 )
 import Fmt
-    ( pretty )
+    ( fixedF, pretty )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 -- | Stake Pool Data fields fetched from the node via LSQ
 data PoolLsqMetrics = PoolLsqMetrics
@@ -234,6 +244,39 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                 putPoolRegistration slot pool
         pure Continue
 
+monitorMetadata
+    :: Tracer IO StakePoolLog
+    -> GenesisParameters
+    -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Either String StakePoolMetadata))
+    -> DBLayer IO
+    -> IO ()
+monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
+    refs <- atomically (unfetchedPoolMetadataRefs 100)
+
+    successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
+        traceWith tr $ MsgFetchPoolMetadata pid url
+        fetchMetadata url hash >>= \case
+            Left msg -> Nothing <$ do
+                traceWith tr $ MsgFetchPoolMetadataFailure pid msg
+
+            Right meta -> Just pid <$ do
+                traceWith tr $ MsgFetchPoolMetadataSuccess pid meta
+                atomically $ putPoolMetadata pid hash meta
+
+    when (null refs || null successes) $ do
+        traceWith tr $ MsgFetchTakeBreak blockFrequency
+        threadDelay blockFrequency
+  where
+    -- NOTE
+    -- If there's no metadata, we typically need not to retry sooner than the
+    -- next block. So waiting for a delay that is roughly the same order of
+    -- magnitude as the (slot length / active slot coeff) sounds sound.
+    blockFrequency = ceiling (1/f) * toMicroSecond slotLength
+      where
+        toMicroSecond = (`div` 1000000) . fromEnum
+        slotLength = unSlotLength $ getSlotLength gp
+        f = unActiveSlotCoefficient (getActiveSlotCoefficient gp)
+
 data StakePoolLog
     = MsgFollow FollowLog
     | MsgStartMonitoring [BlockHeader]
@@ -242,6 +285,10 @@ data StakePoolLog
     | MsgRollingBackTo SlotId
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgErrProduction ErrPointAlreadyExists
+    | MsgFetchPoolMetadata PoolId StakePoolMetadataUrl
+    | MsgFetchPoolMetadataSuccess PoolId StakePoolMetadata
+    | MsgFetchPoolMetadataFailure PoolId String
+    | MsgFetchTakeBreak Int
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolLog
@@ -254,6 +301,10 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgRollingBackTo{} -> Info
         MsgStakePoolRegistration{} -> Info
         MsgErrProduction{} -> Error
+        MsgFetchPoolMetadata{} -> Info
+        MsgFetchPoolMetadataSuccess{} -> Info
+        MsgFetchPoolMetadataFailure{} -> Warning
+        MsgFetchTakeBreak{} -> Info -- TODO Lower to "Debug"
 
 instance ToText StakePoolLog where
     toText = \case
@@ -273,7 +324,21 @@ instance ToText StakePoolLog where
             "Rolling back to " <> pretty point
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
-        MsgErrProduction (ErrPointAlreadyExists blk) ->  mconcat
+        MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat
             [ "Couldn't store production for given block before it conflicts "
             , "with another block. Conflicting block header is: ", pretty blk
+            ]
+        MsgFetchPoolMetadata pid url -> mconcat
+            [ "Fetching metadata for pool ", pretty pid, " from ", toText url
+            ]
+        MsgFetchPoolMetadataSuccess pid meta -> mconcat
+            [ "Successfully fetched metadata for pool ", pretty pid
+            , ": ", T.pack (show meta)
+            ]
+        MsgFetchPoolMetadataFailure pid msg -> mconcat
+            [ "Failed to fetch metadata for pool ", pretty pid, ": ", T.pack msg
+            ]
+        MsgFetchTakeBreak delay -> mconcat
+            [ "Taking a little break from fetching metadata, back to it in about "
+            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]

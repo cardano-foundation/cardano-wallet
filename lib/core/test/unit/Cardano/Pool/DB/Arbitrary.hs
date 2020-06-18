@@ -7,6 +7,7 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..)
+    , genStakePoolMetadata
     ) where
 
 import Prelude
@@ -26,7 +27,10 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
+    , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    , StakePoolTicker (..)
     , slotSucc
     , unsafeEpochNo
     )
@@ -40,6 +44,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -47,6 +53,7 @@ import Data.Word.Odd
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , PrintableString (..)
     , applyArbitrary2
     , arbitrarySizedBoundedIntegral
     , choose
@@ -58,11 +65,13 @@ import Test.QuickCheck
     , shrinkList
     , shuffle
     , vector
+    , vectorOf
     )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                  Modifiers
@@ -72,6 +81,9 @@ data StakePoolsFixture = StakePoolsFixture
     { poolSlots :: [(PoolId, BlockHeader)]
     , rollbackSlots :: [SlotId] }
     deriving stock (Eq, Show)
+
+genPrintableText :: Gen Text
+genPrintableText = T.pack . getPrintableString <$> arbitrary
 
 {-------------------------------------------------------------------------------
                                  Stake Pools
@@ -129,7 +141,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> oneof [pure Nothing, Just <$> genMetadata]
       where
         genMetadata = (,)
-            <$> genURL
+            <$> fmap StakePoolMetadataUrl genURL
             <*> fmap (StakePoolMetadataHash . BS.pack) (vector 32)
         genURL  = do
             protocol <- elements [ "http", "https" ]
@@ -137,6 +149,19 @@ instance Arbitrary PoolRegistrationCertificate where
             sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
             extP <- elements [ ".io", ".dev", ".com", ".eu" ]
             pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
+
+genStakePoolMetadata
+    :: StakePoolMetadataUrl
+    -> Gen StakePoolMetadata
+genStakePoolMetadata (StakePoolMetadataUrl url) = StakePoolMetadata
+    <$> genStakePoolTicker
+    <*> genPrintableText
+    <*> oneof [ pure Nothing, Just <$> genPrintableText ]
+    <*> pure url
+
+genStakePoolTicker :: Gen StakePoolTicker
+genStakePoolTicker = (StakePoolTicker . T.pack) <$>
+    (choose (3,5) >>= \n -> vectorOf n (elements ['A','B'..'Z']))
 
 instance Arbitrary StakePoolsFixture where
     arbitrary = do

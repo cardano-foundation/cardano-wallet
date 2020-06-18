@@ -90,6 +90,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -222,7 +223,7 @@ spec = do
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - faucetUtxoAmt))
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         eventually "wa and wb balances are as expected" $ do
@@ -287,7 +288,7 @@ spec = do
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
             rd <- request @ApiWallet ctx
@@ -299,74 +300,6 @@ spec = do
                 , expectField
                         (#balance . #getApiT . #total)
                         (`shouldBe` Quantity (2*amt))
-                ]
-
-    it "TRANS_CREATE_02 - Multiple Output Tx to different wallets" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest1 <- emptyWallet ctx
-        wDest2 <- emptyWallet ctx
-        addrs1 <- listAddresses @n ctx wDest1
-        addrs2 <- listAddresses @n ctx wDest2
-
-        let amt = 1
-        let destination1 = (addrs1 !! 1) ^. #id
-        let destination2 = (addrs2 !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [
-                    {
-                        "address": #{destination1},
-                        "amount": {
-                            "quantity": #{amt},
-                            "unit": "lovelace"
-                        }
-                    },
-                    {
-                        "address": #{destination2},
-                        "amount": {
-                            "quantity": #{amt},
-                            "unit": "lovelace"
-                        }
-                    }
-                ],
-                "passphrase": "cardano-wallet"
-            }|]
-        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
-                { nInputs = 2
-                , nOutputs = 2
-                , nChanges = 2
-                }
-
-        r <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
-        verify r
-            [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
-                between (feeMin + (2*amt), feeMax + (2*amt))
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            ]
-        verify ra
-            [ expectField (#balance . #getApiT . #total . #getQuantity) $
-                between
-                    ( faucetAmt - feeMax - (2*amt)
-                    , faucetAmt - feeMin - (2*amt)
-                    )
-            , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
-            ]
-        eventually "Balances are as expected" $ forM_ [wDest1, wDest2] $ \wDest -> do
-            rd <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wDest) Default payload
-            verify rd
-                [ expectSuccess
-                , expectField
-                        (#balance . #getApiT . #available)
-                        (`shouldBe` Quantity amt)
-                , expectField
-                        (#balance . #getApiT . #total)
-                        (`shouldBe` Quantity amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
