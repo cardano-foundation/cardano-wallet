@@ -78,6 +78,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
@@ -126,10 +127,8 @@ spec = do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                    (#balance . #getApiT . #total)
-                    $ between
-                    ( Quantity $ faucetAmt - feeMin - amt
-                    , Quantity $ faucetAmt - feeMax - amt)
+                (#balance . #getApiT . #total)
+                (.>= Quantity (faucetAmt - feeMax - amt))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -179,11 +178,8 @@ spec = do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                    (#balance . #getApiT . #total)
-                    (between
-                        ( Quantity $ faucetAmt - feeMax - (2*amt)
-                        , Quantity $ faucetAmt - feeMin - (2*amt)
-                        ))
+                (#balance . #getApiT . #total)
+                (.>= Quantity (faucetAmt - feeMax - (2*amt)))
             ]
 
         eventually "balance on dest wallet is OK" $ do

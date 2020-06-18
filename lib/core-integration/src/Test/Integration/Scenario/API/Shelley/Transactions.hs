@@ -90,6 +90,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -222,7 +223,7 @@ spec = do
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - faucetUtxoAmt))
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         eventually "wa and wb balances are as expected" $ do
@@ -287,7 +288,7 @@ spec = do
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
             rd <- request @ApiWallet ctx
@@ -354,7 +355,7 @@ spec = do
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "Balances are as expected" $ forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx
