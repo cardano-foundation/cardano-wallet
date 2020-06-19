@@ -78,6 +78,7 @@ library
     , time
     , transformers
     , unordered-containers
+    , vector
     , warp
     , yaml
     , Win32-network

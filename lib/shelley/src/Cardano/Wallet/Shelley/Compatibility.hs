@@ -497,8 +497,9 @@ txParametersFromPParams pp = W.TxParameters
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: ShelleyGenesis TPraosStandardCrypto
+    -> [(SL.Addr TPraosStandardCrypto, SL.Coin)]
     -> (W.NetworkParameters, W.Block)
-fromGenesisData g =
+fromGenesisData g initialFunds =
     ( W.NetworkParameters
         { genesisParameters = W.GenesisParameters
             { getGenesisBlockHash = dummyGenesisHash
@@ -515,7 +516,7 @@ fromGenesisData g =
             }
         , protocolParameters = fromPParams . sgProtocolParams $ g
         }
-    , genesisBlockFromTxOuts $ Map.toList $ sgInitialFunds g
+    , genesisBlockFromTxOuts initialFunds
     )
   where
 
