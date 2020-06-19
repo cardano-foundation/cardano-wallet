@@ -19,6 +19,8 @@ module Cardano.Wallet.Logging
     , trMessageText
     , filterTraceSeverity
     , stdoutTextTracer
+    , BracketLog (..)
+    , bracketTracer
     ) where
 
 import Prelude
@@ -40,6 +42,8 @@ import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
+import Control.Tracer.Observe
+    ( ObserveIndicator (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -131,3 +135,19 @@ filterNonEmpty tr = Tracer $ \arg -> do
 -- debugging functions in the REPL, when you need a 'Tracer' object.
 stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
 stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
+
+data BracketLog = BracketLog Text ObserveIndicator
+   deriving (Show)
+
+instance ToText BracketLog where
+    toText (BracketLog name b) =
+        name <> ": " <> case b of
+            ObserveBefore -> "start"
+            ObserveAfter -> "finish"
+
+bracketTracer :: Monad m => Tracer m BracketLog -> Text -> m a -> m a
+bracketTracer tr name action = do
+    traceWith tr $ BracketLog name ObserveBefore
+    res <- action
+    traceWith tr $ BracketLog name ObserveAfter
+    pure res

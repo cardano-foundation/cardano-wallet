@@ -24,27 +24,38 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , withBFTNode
     , withStakePool
+    , NodeConfig (..)
+    , singleNodeConfig
 
+    -- * Utils
     , NetworkConfiguration (..)
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
+
+    -- * Logging
+    , ClusterLog (..)
     ) where
 
 import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
-import Cardano.BM.Trace
-    ( Trace )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.CLI
     ( optionT )
 import Cardano.Config.Shelley.Genesis
     ( ShelleyGenesis )
 import Cardano.Launcher
-    ( Command (..), ProcessHasExited (..), StdStream (..), withBackendProcess )
+    ( Command (..)
+    , LauncherLog
+    , ProcessHasExited (..)
+    , StdStream (..)
+    , withBackendProcess
+    )
 import Cardano.Wallet.Logging
-    ( trMessageText )
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -68,13 +79,15 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void, when )
+    ( forM, forM_, replicateM, replicateM_, unless, void, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
+import Control.Tracer
+    ( Tracer (..), contramap, traceWith )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
@@ -93,8 +106,10 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( UTCTime, addUTCTime, getCurrentTime )
 import GHC.TypeLits
     ( SomeNat (..), someNatVal )
 import Options.Applicative
@@ -132,13 +147,11 @@ import Test.Utils.StaticServer
     ( withStaticServer )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
 
 data NetworkConfiguration where
@@ -212,8 +225,9 @@ parseGenesisData = \case
 
 -- | A quick helper to interact with the 'cardano-cli'. Assumes the cardano-cli
 -- is available in PATH.
-cli :: [String] -> IO String
-cli args =
+cli :: Tracer IO ClusterLog -> [String] -> IO String
+cli tr args = do
+    traceWith tr $ MsgCLI args
     readProcess "cardano-cli" args stdin
   where
     stdin = ""
@@ -224,11 +238,13 @@ cli args =
 -- Assumes @cardano-cli@ is available in @PATH@ and that the env var
 -- @CARDANO_NODE_SOCKET_PATH@ has already been set.
 cliRetry
-    :: String -- ^ message to print before running command
+    :: Tracer IO ClusterLog
+    -> String -- ^ message to print before running command
     -> [String] -- ^ arguments to @cardano-cli@
     -> IO String
-cliRetry msg args = do
+cliRetry tr msg args = do
     (st, out, err) <- retrying pol (const isFail) (const cmd)
+    traceWith tr $ MsgCLIStatus msg st out err
     case st of
         ExitSuccess -> pure out
         ExitFailure _ -> throwIO $ ProcessHasExited
@@ -236,11 +252,11 @@ cliRetry msg args = do
   where
     prog = "cardano-cli"
     cmd = do
-        unless (null msg) $ B8.putStrLn $ B8.pack msg
+        traceWith tr $ MsgCLIRetry msg
         (st, out, err) <- readProcessWithExitCode "cardano-cli" args mempty
         case st of
             ExitSuccess -> pure ()
-            _ -> B8.putStrLn $ B8.pack err
+            ExitFailure code -> traceWith tr (MsgCLIRetryResult msg code err)
         pure (st, out, err)
     isFail (st, _, _) = pure (st /= ExitSuccess)
     pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
@@ -253,36 +269,44 @@ cliRetry msg args = do
 -- registering pools. Passing `0` as a number of pool will simply start a single
 -- BFT node.
 withCluster
-    :: Trace IO Text
+    :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
     -> Severity
-    -- ^ Minimal logging severity
+    -- ^ Minimum logging severity for @cardano-node@
     -> Int
     -- ^ How many pools should the cluster spawn.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Action to run with the cluster up
     -> IO a
-withCluster tr severity n action = do
+withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
+    systemStart <- addUTCTime 1 <$> getCurrentTime
     ports <- randomUnusedTCPPorts (n + 1)
-    -- FIXME: should simply be `head $ rotate ports` once cluster issues are solved
-    let peers = (fst $ head $ rotate ports, [])
-    withBFTNode tr severity peers $ \socket block0 params -> do
-        waitForSocket socket
+    let bftCfg = NodeConfig severity systemStart (head $ rotate ports)
+    withBFTNode tr bftCfg $ \socket block0 params -> do
+        waitForSocket tr socket
         waitGroup <- newChan
         doneGroup <- newChan
-        let waitAll   = replicateM  n (readChan waitGroup)
-        let cancelAll = replicateM_ n (writeChan doneGroup ())
+        let waitAll   = do
+                traceWith tr $ MsgDebug "waiting for stake pools to register"
+                replicateM  n (readChan waitGroup)
+        let cancelAll = do
+                traceWith tr $ MsgDebug "stopping all stake pools"
+                replicateM_ n (writeChan doneGroup ())
 
         let onException :: SomeException -> IO ()
-            onException = writeChan waitGroup . Left
+            onException e = do
+                traceWith tr $ MsgDebug $ "exception while starting pool: " <>
+                    T.pack (show e)
+                writeChan waitGroup (Left e)
 
-        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, _peers)) -> do
+        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
-                withStakePool socket idx $ do
+                let spCfg = NodeConfig severity systemStart (port, peers)
+                withStakePool tr idx spCfg $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
-        TIO.putStrLn cartouche
+        traceWith tr MsgCartouche
         group <- waitAll
         if length (filter isRight group) /= n then do
             cancelAll
@@ -300,23 +324,29 @@ withCluster tr severity n action = do
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
+-- | Configuration parameters which update the @node.config@ test data file.
+data NodeConfig = NodeConfig
+    { minSeverity :: Severity -- ^ Minimum logging severity
+    , systemStart :: UTCTime -- ^ Genesis block start time
+    , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
+    } deriving (Show)
+
 withBFTNode
-    :: Trace IO Text
+    :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> Severity
-    -- ^ Minimal logging severity
-    -> (Int, [Int])
-    -- ^ A list of ports used by peers and this pool.
+    -> NodeConfig
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr severity (port, peers) action =
-    withTempDir "bft-node" $ \dir -> do
+withBFTNode tr (NodeConfig severity systemStart (port, peers)) action =
+    bracketTracer' tr "withBFTNode" $
+    withTempDir tr name $ \dir -> do
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
-        (config, block0, networkParams, versionData) <- genConfig dir severity
+        (config, block0, networkParams, versionData)
+            <- genConfig dir severity systemStart
         topology <- genTopology dir peers
         let socket = genSocketPath dir
 
@@ -332,45 +362,112 @@ withBFTNode tr severity (port, peers) action =
                 , "--shelley-operational-certificate", opCert
                 ]
         let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        ((either throwIO pure) =<<)
-            $ withBackendProcess (trMessageText tr) cmd
-            $ action socket block0 (networkParams, versionData)
+        withCardanoNodeProcess tr name cmd $
+            action socket block0 (networkParams, versionData)
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
 
--- | Only register stake pools but do not start their corresponding process.
--- This is _hopefully_ temporary while we get the cluster running correctly on
--- CI.
+    name = "bft-node"
+
+singleNodeConfig :: Severity -> IO NodeConfig
+singleNodeConfig severity = do
+    systemStart <- getCurrentTime
+    pure $ NodeConfig severity systemStart (0, [])
+
+-- | Populates the configuration directory of a stake pool @cardano-node@. Sets
+-- up a transaction which can be used to register the pool.
+setupStakePoolData
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> NodeConfig
+    -> String
+    -> IO (Command, FilePath, FilePath)
+setupStakePoolData tr dir (NodeConfig severity systemStart (port, peers)) url = do
+    (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
+    (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
+    (kesPrv, kesPub) <- genKesKeyPair tr dir
+    (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
+
+    stakeCert <- issueStakeCert tr dir stakePub
+    poolCert <- issuePoolCert tr dir opPub vrfPub stakePub url metadata
+    dlgCert <- issueDlgCert tr dir stakePub opPub
+    opCert <- issueOpCert tr dir kesPub opPrv opCount
+
+    (config, _, _, _) <- genConfig dir severity systemStart
+    topology <- genTopology dir peers
+
+    -- In order to get a working stake pool we need to.
+    --
+    -- 1. Register a stake key for our pool.
+    -- 2. Register the stake pool
+    -- 3. Delegate funds to our pool's key.
+    --
+    -- We cheat a bit here by delegating to our stake address right away
+    -- in the transaction used to registered the stake key and the pool
+    -- itself.  Thus, in a single transaction, we end up with a
+    -- registered pool with some stake!
+    (rawTx, faucetPrv) <- prepareTx tr dir stakePub [stakeCert, poolCert, dlgCert]
+    tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
+
+    let args =
+            [ "run"
+            , "--config", config
+            , "--topology", topology
+            , "--database-path", dir </> "db"
+            , "--socket-path", genSocketPath dir
+            , "--port", show port
+            , "--shelley-kes-key", kesPrv
+            , "--shelley-vrf-key", vrfPrv
+            , "--shelley-operational-certificate", opCert
+            ]
+    let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
+
+    pure (cmd, opPub, tx)
+
+-- | Start a "stake pool node". The pool will register itself.
 withStakePool
-    :: FilePath
+    :: Tracer IO ClusterLog
+    -- ^ Trace for subprocess control logging
     -> Int
+    -- ^ Stake pool index in the cluster
+    -> NodeConfig
+    -- ^ Configuration for the underlying node
+    -> IO a
+    -- ^ Action to run with the stake pool running
+    -> IO a
+withStakePool tr idx cfg action =
+    bracketTracer' tr "withStakePool" $
+        withTempDir tr name $ \dir -> do
+            withStaticServer dir $ \url -> do
+                (cmd, opPub, tx) <- setupStakePoolData tr dir cfg url
+                withCardanoNodeProcess tr name cmd $ do
+                    submitTx tr name tx
+                    timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                    action
+  where
+    name = "stake-pool-" ++ show idx
+
+withCardanoNodeProcess
+    :: Tracer IO ClusterLog
+    -> String
+    -> Command
     -> IO a
     -> IO a
-withStakePool socket idx action = do
-    setEnv "CARDANO_NODE_SOCKET_PATH" socket
-    withTempDir ("stake-pool-" ++ show idx) $ \dir -> do
-        withStaticServer dir $ \url -> do
-            (opPrv, opPub, _opCount, metadata) <- genOperatorKeyPair dir
-            (_vrfPrv, vrfPub) <- genVrfKeyPair dir
-
-            (stakePrv, stakePub) <- genStakeAddrKeyPair dir
-            stakeCert <- issueStakeCert dir stakePub
-            poolCert <- issuePoolCert dir opPub vrfPub stakePub url metadata
-            dlgCert <- issueDlgCert dir stakePub opPub
-
-            (rawTx, faucetPrv) <- prepareTx dir stakePub [stakeCert, poolCert, dlgCert]
-            signTx dir rawTx [faucetPrv, stakePrv, opPrv] >>= submitTx
-            timeout 120 ("pool registration", waitUntilRegistered opPub)
-            action
+withCardanoNodeProcess tr name cmd = withBackendProcess tr' cmd >=> throwErrs
+  where
+    tr' = contramap (MsgLauncher name) tr
+    throwErrs = either throwIO pure
 
 genConfig
     :: FilePath
     -- ^ A top-level directory where to put the configuration.
     -> Severity
     -- ^ Minimum severity level for logging
+    -> UTCTime
+    -- ^ Genesis block start time
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity = do
+genConfig dir severity systemStart = do
     -- we need to specify genesis file location every run in tmp
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
@@ -378,7 +475,7 @@ genConfig dir severity = do
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-        >>= withObject updateStartTime
+        >>= withObject (updateSystemStart systemStart)
         >>= Aeson.encodeFile nodeGenesisFile
 
     (genesisData :: ShelleyGenesis TPraosStandardCrypto)
@@ -422,8 +519,9 @@ genTopology dir peers = do
 
 -- | Create a key pair for a node operator's offline key and a new certificate
 -- issue counter
-genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
-genOperatorKeyPair dir = do
+genOperatorKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
+genOperatorKeyPair tr dir = do
+    traceWith tr $ MsgGenOperatorKeyPair dir
     (_poolId, pub, prv, count, metadata) <- takeMVar operators >>= \case
         [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
         (op:q) -> putMVar operators q $> op
@@ -439,11 +537,11 @@ genOperatorKeyPair dir = do
     pure (opPrv, opPub, opCount, metadata)
 
 -- | Create a key pair for a node KES operational key
-genKesKeyPair :: FilePath -> IO (FilePath, FilePath)
-genKesKeyPair dir = do
+genKesKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
+genKesKeyPair tr dir = do
     let kesPub = dir </> "kes.pub"
     let kesPrv = dir </> "kes.prv"
-    void $ cli
+    void $ cli tr
         [ "shelley", "node", "key-gen-KES"
         , "--verification-key-file", kesPub
         , "--signing-key-file", kesPrv
@@ -451,11 +549,11 @@ genKesKeyPair dir = do
     pure (kesPrv, kesPub)
 
 -- | Create a key pair for a node VRF operational key
-genVrfKeyPair :: FilePath -> IO (FilePath, FilePath)
-genVrfKeyPair dir = do
+genVrfKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
+genVrfKeyPair tr dir = do
     let vrfPub = dir </> "vrf.pub"
     let vrfPrv = dir </> "vrf.prv"
-    void $ cli
+    void $ cli tr
         [ "shelley", "node", "key-gen-VRF"
         , "--verification-key-file", vrfPub
         , "--signing-key-file", vrfPrv
@@ -463,11 +561,11 @@ genVrfKeyPair dir = do
     pure (vrfPrv, vrfPub)
 
 -- | Create a stake address key pair
-genStakeAddrKeyPair :: FilePath -> IO (FilePath, FilePath)
-genStakeAddrKeyPair dir = do
+genStakeAddrKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
+genStakeAddrKeyPair tr dir = do
     let stakePub = dir </> "stake.pub"
     let stakePrv = dir </> "stake.prv"
-    void $ cli
+    void $ cli tr
         [ "shelley", "stake-address", "key-gen"
         , "--verification-key-file", stakePub
         , "--signing-key-file", stakePrv
@@ -475,10 +573,10 @@ genStakeAddrKeyPair dir = do
     pure (stakePrv, stakePub)
 
 -- | Issue a node operational certificate
-issueOpCert :: FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
-issueOpCert dir kesPub opPrv opCount = do
+issueOpCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
+issueOpCert tr dir kesPub opPrv opCount = do
     let file = dir </> "op.cert"
-    void $ cli
+    void $ cli tr
         [ "shelley", "node", "issue-op-cert"
         , "--kes-verification-key-file", kesPub
         , "--cold-signing-key-file", opPrv
@@ -489,10 +587,10 @@ issueOpCert dir kesPub opPrv opCount = do
     pure file
 
 -- | Create a stake address registration certificate
-issueStakeCert :: FilePath -> FilePath -> IO FilePath
-issueStakeCert dir stakePub = do
+issueStakeCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> IO FilePath
+issueStakeCert tr dir stakePub = do
     let file = dir </> "stake.cert"
-    void $ cli
+    void $ cli tr
         [ "shelley", "stake-address", "registration-certificate"
         , "--staking-verification-key-file", stakePub
         , "--out-file", file
@@ -501,18 +599,19 @@ issueStakeCert dir stakePub = do
 
 -- | Create a stake pool registration certificate
 issuePoolCert
-    :: FilePath
+    :: Tracer IO ClusterLog
+    -> FilePath
     -> FilePath
     -> FilePath
     -> FilePath
     -> String
     -> Aeson.Value
     -> IO FilePath
-issuePoolCert dir opPub vrfPub stakePub baseURL metadata = do
+issuePoolCert tr dir opPub vrfPub stakePub baseURL metadata = do
     let file  = dir </> "pool.cert"
     let bytes = Aeson.encode metadata
     BL8.writeFile (dir </> "metadata.json") bytes
-    void $ cli
+    void $ cli tr
         [ "shelley", "stake-pool", "registration-certificate"
         , "--cold-verification-key-file", opPub
         , "--vrf-verification-key-file", vrfPub
@@ -529,10 +628,10 @@ issuePoolCert dir opPub vrfPub stakePub baseURL metadata = do
     pure file
 
 -- | Create a stake address delegation certificate.
-issueDlgCert :: FilePath -> FilePath -> FilePath -> IO FilePath
-issueDlgCert dir stakePub opPub = do
+issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
+issueDlgCert tr dir stakePub opPub = do
     let file = dir </> "dlg.cert"
-    void $ cli
+    void $ cli tr
         [ "shelley", "stake-address", "delegation-certificate"
         , "--staking-verification-key-file", stakePub
         , "--stake-pool-verification-key-file", opPub
@@ -542,18 +641,22 @@ issueDlgCert dir stakePub opPub = do
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
-prepareTx :: FilePath -> FilePath -> [FilePath] -> IO (FilePath, FilePath)
-prepareTx dir stakePub certs = do
+prepareTx
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> FilePath
+    -> [FilePath]
+    -> IO (FilePath, FilePath)
+prepareTx tr dir stakePub certs = do
     let file = dir </> "tx.raw"
-
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
-    void $ cli
+    void $ cli tr
         [ "shelley", "address", "key-gen"
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
-    addr <- cli
+    addr <- cli tr
         [ "shelley", "address", "build"
         , "--payment-verification-key-file", sinkPub
         , "--stake-verification-key-file", stakePub
@@ -561,7 +664,7 @@ prepareTx dir stakePub certs = do
         ]
 
     (faucetInput, faucetPrv) <- takeFaucet dir
-    void $ cli $
+    void $ cli tr $
         [ "shelley", "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", init addr <> "+" <> show pledgeAmt
@@ -573,10 +676,15 @@ prepareTx dir stakePub certs = do
     pure (file, faucetPrv)
 
 -- | Sign a transaction with all the necessary signatures.
-signTx :: FilePath -> FilePath -> [FilePath] -> IO FilePath
-signTx dir rawTx keys = do
+signTx
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> FilePath
+    -> [FilePath]
+    -> IO FilePath
+signTx tr dir rawTx keys = do
     let file = dir </> "tx.signed"
-    void $ cli $
+    void $ cli tr $
         [ "shelley", "transaction", "sign"
         , "--tx-body-file", rawTx
         , "--mainnet"
@@ -585,9 +693,9 @@ signTx dir rawTx keys = do
     pure file
 
 -- | Submit a transaction through a running node.
-submitTx :: FilePath -> IO ()
-submitTx signedTx = do
-    void $ cliRetry "Submitting transaction"
+submitTx :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
+submitTx tr name signedTx = do
+    void $ cliRetry tr ("Submitting transaction for " ++ name)
         [ "shelley", "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet"
@@ -601,18 +709,19 @@ submitTx signedTx = do
 --
 -- As a side effect, after this subroutine finishes, the environment variable
 -- @CARDANO_NODE_SOCKET_PATH@ is set.
-waitForSocket :: FilePath -> IO ()
-waitForSocket socketPath = do
+waitForSocket :: Tracer IO ClusterLog -> FilePath -> IO ()
+waitForSocket tr socketPath = do
     setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
     let msg = "Checking for usable socket file " <> socketPath
     -- TODO: check whether querying the tip works just as well.
-    void $ cliRetry msg ["shelley", "query", "stake-distribution", "--mainnet"]
-    B8.putStrLn $ B8.pack $ socketPath ++ " is ready."
+    void $ cliRetry tr msg
+        ["shelley", "query", "stake-distribution", "--mainnet"]
+    traceWith tr $ MsgSocketIsReady socketPath
 
 -- | Wait until a stake pool shows as registered on-chain.
-waitUntilRegistered :: FilePath -> IO ()
-waitUntilRegistered opPub = do
-    poolId <- init <$> cli
+waitUntilRegistered :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
+waitUntilRegistered tr name opPub = do
+    poolId <- init <$> cli tr
         [ "shelley", "stake-pool", "id"
         , "--verification-key-file", opPub
         ]
@@ -620,13 +729,10 @@ waitUntilRegistered opPub = do
         [ "shelley", "query", "stake-distribution"
         , "--mainnet"
         ] mempty
-    when (exitCode /= ExitSuccess) $
-        B8.putStrLn $ B8.pack $
-            "query of stake-distribution " ++ show exitCode ++ "\n" ++ err
-    B8.putStrLn $ B8.pack distribution
+    traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
-        waitUntilRegistered opPub
+        waitUntilRegistered tr name opPub
 
 -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
 -- fund some initial transaction for the cluster. Faucet have plenty of money to
@@ -788,12 +894,12 @@ oneMillionAda = 1_000_000_000_000
 
 -- | Add a "systemStart" field in a given object with the current POSIX time as a
 -- value.
-updateStartTime
-    :: Aeson.Object
+updateSystemStart
+    :: UTCTime
+    -> Aeson.Object
     -> IO Aeson.Object
-updateStartTime m = do
-    time <- getCurrentTime
-    pure $ HM.insert "systemStart" (toJSON time) m
+updateSystemStart systemStart =
+    pure . HM.insert "systemStart" (toJSON systemStart)
 
 -- | Add a "GenesisFile" field in a given object with the current path of
 -- genesis.json in tmp dir as value.
@@ -861,15 +967,16 @@ blake2b256S =
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
-    :: String   -- ^ Directory name template
+    :: Tracer IO ClusterLog
+    -> String   -- ^ Directory name template
     -> (FilePath -> IO a) -- ^ Callback that can use the directory
     -> IO a
-withTempDir name action = isEnvSet "NO_CLEANUP" >>= \case
+withTempDir tr name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
         parent <- getCanonicalTemporaryDirectory
         dir <- createTempDirectory parent name
         res <- action dir
-        putStrLn $ "NO_CLEANUP of temporary directory " ++ dir
+        traceWith tr $ MsgTempNoCleanup dir
         pure res
     False -> withSystemTempDirectory name action
   where
@@ -877,3 +984,75 @@ withTempDir name action = isEnvSet "NO_CLEANUP" >>= \case
         Nothing -> False
         Just "" -> False
         Just _ -> True
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data ClusterLog
+    = MsgCartouche
+    | MsgLauncher String LauncherLog
+    | MsgTempNoCleanup FilePath
+    | MsgBracket BracketLog
+    | MsgCLIStatus String ExitCode String String
+    | MsgCLIRetry String
+    | MsgCLIRetryResult String Int String
+    | MsgSocketIsReady FilePath
+    | MsgStakeDistribution String ExitCode String String
+    | MsgDebug Text
+    | MsgGenOperatorKeyPair FilePath
+    | MsgCLI [String]
+    deriving (Show)
+
+instance ToText ClusterLog where
+    toText = \case
+        MsgCartouche -> cartouche
+        MsgLauncher name msg ->
+            T.pack name <> " " <> toText msg
+        MsgTempNoCleanup dir ->
+            "NO_CLEANUP of temporary directory " <> T.pack dir
+        MsgBracket b -> toText b
+        MsgCLIStatus msg st out err -> case st of
+            ExitSuccess -> "Successfully finished " <> T.pack msg
+            ExitFailure code -> "Failed " <> T.pack msg <> " with exit code " <>
+                T.pack (show code)  <> ":\n" <> indent out <> "\n" <> indent err
+        MsgCLIRetry msg -> T.pack msg
+        MsgCLIRetryResult msg code err ->
+            "Failed " <> T.pack msg <> " with exit code " <>
+                T.pack (show code) <> ":\n" <> indent err
+        MsgSocketIsReady socketPath ->
+            T.pack socketPath <> " is ready."
+        MsgStakeDistribution name st out err -> case st of
+            ExitSuccess ->
+                "Stake distribution query for " <> T.pack name <>
+                ":\n" <> indent out
+            ExitFailure code ->
+                "Query of stake-distribution failed with status " <>
+                T.pack (show code) <> ":\n" <> indent err
+        MsgDebug msg -> msg
+        MsgGenOperatorKeyPair dir ->
+            "Generating stake pool operator key pair in " <> T.pack dir
+        MsgCLI args -> T.pack $ unwords ("cardano-cli":args)
+      where
+        indent = T.unlines . map ("  " <>) . T.lines . T.pack
+
+instance HasPrivacyAnnotation ClusterLog
+instance HasSeverityAnnotation ClusterLog where
+    getSeverityAnnotation = \case
+        MsgCartouche -> Warning
+        MsgLauncher _ msg -> getSeverityAnnotation msg
+        MsgTempNoCleanup _ -> Notice
+        MsgBracket _ -> Debug
+        MsgCLIStatus _ ExitSuccess _ _-> Debug
+        MsgCLIStatus _ (ExitFailure _) _ _-> Error
+        MsgCLIRetry _ -> Info
+        MsgCLIRetryResult{} -> Warning
+        MsgSocketIsReady _ -> Info
+        MsgStakeDistribution _ ExitSuccess _ _-> Info
+        MsgStakeDistribution _ (ExitFailure _) _ _-> Warning
+        MsgDebug _ -> Debug
+        MsgGenOperatorKeyPair _ -> Debug
+        MsgCLI _ -> Debug
+
+bracketTracer' :: Monad m => Tracer m ClusterLog -> Text -> m a -> m a
+bracketTracer' tr = bracketTracer (contramap MsgBracket tr)

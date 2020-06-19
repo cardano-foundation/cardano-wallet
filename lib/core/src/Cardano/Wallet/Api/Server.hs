@@ -586,8 +586,11 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
+    -- TODO: issue #1750 re-enable querying reward balance when it's faster
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.fetchRewardBalance @_ @s @t @k wrk wid
+        if False
+            then W.fetchRewardBalance @_ @s @t @k wrk wid
+            else pure $ Quantity 0
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
