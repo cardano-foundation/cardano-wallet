@@ -35,7 +35,7 @@
 ############################################################################
 
 # The project sources
-{ cardano-wallet ? { outPath = ./.; rev = "abcdef"; }
+{ cardano-wallet ? { outPath = ./.; rev = pkgs.commonLib.commitIdFromGitRepoOrZero ./.git; }
 
 # Function arguments to pass to the project
 , projectArgs ? {

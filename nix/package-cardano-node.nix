@@ -21,17 +21,17 @@ pkgs.stdenv.mkDerivation rec {
   phases = [ "installPhase" ];
   nativeBuildInputs = [ haskellBuildUtils pkgs.buildPackages.binutils pkgs.buildPackages.nix ];
   meta.platforms = platforms.all;
+  passthru.backend = cardano-node;
   installPhase = ''
     cp -R ${exe} $out
     chmod -R +w $out
     set-git-rev "${gitrev}" $out/bin/${exe.identifier.name}* || true
+    cp --remove-destination -v ${cardano-node}/bin/* $out/bin
   '' + (if pkgs.stdenv.hostPlatform.isWindows then ''
     cp --remove-destination -v ${pkgs.libffi}/bin/libffi-6.dll $out/bin
-    cp --remove-destination -v ${cardano-node}/bin/* $out/bin
     cp -Rv ${cardano-node.deployments} $out/deployments
     cp -Rv ${cardano-node.configs} $out/configuration
   '' else (if pkgs.stdenv.hostPlatform.isDarwin then ''
-    cp -v ${cardano-node}/bin/cardano-node $out/bin
     chmod -R +w $out
     rewrite-libs $out/bin $out/bin/${exe.identifier.name} $out/bin/cardano-node
   '' else ''
