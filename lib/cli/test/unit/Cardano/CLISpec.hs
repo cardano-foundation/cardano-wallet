@@ -57,12 +57,16 @@ import Options.Applicative
     , prefs
     , renderFailure
     )
+import System.Environment
+    ( getProgName )
 import System.FilePath
     ( (</>) )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 import Test.Hspec
     ( HasCallStack, Spec, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
@@ -447,22 +451,22 @@ spec = do
             , "  inspect                  Show information about a key"
             , ""
             , "Example:"
-            , "  \ESC[1m$ unit recovery-phrase generate --size 15 \\\ESC[0m"
-            , "    \ESC[1m| unit key from-recovery-phrase Shelley > root.prv\ESC[0m"
+            , "  \ESC[1m$ "<>progName<>" recovery-phrase generate --size 15 \\\ESC[0m"
+            , "    \ESC[1m| "<>progName<>" key from-recovery-phrase Shelley > root.prv\ESC[0m"
             , "  "
             , "  \ESC[1m$ cat root.prv \\\ESC[0m"
-            , "    \ESC[1m| unit key child 1852H/1815H/0H \\\ESC[0m"
+            , "    \ESC[1m| "<>progName<>" key child 1852H/1815H/0H \\\ESC[0m"
             , "    \ESC[1m| tee acct.prv \\\ESC[0m"
-            , "    \ESC[1m| unit key public > acct.pub\ESC[0m"
+            , "    \ESC[1m| "<>progName<>" key public > acct.pub\ESC[0m"
             , "  "
-            , "  \ESC[1m$ unit key inspect <<< $(cat acct.prv)\ESC[0m"
+            , "  \ESC[1m$ "<>progName<>" key inspect <<< $(cat acct.prv)\ESC[0m"
             , "  {"
             , "      \"key_type\": \"private\","
             , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
             , "      \"extended_key\": \"90ead3efad7aacac242705ede323665387f49ed847bed025eb333708ccf6aa54403482a867daeb18f38c57d6cddd7e6fd6aed4a3209f7425a3d1c5d9987a9c5f\""
             , "  }"
             , "  "
-            , "  \ESC[1m$ unit key inspect <<< $(cat acct.pub)\ESC[0m"
+            , "  \ESC[1m$ "<>progName<>" key inspect <<< $(cat acct.pub)\ESC[0m"
             , "  {"
             , "      \"key_type\": \"public\","
             , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
@@ -482,8 +486,8 @@ spec = do
             , "The recovery phrase is read from stdin."
             , ""
             , "Example:"
-            , "  \ESC[1m$ unit recovery-phrase generate \\\ESC[0m"
-            , "  \ESC[1m| unit key from-recovery-phrase Icarus\ESC[0m"
+            , "  \ESC[1m$ "<>progName<>" recovery-phrase generate \\\ESC[0m"
+            , "  \ESC[1m| "<>progName<>" key from-recovery-phrase Icarus\ESC[0m"
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
@@ -683,6 +687,10 @@ shouldShowUsage args expected = it (unwords args) $
             let (usage, _) = renderFailure failure mempty
             (lines usage) `shouldBe` expected
 
+-- | Get program name to avoid hard-coding it in documentation excerpt.
+progName :: String
+progName = unsafePerformIO getProgName
+{-# NOINLINE progName #-}
 
 {-------------------------------------------------------------------------------
                                Arbitrary Instances
