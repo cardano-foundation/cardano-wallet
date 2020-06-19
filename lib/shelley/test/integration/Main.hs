@@ -182,10 +182,10 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         let setupContext np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 traceWith tr $ MsgBaseUrl baseUrl
-                let sixtySeconds = 60*1000*1000 -- 60s in microseconds
+                let threeMinutes = 180*1000*1000 -- 180s in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
-                        responseTimeoutMicro sixtySeconds
+                        responseTimeoutMicro threeMinutes
                     })
                 faucet <- initFaucet
                 putMVar ctx $ Context
