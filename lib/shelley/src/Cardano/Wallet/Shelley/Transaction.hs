@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -19,13 +20,13 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+
+    -- * Internals
     , _minimumFee
     , _decodeSignedTx
+    , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkWitness
-    , _estimateMaxNumberOfInputs
-    , computeTxSize
-    , constructDummyCoinSel
     ) where
 
 import Prelude
@@ -220,42 +221,39 @@ _estimateMaxNumberOfInputs
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs (Quantity maxTxSize) nOuts =
-      fromIntegral $ pinpointNumInputs (constructPair 1)
+_estimateMaxNumberOfInputs (Quantity maxSize) nOuts =
+      fromIntegral $ bisect (lowerBound, upperBound)
   where
-      pinpointNumInputs (n,m)
-          | m - n == 1 =
-            if check m then m
-            else n
-          | otherwise =
-            if check middle then
-              pinpointNumInputs (middle,m)
-          else pinpointNumInputs (n,middle)
-        where
-          middle = n + ((m-n) `div` 2)
+    bisect (!inf, !sup)
+        | middle == inf && isTooBig sup = inf
+        | middle == inf                 = sup
+        | isTooBig middle               = bisect (inf, middle)
+        | otherwise                     = bisect (middle, sup)
+      where
+        middle = inf + ((sup - inf) `div` 2)
 
-      constructPair num = (calNum `div` 16,  calNum)
-        where
-            calNum = searchUpperBound num
-      searchUpperBound n =
-          if not (check n) then n
-          else searchUpperBound (n*16)
+    growingFactor = 2
 
-      check numInps =
-          computeTxSize (WithDelegation False)
-          (constructDummyCoinSel numInps nOuts)
-          <= fromIntegral maxTxSize
+    lowerBound = upperBound `div` growingFactor
+    upperBound = upperBound_ 1
+      where
+        upperBound_ !n | isTooBig n = n
+                       | otherwise  = upperBound_ (n*growingFactor)
 
-constructDummyCoinSel :: Integer -> Word8 -> CoinSelection
-constructDummyCoinSel numInps nOuts = CoinSelection
-    (map (\ix -> (dummyTxIn (fromIntegral ix), dummyTxOut)) [0..numInps-1])
-    (replicate (fromIntegral nOuts) dummyTxOut)
-    (replicate (fromIntegral nOuts) (Coin 1))
+    isTooBig nInps = size > fromIntegral maxSize
+      where
+        size = computeTxSize (WithDelegation False) sel
+        sel  = dummyCoinSel nInps (fromIntegral nOuts)
+
+dummyCoinSel :: Int -> Int -> CoinSelection
+dummyCoinSel nInps nOuts = CoinSelection
+    (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1])
+    (replicate nOuts dummyTxOut)
+    (replicate nOuts (Coin 1))
   where
-      dummyTxHash = Hash $ BS.pack (1:replicate 64 0)
-      dummyAddr = Address $ BS.pack (1:replicate 64 0)
-      dummyTxIn = TxIn dummyTxHash
-      dummyTxOut = TxOut dummyAddr (Coin 1)
+    dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
+    dummyTxOut  = TxOut dummyAddr (Coin 1)
+    dummyAddr   = Address $ BS.pack (1:replicate 64 0)
 
 _decodeSignedTx
     :: ByteString
