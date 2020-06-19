@@ -4,7 +4,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -15,17 +14,9 @@ module Cardano.CLISpec
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPrv )
 import Cardano.CLI
-    ( CliKeyScheme (..)
-    , DerivationIndex (..)
-    , DerivationPath (..)
-    , KeyEncoding (..)
-    , MnemonicSize (..)
-    , Port (..)
+    ( Port (..)
     , TxId
-    , XPrvOrXPub (..)
     , cli
     , cmdAddress
     , cmdKey
@@ -35,26 +26,9 @@ import Cardano.CLI
     , cmdTransaction
     , cmdWallet
     , cmdWalletCreate
-    , decodeAnyKey
-    , deriveChildKey
-    , encodeKey
-    , firstHardenedIndex
-    , fullKeyEncodingDescription
     , hGetLine
     , hGetSensitiveLine
-    , markCharsRedAtIndices
-    , newCliKeyScheme
-    , toPublic
     )
-import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , Mnemonic
-    , entropyToMnemonic
-    , mnemonicToText
-    )
-import Cardano.Startup
-    ( setUtf8EncodingHandles )
 import Cardano.Wallet.Api.Client
     ( addressClient
     , networkClient
@@ -62,34 +36,18 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
-import Cardano.Wallet.Api.Types
-    ( ByronWalletStyle (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy )
-import Control.Arrow
-    ( left )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, try )
 import Control.Monad
     ( mapM_ )
-import Data.Either
-    ( isLeft )
-import Data.List
-    ( nub )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
-import Data.Word
-    ( Word )
-import GHC.TypeLits
-    ( natVal )
 import Options.Applicative
     ( ParserInfo
     , ParserPrefs
@@ -99,58 +57,25 @@ import Options.Applicative
     , prefs
     , renderFailure
     )
-import System.Environment
-    ( getProgName )
-import System.Exit
-    ( ExitCode (..) )
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( Handle, IOMode (..), hClose, openFile, stderr )
-import System.IO.Silently
-    ( capture_, hCapture_ )
+    ( Handle, IOMode (..), hClose, openFile )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Expectation
-    , HasCallStack
-    , HasCallStack
-    , Spec
-    , describe
-    , expectationFailure
-    , it
-    , runIO
-    , shouldBe
-    , shouldStartWith
-    )
+    ( HasCallStack, Spec, describe, expectationFailure, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , Large (..)
-    , NonEmptyList (..)
-    , Property
     , arbitraryBoundedEnum
     , checkCoverage
-    , choose
-    , counterexample
     , cover
-    , forAll
-    , forAllShrink
-    , genericShrink
-    , oneof
-    , property
-    , suchThat
-    , vector
-    , vectorOf
     , (===)
-    , (==>)
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Data.ByteString as BS
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -162,8 +87,8 @@ spec = do
             [ "The CLI is a proxy to the wallet server, which is required for"
             , "most commands. Commands are turned into corresponding API calls,"
             , "and submitted to an up-and-running server. Some commands do not"
-            , "require an active server and can be run offline (e.g. 'mnemonic"
-            , "generate')."
+            , "require an active server and can be run offline (e.g."
+            , "'recovery-phrase generate')."
             , ""
             , "Usage:  COMMAND"
             , "  Cardano Wallet Command-Line Interface (CLI)"
@@ -172,78 +97,39 @@ spec = do
             , "  -h,--help                Show this help text"
             , ""
             , "Available commands:"
-            , "  mnemonic                 Manage mnemonic phrases."
-            , "  wallet                   Manage wallets."
-            , "  transaction              Manage transactions."
-            , "  address                  Manage addresses."
-            , "  stake-pool               Manage stake pools."
-            , "  network                  Manage network."
-            , "  key                      Derive and manipulate keys."
+            , "  recovery-phrase          About recovery phrases"
+            , "  key                      About public/private keys"
+            , "  wallet                   About wallets"
+            , "  transaction              About transactions"
+            , "  address                  About addresses"
+            , "  stake-pool               About stake pools"
+            , "  network                  About the network"
             ]
 
-        ["mnemonic", "--help"] `shouldShowUsage`
-            [ "Usage:  mnemonic COMMAND"
-            , "  Manage mnemonic phrases."
+        ["recovery-phrase", "--help"] `shouldShowUsage`
+            [ "Usage:  recovery-phrase COMMAND"
+            , "  About recovery phrases"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , ""
             , "Available commands:"
-            , "  generate                 Generate English BIP-0039 compatible"
-            , "                           mnemonic words."
-            , "  reward-credentials       Derive reward account private key from"
-            , "                           a given mnemonic."
+            , "  generate                 Generate an English recovery phrase"
             ]
 
-        ["mnemonic", "generate", "--help"] `shouldShowUsage`
-            [ "Usage:  mnemonic generate [--size INT]"
-            , "  Generate English BIP-0039 compatible mnemonic words."
+        ["recovery-phrase", "generate", "--help"] `shouldShowUsage`
+            [ "Usage:  recovery-phrase generate [--size INT]"
+            , "  Generate an English recovery phrase"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --size INT               number of mnemonic words to"
-            , "                           generate. (default: 15)"
-            ]
-
-        ["mnemonic", "reward-credentials", "--help"] `shouldShowUsage`
-            [ "Usage:  mnemonic reward-credentials "
-            , "  Derive reward account private key from a given mnemonic."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "!!! Only for the Incentivized Testnet !!!"
-            ]
-
-        name <- runIO getProgName
-        ["key", "--help"] `shouldShowUsage`
-            [ "Usage:  key COMMAND"
-            , "  Derive and manipulate keys."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  root                     Extract root extended private key from"
-            , "                           a mnemonic sentence."
-            , "  child                    Derive child keys."
-            , "  public                   Extract the public key from a private"
-            , "                           key."
-            , "  inspect                  Show information about a key."
-            , ""
-            , "Keys are read from standard input for convenient chaining of commands."
-            , ""
-            , "Bech32 and hexadecimal encodings are supported."
-            , ""
-            , "Example:"
-            , "$ " ++ name ++ " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\"
-            , "    | " ++ name ++ " key public"
-            , "xpub1k365denpkmqhj9zj6qpax..."
+            , "  --size INT               Number of mnemonic words to generate."
+            , "                           Must be a multiple of 3. (default: 15)"
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
             [ "Usage:  wallet COMMAND"
-            , "  Manage wallets."
+            , "  About wallets"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -269,10 +155,10 @@ spec = do
             , "                           API. (default: 8090)"
             ]
 
-        ["wallet", "create", "from-mnemonic", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-mnemonic [--port INT] STRING"
-            , "                                    [--address-pool-gap INT]"
-            , "  Create a new wallet using a mnemonic."
+        ["wallet", "create", "from-recovery-phrase", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet create from-recovery-phrase [--port INT] STRING"
+            , "                                           [--address-pool-gap INT]"
+            , "  Create a new wallet using a recovery phrase."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -342,7 +228,7 @@ spec = do
 
         ["transaction", "--help"] `shouldShowUsage`
             [ "Usage:  transaction COMMAND"
-            , "  Manage transactions."
+            , "  About transactions"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -428,7 +314,7 @@ spec = do
 
         ["address", "--help"] `shouldShowUsage`
             [ "Usage:  address COMMAND"
-            , "  Manage addresses."
+            , "  About addresses"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -499,7 +385,7 @@ spec = do
 
         ["network", "--help"] `shouldShowUsage`
             [ "Usage:  network COMMAND"
-            , "  Manage network."
+            , "  About the network"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
@@ -544,145 +430,98 @@ spec = do
             , "                           an available cached result."
             ]
 
-        ["key", "root", "--help"] `shouldShowUsage`
-            [ "Usage:  key root [--wallet-style WALLET_STYLE]"
-            , "                 [--encoding KEY-ENCODING] MNEMONIC_WORD..."
-            , "  Extract root extended private key from a mnemonic sentence."
+        ["key", "--help"] `shouldShowUsage`
+            [ "Usage:  key COMMAND"
+            , "  About public/private keys"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --wallet-style WALLET_STYLE"
-            , "                           Any of the following (default: icarus)"
-            , "                             icarus (15 mnemonic words)"
-            , "                             trezor (12, 15, 18, 21 or 24 mnemonic words)"
-            , "                             ledger (12, 15, 18, 21 or 24 mnemonic words)"
-            , "  --encoding KEY-ENCODING  Either 'hex' or 'bech32' (default:"
-            , "                           hex)"
+            , ""
+            , "Available commands:"
+            , "  from-recovery-phrase     Convert a recovery phrase to an"
+            , "                           extended private key"
+            , "  child                    Derive child keys from a parent"
+            , "                           public/private key"
+            , "  public                   Get the public counterpart of a"
+            , "                           private key"
+            , "  inspect                  Show information about a key"
+            , ""
+            , "Example:"
+            , "  \ESC[1m$ unit recovery-phrase generate --size 15 \\\ESC[0m"
+            , "    \ESC[1m| unit key from-recovery-phrase Shelley > root.prv\ESC[0m"
+            , "  "
+            , "  \ESC[1m$ cat root.prv \\\ESC[0m"
+            , "    \ESC[1m| unit key child 1852H/1815H/0H \\\ESC[0m"
+            , "    \ESC[1m| tee acct.prv \\\ESC[0m"
+            , "    \ESC[1m| unit key public > acct.pub\ESC[0m"
+            , "  "
+            , "  \ESC[1m$ unit key inspect <<< $(cat acct.prv)\ESC[0m"
+            , "  {"
+            , "      \"key_type\": \"private\","
+            , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
+            , "      \"extended_key\": \"90ead3efad7aacac242705ede323665387f49ed847bed025eb333708ccf6aa54403482a867daeb18f38c57d6cddd7e6fd6aed4a3209f7425a3d1c5d9987a9c5f\""
+            , "  }"
+            , "  "
+            , "  \ESC[1m$ unit key inspect <<< $(cat acct.pub)\ESC[0m"
+            , "  {"
+            , "      \"key_type\": \"public\","
+            , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
+            , "      \"extended_key\": \"d306350ee88f51fb710252e27f0c40006c58e994761b383e02d400e2be59b3cc\""
+            , "  }"
+            ]
+
+        ["key", "from-recovery-phrase", "--help"] `shouldShowUsage`
+            [ "Usage:  key from-recovery-phrase ([--base16] | [--base58] |"
+            , "                                 [--bech32]) STYLE"
+            , "  Convert a recovery phrase to an extended private key"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  STYLE                    Byron | Icarus | Jormungandr | Shelley"
+            , ""
+            , "The recovery phrase is read from stdin."
+            , ""
+            , "Example:"
+            , "  \ESC[1m$ unit recovery-phrase generate \\\ESC[0m"
+            , "  \ESC[1m| unit key from-recovery-phrase Icarus\ESC[0m"
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child --path DER-PATH"
-            , "  Derive child keys."
+            [ "Usage:  key child ([--base16] | [--base58] | [--bech32])"
+            , "                  [--legacy] DERIVATION-PATH"
+            , "  Derive child keys from a parent public/private key"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0"
+            , "  DERIVATION-PATH          Slash-separated derivation path."
+            , "                           Hardened indexes are marked with a 'H'"
+            , "                           (e.g. 1852H/1815H/0H/0)."
             , ""
-            , "The parent key is read from standard input."
+            , "The parent key is read from stdin."
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public "
-            , "  Extract the public key from a private key."
+            [ "Usage:  key public ([--base16] | [--base58] | [--bech32])"
+            , "  Get the public counterpart of a private key"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , ""
-            , "The private key is read from standard input."
+            , "The private key is read from stdin."
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`
             [ "Usage:  key inspect "
-            , "  Show information about a key."
+            , "  Show information about a key"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , ""
-            , "The key is read from standard input."
+            , "The parent key is read from stdin."
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
-        textRoundtrip $ Proxy @MnemonicSize
-        textRoundtrip $ Proxy @DerivationIndex
-        textRoundtrip $ Proxy @DerivationPath
-
-    describe "DerivationPath/Index fromText goldens" $ do
-        fromTextGolden @DerivationIndex "" "should fail" $
-            Left "An empty string is not a derivation index!"
-
-        fromTextGolden @DerivationIndex "0'" "should fail" $
-            Left "\"0'\" is not a number."
-
-        fromTextGolden @DerivationIndex "4294967295H" "should fail" $
-            Left "6442450943 is too high to be a derivation index."
-
-        fromTextGolden @DerivationPath "" "should fail" $
-            Left "An empty string is not a derivation index!"
-
-        let firstHardenedIx = 0x80000000
-        fromTextGolden @DerivationPath "44H/0H/0" "" $
-            Right . DerivationPath . map DerivationIndex $
-                [firstHardenedIx + 44, firstHardenedIx + 0, 0]
-
-        fromTextGolden
-            @DerivationPath "2147483692" "hardened index without ' notation" $
-                Left "2147483692 is too high to be a soft derivation index. \
-                     \Please use \"H\" to denote hardened indexes. Did you \
-                     \mean \"44H\"?"
-
-        fromTextGolden @DerivationPath "44H/0H/0/" "should fail (trailing /)" $
-            Left "An empty string is not a derivation index!"
-
-        fromTextGolden @DerivationPath "öH/0H/0/" "should fail" $
-            Left "\"öH\" is not a number."
-
-        fromTextGolden @DerivationPath "0x80000000/0H/0/" "should fail" $
-            Left "\"0x80000000\" is not a number."
-
-
-    describe "Key encoding" $ do
-        let xprv1Bech32 =
-                "xprv18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pg\
-                \aexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990\
-                \aa67mvauxnnajh26hdxprzjry7q26tx0qvy6zgldk"
-
-        let xprv1Bech32FooHrp =
-                "foo18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf0u2u3pga\
-                \exmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq2jy27ejzgca990a\
-                \a67mvauxnnajh26hdxprzjry7q26tx0qvy9csa56"
-
-        -- This is a /public/ key with a "xprv" hrp
-        let notAXPrv = "xprv1hqslt9dm5stzpphhfjah5mk3s27psdt2yal8t5rz9e8dm3r7zp\
-                       \alvq4yg4anyy33622lmm4akemcd88m9w44w6vzx9yxfuq45kv7qcg0j\
-                       \8juy"
-        -- This is a /private/ key with a "xpub" hrp
-        let notAXPub = "xpub18rppm7hzl6m68c5zqh5nxp4sa8d6wmazz6g4p4spt67k3ck3kf\
-                       \0u2u3pgaexmgpafmpwhjyks546rk5fxw9ma685zw8sy6erhtn3s9lkq\
-                       \2jy27ejzgca990aa67mvauxnnajh26hdxprzjry7q26tx0qvyhat9w6"
-        describe "Detection of key encoding" $ do
-            describe "hex" $ do
-                decodeKeyGoldenErr "000000" "too short"
-                    "Expected key to be 96 bytes in the case of a private key \
-                    \and, 64 bytes for public keys. This key is 3 bytes."
-
-            describe "bech32" $ do
-                decodeKeyGoldenErr "xprv1hs" "xprv1hs"
-                    "Bech32 error: string is too short"
-                decodeKeyGoldenErr "xpub1hs" "xpubhs"
-                    "Bech32 error: string is too short"
-                decodeKeyGoldenErr (xprv1Bech32 <> "ö") "trailing \"ö\" char" $
-                    "Bech32 error: Invalid character(s) in string:\n"
-                    <> T.unpack xprv1Bech32 <> "\ESC[91m\246\ESC[0m"
-                decodeKeyGoldenErr (xprv1Bech32 <> "n") "trailing \"n\" char"
-                    "Bech32 error: Invalid character(s) in string"
-
-                -- We should /perhaps/ return a bech32 specific error here
-                decodeKeyGoldenErr xprv1Bech32FooHrp "wrong hrp"
-                    fullKeyEncodingDescription
-
-        describe "Key encoding: Bech32 goldens" $ do
-            it "xpub pretending to be xprv fails" $ do
-                decodeAnyKey notAXPrv
-                    `shouldBe`
-                    (Left "Expected extended private key to be 96 bytes \
-                          \but got 64 bytes.")
-
-            it "xprv pretending to be xpub fails" $ do
-                decodeAnyKey notAXPub
-                    `shouldBe`
-                    (Left "Expected extended public key to be 64 bytes \
-                          \but got 96 bytes.")
 
     describe "Transaction ID decoding from text" $ do
 
@@ -769,218 +608,13 @@ spec = do
             , expectedStdout = "Prompt: ******\ESC[1D \ESC[1D\ESC[1D \ESC[1D**\n"
             , expectedResult = "pata14" :: Text
             }
-
-    let mw15 = words "message mask aunt wheel ten maze between tomato slow \
-                     \analyst ladder such report capital produce"
-    let mw12 = words "broccoli side goddess shaft alarm victory sheriff \
-                     \combine birth deny train outdoor"
-    describe "key root" $ do
-        (["key", "root", "--wallet-style", "icarus"] ++ mw15) `shouldStdOut`
-            "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
-            \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
-            \54f89bc9cc83533eab257d7c94625c95f0d749710428f5aa2404eeb6499b\n"
-        (["key", "root", "--wallet-style", "trezor"] ++ mw15) `shouldStdOut`
-            "00aa5f5f364980f4ac6295fd0fbf65643390d6bb1cf76536c2ebb02713c8ba50d8\
-            \903bee774b7bf8678ea0d6fded6d876db3b42bef687640cc514eb73f767537a8c7\
-            \54f89bc9cc83533eab257d7c94625c95f0d749710428f5aa2404eeb6499b\n"
-        (["key", "root", "--wallet-style", "ledger"] ++ mw15) `shouldStdOut`
-            "003a914372e711b910a75b87e98695929b6960bd5380cfd766b572ea844ea14080\
-            \9eb7ad13f798d06ce550a9f6c48dd2151db4593e67dbd2821d75378c7350f1366b\
-            \85e0be9cdec2213af2084d462cc11e85c215e0f003acbeb996567e371502\n"
-
-    describe "key root (negative tests)" $ do
-        (["key", "root", "--wallet-style", "icarus"] ++ mw12) `expectStdErr`
-            (`shouldBe` "Invalid number of words: 15 words are expected.\n")
-
-        (["key", "root", "--wallet-style", "icarus"]) `expectStdErr`
-            (`shouldStartWith` "Missing: MNEMONIC_WORD...")
-
-        let shrug = "¯\\_(ツ)_/¯"
-        (["key", "root", "--wallet-style", "icarus"] ++ (replicate 15 shrug))
-            `expectStdErr` (`shouldBe`
-            "Found an unknown word not present in the pre-defined dictionary. \
-            \The full dictionary is available here:\
-            \ https://github.com/input-output-hk/cardano-wallet/tree/master/spe\
-            \cifications/mnemonic/english.txt\n")
-
-    describe "markCharsRedAtIndices" $ do
-        it "generates strings of expected length" $ property $ \(ixs :: [Word]) -> do
-            let maxIx = fromIntegral $ foldl max 0 ixs
-            let genStr = choose (maxIx, maxIx + 5) >>= flip vectorOf arbitrary
-            forAllShrink genStr shrink $ \s -> do
-                let rendered = markCharsRedAtIndices ixs s
-                all (< length s) (map fromIntegral ixs) ==>
-                    counterexample rendered $
-                        length rendered === length s + ((length (nub ixs)) * 9)
-
-        it "all red chars correspond to indices" $ property $ \(ixs :: [Word]) -> do
-            let maxIx = fromIntegral $ foldl max 0 ixs
-            let genStr = choose (maxIx, maxIx + 5) >>= flip vectorOf arbitrary
-            forAllShrink genStr shrink $ \(s::String) -> do
-                let rendered = markCharsRedAtIndices ixs s
-                let ixs' = indicesOfRedCharacters rendered
-                if length s > maxIx
-                then Set.fromList ixs' === Set.fromList ixs
-                else property $
-                    Set.fromList ixs' `Set.isSubsetOf` Set.fromList ixs
-
-    describe "CLI Key derivation properties" $ do
-        it "all allowedWordLengths are supported"
-            $ property prop_allowedWordLengthsAllWork
-
-        it "derive . toPublic == toPublic . derive (for soft indices)"
-            $ property prop_publicKeyDerivation
-
-        describe "Key Encoding Roundtrips" $ do
-            let decodeAny = fmap fst . decodeAnyKey
-            it "decodeAnyKey . encodeKey Hex == pure" $ property $ \k -> do
-                (encodeKey Hex k >>= decodeAny) === Right k
-
-            it "decodeAnyKey . encodeKey Bech32 == pure" $ property $ \k -> do
-                (encodeKey Bech32 k >>= decodeAny) === Right k
-
-            it "encodeBack . decodeAnyKey . encodeKey enc === encodeKey enc" $
-                property $ \k enc -> do
-                let f x = decodeAnyKey x >>= \(k', enc') -> encodeKey enc' k'
-                (encodeKey enc k >>= f) === (encodeKey enc k)
-
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)
 
--- Returns a list of indices of charcters marked red with ANSI.
---
--- NOTE: Very primitive parser that only works with the current
--- @markCharsRedAtIndices@ which surrounds /every/ red character with ANSI, even
--- for neighboring characters.
-indicesOfRedCharacters :: Integral i => String -> [i]
-indicesOfRedCharacters s = go s 0
-  where
-    go ('\ESC':'[':'9':'1':'m':_x:'\ESC':'[':'0':'m':xs) n =
-        n : (go xs (n + 1))
-    go (_x:xs) n =
-        go xs (n + 1)
-    go [] _ = []
-
--- | For soft indices, public key derivation should be "equivalent" to private
--- key derivation.
---
--- I.e. The following diagram should commute:
---
--- @
---                       toPublic
---
---              xprv +-----------------> xpub
---                +                       +
---                |                       |
---                |                       |
--- deriveChildKey |                       | deriveChildKey
---                |                       |
---                |                       |
---                v                       v
---           child xprv +-----------> child xpub
---
---                        toPublic
--- @
---
-prop_publicKeyDerivation
-    :: DerivationIndex
-    -> XPrv
-    -> Property
-prop_publicKeyDerivation i key = do
-    if isSoftIndex i
-    then (toPublic k >>= derive) === (derive k >>= toPublic)
-    else property $ isLeft (toPublic k >>= derive)
-  where
-    derive = flip deriveChildKey i
-    k = AXPrv key
-
-    isSoftIndex = (< (DerivationIndex firstHardenedIndex))
-
-prop_allowedWordLengthsAllWork :: ByronWalletStyle -> Property
-prop_allowedWordLengthsAllWork style = do
-    (forAll (genAllowedMnemonic s) propCanRetrieveRootKey)
-  where
-    s :: CliKeyScheme XPrvOrXPub (Either String)
-    s = newCliKeyScheme style
-
-    propCanRetrieveRootKey :: [Text] -> Property
-    propCanRetrieveRootKey mw = case mnemonicToRootKey s mw of
-        Right _ -> property True
-        Left e -> counterexample
-            (show (length mw) ++ " words, failed with: " ++ e)
-            (property False)
-
-genAllowedMnemonic :: CliKeyScheme key m -> Gen [Text]
-genAllowedMnemonic s = oneof (map genMnemonicOfSize $ allowedWordLengths s)
-
-genMnemonicOfSize :: Int -> Gen [Text]
-genMnemonicOfSize = \case
-    12 -> mnemonicToText <$> genMnemonic @12
-    15 -> mnemonicToText <$> genMnemonic @15
-    18 -> mnemonicToText <$> genMnemonic @18
-    21 -> mnemonicToText <$> genMnemonic @21
-    24 -> mnemonicToText <$> genMnemonic @24
-    n  -> error $ "when this test was written, " ++ show n ++
-            " was not a valid length of a mnemonic"
-
-instance Show XPrv where
-    show = show . CC.unXPrv
-
-instance Eq XPrv where
-    a == b = CC.unXPrv a == CC.unXPrv b
-
-deriving instance Eq XPrvOrXPub
-deriving instance Show XPrvOrXPub
-
-instance Arbitrary XPrv where
-    arbitrary = do
-        mw <- genMnemonicOfSize 15
-        let AXPrv rootKey = either (error . show) id $ mnemonicToRootKey s mw
-        return rootKey
-      where
-        s = newCliKeyScheme Icarus
-
-instance Arbitrary XPrvOrXPub where
-    arbitrary = oneof [ AXPrv <$> arbitrary, AXPub . CC.toXPub <$> arbitrary]
-
-genMnemonic
-    :: forall mw ent csz.
-     ( ConsistentEntropy ent mw csz
-     , EntropySize mw ~ ent
-     )
-    => Gen (Mnemonic mw)
-genMnemonic = do
-        let n = fromIntegral (natVal $ Proxy @(EntropySize mw)) `div` 8
-        bytes <- BS.pack <$> vector n
-        let ent = unsafeMkEntropy @(EntropySize mw) bytes
-        return $ entropyToMnemonic ent
-
 {-------------------------------------------------------------------------------
                                Test Helpers
 -------------------------------------------------------------------------------}
-
-fromTextGolden
-    :: (HasCallStack, FromText a, Show a, Eq a)
-    => Text
-    -> String
-    -> Either String a
-    -> Spec
-fromTextGolden str desc expected =
-    it (show str ++ " " ++ desc) $
-        fromText str `shouldBe` (left TextDecodingError expected)
-
-
-decodeKeyGoldenErr
-    :: (HasCallStack)
-    => Text
-    -> String
-    -> String
-    -> Spec
-decodeKeyGoldenErr str desc err =
-    it (show str ++ " " ++ desc) $
-        decodeAnyKey str `shouldBe` (Left err)
-
 
 data GetLineTest a = GetLineTest
     { prompt :: Text
@@ -1031,35 +665,12 @@ defaultPrefs = prefs (mempty <> columns 65)
 parser :: ParserInfo (IO ())
 parser = cli $ mempty
     <> cmdMnemonic
+    <> cmdKey
     <> cmdWallet cmdWalletCreate walletClient
     <> cmdTransaction transactionClient walletClient
     <> cmdAddress addressClient
     <> cmdStakePool (stakePoolClient @()) -- Type of pool not important here.
     <> cmdNetwork networkClient
-    <> cmdKey
-
-shouldStdOut :: HasCallStack => [String] -> String -> Spec
-shouldStdOut args expected = it (unwords args) $ do
-    setUtf8EncodingHandles
-    case execParserPure defaultPrefs parser args of
-        Success x -> capture_ x >>= (`shouldBe` expected)
-        CompletionInvoked _ -> expectationFailure
-            "expected parser to show usage but it offered completion"
-        Failure failure ->
-            expectationFailure $ "parser failed with: " ++ show failure
-
-expectStdErr :: HasCallStack => [String] -> (String -> Expectation) -> Spec
-expectStdErr args expectation = it (unwords args) $ do
-        setUtf8EncodingHandles
-        case execParserPure defaultPrefs parser args of
-            Success x ->
-                hCapture_ [stderr] (try @SomeException x) >>= (expectation)
-            CompletionInvoked _ -> expectationFailure
-                "expected parser to show usage but it offered completion"
-            Failure failure -> do
-                let (str, code) = renderFailure failure ""
-                code `shouldBe` (ExitFailure 1)
-                expectation str
 
 shouldShowUsage :: HasCallStack => [String] -> [String] -> Spec
 shouldShowUsage args expected = it (unwords args) $
@@ -1077,25 +688,8 @@ shouldShowUsage args expected = it (unwords args) $
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary MnemonicSize where
-    arbitrary = arbitraryBoundedEnum
-    shrink = genericShrink
-
-instance Arbitrary ByronWalletStyle where
-    shrink = genericShrink
-    arbitrary = arbitraryBoundedEnum `suchThat` (/= Random)
-
 instance Arbitrary (Port "test") where
     arbitrary = arbitraryBoundedEnum
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
-
-instance Arbitrary DerivationIndex where
-    arbitrary = arbitraryBoundedEnum
-
-instance Arbitrary DerivationPath where
-    arbitrary = DerivationPath . getNonEmpty <$> arbitrary
-
-instance Arbitrary KeyEncoding where
-    arbitrary = arbitraryBoundedEnum

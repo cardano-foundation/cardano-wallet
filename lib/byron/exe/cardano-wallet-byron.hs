@@ -35,7 +35,7 @@ import Cardano.CLI
     , cmdAddress
     , cmdByronWalletCreate
     , cmdKey
-    , cmdMnemonicByron
+    , cmdMnemonic
     , cmdNetwork
     , cmdTransaction
     , cmdVersion
@@ -135,7 +135,7 @@ main = withUtf8Encoding $ do
     enableWindowsANSI
     runCli $ cli $ mempty
         <> cmdServe
-        <> cmdMnemonicByron
+        <> cmdMnemonic
         <> cmdKey
         <> cmdWallet cmdByronWalletCreate byronWalletClient
         <> cmdAddress byronAddressClient

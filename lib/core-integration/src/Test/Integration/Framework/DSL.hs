@@ -1383,7 +1383,7 @@ generateMnemonicsViaCLI
     => [String]
     -> IO r
 generateMnemonicsViaCLI args = cardanoWalletCLI @t
-    (["mnemonic", "generate"] ++ args)
+    (["recovery-phrase", "generate"] ++ args)
 
 createWalletViaCLI
     :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
@@ -1397,7 +1397,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArgs =
             [ "--port", show (ctx ^. typed @(Port "wallet")) ]
     let fullArgs =
-            [ "wallet", "create", "from-mnemonic" ] ++ portArgs ++ args
+            [ "wallet", "create", "from-recovery-phrase" ] ++ portArgs ++ args
     let process = proc' (commandName @t) fullArgs
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
