@@ -13,8 +13,6 @@
 
 module Cardano.Pool.Jormungandr.MetricsSpec
     ( spec
-    , arbitraryChunks
-    , RegistrationsTest
     ) where
 
 import Prelude

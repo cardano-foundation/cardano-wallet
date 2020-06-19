@@ -11,7 +11,10 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Jormungandr.NetworkSpec where
+module Cardano.Wallet.Jormungandr.NetworkSpec
+    ( spec
+    , Consumer(..)
+    ) where
 
 import Prelude
 

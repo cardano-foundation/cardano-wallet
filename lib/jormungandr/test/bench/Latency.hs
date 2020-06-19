@@ -11,7 +11,9 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Main where
+module Main
+    ( main
+    ) where
 
 import Prelude
 
@@ -406,10 +408,6 @@ measureApiLogs
     -> IO a -- ^ Action to run
     -> IO [NominalDiffTime]
 measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
-
--- | Run tests for at least this long to get accurate timings.
-sampleTimeSeconds :: Int
-sampleTimeSeconds = 5
 
 -- | Run tests for at least this long to get accurate timings.
 sampleNTimes :: Int
