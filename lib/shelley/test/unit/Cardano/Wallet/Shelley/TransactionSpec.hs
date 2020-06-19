@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -28,27 +27,34 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx, mkWitness, _decodeSignedTx )
+    ( mkUnsignedTx, mkWitness, _decodeSignedTx, _estimateMaxNumberOfInputs )
 import Control.Monad
     ( replicateM )
 import Data.Function
     ( on )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word16, Word8 )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
+import Test.Hspec.QuickCheck
+    ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
     , Property
     , arbitraryPrintableChar
     , choose
-    , property
     , scale
     , vectorOf
+    , withMaxSuccess
     , (===)
+    , (==>)
     )
 
 import qualified Cardano.Api as Cardano
@@ -65,8 +71,28 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 spec :: Spec
 spec = do
     describe "decodeSignedTx testing" $
-        it "roundtrip"
-            (property prop_decodeSignedTxRoundtrip)
+        prop "roundtrip" prop_decodeSignedTxRoundtrip
+
+    describe "estimateMaxNumberOfInputs" $ do
+        it "order of magnitude, nOuts = 1" $
+            _estimateMaxNumberOfInputs (Quantity 4096) 1 `shouldBe` 27
+        it "order of magnitude, nOuts = 10" $
+            _estimateMaxNumberOfInputs (Quantity 4096) 10 `shouldBe` 19
+        it "order of magnitude, nOuts = 20" $
+            _estimateMaxNumberOfInputs (Quantity 4096) 20 `shouldBe` 10
+        it "order of magnitude, nOuts = 30" $
+            _estimateMaxNumberOfInputs (Quantity 4096) 30 `shouldBe` 1
+
+        prop "more outputs ==> less inputs" prop_moreOutputsMeansLessInputs
+        prop "less outputs ==> more inputs" prop_lessOutputsMeansMoreInputs
+        prop "bigger size  ==> more inputs" prop_biggerMaxSizeMeansMoreInputs
+
+data DecodeSetup = DecodeSetup
+    { inputs :: UTxO
+    , outputs :: [TxOut]
+    , ttl :: SlotNo
+    , keyPasswd :: [(XPrv, Passphrase "encryption")]
+    } deriving Show
 
 prop_decodeSignedTxRoundtrip
     :: DecodeSetup
@@ -82,12 +108,39 @@ prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     _decodeSignedTx (Cardano.txSignedToCBOR (Cardano.TxSignedShelley ledgerTx))
         === Right (toSealed ledgerTx)
 
-data DecodeSetup = DecodeSetup
-    { inputs :: UTxO
-    , outputs :: [TxOut]
-    , ttl :: SlotNo
-    , keyPasswd :: [(XPrv, Passphrase "encryption")]
-    } deriving Show
+-- | Increasing the number of outputs reduces the number of inputs.
+prop_moreOutputsMeansLessInputs
+    :: Quantity "byte" Word16
+    -> Word8
+    -> Property
+prop_moreOutputsMeansLessInputs size nOuts = withMaxSuccess 1000 $
+    nOuts < maxBound ==>
+        _estimateMaxNumberOfInputs size nOuts
+        >=
+        _estimateMaxNumberOfInputs size (nOuts + 1)
+
+-- | REducing the number of outputs increases the number of inputs.
+prop_lessOutputsMeansMoreInputs
+    :: Quantity "byte" Word16
+    -> Word8
+    -> Property
+prop_lessOutputsMeansMoreInputs size nOuts = withMaxSuccess 1000 $
+    nOuts > minBound ==>
+        _estimateMaxNumberOfInputs size (nOuts - 1)
+        >=
+        _estimateMaxNumberOfInputs size nOuts
+
+
+-- | Increasing the max size automatically increased the number of inputs
+prop_biggerMaxSizeMeansMoreInputs
+    :: Quantity "byte" Word16
+    -> Word8
+    -> Property
+prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts = withMaxSuccess 1000 $
+    size < maxBound `div` 2 ==>
+        _estimateMaxNumberOfInputs (Quantity size) nOuts
+        <=
+        _estimateMaxNumberOfInputs (Quantity (size * 2)) nOuts
 
 instance Arbitrary DecodeSetup where
     arbitrary = do
@@ -165,63 +218,9 @@ instance Arbitrary (Passphrase "raw") where
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = preparePassphrase EncryptWithPBKDF2
         <$> arbitrary @(Passphrase "raw")
-||||||| merged common ancestors
-=======
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
-module Cardano.Wallet.Shelley.TransactionSpec
-    ( spec
-    ) where
-
-import Prelude
-
-import Cardano.Wallet.Shelley.Transaction
-    ( computeTxSize, constructDummyCoinSel, _estimateMaxNumberOfInputs )
-import Cardano.Wallet.Transaction
-    ( WithDelegation (..) )
-import Data.Quantity
-    ( Quantity (..) )
-import Data.Word
-    ( Word16, Word8 )
-import Test.Hspec
-    ( Spec, describe, it )
-import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, suchThat, (===), (==>) )
-
-spec :: Spec
-spec = do
-    describe "Estimating maximum number of inputs" $
-        it "can properly retrieve maximum number of inputs"
-            (property prop_canProperlyEstimate)
-
--- | Can retrieve maximum number of inputs
-prop_canProperlyEstimate
-    :: EstimateSetup
-    -> Property
-prop_canProperlyEstimate (EstimateSetup nInps nOuts) =
-    calculatedTxSize <= fromIntegral (maxBound @Word16) ==>
-    _estimateMaxNumberOfInputs (Quantity $ fromIntegral $ calculatedTxSize + 1)
-    (fromIntegral nOuts)
-    === fromIntegral nInps
-  where
-    calculatedTxSize =
-        computeTxSize (WithDelegation False) (constructDummyCoinSel nInps nOuts)
-
-data EstimateSetup = EstimateSetup
-    { numberOfInps :: Integer
-    , numberOfOuts :: Word8
-    } deriving Show
-
-instance Arbitrary EstimateSetup where
-    arbitrary = do
-        nInps <- choose (1, 1000)
-        nOuts <- choose (1, maxBound) `suchThat` (\o -> fromIntegral o <= nInps)
-        pure $ EstimateSetup nInps nOuts
->>>>>>> add property and make some performance optimisation
+instance Arbitrary (Quantity "byte" Word16) where
+    arbitrary = Quantity <$> choose (128, 2048)
+    shrink (Quantity size)
+        | size <= 1 = []
+        | otherwise = Quantity <$> shrink size
