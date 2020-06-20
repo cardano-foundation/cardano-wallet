@@ -16,19 +16,19 @@ module Cardano.Launcher.Node
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog
-    , ProcessHasExited
-    , withBackendCreateProcess
-    )
+    ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
 import Control.Tracer
     ( Tracer (..) )
+import Data.Maybe
+    ( maybeToList )
+import System.Environment
+    ( getEnvironment )
 import System.FilePath
     ( takeFileName, (</>) )
 import System.Info
     ( os )
-import System.Process (CreateProcess (..), proc)
-import System.Environment (getEnvironment)
-import Data.Maybe (maybeToList)
+import System.Process
+    ( CreateProcess (..), proc )
 
 -- | Parameters for connecting to the node.
 newtype CardanoNodeConn = CardanoNodeConn

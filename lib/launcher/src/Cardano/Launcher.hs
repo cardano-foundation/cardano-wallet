@@ -67,8 +67,8 @@ import System.Exit
 import System.IO
     ( Handle )
 import System.Process
-    ( CreateProcess (..)
-    , CmdSpec (..)
+    ( CmdSpec (..)
+    , CreateProcess (..)
     , ProcessHandle
     , StdStream (..)
     , getPid

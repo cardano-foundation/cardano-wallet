@@ -63,7 +63,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( ClusterLog, withCluster )
+    ( ClusterLog, withCluster, withSystemTempDir, withTempDir )
 import Cardano.Wallet.Shelley.Transaction
     ( _minimumFee )
 import Cardano.Wallet.Transaction
@@ -98,8 +98,6 @@ import System.Exit
     ( die )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import System.Random
     ( mkStdGen, randoms )
 import Test.Hspec
@@ -213,20 +211,21 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     withServer onStart = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
         let tr' = contramap MsgCluster tr
-        withCluster tr' minSev 3 $ \socketPath block0 (gp, vData) ->
-            withSystemTempDirectory "cardano-wallet-databases" $ \db ->
-                serveWallet @(IO Shelley)
-                    (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                    tracers
-                    (SyncTolerance 10)
-                    (Just db)
-                    "127.0.0.1"
-                    ListenOnRandomPort
-                    Nothing
-                    socketPath
-                    block0
-                    (gp, vData)
-                    (onStart gp)
+        withSystemTempDir tr' "integration" $ \dir ->
+            withCluster tr' minSev 3 dir $ \socketPath block0 (gp, vData) ->
+                withTempDir tr' dir "wallets" $ \db ->
+                    serveWallet @(IO Shelley)
+                        (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                        tracers
+                        (SyncTolerance 10)
+                        (Just db)
+                        "127.0.0.1"
+                        ListenOnRandomPort
+                        Nothing
+                        socketPath
+                        block0
+                        (gp, vData)
+                        (onStart gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()

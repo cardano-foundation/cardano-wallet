@@ -32,6 +32,8 @@ module Cardano.Wallet.Shelley.Launch
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
+    , withTempDir
+    , withSystemTempDir
 
     -- * Logging
     , ClusterLog (..)
@@ -124,7 +126,7 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile )
+    ( copyFile, createDirectory )
 import System.Environment
     ( lookupEnv, setEnv )
 import System.Exit
@@ -132,10 +134,7 @@ import System.Exit
 import System.FilePath
     ( (</>) )
 import System.IO.Temp
-    ( createTempDirectory
-    , getCanonicalTemporaryDirectory
-    , withSystemTempDirectory
-    )
+    ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process
@@ -274,14 +273,16 @@ withCluster
     -- ^ Minimum logging severity for @cardano-node@
     -> Int
     -- ^ How many pools should the cluster spawn.
+    -> FilePath
+    -- ^ Parent state directory for cluster
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Action to run with the cluster up
     -> IO a
-withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
+withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
     systemStart <- addUTCTime 1 <$> getCurrentTime
     ports <- randomUnusedTCPPorts (n + 1)
     let bftCfg = NodeParams severity systemStart (head $ rotate ports)
-    withBFTNode tr bftCfg $ \socket block0 params -> do
+    withBFTNode tr dir bftCfg $ \socket block0 params -> do
         waitForSocket tr socket
         waitGroup <- newChan
         doneGroup <- newChan
@@ -301,7 +302,7 @@ withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
                 let spCfg = NodeParams severity systemStart (port, peers)
-                withStakePool tr idx spCfg $ do
+                withStakePool tr dir idx spCfg $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
@@ -333,13 +334,18 @@ data NodeParams = NodeParams
 withBFTNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
+    -> FilePath
+    -- ^ Parent state directory. Node data will be created in a subdirectory of
+    -- this.
     -> NodeParams
+    -- ^ Parameters used to generate config files.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr (NodeParams severity systemStart (port, peers)) action =
-    bracketTracer' tr "withBFTNode" $
-    withTempDir tr name $ \dir -> do
+withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+    bracketTracer' tr "withBFTNode" $ do
+        createDirectory dir
+
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
@@ -369,22 +375,34 @@ withBFTNode tr (NodeParams severity systemStart (port, peers)) action =
     source = $(getTestData) </> "cardano-node-shelley"
 
     name = "bft-node"
+    dir = baseDir </> name
 
 singleNodeParams :: Severity -> IO NodeParams
 singleNodeParams severity = do
     systemStart <- getCurrentTime
     pure $ NodeParams severity systemStart (0, [])
 
--- | Populates the configuration directory of a stake pool @cardano-node@. Sets
--- up a transaction which can be used to register the pool.
+-- | Populates the configuration directory of a stake pool @cardano-node@.
+--
+-- Returns a tuple with:
+--  * A config for launching the stake pool node.
+--  * The public operator certificate - used for verifying registration.
+--  * A transaction which should be submitted to register the pool.
 setupStakePoolData
     :: Tracer IO ClusterLog
+    -- ^ Logging object.
     -> FilePath
+    -- ^ Output directory.
     -> String
+    -- ^ Short name of the stake pool.
     -> NodeParams
+    -- ^ Parameters used for generating config files.
     -> String
+    -- ^ Base URL of metadata server.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr name dir (NodeParams severity systemStart (port, peers)) url = do
+setupStakePoolData tr dir name params url = do
+    let NodeParams severity systemStart (port, peers) = params
+
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
     (kesPrv, kesPub) <- genKesKeyPair tr dir
@@ -431,6 +449,9 @@ setupStakePoolData tr name dir (NodeParams severity systemStart (port, peers)) u
 withStakePool
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
+    -> FilePath
+    -- ^ Parent state directory. Node and stake pool data will be created in a
+    -- subdirectory of this.
     -> Int
     -- ^ Stake pool index in the cluster
     -> NodeParams
@@ -438,16 +459,17 @@ withStakePool
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr idx params action =
-    bracketTracer' tr "withStakePool" $
-        withTempDir tr name $ \dir -> do
-            withStaticServer dir $ \url -> do
-                (cfg, opPub, tx) <- setupStakePoolData tr dir name params url
-                withCardanoNodeProcess tr name cfg $ \_ -> do
-                    submitTx tr name tx
-                    timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
-                    action
+withStakePool tr baseDir idx params action =
+    bracketTracer' tr "withStakePool" $ do
+        createDirectory dir
+        withStaticServer dir $ \url -> do
+            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url
+            withCardanoNodeProcess tr name cfg $ \_ -> do
+                submitTx tr name tx
+                timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                action
   where
+    dir = baseDir </> name
     name = "stake-pool-" ++ show idx
 
 withCardanoNodeProcess
@@ -983,22 +1005,31 @@ blake2b256S =
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
     :: Tracer IO ClusterLog
-    -> String   -- ^ Directory name template
+    -> FilePath -- ^ Parent directory
+    -> String -- ^ Directory name template
     -> (FilePath -> IO a) -- ^ Callback that can use the directory
     -> IO a
-withTempDir tr name action = isEnvSet "NO_CLEANUP" >>= \case
+withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
-        parent <- getCanonicalTemporaryDirectory
         dir <- createTempDirectory parent name
         res <- action dir
         traceWith tr $ MsgTempNoCleanup dir
         pure res
-    False -> withSystemTempDirectory name action
+    False -> withTempDirectory parent name action
   where
     isEnvSet ev = lookupEnv ev <&> \case
         Nothing -> False
         Just "" -> False
         Just _ -> True
+
+withSystemTempDir
+    :: Tracer IO ClusterLog
+    -> String   -- ^ Directory name template
+    -> (FilePath -> IO a) -- ^ Callback that can use the directory
+    -> IO a
+withSystemTempDir tr name action = do
+    parent <- getCanonicalTemporaryDirectory
+    withTempDir tr parent name action
 
 {-------------------------------------------------------------------------------
                                     Logging
