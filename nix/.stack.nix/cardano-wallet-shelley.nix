@@ -149,7 +149,6 @@
             (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             ];
