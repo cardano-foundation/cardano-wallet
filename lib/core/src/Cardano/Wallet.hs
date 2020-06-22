@@ -127,6 +127,9 @@ module Cardano.Wallet
     -- ** Fee Estimation
     , FeeEstimation (..)
     , estimateFeeForCoinSelection
+    , feeOpts
+    , coinSelOpts
+    , handleCannotCover
 
     -- ** Transaction
     , forgetPendingTx
@@ -275,6 +278,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
+    , UTxO
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
@@ -309,7 +313,14 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..)
+    , catchE
+    , except
+    , mapExceptT
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State.Strict
@@ -1192,8 +1203,21 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection $
-        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+    estimateFeeForCoinSelection
+        (selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients)
+        `catchE` handleCannotCover utxo
+
+handleCannotCover
+    :: Monad m
+    => UTxO
+    -> ErrSelectForPayment e
+    -> ExceptT (ErrSelectForPayment e) m FeeEstimation
+handleCannotCover utxo = \case
+    ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
+        let amt = missing + fromIntegral (W.balance utxo)
+        pure $ FeeEstimation amt amt
+    e ->
+        throwE e
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
