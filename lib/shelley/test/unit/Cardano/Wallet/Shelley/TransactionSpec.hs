@@ -65,8 +65,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word8 )
-import Fmt
-    ( pretty )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
@@ -136,14 +134,13 @@ data DecodeSetup = DecodeSetup
                 [ TxOut dummyAddress (Coin 4834720)
                 ]
 
-        let selectCoins = do
+        let selectCoins = flip catchE (handleCannotCover utxo) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
                     CS.random testCoinSelOpts recipients utxo
                 withExceptT ErrSelectForPaymentFee $
-                    adjustForFee testFeeOpts utxo' sel
+                    (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
 
-        res <- runExceptT $ (estimateFeeForCoinSelection selectCoins)
-            `catchE` handleCannotCover utxo
+        res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
         res `shouldNotBe` Right (FeeEstimation 5000001 5000001)
 

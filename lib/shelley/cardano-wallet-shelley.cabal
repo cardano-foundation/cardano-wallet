@@ -145,7 +145,6 @@ test-suite unit
     , cardano-wallet-shelley
     , cardano-wallet-test-utils
     , containers
-    , fmt
     , generic-lens
     , hspec
     , iohk-monitoring

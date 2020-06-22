@@ -234,6 +234,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
+    , Fee (..)
     , FeeOptions (..)
     , OnDanglingChange (..)
     , adjustForFee
@@ -1143,8 +1144,8 @@ estimateFeeForDelegation
 estimateFeeForDelegation ctx wid = do
     (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection $
-       selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
 
 -- | Constructs a set of coin selections that select all funds from the given
 --   source wallet, returning them as change.
@@ -1203,19 +1204,24 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection
-        (selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients)
-        `catchE` handleCannotCover utxo
+    let selectCoins =
+            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+    estimateFeeForCoinSelection $
+        (Fee . feeBalance <$> selectCoins) `catchE` handleCannotCover utxo
 
+-- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
+-- whereas clients are just asking for an estimation. Therefore, we convert
+-- cannot cover errors into the necessary fee amount, even though there isn't
+-- enough in the wallet to cover for these fees.
 handleCannotCover
     :: Monad m
     => UTxO
     -> ErrSelectForPayment e
-    -> ExceptT (ErrSelectForPayment e) m FeeEstimation
+    -> ExceptT (ErrSelectForPayment e) m Fee
 handleCannotCover utxo = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
         let amt = missing + fromIntegral (W.balance utxo)
-        pure $ FeeEstimation amt amt
+        pure $ Fee amt
     e ->
         throwE e
 
@@ -1628,14 +1634,14 @@ data FeeEstimation = FeeEstimation
 -- greater than. The maximum fee is the highest fee observed in the samples.
 estimateFeeForCoinSelection
     :: forall m err. Monad m
-    => ExceptT err m CoinSelection
+    => ExceptT err m Fee
     -> ExceptT err m FeeEstimation
 estimateFeeForCoinSelection
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
-    . fmap feeBalance
+    . fmap getFee
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
