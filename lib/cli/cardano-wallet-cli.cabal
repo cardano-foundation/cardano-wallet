@@ -33,20 +33,15 @@ library
     , aeson-pretty
     , ansi-terminal
     , base
-    , bech32
-    , bech32-th
     , bytestring
     , cardano-addresses
-    , cardano-crypto
     , cardano-wallet-core
     , contra-tracer
     , directory
-    , extra
     , filepath
     , fmt
     , http-client
     , iohk-monitoring
-    , memory
     , servant-client
     , servant-client-core
     , text
@@ -70,18 +65,12 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , bytestring
-    , cardano-addresses
-    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
-    , cardano-wallet-launcher
-    , containers
     , filepath
     , hspec
     , optparse-applicative
     , QuickCheck
-    , silently
     , temporary
     , text
     , text-class

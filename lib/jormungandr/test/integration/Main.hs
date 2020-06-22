@@ -102,9 +102,7 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
-import qualified Test.Integration.Jormungandr.Scenario.CLI.Keys as KeysCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
-import qualified Test.Integration.Jormungandr.Scenario.CLI.Mnemonics as MnemonicsJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Port as PortCLIJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.StakePools as StakePoolsCliJormungandr
@@ -118,7 +116,6 @@ import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
-import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Addresses as AddressesCLI
@@ -135,12 +132,9 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
-            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
-            describe "Mnemonics CLI tests (Jormungandr)" $ parallel (MnemonicsJormungandr.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
             describe "Launcher CLI tests" $ parallel (LauncherCLI.spec @t)
             describe "Stake Pool Metrics" MetricsSpec.spec
-            describe "Key CLI tests" KeysCLI.spec
 
         describe "API Specifications" $ specWithServer @n tr $ do
             withCtxOnly $ Addresses.spec @n

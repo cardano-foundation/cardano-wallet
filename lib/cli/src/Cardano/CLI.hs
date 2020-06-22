@@ -11,7 +11,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -33,7 +32,6 @@ module Cardano.CLI
 
     -- * Commands
     , cmdMnemonic
-    , cmdMnemonicByron
     , cmdWallet
     , cmdWalletCreate
     , cmdByronWalletCreate
@@ -69,23 +67,7 @@ module Cardano.CLI
     -- * Types
     , Service
     , TxId
-    , MnemonicSize (..)
     , Port (..)
-    , CliKeyScheme (..)
-    , DerivationIndex (..)
-    , DerivationPath (..)
-    , XPrvOrXPub (..)
-    , KeyEncoding (..)
-
-    , newCliKeyScheme
-    , firstHardenedIndex
-    , fullKeyEncodingDescription
-    , decodeKey
-    , detectEncoding
-    , decodeAnyKey
-    , encodeKey
-    , deriveChildKey
-    , toPublic
 
     -- * Logging
     , withLogging
@@ -94,7 +76,6 @@ module Cardano.CLI
     , putErrLn
     , hPutErrLn
     , enableWindowsANSI
-    , markCharsRedAtIndices
 
     -- * Working with Sensitive Data
     , getLine
@@ -114,15 +95,6 @@ module Cardano.CLI
 import Prelude hiding
     ( getLine )
 
-import Cardano.Address.Derivation
-    ( XPrv
-    , XPub
-    , toXPub
-    , xprvFromBytes
-    , xprvToBytes
-    , xpubFromBytes
-    , xpubToBytes
-    )
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
@@ -136,14 +108,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..)
-    , MkSomeMnemonicError (..)
-    , NatVals (..)
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
+    ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Api.Client
     ( AddressClient (..)
     , NetworkClient (..)
@@ -184,9 +149,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength
     , PassphraseMinLength
-    , WalletKey (..)
-    , deriveRewardAccount
-    , hex
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
@@ -201,8 +163,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
-import Codec.Binary.Bech32
-    ( CharPosition (..), DecodingError (..) )
 import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
@@ -210,31 +170,19 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( foldM, join, unless, void, when, (>=>) )
+    ( join, unless, void, when )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
     ( ToJSON (..), (.:), (.=) )
 import Data.Bifunctor
     ( bimap )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
 import Data.Char
     ( toLower )
-import Data.Either
-    ( isRight )
-import Data.List
-    ( nub, sort )
-import Data.List.Extra
-    ( enumerate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -245,8 +193,6 @@ import Data.Text.Read
     ( decimal )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word32 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -275,8 +221,6 @@ import Options.Applicative
     , eitherReader
     , flag
     , flag'
-    , footer
-    , footerDoc
     , header
     , help
     , helpDoc
@@ -312,7 +256,6 @@ import System.Console.ANSI
     , hCursorBackward
     , hSetSGR
     , hSupportsANSIWithoutEmulation
-    , setSGRCode
     )
 import System.Directory
     ( XdgDirectory (..)
@@ -321,10 +264,8 @@ import System.Directory
     , doesFileExist
     , getXdgDirectory
     )
-import System.Environment
-    ( getProgName )
 import System.Exit
-    ( die, exitFailure, exitSuccess )
+    ( exitFailure, exitSuccess )
 import System.FilePath
     ( (</>) )
 import System.Info
@@ -343,23 +284,15 @@ import System.IO
     , stdin
     , stdout
     )
-import System.IO.Unsafe
-    ( unsafePerformIO )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
-import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.Api.Types as API
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
-import qualified Codec.Binary.Bech32 as Bech32
-import qualified Codec.Binary.Bech32.TH as Bech32
+import qualified Command.Key as Key
+import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Bifunctor as Bi
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -382,7 +315,7 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
         [ "The CLI is a proxy to the wallet server, which is required for most "
         , "commands. Commands are turned into corresponding API calls, and "
         , "submitted to an up-and-running server. Some commands do not require "
-        , "an active server and can be run offline (e.g. 'mnemonic generate')."
+        , "an active server and can be run offline (e.g. 'recovery-phrase generate')."
         ])
 
 -- | Runs a specific command parser using appropriate preferences
@@ -392,528 +325,18 @@ runCli = join . customExecParser preferences
     preferences = prefs showHelpOnEmpty
 
 {-------------------------------------------------------------------------------
-                            Commands - 'HD Derivation'
+                            Commands - 'key'
 -------------------------------------------------------------------------------}
 
-{-# NOINLINE progName #-}
-progName :: String
-progName = unsafePerformIO getProgName
-
 cmdKey :: Mod CommandFields (IO ())
-cmdKey = command "key" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Derive and manipulate keys."
-    <> footerDoc (Just $ string $ mconcat
-        [ "Keys are read from standard input for convenient chaining of commands."
-        , "\n\n"
-        , "Bech32 and hexadecimal encodings are supported."
-        , "\n\n"
-        , "Example:\n"
-        , "$ "
-        , progName
-        , " key root --wallet-style icarus --encoding bech32 -- express theme celery coral permit ... \\\n"
-        , "    | "
-        , progName
-        , " key public\n"
-        , "xpub1k365denpkmqhj9zj6qpax..."
-        ])
-  where
-    cmds = subparser $ mempty
-        <> cmdKeyRoot
-        <> cmdKeyChild
-        <> cmdKeyPublic
-        <> cmdKeyInspect
-
--- | Record encapsulating @mnemonicToRootKey@  — /without/ any type
--- parameters related to scheme.
---
--- This means that we can have a value for byron, a value for icarus, both with
--- the same type @CliKeyScheme@.
---
--- @CliKeyScheme@ is on the other hand parameterized over @key@ and @m@.
-data CliKeyScheme key m = CliKeyScheme
-    { allowedWordLengths :: [Int]
-    , mnemonicToRootKey :: [Text] -> m key
-    }
-
-data XPrvOrXPub = AXPrv XPrv | AXPub XPub
-
-eitherToIO :: Either String a -> IO a
-eitherToIO = either die return
-
-data KeyEncoding = Hex | Bech32
-    deriving (Show, Eq, Enum, Bounded)
-
-detectEncoding :: Text -> Either String KeyEncoding
-detectEncoding x
-    | "xprv1" `T.isPrefixOf` x = pure Bech32
-    | "xpub1" `T.isPrefixOf` x = pure Bech32
-    | isHex x                  = pure Hex
-    | otherwise                = Left fullKeyEncodingDescription
-  where
-    isHex = isRight . decodeHex
-
-fullKeyEncodingDescription :: String
-fullKeyEncodingDescription = mconcat
-    [ "Invalid key. Expected one of the following:\n"
-    , "- 96 bytes long hex (extended private key)\n"
-    , "- 64 bytes long hex (extended public key)\n"
-    , "- xprv1... (bech32-encoded extended private key)\n"
-    , "- xpub1... (bech32-encoded extended public key)"
-    ]
-
-aXPrvFromBytes :: ByteString -> Either String XPrvOrXPub
-aXPrvFromBytes x = maybe errLength (return . AXPrv) $ xprvFromBytes x
-  where
-    actual = BS.length x
-    -- TODO: Have cardano-addresses expose the expected length
-    expectedBytes = 96 :: Int
-    errLength = Left $ mconcat
-        [ "Expected extended private key to be "
-        , show expectedBytes
-        , " bytes but got "
-        , show actual
-        , " bytes."
-        ]
-
-aXPubFromBytes :: ByteString -> Either String XPrvOrXPub
-aXPubFromBytes x = maybe errLength (return . AXPub) $ xpubFromBytes x
-  where
-    actual = BS.length x
-    -- TODO: Have cardano-addresses expose the expected length
-    expectedBytes = 64 :: Int
-    errLength = Left $ mconcat
-        [ "Expected extended public key to be "
-        , show expectedBytes
-        , " bytes but got "
-        , show actual
-        , " bytes."
-        ]
-
-xprvOrXPubFromBytes :: ByteString -> Either String XPrvOrXPub
-xprvOrXPubFromBytes bs =
-    case BS.length bs of
-        96 -> aXPrvFromBytes bs
-        64 -> aXPubFromBytes bs
-        n -> Left . mconcat $
-            [ "Expected key to be 96 bytes in the case of a private key"
-            , " and, 64 bytes for public keys. This key is "
-            , show n
-            , " bytes."
-            ]
-
-xprvHrp :: Bech32.HumanReadablePart
-xprvHrp = [Bech32.humanReadablePart|xprv|]
-
-xpubHrp :: Bech32.HumanReadablePart
-xpubHrp = [Bech32.humanReadablePart|xpub|]
-
-decodeAnyKey :: Text -> Either String (XPrvOrXPub, KeyEncoding)
-decodeAnyKey rawKey = do
-    enc <- detectEncoding rawKey
-    k <- decodeKey enc rawKey
-    return (k, enc)
-
-decodeKey :: KeyEncoding -> Text -> Either String XPrvOrXPub
-decodeKey = \case
-    Bech32 -> decodeBech32
-    Hex -> decodeHex >=> xprvOrXPubFromBytes
-  where
-    decodeBech32 :: Text -> Either String XPrvOrXPub
-    decodeBech32 t = do
-        (hrp, dp) <- left bech32Err $ Bech32.decodeLenient t
-        bytes <- maybe (Left dpErr) Right $ Bech32.dataPartToBytes dp
-        case hrp of
-            h | h == xpubHrp -> aXPubFromBytes bytes
-            h | h == xprvHrp -> aXPrvFromBytes bytes
-            _ -> Left "unrecognized Bech32 Human Readable Part"
-      where
-        dpErr = "Internal error: Unable to extract bytes from bech32 data part"
-
-        bech32Err  = ("Bech32 error: " <>) . \case
-            StringToDecodeTooLong -> "string is too long"
-            StringToDecodeTooShort -> "string is too short"
-            StringToDecodeHasMixedCase -> "string has mixed case"
-            StringToDecodeMissingSeparatorChar -> "string has no separator char"
-            StringToDecodeContainsInvalidChars [] -> invalidCharsMsg
-            StringToDecodeContainsInvalidChars ixs -> invalidCharsMsg <> ":\n"
-                    <> markCharsRedAtIndices (map unCharPos ixs) (T.unpack t)
-        invalidCharsMsg = "Invalid character(s) in string"
-        unCharPos (CharPosition x) = x
-
-markCharsRedAtIndices :: Integral i => [i] -> String -> String
-markCharsRedAtIndices ixs = go 0 (sort $ nub ixs)
-  where
-    go _c [] [] = mempty
-    go c (i:is) (s:ss)
-        | c == i    = red ++ s:def ++ go (c + 1) is ss
-        | otherwise = s : go (c + 1) (i:is) ss
-    go _ [] ss = ss
-    go _ _ [] = [] -- NOTE: Really an error case.
-
-    red = setSGRCode [SetColor Foreground Vivid Red]
-    def = setSGRCode [Reset]
-
-decodeHex :: Text -> Either String ByteString
-decodeHex txt = fromHex $ T.encodeUtf8 . T.strip $ txt
- where
-   fromHex = left (const "Invalid hex.")
-       . convertFromBase Base16
-
-encodeKey :: KeyEncoding -> XPrvOrXPub -> Either String Text
-encodeKey enc key = case enc of
-    Hex -> T.decodeUtf8 . hex <$> bytes
-    Bech32 -> bech32 hrp <$> bytes
-  where
-    bech32 h = Bech32.encodeLenient h . Bech32.dataPartFromBytes
-
-    hrp = case key of
-        AXPrv _ -> xprvHrp
-        AXPub _ -> xpubHrp
-
-    bytes :: Either String ByteString
-    bytes = case key of
-        AXPrv xprv -> return . xprvToBytes $ xprv
-        AXPub xpub -> return . xpubToBytes $ xpub
-
-newtype DerivationPath = DerivationPath [DerivationIndex]
-    deriving (Show, Eq)
-
-instance FromText DerivationPath where
-    fromText x = DerivationPath <$> mapM fromText (T.splitOn "/" x)
-
-instance ToText DerivationPath where
-    toText (DerivationPath xs) = T.intercalate "/" $ map toText xs
-
-newtype DerivationIndex = DerivationIndex { unDerivationIndex :: Word32 }
-    deriving (Show, Eq)
-    deriving newtype (Bounded, Enum, Ord)
-
-firstHardenedIndex :: Word32
-firstHardenedIndex = getIndex $ minBound @(Index 'Hardened 'AddressK)
-
-instance FromText DerivationIndex where
-    fromText "" = Left $ TextDecodingError
-        "An empty string is not a derivation index!"
-    fromText x = do
-       -- NOTE: T.takeEnd will not throw, but may return "".
-       if T.takeEnd 1 x == "H"
-       then do
-           let x' = T.dropEnd 1 x
-           parseHardenedIndex x'
-       else parseSoftIndex x
-      where
-        parseWord = left (const err) .
-            fmap fromIntegral . fromText @Int
-          where
-            err = TextDecodingError $
-                "\"" ++ T.unpack x ++ "\" is not a number."
-
-        mkDerivationIndex :: Int -> Either TextDecodingError DerivationIndex
-        mkDerivationIndex =
-            fmap (DerivationIndex . toEnum . fromEnum) . indexInv
-
-        parseSoftIndex txt = do
-            num <- parseWord txt >>= softIndexInv
-            mkDerivationIndex num
-
-        parseHardenedIndex txt = do
-            num <- parseWord txt
-            let i = num + fromIntegral firstHardenedIndex
-            mkDerivationIndex i
-
-        softIndexInv a = do
-            idx <- mkDerivationIndex a
-            if a >= fromIntegral firstHardenedIndex
-            then Left . TextDecodingError $ mconcat
-                [ show a
-                , " is too high to be a soft derivation index. "
-                , "Please use \"H\" to denote hardened indexes. "
-                , "Did you mean \""
-                , T.unpack $ toText idx
-                , "\"?"
-                ]
-            else Right a
-
-        indexInv a =
-            if a > fromIntegral (maxBound @Word32)
-            then Left . TextDecodingError $ mconcat
-                [ show a
-                , " is too high to be a derivation index."
-                ]
-            else Right a
-
-instance ToText DerivationIndex where
-    toText (DerivationIndex i) = do
-        T.pack $
-            if i >= firstHardenedIndex
-            then show (i - firstHardenedIndex) ++ "H"
-            else show i
-
-newCliKeyScheme :: ByronWalletStyle -> CliKeyScheme XPrvOrXPub (Either String)
-newCliKeyScheme = \case
-    Random ->
-        -- NOTE
-        -- This cannot happen because 'Random' style is filtered out by the
-        -- option parser already.
-        error "newCliKeyScheme: unsupported wallet type"
-
-    Icarus ->
-        let
-            proxy = Proxy @'API.Icarus
-        in
-            CliKeyScheme
-                (apiAllowedLengths proxy)
-                (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
-    Trezor ->
-        let
-            proxy = Proxy @'API.Trezor
-        in
-            CliKeyScheme
-                (apiAllowedLengths proxy)
-                (fmap (AXPrv . icarusKeyFromSeed) . seedFromMnemonic proxy)
-    Ledger ->
-        let
-            proxy = Proxy @'API.Ledger
-        in
-            CliKeyScheme
-                (apiAllowedLengths proxy)
-                (fmap (AXPrv . ledgerKeyFromSeed) . seedFromMnemonic proxy)
-  where
-    seedFromMnemonic
-        :: forall (s :: ByronWalletStyle).
-            (MkSomeMnemonic (AllowedMnemonics s))
-        => Proxy s
-        -> [Text]
-        -> Either String SomeMnemonic
-    seedFromMnemonic _ =
-        left getMkSomeMnemonicError . mkSomeMnemonic @(AllowedMnemonics s)
-
-    apiAllowedLengths
-        :: forall (s :: ByronWalletStyle). ( NatVals (AllowedMnemonics s))
-        => Proxy s
-        -> [Int]
-    apiAllowedLengths _ =
-         (map fromIntegral (natVals $ Proxy @(AllowedMnemonics s)))
-
-    icarusKeyFromSeed :: SomeMnemonic -> XPrv
-    icarusKeyFromSeed = Icarus.getKey . flip Icarus.generateKeyFromSeed pass
-
-    ledgerKeyFromSeed :: SomeMnemonic -> XPrv
-    ledgerKeyFromSeed = Icarus.getKey
-        . flip Icarus.generateKeyFromHardwareLedger pass
-
-    -- We don't use passwords to encrypt the keys here.
-    pass = mempty
-
-
-toPublic :: XPrvOrXPub -> Either String XPrvOrXPub
-toPublic (AXPrv xprv) = return . AXPub . toXPub $ xprv
-toPublic (AXPub _) = Left "Input is already a public key."
-
-deriveChildKey
-    :: XPrvOrXPub
-    -> DerivationIndex
-    -> Either String XPrvOrXPub
-deriveChildKey (AXPrv k) i =
-    return . AXPrv
-        $ CC.deriveXPrv
-            CC.DerivationScheme2
-            (mempty :: Passphrase "Encryption")
-            k
-            (unDerivationIndex i)
-deriveChildKey (AXPub k) i =
-    maybe (Left err) (return . AXPub)
-        $ CC.deriveXPub
-            CC.DerivationScheme2
-            k
-            (unDerivationIndex i)
-  where
-    err = mconcat
-        [ T.unpack (toText i)
-        , " is a hardened index. Public key derivation is only possible for"
-        , " soft indices. \nIf the index is correct, please use the"
-        , " corresponding private key as input."
-        ]
-
-inspect :: XPrvOrXPub -> Text
-inspect (AXPrv key) =
-    let
-        bytes = CC.unXPrv key
-        (xprv, rest) = BS.splitAt 64 bytes
-        (_pub, cc) = BS.splitAt 32 rest
-        encodeToHex = T.pack . B8.unpack . hex
-    in
-        mconcat
-        [ "extended private key: "
-        , encodeToHex xprv
-        , "\n"
-        , "chain code: "
-        , encodeToHex cc
-        ]
-inspect (AXPub key) =
-    let bytes = xpubToBytes key
-        (xpub, cc) = BS.splitAt 32 bytes
-        encodeToHex = T.pack . B8.unpack . hex
-    in
-        mconcat
-            [ "extended public key: "
-            , encodeToHex xpub
-            , "\n"
-            , "chain code: "
-            , encodeToHex cc
-            ]
-
-data KeyRootArgs = KeyRootArgs
-    { _walletStyle :: ByronWalletStyle
-    , _keyEncoding :: KeyEncoding
-    , _mnemonicWords :: [Text]
-    }
-
-cmdKeyRoot :: Mod CommandFields (IO ())
-cmdKeyRoot =
-    command "root" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Extract root extended private key from a mnemonic sentence."
-  where
-    cmd = fmap exec $ KeyRootArgs
-        <$> walletStyleOption Icarus [Icarus, Trezor, Ledger]
-        <*> keyEncodingOption
-        <*> mnemonicWordsArgument
-    exec (KeyRootArgs keyType enc ws) = do
-        eitherToIO (mnemonicToRootKey scheme ws >>= encode) >>= TIO.putStrLn
-      where
-        encode = encodeKey enc
-        scheme = newCliKeyScheme keyType
-
-newtype KeyChildArgs = KeyChildArgs
-    { _path :: DerivationPath
-    }
-
-cmdKeyChild :: Mod CommandFields (IO ())
-cmdKeyChild =
-    command "child" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Derive child keys."
-        <> footerDoc
-            (Just $ string "The parent key is read from standard input.")
-  where
-    cmd = fmap exec $
-        KeyChildArgs <$> pathOption
-
-    exec (KeyChildArgs (DerivationPath path)) = do
-        TIO.getLine
-            >>= eitherToIO . action
-            >>= TIO.putStrLn
-      where
-        action :: Text -> Either String Text
-        action = decodeAnyKey
-            >=> \(k, enc) -> foldM deriveChildKey k path
-            >>= encodeKey enc
-
-cmdKeyPublic :: Mod CommandFields (IO ())
-cmdKeyPublic =
-    command "public" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Extract the public key from a private key."
-        <> footerDoc
-            (Just $ string "The private key is read from standard input.")
-  where
-    cmd = pure exec
-
-    exec =
-        TIO.getLine
-            >>= eitherToIO . action
-            >>= TIO.putStrLn
-      where
-        action :: Text -> Either String Text
-        action = decodeAnyKey >=> \(k, enc) -> toPublic k >>= encodeKey enc
-
-cmdKeyInspect :: Mod CommandFields (IO ())
-cmdKeyInspect =
-    command "inspect" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Show information about a key."
-        <> footerDoc
-            (Just $ string "The key is read from standard input.")
-  where
-    cmd = pure exec
-
-    exec = do
-        TIO.getLine
-            >>= eitherToIO . action
-            >>= TIO.putStrLn
-      where
-        action :: Text -> Either String Text
-        action = fmap (\(k, _) -> inspect k) . decodeAnyKey
+cmdKey = Key.mod Key.run
 
 {-------------------------------------------------------------------------------
-                            Commands - 'mnemonic'
+                            Commands - 'recovery-phrase'
 -------------------------------------------------------------------------------}
 
 cmdMnemonic :: Mod CommandFields (IO ())
-cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage mnemonic phrases."
-  where
-    cmds = subparser $ mempty
-        <> cmdMnemonicGenerate
-        <> cmdMnemonicRewardCredentials
-
-cmdMnemonicByron :: Mod CommandFields (IO ())
-cmdMnemonicByron = command "mnemonic" $ info (helper <*> cmds) $ mempty
-    <> progDesc "Manage mnemonic phrases."
-  where
-    cmds = subparser $ mempty
-        <> cmdMnemonicGenerate
-
--- | Arguments for 'mnemonic generate' command
-newtype MnemonicGenerateArgs = MnemonicGenerateArgs
-    { _size :: MnemonicSize
-    }
-
-cmdMnemonicGenerate :: Mod CommandFields (IO ())
-cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Generate English BIP-0039 compatible mnemonic words."
-  where
-    cmd = exec . MnemonicGenerateArgs <$> sizeOption
-    exec (MnemonicGenerateArgs n) = do
-        m <- case n of
-            MS_9  -> mnemonicToText @9  . entropyToMnemonic <$> genEntropy
-            MS_12 -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-            MS_15 -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-            MS_18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
-            MS_21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
-            MS_24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
-        TIO.putStrLn $ T.unwords m
-
-cmdMnemonicRewardCredentials :: Mod CommandFields (IO ())
-cmdMnemonicRewardCredentials =
-    command "reward-credentials" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Derive reward account private key from a given mnemonic."
-        <> footer "!!! Only for the Incentivized Testnet !!!"
-  where
-    cmd = pure exec
-    exec = do
-        wSeed <- do
-            let prompt = "Please enter your 15–24 word mnemonic sentence: "
-            let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
-            fst <$> getLine @SomeMnemonic prompt (left show . parser)
-        wSndFactor <- do
-            let prompt =
-                    "(Enter a blank line if you didn't use a second factor.)\n"
-                    <> "Please enter your 9–12 word mnemonic second factor: "
-            let parser = optionalE $ mkSomeMnemonic @'[9,12] . T.words
-            fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
-
-        let rootXPrv = Jormungandr.generateKeyFromSeed (wSeed, wSndFactor) mempty
-        let rewardAccountXPrv = deriveRewardAccount mempty rootXPrv
-
-        let hrp = [Bech32.humanReadablePart|ed25519e_sk|]
-        let dp = Bech32.dataPartFromBytes
-                $ BS.take 64
-                $ CC.unXPrv
-                $ getRawKey
-                rewardAccountXPrv
-        TIO.putStrLn $ mconcat
-            [ "\nHere's your reward account private key:\n\n"
-            , "    ", Bech32.encodeLenient hrp dp
-            , "\n\nKeep it safe!"
-            ]
+cmdMnemonic = RecoveryPhrase.mod RecoveryPhrase.run
 
 {-------------------------------------------------------------------------------
                             Commands - 'wallet'
@@ -928,7 +351,7 @@ cmdWallet
     -> Mod CommandFields (IO ())
 cmdWallet cmdCreate mkClient =
     command "wallet" $ info (helper <*> cmds) $ mempty
-        <> progDesc "Manage wallets."
+        <> progDesc "About wallets"
   where
     cmds = subparser $ mempty
         <> cmdWalletList mkClient
@@ -987,8 +410,8 @@ cmdByronWalletCreateFromMnemonic
     :: WalletClient ApiByronWallet
     -> Mod CommandFields (IO ())
 cmdByronWalletCreateFromMnemonic mkClient =
-    command "from-mnemonic" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Create a new wallet using a mnemonic."
+    command "from-recovery-phrase" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new wallet using a recovery phrase."
   where
     cmd = fmap exec $ ByronWalletCreateFromMnemonicArgs
         <$> portOption
@@ -1054,8 +477,8 @@ cmdWalletCreateFromMnemonic
     :: WalletClient ApiWallet
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromMnemonic mkClient =
-    command "from-mnemonic" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Create a new wallet using a mnemonic."
+    command "from-recovery-phrase" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Create a new wallet using a recovery phrase."
   where
     cmd = fmap exec $ WalletCreateArgs
         <$> portOption
@@ -1063,14 +486,14 @@ cmdWalletCreateFromMnemonic mkClient =
         <*> poolGapOption
     exec (WalletCreateArgs wPort wName wGap) = do
         wSeed <- do
-            let prompt = "Please enter a 15–24 word mnemonic sentence: "
+            let prompt = "Please enter a 15–24 word recovery phrase: "
             let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
             fst <$> getLine @SomeMnemonic prompt (left show . parser)
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second " <>
                     "factor.)\n" <>
-                    "Please enter a 9–12 word mnemonic second factor: "
+                    "Please enter a 9–12 word second factor: "
             let parser =
                     optionalE (mkSomeMnemonic @'[9,12]) . T.words
             fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
@@ -1252,7 +675,7 @@ cmdTransaction
     -> Mod CommandFields (IO ())
 cmdTransaction mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
-        <> progDesc "Manage transactions."
+        <> progDesc "About transactions"
   where
     cmds = subparser $ mempty
         <> cmdTransactionCreate mkTxClient mkWalletClient
@@ -1407,7 +830,7 @@ cmdAddress
     -> Mod CommandFields (IO ())
 cmdAddress mkClient =
     command "address" $ info (helper <*> cmds) $ mempty
-        <> progDesc "Manage addresses."
+        <> progDesc "About addresses"
   where
     cmds = subparser $ mempty
         <> cmdAddressList mkClient
@@ -1508,7 +931,7 @@ cmdStakePool
     -> Mod CommandFields (IO ())
 cmdStakePool mkClient =
     command "stake-pool" $ info (helper <*> cmds) $ mempty
-        <> progDesc "Manage stake pools."
+        <> progDesc "About stake pools"
   where
     cmds = subparser $ mempty
         <> cmdStakePoolList mkClient
@@ -1541,7 +964,7 @@ cmdNetwork
     -> Mod CommandFields (IO ())
 cmdNetwork mkClient =
     command "network" $ info (helper <*> cmds) $ mempty
-        <> progDesc "Manage network."
+        <> progDesc "About the network"
   where
     cmds = subparser $ mempty
         <> cmdNetworkInformation mkClient
@@ -1706,15 +1129,6 @@ portOption = optionT $ mempty
     <> value (Port 8090)
     <> showDefaultWith showT
 
--- | [--size=INT], default: 15
-sizeOption :: Parser MnemonicSize
-sizeOption = optionT $ mempty
-    <> long "size"
-    <> metavar "INT"
-    <> help "number of mnemonic words to generate."
-    <> value MS_15
-    <> showDefaultWith showT
-
 -- | [--shutdown-handler]
 shutdownHandlerFlag :: Parser Bool
 shutdownHandlerFlag = switch
@@ -1828,28 +1242,6 @@ walletStyleOption defaultStyle accepted = option (eitherReader fromTextS)
     prettyStyle s =
         "  " ++ T.unpack (toText s) ++ " (" ++ fmtAllowedWords s ++ ")"
 
-instance FromText KeyEncoding where
-    fromText "bech32" = return Bech32
-    fromText "hex" = return Hex
-    fromText _ = Left $ TextDecodingError $ mconcat
-        [ "Invalid key encoding option. "
-        , "Expected one of the following: 'bech32' or 'hex'."]
-
-keyEncodingOption :: Parser KeyEncoding
-keyEncodingOption = option (eitherReader fromTextS) $
-    mempty
-    <> long "encoding"
-    <> metavar "KEY-ENCODING"
-    <> help "Either 'hex' or 'bech32' (default: hex)"
-    <> value Hex
-
-pathOption :: Parser DerivationPath
-pathOption = option (eitherReader fromTextS) $
-    mempty
-    <> long "path"
-    <> metavar "DER-PATH"
-    <> help "Derivation path e.g. 44H/1815H/0H/0"
-
 addressIndexOption
     :: FromText (Index derivation level)
     => Parser (Index derivation level)
@@ -1915,10 +1307,6 @@ transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
 
--- | <mnemonic-words=MNEMONIC_WORD...>
-mnemonicWordsArgument :: Parser [Text]
-mnemonicWordsArgument = some (argument str (metavar "MNEMONIC_WORD..."))
-
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text
 addressIdArgument = argumentT $ mempty
@@ -1980,29 +1368,6 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
-
--- | Represents the number of words in a mnemonic sentence.
---
--- Only valid sizes are representable by this type.
---
-data MnemonicSize
-    = MS_9 | MS_12 | MS_15 | MS_18 | MS_21 | MS_24
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
-instance ToText MnemonicSize where
-    toText = T.pack . drop 3 .  show
-
-instance FromText MnemonicSize where
-    fromText t = case lookup t sizeMap of
-        Just ms -> pure ms
-        Nothing -> Left $ TextDecodingError $ mempty
-            <> "Invalid mnemonic size. Expected one of: "
-            <> T.unpack (T.intercalate ", " sizeTexts)
-            <> "."
-      where
-        sizes = enumerate
-        sizeMap = sizeTexts `zip` sizes
-        sizeTexts = toText <$> sizes
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port { getPort :: Int }

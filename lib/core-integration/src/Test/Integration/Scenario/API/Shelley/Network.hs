@@ -10,11 +10,11 @@ module Test.Integration.Scenario.API.Shelley.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkParameters (..), toApiNetworkParameters )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( ApiNetworkParameters (..) )
 import Data.Quantity
     ( Quantity (..), mkPercentage )
+import Data.Ratio
+    ( (%) )
 import Test.Hspec
     ( SpecWith, it, shouldBe )
 import Test.Integration.Framework.DSL
@@ -23,7 +23,6 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , expectField
     , expectResponseCode
-    , getFromResponse
     , request
     , verify
     )
@@ -36,9 +35,6 @@ spec = do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let networkParams = getFromResponse id r
-        networkParams `shouldBe`
-            toApiNetworkParameters (ctx ^. #_networkParameters)
-        let Right d = Quantity <$> mkPercentage 0.25 -- d is set to 0.75 in genesis
+        let Right d = Quantity <$> mkPercentage (3 % 100)
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d) ]

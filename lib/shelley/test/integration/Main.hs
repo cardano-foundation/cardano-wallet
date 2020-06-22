@@ -133,9 +133,7 @@ import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
-import qualified Test.Integration.Scenario.CLI.Keys as KeyCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
-import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Addresses as AddressesCLI
@@ -152,9 +150,7 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
     hspec $ do
         describe "No backend required" $ do
-            describe "Mnemonics CLI tests" $ parallel (MnemonicsCLI.spec @t)
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
-            describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n

@@ -213,14 +213,12 @@ test-suite jormungandr-integration
       base
     , QuickCheck
     , aeson
-    , aeson-qq
     , async
     , bech32
     , bech32-th
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
@@ -229,14 +227,11 @@ test-suite jormungandr-integration
     , cardano-wallet-test-utils
     , command
     , containers
-    , cryptonite
     , deepseq
     , directory
-    , exceptions
     , extra
     , filepath
     , fmt
-    , generic-arbitrary
     , generic-lens
     , hspec
     , hspec-expectations-lifted
@@ -244,22 +239,14 @@ test-suite jormungandr-integration
     , http-client
     , http-types
     , iohk-monitoring
-    , lifted-base
     , memory
-    , monad-control
-    , persistent
     , process
     , retry
-    , safe
     , servant
-    , template-haskell
     , temporary
     , text
     , text-class
-    , time
     , transformers
-    , warp
-    , yaml
   build-tools:
       cardano-wallet-jormungandr
   type:
@@ -278,8 +265,6 @@ test-suite jormungandr-integration
       Test.Integration.Jormungandr.Scenario.API.StakePools
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher
-      Test.Integration.Jormungandr.Scenario.CLI.Keys
-      Test.Integration.Jormungandr.Scenario.CLI.Mnemonics
       Test.Integration.Jormungandr.Scenario.CLI.Server
       Test.Integration.Jormungandr.Scenario.CLI.StakePools
       Test.Integration.Jormungandr.Scenario.CLI.Transactions
