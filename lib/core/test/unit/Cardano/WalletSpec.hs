@@ -61,7 +61,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..), feeBalance )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (BlockHeader)
@@ -529,8 +531,8 @@ prop_estimateFee (NonEmpty results) = case actual of
 
     -- Pops a pre-canned result off the state and returns it
     mockCoinSelection
-        :: ExceptT String (State [Either String CoinSelection]) CoinSelection
-    mockCoinSelection = ExceptT $ state (\(r:rs) -> (r,rs))
+        :: ExceptT String (State [Either String CoinSelection]) Fee
+    mockCoinSelection = fmap (Fee . feeBalance) $ ExceptT $ state (\(r:rs) -> (r,rs))
 
     runTest vals action = evalState (runExceptT action) vals
 
