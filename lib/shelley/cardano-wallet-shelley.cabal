@@ -196,7 +196,6 @@ test-suite integration
     , http-client
     , iohk-monitoring
     , random
-    , temporary
     , text
     , text-class
   build-tools:

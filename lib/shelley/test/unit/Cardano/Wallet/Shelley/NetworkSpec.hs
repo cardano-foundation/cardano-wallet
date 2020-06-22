@@ -21,7 +21,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
-    ( singleNodeConfig, withBFTNode )
+    ( singleNodeParams, withBFTNode, withSystemTempDir )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog (..), withNetworkLayer )
 import Control.Retry
@@ -69,9 +69,10 @@ withTestNode
     :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
 withTestNode action = do
-    cfg <- singleNodeConfig Error
-    withBFTNode nullTracer cfg $ \sock _block0 (np, vData) ->
-        action np sock vData
+    cfg <- singleNodeParams Error
+    withSystemTempDir nullTracer "network-spec" $ \dir ->
+        withBFTNode nullTracer dir cfg $ \sock _block0 (np, vData) ->
+            action np sock vData
 
 isMsgProtocolParams :: NetworkLayerLog -> Maybe ProtocolParameters
 isMsgProtocolParams (MsgProtocolParameters pp) = Just pp

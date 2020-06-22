@@ -24,14 +24,16 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , withBFTNode
     , withStakePool
-    , NodeConfig (..)
-    , singleNodeConfig
+    , NodeParams (..)
+    , singleNodeParams
 
     -- * Utils
     , NetworkConfiguration (..)
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
+    , withTempDir
+    , withSystemTempDir
 
     -- * Logging
     , ClusterLog (..)
@@ -48,11 +50,12 @@ import Cardano.CLI
 import Cardano.Config.Shelley.Genesis
     ( ShelleyGenesis )
 import Cardano.Launcher
-    ( Command (..)
-    , LauncherLog
-    , ProcessHasExited (..)
-    , StdStream (..)
-    , withBackendProcess
+    ( LauncherLog, ProcessHasExited (..) )
+import Cardano.Launcher.Node
+    ( CardanoNodeConfig (..)
+    , CardanoNodeConn (..)
+    , NodePort (..)
+    , withCardanoNode
     )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
@@ -123,20 +126,15 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile )
+    ( copyFile, createDirectory )
 import System.Environment
     ( lookupEnv, setEnv )
 import System.Exit
     ( ExitCode (..) )
 import System.FilePath
-    ( takeFileName, (</>) )
-import System.Info
-    ( os )
+    ( (</>) )
 import System.IO.Temp
-    ( createTempDirectory
-    , getCanonicalTemporaryDirectory
-    , withSystemTempDirectory
-    )
+    ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Process
@@ -275,14 +273,16 @@ withCluster
     -- ^ Minimum logging severity for @cardano-node@
     -> Int
     -- ^ How many pools should the cluster spawn.
+    -> FilePath
+    -- ^ Parent state directory for cluster
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Action to run with the cluster up
     -> IO a
-withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
+withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
     systemStart <- addUTCTime 1 <$> getCurrentTime
     ports <- randomUnusedTCPPorts (n + 1)
-    let bftCfg = NodeConfig severity systemStart (head $ rotate ports)
-    withBFTNode tr bftCfg $ \socket block0 params -> do
+    let bftCfg = NodeParams severity systemStart (head $ rotate ports)
+    withBFTNode tr dir bftCfg $ \socket block0 params -> do
         waitForSocket tr socket
         waitGroup <- newChan
         doneGroup <- newChan
@@ -301,8 +301,8 @@ withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
 
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
-                let spCfg = NodeConfig severity systemStart (port, peers)
-                withStakePool tr idx spCfg $ do
+                let spCfg = NodeParams severity systemStart (port, peers)
+                withStakePool tr dir idx spCfg $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
@@ -325,7 +325,7 @@ withCluster tr severity n action = bracketTracer' tr "withCluster" $ do
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
 -- | Configuration parameters which update the @node.config@ test data file.
-data NodeConfig = NodeConfig
+data NodeParams = NodeParams
     { minSeverity :: Severity -- ^ Minimum logging severity
     , systemStart :: UTCTime -- ^ Genesis block start time
     , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
@@ -334,13 +334,18 @@ data NodeConfig = NodeConfig
 withBFTNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
-    -> NodeConfig
+    -> FilePath
+    -- ^ Parent state directory. Node data will be created in a subdirectory of
+    -- this.
+    -> NodeParams
+    -- ^ Parameters used to generate config files.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr (NodeConfig severity systemStart (port, peers)) action =
-    bracketTracer' tr "withBFTNode" $
-    withTempDir tr name $ \dir -> do
+withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+    bracketTracer' tr "withBFTNode" $ do
+        createDirectory dir
+
         [vrfPrv, kesPrv, opCert] <- forM
             ["node-vrf.skey", "node-kes.skey", "node.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
@@ -348,42 +353,56 @@ withBFTNode tr (NodeConfig severity systemStart (port, peers)) action =
         (config, block0, networkParams, versionData)
             <- genConfig dir severity systemStart
         topology <- genTopology dir peers
-        let socket = genSocketPath dir
 
-        let args =
-                [ "run"
-                , "--config", config
-                , "--topology", topology
-                , "--database-path", dir </> "db"
-                , "--socket-path", socket
-                , "--port", show port
-                , "--shelley-kes-key", kesPrv
-                , "--shelley-vrf-key", vrfPrv
-                , "--shelley-operational-certificate", opCert
-                ]
-        let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
-        withCardanoNodeProcess tr name cmd $
+        let cfg = CardanoNodeConfig
+                { nodeDir = dir
+                , nodeConfigFile = config
+                , nodeTopologyFile = topology
+                , nodeDatabaseDir = "db"
+                , nodeDlgCertFile = Nothing
+                , nodeSignKeyFile = Nothing
+                , nodeOpCertFile = Just opCert
+                , nodeKesKeyFile = Just kesPrv
+                , nodeVrfKeyFile = Just vrfPrv
+                , nodePort = Just (NodePort port)
+                , nodeLoggingHostname = Just name
+                }
+
+        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
             action socket block0 (networkParams, versionData)
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
 
     name = "bft-node"
+    dir = baseDir </> name
 
-singleNodeConfig :: Severity -> IO NodeConfig
-singleNodeConfig severity = do
+singleNodeParams :: Severity -> IO NodeParams
+singleNodeParams severity = do
     systemStart <- getCurrentTime
-    pure $ NodeConfig severity systemStart (0, [])
+    pure $ NodeParams severity systemStart (0, [])
 
--- | Populates the configuration directory of a stake pool @cardano-node@. Sets
--- up a transaction which can be used to register the pool.
+-- | Populates the configuration directory of a stake pool @cardano-node@.
+--
+-- Returns a tuple with:
+--  * A config for launching the stake pool node.
+--  * The public operator certificate - used for verifying registration.
+--  * A transaction which should be submitted to register the pool.
 setupStakePoolData
     :: Tracer IO ClusterLog
+    -- ^ Logging object.
     -> FilePath
-    -> NodeConfig
+    -- ^ Output directory.
     -> String
-    -> IO (Command, FilePath, FilePath)
-setupStakePoolData tr dir (NodeConfig severity systemStart (port, peers)) url = do
+    -- ^ Short name of the stake pool.
+    -> NodeParams
+    -- ^ Parameters used for generating config files.
+    -> String
+    -- ^ Base URL of metadata server.
+    -> IO (CardanoNodeConfig, FilePath, FilePath)
+setupStakePoolData tr dir name params url = do
+    let NodeParams severity systemStart (port, peers) = params
+
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
     (kesPrv, kesPub) <- genKesKeyPair tr dir
@@ -410,51 +429,56 @@ setupStakePoolData tr dir (NodeConfig severity systemStart (port, peers)) url = 
     (rawTx, faucetPrv) <- prepareTx tr dir stakePub [stakeCert, poolCert, dlgCert]
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
-    let args =
-            [ "run"
-            , "--config", config
-            , "--topology", topology
-            , "--database-path", dir </> "db"
-            , "--socket-path", genSocketPath dir
-            , "--port", show port
-            , "--shelley-kes-key", kesPrv
-            , "--shelley-vrf-key", vrfPrv
-            , "--shelley-operational-certificate", opCert
-            ]
-    let cmd = Command "cardano-node" args (pure ()) Inherit Inherit
+    let cfg = CardanoNodeConfig
+            { nodeDir = dir
+            , nodeConfigFile = config
+            , nodeTopologyFile = topology
+            , nodeDatabaseDir = "db"
+            , nodeDlgCertFile = Nothing
+            , nodeSignKeyFile = Nothing
+            , nodeOpCertFile = Just opCert
+            , nodeKesKeyFile = Just kesPrv
+            , nodeVrfKeyFile = Just vrfPrv
+            , nodePort = Just (NodePort port)
+            , nodeLoggingHostname = Just name
+            }
 
-    pure (cmd, opPub, tx)
+    pure (cfg, opPub, tx)
 
 -- | Start a "stake pool node". The pool will register itself.
 withStakePool
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
+    -> FilePath
+    -- ^ Parent state directory. Node and stake pool data will be created in a
+    -- subdirectory of this.
     -> Int
     -- ^ Stake pool index in the cluster
-    -> NodeConfig
+    -> NodeParams
     -- ^ Configuration for the underlying node
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr idx cfg action =
-    bracketTracer' tr "withStakePool" $
-        withTempDir tr name $ \dir -> do
-            withStaticServer dir $ \url -> do
-                (cmd, opPub, tx) <- setupStakePoolData tr dir cfg url
-                withCardanoNodeProcess tr name cmd $ do
-                    submitTx tr name tx
-                    timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
-                    action
+withStakePool tr baseDir idx params action =
+    bracketTracer' tr "withStakePool" $ do
+        createDirectory dir
+        withStaticServer dir $ \url -> do
+            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url
+            withCardanoNodeProcess tr name cfg $ \_ -> do
+                submitTx tr name tx
+                timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                action
   where
+    dir = baseDir </> name
     name = "stake-pool-" ++ show idx
 
 withCardanoNodeProcess
     :: Tracer IO ClusterLog
     -> String
-    -> Command
+    -> CardanoNodeConfig
+    -> (CardanoNodeConn -> IO a)
     -> IO a
-    -> IO a
-withCardanoNodeProcess tr name cmd = withBackendProcess tr' cmd >=> throwErrs
+withCardanoNodeProcess tr name cfg = withCardanoNode tr' cfg >=> throwErrs
   where
     tr' = contramap (MsgLauncher name) tr
     throwErrs = either throwIO pure
@@ -470,12 +494,13 @@ genConfig
 genConfig dir severity systemStart = do
     -- we need to specify genesis file location every run in tmp
     Yaml.decodeFileThrow (source </> "node.config")
-        >>= withObject (addGenesisFilePath (T.pack nodeGenesisFile))
-        >>= withObject (addMinSeverity (T.pack $ show severity))
+        >>= withObject (pure . addGenesisFilePath (T.pack nodeGenesisFile))
+        >>= withObject (addMinSeverityStdout severity)
+        >>= withObject (pure . addMinSeverity severity) -- fixme: use Debug
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-        >>= withObject (updateSystemStart systemStart)
+        >>= withObject (pure . updateSystemStart systemStart)
         >>= Aeson.encodeFile nodeGenesisFile
 
     (genesisData :: ShelleyGenesis TPraosStandardCrypto)
@@ -495,13 +520,6 @@ genConfig dir severity systemStart = do
 
     nodeGenesisFile :: FilePath
     nodeGenesisFile = dir </> "genesis.json"
-
--- | Generate a valid socket path based on the OS.
-genSocketPath :: FilePath -> FilePath
-genSocketPath dir =
-    if os == "mingw32"
-    then "\\\\.\\pipe\\" ++ takeFileName dir
-    else dir </> "node.socket"
 
 -- | Generate a topology file from a list of peers.
 genTopology :: FilePath -> [Int] -> IO FilePath
@@ -897,25 +915,44 @@ oneMillionAda = 1_000_000_000_000
 updateSystemStart
     :: UTCTime
     -> Aeson.Object
-    -> IO Aeson.Object
+    -> Aeson.Object
 updateSystemStart systemStart =
-    pure . HM.insert "systemStart" (toJSON systemStart)
+    HM.insert "systemStart" (toJSON systemStart)
 
 -- | Add a "GenesisFile" field in a given object with the current path of
 -- genesis.json in tmp dir as value.
 addGenesisFilePath
     :: Text
     -> Aeson.Object
-    -> IO Aeson.Object
-addGenesisFilePath path = pure . HM.insert "GenesisFile" (toJSON path)
-
--- | Add a "minSeverity" field in a given object with the current path of
--- genesis.json in tmp dir as value.
-addMinSeverity
-    :: Text
     -> Aeson.Object
-    -> IO Aeson.Object
-addMinSeverity severity = pure . HM.insert "minSeverity" (toJSON severity)
+addGenesisFilePath path = HM.insert "GenesisFile" (toJSON path)
+
+-- | Add a @setupScribes[1].scMinSev@ field in a given config object.
+-- The full lens library would be quite helpful here.
+addMinSeverityStdout
+    :: Monad m
+    => Severity
+    -> Aeson.Object
+    -> m Aeson.Object
+addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
+    Just (Aeson.Array scribes) -> do
+        let scribes' = Aeson.Array $ fmap setMinSev scribes
+        pure $ HM.insert "setupScribes" scribes' ob
+    _ -> fail "setupScribes logging config is missing or the wrong type"
+  where
+    sev = toJSON $ show severity
+    setMinSev (Aeson.Object scribe)
+        | HM.lookup "scKind" scribe == Just (Aeson.String "StdoutSK")
+            = Aeson.Object (HM.insert "scMinSev" sev scribe)
+        | otherwise = Aeson.Object scribe
+    setMinSev a = a
+
+-- | Add a global "minSeverity" field in a given config object.
+addMinSeverity
+    :: Severity
+    -> Aeson.Object
+    -> Aeson.Object
+addMinSeverity severity = HM.insert "minSeverity" (toJSON $ show severity)
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
@@ -968,22 +1005,31 @@ blake2b256S =
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
     :: Tracer IO ClusterLog
-    -> String   -- ^ Directory name template
+    -> FilePath -- ^ Parent directory
+    -> String -- ^ Directory name template
     -> (FilePath -> IO a) -- ^ Callback that can use the directory
     -> IO a
-withTempDir tr name action = isEnvSet "NO_CLEANUP" >>= \case
+withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
-        parent <- getCanonicalTemporaryDirectory
         dir <- createTempDirectory parent name
         res <- action dir
         traceWith tr $ MsgTempNoCleanup dir
         pure res
-    False -> withSystemTempDirectory name action
+    False -> withTempDirectory parent name action
   where
     isEnvSet ev = lookupEnv ev <&> \case
         Nothing -> False
         Just "" -> False
         Just _ -> True
+
+withSystemTempDir
+    :: Tracer IO ClusterLog
+    -> String   -- ^ Directory name template
+    -> (FilePath -> IO a) -- ^ Callback that can use the directory
+    -> IO a
+withSystemTempDir tr name action = do
+    parent <- getCanonicalTemporaryDirectory
+    withTempDir tr parent name action
 
 {-------------------------------------------------------------------------------
                                     Logging
