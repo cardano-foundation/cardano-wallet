@@ -145,6 +145,7 @@ test-suite unit
     , cardano-wallet-shelley
     , cardano-wallet-test-utils
     , containers
+    , fmt
     , generic-lens
     , hspec
     , iohk-monitoring
@@ -155,6 +156,7 @@ test-suite unit
     , shelley-spec-ledger
     , text
     , text-class
+    , transformers
     , QuickCheck
   build-tools:
       hspec-discover

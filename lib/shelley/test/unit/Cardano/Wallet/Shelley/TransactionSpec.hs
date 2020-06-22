@@ -15,21 +15,48 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xprvFromBytes, xprvToBytes )
+import Cardano.Wallet
+    ( ErrSelectForPayment (..)
+    , FeeEstimation (..)
+    , coinSelOpts
+    , estimateFeeForCoinSelection
+    , feeOpts
+    , handleCannotCover
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..)
+    ( NetworkDiscriminant (..)
+    , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
     , preparePassphrase
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelectionOptions )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
+    ( Address (..)
+    , Coin (..)
+    , EpochLength (..)
+    , Hash (..)
+    , ProtocolMagic (..)
+    , TxIn (..)
+    , TxOut (..)
+    , UTxO (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx, mkWitness, _decodeSignedTx, _estimateMaxNumberOfInputs )
+    ( mkUnsignedTx, mkWitness, _decodeSignedTx, _estimateMaxNumberOfInputs, newTransactionLayer, _decodeSignedTx )
+import Cardano.Wallet.Transaction
+    ( WithDelegation (..) )
 import Control.Monad
     ( replicateM )
+import Control.Monad.Trans.Except
+    ( catchE, runExceptT, withExceptT )
 import Data.Function
     ( on )
 import Data.Proxy
@@ -38,10 +65,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word8 )
+import Fmt
+    ( pretty )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldNotBe )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -58,9 +87,12 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CS
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -93,6 +125,27 @@ data DecodeSetup = DecodeSetup
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
+
+    it "regression #1740 - fee estimation at the boundaries" $ do
+        let utxo = UTxO $ Map.fromList
+                [ ( TxIn dummyTxId 0
+                  , TxOut dummyAddress (Coin 5000000)
+                  )
+                ]
+        let recipients = NE.fromList
+                [ TxOut dummyAddress (Coin 4834720)
+                ]
+
+        let selectCoins = do
+                (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
+                    CS.random testCoinSelOpts recipients utxo
+                withExceptT ErrSelectForPaymentFee $
+                    adjustForFee testFeeOpts utxo' sel
+
+        res <- runExceptT $ (estimateFeeForCoinSelection selectCoins)
+            `catchE` handleCannotCover utxo
+
+        res `shouldNotBe` Right (FeeEstimation 5000001 5000001)
 
 prop_decodeSignedTxRoundtrip
     :: DecodeSetup
@@ -141,6 +194,21 @@ prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts = withMaxSuccess 1000 $
         _estimateMaxNumberOfInputs (Quantity size) nOuts
         <=
         _estimateMaxNumberOfInputs (Quantity (size * 2)) nOuts
+
+testCoinSelOpts :: CoinSelectionOptions ()
+testCoinSelOpts = coinSelOpts tl (Quantity 4096)
+  where
+    pm        = ProtocolMagic 1
+    epLength  = EpochLength 42 -- irrelevant here
+    tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
+
+testFeeOpts :: FeeOptions
+testFeeOpts = feeOpts tl (WithDelegation False) feePolicy
+  where
+    pm        = ProtocolMagic 1
+    epLength  = EpochLength 42 -- irrelevant here
+    tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
+    feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
 instance Arbitrary DecodeSetup where
     arbitrary = do
@@ -224,3 +292,9 @@ instance Arbitrary (Quantity "byte" Word16) where
     shrink (Quantity size)
         | size <= 1 = []
         | otherwise = Quantity <$> shrink size
+
+dummyAddress :: Address
+dummyAddress = Address $ BS.pack $ 1 : replicate 64 0
+
+dummyTxId :: Hash "Tx"
+dummyTxId = Hash $ BS.pack $ replicate 32 0
