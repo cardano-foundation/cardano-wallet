@@ -68,7 +68,7 @@ import Data.Word
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe )
+    ( Spec, describe, it, shouldBe )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -134,15 +134,14 @@ data DecodeSetup = DecodeSetup
                 [ TxOut dummyAddress (Coin 4834720)
                 ]
 
-        let selectCoins = flip catchE (handleCannotCover utxo) $ do
+        let selectCoins = flip catchE (handleCannotCover utxo recipients) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
                     CS.random testCoinSelOpts recipients utxo
                 withExceptT ErrSelectForPaymentFee $
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
-
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
-        res `shouldNotBe` Right (FeeEstimation 5000001 5000001)
+        res `shouldBe` Right (FeeEstimation 165281 165281)
 
 prop_decodeSignedTxRoundtrip
     :: DecodeSetup

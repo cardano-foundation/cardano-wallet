@@ -1206,8 +1206,8 @@ estimateFeeForPayment ctx wid recipients = do
         selectCoinsSetup @ctx @s @k ctx wid
     let selectCoins =
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
-    estimateFeeForCoinSelection $
-        (Fee . feeBalance <$> selectCoins) `catchE` handleCannotCover utxo
+    estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
+        `catchE` handleCannotCover utxo recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
 -- whereas clients are just asking for an estimation. Therefore, we convert
@@ -1216,12 +1216,13 @@ estimateFeeForPayment ctx wid recipients = do
 handleCannotCover
     :: Monad m
     => UTxO
+    -> NonEmpty TxOut
     -> ErrSelectForPayment e
     -> ExceptT (ErrSelectForPayment e) m Fee
-handleCannotCover utxo = \case
+handleCannotCover utxo outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
-        let amt = missing + fromIntegral (W.balance utxo)
-        pure $ Fee amt
+        let available = fromIntegral (W.balance utxo) - sum (getCoin . coin <$> outs)
+        pure $ Fee $ available + missing
     e ->
         throwE e
 
