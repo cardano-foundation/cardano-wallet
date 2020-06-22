@@ -129,7 +129,8 @@ withDBLayer
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace fp action =
+withDBLayer trace fp action = do
+    traceWith trace (MsgWillOpenDB fp)
     bracket before after (action . snd)
   where
     before = newDBLayer trace fp
