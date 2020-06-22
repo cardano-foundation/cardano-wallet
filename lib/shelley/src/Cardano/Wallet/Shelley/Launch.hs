@@ -495,6 +495,7 @@ withStakePool tr baseDir idx params action =
     bracketTracer' tr "withStakePool" $ do
         createDirectory dir
         withStaticServer dir $ \url -> do
+            traceWith tr $ MsgStartedStaticServer dir url
             (cfg, opPub, tx) <- setupStakePoolData tr dir name params url
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
@@ -1096,6 +1097,7 @@ withSystemTempDir tr name action = do
 data ClusterLog
     = MsgCartouche
     | MsgLauncher String LauncherLog
+    | MsgStartedStaticServer String FilePath
     | MsgTempNoCleanup FilePath
     | MsgBracket BracketLog
     | MsgCLIStatus String ExitCode String String
@@ -1113,6 +1115,9 @@ instance ToText ClusterLog where
         MsgCartouche -> cartouche
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg
+        MsgStartedStaticServer baseUrl fp ->
+            "Started a static server for " <> T.pack fp
+                <> " at " <> T.pack baseUrl
         MsgTempNoCleanup dir ->
             "NO_CLEANUP of temporary directory " <> T.pack dir
         MsgBracket b -> toText b
@@ -1145,6 +1150,7 @@ instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
         MsgCartouche -> Warning
         MsgLauncher _ msg -> getSeverityAnnotation msg
+        MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
         MsgBracket _ -> Debug
         MsgCLIStatus _ ExitSuccess _ _-> Debug

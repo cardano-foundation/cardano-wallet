@@ -82,6 +82,8 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.List
+    ( sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -94,8 +96,6 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
-import Data.Sort
-    ( sortOn )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Word
