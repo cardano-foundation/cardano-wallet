@@ -209,7 +209,7 @@ spec = do
         => Proxy a
         -> Spec
     jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
-        ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
+        ($(getTestData) </> "Cardano-jormungandr" </> "Wallet" </> "Api")
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

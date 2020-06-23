@@ -6,6 +6,7 @@
 
 module Test.Utils.Paths
     ( getTestData
+    , getTestDataPath
     , inNixBuild
     ) where
 
@@ -31,8 +32,12 @@ import System.FilePath
 -- For the Nix build, rather than baking in a path that starts with @/build@, it
 -- makes the test data path relative to the current directory.
 getTestData :: Q Exp
-getTestData = do
-    let relPath = "test" </> "data"
+getTestData = getTestDataPath ("test" </> "data")
+
+-- | A variant of 'getTestData' which lets you specify the test data 'FilePath'
+-- relative to the package root directory.
+getTestDataPath :: FilePath -> Q Exp
+getTestDataPath relPath = do
     absPath <- makeRelativeToProject relPath
     useRel <- liftIO inNixBuild
     liftData (if useRel then relPath else absPath)
