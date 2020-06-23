@@ -426,7 +426,6 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
-    let fixTypeInference = True `shouldBe` True
     let listPools ctx = request @[ApiStakePool] @IO ctx (Link.listStakePools arbitraryStake) Default Empty
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
         it "immediately has non-zero saturation & stake" $ \ctx -> do
@@ -520,15 +519,13 @@ spec = do
                     ]
 
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
-        fixTypeInference
-        r <- request @[ApiStakePool] ctx
+        r <- request @[ApiStakePool] @IO ctx
             (Link.listStakePools Nothing) Default Empty
         expectResponseCode HTTP.status400 r
 
     it "STAKE_POOLS_LIST_06 - NonMyopicMemberRewards are 0 when stake is 0" $ \ctx -> do
-        fixTypeInference
         let stake = Just $ Coin 0
-        r <- request @[ApiStakePool] ctx (Link.listStakePools stake) Default Empty
+        r <- request @[ApiStakePool] @IO ctx (Link.listStakePools stake) Default Empty
         expectResponseCode HTTP.status200 r
         verify r
             [ expectListSize 3
