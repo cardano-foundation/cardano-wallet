@@ -46,7 +46,7 @@ import Data.Quantity
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, xit )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -445,12 +445,6 @@ spec = do
                 , expectListField 2
                     (#metrics . #relativeStake)
                         (.> Quantity (unsafeMkPercentage 0))
-                , expectListField 0
-                    (#metrics . #saturation) (.> 0)
-                , expectListField 1
-                    (#metrics . #saturation) (.> 0)
-                , expectListField 2
-                    (#metrics . #saturation) (.> 0)
                 ]
 
         it "eventually has correct margin and cost" $ \ctx -> do
@@ -474,16 +468,20 @@ spec = do
                     , expectListField 2
                         #margin (`shouldBe` Just
                             (Quantity $ unsafeMkPercentage 0.1 ))
-
-                    , expectListField 0
-                        (#metrics . #producedBlocks) (.> Quantity 0)
-                    , expectListField 1
-                        (#metrics . #producedBlocks) (.> Quantity 0)
-                    , expectListField 2
-                        (#metrics . #producedBlocks) (.> Quantity 0)
                     -- TODO: Test that we have non-zero non-myopic member
                     -- rewards, and sort by it.
                     ]
+
+        it "at least one pool eventually produces block" $ \ctx -> do
+            eventually "eventually produces block" $ do
+                (_, Right r) <- listPools ctx
+                let production = sum $
+                        getQuantity . view (#metrics . #producedBlocks) <$> r
+                let saturation =
+                        view (#metrics . #saturation) <$> r
+
+                production `shouldSatisfy` (> 0)
+                saturation `shouldSatisfy` (any (> 0))
 
         it "contains pool metadata" $ \ctx -> do
             eventually "metadata is fetched" $ do
