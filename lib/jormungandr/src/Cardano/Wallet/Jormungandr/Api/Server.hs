@@ -170,6 +170,7 @@ server byron icarus jormungandr spl ntp =
         :<|> listTransactions jormungandr
         :<|> postTransactionFee jormungandr
         :<|> deleteTransaction jormungandr
+        :<|> (\_ _ -> throwError err501)
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

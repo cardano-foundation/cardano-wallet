@@ -83,7 +83,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), SortOrder, WalletId )
+    ( AddressState, Coin (..), Hash, SortOrder, WalletId )
 import Control.Monad
     ( void )
 import Data.Coerce
@@ -156,6 +156,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiTxId
         -> ClientM NoContent
+    , getTransaction
+        :: ApiT WalletId
+        -> ApiT (Hash "Tx")
+        -> ClientM (Maybe (ApiTransactionT Aeson.Value))
     }
 
 data AddressClient = AddressClient
@@ -257,6 +261,7 @@ transactionClient =
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
+            :<|> _getTransaction
             = client (Proxy @("v2" :> (Transactions Aeson.Value)))
 
         _postExternalTransaction
@@ -268,6 +273,7 @@ transactionClient =
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
+            , getTransaction = _getTransaction
             }
 
 -- | Produces a 'TransactionClient n' working against the /byron-wallets API.
@@ -290,6 +296,7 @@ byronTransactionClient =
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
+        , getTransaction = \_ _ -> fail "feature unavailable."
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

@@ -154,6 +154,7 @@ server byron icarus ntp =
         :<|> (\_ _ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

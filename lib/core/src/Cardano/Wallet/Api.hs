@@ -140,6 +140,7 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , Coin (..)
+    , Hash
     , NetworkParameters
     , SortOrder (..)
     , SyncTolerance
@@ -300,6 +301,7 @@ type Transactions n =
     :<|> ListTransactions n
     :<|> PostTransactionFee n
     :<|> DeleteTransaction
+    :<|> GetTransaction n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction n = "wallets"
@@ -308,7 +310,7 @@ type CreateTransaction n = "wallets"
     :> ReqBody '[JSON] (PostTransactionDataT n)
     :> PostAccepted '[JSON] (ApiTransactionT n)
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransactions
 type ListTransactions n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
@@ -316,6 +318,13 @@ type ListTransactions n = "wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransactionT n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getTransaction
+type GetTransaction n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Capture "transactionId" (ApiT (Hash "Tx"))
+    :> Get '[JSON] (Maybe (ApiTransactionT n))
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee n = "wallets"
