@@ -207,7 +207,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     withServer onStart = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
         let tr' = contramap MsgCluster tr
-        withSystemTempDir tr' "integration" $ \dir ->
+        withSystemTempDir tr' "test" $ \dir ->
             withCluster tr' minSev 3 dir $ \socketPath block0 (gp, vData) ->
                 withTempDir tr' dir "wallets" $ \db ->
                     serveWallet @(IO Shelley)

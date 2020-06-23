@@ -374,7 +374,7 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
 
-    name = "bft-node"
+    name = "bft"
     dir = baseDir </> name
 
 singleNodeParams :: Severity -> IO NodeParams
@@ -470,7 +470,7 @@ withStakePool tr baseDir idx params action =
                 action
   where
     dir = baseDir </> name
-    name = "stake-pool-" ++ show idx
+    name = "pool-" ++ show idx
 
 withCardanoNodeProcess
     :: Tracer IO ClusterLog

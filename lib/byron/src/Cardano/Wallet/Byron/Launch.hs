@@ -288,7 +288,7 @@ withConfig tdir minSeverity action =
         let nodeSocketFile =
                 if os == "mingw32"
                 then "\\\\.\\pipe\\" ++ takeFileName dir
-                else dir </> "node.socket"
+                else dir </> "socket"
 
         -- we need to specify genesis file location every run in tmp
         Yaml.decodeFileThrow (source </> "node.config")
