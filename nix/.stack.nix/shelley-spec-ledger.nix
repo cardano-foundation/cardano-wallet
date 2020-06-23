@@ -30,7 +30,6 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-          (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
           (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -48,6 +47,7 @@
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
           (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
@@ -91,6 +91,7 @@
             (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
             (hsPkgs."multiset" or (errorHandler.buildDepError "multiset"))
             (hsPkgs."process-extras" or (errorHandler.buildDepError "process-extras"))
+            (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
             (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
@@ -111,6 +112,7 @@
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
             (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
@@ -122,11 +124,13 @@
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
             (hsPkgs."criterion" or (errorHandler.buildDepError "criterion"))
             (hsPkgs."random" or (errorHandler.buildDepError "random"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."MonadRandom" or (errorHandler.buildDepError "MonadRandom"))
+            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             ];
           buildable = true;
           };
@@ -135,8 +139,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "036ff8223310ecdaf7f0ed8c211c691cb0dcb8f3";
-      sha256 = "1rwn92y530cfm5kqi2v4p0bi87lnjq2la8lwjpj7k3vmmnjzf7bv";
+      rev = "ee92681752dc1a27ac77cb3466af8dca4ade997f";
+      sha256 = "14k6dfq8ssc3c4shll813b8wfkf9vgsz2djvg2sll9pf2fz2g1vi";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec; echo source root reset to \$sourceRoot";
     }
