@@ -6,7 +6,7 @@ protocolParams:
   protocolVersion:
     minor: 0
     major: 0
-  decentralisationParam: 0.1 # means 90% decentralised
+  decentralisationParam: 0.97 # means 3% decentralised
   maxTxSize: 4096
   minFeeA: 100
   maxBlockBodySize: 239857
