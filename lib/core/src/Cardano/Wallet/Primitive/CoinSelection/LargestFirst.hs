@@ -30,7 +30,7 @@ import Data.Functor
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
-    ( comparing )
+    ( Down (..) )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -45,11 +45,11 @@ largestFirst
     -> UTxO
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
 largestFirst opt outs utxo = do
-    let descending = NE.toList . NE.sortBy (flip $ comparing coin)
+    let descending = L.sortOn (Down . coin) . NE.toList
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt (fromIntegral nOuts)
     let nLargest = take maxN
-            . L.sortBy (flip $ comparing (coin . snd))
+            . L.sortOn (Down . coin . snd)
             . Map.toList
             . getUTxO
     let guard = except . left ErrInvalidSelection . validate opt

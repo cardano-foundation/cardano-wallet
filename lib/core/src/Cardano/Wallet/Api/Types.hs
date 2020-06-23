@@ -15,7 +15,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
@@ -865,7 +864,7 @@ instance ToJSON WalletPostData where
 
 instance FromJSON ApiAccountPublicKey where
     parseJSON =
-        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
 instance ToJSON ApiAccountPublicKey where
     toJSON =
         toJSON . T.decodeUtf8 . hex . xpubToBytes . getApiT . key
@@ -953,13 +952,13 @@ instance ToJSON (ByronWalletPostData mw) where
 
 instance FromJSON (ApiT (Hash "encryption")) where
     parseJSON =
-        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
 instance ToJSON (ApiT (Hash "encryption")) where
     toJSON = toJSON . toText . getApiT
 
 instance FromJSON (ApiT XPrv) where
     parseJSON =
-        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
 instance ToJSON (ApiT XPrv) where
     toJSON = toJSON . toText
 
@@ -1190,7 +1189,7 @@ instance ToJSON ApiNetworkInformation where
 
 instance FromJSON NtpSyncingStatus where
     parseJSON =
-        parseJSON >=> eitherToParser . bimap ShowFmt Prelude.id . fromText
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
 instance ToJSON NtpSyncingStatus where
     toJSON = toJSON . toText
 

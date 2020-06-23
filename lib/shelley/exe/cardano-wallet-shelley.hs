@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -104,6 +103,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
     ( contramap )
+import Data.Bifunctor
+    ( second )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -235,7 +236,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
     withShutdownHandlerMaybe _ False = void
     withShutdownHandlerMaybe tr True = void . withShutdownHandler trShutdown
       where
-        trShutdown = trMessage $ contramap (\(n, x) -> (n, fmap MsgShutdownHandler x)) tr
+        trShutdown = trMessage $ contramap (second (fmap MsgShutdownHandler)) tr
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -312,4 +313,3 @@ tracerSeveritiesOption = Tracers
         <> value def
         <> metavar "SEVERITY"
         <> internal
-

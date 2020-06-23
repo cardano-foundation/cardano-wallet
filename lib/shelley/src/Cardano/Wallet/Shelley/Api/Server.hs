@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -302,4 +301,3 @@ server byron icarus shelley spl ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
-
