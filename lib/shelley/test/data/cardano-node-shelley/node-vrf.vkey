@@ -1,4 +1,4 @@
-type: VerKeyVRF SimpleVRF
+type: VerKeyVRF PraosVRF
 title: VRF Verification Key
 cbor-hex:
- 58200001785b3917f4a003c22ec828915391000130dc3292dc73a92c3cd09747962e
+ 5820fa6db6b263332183de301361e10a80a8652234a1c400295b4dffeedd7981a4bb

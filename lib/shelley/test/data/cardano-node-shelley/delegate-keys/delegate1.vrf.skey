@@ -1,4 +1,5 @@
-type: SignKeyVRF SimpleVRF
+type: SignKeyVRF PraosVRF
 title: VRF Signing Key
 cbor-hex:
- 5000002a9aa44b058c091ed186d6222c6a
+ 5840fb864194212a7f775b1c1ba88399ce76ea0a6e444a70ffdb5acc8b8d76becac888042c1fb885
+ 286571602ab273d6e9cb3a90e361d5cbd7bd0e5654209c5a8626
