@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -19,8 +20,11 @@
 
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
+
+    -- * Internals
     , _minimumFee
     , _decodeSignedTx
+    , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkWitness
     ) where
@@ -211,15 +215,45 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
-    _estimateMaxNumberOfInputs
-        :: Quantity "byte" Word16
-        -- ^ Transaction max size in bytes
-        -> Word8
-        -- ^ Number of outputs in transaction
-        -> Word8
-    _estimateMaxNumberOfInputs _ _ =
-        -- FIXME Implement.
-        100
+_estimateMaxNumberOfInputs
+    :: Quantity "byte" Word16
+     -- ^ Transaction max size in bytes
+    -> Word8
+    -- ^ Number of outputs in transaction
+    -> Word8
+_estimateMaxNumberOfInputs (Quantity maxSize) nOuts =
+      fromIntegral $ bisect (lowerBound, upperBound)
+  where
+    bisect (!inf, !sup)
+        | middle == inf && isTooBig sup = inf
+        | middle == inf                 = sup
+        | isTooBig middle               = bisect (inf, middle)
+        | otherwise                     = bisect (middle, sup)
+      where
+        middle = inf + ((sup - inf) `div` 2)
+
+    growingFactor = 2
+
+    lowerBound = upperBound `div` growingFactor
+    upperBound = upperBound_ 1
+      where
+        upperBound_ !n | isTooBig n = n
+                       | otherwise  = upperBound_ (n*growingFactor)
+
+    isTooBig nInps = size > fromIntegral maxSize
+      where
+        size = computeTxSize (WithDelegation False) sel
+        sel  = dummyCoinSel nInps (fromIntegral nOuts)
+
+dummyCoinSel :: Int -> Int -> CoinSelection
+dummyCoinSel nInps nOuts = CoinSelection
+    (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1])
+    (replicate nOuts dummyTxOut)
+    (replicate nOuts (Coin 1))
+  where
+    dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
+    dummyTxOut  = TxOut dummyAddr (Coin 1)
+    dummyAddr   = Address $ BS.pack (1:replicate 64 0)
 
 _decodeSignedTx
     :: ByteString
@@ -251,9 +285,8 @@ _minimumFee
     -> WithDelegation
     -> CoinSelection
     -> Fee
-_minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
-    computeFee $ SL.txsize $
-        SL.Tx unsigned wits metadata
+_minimumFee policy withDelegation coinSel =
+    computeFee $ computeTxSize withDelegation coinSel
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -261,8 +294,13 @@ _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chng
       where
         LinearFee (Quantity a) (Quantity b) (Quantity _unused) = policy
 
-    wits = SL.WitnessSet addrWits mempty mempty
-
+computeTxSize
+    :: WithDelegation
+    -> CoinSelection
+    -> Integer
+computeTxSize (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
+    SL.txsize $ SL.Tx unsigned wits metadata
+ where
     metadata = SL.SNothing
 
     unsigned = mkUnsignedTx maxBound inps outs'
@@ -287,6 +325,8 @@ _minimumFee policy (WithDelegation withDelegation) (CoinSelection inps outs chng
         dummyXPrv (TxIn (Hash txid) ix) =
             unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 $
                 txid <> B8.pack (show ix)
+
+    wits = SL.WitnessSet addrWits mempty mempty
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))

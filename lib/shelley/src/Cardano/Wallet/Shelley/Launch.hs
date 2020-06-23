@@ -48,7 +48,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.CLI
     ( optionT )
 import Cardano.Config.Shelley.Genesis
-    ( ShelleyGenesis )
+    ( ShelleyGenesis (..) )
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited (..) )
 import Cardano.Launcher.Node
@@ -94,7 +94,7 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( eitherDecode, toJSON, (.=) )
+    ( FromJSON (..), eitherDecode, toJSON, (.:), (.=) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -145,12 +145,17 @@ import Test.Utils.StaticServer
     ( withStaticServer )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
+import qualified Shelley.Spec.Ledger.Address as SL
+import qualified Shelley.Spec.Ledger.Coin as SL
 
 data NetworkConfiguration where
     TestnetConfig
@@ -209,13 +214,40 @@ parseGenesisData = \case
         let nm = sgNetworkMagic genesis
         let (discriminant, vData) =
                 someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
-        let (np, block0) = fromGenesisData genesis
+        let (np, block0) = fromGenesisData genesis (Map.toList $ sgInitialFunds genesis)
         pure
             ( discriminant
             , np
             , vData
             , block0
             )
+
+-- NOTE
+-- Fixture wallets we use in integration tests comes from "initialFunds"
+-- referenced in the genesis file. As of today, initial funds are declared as a
+-- key-value map in JSON, and parsing libraries does not enforce any particular
+-- ordering on the keys when parsing the map. Because this wallet uses sequential
+-- derivation, it relies on addresses being discovered in a certain order.
+newtype PreserveInitialFundsOrdering =
+    PreserveInitialFundsOrdering
+        ( ShelleyGenesis TPraosStandardCrypto
+        , [(SL.Addr TPraosStandardCrypto, SL.Coin)]
+        )
+    deriving (Show)
+
+instance FromJSON PreserveInitialFundsOrdering where
+    parseJSON source = do
+        json <- parseJSON source
+        base <- clearField "initialFunds" json >>= parseJSON
+        initialFunds <- flip (Aeson.withObject "ShelleyGenesis") source $ \obj ->
+            obj .: "initialFunds"
+        pure $ PreserveInitialFundsOrdering
+            ( base
+            , mconcat (Map.toList <$> initialFunds)
+            )
+      where
+        clearField field = withObject
+            (pure . HM.update (const (Just $ Aeson.Object mempty)) field)
 
 --------------------------------------------------------------------------------
 -- For Integration
@@ -501,18 +533,26 @@ genConfig dir severity systemStart = do
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
         >>= withObject (pure . updateSystemStart systemStart)
+        >>= withObject transformInitialFunds
         >>= Aeson.encodeFile nodeGenesisFile
 
-    (genesisData :: ShelleyGenesis TPraosStandardCrypto)
-        <- either (error . show) id . eitherDecode <$> BL.readFile nodeGenesisFile
+    PreserveInitialFundsOrdering (genesis, initialFunds) <-
+        Yaml.decodeFileThrow (source </> "genesis.yaml")
+        >>= withObject (pure . updateSystemStart systemStart)
+        >>= either fail pure . Aeson.parseEither parseJSON
 
-    let (networkParameters, block0) = fromGenesisData genesisData
-    let nm = sgNetworkMagic genesisData
+    let nm = sgNetworkMagic genesis
+    let (networkParameters, block0) = fromGenesisData genesis initialFunds
+    let versionData =
+            ( NodeToClientVersionData $ NetworkMagic nm
+            , nodeToClientCodecCBORTerm
+            )
+
     pure
         ( dir </> "node.config"
         , block0
         , networkParameters
-        , (NodeToClientVersionData $ NetworkMagic nm, nodeToClientCodecCBORTerm)
+        , versionData
         )
   where
     source :: FilePath
@@ -953,6 +993,24 @@ addMinSeverity
     -> Aeson.Object
     -> Aeson.Object
 addMinSeverity severity = HM.insert "minSeverity" (toJSON $ show severity)
+
+-- | Transform initial funds back to a big object instead of a list of
+-- singletons.
+transformInitialFunds
+    :: Aeson.Object
+    -> IO Aeson.Object
+transformInitialFunds = pure . HM.update toObject "initialFunds"
+  where
+    toObject = \case
+        Aeson.Array xs ->
+            pure $ Aeson.Object $ HM.fromList (singleton <$> V.toList xs)
+        _ ->
+            error "transformInitialFunds: expected initialFunds to be an array."
+    singleton = \case
+        Aeson.Object obj ->
+            head $ HM.toList obj
+        _ ->
+            error "transformInitialFunds: expected initialFunds to be many singletons"
 
 -- | Do something with an a JSON object. Fails if the given JSON value isn't an
 -- object.
