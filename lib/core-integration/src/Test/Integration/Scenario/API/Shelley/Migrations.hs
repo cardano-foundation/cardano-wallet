@@ -218,7 +218,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 34). length)
+            , expectField id ((`shouldBe` 7). length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -242,7 +242,7 @@ spec = do
             Empty >>= flip verify
             [ expectField
                 #distribution
-                ((`shouldBe` (Just 400)) . Map.lookup 100_000_000_000)
+                ((`shouldBe` (Just 99)) . Map.lookup 100_000_000_000)
             ]
 
     it "SHELLEY_MIGRATE_02 - \
