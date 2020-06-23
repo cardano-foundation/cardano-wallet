@@ -944,7 +944,7 @@ spec = do
 
         forM_ poolOwnerTests $ \(title, str, msg) ->
             it ("fail fromText @PoolOwner " ++ title) $
-                fromText @PoolOwner str `shouldBe` (Left $ TextDecodingError msg)
+                fromText @PoolOwner str `shouldBe` Left (TextDecodingError msg)
 
     describe "unsafeEpochNo" $ do
         it "returns a successful result for any Word31" $

@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -384,4 +383,3 @@ scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> do
     err `shouldBe` "Unable to decode Address: not a valid Base58 encoded string.\n"
   where
     title = "CLI_ADDRESS_IMPORT_03 - I can't import a gibberish address"
-

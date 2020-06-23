@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -88,11 +87,8 @@ trMessageText
 trMessageText tr = Tracer $ \arg -> do
    let msg = toText arg
        tracer = if msg == mempty then nullTracer else tr
-   lo <- LogObject
-       <$> pure mempty
-       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
-       <*> pure (LogMessage msg)
-   traceWith tracer (mempty, lo)
+   meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
+   traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))
 
 -- | Tracer transformer which converts 'Trace m a' to 'Tracer m a' by wrapping
 -- typed log messages into a 'LogObject'.
@@ -100,11 +96,9 @@ trMessage
     :: (MonadIO m, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject a)
     -> Tracer m a
-trMessage tr = Tracer $ \arg ->
-   traceWith tr =<< (return . (mempty,)) =<< LogObject
-       <$> pure mempty
-       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
-       <*> pure (LogMessage arg)
+trMessage tr = Tracer $ \arg -> do
+   meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
+   traceWith tr (mempty, LogObject mempty meta (LogMessage arg))
 
 instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
     trTransformer _verb = Tracer . traceWith . trMessageText

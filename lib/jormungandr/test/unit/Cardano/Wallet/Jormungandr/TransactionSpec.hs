@@ -523,7 +523,7 @@ goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes'
     let walDelegs = WalletDelegation NotDelegating []
     let res = mkDelegationJoinTx tl walDelegs pool (accountXPrv, pass) keystore (SlotId 0 0) inps outs
     let sealed = getSealedTx . snd <$> res
-    sealed `shouldBe` (Right $ unsafeFromHex bytes')
+    sealed `shouldBe` Right (unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))
   where
     title = "golden test mkCertificateTx: " <> show pool

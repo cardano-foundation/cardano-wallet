@@ -255,8 +255,5 @@ trMessageText
 trMessageText tr = Tracer $ \arg -> do
    let msg = toText arg
        tracer = if msg == mempty then nullTracer else tr
-   lo <- LogObject
-       <$> pure mempty
-       <*> (mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg))
-       <*> pure (LogMessage msg)
-   traceWith tracer (mempty, lo)
+   meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
+   traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))

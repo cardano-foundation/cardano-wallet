@@ -788,9 +788,7 @@ instance Arbitrary TxIn where
         <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut
-        <$> pure (Address "address")
-        <*> (Coin <$> choose (1, 100000))
+    arbitrary = TxOut (Address "address") . Coin <$> choose (1, 100000)
 
 instance Arbitrary TxMeta where
     shrink _ = []

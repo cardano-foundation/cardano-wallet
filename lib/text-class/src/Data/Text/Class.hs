@@ -38,6 +38,8 @@ import Control.Monad
     ( unless )
 import Data.Bifunctor
     ( first )
+import Data.List
+    ( find )
 import Data.List.Extra
     ( enumerate )
 import Data.Maybe
@@ -187,8 +189,8 @@ fromTextToBoundedEnum cs t =
     allValuesInRequiredCase = toTextFromBoundedEnum cs <$> enumerate @a
     inputInPascalCase =
         T.pack . Casing.toPascal <$> fromCaseStyle cs (T.unpack t)
-    matchingValue = fmap (toEnum . snd) $ listToMaybe $
-        filter ((== inputInPascalCase) . fst) $
+    matchingValue = fmap (toEnum . snd) $
+        find ((== inputInPascalCase) . fst) $
             (Just <$> allValuesInPascalCase) `zip` [0 :: Int ..]
 
 toCaseStyle :: CaseStyle -> Casing.Identifier String -> String

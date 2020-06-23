@@ -541,9 +541,9 @@ instance Arbitrary (RndState 'Mainnet) where
         | (ix', addrs', pending') <- shrink (ix, addrs, pending)
         ]
     arbitrary = RndState
-        <$> pure (Passphrase "passphrase")
-        <*> pure minBound
-        <*> arbitrary
+        (Passphrase "passphrase")
+        minBound
+        <$> arbitrary
         <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
         <*> pure (mkStdGen 42)
 

@@ -254,8 +254,8 @@ prop_trackRegistrations test = monadicIO $ do
                         $ Right
                         $ RollForward cursor blkH bs
                     Nothing -> do
-                        tryPutMVar done () $> (Left
-                            $ ErrGetBlockNetworkUnreachable
+                        tryPutMVar done () $> Left
+                            ( ErrGetBlockNetworkUnreachable
                             $ ErrNetworkInvalid "The test case has finished")
             , initCursor =
                 pure . const (Cursor header0)
@@ -285,7 +285,7 @@ test_emptyDatabaseNotSynced = do
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced p) ->
-            p `shouldBe` (Quantity $ unsafeMkPercentage 0)
+            p `shouldBe` Quantity (unsafeMkPercentage 0)
         _ -> fail $ "got something else than expected: " <> show res
   where
     nl = mockNetworkLayer
@@ -304,7 +304,7 @@ test_notSyncedProgress = do
     res <- runExceptT $ listStakePools spl
     case res of
         Left (ErrMetricsIsUnsynced p) ->
-            p `shouldBe` (Quantity $ unsafeMkPercentage $ 1 % 3)
+            p `shouldBe` Quantity (unsafeMkPercentage (1 % 3))
         _ -> fail $ "got something else than expected: " <> show res
   where
     nodeTip = header0 { blockHeight = Quantity 42 }
