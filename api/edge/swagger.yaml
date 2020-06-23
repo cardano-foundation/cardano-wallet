@@ -579,16 +579,31 @@ x-jormungandrStakePoolMetadata: &jormungandrStakePoolMetadata
       format: bech32
       example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
 
-x-stakePoolCost: &stakePoolCost
+x-jormungandrStakePoolCost: &jormungandrStakePoolCost
   <<: *amount
   description: |
       Estimated cost set by the pool operator when registering his pool.
       This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
 
-x-stakePoolMargin: &stakePoolMargin
+x-jormungandrStakePoolMargin: &jormungandrStakePoolMargin
   <<: *percentage
   description: |
       Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
+
+x-stakePoolCost: &stakePoolCost
+  <<: *jormungandrStakePoolCost
+  description: |
+      Estimated cost set by the pool operator when registering his pool.
+      This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
+
+      May be ommitted if the wallet hasn't found the pool's registration cerificate yet.
+
+x-stakePoolMargin: &stakePoolMargin
+  <<: *jormungandrStakePoolMargin
+  description: |
+      Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
+
+      May be ommitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolSaturation: &stakePoolSaturation
   type: number
@@ -811,8 +826,7 @@ components:
       type: object
       required:
         - id
-        - cost
-        - margin
+        - metrics
       properties:
         id: *stakePoolId
         metrics: *stakePoolMetrics
@@ -834,8 +848,8 @@ components:
         id: *stakePoolId
         metrics: *jormungandrStakePoolMetrics
         apparent_performance: *stakePoolApparentPerformance
-        cost: *stakePoolCost
-        margin: *stakePoolMargin
+        cost: *jormungandrStakePoolCost
+        margin: *jormungandrStakePoolMargin
         metadata: *jormungandrStakePoolMetadata
         saturation: *stakePoolSaturation
         desirability: *stakePoolDesirability
