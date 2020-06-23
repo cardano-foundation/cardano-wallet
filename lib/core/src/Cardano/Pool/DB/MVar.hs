@@ -30,6 +30,7 @@ import Cardano.Pool.DB.Model
     , mPutPoolRegistration
     , mPutStakeDistribution
     , mReadCursor
+    , mReadPoolMetadata
     , mReadPoolProduction
     , mReadPoolRegistration
     , mReadStakeDistribution
@@ -100,6 +101,8 @@ newDBLayer = do
 
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+
+        , readPoolMetadata = readPoolDB db mReadPoolMetadata
 
         , atomically = id
         }

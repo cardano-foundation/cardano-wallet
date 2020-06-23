@@ -55,7 +55,6 @@
           (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))

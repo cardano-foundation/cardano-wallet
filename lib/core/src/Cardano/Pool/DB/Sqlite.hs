@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -50,6 +51,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , SlotId (..)
     , StakePoolMetadata (..)
+    , StakePoolMetadataHash
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -127,7 +129,8 @@ withDBLayer
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace fp action =
+withDBLayer trace fp action = do
+    traceWith trace (MsgWillOpenDB fp)
     bracket before after (action . snd)
   where
     before = newDBLayer trace fp
@@ -274,6 +277,10 @@ newDBLayer trace fp = do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
             putMany [PoolMetadata hash poolId name ticker description homepage]
 
+        , readPoolMetadata = do
+            Map.fromList . map (fromPoolMeta . entityVal)
+                <$> selectList [] []
+
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
                 [ Desc PoolRegistrationSlot ]
@@ -391,3 +398,14 @@ fromStakeDistribution distribution =
     ( stakeDistributionPoolId distribution
     , Quantity (stakeDistributionStake distribution)
     )
+
+fromPoolMeta
+    :: PoolMetadata
+    -> (StakePoolMetadataHash, StakePoolMetadata)
+fromPoolMeta meta = (poolMetadataHash meta,) $
+    StakePoolMetadata
+        { ticker = poolMetadataTicker meta
+        , name = poolMetadataName meta
+        , description = poolMetadataDescription meta
+        , homepage = poolMetadataHomepage meta
+        }

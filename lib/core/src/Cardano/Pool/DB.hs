@@ -135,6 +135,9 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Store metadata fetched from a remote server.
 
+    , readPoolMetadata
+        :: stm (Map StakePoolMetadataHash StakePoolMetadata)
+
     , readSystemSeed
         :: stm StdGen
         -- ^ Read the seed assigned to this particular database. The seed is

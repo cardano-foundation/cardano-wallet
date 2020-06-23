@@ -55,7 +55,6 @@ library
     , http-types
     , memory
     , process
-    , QuickCheck
     , retry
     , scrypt
     , template-haskell

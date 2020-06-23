@@ -364,6 +364,7 @@ data DBLog
     | MsgRun Bool
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
+    | MsgWillOpenDB (Maybe FilePath)
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
@@ -439,6 +440,7 @@ instance HasSeverityAnnotation DBLog where
         MsgRun _ -> Debug
         MsgConnStr _ -> Debug
         MsgClosing _ -> Debug
+        MsgWillOpenDB _ -> Info
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
@@ -463,6 +465,7 @@ instance ToText DBLog where
         MsgQuery stmt _ -> stmt
         MsgRun False -> "Running database action - Start"
         MsgRun True -> "Running database action - Finish"
+        MsgWillOpenDB fp -> "Will open db at " <> (maybe "in-memory" T.pack fp)
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
         MsgDatabaseReset ->

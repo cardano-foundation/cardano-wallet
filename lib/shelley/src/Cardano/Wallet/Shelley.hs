@@ -235,12 +235,12 @@ serveWallet
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
-                let el = getEpochLength $ genesisParameters np
+                let gp = genesisParameters np
+                let el = getEpochLength gp
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                let spl = newStakePoolLayer (genesisParameters np) nl
-                withPoolsMonitoring databaseDir (genesisParameters np) nl $ do
+                withPoolsMonitoring databaseDir gp nl $ \spl -> do
                     startServer
                         proxy
                         socket
@@ -286,14 +286,15 @@ serveWallet
         :: Maybe FilePath
         -> GenesisParameters
         -> NetworkLayer IO t ShelleyBlock
-        -> IO a
+        -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
         Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) $ \db -> do
+            let spl = newStakePoolLayer (genesisParameters np) nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
             void $ forkFinally (monitorMetadata tr gp fetch db) onExit
-            action
+            action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
         onExit = defaultWorkerAfter poolsEngineTracer
