@@ -61,6 +61,6 @@ steps:
   - wait
 
   - label: "Advance all-tests-pass branch"
-    command: "./.buildkite/push-branch.sh all-tests-pass"
+    command: "./.buildkite/push-branch.sh"
     agents:
       system: x86_64-linux
