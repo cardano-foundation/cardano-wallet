@@ -48,6 +48,11 @@ flags:
   zip:
     disable-bzip2: true
 
+  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+  # This still requires the host system to have the 'standard' libsodium installed.
+  cardano-crypto-praos:
+    external-libsodium-vrf: false
+
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
 ghc-options: {"$locals": -ddump-to-file -ddump-hi}
