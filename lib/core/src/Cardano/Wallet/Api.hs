@@ -324,7 +324,7 @@ type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> Capture "transactionId" (ApiT (Hash "Tx"))
-    :> Get '[JSON] (Maybe (ApiTransactionT n))
+    :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee n = "wallets"

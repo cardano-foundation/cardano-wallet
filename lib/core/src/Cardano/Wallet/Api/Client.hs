@@ -159,7 +159,7 @@ data TransactionClient = TransactionClient
     , getTransaction
         :: ApiT WalletId
         -> ApiT (Hash "Tx")
-        -> ClientM (Maybe (ApiTransactionT Aeson.Value))
+        -> ClientM (ApiTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient

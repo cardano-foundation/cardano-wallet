@@ -1602,6 +1602,16 @@ x-responsesListTransactions: &responsesListTransactions
           type: array
           items: *ApiTransaction
 
+x-responsesGetTransaction: &responsesGetTransaction
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: OK
+    content:
+      application/json:
+        schema: *ApiTransaction
+
 x-responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr400
   <<: *responsesErr403
@@ -1950,6 +1960,19 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
+
+    get:
+      operationId: getTransaction
+      tags: ["Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
 
   /wallets/{walletId}/addresses:
     get:
