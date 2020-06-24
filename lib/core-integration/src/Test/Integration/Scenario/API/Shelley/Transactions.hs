@@ -103,6 +103,7 @@ import Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
+    , errMsg404NoTransaction
     , errMsg404NoWallet
     )
 import Web.HttpApiData
@@ -1209,6 +1210,27 @@ spec = do
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post tx
+        let amt = (1 :: Natural)
+        rMkTx <- postTx ctx
+            (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
+            wDest
+            amt
+        verify rMkTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        let txid =  Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction wSrc (ApiTxId $ ApiT txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoTransaction $ toText txid) r
 
 
     it "TRANS_DELETE_01 -\

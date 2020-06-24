@@ -60,6 +60,7 @@ module Test.Integration.Framework.TestData
     , errMsg404CannotFindTx
     , errMsg403NoRootKey
     , errMsg404NoWallet
+    , errMsg404NoTransaction
     , errMsg409WalletExists
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
@@ -381,6 +382,10 @@ errMsg403NoRootKey wid = "I couldn't find a root private key for the given\
 errMsg404NoWallet :: Text -> String
 errMsg404NoWallet wid =
     "I couldn't find a wallet with the given id: " ++ unpack wid
+
+errMsg404NoTransaction :: Text -> String
+errMsg404NoTransaction tid =
+    "I couldn't find a transaction with the given id: " ++ unpack tid
 
 errMsg405 :: String
 errMsg405 = "You've reached a known endpoint but I don't know how to handle the\
