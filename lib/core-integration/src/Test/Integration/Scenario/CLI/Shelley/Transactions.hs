@@ -907,7 +907,45 @@ spec = do
             , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
             ]
 
-    it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymorevia CLI" $ \ctx -> do
+    it "TRANS_GET_02 - Deleted wallet" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        Exit d <- deleteWalletViaCLI @t ctx wid
+        d `shouldBe` ExitSuccess
+        let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+
+        (Exit c, Stdout o, Stderr e) <- getTransactionViaCLI @t ctx wid txId
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses @n ctx wDest
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let amt = 14 :: Natural
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
+        (c1, o1, e1) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        e1 `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) o1
+        verify txJson
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        c1 `shouldBe` ExitSuccess
+
+        let wid = T.unpack (wSrc ^. walletId)
+        let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+        (Exit c2, Stdout o2, Stderr e2) <- getTransactionViaCLI @t ctx wid txId
+        e2 `shouldContain` errMsg404CannotFindTx (T.pack txId)
+        o2 `shouldBe` mempty
+        c2 `shouldBe` ExitFailure 1
+
+
+    it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         let wSrcId = T.unpack (wSrc ^. walletId)

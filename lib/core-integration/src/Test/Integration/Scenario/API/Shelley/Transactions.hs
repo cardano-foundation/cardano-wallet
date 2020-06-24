@@ -103,7 +103,6 @@ import Test.Integration.Framework.TestData
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
-    , errMsg404NoTransaction
     , errMsg404NoWallet
     )
 import Web.HttpApiData
@@ -1230,7 +1229,7 @@ spec = do
         let link = Link.getTransaction wSrc (ApiTxId $ ApiT txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
-        expectErrorMessage (errMsg404NoTransaction $ toText txid) r
+        expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
 
 
     it "TRANS_DELETE_01 -\
