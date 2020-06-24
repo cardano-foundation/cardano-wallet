@@ -127,6 +127,9 @@ module Cardano.Wallet
     -- ** Fee Estimation
     , FeeEstimation (..)
     , estimateFeeForCoinSelection
+    , feeOpts
+    , coinSelOpts
+    , handleCannotCover
 
     -- ** Transaction
     , forgetPendingTx
@@ -231,6 +234,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
+    , Fee (..)
     , FeeOptions (..)
     , OnDanglingChange (..)
     , adjustForFee
@@ -275,6 +279,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
+    , UTxO
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
@@ -309,7 +314,14 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..)
+    , catchE
+    , except
+    , mapExceptT
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State.Strict
@@ -1132,8 +1144,8 @@ estimateFeeForDelegation
 estimateFeeForDelegation ctx wid = do
     (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection $
-       selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
 
 -- | Constructs a set of coin selections that select all funds from the given
 --   source wallet, returning them as change.
@@ -1192,8 +1204,27 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    estimateFeeForCoinSelection $
-        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+    let selectCoins =
+            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+    estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
+        `catchE` handleCannotCover utxo recipients
+
+-- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
+-- whereas clients are just asking for an estimation. Therefore, we convert
+-- cannot cover errors into the necessary fee amount, even though there isn't
+-- enough in the wallet to cover for these fees.
+handleCannotCover
+    :: Monad m
+    => UTxO
+    -> NonEmpty TxOut
+    -> ErrSelectForPayment e
+    -> ExceptT (ErrSelectForPayment e) m Fee
+handleCannotCover utxo outs = \case
+    ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
+        let available = fromIntegral (W.balance utxo) - sum (getCoin . coin <$> outs)
+        pure $ Fee $ available + missing
+    e ->
+        throwE e
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
@@ -1604,14 +1635,14 @@ data FeeEstimation = FeeEstimation
 -- greater than. The maximum fee is the highest fee observed in the samples.
 estimateFeeForCoinSelection
     :: forall m err. Monad m
-    => ExceptT err m CoinSelection
+    => ExceptT err m Fee
     -> ExceptT err m FeeEstimation
 estimateFeeForCoinSelection
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
-    . fmap feeBalance
+    . fmap getFee
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample

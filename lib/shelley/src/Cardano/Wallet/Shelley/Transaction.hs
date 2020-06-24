@@ -97,8 +97,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word8 )
-import Fmt
-    ( Buildable (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -403,10 +401,4 @@ unsafeMkEd25519 =
 -- Extra validations on coin selection
 --
 
--- | Transaction with 0 output amount is tried
-data ErrInvalidTxOutAmount -- FIXME: = ErrInvalidTxOutAmount
-
-instance Buildable ErrInvalidTxOutAmount where
-    build _ = "Invalid coin selection: at least one output is null."
-
-type instance ErrValidateSelection (IO Shelley) = ErrInvalidTxOutAmount
+type instance ErrValidateSelection (IO Shelley) = ()

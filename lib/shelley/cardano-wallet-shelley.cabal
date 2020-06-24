@@ -155,6 +155,7 @@ test-suite unit
     , shelley-spec-ledger
     , text
     , text-class
+    , transformers
     , QuickCheck
   build-tools:
       hspec-discover
