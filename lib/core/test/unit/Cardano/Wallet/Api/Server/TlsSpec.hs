@@ -64,6 +64,8 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.Windows
+    ( pendingOnWine )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Network.HTTP.Types.Status as Http
@@ -73,6 +75,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
     it "Respond to authenticated client if TLS is enabled" $ do
+        pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
                     { tlsCaCert = rootPKI 1 </> "ca.crt"
@@ -94,6 +97,7 @@ spec = describe "TLS Client Authentication" $ do
                 }
 
     it "Deny client with wrong certificate if TLS is enabled" $ do
+        pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
                     { tlsCaCert = rootPKI 1 </> "ca.crt"
