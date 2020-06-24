@@ -50,7 +50,12 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx, mkWitness, _decodeSignedTx, _estimateMaxNumberOfInputs, newTransactionLayer, _decodeSignedTx )
+    ( mkUnsignedTx
+    , mkWitness
+    , newTransactionLayer
+    , _decodeSignedTx
+    , _estimateMaxNumberOfInputs
+    )
 import Cardano.Wallet.Transaction
     ( WithDelegation (..) )
 import Control.Monad
@@ -116,13 +121,6 @@ spec = do
         prop "more outputs ==> less inputs" prop_moreOutputsMeansLessInputs
         prop "less outputs ==> more inputs" prop_lessOutputsMeansMoreInputs
         prop "bigger size  ==> more inputs" prop_biggerMaxSizeMeansMoreInputs
-
-data DecodeSetup = DecodeSetup
-    { inputs :: UTxO
-    , outputs :: [TxOut]
-    , ttl :: SlotNo
-    , keyPasswd :: [(XPrv, Passphrase "encryption")]
-    } deriving Show
 
     it "regression #1740 - fee estimation at the boundaries" $ do
         let utxo = UTxO $ Map.fromList
@@ -205,6 +203,13 @@ testFeeOpts = feeOpts tl (WithDelegation False) feePolicy
     epLength  = EpochLength 42 -- irrelevant here
     tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
+
+data DecodeSetup = DecodeSetup
+    { inputs :: UTxO
+    , outputs :: [TxOut]
+    , ttl :: SlotNo
+    , keyPasswd :: [(XPrv, Passphrase "encryption")]
+    } deriving Show
 
 instance Arbitrary DecodeSetup where
     arbitrary = do
