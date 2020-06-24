@@ -42,3 +42,6 @@ jobs:
         run: '.\\cardano-wallet-jormungandr-test-jormungandr-integration.exe --color'
         continue-on-error: true
         timeout-minutes: 60
+      - name: "Advance windows-tests-pass and all-tests-pass branches"
+        shell: bash
+        run: ".buildkite\\push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass"

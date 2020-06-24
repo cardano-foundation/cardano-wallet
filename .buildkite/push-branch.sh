@@ -12,11 +12,25 @@
 
 set -euo pipefail
 
-this_branch=linux-tests-pass
-other_branch=windows-tests-pass
-common_branch=all-tests-pass
+this_branch="${1:-}"
+other_branch="${2:-}"
+common_branch="${3:-}"
 
+if [ -z "$common_branch" ]; then
+  echo "usage: $0 THIS_BRANCH OTHER_BRANCH COMMON_BRANCH"
+  exit 1
+fi
+
+# Load SSH key from GitHub secrets if run under GitHub actions.
+if [ -n "${ACTIONS_SSH_KEY:-}" ]; then
+  sshkey=$(mktemp)
+  echo "${ACTIONS_SSH_KEY:-}" > $sshkey
+fi
+
+# Load SSH key from standard location on Buildkite.
 : "${sshkey:=/run/keys/buildkite-cardano-wallet-ssh-private}"
+
+# SSH name of our git repo
 remote="git@github.com:input-output-hk/cardano-wallet.git"
 
 advance_branch() {
