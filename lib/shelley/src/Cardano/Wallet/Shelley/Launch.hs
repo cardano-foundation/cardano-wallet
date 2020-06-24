@@ -529,7 +529,7 @@ genConfig dir severity systemStart = do
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withObject (pure . addGenesisFilePath (T.pack nodeGenesisFile))
         >>= withObject (addMinSeverityStdout severity)
-        >>= withObject (pure . addMinSeverity severity) -- fixme: use Debug
+        >>= withObject (pure . addMinSeverity Debug)
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
