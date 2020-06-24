@@ -58,6 +58,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
+    , getTransaction
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
@@ -170,7 +171,7 @@ server byron icarus jormungandr spl ntp =
         :<|> listTransactions jormungandr
         :<|> postTransactionFee jormungandr
         :<|> deleteTransaction jormungandr
-        :<|> (\_ _ -> throwError err501)
+        :<|> getTransaction jormungandr
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

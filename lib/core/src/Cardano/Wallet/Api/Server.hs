@@ -1163,9 +1163,9 @@ getTransaction
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
     => ctx
     -> ApiT WalletId
-    -> ApiT (Hash "Tx")
+    -> ApiTxId
     -> Handler (ApiTransaction n)
-getTransaction ctx (ApiT wid) (ApiT tid) = do
+getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     tx <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.getTransaction wrk wid tid
     return $ mkApiTransactionFromInfo tx

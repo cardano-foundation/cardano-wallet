@@ -52,6 +52,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
+    , getTransaction
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
@@ -120,7 +121,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), Server, err400, err501, throwError )
+    ( (:<|>) (..), Handler (..), Server, err400 )
 
 server
     :: forall t n.
@@ -172,7 +173,7 @@ server byron icarus shelley spl ntp =
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
-        :<|> (\_ _ -> throwError err501)
+        :<|> getTransaction shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

@@ -141,7 +141,6 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , Coin (..)
-    , Hash
     , NetworkParameters
     , SortOrder (..)
     , SyncTolerance
@@ -324,7 +323,7 @@ type ListTransactions n = "wallets"
 type GetTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> Capture "transactionId" (ApiT (Hash "Tx"))
+    :> Capture "transactionId" ApiTxId
     :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee

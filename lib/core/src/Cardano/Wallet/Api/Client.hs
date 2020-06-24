@@ -83,7 +83,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), Hash, SortOrder, WalletId )
+    ( AddressState, Coin (..), SortOrder, WalletId )
 import Control.Monad
     ( void )
 import Data.Coerce
@@ -158,7 +158,7 @@ data TransactionClient = TransactionClient
         -> ClientM NoContent
     , getTransaction
         :: ApiT WalletId
-        -> ApiT (Hash "Tx")
+        -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
     }
 

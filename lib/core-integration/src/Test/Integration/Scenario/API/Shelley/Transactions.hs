@@ -1148,6 +1148,59 @@ spec = do
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
+    it "TRANS_GET_01 - Can list Incoming and Outgoing transaction" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post tx
+        let amt = (1 :: Natural)
+        rMkTx <- postTx ctx
+            (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
+            wDest
+            amt
+        let txid = getFromResponse #id rMkTx
+        verify rMkTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        -- Verify Tx in source wallet is Outgoing and Pending
+        let linkSrc = Link.getTransaction wSrc (ApiTxId txid)
+        r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+        verify r1
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                ]
+
+        -- Verify Tx in source wallet is Outgoing and InLedger
+        r2 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+        verify r2
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+        -- Verify Tx in destination wallet is Incoming and InLedger
+        let linkDest = Link.getTransaction wDest (ApiTxId txid)
+        r3 <- request @(ApiTransaction n) ctx linkDest Default Empty
+        verify r3
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+
     it "TRANS_DELETE_01 -\
         \ Shelley: Can forget pending transaction" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
