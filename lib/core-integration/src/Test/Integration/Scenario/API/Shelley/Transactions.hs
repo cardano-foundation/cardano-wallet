@@ -29,7 +29,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), SortOrder (..), TxStatus (..), WalletId )
+    ( Direction (..), Hash (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -109,6 +109,7 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -1199,6 +1200,15 @@ spec = do
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             , expectField (#status . #getApiT) (`shouldBe` InLedger)
             ]
+
+    it "TRANS_GET_02 - Deleted wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction w (ApiTxId txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
 
     it "TRANS_DELETE_01 -\
