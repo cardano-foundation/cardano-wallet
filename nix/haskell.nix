@@ -121,7 +121,7 @@ let
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
         packages.cardano-wallet-jormungandr.components.benchmarks.latency =
-          pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
+          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/latency \
@@ -132,7 +132,7 @@ let
 
         # Add cardano-node to the PATH of the byron latency benchmark
         packages.cardano-wallet-byron.components.benchmarks.latency =
-          pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
+          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/latency \
@@ -144,7 +144,7 @@ let
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
         packages.cardano-wallet-byron.components.benchmarks.restore =
-          pkgs.lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isWindows) {
+          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
@@ -163,17 +163,17 @@ let
         '';
 
         # Workaround for Haskell.nix issue
-        packages.cardano-wallet-jormungandr.components.all.preBuild = pkgs.lib.mkForce "";
-        packages.cardano-wallet-jormungandr.components.all.postInstall = pkgs.lib.mkForce "";
-        packages.cardano-wallet-core.components.all.preBuild = pkgs.lib.mkForce "";
-        packages.cardano-wallet-byron.components.all.postInstall = pkgs.lib.mkForce "";
+        packages.cardano-wallet-byron.components.all.postInstall = lib.mkForce "";
+        packages.cardano-wallet-core.components.all.preBuild = lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.preBuild = lib.mkForce "";
       }
 
       # Build fixes for library dependencies
       {
         # Make the /usr/bin/security tool available because it's
         # needed at runtime by the x509-system Haskell package.
-        packages.x509-system.components.library.preBuild = pkgs.lib.optionalString (pkgs.stdenv.isDarwin) ''
+        packages.x509-system.components.library.preBuild = lib.optionalString (stdenv.isDarwin) ''
           substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security
         '';
 
