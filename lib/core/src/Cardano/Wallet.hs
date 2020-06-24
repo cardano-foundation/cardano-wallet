@@ -134,6 +134,7 @@ module Cardano.Wallet
     -- ** Transaction
     , forgetPendingTx
     , listTransactions
+    , getTransaction
     , submitExternalTx
     , signTx
     , submitTx
@@ -1551,6 +1552,29 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         _ ->
             pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
 
+-- | Get transaction and metadata from history for a given wallet.
+getTransaction
+    :: forall ctx s k. HasDBLayer s k ctx
+    => ctx
+    -> WalletId
+    -> Hash "Tx"
+    -> ExceptT ErrGetTransaction IO TransactionInfo
+getTransaction ctx wid tid = db & \DBLayer{..} -> do
+    let pk = PrimaryKey wid
+    mapExceptT atomically $ do
+        _ <- withExceptT ErrGetTransactionNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint pk
+        txs <- lift $ readTxHistory pk Descending wholeRange Nothing
+        case (filter txPresent txs) of
+            [] -> do
+                let err = ErrNoSuchTransaction tid
+                throwE (ErrGetTransactionNoSuchTransaction err)
+            t:_ ->
+                pure t
+  where
+    db = ctx ^. dbLayer @s @k
+    txPresent (TransactionInfo{..}) = txInfoId == tid
+
 {-------------------------------------------------------------------------------
                                   Delegation
 -------------------------------------------------------------------------------}
@@ -1852,6 +1876,16 @@ data ErrWithRootKey
 data ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
     | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    deriving (Show, Eq)
+
+-- | Errors that can occur when trying to get transaction.
+data ErrGetTransaction
+    = ErrGetTransactionNoSuchWallet ErrNoSuchWallet
+    | ErrGetTransactionNoSuchTransaction ErrNoSuchTransaction
+    deriving (Show, Eq)
+
+-- | Indicates that the specified transaction hash is not found.
+newtype ErrNoSuchTransaction = ErrNoSuchTransaction (Hash "Tx")
     deriving (Show, Eq)
 
 -- | Indicates that the specified start time is later than the specified end
