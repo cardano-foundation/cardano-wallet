@@ -38,13 +38,13 @@ in { commonLib ? commonLib'.commonLib
 
 let
   release = rec {
-    version = "0.9.0-rc1";
+    version = "0.9.0";
     # Git revision of input-output-hk/jormungandr repo.
     rev = "v${version}";
     # Hash of git repo and all of its submodules.
-    sha256 = "0wz68n4kfkbivh6s4h72iajdksfzn8df3xb3ps73ikvww2xii2xc";
+    sha256 = "0iqrayrk7jv60yclj25kzaki16llkxrffp0nll16p9xqnvkvpfv6";
     # Hash of all Cargo dependencies.
-    cargoSha256 = "0i1n5p3k5n9rhm62bbgxhi1q1x7nw5vbz868jfncay1mlindjlzv";
+    cargoSha256 = "1wpsqfs79vzxkd3l9xzyn8csasmwfsilqi8p056f14s6ppn6sphk";
   };
 
   windows = rec {
