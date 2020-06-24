@@ -246,6 +246,7 @@ spec = do
             , "                           transaction."
             , "  forget                   Forget a pending transaction with"
             , "                           specified id."
+            , "  get                      Get a transaction with specified id."
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
@@ -309,6 +310,16 @@ spec = do
         ["transaction", "forget", "--help"] `shouldShowUsage`
             [ "Usage:  transaction forget [--port INT] WALLET_ID TRANSACTION_ID"
             , "  Forget a pending transaction with specified id."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["transaction", "get", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction get [--port INT] WALLET_ID TRANSACTION_ID"
+            , "  Get a transaction with specified id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
