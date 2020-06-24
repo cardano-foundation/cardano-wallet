@@ -840,7 +840,7 @@ cmdTransactionGet mkClient =
         <*> walletIdArgument
         <*> transactionIdArgument
     exec (TransactionGetArgs wPort wId txId) = do
-        runClient wPort (const mempty) $ getTransaction mkClient
+        runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
 

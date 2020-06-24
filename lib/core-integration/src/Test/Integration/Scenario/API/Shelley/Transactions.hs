@@ -1150,7 +1150,7 @@ spec = do
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    it "TRANS_GET_01 - Can list Incoming and Outgoing transaction" $ \ctx -> do
+    it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
         let amt = (1 :: Natural)

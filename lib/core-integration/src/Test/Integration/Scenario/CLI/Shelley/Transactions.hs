@@ -67,6 +67,7 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , fixtureWallet
     , fixtureWalletWith
+    , getTransactionViaCLI
     , getTxId
     , getWalletViaCLI
     , listAddresses
@@ -838,6 +839,73 @@ spec = do
               oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses @n ctx wDest
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let amt = 14 :: Natural
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+        verify txJson
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        c `shouldBe` ExitSuccess
+
+        let wSrcId = T.unpack (wSrc ^. walletId)
+        let txId =  getTxId txJson
+
+        -- Verify Tx in source wallet is Outgoing and Pending
+        (Exit code1, Stdout out1, Stderr err1) <-
+            getTransactionViaCLI @t ctx wSrcId txId
+        err1 `shouldBe` "Ok.\n"
+        code1 `shouldBe` ExitSuccess
+        outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
+        verify outJson1
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Balance on wallet is as expected" $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                , expectCliField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                ]
+
+        -- Verify Tx in source wallet is Outgoing and InLedger
+        (Exit code2, Stdout out2, Stderr err2) <-
+            getTransactionViaCLI @t ctx wSrcId txId
+        err2 `shouldBe` "Ok.\n"
+        code2 `shouldBe` ExitSuccess
+        outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
+        verify outJson2
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+        let wDestId = T.unpack (wDest ^. walletId)
+        -- Verify Tx in destination wallet is Incoming and InLedger
+        (Exit code3, Stdout out3, Stderr err3) <-
+            getTransactionViaCLI @t ctx wDestId txId
+        err3 `shouldBe` "Ok.\n"
+        code3 `shouldBe` ExitSuccess
+        outJson3 <- expectValidJSON (Proxy @(ApiTransaction n)) out3
+        verify outJson3
+            [ expectCliField (#direction . #getApiT) (`shouldBe` Incoming)
+            , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
 
     it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymorevia CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
