@@ -40,9 +40,9 @@ protocolParams:
   tau: 0
   a0: 0
 genDelegs:
-  40f09e2d0b083fdd2efc27e62b31a383a0218d118e2073cafbe192d3:
-    delegate: bd5fc6a280a442046085f6b53f428717b682da695517f6aa027dee44
-    vrf: 9c7a8b25286baf3d3db8b0cfe61c26d198e88a67146cc9965723869f25a0cebd
+  6bf1993f1e644eaadc3e98013e8356010fb101800b2d3b9b1306f6e3:
+    delegate: 2c9291b876a234c60c91ecec26fc0a3f17b8719df29a2f8f1e3e3aae
+    vrf: 42936d191c41b25747356881dc7af690a212c198ebc4feb92f97dc5decb07b72
 updateQuorum: 5
 maxMajorPV: 25446
 initialFunds: {}

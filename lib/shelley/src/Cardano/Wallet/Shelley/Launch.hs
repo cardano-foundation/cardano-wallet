@@ -379,7 +379,7 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
         createDirectory dir
 
         [vrfPrv, kesPrv, opCert] <- forM
-            ["node-vrf.skey", "node-kes.skey", "node.opcert"]
+            ["bft-leader.vrf.skey", "bft-leader.kes.skey", "bft-leader.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
         (config, block0, networkParams, versionData)

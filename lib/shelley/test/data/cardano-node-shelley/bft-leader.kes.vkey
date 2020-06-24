@@ -1,4 +1,4 @@
 type: VKeyES TPraosStandardCrypto
 title: KES Verification Key
 cbor-hex:
- 58202354e0a6942f779d2ded96899b2a0e614c2b51686c9c054ed59faa1262318400
+ 5820beeed6b0caa145cdd91c0534d36cc2d6c2965ec41216570be4a8c2814b091892

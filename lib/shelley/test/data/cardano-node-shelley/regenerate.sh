@@ -12,22 +12,25 @@ cardano-cli shelley genesis create \
   --gen-utxo-keys 1 \
   --supply 45000000000000000
 
-mkdir -p node1
+mv delegate-keys/delegate1.counter bft-leader.counter
+mv delegate-keys/delegate1.skey bft-leader.skey
+mv delegate-keys/delegate1.vkey bft-leader.vkey
+mv delegate-keys/delegate1.vrf.vkey bft-leader.vrf.vkey
+mv delegate-keys/delegate1.vrf.skey bft-leader.vrf.skey
+
+rm -r delegate-keys genesis-keys utxo-keys genesis.spec.json
 
 cardano-cli shelley node key-gen-KES \
-    --verification-key-file node-kes.vkey \
-    --signing-key-file node-kes.skey
-
-cardano-cli shelley node key-gen-VRF \
-  --verification-key-file node-vrf.vkey \
-  --signing-key-file node-vrf.skey
+    --verification-key-file bft-leader.kes.vkey \
+    --signing-key-file bft-leader.kes.skey
 
 cardano-cli shelley node issue-op-cert \
-  --hot-kes-verification-key-file node-kes.vkey \
-  --cold-signing-key-file delegate-keys/delegate1.skey \
-  --operational-certificate-issue-counter delegate-keys/delegate1.counter \
+  --hot-kes-verification-key-file bft-leader.kes.vkey \
+  --cold-signing-key-file bft-leader.skey \
+  --operational-certificate-issue-counter bft-leader.counter \
   --kes-period 0 \
-  --out-file node.opcert
+  --out-file bft-leader.opcert
 
 echo "To be added to the genDelegs section of genesis.yaml:"
-yq --yaml-output '.genDelegs|{genDelegs: .}' < genesis.json
+jq '.genDelegs|{genDelegs: .}' < genesis.json
+rm genesis.json

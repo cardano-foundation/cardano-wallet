@@ -1,4 +1,0 @@
-type: VerKeyVRF PraosVRF
-title: VRF Verification Key
-cbor-hex:
- 582088042c1fb885286571602ab273d6e9cb3a90e361d5cbd7bd0e5654209c5a8626
