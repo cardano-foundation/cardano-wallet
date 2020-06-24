@@ -215,7 +215,7 @@ x-addressState: &addressState
 x-stakePoolId: &stakePoolId
   type: string
   format: hex
-  minLength: 64
+  minLength: 56
   maxLength: 64
   example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
   description: A unique identifier for the pool.
@@ -1265,7 +1265,7 @@ x-parametersStakePoolId: &parametersStakePoolId
   schema:
     type: string
     format: hex
-    maxLength: 64
+    maxLength: 56
     minLength: 64
 
 x-parametersAddressId:  &parametersAddressId

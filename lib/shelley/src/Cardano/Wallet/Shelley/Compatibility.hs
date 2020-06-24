@@ -110,7 +110,7 @@ import Control.Applicative
 import Control.Monad
     ( when )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b224 )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -769,17 +769,17 @@ toStakeCredential = Cardano.mkShelleyStakingCredential
 toStakeKeyDeregCert :: XPub -> Cardano.Certificate
 toStakeKeyDeregCert xpub =
     Cardano.shelleyDeregisterStakingAddress
-        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
+        (SL.KeyHash $ UnsafeHash $ blake2b224 $ xpubPublicKey xpub)
 
 toStakeKeyRegCert :: XPub -> Cardano.Certificate
 toStakeKeyRegCert xpub =
     Cardano.shelleyRegisterStakingAddress
-        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
+        (SL.KeyHash $ UnsafeHash $ blake2b224 $ xpubPublicKey xpub)
 
 toStakePoolDlgCert :: XPub -> W.PoolId -> Cardano.Certificate
 toStakePoolDlgCert xpub (W.PoolId pid) =
     Cardano.shelleyDelegateStake
-        (SL.KeyHash $ UnsafeHash $ blake2b256 $ xpubPublicKey xpub)
+        (SL.KeyHash $ UnsafeHash $ blake2b224 $ xpubPublicKey xpub)
         (SL.KeyHash $ UnsafeHash pid)
 
 {-------------------------------------------------------------------------------

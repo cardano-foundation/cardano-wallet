@@ -78,7 +78,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubToBytes )
+    ( XPrv, XPub, xpubPublicKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.DeepSeq
@@ -86,7 +86,9 @@ import Control.DeepSeq
 import Control.Monad
     ( unless, (>=>) )
 import Crypto.Hash
-    ( Blake2b_256, Digest, HashAlgorithm, hash )
+    ( Digest, HashAlgorithm )
+import Crypto.Hash.Utils
+    ( blake2b224, blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -335,9 +337,7 @@ toChimericAccount
     => k 'AddressK XPub
     -> ChimericAccount
 toChimericAccount =
-    ChimericAccount . blake2b256 . BS.take 32 . xpubToBytes . getRawKey
-  where
-    blake2b256 = BA.convert . hash @_ @Blake2b_256
+    ChimericAccount . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -414,7 +414,7 @@ preparePassphrase = \case
   where
     hashMaybe pw@(Passphrase bytes)
         | pw == mempty = BA.convert bytes
-        | otherwise = BA.convert $ hash @_ @Blake2b_256 bytes
+        | otherwise = BA.convert $ blake2b256 bytes
 
 -- | Check whether a 'Passphrase' matches with a stored 'Hash'
 checkPassphrase

@@ -479,14 +479,14 @@ spec = do
 
         it "ApiT PoolId" $ do
             let msg = "Error in $: Invalid stake pool id: expecting a \
-                      \hex-encoded value that is 32 bytes in length."
+                      \hex-encoded value that is 28 or 32 bytes in length."
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT PoolId" $ do
             let msg = "Error in $: Invalid stake pool id: expecting a \
-                      \hex-encoded value that is 32 bytes in length."
+                      \hex-encoded value that is 28 or 32 bytes in length."
             Aeson.parseEither parseJSON [aesonQQ|
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
@@ -994,7 +994,7 @@ instance Arbitrary ApiWalletDelegation where
 instance Arbitrary PoolId where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ PoolId $ BS.pack $ take 32 bytes
+        return $ PoolId $ BS.pack $ take 28 bytes
 
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool

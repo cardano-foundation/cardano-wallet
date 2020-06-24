@@ -211,6 +211,8 @@ import Data.Generics.Labels
     ()
 import Data.Int
     ( Int32 )
+import Data.List
+    ( intercalate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -668,8 +670,8 @@ instance ToJSON StakePoolTicker where
 newtype PoolId = PoolId { getPoolId :: ByteString }
     deriving (Generic, Eq, Show, Ord)
 
-poolIdBytesLength :: Int
-poolIdBytesLength = 32
+poolIdBytesLength :: [Int]
+poolIdBytesLength = [28, 32]
 
 instance NFData PoolId
 
@@ -688,14 +690,14 @@ instance FromText PoolId where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of
         Left _ ->
             textDecodingError
-        Right bytes | BS.length bytes == poolIdBytesLength ->
+        Right bytes | BS.length bytes `elem` poolIdBytesLength ->
             Right $ PoolId bytes
         Right _ ->
             textDecodingError
       where
         textDecodingError = Left $ TextDecodingError $ unwords
             [ "Invalid stake pool id: expecting a hex-encoded value that is"
-            , show poolIdBytesLength
+            , intercalate " or " (show <$> poolIdBytesLength)
             , "bytes in length."
             ]
 

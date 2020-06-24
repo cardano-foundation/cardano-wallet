@@ -64,7 +64,7 @@ import Control.Monad
 import Control.Monad.Loops
     ( whileM )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b224 )
 import Data.Binary.Get as Get
     ( getWord16be, isEmpty, isolate, label )
 import Data.Either
@@ -265,7 +265,7 @@ data TestFragment = TestFragment
 fragmentAccountId :: TestFragment -> Maybe ChimericAccount
 fragmentAccountId test = case fragmentTag test of
     MkFragmentStakeDelegation _ _ (ChimericAccount accountId) _ ->
-        Just $ ChimericAccount $ blake2b256 accountId
+        Just $ ChimericAccount $ blake2b224 accountId
     _ ->
         Nothing
 
