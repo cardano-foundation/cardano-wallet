@@ -116,3 +116,140 @@ Running combined code coverage on all components is pretty easy. This generates 
 ```
 $ stack test --coverage --fast --work-dir .stack-work-coverage
 ```
+
+##  Shelley integration tests
+
+### Pre-requisites
+
+`cardano-node` and `cardano-cli` of the [correct version](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md#latest-releases), in your `$PATH`.
+
+Alternatively, use `stack test --nix`.
+
+### Test
+
+```
+$ stack test cardano-wallet-shelley:integration
+```
+
+Many tests require a cardano network with stake pools. To support
+this, the integration tests run a local `cardano-node` cluster with
+one Ouroboros BFT node and three Ouroboros Praos nodes for the three
+stake pools.
+
+### Logging and debugging
+
+If your test has failed, viewing the logs often helps. They are
+written to file in the integration tests temporary directory.
+
+To inspect this directory after the tests have finished, set this
+variable:
+
+```
+export NO_CLEANUP=1
+```
+
+Here is an example tree
+
+```
+/tmp/test-8b0f3d88b6698b51
+├── bft
+│   ├── cardano-node.log
+│   ├── db
+│   ├── genesis.json
+│   ├── node.config
+│   ├── node-kes.skey
+│   ├── node.opcert
+│   ├── node.socket
+│   ├── node.topology
+│   └── node-vrf.skey
+├── pool-0
+│   ├── cardano-node.log
+│   ├── db
+│   ├── dlg.cert
+│   ├── faucet.prv
+│   ├── genesis.json
+│   ├── kes.prv
+│   ├── kes.pub
+│   ├── metadata.json
+│   ├── node.config
+│   ├── node.socket
+│   ├── node.topology
+│   ├── op.cert
+│   ├── op.count
+│   ├── op.prv
+│   ├── op.pub
+│   ├── pool.cert
+│   ├── sink.prv
+│   ├── sink.pub
+│   ├── stake.cert
+│   ├── stake.prv
+│   ├── stake.pub
+│   ├── tx.raw
+│   ├── tx.signed
+│   ├── vrf.prv
+│   └── vrf.pub
+├── pool-1
+│   ├── cardano-node.log
+│   ├── db
+│   ├── dlg.cert
+│   ├── faucet.prv
+│   ├── genesis.json
+│   ├── kes.prv
+│   ├── kes.pub
+│   ├── metadata.json
+│   ├── node.config
+│   ├── node.socket
+│   ├── node.topology
+│   ├── op.cert
+│   ├── op.count
+│   ├── op.prv
+│   ├── op.pub
+│   ├── pool.cert
+│   ├── sink.prv
+│   ├── sink.pub
+│   ├── stake.cert
+│   ├── stake.prv
+│   ├── stake.pub
+│   ├── tx.raw
+│   ├── tx.signed
+│   ├── vrf.prv
+│   └── vrf.pub
+├── pool-2
+│   ├── cardano-node.log
+│   ├── db
+│   ├── dlg.cert
+│   ├── faucet.prv
+│   ├── genesis.json
+│   ├── kes.prv
+│   ├── kes.pub
+│   ├── metadata.json
+│   ├── node.config
+│   ├── node.socket
+│   ├── node.topology
+│   ├── op.cert
+│   ├── op.count
+│   ├── op.prv
+│   ├── op.pub
+│   ├── pool.cert
+│   ├── sink.prv
+│   ├── sink.pub
+│   ├── stake.cert
+│   ├── stake.prv
+│   ├── stake.pub
+│   ├── tx.raw
+│   ├── tx.signed
+│   ├── vrf.prv
+│   └── vrf.pub
+└── wallets-b33cfce13ce1ac74
+    └── stake-pools.sqlite
+```
+
+The log files are written with minimum severity Debug.
+
+Only Error level logs are shown on stdout during test execution. To
+change this, set the following variables:
+
+```
+export CARDANO_WALLET_TRACING_MIN_SEVERITY=debug
+export CARDANO_NODE_TRACING_MIN_SEVERITY=info
+```
