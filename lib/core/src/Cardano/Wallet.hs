@@ -145,6 +145,8 @@ module Cardano.Wallet
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
     , ErrListTransactions (..)
+    , ErrGetTransaction (..)
+    , ErrNoSuchTransaction (..)
     , ErrNetworkUnavailable (..)
     , ErrCurrentNodeTip (..)
     , ErrStartTimeLaterThanEndTime (..)

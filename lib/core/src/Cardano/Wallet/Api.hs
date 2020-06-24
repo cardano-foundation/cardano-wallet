@@ -41,6 +41,7 @@ module Cardano.Wallet.Api
         , PostTransactionFee
         , ListTransactions
         , DeleteTransaction
+        , GetTransaction
 
     , StakePools
         , ListStakePools
