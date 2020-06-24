@@ -281,6 +281,10 @@ server byron icarus shelley spl ntp =
                 (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
              )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , getTransaction byron wid txid)
+                (icarus, getTransaction icarus wid txid)
+             )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =

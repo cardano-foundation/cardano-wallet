@@ -75,6 +75,7 @@ module Cardano.Wallet.Api
         , ListByronTransactions
         , PostByronTransactionFee
         , DeleteByronTransaction
+        , GetByronTransaction
 
     , ByronMigrations
         , MigrateByronWallet
@@ -518,6 +519,7 @@ type ByronTransactions n =
     :<|> ListByronTransactions n
     :<|> PostByronTransactionFee n
     :<|> DeleteByronTransaction
+    :<|> GetByronTransaction n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransaction
 type CreateByronTransaction n = "byron-wallets"
@@ -534,6 +536,13 @@ type ListByronTransactions n = "byron-wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransactionT n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronTransaction
+type GetByronTransaction n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Capture "transactionId" ApiTxId
+    :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransactionFee
 type PostByronTransactionFee n = "byron-wallets"

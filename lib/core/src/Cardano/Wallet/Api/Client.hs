@@ -285,6 +285,7 @@ byronTransactionClient =
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
+            :<|> _getTransaction
             = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
 
         _postExternalTransaction
@@ -296,7 +297,7 @@ byronTransactionClient =
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
-        , getTransaction = \_ _ -> fail "feature unavailable."
+        , getTransaction = _getTransaction
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

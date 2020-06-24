@@ -376,15 +376,17 @@ deleteTransaction w t = discriminate @style
     mkURL mk = mk wid tid
 
 getTransaction
-    :: forall w t.
-        ( HasType (ApiT WalletId) w
+    :: forall (style :: WalletStyle) w t.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
         , HasType (ApiT (Hash "Tx")) t
         )
     => w
     -> t
     -> (Method, Text)
-getTransaction w t =
-    endpoint @(Api.GetTransaction Net) mkURL
+getTransaction w t = discriminate @style
+    (endpoint @(Api.GetTransaction Net) mkURL)
+    (endpoint @(Api.GetByronTransaction Net) mkURL)
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))

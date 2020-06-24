@@ -2345,6 +2345,19 @@ paths:
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
 
+    get:
+      operationId: getByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
+
   /byron-wallets/{walletId}/coin-selections/random:
     post:
       operationId: byronSelectCoins

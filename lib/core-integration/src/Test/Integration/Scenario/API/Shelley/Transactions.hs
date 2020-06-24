@@ -1166,7 +1166,7 @@ spec = do
             ]
 
         -- Verify Tx in source wallet is Outgoing and Pending
-        let linkSrc = Link.getTransaction wSrc (ApiTxId txid)
+        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
         r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
         verify r1
             [ expectResponseCode HTTP.status200
@@ -1193,7 +1193,7 @@ spec = do
             ]
 
         -- Verify Tx in destination wallet is Incoming and InLedger
-        let linkDest = Link.getTransaction wDest (ApiTxId txid)
+        let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
         r3 <- request @(ApiTransaction n) ctx linkDest Default Empty
         verify r3
             [ expectResponseCode HTTP.status200
@@ -1205,7 +1205,7 @@ spec = do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
-        let link = Link.getTransaction w (ApiTxId txid)
+        let link = Link.getTransaction @'Shelley w (ApiTxId txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1226,7 +1226,7 @@ spec = do
             ]
 
         let txid =  Hash $ BS.pack $ replicate 32 1
-        let link = Link.getTransaction wSrc (ApiTxId $ ApiT txid)
+        let link = Link.getTransaction @'Shelley wSrc (ApiTxId $ ApiT txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
