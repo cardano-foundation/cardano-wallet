@@ -13,6 +13,7 @@
 , src
 # GitHub PR number (when building on Hydra)
 , pr ? null
+, libsodium ? pkgs.libsodium
 }:
 
 let
@@ -106,6 +107,10 @@ let
           # provide cardano-node & cardano-cli to tests
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
           integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
+
+          # Make sure that libsodium DLLs are available
+          integration.postInstall = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
+          unit.postInstall = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
         };
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
@@ -162,11 +167,18 @@ let
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
         '';
 
+        # Make sure that libsodium DLLs are available.
+        packages.cardano-wallet-shelley.components.library =
+          lib.optionalAttrs (stdenv.hostPlatform.isWindows) {
+            postInstall = ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
+          };
+
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-byron.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-core.components.all.preBuild = lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.preBuild = lib.mkForce "";
+        packages.cardano-wallet-shelley.components.all.postInstall = lib.mkForce "";
       }
 
       # Build fixes for library dependencies
@@ -189,7 +201,7 @@ let
 
       # Musl libc fully static build
       (lib.optionalAttrs stdenv.hostPlatform.isMusl (let
-        staticLibs = with pkgs; [ zlib openssl libffi gmp6 ];
+        staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium ];
 
         # Module options which add GHC flags and libraries for a fully static build
         fullyStaticOptions = {
