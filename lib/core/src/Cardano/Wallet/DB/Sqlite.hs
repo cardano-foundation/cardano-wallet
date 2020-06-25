@@ -646,6 +646,16 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                             pure $ Right ()
                         _ -> pure errNoMorePending
 
+        , getTx = \(PrimaryKey wid) tid -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                    metas <- selectTxHistory wid W.Descending
+                            [ TxMetaTxId ==. (TxId tid) ]
+                    case metas of
+                        [] -> pure (Right Nothing)
+                        meta:_ -> pure (Right $ Just meta)
+
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}

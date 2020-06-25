@@ -1563,19 +1563,16 @@ getTransaction
     -> ExceptT ErrGetTransaction IO TransactionInfo
 getTransaction ctx wid tid = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
-    mapExceptT atomically $ do
-        _ <- withExceptT ErrGetTransactionNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint pk
-        txs <- lift $ readTxHistory pk Descending wholeRange Nothing
-        case (filter txPresent txs) of
-            [] -> do
-                let err = ErrNoSuchTransaction tid
-                throwE (ErrGetTransactionNoSuchTransaction err)
-            t:_ ->
-                pure t
+    txMaybe <- mapExceptT atomically $ withExceptT ErrGetTransactionNoSuchWallet $
+        withNoSuchWallet wid $ getTx pk tid
+    case txMaybe of
+        Nothing -> do
+            let err = ErrNoSuchTransaction tid
+            throwE (ErrGetTransactionNoSuchTransaction err)
+        Just tx ->
+            pure tx
   where
     db = ctx ^. dbLayer @s @k
-    txPresent (TransactionInfo{..}) = txInfoId == tid
 
 {-------------------------------------------------------------------------------
                                   Delegation

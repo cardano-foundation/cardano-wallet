@@ -206,6 +206,15 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- Returns an empty list if the wallet isn't found.
 
+    , getTx
+        :: PrimaryKey WalletId
+        -> Hash "Tx"
+        -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
+        -- ^ Fetch the latest transaction by id, returns Nothing when the
+        -- transaction isn't found.
+        --
+        -- If the wallet doesn't exist, this operation returns an error.
+
     , removePendingTx
         :: PrimaryKey WalletId
         -> Hash "Tx"
