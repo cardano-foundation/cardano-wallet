@@ -448,10 +448,11 @@ spec = do
                         (.> Quantity (unsafeMkPercentage 0))
                 ]
 
-        it "eventually has correct margin and cost" $ \ctx -> do
+        it "eventually has correct margin, cost and pledge" $ \ctx -> do
             eventually "pool worker finds the certificate" $ do
                 r <- listPools ctx
                 expectResponseCode HTTP.status200 r
+                let oneMillionAda = 1_000_000_000_000
                 verify r
                     [ expectListField 0
                         (#cost) (`shouldBe` Just (Quantity 0))
@@ -469,6 +470,14 @@ spec = do
                     , expectListField 2
                         #margin (`shouldBe` Just
                             (Quantity $ unsafeMkPercentage 0.1 ))
+
+                    , expectListField 0
+                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                    , expectListField 1
+                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                    , expectListField 2
+                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+
                     -- TODO: Test that we have non-zero non-myopic member
                     -- rewards, and sort by it.
                     ]
