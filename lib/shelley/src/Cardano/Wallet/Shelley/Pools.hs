@@ -71,7 +71,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeMkPercentage, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -253,8 +253,17 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
         , saturation = (sat s)
         }
 
-    rewardsButNoStake = traverseMissing $ \k r ->
-        error $ "Rewards but no stake: " <> show (k, r)
+    -- TODO: This case seems possible on shelley_testnet, but why, and how
+    -- should we treat it?
+    --
+    -- The pool with rewards but not stake didn't seem to be retiring.
+    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqMetrics
+        { nonMyopicMemberRewards = r
+        , relativeStake = noStake
+        , saturation = sat noStake
+        }
+      where
+        noStake = unsafeMkPercentage 0
 
     bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
 
