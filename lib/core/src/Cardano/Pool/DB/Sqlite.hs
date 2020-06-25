@@ -86,6 +86,7 @@ import Database.Persist.Sql
     , insert_
     , putMany
     , rawSql
+    , repsert
     , selectFirst
     , selectList
     , (<.)
@@ -208,7 +209,8 @@ newDBLayer trace fp = do
             let poolPledge_ = getQuantity poolPledge
             let poolMetadataUrl = fst <$> poolMetadata
             let poolMetadataHash = snd <$> poolMetadata
-            insert_ $ PoolRegistration
+            deleteWhere [PoolOwnerPoolId ==. poolId]
+            _ <- repsert (PoolRegistrationKey poolId) $ PoolRegistration
                     poolId
                     point
                     poolMarginN
