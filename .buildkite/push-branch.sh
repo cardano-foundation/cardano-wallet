@@ -45,7 +45,14 @@ advance_branch() {
 git fetch origin "$this_branch" || true
 git fetch origin "$other_branch" || true
 
-advance_branch "$this_branch" $(git show-ref -s HEAD)
+# HEAD is nod set on github actions, so use an env var
+if [ -n "${GITHUB_SHA:-}" ]; then
+  head="$GITHUB_SHA"
+else
+  head=$(git show-ref -s HEAD)
+fi
+
+advance_branch "$this_branch" "$head"
 
 common_ref=$(git merge-base "$this_branch" "$other_branch" || true)
 
@@ -56,9 +63,9 @@ fi
 if [ -e $sshkey ]; then
   echo "Authenticating using SSH with $sshkey"
   export GIT_SSH_COMMAND="ssh -i $sshkey -F /dev/null"
-  git push $remote HEAD:refs/heads/$this_branch
+  git push $remote "$head:refs/heads/$this_branch"
   if [ -n "$common_ref" ]; then
-    git push $remote "$common_ref":refs/heads/$common_branch
+    git push $remote "$common_ref:refs/heads/$common_branch"
   fi
   exit 0
 else
