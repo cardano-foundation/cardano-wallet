@@ -189,19 +189,9 @@ let
 
       # Musl libc fully static build
       (lib.optionalAttrs stdenv.hostPlatform.isMusl (let
-        staticLibs = [ zlib openssl libffi gmp6 ];
-        gmp6 = buildPackages.gmp6.override { withStatic = true; };
-        zlib = buildPackages.zlib.static;
-        openssl = (buildPackages.openssl.override { static = true; }).out;
-        libffi = buildPackages.libffi.overrideAttrs (oldAttrs: {
-          dontDisableStatic = true;
-          configureFlags = (oldAttrs.configureFlags or []) ++ [
-                    "--enable-static"
-                    "--disable-shared"
-          ];
-        });
+        staticLibs = with pkgs; [ zlib openssl libffi gmp6 ];
 
-        # Module options which adds GHC flags and libraries for a fully static build
+        # Module options which add GHC flags and libraries for a fully static build
         fullyStaticOptions = {
           enableShared = false;
           enableStatic = true;
