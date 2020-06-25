@@ -166,10 +166,10 @@ spec = do
     it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
         -- NOTE
-        -- Special mnemonic for which 500 shelley funds are attached to in the
+        -- Special mnemonic for which 200 shelley funds are attached to in the
         -- genesis file.
         --
-        -- Out of these 500 coins, 100 of them are of 1 Lovelace and are
+        -- Out of these 200 coins, 100 of them are of 1 Lovelace and are
         -- expected to be treated as dust. The rest are all worth:
         -- 10,000,000,000 lovelace.
         let mnemonics =
@@ -242,7 +242,7 @@ spec = do
             Empty >>= flip verify
             [ expectField
                 #distribution
-                ((`shouldBe` (Just 99)) . Map.lookup 100_000_000_000)
+                ((`shouldBe` (Just 100)) . Map.lookup 100_000_000_000)
             ]
 
     it "SHELLEY_MIGRATE_02 - \

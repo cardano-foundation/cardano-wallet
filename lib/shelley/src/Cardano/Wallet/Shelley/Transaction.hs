@@ -316,7 +316,7 @@ computeTxSize (WithDelegation withDelegation) (CoinSelection inps outs chngs) =
 
     addrWits = Set.map dummyWitness $ Set.fromList (fst <$> inps)
       where
-        dummyWitness :: TxIn -> SL.WitVKey TPraosStandardCrypto
+        dummyWitness :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
         dummyWitness = mkWitness unsigned . (,mempty) . dummyXPrv
 
         dummyXPrv :: TxIn -> XPrv
@@ -372,7 +372,7 @@ realFee inps outs = toCardanoLovelace $ Coin
 mkWitness
     :: SL.TxBody TPraosStandardCrypto
     -> (XPrv, Passphrase "encryption")
-    -> SL.WitVKey TPraosStandardCrypto
+    -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
 mkWitness body (prv, pwd) =
     SL.WitVKey key sig
   where

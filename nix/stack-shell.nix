@@ -21,6 +21,7 @@ mkShell rec {
       ncurses
       lzma
       openssl
+      libsodium
       pkgconfig
     ] ++ lib.optional (stdenv.hostPlatform.libc == "glibc") glibcLocales ++
     (lib.optionals (!stdenv.isDarwin) [ git systemd.dev ]) ++

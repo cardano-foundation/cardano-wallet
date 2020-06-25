@@ -381,7 +381,7 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
         createDirectory dir
 
         [vrfPrv, kesPrv, opCert] <- forM
-            ["node-vrf.skey", "node-kes.skey", "node.opcert"]
+            ["bft-leader.vrf.skey", "bft-leader.kes.skey", "bft-leader.opcert"]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
         (config, block0, networkParams, versionData)
@@ -849,44 +849,44 @@ takeFaucet dir = takeMVar faucets >>= \case
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
 faucets :: MVar [(String, String)]
 faucets = unsafePerformIO $ newMVar
-    [ ( "ca2cada0a7c518cecddcdad2ea9b320d7a2d197565c64c37b3638a3428c9988a#0"
+    [ ( "cea1b041dd5465be636b5b88805571f83537bd503bc4db447f088d942673736c#0"
       , unlines
           [ "type: Genesis UTxO signing key"
           , "title: Genesis initial UTxO key"
           , "cbor-hex:"
-          , "  582089574dc85f0359010458a6160836776fe2c8073ad460d3fba6d08ace684a90a3"
+          , "  5820db101b5f4cc53ca1d61f7505b23c05b1b58de0b9f509c4dfede4348549dbaa9d"
           ]
       )
-    , ( "cf28494def86c9917c8bef9faa9b3891e9e0a9f30a76f4576921a39b049d9398#0"
+    , ( "fa271c369d4d9a6b78e18f9d554730ef9978847ecb187c064cb9c8d56c2092cd#0"
       , unlines
           [ "type: Genesis UTxO signing key"
           , "title: Genesis initial UTxO key"
           , "cbor-hex:"
-          , "  5820cd42926a6a0d1651dbb08aa393322b0f9a0037f3579b5f8062a57c2ff6c025e4"
+          , "  582061e08f3e8ac1afbf0434fca2bb4aa6484270d8dd3e251c049006aab368a74a7e"
           ]
       )
-    , ( "9b659bf3d026cf49e0387eb19473dad4b96db8480b7e26a3e20f5c63551303a7#0"
+    , ( "672d7558074f02c662b11a4ff761ec3a24c94a18b319033af5f9f22a03b8891b#0"
       , unlines
           [ "type: Genesis UTxO signing key"
           , "title: Genesis initial UTxO key"
           , "cbor-hex:"
-          , "  5820863d7c0d65d34bebea180435b13e1c9bb885f2a18d3ff2b47435b91fad0293c0"
+          , "  58204054ff827451cad61241450a09ea80c9d0658398f588ff976393ae8eacb859fe"
           ]
       )
-    , ( "3c015335bd3a676a62e3d3c61828fa1ff0eb3dd950331aba93eec68e9e024411#0"
+    , ( "ca97dc6662a21f1b7ea0790c380d13dad84386cbb7f731c7ba3982a8d105267b#0"
       , unlines
           [ "type: Genesis UTxO signing key"
           , "title: Genesis initial UTxO key"
           , "cbor-hex:"
-          , "  5820c92896ab4c0af89459acf786315a6b13b23f037e4d9747c8414a0d48f7418075"
+          , "  58204a7a8e7a1ba0d33c407dc3ceda225c605287cfb0e3b51d9eba3822abd6aa75ca"
           ]
       )
-    , ( "82a8981af11569eef547e012232f5306b85016d27aff4c1bbd5801800f83baab#0"
+    , ( "cfc08d97636877d94cd19a246e72d191bc3905712bbab8cdbb1aa240fc09be3c#0"
       , unlines
           [ "type: Genesis UTxO signing key"
           , "title: Genesis initial UTxO key"
           , "cbor-hex:"
-          , "  58207b9de02388f78146cb53e4fb4a4d8917ac367cdfe0ff1d4008cc9da52af6ac74"
+          , "  5820e96f612fbff3df3d8eef4ea3a07e3dc98769020545ced0167998a85a4cc50aa7"
           ]
       )
     ]

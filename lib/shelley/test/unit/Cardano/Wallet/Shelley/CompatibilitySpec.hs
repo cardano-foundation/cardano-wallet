@@ -24,7 +24,6 @@ import Cardano.Mnemonic
     , Mnemonic
     , SomeMnemonic (..)
     , entropyToMnemonic
-    , mkMnemonic
     )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
@@ -39,10 +38,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( isOurs )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , DecentralizationLevel (..)
@@ -61,7 +56,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toShelleyHash
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkEntropy )
+    ( unsafeMkEntropy )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.Monad
@@ -155,28 +150,6 @@ spec = do
                 , decodeAddress @'Mainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
                 ]
-
-        it "can deserialise golden faucet addresses" $ do
-            let addr = unsafeFromHex
-                    "6194986d1fc893629945058bdb0851478\
-                    \fadc57711600cb1430799c95b52b2a3b7"
-            case SL.deserialiseAddr @TPraosStandardCrypto addr of
-                Just _ -> property True
-                Nothing -> property False
-
-        it "faucet golden address is ours" $ do
-            let pwd = mempty
-            let Right mw = SomeMnemonic <$> mkMnemonic @15
-                    [ "day", "return", "logic", "bag", "explain", "wage"
-                    , "pelican", "find", "coffee", "jar", "april", "permit"
-                    , "ticket", "explain", "crime"
-                    ]
-            let rootK = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) pwd
-            let s = mkSeqStateFromRootXPrv (rootK, pwd) (toEnum 20)
-            let addr = Address $ unsafeFromHex
-                    "6194986d1fc893629945058bdb0851478\
-                    \fadc57711600cb1430799c95b52b2a3b7"
-            fst (isOurs addr s) `shouldBe` True
 
     describe "decentralizationLevelFromPParams" $ do
 

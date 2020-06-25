@@ -77,6 +77,7 @@
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
         cardano-slotting = ./cardano-slotting.nix;
+        cardano-crypto-praos = ./cardano-crypto-praos.nix;
         cardano-crypto = ./cardano-crypto.nix;
         cardano-ledger = ./cardano-ledger.nix;
         cardano-crypto-wrapper = ./cardano-crypto-wrapper.nix;
@@ -131,6 +132,9 @@
     ({ lib, ... }:
       {
         packages = {
+          "cardano-crypto-praos" = {
+            flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
+            };
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
         })

@@ -47,6 +47,7 @@
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."quickcheck-state-machine" or (errorHandler.buildDepError "quickcheck-state-machine"))
+          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
@@ -82,8 +83,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "f9469fa3885aefdfa852216a66c4e319a0d19c11";
-      sha256 = "1n0m03x5kri96lbslyc9vjvbn52b6639yhsdn2r43rhh5zmm86vq";
+      rev = "ceafa31844e6e9883d5d5634544045eab9c5f2e9";
+      sha256 = "08zkx4si4kb761n4hcmp1dmfppfgjm56z3flsdfd7qvm9kn4l78l";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus/ouroboros-consensus-test-infra; echo source root reset to \$sourceRoot";
     }

@@ -1,5 +1,4 @@
-resolver: snapshot.yaml
-
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/0f7d49e6ce0d0d5aaedb05b25993b8aac3e0979c/snapshots/cardano-1.14.0.yaml
 packages:
 - lib/core
 - lib/core-integration
@@ -18,6 +17,8 @@ extra-deps:
 - OddWord-1.0.2.0
 - command-0.1.1
 - wai-extra-3.0.29.1
+
+
 
 # Needed because network > 3.1 is needed for cardano-wallet-byron
 - servant-0.17
@@ -46,6 +47,11 @@ flags:
   # Avoid a system library which causes difficulty with cross-compilation
   zip:
     disable-bzip2: true
+
+  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+  # This still requires the host system to have the 'standard' libsodium installed.
+  cardano-crypto-praos:
+    external-libsodium-vrf: false
 
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
