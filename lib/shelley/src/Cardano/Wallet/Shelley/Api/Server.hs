@@ -160,7 +160,8 @@ server byron icarus shelley spl ntp =
         :<|> getUTxOsStatistics shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (normalizeDelegationAddress @_ @_ @n)
+    addresses = listAddresses shelley
+        (normalizeDelegationAddress @_ @ShelleyKey @n)
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins shelley (delegationAddress @n)

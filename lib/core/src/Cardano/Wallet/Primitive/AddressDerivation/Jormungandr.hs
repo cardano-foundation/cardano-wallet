@@ -56,7 +56,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( ChimericAccount (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
@@ -76,6 +77,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     , networkDiscriminantVal
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( HasRewardAccount (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+    ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -101,6 +106,7 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -422,6 +428,14 @@ instance MkKeyFingerprint JormungandrKey Address where
 instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), JormungandrKey 'AddressK XPub) where
     paymentKeyFingerprint =
         Right . KeyFingerprint . xpubPublicKey . getRawKey . snd
+
+{-------------------------------------------------------------------------------
+                          Dealing with Rewards
+-------------------------------------------------------------------------------}
+
+instance forall n. HasRewardAccount (SeqState n JormungandrKey) JormungandrKey where
+    rewardAccountKey  = Seq.rewardAccountKey
+    toChimericAccount = ChimericAccount . xpubPublicKey . getKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

@@ -216,6 +216,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
+    , HasRewardAccount
     , IsOurs
     , IsOwned
     , KnownAddresses
@@ -501,6 +502,7 @@ postWallet
         , SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
+        , HasRewardAccount s k
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
@@ -526,6 +528,7 @@ postShelleyWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
+        , HasRewardAccount s k
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -556,6 +559,7 @@ postAccountWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
+        , HasRewardAccount s k
         , HasWorkerRegistry s k ctx
         )
     => ctx
@@ -580,8 +584,8 @@ mkShelleyWallet
     :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
-        , WalletKey k
         , IsOurs s Address
+        , HasRewardAccount s k
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet

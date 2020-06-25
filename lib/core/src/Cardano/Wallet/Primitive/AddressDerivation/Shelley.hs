@@ -52,7 +52,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( ChimericAccount (..)
+    , DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -69,6 +70,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( HasRewardAccount (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -98,6 +103,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -179,7 +185,6 @@ unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
         ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
         seed
         (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
-
 
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
@@ -334,6 +339,14 @@ instance MkKeyFingerprint ShelleyKey Address where
 instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
+
+{-------------------------------------------------------------------------------
+                          Dealing with Rewards
+-------------------------------------------------------------------------------}
+
+instance forall n. HasRewardAccount (SeqState n ShelleyKey) ShelleyKey where
+    rewardAccountKey  = Seq.rewardAccountKey
+    toChimericAccount = ChimericAccount . blake2b256 . xpubPublicKey . getKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

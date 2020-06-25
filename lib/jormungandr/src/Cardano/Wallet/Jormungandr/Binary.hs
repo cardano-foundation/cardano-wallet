@@ -434,7 +434,7 @@ getStakeDelegation tid = do
         _accSignature <- lift $ getByteString 65
         pure
             ( dlgType
-            , ChimericAccount $ blake2b224 accId
+            , ChimericAccount accId
             , tx
             )
   where

@@ -78,15 +78,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
-    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , HasRewardAccount (..)
+    , HasRewardAccount
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.Types
     ( Address, invariant )
@@ -617,11 +617,13 @@ instance
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
 
-instance WalletKey k => IsOurs (SeqState n k) ChimericAccount where
+instance (HasRewardAccount (SeqState n k) k)
+    => IsOurs (SeqState n k) ChimericAccount
+  where
     isOurs account state =
         (account == ourAccount, state)
       where
-        ourAccount = toChimericAccount $ rewardAccountKey state
+        ourAccount = toChimericAccount @(SeqState n k) @k $ rewardAccountKey state
 
 instance
     ( SoftDerivation k
@@ -705,7 +707,3 @@ instance
                 addresses (liftPaymentAddress @n @k) (externalPool s)
         in
             nonChangeAddresses <> changeAddresses
-
-instance forall n k. HasRewardAccount (SeqState n k) where
-    type RewardAccountKey (SeqState n k) = k
-    rewardAccount = rewardAccountKey

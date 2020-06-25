@@ -201,7 +201,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
-    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -218,7 +217,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
+    ( SeqState
     , defaultAddressPoolGap
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
@@ -376,6 +375,7 @@ import Statistics.Quantile
     ( medianUnbiased, quantiles )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
@@ -563,11 +563,11 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
-    let s' = SeqState
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (internalPool s))
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (externalPool s))
-            (pendingChangeIxs s)
-            (rewardAccountKey s)
+    let s' = Seq.SeqState
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
+            (Seq.pendingChangeIxs s)
+            (Seq.rewardAccountKey s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -865,9 +865,7 @@ fetchRewardBalance
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
-        , WalletKey k
+        , HasRewardAccount s k
         )
     => ctx
     -> WalletId
@@ -880,8 +878,8 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
         $ readCheckpoint pk
     mapExceptT (fmap handleErr)
         . getAccountBalance nw
-        . toChimericAccount
-        . rewardAccount
+        . toChimericAccount @s @k
+        . rewardAccountKey
         $ getState cp
   where
     db = ctx ^. dbLayer @s @k
@@ -1002,15 +1000,14 @@ importRandomAddress ctx wid addr = db & \DBLayer{..} -> mapExceptT atomically $ 
 normalizeDelegationAddress
     :: forall s k n.
         ( DelegationAddress n k
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
+        , HasRewardAccount s k
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
+    pure $ liftDelegationAddress @n fingerprint (rewardAccountKey @s @k s)
 
 {-------------------------------------------------------------------------------
                                   Transaction
