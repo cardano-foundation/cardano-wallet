@@ -62,6 +62,8 @@ module Cardano.Wallet.Primitive.Types
     , dlgCertAccount
     , dlgCertPoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    , PoolCertificate (..)
 
     -- * Coin
     , Coin (..)
@@ -1847,6 +1849,13 @@ dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
 
+data PoolCertificate
+    = Registration PoolRegistrationCertificate
+    | Retirement PoolRetirementCertificate
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolCertificate
+
 -- | Pool ownership data from the stake pool registration certificate.
 data PoolRegistrationCertificate = PoolRegistrationCertificate
     { poolId :: !PoolId
@@ -1865,6 +1874,26 @@ instance Buildable PoolRegistrationCertificate where
         <> build p
         <> " owned by "
         <> build o
+
+data PoolRetirementCertificate = PoolRetirementCertificate
+    { poolId :: !PoolId
+
+    -- | TODO: Check what this EpochNo actually means.
+    --
+    -- But a guess would be that it is the /first/ epoch that the pool will be
+    -- retired in.
+    , retiringAt :: !EpochNo
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolRetirementCertificate
+
+instance Buildable PoolRetirementCertificate where
+    build (PoolRetirementCertificate p e) = mempty
+        <> "Pool "
+        <> build p
+        <> " retiring at "
+        <> build e
+
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

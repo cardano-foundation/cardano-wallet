@@ -96,11 +96,16 @@ import Cardano.Config.Shelley.Genesis
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
 import Cardano.Slotting.Slot
-    ( EpochSize (..) )
+    ( EpochNo (..), EpochSize (..) )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Types
+    ( PoolCertificate (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeMkPercentage )
 import Codec.Binary.Bech32
@@ -366,7 +371,7 @@ fromShelleyBlock genesisHash epLength blk =
 fromShelleyBlock'
     :: W.EpochLength
     -> ShelleyBlock
-    -> (W.SlotId, [W.PoolRegistrationCertificate])
+    -> (W.SlotId, [W.PoolCertificate])
 fromShelleyBlock' epLength blk =
     let
         O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) _ = blk
@@ -639,7 +644,7 @@ fromShelleyTx
     :: SL.Tx TPraosStandardCrypto
     -> ( W.Tx
        , [W.DelegationCertificate]
-       , [W.PoolRegistrationCertificate]
+       , [W.PoolCertificate]
        )
 fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
     ( W.Tx
@@ -673,9 +678,9 @@ fromShelleyDelegationCert = \case
 -- 'Nothing' if certificates aren't delegation certificate.
 fromShelleyRegistrationCert
     :: SL.DCert TPraosStandardCrypto
-    -> Maybe (W.PoolRegistrationCertificate)
+    -> Maybe (W.PoolCertificate)
 fromShelleyRegistrationCert = \case
-    SL.DCertPool (SL.RegPool pp) -> Just
+    SL.DCertPool (SL.RegPool pp) -> Just $ Registration
         ( W.PoolRegistrationCertificate
             { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
@@ -686,8 +691,9 @@ fromShelleyRegistrationCert = \case
             }
         )
 
-    SL.DCertPool (SL.RetirePool{}) ->
-        Nothing -- FIXME We need to acknowledge pool retirement
+    SL.DCertPool (SL.RetirePool pid (EpochNo e)) ->
+        Just $ Retirement $ PoolRetirementCertificate (fromPoolKeyHash pid)
+        (W.EpochNo $ fromIntegral e)
 
     SL.DCertDeleg{}   -> Nothing
     SL.DCertGenesis{} -> Nothing

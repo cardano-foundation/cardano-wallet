@@ -49,8 +49,10 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader
     , Coin (..)
     , GenesisParameters (..)
+    , PoolCertificate (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , ProtocolParameters
     , SlotId
     , SlotLength (..)
@@ -344,9 +346,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
                 Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
                 Right () -> pure ()
-            forM_ registrations $ \pool -> do
-                liftIO $ traceWith tr $ MsgStakePoolRegistration pool
-                putPoolRegistration slot pool
+            forM_ registrations $ \case
+                Registration pool -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRegistration pool
+                    putPoolRegistration slot pool
+                Retirement cert -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRetirement cert
         pure Continue
 
 monitorMetadata
@@ -389,6 +394,7 @@ data StakePoolLog
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotId
     | MsgStakePoolRegistration PoolRegistrationCertificate
+    | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata PoolId StakePoolMetadataUrl
     | MsgFetchPoolMetadataSuccess PoolId StakePoolMetadata
@@ -405,6 +411,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
         MsgStakePoolRegistration{} -> Info
+        MsgStakePoolRetirement{} -> Info
         MsgErrProduction{} -> Error
         MsgFetchPoolMetadata{} -> Info
         MsgFetchPoolMetadataSuccess{} -> Info
@@ -429,6 +436,8 @@ instance ToText StakePoolLog where
             "Rolling back to " <> pretty point
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
+        MsgStakePoolRetirement cert ->
+            "Discovered stake pool retirement: " <> pretty cert
         MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat
             [ "Couldn't store production for given block before it conflicts "
             , "with another block. Conflicting block header is: ", pretty blk
