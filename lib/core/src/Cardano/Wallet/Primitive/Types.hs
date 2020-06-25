@@ -1852,6 +1852,8 @@ dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
 
+-- | Sum-type of pool registration- and retirement- certificates. Mirrors the
+--  @PoolCert@ type in cardano-ledger-specs.
 data PoolCertificate
     = Registration PoolRegistrationCertificate
     | Retirement PoolRetirementCertificate
@@ -1881,11 +1883,8 @@ instance Buildable PoolRegistrationCertificate where
 data PoolRetirementCertificate = PoolRetirementCertificate
     { poolId :: !PoolId
 
-    -- | TODO: Check what this EpochNo actually means.
-    --
-    -- But a guess would be that it is the /first/ epoch that the pool will be
-    -- retired in.
-    , retiringAt :: !EpochNo
+    -- | The first epoch when the pool becomes inactive.
+    , retiredIn :: !EpochNo
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRetirementCertificate
