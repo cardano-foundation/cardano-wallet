@@ -83,6 +83,7 @@ let
           # provide cardano-node command to test suites
           unit.build-tools = [ pkgs.cardano-node ];
           integration.build-tools = [ pkgs.cardano-node ];
+          unit.postInstall = exePostInstall;
         };
         packages.cardano-wallet-shelley.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
@@ -106,8 +107,6 @@ let
           # provide cardano-node & cardano-cli to tests
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
           integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
-
-          integration.postInstall = exePostInstall;
           unit.postInstall = exePostInstall;
         };
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.postInstall = exePostInstall;
@@ -125,6 +124,10 @@ let
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
+
+        # Make sure that libsodium DLLs are available.
+        packages.cardano-wallet-byron.components.library.postInstall = exePostInstall;
+        packages.cardano-wallet-shelley.components.library.postInstall = exePostInstall;
 
         # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency =
