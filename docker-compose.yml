@@ -10,6 +10,12 @@ services:
       - node-ipc:/ipc
       - node-config:/nix/store
     restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        compress: "true"
+        max-file: "10"
+        max-size: "50m"
 
   cardano-wallet:
     image: inputoutput/cardano-wallet:latest
@@ -28,6 +34,12 @@ services:
       CMD: "cardano-wallet-byron serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
     restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        compress: "true"
+        max-file: "10"
+        max-size: "50m"
 
 volumes:
   node-mainnet-db:
