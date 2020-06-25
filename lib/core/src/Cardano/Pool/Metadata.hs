@@ -18,6 +18,8 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( hex )
 import Cardano.Wallet.Primitive.Types
     ( StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
@@ -48,6 +50,7 @@ import Network.HTTP.Client
     , withResponse
     )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
@@ -85,7 +88,12 @@ fetchFromRemote manager url_ hash_ = runExceptT $ do
         -- to be less than 512 bytes. For security reasons, we only download the
         -- first 512 bytes.
         pure . BL.toStrict <$> brReadSome (responseBody res) 512
-    when (blake2b256 chunk /= hash) $ throwE "Metadata hash mismatch"
+    when (blake2b256 chunk /= hash) $ throwE $ mconcat
+        [ "Metadata hash mismatch. Saw: "
+        , B8.unpack $ hex $ blake2b256 chunk
+        , ", but expected: "
+        , B8.unpack $ hex hash
+        ]
     except $ eitherDecodeStrict chunk
   where
     StakePoolMetadataUrl  url  = url_
