@@ -603,6 +603,9 @@ instance ToText StakePoolMetadataHash where
 instance FromText StakePoolMetadataHash where
     fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
 
+instance Buildable StakePoolMetadataHash where
+    build (StakePoolMetadataHash hash) = build (Hash hash)
+
 -- | A newtype to wrap metadata Url, mostly needed for database lookups and
 -- signature clarity.
 newtype StakePoolMetadataUrl = StakePoolMetadataUrl Text

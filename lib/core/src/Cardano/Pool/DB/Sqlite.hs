@@ -209,8 +209,8 @@ newDBLayer trace fp = do
             let poolPledge_ = getQuantity poolPledge
             let poolMetadataUrl = fst <$> poolMetadata
             let poolMetadataHash = snd <$> poolMetadata
-            deleteWhere [PoolOwnerPoolId ==. poolId]
-            _ <- repsert (PoolRegistrationKey poolId) $ PoolRegistration
+            deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. point]
+            _ <- repsert (PoolRegistrationKey poolId point) $ PoolRegistration
                     poolId
                     point
                     poolMarginN
@@ -219,10 +219,12 @@ newDBLayer trace fp = do
                     poolPledge_
                     poolMetadataUrl
                     poolMetadataHash
-            insertMany_ $ zipWith (PoolOwner poolId) poolOwners [0..]
+            insertMany_ $ zipWith (PoolOwner poolId point) poolOwners [0..]
 
         , readPoolRegistration = \poolId -> do
-            selectFirst [ PoolRegistrationPoolId ==. poolId ] [] >>= \case
+            let filterBy = [ PoolRegistrationPoolId ==. poolId ]
+            let orderBy  = [ Desc PoolRegistrationSlot ]
+            selectFirst filterBy orderBy >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
                     let PoolRegistration
@@ -240,7 +242,7 @@ newDBLayer trace fp = do
                     let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
                         [ PoolOwnerPoolId ==. poolId ]
-                        [ Asc PoolOwnerIndex ]
+                        [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
                     pure $ Just $ PoolRegistrationCertificate
                         { poolId
                         , poolOwners
@@ -253,13 +255,12 @@ newDBLayer trace fp = do
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
             let fields = T.intercalate ", "
-                    [ fieldName (DBField PoolRegistrationPoolId)
-                    , fieldName (DBField PoolRegistrationMetadataUrl)
+                    [ fieldName (DBField PoolRegistrationMetadataUrl)
                     , fieldName (DBField PoolRegistrationMetadataHash)
                     ]
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
-            let registrations = tableName (DBField PoolRegistrationPoolId)
-            let metadata = tableName (DBField PoolMetadataPoolId)
+            let registrations = tableName (DBField PoolRegistrationMetadataHash)
+            let metadata = tableName (DBField PoolMetadataHash)
             let query = T.unwords
                     [ "SELECT", fields, "FROM", registrations
                     , "WHERE", metadataHash, "NOT", "IN"
@@ -268,16 +269,15 @@ newDBLayer trace fp = do
                     , ";"
                     ]
 
-            let safeCast (Single a, Single b, Single c) = (,,)
+            let safeCast (Single a, Single b) = (,)
                     <$> fromPersistValue a
                     <*> fromPersistValue b
-                    <*> fromPersistValue c
 
             rights . fmap safeCast <$> rawSql query []
 
-        , putPoolMetadata = \poolId hash metadata -> do
+        , putPoolMetadata = \hash metadata -> do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
-            putMany [PoolMetadata hash poolId name ticker description homepage]
+            putMany [PoolMetadata hash name ticker description homepage]
 
         , readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
@@ -292,6 +292,7 @@ newDBLayer trace fp = do
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
             deleteWhere [ PoolRegistrationSlot >. point ]
+            -- TODO: remove dangling metadata no longer attached to a pool
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList

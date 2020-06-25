@@ -74,11 +74,12 @@ StakeDistribution sql=stake_distribution
 -- Mapping from pool id to owner.
 PoolOwner sql=pool_owner
     poolOwnerPoolId     W.PoolId     sql=pool_id
+    poolOwnerSlot       W.SlotId     sql=slot
     poolOwnerOwner      W.PoolOwner  sql=pool_owner
     poolOwnerIndex      Word8        sql=pool_owner_index
 
-    Primary poolOwnerPoolId poolOwnerOwner poolOwnerIndex
-    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId ! ON DELETE CASCADE
+    Primary poolOwnerPoolId poolOwnerSlot poolOwnerOwner poolOwnerIndex
+    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId poolOwnerSlot ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Mapping of registration certificate to pool
@@ -92,19 +93,17 @@ PoolRegistration sql=pool_registration
     poolRegistrationMetadataUrl        W.StakePoolMetadataUrl  Maybe sql=metadata_url
     poolRegistrationMetadataHash       W.StakePoolMetadataHash Maybe sql=metadata_hash
 
-    Primary poolRegistrationPoolId
+    Primary poolRegistrationPoolId poolRegistrationSlot
     deriving Show Generic
 
 -- Cached metadata after they've been fetched from a remote server.
 PoolMetadata sql=pool_metadata
     poolMetadataHash                   W.StakePoolMetadataHash sql=metadata_hash
-    poolMetadataPoolId                 W.PoolId                sql=pool_id
     poolMetadataName                   Text                    sql=name
     poolMetadataTicker                 W.StakePoolTicker       sql=ticker
     poolMetadataDescription            Text Maybe              sql=description
     poolMetadataHomepage               Text                    sql=homepage
 
     Primary poolMetadataHash
-    Foreign PoolRegistration fk_registration_metadata_hash poolMetadataPoolId ! ON DELETE CASCADE
     deriving Show Generic
 |]
