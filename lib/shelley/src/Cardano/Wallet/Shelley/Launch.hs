@@ -312,10 +312,10 @@ withCluster
     -> IO a
 withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
     systemStart <- addUTCTime 1 <$> getCurrentTime
-    ports <- randomUnusedTCPPorts (n + 1)
+    (port0:ports) <- randomUnusedTCPPorts (n + 2)
     let bftCfg = NodeParams severity systemStart (head $ rotate ports)
-    withBFTNode tr dir bftCfg $ \socket block0 params -> do
-        waitForSocket tr socket
+    withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
+        waitForSocket tr bftSocket
         waitGroup <- newChan
         doneGroup <- newChan
         let waitAll   = do
@@ -346,7 +346,9 @@ withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
                 ("cluster didn't start correctly: " <> show (filter isLeft group))
                 (ExitFailure 1)
         else do
-            action socket block0 params `finally` cancelAll
+            let cfg = NodeParams severity systemStart (port0, ports)
+            withPassiveNode tr dir cfg $ \socket -> do
+                action socket block0 params `finally` cancelAll
   where
     -- | Get permutations of the size (n-1) for a list of n elements, alongside with
     -- the element left aside. `[a]` is really expected to be `Set a`.
@@ -407,6 +409,44 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
     source = $(getTestData) </> "cardano-node-shelley"
 
     name = "bft"
+    dir = baseDir </> name
+
+withPassiveNode
+    :: Tracer IO ClusterLog
+    -- ^ Trace for subprocess control logging
+    -> FilePath
+    -- ^ Parent state directory. Node data will be created in a subdirectory of
+    -- this.
+    -> NodeParams
+    -- ^ Parameters used to generate config files.
+    -> (FilePath -> IO a)
+    -- ^ Callback function with socket path
+    -> IO a
+withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+    bracketTracer' tr "withPassiveNode" $ do
+        createDirectory dir
+
+        (config, _, _, _) <- genConfig dir severity systemStart
+        topology <- genTopology dir peers
+
+        let cfg = CardanoNodeConfig
+                { nodeDir = dir
+                , nodeConfigFile = config
+                , nodeTopologyFile = topology
+                , nodeDatabaseDir = "db"
+                , nodeDlgCertFile = Nothing
+                , nodeSignKeyFile = Nothing
+                , nodeOpCertFile = Nothing
+                , nodeKesKeyFile = Nothing
+                , nodeVrfKeyFile = Nothing
+                , nodePort = Just (NodePort port)
+                , nodeLoggingHostname = Just name
+                }
+
+        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
+            action socket
+  where
+    name = "node"
     dir = baseDir </> name
 
 singleNodeParams :: Severity -> IO NodeParams
@@ -529,7 +569,7 @@ genConfig dir severity systemStart = do
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withObject (pure . addGenesisFilePath (T.pack nodeGenesisFile))
         >>= withObject (addMinSeverityStdout severity)
-        >>= withObject (pure . addMinSeverity severity) -- fixme: use Debug
+        >>= withObject (pure . addMinSeverity Debug)
         >>= Yaml.encodeFile (dir </> "node.config")
 
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
