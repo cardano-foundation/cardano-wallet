@@ -13,7 +13,6 @@
 , src
 # GitHub PR number (when building on Hydra)
 , pr ? null
-, libsodium ? pkgs.libsodium
 }:
 
 let
@@ -108,10 +107,11 @@ let
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
           integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
 
-          # Make sure that libsodium DLLs are available
-          integration.postInstall = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
-          unit.postInstall = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
+          integration.postInstall = exePostInstall;
+          unit.postInstall = exePostInstall;
         };
+        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.postInstall = exePostInstall;
+
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
           # aren't touching jormungandr a lot more these days.
@@ -125,6 +125,8 @@ let
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
+
+        # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency =
           lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
@@ -146,6 +148,7 @@ let
             '';
           };
 
+        # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
         packages.cardano-wallet-byron.components.benchmarks.restore =
@@ -158,28 +161,26 @@ let
             '';
           };
 
-        # Provide the swagger file in an environment variable because
-        # it is located outside of the Cabal package source tree.
-        packages.cardano-wallet-core.components.tests.unit.preBuild = ''
-          export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
-        '';
-        packages.cardano-wallet-jormungandr.components.tests.unit.preBuild = ''
-          export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
-        '';
-
-        # Make sure that libsodium DLLs are available.
-        packages.cardano-wallet-shelley.components.library =
-          lib.optionalAttrs (stdenv.hostPlatform.isWindows) {
-            postInstall = ''ln -s ${libsodium}/bin/libsodium-23.dll $out/bin/libsodium-23.dll'';
-          };
-
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-byron.components.all.postInstall = lib.mkForce "";
-        packages.cardano-wallet-core.components.all.preBuild = lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
-        packages.cardano-wallet-jormungandr.components.all.preBuild = lib.mkForce "";
         packages.cardano-wallet-shelley.components.all.postInstall = lib.mkForce "";
       }
+
+      # Provide the swagger file in an environment variable for
+      # tests because it is located outside of the Cabal package
+      # source tree.
+      (let
+        swaggerYamlPreBuild = ''
+          export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
+        '';
+      in {
+        packages.cardano-wallet-core.components.tests.unit.preBuild = swaggerYamlPreBuild;
+        packages.cardano-wallet-jormungandr.components.tests.unit.preBuild = swaggerYamlPreBuild;
+        # Workaround for Haskell.nix issue
+        packages.cardano-wallet-core.components.all.preBuild = lib.mkForce "";
+        packages.cardano-wallet-jormungandr.components.all.preBuild = lib.mkForce "";
+      })
 
       # Build fixes for library dependencies
       {
@@ -266,6 +267,12 @@ let
 
   # Hydra will pass the GitHub PR number as a string argument to release.nix.
   isHydraPRJobset = toString pr != "";
+
+  # Make sure that the libsodium DLL is available beside the EXEs of
+  # the windows build.
+  exePostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
+    ln -s ${pkgs.libsodium}/bin/libsodium-23.dll $out/bin
+  '';
 
 in
   pkgSet.config.hsPkgs // { _config = pkgSet.config; }
