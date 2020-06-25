@@ -138,7 +138,6 @@ let
           weeder.components.exes.weeder
           hlint.components.exes.hlint
         ])
-        ++ [(pkgs.callPackage ./nix/stylish-haskell.nix {})]
         ++ (with self; [
           jormungandr
           jormungandr-cli
@@ -153,6 +152,7 @@ let
           python3Packages.openapi-spec-validator
           yq
         ]);
+      tools.stylish-haskell = "0.11.0.0";
       CARDANO_NODE_CONFIGS = cardano-node.deployments;
       meta.platforms = lib.platforms.unix;
     };
