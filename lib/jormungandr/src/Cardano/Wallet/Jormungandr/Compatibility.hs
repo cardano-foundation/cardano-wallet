@@ -164,11 +164,11 @@ gDecodeAddress decodeJormungandr decodeByron text =
         (Just bytes, _) -> decodeJormungandr bytes
         (_, Just bytes) -> decodeByron bytes
             & maybeToEither (TextDecodingError
-            "Unable to decode Address: neither Bech32-encoded nor a \
-            \valid Byron Address.")
+            "Unable to decode address: not a well-formed Shelley nor \
+            \Byron address.")
         (Nothing, Nothing) -> Left $ TextDecodingError
-            "Unable to decode Address: encoding is neither Bech32 nor \
-            \Base58."
+            "Unrecognized address encoding: must be either bech32, \
+            \base58 or base16"
   where
     -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
     tryBase58 :: Maybe ByteString
