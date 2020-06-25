@@ -1563,13 +1563,14 @@ getTransaction
     -> ExceptT ErrGetTransaction IO TransactionInfo
 getTransaction ctx wid tid = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
-    txMaybe <- mapExceptT atomically $ withExceptT ErrGetTransactionNoSuchWallet $
-        withNoSuchWallet wid $ getTx pk tid
-    case txMaybe of
-        Nothing -> do
-            let err = ErrNoSuchTransaction tid
-            throwE (ErrGetTransactionNoSuchTransaction err)
-        Just tx ->
+    res <- lift $ atomically $ runExceptT $ getTx pk tid
+    case res of
+        Left err -> do
+            throwE (ErrGetTransactionNoSuchWallet err)
+        Right Nothing -> do
+            let err' = ErrNoSuchTransaction tid
+            throwE (ErrGetTransactionNoSuchTransaction err')
+        Right (Just tx) ->
             pure tx
   where
     db = ctx ^. dbLayer @s @k

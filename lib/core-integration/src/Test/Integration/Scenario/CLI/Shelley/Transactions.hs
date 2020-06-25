@@ -859,20 +859,6 @@ spec = do
             ]
         c `shouldBe` ExitSuccess
 
-        let wSrcId = T.unpack (wSrc ^. walletId)
-        let txId =  getTxId txJson
-
-        -- Verify Tx in source wallet is Outgoing and Pending
-        (Exit code1, Stdout out1, Stderr err1) <-
-            getTransactionViaCLI @t ctx wSrcId txId
-        err1 `shouldBe` "Ok.\n"
-        code1 `shouldBe` ExitSuccess
-        outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
-        verify outJson1
-            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            ]
-
         eventually "Balance on wallet is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
@@ -884,25 +870,28 @@ spec = do
                         (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
+        let wSrcId = T.unpack (wSrc ^. walletId)
+        let txId =  getTxId txJson
+
         -- Verify Tx in source wallet is Outgoing and InLedger
-        (Exit code2, Stdout out2, Stderr err2) <-
+        (Exit code1, Stdout out1, Stderr err1) <-
             getTransactionViaCLI @t ctx wSrcId txId
-        err2 `shouldBe` "Ok.\n"
-        code2 `shouldBe` ExitSuccess
-        outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
-        verify outJson2
+        err1 `shouldBe` "Ok.\n"
+        code1 `shouldBe` ExitSuccess
+        outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
+        verify outJson1
             [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
             ]
 
         let wDestId = T.unpack (wDest ^. walletId)
         -- Verify Tx in destination wallet is Incoming and InLedger
-        (Exit code3, Stdout out3, Stderr err3) <-
+        (Exit code2, Stdout out2, Stderr err2) <-
             getTransactionViaCLI @t ctx wDestId txId
-        err3 `shouldBe` "Ok.\n"
-        code3 `shouldBe` ExitSuccess
-        outJson3 <- expectValidJSON (Proxy @(ApiTransaction n)) out3
-        verify outJson3
+        err2 `shouldBe` "Ok.\n"
+        code2 `shouldBe` ExitSuccess
+        outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
+        verify outJson2
             [ expectCliField (#direction . #getApiT) (`shouldBe` Incoming)
             , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
             ]

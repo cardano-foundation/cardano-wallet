@@ -1165,15 +1165,6 @@ spec = do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        -- Verify Tx in source wallet is Outgoing and Pending
-        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
-        r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
-        verify r1
-            [ expectResponseCode HTTP.status200
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            ]
-
         eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
@@ -1185,8 +1176,9 @@ spec = do
                 ]
 
         -- Verify Tx in source wallet is Outgoing and InLedger
-        r2 <- request @(ApiTransaction n) ctx linkSrc Default Empty
-        verify r2
+        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
+        r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+        verify r1
             [ expectResponseCode HTTP.status200
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` InLedger)
@@ -1194,8 +1186,8 @@ spec = do
 
         -- Verify Tx in destination wallet is Incoming and InLedger
         let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
-        r3 <- request @(ApiTransaction n) ctx linkDest Default Empty
-        verify r3
+        r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
+        verify r2
             [ expectResponseCode HTTP.status200
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             , expectField (#status . #getApiT) (`shouldBe` InLedger)
