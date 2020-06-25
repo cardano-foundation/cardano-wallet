@@ -206,6 +206,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -350,7 +352,7 @@ import Data.Generics.Product.Typed
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( mapMaybe )
+    ( isJust, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -359,6 +361,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
+import Data.Type.Equality
+    ( testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -373,6 +377,8 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -866,30 +872,42 @@ fetchRewardBalance
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , HasRewardAccount s k
+        , HasLogger WalletLog ctx
+        , Typeable k
         )
     => ctx
     -> WalletId
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
 fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
-    let pk = PrimaryKey wid
-    cp <- withExceptT ErrFetchRewardsNoSuchWallet
-        . mapExceptT atomically
-        . withNoSuchWallet wid
-        $ readCheckpoint pk
-    mapExceptT (fmap handleErr)
-        . getAccountBalance nw
-        . toChimericAccount @s @k
-        . rewardAccountKey
-        $ getState cp
+    -- FIXME: issue #1750 re-enable querying reward balance when it's faster
+    if isShelleyKey then do
+        lift $ traceWith tr MsgTemporaryDisableFetchReward
+        pure $ Quantity 0
+    else do
+        let pk = PrimaryKey wid
+        cp <- withExceptT ErrFetchRewardsNoSuchWallet
+            . mapExceptT atomically
+            . withNoSuchWallet wid
+            $ readCheckpoint pk
+        mapExceptT (fmap handleErr)
+            . getAccountBalance nw
+            . toChimericAccount @s @k
+            . rewardAccountKey
+            $ getState cp
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
     handleErr = \case
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
             Right $ Quantity 0
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
+
+    isShelleyKey = isJust $ testEquality
+        (typeRep @(k 'RootK XPrv))
+        (typeRep @(ShelleyKey 'RootK XPrv))
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1979,6 +1997,7 @@ data WalletLog
     | MsgDelegationCoinSelection CoinSelection
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
+    | MsgTemporaryDisableFetchReward
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2020,6 +2039,8 @@ instance ToText WalletLog where
             "Coins selected for payment: \n" <> pretty sel
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
+        MsgTemporaryDisableFetchReward ->
+            "FIXME: (issue #1750) fetching reward temporarily disabled."
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2038,3 +2059,4 @@ instance HasSeverityAnnotation WalletLog where
         MsgDelegationCoinSelection _ -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
+        MsgTemporaryDisableFetchReward -> Warning

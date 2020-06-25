@@ -365,6 +365,8 @@ import System.IO.Error
     )
 import System.Random
     ( getStdRandom, random )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
@@ -507,6 +509,7 @@ postWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
+        , Typeable k
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -529,6 +532,7 @@ postShelleyWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , HasRewardAccount s k
+        , Typeable k
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -587,14 +591,12 @@ mkShelleyWallet
         , IsOurs s Address
         , HasRewardAccount s k
         , HasWorkerRegistry s k ctx
+        , Typeable k
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    -- TODO: issue #1750 re-enable querying reward balance when it's faster
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        if False
-            then W.fetchRewardBalance @_ @s @t @k wrk wid
-            else pure $ Quantity 0
+        W.fetchRewardBalance @_ @s @t @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
