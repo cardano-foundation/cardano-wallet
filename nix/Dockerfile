@@ -31,12 +31,11 @@ RUN nix-channel --update
 
 RUN nix-env -i git gnutar
 
-# # Uncomment the following two lines if you lack the time and/or disk
-# # space to build ghc and everything else. These lines will enable the
-# # IOHK binary cache of nix builds from https://hydra.iohk.io.
-# RUN echo 'trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=' >> /etc/nix/nix.conf
-# RUN echo 'substituters = https://hydra.iohk.io https://cache.nixos.org' >> /etc/nix/nix.conf
-
+# Set --build-arg USE_IOHK_CACHE=t if you lack the time and/or disk
+# space to build ghc and everything else. These lines will enable the
+# IOHK binary cache of nix builds from https://hydra.iohk.io.
+ARG USE_IOHK_CACHE=
+RUN test -n "${USE_IOHK_CACHE}" && ( echo "Note: using IOHK nix cache" > /dev/stderr ; echo 'substituters = https://hydra.iohk.io https://cache.nixos.org\ntrusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=' >> /etc/nix/nix.conf ) || echo "Note: Not using IOHK nix cache"
 
 ############################################################################
 # Warm up cache
@@ -50,9 +49,7 @@ RUN nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.t
 # Check out code
 
 # You can choose a branch, tag, or git revision of the cardano-wallet repo.
-# fixme: temporary PR branch
-ARG CODE_VERSION=rvl/minimal-self-contained-docker-image
-# ARG CODE_VERSION=master
+ARG CODE_VERSION=master
 
 # Download from GitHub instead of using COPY
 # Checkout a specific version

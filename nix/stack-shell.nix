@@ -5,17 +5,37 @@
 }:
 with pkgs;
 
-haskell.lib.buildStackProject rec {
+mkShell rec {
   name = "cardano-wallet-stack-env";
-  ghc = walletPackages.haskellPackages._config.ghc.package;
 
   buildInputs =
-    (with walletPackages; [ jormungandr jormungandr-cli cardano-node cardano-cli ]) ++
-    [ zlib gmp ncurses lzma openssl ] ++
+    (with walletPackages; [
+      haskellPackages._config.ghc.package
+      jormungandr
+      jormungandr-cli
+      cardano-node
+      cardano-cli
+    ]) ++ [
+      zlib
+      gmp
+      ncurses
+      lzma
+      openssl
+      pkgconfig
+    ] ++ lib.optional (stdenv.hostPlatform.libc == "glibc") glibcLocales ++
     (lib.optionals (!stdenv.isDarwin) [ git systemd.dev ]) ++
     (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
 
+  # allow building the shell so that it can be cached in hydra
   phases = ["nobuildPhase"];
-  nobuildPhase = "echo '${pkgs.lib.concatStringsSep "\n" ([ghc] ++ buildInputs)}' > $out";
+  nobuildPhase = "echo '${pkgs.lib.concatStringsSep "\n" buildInputs}' > $out";
+  preferLocalBuild = true;
+
   meta.platforms = lib.platforms.unix;
+
+  # Build environment setup copied from
+  # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
+  GIT_SSL_CAINFO = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+  LANG = "en_US.UTF-8";
 }
