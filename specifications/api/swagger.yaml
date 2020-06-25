@@ -595,7 +595,7 @@ x-stakePoolPledge: &stakePoolPledge
   description: |
       Minimal stake amount that a stake pool is willing to honor.
 
-      May be ommitted if the wallet hasn't found the pool's registration cerificate yet.
+      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolCost: &stakePoolCost
   <<: *jormungandrStakePoolCost
@@ -603,14 +603,14 @@ x-stakePoolCost: &stakePoolCost
       Estimated cost set by the pool operator when registering his pool.
       This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
 
-      May be ommitted if the wallet hasn't found the pool's registration cerificate yet.
+      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolMargin: &stakePoolMargin
   <<: *jormungandrStakePoolMargin
   description: |
       Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
 
-      May be ommitted if the wallet hasn't found the pool's registration cerificate yet.
+      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolSaturation: &stakePoolSaturation
   type: number
