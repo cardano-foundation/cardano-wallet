@@ -356,7 +356,12 @@ spec = do
             \I can quit if I have enough to cover fee" $ \ctx -> do
             let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 1 0 1
-            let initBalance = [feeJoin + feeQuit]
+            -- NOTE
+            -- We need to leave at least 1 lovelace, because we need at least a
+            -- change output to get a deposit back. Later, we can assert that
+            -- the wallet balance after quitting is strictly greater than 1,
+            -- because we should have gotten the deposit back!
+            let initBalance = [feeJoin + feeQuit + 1]
             w <- fixtureWalletWith @n ctx initBalance
             pool:_ <- map (view #id) . snd
                 <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
@@ -374,20 +379,28 @@ spec = do
             quitStakePool @n ctx (w, passwd) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 ]
-            eventually "Wallet is not delegating and has balance = 0" $ do
+            eventually "Wallet is not delegating and its deposit back" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     -- balance is 0 because the rest was used for fees
                     , expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+                        (#balance . #getApiT . #total) (`shouldSatisfy` (> (Quantity 1)))
                     , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                        (#balance . #getApiT . #available) (`shouldSatisfy` (> (Quantity 1)))
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough fee to cover" $ \ctx -> do
             let (feeJoin, _) = ctx ^. #_feeEstimator $ DelegDescription 1 1 1
-            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription 0 0 1
+            -- TODO
+            -- hard-coding this one because the _feeEstimator as it is needs
+            -- rework. Ideally, we shouldn't take a number of certificates but
+            -- instead, take a list of `Certificate` (from
+            -- Cardano.Wallet.Transaction) because the fee depends on the type
+            -- of certificate in Shelley and not only on their numbers!
+            --
+            -- If we change the fee policy in the genesis file, this will fail.
+            let feeQuit = 115600
             let initBalance = [feeJoin+1]
             w <- fixtureWalletWith @n ctx initBalance
 

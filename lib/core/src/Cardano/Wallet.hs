@@ -1416,8 +1416,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (allOuts, s') <-
-                assignChangeAddresses argGenChange outs chgs (getState cp)
+            (chgs', s') <-
+                assignChangeAddresses argGenChange [] chgs (getState cp)
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             (WalletMetadata _ _ _ wDeleg) <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
@@ -1432,16 +1432,16 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                             (rewardAcc, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
-                            ins allOuts
+                            ins outs chgs'
                     Quit ->
                         mkDelegationQuitTx tl feePolicy
                             (rewardAcc, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
-                            ins allOuts
+                            ins outs chgs'
 
             let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins allOuts
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins (outs ++ chgs')
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k

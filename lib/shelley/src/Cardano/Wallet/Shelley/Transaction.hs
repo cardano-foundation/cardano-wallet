@@ -165,18 +165,28 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
     _mkDelegationJoinTx
         :: FeePolicy
+            -- Latest fee policy
         -> WalletDelegation
+            -- Wallet current delegation status
         -> PoolId
+            -- Pool Id to which we're planning to delegate
         -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            --  Resolved inputs
         -> [TxOut]
+            -- Outputs
+        -> [TxOut]
+            -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationJoinTx policy wDeleg poolId (accXPrv, pwd') keyFrom slot ownedIns outs = do
+    _mkDelegationJoinTx policy dlg poolId (accXPrv, pwd') keyFrom slot inps outs chgs = do
         let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
-        let (certs, certsInfo) = case wDeleg of
+        let (certs, certsInfo) = case dlg of
                 (WalletDelegation NotDelegating []) ->
                     ( [ toStakeKeyRegCert  accXPub
                       , toStakePoolDlgCert accXPub poolId
@@ -200,11 +210,11 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let LinearFee a b _ = policy
         let fee = _minimumFee (LinearFee a b (Quantity 0))
                 certsInfo
-                (CoinSelection ownedIns outs [])
-        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs fee
+                (CoinSelection inps (outs ++ chgs) [])
+        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs) certs fee
         let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
@@ -213,28 +223,43 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
-    -- FIXME:
-    -- When de-registering a stake key, we need to return the deposit back to
-    -- the user's wallet. This is a bit tricky to handle as it would require
-    -- creating a new change output (currently done in the wallet engine) which
-    -- differs from the Jörmungandr's way.
     _mkDelegationQuitTx
         :: FeePolicy
+            -- Latest fee policy
         -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            -- ^ Resolved inputs
         -> [TxOut]
+            -- ^ Outputs
+        -> [TxOut]
+            -- ^ Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationQuitTx _policy (accXPrv, pwd') keyFrom slot ownedIns outs = do
+    _mkDelegationQuitTx policy (accXPrv, pwd') keyFrom slot inps outs chgs = do
         let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
-        let fee = realFee ownedIns outs
-        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs fee
+
+        -- NOTE
+        -- When registering a stake key, users gave a deposit fixed by the fee
+        -- policy. When de-registing a key, the deposit should be given back.
+        --
+        -- The deposit doesn't come from an explicit input, but rather, from an
+        -- implicit balance available from the input side. So, output are
+        -- allowed to create more than what's consumed as inputs. We therefore
+        -- add the deposit to the first change output available, which doesn't
+        -- change the fee in Shelley. Still, the real fee are computed from the
+        -- differences between inputs and outputs BEFORE the deposit is added.
+        chgs' <- mapFirst (withDeposit policy) chgs
+        let fee = realFee inps (outs ++ chgs)
+        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs') certs fee
         let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
@@ -242,6 +267,14 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
+      where
+        withDeposit :: FeePolicy -> TxOut -> TxOut
+        withDeposit (LinearFee _ _ (Quantity deposit)) (TxOut addr (Coin c)) =
+            TxOut addr (Coin (c + round deposit))
+
+        mapFirst :: (a -> a) -> [a] -> Either ErrMkTx [a]
+        mapFirst _     [] = Left ErrChangeIsEmptyForRetirement
+        mapFirst fn (h:q) = Right (fn h:q)
 
 _estimateMaxNumberOfInputs
     :: Quantity "byte" Word16

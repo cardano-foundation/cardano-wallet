@@ -71,13 +71,23 @@ data TransactionLayer t k = TransactionLayer
 
     , mkDelegationJoinTx
         :: FeePolicy
+            -- Latest fee policy
         -> WalletDelegation
+            -- Wallet current delegation status
         -> PoolId
-        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+            -- Pool Id to which we're planning to delegate
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            --  Resolved inputs
         -> [TxOut]
+            -- Outputs
+        -> [TxOut]
+            -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
@@ -88,11 +98,19 @@ data TransactionLayer t k = TransactionLayer
 
     , mkDelegationQuitTx
         :: FeePolicy
-        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+            -- Latest fee policy
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            -- ^ Resolved inputs
         -> [TxOut]
+            -- ^ Outputs
+        -> [TxOut]
+            -- ^ Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.
@@ -145,9 +163,14 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-newtype ErrMkTx
+data ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
+    | ErrChangeIsEmptyForRetirement
+    -- ^ When retiring on Shelley, we need to add a deposit amount made when
+    -- creating a stake key. This requires at least one change output, which
+    -- ought to be present anyway by construction of the coin selection when
+    -- quitting delegation.
     deriving (Eq, Show)
 
 data Certificate
