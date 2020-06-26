@@ -343,9 +343,9 @@ computeTxSize certs (CoinSelection inps outs chngs) =
         outs' = outs <> (dummyOutput <$> chngs)
 
         dummyOutput :: Coin -> TxOut
-        dummyOutput = TxOut $ Address $ BS.pack (1:replicate 64 0)
+        dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
 
-        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (1:replicate 64 0)
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (replicate 28 0)
 
         certs' = flip map certs $ \case
             PoolDelegationCertificate ->
@@ -355,17 +355,29 @@ computeTxSize certs (CoinSelection inps outs chngs) =
             KeyDeRegistrationCertificate ->
                 Cardano.shelleyDeregisterStakingAddress dummyKeyHash
 
-    addrWits = Set.map dummyWitness $ Set.fromList (fst <$> inps)
+    (addrWits, certWits) =
+        ( Set.map dummyWitness $ Set.fromList (fst <$> inps)
+        , if null certs
+            then Set.empty
+            else Set.singleton (dummyWitness dummyTxIn)
+        )
       where
         dummyWitness :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
         dummyWitness = mkWitness unsigned . (,mempty) . dummyXPrv
 
+        dummyTxIn :: TxIn
+        dummyTxIn = TxIn (Hash (BS.pack (replicate 32 0))) 0
+
+        -- NOTE: We need relatively unique fake XPrv so that we can generate
+        -- relatively unique witnesses. So we use the transaction input as a
+        -- source of entropy to create a somewhat unique fake XPrv corresponding
+        -- to that input.
         dummyXPrv :: TxIn -> XPrv
         dummyXPrv (TxIn (Hash txid) ix) =
             unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 $
                 txid <> B8.pack (show ix)
 
-    wits = SL.WitnessSet addrWits mempty mempty
+    wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
