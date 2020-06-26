@@ -83,6 +83,7 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , fixtureRandomWalletAddrs
     , fixtureRandomWalletWith
+    , getTransactionViaCLI
     , getTxId
     , getWalletViaCLI
     , icarusAddresses
@@ -513,6 +514,8 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
     c `shouldBe` ExitSuccess
     r <- expectValidJSON (Proxy @(ApiTransaction n)) out
+    let txId =  getTxId r
+
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
             { nInputs  =  fromIntegral n
             , nOutputs =  fromIntegral n
@@ -547,8 +550,30 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
                 [ expectCliField (#balance . #available)
                     (`shouldBe` Quantity (faucetAmt + amnt))
                 ]
+
+            -- Verify Tx in dest wallet is Incoming and InLedger
+            (Exit code1, Stdout out1, Stderr err1) <-
+                getTransactionViaCLI @t ctx (T.unpack (wDest ^. walletId)) txId
+            err1 `shouldBe` "Ok.\n"
+            code1 `shouldBe` ExitSuccess
+            outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
+            verify outJson1
+                [ expectCliField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+    -- Verify Tx in source wallet is Outgoing and InLedger
+    (Exit code2, Stdout out2, Stderr err2) <-
+        getTransactionViaCLI @t ctx (T.unpack (wSrc ^. walletId)) txId
+    err2 `shouldBe` "Ok.\n"
+    code2 `shouldBe` ExitSuccess
+    outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
+    verify outJson2
+        [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+        , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+        ]
   where
-    title = "CLI_TRANS_CREATE_01/02 - " ++ show n ++ " recipient(s)"
+    title = "CLI_TRANS_CREATE_01/02, CLI_TRANS_GET_01 - " ++ show n ++ " recipient(s)"
     n = fromIntegral $ length fixtures
 
 scenario_TRANS_ESTIMATE_01_02
