@@ -31,6 +31,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( xpubPublicKey )
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
@@ -48,7 +50,8 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChimericAccount (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -65,6 +68,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( HasRewardAccount, toChimericAccount )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant, testnetMagic )
 import Control.Arrow
@@ -79,6 +86,8 @@ import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( SHA256 (..), SHA512 (..) )
+import Crypto.Hash.Utils
+    ( blake2b256 )
 import Crypto.MAC.HMAC
     ( HMAC, hmac )
 import Data.Bifunctor
@@ -103,6 +112,7 @@ import GHC.TypeLits
     ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Wallet.Primitive.AddressDiscovery as Seq
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
@@ -408,6 +418,14 @@ instance PaymentAddress n IcarusKey
         $ k
       where
         err = ErrInvalidAddress (proxy, k) Proxy
+
+{-------------------------------------------------------------------------------
+                          Dealing with Rewards
+-------------------------------------------------------------------------------}
+
+instance forall n. HasRewardAccount (SeqState n IcarusKey) IcarusKey where
+    rewardAccountKey  = Seq.rewardAccountKey
+    toChimericAccount = ChimericAccount . blake2b256 . xpubPublicKey . getKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

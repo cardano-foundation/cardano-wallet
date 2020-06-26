@@ -16,7 +16,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubToBytes )
+    ( xpubPublicKey )
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
@@ -66,7 +66,6 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Jormungandr and 'Jörmungandr'
@@ -82,7 +81,7 @@ newTransactionLayer block0H = TransactionLayer
     { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
 
     , mkDelegationJoinTx = \_ pool accXPrv ->
-        let acc = toChimericAccount' . fst $ accXPrv
+        let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     (DlgFull pool)
@@ -90,7 +89,7 @@ newTransactionLayer block0H = TransactionLayer
                     (first getRawKey accXPrv)
 
     , mkDelegationQuitTx = \accXPrv ->
-        let acc = toChimericAccount' . fst $ accXPrv
+        let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment $ MkFragmentStakeDelegation
                     (txWitnessTagFor @k)
                     DlgNone
@@ -149,11 +148,6 @@ newTransactionLayer block0H = TransactionLayer
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
         certs = if withCert then 1 else 0
         ios   = length inps + length outs + length chgs
-
-    -- Not using 'toChimericAccount' from Primitive.AddressDerivation as we must
-    -- not hash this one.
-    toChimericAccount' =
-        ChimericAccount . BS.take 32 . xpubToBytes . getRawKey . publicKey
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

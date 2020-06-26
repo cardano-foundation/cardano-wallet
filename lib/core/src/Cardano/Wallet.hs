@@ -201,12 +201,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
-    , toChimericAccount
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -218,7 +219,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
+    ( SeqState
     , defaultAddressPoolGap
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
@@ -351,7 +352,7 @@ import Data.Generics.Product.Typed
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( mapMaybe )
+    ( isJust, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -360,6 +361,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
+import Data.Type.Equality
+    ( testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -374,8 +377,11 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
@@ -563,11 +569,11 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
-    let s' = SeqState
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (internalPool s))
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (externalPool s))
-            (pendingChangeIxs s)
-            (rewardAccountKey s)
+    let s' = Seq.SeqState
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
+            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
+            (Seq.pendingChangeIxs s)
+            (Seq.rewardAccountKey s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -865,33 +871,43 @@ fetchRewardBalance
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
-        , WalletKey k
+        , HasRewardAccount s k
+        , HasLogger WalletLog ctx
+        , Typeable k
         )
     => ctx
     -> WalletId
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
 fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
-    let pk = PrimaryKey wid
-    cp <- withExceptT ErrFetchRewardsNoSuchWallet
-        . mapExceptT atomically
-        . withNoSuchWallet wid
-        $ readCheckpoint pk
-    mapExceptT (fmap handleErr)
-        . getAccountBalance nw
-        . toChimericAccount
-        . rewardAccount
-        $ getState cp
+    -- FIXME: issue #1750 re-enable querying reward balance when it's faster
+    if isShelleyKey then do
+        lift $ traceWith tr MsgTemporaryDisableFetchReward
+        pure $ Quantity 0
+    else do
+        let pk = PrimaryKey wid
+        cp <- withExceptT ErrFetchRewardsNoSuchWallet
+            . mapExceptT atomically
+            . withNoSuchWallet wid
+            $ readCheckpoint pk
+        mapExceptT (fmap handleErr)
+            . getAccountBalance nw
+            . toChimericAccount @s @k
+            . rewardAccountKey
+            $ getState cp
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
     handleErr = \case
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
             Right $ Quantity 0
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
+
+    isShelleyKey = isJust $ testEquality
+        (typeRep @(k 'RootK XPrv))
+        (typeRep @(ShelleyKey 'RootK XPrv))
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1002,15 +1018,14 @@ importRandomAddress ctx wid addr = db & \DBLayer{..} -> mapExceptT atomically $ 
 normalizeDelegationAddress
     :: forall s k n.
         ( DelegationAddress n k
-        , HasRewardAccount s
-        , k ~ RewardAccountKey s
+        , HasRewardAccount s k
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint (rewardAccount s)
+    pure $ liftDelegationAddress @n fingerprint (rewardAccountKey @s @k s)
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -1982,6 +1997,7 @@ data WalletLog
     | MsgDelegationCoinSelection CoinSelection
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
+    | MsgTemporaryDisableFetchReward
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2023,6 +2039,8 @@ instance ToText WalletLog where
             "Coins selected for payment: \n" <> pretty sel
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
+        MsgTemporaryDisableFetchReward ->
+            "FIXME: (issue #1750) fetching reward temporarily disabled."
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2041,3 +2059,4 @@ instance HasSeverityAnnotation WalletLog where
         MsgDelegationCoinSelection _ -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
+        MsgTemporaryDisableFetchReward -> Warning

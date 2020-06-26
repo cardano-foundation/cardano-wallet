@@ -100,8 +100,8 @@ spec = do
 
     describe "verify JSON parsing failures too" $ do
         it "ApiT Address" $ do
-            let msg = "Error in $: Unable to decode Address: \
-                    \encoding is neither Bech32 nor Base58."
+            let msg = "Error in $: Unrecognized address encoding: \
+                      \must be either bech32, base58 or base16"
             Aeson.parseEither parseJSON [aesonQQ|"-----"|]
                 `shouldBe` (Left @String @(ApiT Address, Proxy ('Testnet 0)) msg)
 
@@ -115,10 +115,9 @@ spec = do
             ("This address belongs to another network. Network is: "
             <> show (networkDiscriminantVal @'Mainnet) <> ".")
         negativeTest proxy "EkxDbkPo"
-            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
-            \Address."
+            "Unable to decode address: not a well-formed Shelley nor Byron address."
         negativeTest proxy ".%14'"
-            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
+            "Unrecognized address encoding: must be either bech32, base58 or base16"
         negativeTest proxy "ca1qv8qurswpc8qurswpc8qurs7xnyen"
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
@@ -162,10 +161,9 @@ spec = do
             ("This address belongs to another network. Network is: "
             <> show (networkDiscriminantVal @('Testnet 0)) <> ".")
         negativeTest proxy "EkxDbkPo"
-            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
-            \Address."
+            "Unable to decode address: not a well-formed Shelley nor Byron address."
         negativeTest proxy ".%14'"
-            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
+            "Unrecognized address encoding: must be either bech32, base58 or base16"
         negativeTest proxy "ta1sv8qurswpc8qurswpc8qurs2l0ech"
             "Invalid address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
