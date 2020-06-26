@@ -303,11 +303,11 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..)
+    ( Certificate (..)
+    , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
-    , WithDelegation (..)
     )
 import Control.Exception
     ( Exception )
@@ -1045,11 +1045,11 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 
 feeOpts
     :: TransactionLayer t k
-    -> WithDelegation
+    -> [Certificate]
     -> FeePolicy
     -> FeeOptions
-feeOpts tl withDelegation feePolicy = FeeOptions
-    { estimateFee = minimumFee tl feePolicy withDelegation
+feeOpts tl certs feePolicy = FeeOptions
+    { estimateFee = minimumFee tl feePolicy certs
     , dustThreshold = minBound
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     }
@@ -1104,7 +1104,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl (WithDelegation False) (txp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl [] (txp ^. #getFeePolicy)
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1123,11 +1123,12 @@ selectCoinsForDelegation
         )
     => ctx
     -> WalletId
+    -> [Certificate]
     -> ExceptT ErrSelectForDelegation IO CoinSelection
-selectCoinsForDelegation ctx wid = do
+selectCoinsForDelegation ctx wid certs = do
     (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp certs
 
 selectCoinsForDelegationFromUTxO
     :: forall ctx t k.
@@ -1137,10 +1138,11 @@ selectCoinsForDelegationFromUTxO
     => ctx
     -> W.UTxO
     -> W.TxParameters
+    -> [Certificate]
     -> ExceptT ErrSelectForDelegation IO CoinSelection
-selectCoinsForDelegationFromUTxO ctx utxo txp = do
+selectCoinsForDelegationFromUTxO ctx utxo txp certs = do
     let sel = CoinSelection [] [] []
-    let feePolicy = feeOpts tl (WithDelegation True) (txp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl certs (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
@@ -1162,7 +1164,9 @@ estimateFeeForDelegation
 estimateFeeForDelegation ctx wid = do
     (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp
+    -- NOTE: consider the worst case scenario for the estimation.
+    let certs = [KeyRegistrationCertificate,PoolDelegationCertificate]
+    let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp certs
     estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
 
 -- | Constructs a set of coin selections that select all funds from the given
@@ -1198,7 +1202,7 @@ selectCoinsForMigrationFromUTxO
     -> ExceptT ErrSelectForMigration IO [CoinSelection]
 selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl (WithDelegation False) feePolicy)
+    let feeOptions = (feeOpts tl [] feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
     case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
@@ -1406,26 +1410,38 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     nodeTip <- withExceptT ErrSignDelegationNetwork $ currentNodeTip nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
+        txp <- txParameters <$> withExceptT ErrSignDelegationNoSuchWallet
+            (readWalletProtocolParameters @ctx @s @k ctx wid)
+        let feePolicy = txp ^. #getFeePolicy
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (allOuts, s') <-
-                assignChangeAddresses argGenChange outs chgs (getState cp)
+            (chgs', s') <-
+                assignChangeAddresses argGenChange [] chgs (getState cp)
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             (WalletMetadata _ _ _ wDeleg) <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readWalletMeta (PrimaryKey wid)
             let rewardAcc = deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
+
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join poolId ->
-                        mkDelegationJoinTx tl wDeleg poolId (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
+                        mkDelegationJoinTx tl feePolicy wDeleg poolId
+                            (rewardAcc, pwdP)
+                            keyFrom
+                            (nodeTip ^. #slotId)
+                            ins outs chgs'
                     Quit ->
-                        mkDelegationQuitTx tl (rewardAcc, pwdP) keyFrom (nodeTip ^. #slotId) ins allOuts
+                        mkDelegationQuitTx tl feePolicy
+                            (rewardAcc, pwdP)
+                            keyFrom
+                            (nodeTip ^. #slotId)
+                            ins outs chgs'
 
             let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins allOuts
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins (outs ++ chgs')
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1606,8 +1622,9 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     withExceptT ErrJoinStakePoolCannotJoin $ except $
         guardJoin pools (walMeta ^. #delegation) pid
 
+    let certs = getRequiredCertificates walMeta
     selection <- withExceptT ErrJoinStakePoolSelectCoin $
-        selectCoinsForDelegation @ctx @s @t @k ctx wid
+        selectCoinsForDelegation @ctx @s @t @k ctx wid certs
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
         signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection (Join pid)
@@ -1618,6 +1635,15 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+
+    getRequiredCertificates (WalletMetadata _ _ _ wDeleg) =
+        case wDeleg of
+            (WalletDelegation NotDelegating []) ->
+                [ PoolDelegationCertificate
+                , KeyRegistrationCertificate
+                ]
+            _ ->
+                [PoolDelegationCertificate]
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
@@ -1643,8 +1669,9 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     withExceptT ErrQuitStakePoolCannotQuit $ except $
         guardQuit (walMeta ^. #delegation)
 
+    let certs = [KeyDeRegistrationCertificate]
     selection <- withExceptT ErrQuitStakePoolSelectCoin $
-        selectCoinsForDelegation @ctx @s @t @k ctx wid
+        selectCoinsForDelegation @ctx @s @t @k ctx wid certs
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrQuitStakePoolSignDelegation $
         signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection Quit

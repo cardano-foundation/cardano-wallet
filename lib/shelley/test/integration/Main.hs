@@ -67,7 +67,7 @@ import Cardano.Wallet.Shelley.Launch
 import Cardano.Wallet.Shelley.Transaction
     ( _minimumFee )
 import Cardano.Wallet.Transaction
-    ( WithDelegation (..) )
+    ( Certificate (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -239,13 +239,16 @@ mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
     PaymentDescription i o c ->
         let
-            fee = computeFee (dummySelection i o c) (WithDelegation False)
+            fee = computeFee (dummySelection i o c) []
         in
             ( fee, fee )
 
     DelegDescription i o _ ->
         let
-            fee = computeFee (dummySelection i o 0) (WithDelegation True)
+            fee = computeFee (dummySelection i o 0)
+                    [ PoolDelegationCertificate
+                    , KeyRegistrationCertificate
+                    ]
         in
             ( fee, fee )
   where

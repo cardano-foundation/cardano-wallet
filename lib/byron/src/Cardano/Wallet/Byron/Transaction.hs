@@ -42,21 +42,19 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , GenesisParameters (..)
     , Hash (..)
-    , PoolId
     , ProtocolMagic (..)
     , SealedTx (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , WalletDelegation
     )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..)
+    ( Certificate (..)
+    , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
-    , WithDelegation (..)
     )
 import Control.Arrow
     ( second )
@@ -135,7 +133,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 
     _minimumFee
         :: FeePolicy
-        -> WithDelegation
+        -> [Certificate]
         -> CoinSelection
         -> Fee
     _minimumFee policy _ (CoinSelection inps outs chngs) =
@@ -187,25 +185,9 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
                 , SealedTx bytes
                 )
 
-    _mkDelegationJoinTx
-        :: WalletDelegation
-        -> PoolId
-        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
-        -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx =
         notImplemented "mkDelegationJoinTx"
 
-    _mkDelegationQuitTx
-        :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
-        -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationQuitTx =
         notImplemented "mkDelegationQuitTx"
 

@@ -17,7 +17,7 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
-    , WithDelegation (..)
+    , Certificate (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -70,13 +70,24 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: WalletDelegation
+        :: FeePolicy
+            -- Latest fee policy
+        -> WalletDelegation
+            -- Wallet current delegation status
         -> PoolId
-        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+            -- Pool Id to which we're planning to delegate
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            --  Resolved inputs
         -> [TxOut]
+            -- Outputs
+        -> [TxOut]
+            -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
@@ -86,20 +97,29 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+        :: FeePolicy
+            -- Latest fee policy
+        -> (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
+            -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
+            -- Resolved inputs
         -> [TxOut]
+            -- Outputs
+        -> [TxOut]
+            -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.
         --
         -- The certificate is the public key of the reward account.
 
-    , minimumFee :: FeePolicy -> WithDelegation -> CoinSelection -> Fee
+    , minimumFee :: FeePolicy -> [Certificate] -> CoinSelection -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
-        -- coin-selection. 'WithDelegation' can be used to communicate whether
+        -- coin-selection. '[Certificate]' can be used to communicate whether
         -- or not the transaction carries (un)delegation certificates.
 
     , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
@@ -143,11 +163,18 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-newtype ErrMkTx
+data ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
+    | ErrChangeIsEmptyForRetirement
+    -- ^ When retiring on Shelley, we need to add a deposit amount made when
+    -- creating a stake key. This requires at least one change output, which
+    -- ought to be present anyway by construction of the coin selection when
+    -- quitting delegation.
     deriving (Eq, Show)
 
-newtype WithDelegation
-    = WithDelegation Bool
+data Certificate
+    = PoolDelegationCertificate
+    | KeyRegistrationCertificate
+    | KeyDeRegistrationCertificate
     deriving (Eq, Show)
