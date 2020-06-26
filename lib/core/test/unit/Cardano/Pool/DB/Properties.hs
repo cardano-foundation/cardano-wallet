@@ -70,7 +70,15 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Positive (..), Property, classify, counterexample, property )
+    ( Positive (..)
+    , Property
+    , classify
+    , counterexample
+    , property
+    , vector
+    , withMaxSuccess
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 
@@ -142,6 +150,10 @@ properties = do
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
             (property . prop_unfetchedPoolMetadataRefs)
+        it "unfetchedPoolMetadataRefsIgnoring"
+            (property . prop_unfetchedPoolMetadataRefsIgnoring)
+        it "unfetchedPoolMetadataRefsIgnoreMany"
+            (property . prop_unfetchedPoolMetadataRefsIgnoreMany)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -477,7 +489,7 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
 
     propWellFormedResult = do
         let hashes = snd <$> mapMaybe poolMetadata entries
-        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10 []
         monitor $ counterexample $ unlines
             [ "Read from DB (" <> show (length refs) <> "): " <> show refs
             ]
@@ -489,17 +501,53 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
             (L.nub refs == refs)
 
     propInteractionWithPutPoolMetadata = do
-        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10 []
         unless (null refs) $ do
             let [(url, hash)] = take 1 refs
             metadata <- pick $ genStakePoolMetadata url
             run . atomically $ putPoolMetadata hash metadata
-            refs' <- run . atomically $ unfetchedPoolMetadataRefs 10
+            refs' <- run . atomically $ unfetchedPoolMetadataRefs 10 []
             monitor $ counterexample $ unlines
                 [ "Read from DB (" <> show (length refs') <> "): " <> show refs'
                 ]
             assertWith "fetching metadata removes it from unfetchedPoolMetadataRefs"
                 (hash `notElem` (snd <$> refs'))
+
+prop_unfetchedPoolMetadataRefsIgnoring
+    :: DBLayer IO
+    -> [PoolRegistrationCertificate]
+    -> Property
+prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
+    length hashes >= 2 ==> monadicIO (setup >> propIgnoredMetadataRefs)
+  where
+    hashes = snd <$> mapMaybe poolMetadata entries
+
+    setup = do
+        run . atomically $ cleanDB
+        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
+
+    propIgnoredMetadataRefs = do
+        let ignored = head hashes
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10 [ignored]
+        monitor $ counterexample $ unlines
+            [ "Read from DB (" <> show (length refs) <> "): " <> show refs
+            ]
+        assertWith "ignored hashes are ignored"
+            (ignored `notElem` (snd <$> refs))
+
+prop_unfetchedPoolMetadataRefsIgnoreMany
+    :: DBLayer IO
+    -> Property
+prop_unfetchedPoolMetadataRefsIgnoreMany DBLayer{..} =
+    withMaxSuccess 1 $ monadicIO (setup >> prop)
+  where
+    setup = run . atomically $ cleanDB
+    prop  = do
+        ignored <- pick $ vector 10000
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10 ignored
+        assertWith "SQLite can handle MANY hashes to ignore and does not throw"
+            (null refs)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent
