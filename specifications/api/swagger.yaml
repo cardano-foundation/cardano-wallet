@@ -1790,16 +1790,6 @@ x-tagGroups:
 
 paths:
   /wallets:
-    get:
-      operationId: listWallets
-      tags: ["Wallets"]
-      summary: List
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Return a list of known wallets, ordered from oldest to newest.
-      responses: *responsesListWallets
-
     post:
       operationId: postWallet
       tags: ["Wallets"]
@@ -1815,41 +1805,15 @@ paths:
             schema: *ApiWalletOrAccountPostData
       responses: *responsesPostWallet
 
-  /wallets/{walletId}:
     get:
-      operationId: getWallet
+      operationId: listWallets
       tags: ["Wallets"]
-      summary: Get
+      summary: List
       description: |
         <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      responses: *responsesGetWallet
 
-    delete:
-      operationId: deleteWallet
-      tags: ["Wallets"]
-      summary: Delete
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      responses: *responsesDeleteWallet
-
-    put:
-      operationId: putWallet
-      tags: ["Wallets"]
-      summary: Update Metadata
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiWalletPutData
-      responses: *responsesPutWallet
+        Return a list of known wallets, ordered from oldest to newest.
+      responses: *responsesListWallets
 
   /wallets/{walletId}/statistics/utxos:
     get:
@@ -1879,6 +1843,42 @@ paths:
         - *parametersWalletId
       responses: *responsesGetUTxOsStatistics
 
+  /wallets/{walletId}:
+    get:
+      operationId: getWallet
+      tags: ["Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWallet
+
+    put:
+      operationId: putWallet
+      tags: ["Wallets"]
+      summary: Update Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutData
+      responses: *responsesPutWallet
+
+    delete:
+      operationId: deleteWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
   /wallets/{walletId}/passphrase:
     put:
       operationId: putWalletPassphrase
@@ -1894,39 +1894,6 @@ paths:
           application/json:
             schema: *ApiWalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
-
-  /wallets/{walletId}/transactions:
-    get:
-      operationId: listTransactions
-      tags: ["Transactions"]
-      summary: List
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Lists all incoming and outgoing wallet's transactions.
-      parameters:
-        - *parametersWalletId
-        - *parametersStartDate
-        - *parametersEndDate
-        - *parametersSortOrder
-      responses: *responsesListTransactions
-
-    post:
-      operationId: postTransaction
-      tags: ["Transactions"]
-      summary: Create
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Create and send transaction from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiPostTransactionData
-      responses: *responsesPostTransaction
 
   /wallets/{walletId}/payment-fees:
     post:
@@ -1951,7 +1918,53 @@ paths:
             schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
+  /wallets/{walletId}/transactions:
+    post:
+      operationId: postTransaction
+      tags: ["Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+    get:
+      operationId: listTransactions
+      tags: ["Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Lists all incoming and outgoing wallet's transactions.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
   /wallets/{walletId}/transactions/{transactionId}:
+    get:
+      operationId: getTransaction
+      tags: ["Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
+
     delete:
       operationId: deleteTransaction
       tags: ["Transactions"]
@@ -1968,19 +1981,6 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
-
-    get:
-      operationId: getTransaction
-      tags: ["Transactions"]
-      summary: Get
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Get transaction by id.
-      parameters:
-        - *parametersWalletId
-        - *parametersTransactionId
-      responses: *responsesGetTransaction
 
   /wallets/{walletId}/addresses:
     get:
@@ -2015,6 +2015,22 @@ paths:
       parameters:
         - *parametersIntendedStakeAmount
       responses: *responsesListStakePools
+
+  /wallets/{walletId}/delegation-fees:
+    get:
+      operationId: getDelegationFee
+      tags: ["Stake Pools"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for joining or leaving a stake pool. Note that it is an
+        estimation because a delegation induces a transaction for which coins
+        have to be selected randomly within the wallet. Because of this randomness,
+        fees can only be estimated.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetDelegationFee
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
     put:
@@ -2061,22 +2077,6 @@ paths:
             schema: *ApiWalletPassphrase
       responses: *responsesQuitStakePool
 
-  /wallets/{walletId}/delegation-fees:
-    get:
-      operationId: getDelegationFee
-      tags: ["Stake Pools"]
-      summary: Estimate Fee
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Estimate fee for joining or leaving a stake pool. Note that it is an
-        estimation because a delegation induces a transaction for which coins
-        have to be selected randomly within the wallet. Because of this randomness,
-        fees can only be estimated.
-      parameters:
-        - *parametersWalletId
-      responses: *responsesGetDelegationFee
-
   /wallets/{walletId}/coin-selections/random:
     post:
       operationId: selectCoins
@@ -2099,20 +2099,6 @@ paths:
       responses: *responsesSelectCoins
 
   /wallets/{walletId}/migrations:
-    get:
-      operationId: getShelleyWalletMigrationInfo
-      tags: ["Migrations"]
-      summary: Calculate Cost
-      description: |
-        <p align="right">status: <strong>in development</strong></p>
-
-        Calculate the exact cost of sending all funds from particular Shelley wallet
-        to a set of addresses.
-      parameters:
-        - <<: *parametersWalletId
-          name: walletId
-      responses: *responsesGetWalletMigrationInfo
-
     post:
       operationId: migrateShelleyWallet
       tags: ["Migrations"]
@@ -2139,17 +2125,21 @@ paths:
             schema: *ApiShelleyWalletMigrationPostData
       responses: *responsesMigrateWallet
 
-  /byron-wallets:
     get:
-      operationId: listByronWallets
-      tags: ["Byron Wallets"]
-      summary: List
+      operationId: getShelleyWalletMigrationInfo
+      tags: ["Migrations"]
+      summary: Calculate Cost
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>in development</strong></p>
 
-        Return a list of known Byron wallets, ordered from oldest to newest.
-      responses: *responsesListByronWallets
+        Calculate the exact cost of sending all funds from particular Shelley wallet
+        to a set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
 
+  /byron-wallets:
     post:
       operationId: postByronWallet
       tags: ["Byron Wallets"]
@@ -2178,255 +2168,15 @@ paths:
                   title: icarus/trezor/ledger (from xpub)
       responses: *responsesPostByronWallet
 
-  /byron-wallets/{walletId}:
     get:
-      operationId: getByronWallet
+      operationId: listByronWallets
       tags: ["Byron Wallets"]
-      summary: Get
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Return information about a Byron wallet.
-      parameters:
-        - *parametersWalletId
-      responses: *responsesGetByronWallet
-
-    delete:
-      operationId: deleteByronWallet
-      tags: ["Byron Wallets"]
-      summary: Delete
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Delete a Byron wallet.
-      parameters:
-        - *parametersWalletId
-      responses: *responsesDeleteWallet
-
-    put:
-      operationId: putByronWallet
-      tags: ["Byron Wallets"]
-      summary: Update Metadata
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiWalletPutData
-      responses: *responsesPutWallet
-
-  /byron-wallets/{walletId}/passphrase:
-    put:
-      operationId: putByronWalletPassphrase
-      tags: ["Byron Wallets"]
-      summary: Update Passphrase
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiByronWalletPutPassphraseData
-      responses: *responsesPutWalletPassphrase
-
-  /byron-wallets/{walletId}/addresses:
-      get:
-        operationId: listByronAddresses
-        tags: ["Byron Addresses"]
-        summary: List
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
-          Arbitrarily ordered for random wallets.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressState
-        responses: *responsesListAddresses
-
-      post:
-        operationId: createAddress
-        tags: ["Byron Addresses"]
-        summary: Create Address
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema: *ApiPostRandomAddressData
-        responses: *responsesPostRandomAddress
-
-  /byron-wallets/{walletId}/addresses/{addressId}:
-      put:
-        operationId: importAddress
-        tags: ["Byron Addresses"]
-        summary: Import Address
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressId
-        responses: *responsesPutRandomAddress
-
-  /byron-wallets/{walletId}/transactions:
-    get:
-      operationId: listByronTransactions
-      tags: ["Byron Transactions"]
       summary: List
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        List all incoming and outgoing transactions for the given wallet.
-      parameters:
-        - *parametersWalletId
-        - *parametersStartDate
-        - *parametersEndDate
-        - *parametersSortOrder
-      responses: *responsesListTransactions
-
-    post:
-      operationId: postByronTransaction
-      tags: ["Byron Transactions"]
-      summary: Create
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Create and send transaction from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-          required: true
-          content:
-            application/json:
-              schema: *ApiPostTransactionData
-      responses: *responsesPostTransaction
-
-  /byron-wallets/{walletId}/payment-fees:
-    post:
-      operationId: postByronTransactionFee
-      tags: ["Byron Transactions"]
-      summary: Estimate Fee
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Estimate fee for the transaction.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiPostTransactionFeeData
-      responses: *responsesPostTransactionFee
-
-  /byron-wallets/{walletId}/transactions/{transactionId}:
-    delete:
-      operationId: deleteByronTransaction
-      tags: ["Byron Transactions"]
-      summary: Forget
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Forget pending Byron transaction. Importantly, a transaction, when sent,
-        cannot be cancelled. One can only request forgetting about it
-        in order to try spending (concurrently) the same UTxO in another
-        transaction. But, the transaction may still show up later in a block
-        and therefore, appear in the wallet.
-      parameters:
-        - *parametersWalletId
-        - *parametersTransactionId
-      responses: *responsesDeleteTransaction
-
-    get:
-      operationId: getByronTransaction
-      tags: ["Byron Transactions"]
-      summary: Get
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Get transaction by id.
-      parameters:
-        - *parametersWalletId
-        - *parametersTransactionId
-      responses: *responsesGetTransaction
-
-  /byron-wallets/{walletId}/coin-selections/random:
-    post:
-      operationId: byronSelectCoins
-      tags: ["Byron Coin Selections"]
-      summary: Random
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Select coins to cover the given set of payments.
-
-        Uses the <a href="https://iohk.io/blog/self-organisation-in-coin-selection/">
-        Random-Improve coin selection algorithm</a>.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiSelectCoinsData
-      responses: *responsesSelectCoins
-
-  /byron-wallets/{walletId}/migrations:
-    get:
-      operationId: getByronWalletMigrationInfo
-      tags: ["Byron Migrations"]
-      summary: Calculate Cost
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Calculate the exact cost of sending all funds from particular Byron wallet to
-        a set of addresses.
-      parameters:
-        - <<: *parametersWalletId
-          name: walletId
-      responses: *responsesGetWalletMigrationInfo
-
-    post:
-      operationId: migrateByronWallet
-      tags: ["Byron Migrations"]
-      summary: Migrate
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Submit one or more transactions which transfers all funds from a Byron
-        wallet to a set of addresses.
-
-        This operation attempts to preserve the UTxO "shape" of a wallet as far as possible.
-        That is, coins will not be agglomerated. Therefore, if the wallet has
-        a large UTxO set, several transactions may be needed.
-
-        A typical usage would be when one wants to move all funds from an old wallet to another (Shelley
-        or Byron) by providing addresses coming from the new wallet.
-      parameters:
-        - <<: *parametersWalletId
-          name: walletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiByronWalletMigrationPostData
-      responses: *responsesMigrateWallet
+        Return a list of known Byron wallets, ordered from oldest to newest.
+      responses: *responsesListByronWallets
 
   /byron-wallets/{walletId}/statistics/utxos:
     get:
@@ -2455,6 +2205,256 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesGetUTxOsStatistics
+
+  /byron-wallets/{walletId}:
+    get:
+      operationId: getByronWallet
+      tags: ["Byron Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return information about a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetByronWallet
+
+    put:
+      operationId: putByronWallet
+      tags: ["Byron Wallets"]
+      summary: Update Metadata
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPutData
+      responses: *responsesPutWallet
+
+    delete:
+      operationId: deleteByronWallet
+      tags: ["Byron Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Delete a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+  /byron-wallets/{walletId}/passphrase:
+    put:
+      operationId: putByronWalletPassphrase
+      tags: ["Byron Wallets"]
+      summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiByronWalletPutPassphraseData
+      responses: *responsesPutWalletPassphrase
+
+  /byron-wallets/{walletId}/addresses:
+      post:
+        operationId: createAddress
+        tags: ["Byron Addresses"]
+        summary: Create Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostRandomAddressData
+        responses: *responsesPostRandomAddress
+
+      get:
+        operationId: listByronAddresses
+        tags: ["Byron Addresses"]
+        summary: List
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
+          Arbitrarily ordered for random wallets.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressState
+        responses: *responsesListAddresses
+
+  /byron-wallets/{walletId}/addresses/{addressId}:
+      put:
+        operationId: importAddress
+        tags: ["Byron Addresses"]
+        summary: Import Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressId
+        responses: *responsesPutRandomAddress
+
+  /byron-wallets/{walletId}/payment-fees:
+    post:
+      operationId: postByronTransactionFee
+      tags: ["Byron Transactions"]
+      summary: Estimate Fee
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for the transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionFeeData
+      responses: *responsesPostTransactionFee
+
+  /byron-wallets/{walletId}/transactions:
+    post:
+      operationId: postByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+    get:
+      operationId: listByronTransactions
+      tags: ["Byron Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        List all incoming and outgoing transactions for the given wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
+  /byron-wallets/{walletId}/transactions/{transactionId}:
+    get:
+      operationId: getByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
+
+    delete:
+      operationId: deleteByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Forget
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Forget pending Byron transaction. Importantly, a transaction, when sent,
+        cannot be cancelled. One can only request forgetting about it
+        in order to try spending (concurrently) the same UTxO in another
+        transaction. But, the transaction may still show up later in a block
+        and therefore, appear in the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesDeleteTransaction
+
+  /byron-wallets/{walletId}/coin-selections/random:
+    post:
+      operationId: byronSelectCoins
+      tags: ["Byron Coin Selections"]
+      summary: Random
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Select coins to cover the given set of payments.
+
+        Uses the <a href="https://iohk.io/blog/self-organisation-in-coin-selection/">
+        Random-Improve coin selection algorithm</a>.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSelectCoinsData
+      responses: *responsesSelectCoins
+
+  /byron-wallets/{walletId}/migrations:
+    post:
+      operationId: migrateByronWallet
+      tags: ["Byron Migrations"]
+      summary: Migrate
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Submit one or more transactions which transfers all funds from a Byron
+        wallet to a set of addresses.
+
+        This operation attempts to preserve the UTxO "shape" of a wallet as far as possible.
+        That is, coins will not be agglomerated. Therefore, if the wallet has
+        a large UTxO set, several transactions may be needed.
+
+        A typical usage would be when one wants to move all funds from an old wallet to another (Shelley
+        or Byron) by providing addresses coming from the new wallet.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiByronWalletMigrationPostData
+      responses: *responsesMigrateWallet
+
+    get:
+      operationId: getByronWalletMigrationInfo
+      tags: ["Byron Migrations"]
+      summary: Calculate Cost
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Calculate the exact cost of sending all funds from particular Byron wallet to
+        a set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
 
   /network/information:
     get:
