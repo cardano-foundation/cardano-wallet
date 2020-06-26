@@ -59,6 +59,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromNonMyopicMemberRewards
     , fromPParams
     , fromPoolDistr
+    , fromShelleyHash
     , fromSlotNo
     , fromTip
     , fromTip'
@@ -146,20 +147,24 @@ import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
     , Tip (..)
+    , blockPoint
     , castTip
     , genesisPoint
+    , getPoint
     , getTipPoint
     , pointHash
     , pointSlot
     )
 import Ouroboros.Network.Client.Wallet
     ( ChainSyncCmd (..)
+    , ChainSyncLog (..)
     , LocalStateQueryCmd (..)
     , LocalTxSubmissionCmd (..)
     , chainSyncFollowTip
     , chainSyncWithBlocks
     , localStateQuery
     , localTxSubmission
+    , mapChainSyncLog
     , send
     )
 import Ouroboros.Network.CodecCBORTerm
@@ -186,7 +191,7 @@ import Ouroboros.Network.NodeToClient
     , withIOManager
     )
 import Ouroboros.Network.Point
-    ( fromWithOrigin )
+    ( WithOrigin (..), fromWithOrigin )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
@@ -211,6 +216,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 
@@ -291,7 +297,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient gp chainSyncQ
+        client <- mkWalletClient (contramap MsgChainSyncCmd tr) gp chainSyncQ
         let handlers = failOnConnectionLost tr
         thread <- async (connectClient tr handlers client versionData addrInfo)
         link thread
@@ -438,19 +444,20 @@ type NetworkClient m = OuroborosApplication
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => W.GenesisParameters
+    => Tracer m (ChainSyncLog Text Text)
+    -> W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd ShelleyBlock m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
-mkWalletClient gp chainSyncQ = do
+mkWalletClient tr gp chainSyncQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 runPipelinedPeer nullTracer (cChainSyncCodec codecs) channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks (fromTip' gp) chainSyncQ stash
+                $ chainSyncWithBlocks tr' (fromTip' gp) chainSyncQ stash
 
         , localTxSubmissionProtocol =
             doNothingProtocol
@@ -459,6 +466,18 @@ mkWalletClient gp chainSyncQ = do
             doNothingProtocol
         })
         NodeToClientV_2
+  where
+    tr' = contramap (mapChainSyncLog showB showP) tr
+    showB = showP . blockPoint
+    showP p = case (getPoint p) of
+        Origin -> "Origin"
+        At blk -> mconcat
+            [ "(slotNo "
+            , T.pack $ show $ unSlotNo $ Point.blockPointSlot blk
+            , ", "
+            , pretty $ fromShelleyHash $ Point.blockPointHash blk
+            , ")"
+            ]
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -731,6 +750,7 @@ data NetworkLayerLog
         -- ^ Number of pools in stake distribution, and rewards map,
         -- respectively.
     | MsgWatcherUpdate W.BlockHeader BracketLog
+    | MsgChainSyncCmd (ChainSyncLog Text Text)
 
 data QueryClientName
     = TipSyncClient
@@ -812,6 +832,7 @@ instance ToText NetworkLayerLog where
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: " <> pretty tip <>
             ". Callback " <> toText b <> "."
+        MsgChainSyncCmd a -> toText a
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -837,3 +858,4 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgFetchedNodePoolLsqData{}        -> Debug
         MsgFetchedNodePoolLsqDataSummary{} -> Info
         MsgWatcherUpdate{}                 -> Debug
+        MsgChainSyncCmd cmd              -> getSeverityAnnotation cmd
