@@ -215,18 +215,17 @@ combineDbAndLsqData =
         = Api.ApiStakePool
         { Api.id = (ApiT pid)
         , Api.metrics = Api.ApiStakePoolMetrics
-            { Api.nonMyopicMemberRewards = mapQ fromIntegral prew
+            { Api.nonMyopicMemberRewards = fmap fromIntegral prew
             , Api.relativeStake = Quantity pstk
             , Api.saturation = psat
             , Api.producedBlocks = maybe (Quantity 0)
-                    (mapQ fromIntegral . nProducedBlocks) dbData
+                    (fmap fromIntegral . nProducedBlocks) dbData
             }
         , Api.metadata = dbData >>= metadata >>= (return . ApiT)
-        , Api.cost = mapQ fromIntegral . poolCost . regCert <$> dbData
+        , Api.cost = fmap fromIntegral . poolCost . regCert <$> dbData
+        , Api.pledge = fmap fromIntegral . poolPledge . regCert <$> dbData
         , Api.margin = Quantity . poolMargin . regCert <$> dbData
         }
-
-    mapQ f (Quantity x) = Quantity $ f x
 
 -- | Combines all the LSQ data into a single map.
 --

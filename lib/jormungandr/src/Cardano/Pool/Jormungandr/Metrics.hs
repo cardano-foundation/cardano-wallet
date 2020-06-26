@@ -366,6 +366,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
                     , performance
                     , cost = poolCost
                     , margin = poolMargin
+                    , pledge = Quantity 0 -- 'pledge' only exists in cardano-node's realm
                     , saturation =
                         Ranking.saturation epConstants totalStake stake
                     , desirability =

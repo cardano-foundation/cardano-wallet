@@ -584,6 +584,7 @@ data StakePool = StakePool
     , desirability :: Double
     , cost :: Quantity "lovelace" Word64
     , margin :: Percentage
+    , pledge :: Quantity "lovelace" Word64
     , saturation :: Double
     } deriving (Show, Generic)
 
