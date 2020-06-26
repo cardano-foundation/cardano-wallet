@@ -22,6 +22,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (ApiTxId)
     , ApiUtxoStatistics
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -194,6 +195,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
 
     -- ACTION
     r <- postByronTransaction @n ctx wSrc payments fixturePassphrase
+    let txid = getFromResponse #id r
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -238,8 +240,26 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
             , expectListField 10 (#status . #getApiT) (`shouldBe` InLedger)
             , expectListField 10 #depth (`shouldNotBe` Nothing)
             ]
+        -- Verify one can get incoming tx by ID from dst wallet
+        let linkInc = Link.getTransaction @'Byron wDest (ApiTxId txid)
+        rInc <- request @(ApiTransaction n) ctx linkInc Default Empty
+        verify rInc
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+    -- Verify one can get outgoing tx by ID from src wallet
+    let linkOut = Link.getTransaction @'Byron wSrc (ApiTxId txid)
+    rOut <- request @(ApiTransaction n) ctx linkOut Default Empty
+    verify rOut
+        [ expectResponseCode HTTP.status200
+        , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+        , expectField (#status . #getApiT) (`shouldBe` InLedger)
+        ]
+
   where
-    title = "TRANS_CREATE_01/02 - " ++ show n ++ " recipient(s)"
+    title = "TRANS_CREATE_01/02, TRANS_GET_01 - " ++ show n ++ " recipient(s)"
     n = fromIntegral $ length fixtures
 
 scenario_TRANS_ESTIMATE_01_02
