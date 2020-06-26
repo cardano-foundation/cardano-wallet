@@ -42,6 +42,8 @@ import Data.List
     ( sortOn )
 import Data.Maybe
     ( mapMaybe )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -446,6 +448,14 @@ spec = do
 
     let listPools ctx = request @[ApiStakePool] @IO ctx (Link.listStakePools arbitraryStake) Default Empty
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
+        -- TODO: Add a /short/ eventually (not currently possible) as this test
+        -- fails when run in isolation.
+        --
+        -- When run immediately after the stake-pool are setup, the chain-sync
+        -- tip hasn't caught up with the epoch when they first exist.
+        --
+        -- A simple threadDelay could be added either here, in the test setup
+        -- also.
         it "immediately has non-zero saturation & stake" $ \ctx -> do
             r <- listPools ctx
             expectResponseCode HTTP.status200 r
@@ -494,9 +504,6 @@ spec = do
                         #pledge (`shouldBe` Just (Quantity oneMillionAda))
                     , expectListField 2
                         #pledge (`shouldBe` Just (Quantity oneMillionAda))
-
-                    -- TODO: Test that we have non-zero non-myopic member
-                    -- rewards, and sort by it.
                     ]
 
         it "at least one pool eventually produces block" $ \ctx -> do
@@ -542,6 +549,14 @@ spec = do
                         sortOn name ( mapMaybe (fmap getApiT . view #metadata) pools)
                         `shouldBe` metadataList
                     ]
+
+        it "contains and is sorted by non-myopic-rewards" $ \ctx -> do
+            eventually "eventually shows non-zero rewards" $ do
+                Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx
+                let rewards = view (#metrics . #nonMyopicMemberRewards)
+                pools `shouldBe` sortOn (Down . rewards) pools
+                -- Make sure the rewards are not all equal:
+                rewards pool1 .> rewards pool3
 
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
         r <- request @[ApiStakePool] @IO ctx
