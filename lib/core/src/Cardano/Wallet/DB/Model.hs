@@ -57,6 +57,7 @@ module Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mPutProtocolParameters
     , mReadProtocolParameters
+    , mCheckWallet
     ) where
 
 import Prelude
@@ -213,6 +214,12 @@ mRemoveWallet :: Ord wid => wid -> ModelOp wid s xprv ()
 mRemoveWallet wid db@Database{wallets,txs}
     | wid `Map.member` wallets =
         (Right (), Database (Map.delete wid wallets) txs)
+    | otherwise = (Left (NoSuchWallet wid), db)
+
+mCheckWallet :: Ord wid => wid -> ModelOp wid s xprv ()
+mCheckWallet wid db@Database{wallets}
+    | wid `Map.member` wallets =
+        (Right (), db)
     | otherwise = (Left (NoSuchWallet wid), db)
 
 mListWallets :: Ord wid => ModelOp wid s xprv [wid]

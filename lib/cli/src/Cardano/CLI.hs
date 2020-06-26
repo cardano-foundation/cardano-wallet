@@ -682,6 +682,7 @@ cmdTransaction mkTxClient mkWalletClient =
         <> cmdTransactionList mkTxClient
         <> cmdTransactionSubmit mkTxClient
         <> cmdTransactionForget mkTxClient
+        <> cmdTransactionGet mkTxClient
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -817,6 +818,29 @@ cmdTransactionForget mkClient =
         <*> transactionIdArgument
     exec (TransactionForgetArgs wPort wId txId) = do
         runClient wPort (const mempty) $ deleteTransaction mkClient
+            (ApiT wId)
+            (ApiTxId $ ApiT $ getTxId txId)
+
+-- | Arguments for 'transaction get' command
+data TransactionGetArgs = TransactionGetArgs
+    { _port :: Port "Wallet"
+    , _wid :: WalletId
+    , _txid :: TxId
+    }
+
+cmdTransactionGet
+    :: TransactionClient
+    -> Mod CommandFields (IO ())
+cmdTransactionGet mkClient =
+    command "get" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Get a transaction with specified id."
+  where
+    cmd = fmap exec $ TransactionGetArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> transactionIdArgument
+    exec (TransactionGetArgs wPort wId txId) = do
+        runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
 

@@ -62,6 +62,7 @@ module Cardano.Wallet.Api.Link
     , listTransactions'
     , getTransactionFee
     , deleteTransaction
+    , getTransaction
 
       -- * StakePools
     , listStakePools
@@ -369,6 +370,23 @@ deleteTransaction
 deleteTransaction w t = discriminate @style
     (endpoint @Api.DeleteTransaction mkURL)
     (endpoint @Api.DeleteByronTransaction mkURL)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+    tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
+    mkURL mk = mk wid tid
+
+getTransaction
+    :: forall (style :: WalletStyle) w t.
+        ( Discriminate style
+        , HasType (ApiT WalletId) w
+        , HasType (ApiT (Hash "Tx")) t
+        )
+    => w
+    -> t
+    -> (Method, Text)
+getTransaction w t = discriminate @style
+    (endpoint @(Api.GetTransaction Net) mkURL)
+    (endpoint @(Api.GetByronTransaction Net) mkURL)
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))

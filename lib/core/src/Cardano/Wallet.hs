@@ -134,6 +134,7 @@ module Cardano.Wallet
     -- ** Transaction
     , forgetPendingTx
     , listTransactions
+    , getTransaction
     , submitExternalTx
     , signTx
     , submitTx
@@ -144,6 +145,8 @@ module Cardano.Wallet
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
     , ErrListTransactions (..)
+    , ErrGetTransaction (..)
+    , ErrNoSuchTransaction (..)
     , ErrNetworkUnavailable (..)
     , ErrCurrentNodeTip (..)
     , ErrStartTimeLaterThanEndTime (..)
@@ -1551,6 +1554,27 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
         _ ->
             pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
 
+-- | Get transaction and metadata from history for a given wallet.
+getTransaction
+    :: forall ctx s k. HasDBLayer s k ctx
+    => ctx
+    -> WalletId
+    -> Hash "Tx"
+    -> ExceptT ErrGetTransaction IO TransactionInfo
+getTransaction ctx wid tid = db & \DBLayer{..} -> do
+    let pk = PrimaryKey wid
+    res <- lift $ atomically $ runExceptT $ getTx pk tid
+    case res of
+        Left err -> do
+            throwE (ErrGetTransactionNoSuchWallet err)
+        Right Nothing -> do
+            let err' = ErrNoSuchTransaction tid
+            throwE (ErrGetTransactionNoSuchTransaction err')
+        Right (Just tx) ->
+            pure tx
+  where
+    db = ctx ^. dbLayer @s @k
+
 {-------------------------------------------------------------------------------
                                   Delegation
 -------------------------------------------------------------------------------}
@@ -1852,6 +1876,16 @@ data ErrWithRootKey
 data ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
     | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    deriving (Show, Eq)
+
+-- | Errors that can occur when trying to get transaction.
+data ErrGetTransaction
+    = ErrGetTransactionNoSuchWallet ErrNoSuchWallet
+    | ErrGetTransactionNoSuchTransaction ErrNoSuchTransaction
+    deriving (Show, Eq)
+
+-- | Indicates that the specified transaction hash is not found.
+newtype ErrNoSuchTransaction = ErrNoSuchTransaction (Hash "Tx")
     deriving (Show, Eq)
 
 -- | Indicates that the specified start time is later than the specified end

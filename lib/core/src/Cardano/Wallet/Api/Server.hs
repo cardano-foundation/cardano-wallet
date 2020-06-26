@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Server
     , joinStakePool
     , listAddresses
     , listTransactions
+    , getTransaction
     , listWallets
     , migrateWallet
     , postExternalTransaction
@@ -98,11 +99,13 @@ import Cardano.Wallet
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
+    , ErrGetTransaction (..)
     , ErrImportRandomAddress (..)
     , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
@@ -1156,19 +1159,30 @@ listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
-    -- Populate an API transaction record with 'TransactionInfo' from the wallet
-    -- layer.
-    mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction n
-    mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
-        case meta ^. #status of
-            Pending  -> apiTx
-            InLedger -> apiTx { depth = Just depth  }
-      where
-        drop2nd (a,_,c) = (a,c)
-        apiTx = mkApiTransaction txid (drop2nd <$> ins) outs (meta, txtime) $
-            case meta ^. #status of
-                Pending  -> #pendingSince
-                InLedger -> #insertedAt
+getTransaction
+    :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
+    => ctx
+    -> ApiT WalletId
+    -> ApiTxId
+    -> Handler (ApiTransaction n)
+getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
+    tx <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.getTransaction wrk wid tid
+    return $ mkApiTransactionFromInfo tx
+
+-- Populate an API transaction record with 'TransactionInfo' from the wallet
+-- layer.
+mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction n
+mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+    case meta ^. #status of
+        Pending  -> apiTx
+        InLedger -> apiTx { depth = Just depth  }
+  where
+      drop2nd (a,_,c) = (a,c)
+      apiTx = mkApiTransaction txid (drop2nd <$> ins) outs (meta, txtime) $
+          case meta ^. #status of
+              Pending  -> #pendingSince
+              InLedger -> #insertedAt
 
 apiFee :: FeeEstimation -> ApiFee
 apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
@@ -1989,6 +2003,19 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , toText $ Iso8601Time $ errEndTime err
         , "'."
         ]
+
+instance LiftHandler ErrGetTransaction where
+    handler = \case
+        ErrGetTransactionNoSuchWallet e -> handler e
+        ErrGetTransactionNoSuchTransaction e -> handler e
+
+instance LiftHandler ErrNoSuchTransaction where
+    handler = \case
+        ErrNoSuchTransaction tid ->
+            apiError err404 NoSuchTransaction $ mconcat
+                [ "I couldn't find a transaction with the given id: "
+                , toText tid
+                ]
 
 instance LiftHandler ErrCurrentNodeTip where
     handler = \case

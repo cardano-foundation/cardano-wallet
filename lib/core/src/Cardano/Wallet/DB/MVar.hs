@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -31,6 +33,7 @@ import Cardano.Wallet.DB.Model
     , ErrErasePendingTx (..)
     , ModelOp
     , emptyDatabase
+    , mCheckWallet
     , mInitializeWallet
     , mListCheckpoints
     , mListWallets
@@ -52,7 +55,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, WalletId )
+    ( Hash, SortOrder (..), TransactionInfo (..), WalletId, wholeRange )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, withMVar )
 import Control.DeepSeq
@@ -122,6 +125,16 @@ newDBLayer = do
 
         , readTxHistory = \pk order range mstatus ->
             readDB db (mReadTxHistory pk order range mstatus)
+
+        , getTx = \pk tid -> ExceptT $
+            alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
+                Left err -> pure $ Left err
+                Right _ -> do
+                    txInfos <- readDB db (mReadTxHistory pk Descending wholeRange Nothing)
+                    let txPresent (TransactionInfo{..}) = txInfoId == tid
+                    case filter txPresent txInfos of
+                        [] -> pure $ Right Nothing
+                        t:_ -> pure $ Right $ Just t
 
         {-----------------------------------------------------------------------
                                        Keystore

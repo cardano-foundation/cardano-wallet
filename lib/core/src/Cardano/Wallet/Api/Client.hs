@@ -156,6 +156,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiTxId
         -> ClientM NoContent
+    , getTransaction
+        :: ApiT WalletId
+        -> ApiTxId
+        -> ClientM (ApiTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient
@@ -257,6 +261,7 @@ transactionClient =
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
+            :<|> _getTransaction
             = client (Proxy @("v2" :> (Transactions Aeson.Value)))
 
         _postExternalTransaction
@@ -268,6 +273,7 @@ transactionClient =
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
+            , getTransaction = _getTransaction
             }
 
 -- | Produces a 'TransactionClient n' working against the /byron-wallets API.
@@ -279,6 +285,7 @@ byronTransactionClient =
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
+            :<|> _getTransaction
             = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
 
         _postExternalTransaction
@@ -290,6 +297,7 @@ byronTransactionClient =
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
+        , getTransaction = _getTransaction
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

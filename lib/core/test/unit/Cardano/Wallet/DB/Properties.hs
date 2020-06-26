@@ -94,7 +94,7 @@ import Data.Generics.Labels
 import Data.List
     ( unfoldr )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, isNothing, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -124,6 +124,7 @@ import Test.QuickCheck
     , label
     , property
     , suchThat
+    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
@@ -166,6 +167,14 @@ properties = do
             property . prop_readAfterPut
                 (\DBLayer{..} a0 -> mapExceptT atomically . putPrivateKey a0)
                 (\DBLayer{..} -> atomically . readPrivateKey)
+
+    describe "getTx properties" $ do
+        it "can read after putting tx history for valid tx id" $
+            property . prop_getTxAfterPutValidTxId
+        it "cannot read after putting tx history for invalid tx id" $
+            property . prop_getTxAfterPutInvalidTxId
+        it "cannot read after putting tx history for invalid wallet id" $
+            property . prop_getTxAfterPutInvalidWalletId
 
     describe "can't put before wallet exists" $ do
         it "Checkpoint" $
@@ -488,6 +497,79 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
         monitor $ counterexample $ "\nInserted\n" <> pretty fa
         monitor $ counterexample $ "\nRead\n" <> pretty res
         assertWith "Inserted == Read" (res == fa)
+
+prop_getTxAfterPutValidTxId
+    :: GenState s
+    => DBLayer IO s JormungandrKey
+    -> PrimaryKey WalletId
+    -> GenTxHistory
+    -> Property
+prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
+    monadicIO (setup >> prop)
+  where
+    setup = do
+        run $ cleanDB db
+        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        run $ atomically $ unsafeRunExceptT $
+            initializeWallet wid cp meta mempty pp
+    prop = do
+        let txs = unGenTxHistory txGen
+        run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
+        forM_ txs $ \((Tx txId _ _), txMeta) -> do
+            (Just (TransactionInfo txId' _ _ txMeta' _ _)) <-
+                run $ atomically $ unsafeRunExceptT $ getTx wid txId
+
+            monitor $ counterexample $
+                "\nInserted\n" <> pretty txMeta <> " for txId: " <> pretty txId
+            monitor $ counterexample $
+                "\nRead\n" <> pretty txMeta' <> " for txId: " <> pretty txId'
+            assertWith "Inserted is included in Read"
+                (txMeta == txMeta' && txId' == txId)
+
+prop_getTxAfterPutInvalidTxId
+    :: GenState s
+    => DBLayer IO s JormungandrKey
+    -> PrimaryKey WalletId
+    -> GenTxHistory
+    -> (Hash "Tx")
+    -> Property
+prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
+    monadicIO (setup >> prop)
+  where
+    setup = do
+        run $ cleanDB db
+        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        run $ atomically $ unsafeRunExceptT $
+            initializeWallet wid cp meta mempty pp
+    prop = do
+        let txs = unGenTxHistory txGen
+        run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
+        res <- run $ atomically $ unsafeRunExceptT $ getTx wid txId'
+        assertWith "Irrespective of Inserted, Read is Nothing for invalid tx id"
+            (isNothing res)
+
+prop_getTxAfterPutInvalidWalletId
+    :: GenState s
+    => DBLayer IO s JormungandrKey
+    -> ( PrimaryKey WalletId
+       , Wallet s
+       , WalletMetadata
+       )
+    -> GenTxHistory
+    -> PrimaryKey WalletId
+    -> Property
+prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(PrimaryKey wid') =
+    key /= key' ==> monadicIO (setup >> prop)
+  where
+    setup = liftIO $ do
+        cleanDB db
+        atomically $ unsafeRunExceptT $ initializeWallet key cp meta mempty pp
+    prop = liftIO $ do
+        let txs = unGenTxHistory txGen
+        atomically (runExceptT $ putTxHistory key txs) `shouldReturn` Right ()
+        forM_ txs $ \((Tx txId _ _), _) -> do
+            let err = ErrNoSuchWallet wid'
+            atomically (runExceptT $ getTx key' txId) `shouldReturn` Left err
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit

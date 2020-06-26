@@ -49,6 +49,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
+    , getTransaction
     , getUTxOsStatistics
     , getWallet
     , liftHandler
@@ -154,6 +155,7 @@ server byron icarus ntp =
         :<|> (\_ _ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
@@ -253,6 +255,10 @@ server byron icarus ntp =
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
+             )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , getTransaction byron wid txid)
+                (icarus, getTransaction icarus wid txid)
              )
 
     byronMigrations :: Server (ByronMigrations n)

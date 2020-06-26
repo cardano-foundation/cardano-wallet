@@ -58,6 +58,7 @@ import Cardano.Wallet.Api.Server
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
+    , getTransaction
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
@@ -170,6 +171,7 @@ server byron icarus jormungandr spl ntp =
         :<|> listTransactions jormungandr
         :<|> postTransactionFee jormungandr
         :<|> deleteTransaction jormungandr
+        :<|> getTransaction jormungandr
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
@@ -244,6 +246,10 @@ server byron icarus jormungandr spl ntp =
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)
                 (icarus, deleteTransaction icarus wid txid)
+             )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , getTransaction byron wid txid)
+                (icarus, getTransaction icarus wid txid)
              )
 
     byronMigrations :: Server (ByronMigrations n)

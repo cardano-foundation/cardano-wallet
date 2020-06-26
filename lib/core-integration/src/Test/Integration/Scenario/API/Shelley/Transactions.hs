@@ -29,7 +29,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), SortOrder (..), TxStatus (..), WalletId )
+    ( Direction (..), Hash (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -109,6 +109,7 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -1147,6 +1148,81 @@ spec = do
               txs1 <- listTransactions @n ctx w (Nothing) (Just te) Nothing
               txs2 <- listTransactions @n ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post tx
+        let amt = (1 :: Natural)
+        rMkTx <- postTx ctx
+            (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
+            wDest
+            amt
+        let txid = getFromResponse #id rMkTx
+        verify rMkTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                , expectField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                ]
+
+        -- Verify Tx in source wallet is Outgoing and InLedger
+        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
+        r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+        verify r1
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+        -- Verify Tx in destination wallet is Incoming and InLedger
+        let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
+        r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
+        verify r2
+            [ expectResponseCode HTTP.status200
+            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            ]
+
+    it "TRANS_GET_02 - Deleted wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        let txid = ApiT $ Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shelley w (ApiTxId txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post tx
+        let amt = (1 :: Natural)
+        rMkTx <- postTx ctx
+            (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
+            wDest
+            amt
+        verify rMkTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        let txid =  Hash $ BS.pack $ replicate 32 1
+        let link = Link.getTransaction @'Shelley wSrc (ApiTxId $ ApiT txid)
+        r <- request @(ApiTransaction n) ctx link Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
+
 
     it "TRANS_DELETE_01 -\
         \ Shelley: Can forget pending transaction" $ \ctx -> do
