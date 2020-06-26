@@ -88,7 +88,6 @@ import Database.Persist.Sql
     , fromPersistValue
     , insertMany_
     , insert_
-    , putMany
     , rawSql
     , repsert
     , selectFirst
@@ -284,7 +283,9 @@ newDBLayer trace fp = do
 
         , putPoolMetadata = \hash metadata -> do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
-            putMany [PoolMetadata hash name ticker description homepage]
+            repsert
+                (PoolMetadataKey hash)
+                (PoolMetadata hash name ticker description homepage)
 
         , readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
