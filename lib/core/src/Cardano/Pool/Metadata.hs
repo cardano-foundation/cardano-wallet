@@ -31,6 +31,8 @@ import Control.Exception
     ( IOException, SomeException, handle )
 import Control.Monad
     ( when )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT, throwE )
 import Crypto.Hash.Utils
@@ -43,7 +45,6 @@ import Network.HTTP.Client
     , ManagerSettings
     , brReadSome
     , managerResponseTimeout
-    , newManager
     , parseUrlThrow
     , responseBody
     , responseTimeoutMicro
@@ -53,17 +54,21 @@ import Network.HTTP.Client
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Client.TLS as HTTPS
 
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
 defaultManagerSettings :: ManagerSettings
 defaultManagerSettings =
-    HTTP.defaultManagerSettings
+    HTTPS.tlsManagerSettings
         { managerResponseTimeout = responseTimeoutMicro tenSeconds }
   where
     tenSeconds = 10_000_000 -- in μs
+
+-- | Create a connection manager that supports TLS connections.
+newManager :: MonadIO m => ManagerSettings -> m Manager
+newManager = HTTPS.newTlsManagerWith
 
 fetchFromRemote
     :: Manager
