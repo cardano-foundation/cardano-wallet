@@ -280,7 +280,7 @@ import Cardano.Wallet.Unsafe
 import Control.Arrow
     ( second )
 import Control.Concurrent.Async
-    ( concurrently_ )
+    ( race_ )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
@@ -1483,7 +1483,7 @@ initWorker ctx wid createWallet restoreWallet coworker =
         , workerMain = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            concurrently_
+            race_
                 (unsafeRunExceptT $ restoreWallet ctx')
                 (coworker ctx')
 
@@ -1635,7 +1635,7 @@ registerWorker ctx coworker wid =
         , workerMain = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            concurrently_
+            race_
                 (unsafeRunExceptT $ W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid)
                 (coworker ctx' wid)
 

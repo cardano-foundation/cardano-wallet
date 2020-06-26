@@ -124,12 +124,10 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Get the current tip from the chain producer
 
     , watchNodeTip
-        :: (BlockHeader -> ExceptT String m ())
-        -> ExceptT String m ()
+        :: (BlockHeader -> m ())
+        -> m ()
         -- ^ Register a callback for when the node tip changes.
-        -- If the given callback fails, the watcher stops. Otherwise, this
-        -- function never returns.
-        -- fixme: needs to be polymorphic on error type
+        -- The callback isn't allowed to fail.
 
     , getProtocolParameters
         :: m ProtocolParameters

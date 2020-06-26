@@ -54,7 +54,6 @@ library
     , cryptonite
     , directory
     , exceptions
-    , extra
     , filepath
     , fmt
     , generic-lens

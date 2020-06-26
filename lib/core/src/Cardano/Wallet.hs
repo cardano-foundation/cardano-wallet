@@ -921,19 +921,24 @@ manageRewardBalance
     -> WalletId
     -> IO ()
 manageRewardBalance ctx wid = db & \DBLayer{..} -> do
-    Left err <- runExceptT $ watchNodeTip $ \bh -> do
-         lift $ traceWith tr $ MsgRewardBalanceQuery bh
-         res <- lift $ runExceptT (queryRewardBalance @ctx @s @t @k ctx wid)
-         lift $ traceWith tr $ MsgRewardBalanceResult res
-         case res of
-            Right amt ->
-                withExceptT show $
-                mapExceptT atomically $ putDelegationRewardBalance pk amt
+    watchNodeTip $ \bh -> do
+         traceWith tr $ MsgRewardBalanceQuery bh
+         query <- runExceptT $ queryRewardBalance @ctx @s @t @k ctx wid
+         traceWith tr $ MsgRewardBalanceResult query
+         case query of
+            Right amt -> do
+                res <- atomically $ runExceptT $ putDelegationRewardBalance pk amt
+                -- It can happen that the wallet doesn't exist _yet_, whereas we
+                -- already have a reward balance. If that's the case, we log and
+                -- move on.
+                case res of
+                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
+                    Right () -> pure ()
             Left _err ->
                 -- Occasionaly failing to query is generally not fatal. It will
                 -- just update the balance next time the tip changes.
                 pure ()
-    traceWith tr $ MsgRewardBalanceFinish err
+    traceWith tr MsgRewardBalanceExited
 
   where
     pk = PrimaryKey wid
@@ -2090,7 +2095,8 @@ data WalletLog
     | MsgPaymentCoinSelectionAdjusted CoinSelection
     | MsgRewardBalanceQuery BlockHeader
     | MsgRewardBalanceResult (Either ErrFetchRewards (Quantity "lovelace" Word64))
-    | MsgRewardBalanceFinish String
+    | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
+    | MsgRewardBalanceExited
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2136,11 +2142,14 @@ instance ToText WalletLog where
             "Updating the reward balance for block " <> pretty bh
         MsgRewardBalanceResult (Right amt) ->
             "The reward balance is " <> pretty amt
+        MsgRewardBalanceNoSuchWallet err ->
+            "Trying to store a balance for a wallet that doesn't exist (yet?): " <>
+            T.pack (show err)
         MsgRewardBalanceResult (Left err) ->
             "Problem fetching reward balance. Will try again on next chain update. " <>
             T.pack (show err)
-        MsgRewardBalanceFinish err ->
-            "Reward balance worker has finished due to: " <> T.pack err
+        MsgRewardBalanceExited ->
+            "Reward balance worker has exited."
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2162,4 +2171,5 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceQuery _ -> Debug
         MsgRewardBalanceResult (Right _) -> Debug
         MsgRewardBalanceResult (Left _) -> Notice
-        MsgRewardBalanceFinish _ -> Debug
+        MsgRewardBalanceNoSuchWallet{} -> Warning
+        MsgRewardBalanceExited -> Notice
