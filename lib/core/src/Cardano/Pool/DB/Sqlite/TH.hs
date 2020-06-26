@@ -112,7 +112,8 @@ PoolMetadata sql=pool_metadata
 PoolMetadataFetchAttempts sql=pool_metadata_fetch_attempts
     poolFetchAttemptsMetadataHash    W.StakePoolMetadataHash sql=metadata_hash
     poolFetchAttemptsMetadataUrl     W.StakePoolMetadataUrl  sql=metadata_url
-    poolFetchAttemptsLastFetchedAt   UTCTime                 sql=last_fetched_at
+    poolFetchAttemptsRetryAfter      UTCTime                 sql=retry_after
+    poolFetchAttemptsRetryCount      Word8                   sql=retry_count
 
     Primary poolFetchAttemptsMetadataHash poolFetchAttemptsMetadataUrl
     deriving Show Generic
