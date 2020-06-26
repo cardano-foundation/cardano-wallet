@@ -411,6 +411,9 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
     name = "bft"
     dir = baseDir </> name
 
+-- | Launches a @cardano-node@ with the given configuration which will not forge
+-- blocks, but has every other cluster node as its peer. Any transactions
+-- submitted to this node will be broadcast to every node in the cluster.
 withPassiveNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
@@ -422,7 +425,7 @@ withPassiveNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
     bracketTracer' tr "withPassiveNode" $ do
         createDirectory dir
 
@@ -444,7 +447,7 @@ withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) actio
                 }
 
         withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
-            action socket
+            act socket
   where
     name = "node"
     dir = baseDir </> name
