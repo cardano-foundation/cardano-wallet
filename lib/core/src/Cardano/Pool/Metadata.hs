@@ -18,6 +18,8 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( hex )
 import Cardano.Wallet.Primitive.Types
     ( StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
@@ -29,6 +31,8 @@ import Control.Exception
     ( IOException, SomeException, handle )
 import Control.Monad
     ( when )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT, throwE )
 import Crypto.Hash.Utils
@@ -41,26 +45,30 @@ import Network.HTTP.Client
     , ManagerSettings
     , brReadSome
     , managerResponseTimeout
-    , newManager
     , parseUrlThrow
     , responseBody
     , responseTimeoutMicro
     , withResponse
     )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Client.TLS as HTTPS
 
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
 defaultManagerSettings :: ManagerSettings
 defaultManagerSettings =
-    HTTP.defaultManagerSettings
+    HTTPS.tlsManagerSettings
         { managerResponseTimeout = responseTimeoutMicro tenSeconds }
   where
     tenSeconds = 10_000_000 -- in μs
+
+-- | Create a connection manager that supports TLS connections.
+newManager :: MonadIO m => ManagerSettings -> m Manager
+newManager = HTTPS.newTlsManagerWith
 
 fetchFromRemote
     :: Manager
@@ -85,7 +93,12 @@ fetchFromRemote manager url_ hash_ = runExceptT $ do
         -- to be less than 512 bytes. For security reasons, we only download the
         -- first 512 bytes.
         pure . BL.toStrict <$> brReadSome (responseBody res) 512
-    when (blake2b256 chunk /= hash) $ throwE "Metadata hash mismatch"
+    when (blake2b256 chunk /= hash) $ throwE $ mconcat
+        [ "Metadata hash mismatch. Saw: "
+        , B8.unpack $ hex $ blake2b256 chunk
+        , ", but expected: "
+        , B8.unpack $ hex hash
+        ]
     except $ eitherDecodeStrict chunk
   where
     StakePoolMetadataUrl  url  = url_

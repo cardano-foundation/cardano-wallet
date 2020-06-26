@@ -199,9 +199,9 @@ mListRegisteredPools db@PoolDatabase{registrations} =
 
 mUnfetchedPoolMetadataRefs
     :: Int
-    -> ModelPoolOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
+    -> ModelPoolOp [(StakePoolMetadataUrl, StakePoolMetadataHash)]
 mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
-    ( Right (toTriple <$> take n (Map.elems unfetched))
+    ( Right (toTuple <$> take n (Map.elems unfetched))
     , db
     )
   where
@@ -211,20 +211,19 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
             Nothing -> False
             Just (_, hash) -> hash `notElem` Map.keys metadata
 
-    toTriple
+    toTuple
         :: PoolRegistrationCertificate
-        -> (PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)
-    toTriple PoolRegistrationCertificate{poolId,poolMetadata} =
-        (poolId, metadataUrl, metadataHash)
+        -> (StakePoolMetadataUrl, StakePoolMetadataHash)
+    toTuple PoolRegistrationCertificate{poolMetadata} =
+        (metadataUrl, metadataHash)
       where
         Just (metadataUrl, metadataHash) = poolMetadata
 
 mPutPoolMetadata
-    :: PoolId
-    -> StakePoolMetadataHash
+    :: StakePoolMetadataHash
     -> StakePoolMetadata
     -> ModelPoolOp ()
-mPutPoolMetadata _ hash meta db@PoolDatabase{metadata} =
+mPutPoolMetadata hash meta db@PoolDatabase{metadata} =
     ( Right ()
     , db { metadata = Map.insert hash meta metadata }
     )

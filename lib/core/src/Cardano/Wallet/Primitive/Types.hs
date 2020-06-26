@@ -62,6 +62,8 @@ module Cardano.Wallet.Primitive.Types
     , dlgCertAccount
     , dlgCertPoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    , PoolCertificate (..)
 
     -- * Coin
     , Coin (..)
@@ -600,6 +602,9 @@ instance ToText StakePoolMetadataHash where
 
 instance FromText StakePoolMetadataHash where
     fromText = fmap (StakePoolMetadataHash . getHash @"_") . hashFromText 32
+
+instance Buildable StakePoolMetadataHash where
+    build (StakePoolMetadataHash hash) = build (Hash hash)
 
 -- | A newtype to wrap metadata Url, mostly needed for database lookups and
 -- signature clarity.
@@ -1847,6 +1852,15 @@ dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
 
+-- | Sum-type of pool registration- and retirement- certificates. Mirrors the
+--  @PoolCert@ type in cardano-ledger-specs.
+data PoolCertificate
+    = Registration PoolRegistrationCertificate
+    | Retirement PoolRetirementCertificate
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolCertificate
+
 -- | Pool ownership data from the stake pool registration certificate.
 data PoolRegistrationCertificate = PoolRegistrationCertificate
     { poolId :: !PoolId
@@ -1865,6 +1879,23 @@ instance Buildable PoolRegistrationCertificate where
         <> build p
         <> " owned by "
         <> build o
+
+data PoolRetirementCertificate = PoolRetirementCertificate
+    { poolId :: !PoolId
+
+    -- | The first epoch when the pool becomes inactive.
+    , retiredIn :: !EpochNo
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolRetirementCertificate
+
+instance Buildable PoolRetirementCertificate where
+    build (PoolRetirementCertificate p e) = mempty
+        <> "Pool "
+        <> build p
+        <> " retiring at "
+        <> build e
+
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

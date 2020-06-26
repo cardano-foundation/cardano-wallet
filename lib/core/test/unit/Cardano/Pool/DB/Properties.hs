@@ -47,7 +47,7 @@ import Data.List.Extra
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -476,29 +476,30 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
         monitor $ classify (length entries > 50) "50+ entries"
 
     propWellFormedResult = do
+        let hashes = snd <$> mapMaybe poolMetadata entries
         refs <- run . atomically $ unfetchedPoolMetadataRefs 10
         monitor $ counterexample $ unlines
             [ "Read from DB (" <> show (length refs) <> "): " <> show refs
             ]
         assertWith "fewer unfetchedPoolMetadataRefs than registrations"
             (length refs <= length entries)
-        assertWith "all pool ids are indeed known"
-            (all (\(pid,_,_) -> pid `elem` (poolId <$> entries)) refs)
+        assertWith "all metadata hashes are indeed known"
+            (all ((`elem` hashes) . snd) refs)
         assertWith "no duplicate"
             (L.nub refs == refs)
 
     propInteractionWithPutPoolMetadata = do
         refs <- run . atomically $ unfetchedPoolMetadataRefs 10
         unless (null refs) $ do
-            let [(poolId, url, hash)] = take 1 refs
+            let [(url, hash)] = take 1 refs
             metadata <- pick $ genStakePoolMetadata url
-            run . atomically $ putPoolMetadata poolId hash metadata
+            run . atomically $ putPoolMetadata hash metadata
             refs' <- run . atomically $ unfetchedPoolMetadataRefs 10
             monitor $ counterexample $ unlines
                 [ "Read from DB (" <> show (length refs') <> "): " <> show refs'
                 ]
             assertWith "fetching metadata removes it from unfetchedPoolMetadataRefs"
-                (hash `notElem` ((\(_,_,c) -> c) <$> refs'))
+                (hash `notElem` (snd <$> refs'))
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

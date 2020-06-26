@@ -49,8 +49,10 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader
     , Coin (..)
     , GenesisParameters (..)
+    , PoolCertificate (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , ProtocolParameters
     , SlotId
     , SlotLength (..)
@@ -69,7 +71,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeMkPercentage, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -251,8 +253,17 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
         , saturation = (sat s)
         }
 
-    rewardsButNoStake = traverseMissing $ \k r ->
-        error $ "Rewards but no stake: " <> show (k, r)
+    -- TODO: This case seems possible on shelley_testnet, but why, and how
+    -- should we treat it?
+    --
+    -- The pool with rewards but not stake didn't seem to be retiring.
+    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqMetrics
+        { nonMyopicMemberRewards = r
+        , relativeStake = noStake
+        , saturation = sat noStake
+        }
+      where
+        noStake = unsafeMkPercentage 0
 
     bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
 
@@ -344,9 +355,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
                 Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
                 Right () -> pure ()
-            forM_ registrations $ \pool -> do
-                liftIO $ traceWith tr $ MsgStakePoolRegistration pool
-                putPoolRegistration slot pool
+            forM_ registrations $ \case
+                Registration pool -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRegistration pool
+                    putPoolRegistration slot pool
+                Retirement cert -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRetirement cert
         pure Continue
 
 monitorMetadata
@@ -358,15 +372,15 @@ monitorMetadata
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
     refs <- atomically (unfetchedPoolMetadataRefs 100)
 
-    successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
-        traceWith tr $ MsgFetchPoolMetadata pid url
+    successes <- fmap catMaybes $ forM refs $ \(url, hash) -> do
+        traceWith tr $ MsgFetchPoolMetadata hash url
         fetchMetadata url hash >>= \case
             Left msg -> Nothing <$ do
-                traceWith tr $ MsgFetchPoolMetadataFailure pid msg
+                traceWith tr $ MsgFetchPoolMetadataFailure hash msg
 
-            Right meta -> Just pid <$ do
-                traceWith tr $ MsgFetchPoolMetadataSuccess pid meta
-                atomically $ putPoolMetadata pid hash meta
+            Right meta -> Just hash <$ do
+                traceWith tr $ MsgFetchPoolMetadataSuccess hash meta
+                atomically $ putPoolMetadata hash meta
 
     when (null refs || null successes) $ do
         traceWith tr $ MsgFetchTakeBreak blockFrequency
@@ -389,10 +403,11 @@ data StakePoolLog
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotId
     | MsgStakePoolRegistration PoolRegistrationCertificate
+    | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
-    | MsgFetchPoolMetadata PoolId StakePoolMetadataUrl
-    | MsgFetchPoolMetadataSuccess PoolId StakePoolMetadata
-    | MsgFetchPoolMetadataFailure PoolId String
+    | MsgFetchPoolMetadata StakePoolMetadataHash StakePoolMetadataUrl
+    | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
+    | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
     | MsgFetchTakeBreak Int
     deriving (Show, Eq)
 
@@ -405,6 +420,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
         MsgStakePoolRegistration{} -> Info
+        MsgStakePoolRetirement{} -> Info
         MsgErrProduction{} -> Error
         MsgFetchPoolMetadata{} -> Info
         MsgFetchPoolMetadataSuccess{} -> Info
@@ -429,19 +445,21 @@ instance ToText StakePoolLog where
             "Rolling back to " <> pretty point
         MsgStakePoolRegistration pool ->
             "Discovered stake pool registration: " <> pretty pool
+        MsgStakePoolRetirement cert ->
+            "Discovered stake pool retirement: " <> pretty cert
         MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat
             [ "Couldn't store production for given block before it conflicts "
             , "with another block. Conflicting block header is: ", pretty blk
             ]
-        MsgFetchPoolMetadata pid url -> mconcat
-            [ "Fetching metadata for pool ", pretty pid, " from ", toText url
+        MsgFetchPoolMetadata hash url -> mconcat
+            [ "Fetching metadata with hash ", pretty hash, " from ", toText url
             ]
-        MsgFetchPoolMetadataSuccess pid meta -> mconcat
-            [ "Successfully fetched metadata for pool ", pretty pid
+        MsgFetchPoolMetadataSuccess hash meta -> mconcat
+            [ "Successfully fetched metadata with hash ", pretty hash
             , ": ", T.pack (show meta)
             ]
-        MsgFetchPoolMetadataFailure pid msg -> mconcat
-            [ "Failed to fetch metadata for pool ", pretty pid, ": ", T.pack msg
+        MsgFetchPoolMetadataFailure hash msg -> mconcat
+            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
             ]
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, back to it in about "

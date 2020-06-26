@@ -54,6 +54,7 @@
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."http-api-data" or (errorHandler.buildDepError "http-api-data"))
           (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
+          (hsPkgs."http-client-tls" or (errorHandler.buildDepError "http-client-tls"))
           (hsPkgs."http-media" or (errorHandler.buildDepError "http-media"))
           (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
           (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))

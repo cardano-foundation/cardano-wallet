@@ -22,11 +22,12 @@ import Data.X509.CertificateStore
     ( readCertificateStore )
 import Data.X509.Validation
     ( ValidationChecks (..), ValidationHooks (..) )
-import qualified Data.X509.Validation as X509
 import Network.TLS
     ( CertificateRejectReason (..), CertificateUsage (..), ServerHooks (..) )
 import Network.Wai.Handler.WarpTLS
     ( TLSSettings (..), tlsSettingsChain )
+
+import qualified Data.X509.Validation as X509
 
 -- | Path to a x.509 PKI for mutual client-server authentication.
 data TlsConfiguration = TlsConfiguration

@@ -90,8 +90,8 @@ newDBLayer = do
         , listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)
 
-        , putPoolMetadata = \a0 a1 a2 ->
-            void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1 a2)
+        , putPoolMetadata = \a0 a1 ->
+            void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)
 
         , readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)
