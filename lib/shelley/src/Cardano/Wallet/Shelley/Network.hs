@@ -367,6 +367,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         stakeMap <- fromPoolDistr <$> handleQueryFailure
             (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
         let toStake = Set.singleton $ Left $ toShelleyCoin coin
+        liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
         rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
             (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
         pparams <- handleQueryFailure
@@ -721,6 +722,7 @@ data NetworkLayerLog
     | MsgAccountDelegationAndRewards W.ChimericAccount
         Delegations RewardAccounts
     | MsgDestroyCursor ThreadId
+    | MsgWillQueryRewardsForStake W.Coin
     | MsgFetchedNodePoolLsqData NodePoolLsqData
     | MsgWatcherUpdate W.BlockHeader BracketLog
 
@@ -790,6 +792,8 @@ instance ToText NetworkLayerLog where
             [ "Destroying cursor connection at"
             , T.pack (show threadId)
             ]
+        MsgWillQueryRewardsForStake c ->
+            "Will query non-myopic rewards using the stake " <> pretty c
         MsgFetchedNodePoolLsqData d ->
             "Fetched pool data from node tip using LSQ: " <> pretty d
         MsgWatcherUpdate tip b ->
@@ -816,5 +820,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgGetRewardAccountBalance{}     -> Info
         MsgAccountDelegationAndRewards{} -> Info
         MsgDestroyCursor{}               -> Notice
+        MsgWillQueryRewardsForStake{}    -> Info
         MsgFetchedNodePoolLsqData{}      -> Info
         MsgWatcherUpdate{}               -> Debug
