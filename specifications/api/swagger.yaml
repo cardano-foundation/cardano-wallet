@@ -1854,6 +1854,16 @@ paths:
         - *parametersWalletId
       responses: *responsesGetWallet
 
+    delete:
+      operationId: deleteWallet
+      tags: ["Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
     put:
       operationId: putWallet
       tags: ["Wallets"]
@@ -1868,16 +1878,6 @@ paths:
           application/json:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
-
-    delete:
-      operationId: deleteWallet
-      tags: ["Wallets"]
-      summary: Delete
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - *parametersWalletId
-      responses: *responsesDeleteWallet
 
   /wallets/{walletId}/passphrase:
     put:
@@ -2032,25 +2032,6 @@ paths:
         - *parametersWalletId
       responses: *responsesGetDelegationFee
 
-  /stake-pools/{stakePoolId}/wallets/{walletId}:
-    put:
-      operationId: joinStakePool
-      tags: ["Stake Pools"]
-      summary: Join
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Delegate all (current and future) addresses from the given wallet to the given stake pool.
-      parameters:
-        - *parametersStakePoolId
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiWalletPassphrase
-      responses: *responsesJoinStakePool
-
   /stake-pools/*/wallets/{walletId}:
     delete:
       operationId: quitStakePool
@@ -2076,6 +2057,25 @@ paths:
           application/json:
             schema: *ApiWalletPassphrase
       responses: *responsesQuitStakePool
+
+  /stake-pools/{stakePoolId}/wallets/{walletId}:
+    put:
+      operationId: joinStakePool
+      tags: ["Stake Pools"]
+      summary: Join
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Delegate all (current and future) addresses from the given wallet to the given stake pool.
+      parameters:
+        - *parametersStakePoolId
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesJoinStakePool
 
   /wallets/{walletId}/coin-selections/random:
     post:
@@ -2219,6 +2219,18 @@ paths:
         - *parametersWalletId
       responses: *responsesGetByronWallet
 
+    delete:
+      operationId: deleteByronWallet
+      tags: ["Byron Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Delete a Byron wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
     put:
       operationId: putByronWallet
       tags: ["Byron Wallets"]
@@ -2233,18 +2245,6 @@ paths:
           application/json:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
-
-    delete:
-      operationId: deleteByronWallet
-      tags: ["Byron Wallets"]
-      summary: Delete
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Delete a Byron wallet.
-      parameters:
-        - *parametersWalletId
-      responses: *responsesDeleteWallet
 
   /byron-wallets/{walletId}/passphrase:
     put:
