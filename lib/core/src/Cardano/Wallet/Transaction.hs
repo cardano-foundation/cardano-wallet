@@ -106,11 +106,11 @@ data TransactionLayer t k = TransactionLayer
         -> SlotId
             -- Tip of the chain, for TTL
         -> [(TxIn, TxOut)]
-            -- ^ Resolved inputs
+            -- Resolved inputs
         -> [TxOut]
-            -- ^ Outputs
+            -- Outputs
         -> [TxOut]
-            -- ^ Change, with assigned address
+            -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.

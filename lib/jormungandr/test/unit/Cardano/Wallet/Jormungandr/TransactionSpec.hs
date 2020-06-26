@@ -521,7 +521,16 @@ goldenTestDelegationCertTx
     -> SpecWith ()
 goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
     let walDelegs = WalletDelegation NotDelegating []
-    let res = mkDelegationJoinTx tl walDelegs pool (accountXPrv, pass) keystore (SlotId 0 0) inps outs
+    let res = mkDelegationJoinTx tl
+            policy
+            walDelegs
+            pool
+            (accountXPrv, pass)
+            keystore
+            (SlotId 0 0)
+            inps
+            outs
+            []
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` Right (unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))
@@ -529,6 +538,7 @@ goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes'
     title = "golden test mkCertificateTx: " <> show pool
         <> show inps <> show outs
     showHex = B8.unpack . hex
+    policy = error "fee policy unused by Jörmungandr"
 
 xprvSeqFromSeed
     :: ByteString

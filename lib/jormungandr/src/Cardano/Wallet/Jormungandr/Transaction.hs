@@ -47,11 +47,11 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( ChimericAccount (..), Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..)
+    ( Certificate (..)
+    , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
     , TransactionLayer (..)
-    , WithDelegation (..)
     )
 import Control.Arrow
     ( first, second )
@@ -78,23 +78,30 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer block0H = TransactionLayer
-    { mkStdTx = mkFragment $ MkFragmentSimpleTransaction (txWitnessTagFor @k)
+    { mkStdTx = \keyFrom _ inps outs ->
+        mkFragment
+            ( MkFragmentSimpleTransaction (txWitnessTagFor @k)
+            ) keyFrom inps outs
 
-    , mkDelegationJoinTx = \_ pool accXPrv ->
+    , mkDelegationJoinTx = \_ _ pool accXPrv keyFrom _ inps outs chgs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
-        in mkFragment $ MkFragmentStakeDelegation
-                    (txWitnessTagFor @k)
-                    (DlgFull pool)
-                    acc
-                    (first getRawKey accXPrv)
+        in mkFragment
+            ( MkFragmentStakeDelegation
+                (txWitnessTagFor @k)
+                (DlgFull pool)
+                acc
+                (first getRawKey accXPrv)
+            ) keyFrom inps (outs ++ chgs)
 
-    , mkDelegationQuitTx = \accXPrv ->
+    , mkDelegationQuitTx = \_ accXPrv keyFrom _ inps outs chgs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
-        in mkFragment $ MkFragmentStakeDelegation
-                    (txWitnessTagFor @k)
-                    DlgNone
-                    acc
-                    (first getRawKey accXPrv)
+        in mkFragment
+            ( MkFragmentStakeDelegation
+                (txWitnessTagFor @k)
+                DlgNone
+                acc
+                (first getRawKey accXPrv)
+            ) keyFrom inps (outs ++ chgs)
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -116,7 +123,7 @@ newTransactionLayer block0H = TransactionLayer
     , allowUnbalancedTx = False
     }
   where
-    mkFragment details keyFrom _slotId rnps outs = do
+    mkFragment details keyFrom rnps outs = do
         credentials <- forM rnps $ \(_, TxOut addr _) -> first getRawKey <$>
             maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         let inps = fmap (second coin) rnps
@@ -139,15 +146,15 @@ newTransactionLayer block0H = TransactionLayer
     -- is multiplied by the total number of inputs and outputs.
     _minimumFee
         :: FeePolicy
-        -> WithDelegation
+        -> [Certificate]
         -> CoinSelection
         -> Fee
-    _minimumFee policy (WithDelegation withCert) (CoinSelection inps outs chgs) =
-        Fee $ ceiling (a + b*fromIntegral ios + c*certs)
+    _minimumFee policy certs (CoinSelection inps outs chgs) =
+        Fee $ ceiling (a + b*fromIntegral ios + c*fromIntegral cs)
       where
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
-        certs = if withCert then 1 else 0
-        ios   = length inps + length outs + length chgs
+        cs  = length $ filter (/= KeyRegistrationCertificate) certs
+        ios = length inps + length outs + length chgs
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we

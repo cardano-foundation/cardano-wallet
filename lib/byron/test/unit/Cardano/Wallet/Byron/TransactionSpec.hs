@@ -77,7 +77,7 @@ import Cardano.Wallet.Primitive.Types
     , testnetMagic
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..), WithDelegation (..) )
+    ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
@@ -134,7 +134,7 @@ spec = do
     describe "Coin Selection w/ Byron" $ do
         it "REG #1561 - Correct balancing of amounts close to the limit" $ do
             let opts = FeeOptions
-                    { estimateFee = minimumFee tlayer feePolicy (WithDelegation False)
+                    { estimateFee = minimumFee tlayer feePolicy []
                     , dustThreshold = minBound
                     , onDanglingChange = SaveMoney
                     }
@@ -305,7 +305,7 @@ prop_rebalanceChangeOutputs sel onDangling = do
   where
     delta s = inputBalance s - (outputBalance s + changeBalance s)
     opts = FeeOptions
-        { estimateFee = minimumFee tlayer feePolicy (WithDelegation False)
+        { estimateFee = minimumFee tlayer feePolicy []
         , dustThreshold = minBound
         , onDanglingChange = onDangling
         }
@@ -358,7 +358,7 @@ propSizeEstimation pm genSel genChngAddrs =
     estimateSize :: TransactionLayer t k -> CoinSelection -> Quantity "bytes" Int
     estimateSize tl sel =
         let
-            Fee fee = minimumFee tl idPolicy (WithDelegation False) sel
+            Fee fee = minimumFee tl idPolicy [] sel
         in
             Quantity $ fromIntegral fee
       where

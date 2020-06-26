@@ -28,6 +28,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkWitness
+    , realFee
     ) where
 
 import Prelude
@@ -206,7 +207,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- a transaction and needs to be removed from the actual fee.
         --
         -- This is why here, we recalculate the fee without the "certificate
-        -- fee". The missing amount is the actual deposite.
+        -- fee". The missing amount is the actual deposit.
         let LinearFee a b _ = policy
         let fee = _minimumFee (LinearFee a b (Quantity 0))
                 certsInfo
@@ -244,7 +245,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
 
-        -- NOTE
+        -- NOTE / FIXME
         -- When registering a stake key, users gave a deposit fixed by the fee
         -- policy. When de-registing a key, the deposit should be given back.
         --
@@ -254,6 +255,18 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- add the deposit to the first change output available, which doesn't
         -- change the fee in Shelley. Still, the real fee are computed from the
         -- differences between inputs and outputs BEFORE the deposit is added.
+        --
+        -- There's on "gotcha" with this method: it isn't resilient to protocol
+        -- updates. So, if a key is registered at a given epoch, with a deposit
+        -- X and later on, the deposit amount is changed to Y, Y /= X, then,
+        -- when de-registering the stake key, there'll be a mismatch between the
+        -- amount expected by the ledger, and the amount given by the wallet.
+        -- Ideally, the deposit amount should be deduced from the transaction
+        -- that was used to register the key! We don't have any ways at the
+        -- moment to lookup such a transaction from the database and making it
+        -- so would require some extensive changes that are quite risky to
+        -- undergo _now_. So long as the deposit key isn't updated via protocol
+        -- updates, the present solution will work fine.
         chgs' <- mapFirst (withDeposit policy) chgs
         let fee = realFee inps (outs ++ chgs)
         let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs') certs fee
