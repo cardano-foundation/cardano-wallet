@@ -262,7 +262,7 @@ type RequestNextStrategy m n block
 --      *------*
 --
 chainSyncWithBlocks
-    :: forall m block. (Monad m, MonadSTM m, HasHeader block, Show block)
+    :: forall m block. (Monad m, MonadSTM m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
     -> (Tip block -> W.BlockHeader)
         -- ^ Convert an abstract tip to a concrete 'BlockHeader'
@@ -385,13 +385,14 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
         -- we just collected. In which case, we simply discard all blocks and
         -- rollback to that point as if nothing happened.
         , P.recvMsgRollBackward = \point tip -> do
-            traceWith tr $ MsgChainRollBackward point
             case rollback point blocks of
                 [] -> do -- b)
+                    traceWith tr $ MsgChainRollBackward point 0
                     respond (RollBackward point)
                     clientStIdle oneByOne
 
                 xs -> do -- a)
+                    traceWith tr $ MsgChainRollBackward point (length xs)
                     let cursor' = blockPoint $ head xs
                     let blocks' = reverse xs
                     let tip'    = fromTip tip
@@ -600,7 +601,7 @@ send queue cmd = do
 
 data ChainSyncLog block point
     = MsgChainRollForward block
-    | MsgChainRollBackward point
+    | MsgChainRollBackward point Int
 
 mapChainSyncLog
     :: (b1 -> b2)
@@ -609,15 +610,21 @@ mapChainSyncLog
     -> ChainSyncLog b2 p2
 mapChainSyncLog f g = \case
     MsgChainRollForward block  -> MsgChainRollForward (f block)
-    MsgChainRollBackward point -> MsgChainRollBackward (g point)
+    MsgChainRollBackward point n -> MsgChainRollBackward (g point) n
 
 instance (ToText block, ToText point)
     => ToText (ChainSyncLog block point) where
     toText = \case
         MsgChainRollForward b ->
             "ChainSync roll forward: " <> toText b
-        MsgChainRollBackward b ->
+        MsgChainRollBackward b 0 ->
             "ChainSync roll backward: " <> toText b
+        MsgChainRollBackward b bufferSize -> mconcat
+            [ "ChainSync roll backward: "
+            , toText b
+            , ", handled inside buffer with remaining length "
+            , toText bufferSize
+            ]
 
 instance HasPrivacyAnnotation (ChainSyncLog block point)
 

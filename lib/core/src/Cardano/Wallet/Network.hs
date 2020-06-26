@@ -401,15 +401,20 @@ follow nl tr cps yield header =
             -- So this becomes a bit intricate:
 
             case (cursorSlotId nl cursor', cps, hasRolledForward) of
-                (_, [], False) ->
+                (sl, [], False) -> do
                     -- The following started from @Origin@.
                     -- This is the initial rollback.
                     -- We can infer that we are asked to rollback to Origin, and
                     -- we can ignore it.
-                     step delay0 hasRolledForward cursor'
-                (sl, _:_, False) | sl == slotId (last cps) ->
-                     step delay0 hasRolledForward cursor'
-                (sl, _, _) ->
+                    traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
+                        \cps=[]"
+                    step delay0 hasRolledForward cursor'
+                (sl, _:_, False) | sl == slotId (last cps) -> do
+                    traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
+                        \rollback point equals the last checkpoing"
+                    step delay0 hasRolledForward cursor'
+                (sl, _, _) -> do
+                    traceWith tr $ MsgWillRollback sl
                     destroyCursor nl cursor' $> FollowRollback sl
             -- Some alternative solutions would be to:
             -- 1. Make sure we have a @BlockHeader@/@SlotId@ for @Origin@
@@ -440,6 +445,8 @@ data FollowLog
     | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
     | MsgApplyBlocks (NonEmpty BlockHeader)
+    | MsgWillRollback SlotId
+    | MsgWillIgnoreRollback SlotId Text -- Reason
     deriving (Show, Eq)
 
 instance ToText FollowLog where
@@ -460,6 +467,11 @@ instance ToText FollowLog where
                     )
             in mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
+        MsgWillRollback sl ->
+            "Will rollback to " <> pretty sl
+        MsgWillIgnoreRollback sl reason ->
+            "Will ignore rollback to " <> pretty sl
+                <> " because of " <> pretty reason
 
 instance HasPrivacyAnnotation FollowLog
 instance HasSeverityAnnotation FollowLog where
@@ -470,3 +482,5 @@ instance HasSeverityAnnotation FollowLog where
         MsgNextBlockFailed _ -> Warning
         MsgSynced -> Debug
         MsgApplyBlocks _ -> Info
+        MsgWillRollback _ -> Debug
+        MsgWillIgnoreRollback _ _ -> Debug

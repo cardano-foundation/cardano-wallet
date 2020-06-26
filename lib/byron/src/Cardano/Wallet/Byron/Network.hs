@@ -337,7 +337,7 @@ mkWalletClient gp chainSyncQ = do
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks fromTip' chainSyncQ responsesBuffer
+                $ chainSyncWithBlocks nullTracer fromTip' chainSyncQ responsesBuffer
 
         , localTxSubmissionProtocol =
             doNothingProtocol
