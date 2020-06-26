@@ -768,7 +768,7 @@ prepareTx tr dir stakePub certs = do
         , "--tx-in", faucetInput
         , "--tx-out", init addr <> "+" <> show pledgeAmt
         , "--ttl", "100"
-        , "--fee", show (faucetAmt - pledgeAmt)
+        , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
@@ -978,6 +978,9 @@ operators = unsafePerformIO $ newMVar
     ]
 {-# NOINLINE operators #-}
 
+-- | Deposit amount required for registering certificates.
+depositAmt :: Integer
+depositAmt = 100
 
 -- | Pledge amount used for each pool.
 pledgeAmt :: Integer
