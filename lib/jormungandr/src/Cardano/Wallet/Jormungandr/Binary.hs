@@ -122,7 +122,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Crypto.Hash.Utils
-    ( blake2b224, blake2b256 )
+    ( blake2b256 )
 import Data.Binary.Get
     ( Get
     , bytesRead

@@ -346,7 +346,7 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance forall n. HasRewardAccount (SeqState n ShelleyKey) ShelleyKey where
     rewardAccountKey  = Seq.rewardAccountKey
-    toChimericAccount = ChimericAccount . blake2b256 . xpubPublicKey . getKey
+    toChimericAccount = ChimericAccount . blake2b224 . xpubPublicKey . getKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

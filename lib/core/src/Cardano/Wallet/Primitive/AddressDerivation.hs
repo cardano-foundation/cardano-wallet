@@ -87,7 +87,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b224, blake2b256 )
+    ( blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
