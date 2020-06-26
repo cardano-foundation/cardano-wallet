@@ -327,8 +327,8 @@ follow
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
     -> IO FollowExit
-follow nl tr cps0 yield header =
-    sleep 0 cps0 =<< initCursor nl cps0
+follow nl tr cps yield header =
+    sleep 0 False =<< initCursor nl cps
   where
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
@@ -340,10 +340,10 @@ follow nl tr cps0 yield header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> [BlockHeader] -> Cursor target -> IO FollowExit
-    sleep delay cps cursor = handle retry $ do
+    sleep :: Int -> Bool -> Cursor target -> IO FollowExit
+    sleep delay hasRolledForward cursor = handle retry $ do
         when (delay > 0) (threadDelay delay)
-        step delay cps cursor
+        step delay hasRolledForward cursor
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled -> do
@@ -361,19 +361,19 @@ follow nl tr cps0 yield header =
           where
             eT = T.pack (show e)
 
-    step :: Int -> [BlockHeader] -> Cursor target -> IO FollowExit
-    step delay cps cursor = runExceptT (nextBlocks nl cursor) >>= \case
+    step :: Int -> Bool -> Cursor target -> IO FollowExit
+    step delay hasRolledForward cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             traceWith tr $ MsgNextBlockFailed e
-            sleep (retryDelay delay) cps cursor
+            sleep (retryDelay delay) hasRolledForward cursor
 
         Right AwaitReply -> do
             traceWith tr MsgSynced
-            sleep delay0 cps cursor
+            sleep delay0 hasRolledForward cursor
 
         Right (RollForward cursor' _ []) -> do -- FIXME Make RollForward return NE
             traceWith tr MsgSynced
-            sleep delay0 cps cursor'
+            sleep delay0 hasRolledForward cursor'
 
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
@@ -381,37 +381,47 @@ follow nl tr cps0 yield header =
             params <- getProtocolParameters nl
             action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
-            continueWith cursor' [header $ NE.last blocks] action
+            continueWith cursor' True action
 
         Right (RollBackward cursor') ->
-            -- NOTE
-            -- In case the node asks us to rollback to the last checkpoints we
-            -- gave, we take no action and simply move on to the next query.
-            -- This happens typically with the Haskell nodes which always
-            -- initiates the protocol by asking clients to rollback to the last
-            -- known intersection.
-            case (cursorSlotId nl cursor', cps) of
-                (_, []) ->
-                    step delay0 cps cursor'
-                (sl, _:_) | sl == slotId (last cps) ->
-                    step delay0 cps cursor'
-                (sl, _) ->
+            -- After negotiating a tip, the node asks us to rollback to the
+            -- intersection. We may have to rollback to our /current/ tip.
+            --
+            -- This would do nothing, but @follow@ handles rollback by exiting
+            -- such that a new negotiation is required, leading to an infinite
+            -- loop.
+            --
+            -- So this becomes a bit intricate:
+
+            case (cursorSlotId nl cursor', cps, hasRolledForward) of
+                (_, [], False) ->
+                    -- The following started from @Origin@.
+                    -- This is the initial rollback.
+                    -- We can infer that we are asked to rollback to Origin, and
+                    -- we can ignore it.
+                     step delay0 hasRolledForward cursor'
+                (sl, _:_, False) | sl == slotId (last cps) ->
+                     step delay0 hasRolledForward cursor'
+                (sl, _, _) ->
                     destroyCursor nl cursor' $> FollowRollback sl
+            -- Some alternative solutions would be to:
+            -- 1. Make sure we have a @BlockHeader@/@SlotId@ for @Origin@
+            -- 2. Stop forcing @follow@ to quit on rollback
       where
         continueWith
             :: Cursor target
-            -> [BlockHeader]
+            -> Bool
             -> FollowAction e
             -> IO FollowExit
-        continueWith cursor' cps' = \case
+        continueWith cursor' hrf = \case
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return FollowInterrupted
             Continue ->
-                step delay0 cps' cursor'
+                step delay0 hrf cursor'
             RetryImmediately ->
-                step delay0 cps' cursor
+                step delay0 hrf cursor
             RetryLater ->
-                sleep delay0 cps' cursor
+                sleep delay0 hrf cursor
 
 {-------------------------------------------------------------------------------
                                     Logging
