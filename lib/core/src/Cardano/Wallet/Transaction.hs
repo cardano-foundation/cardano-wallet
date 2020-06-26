@@ -17,7 +17,7 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
-    , WithDelegation (..)
+    , Certificate (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -70,7 +70,8 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: WalletDelegation
+        :: FeePolicy
+        -> WalletDelegation
         -> PoolId
         -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -86,7 +87,8 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: (k 'AddressK XPrv, Passphrase "encryption") -- reward account
+        :: FeePolicy
+        -> (k 'AddressK XPrv, Passphrase "encryption") -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId
         -> [(TxIn, TxOut)]
@@ -97,9 +99,9 @@ data TransactionLayer t k = TransactionLayer
         --
         -- The certificate is the public key of the reward account.
 
-    , minimumFee :: FeePolicy -> WithDelegation -> CoinSelection -> Fee
+    , minimumFee :: FeePolicy -> [Certificate] -> CoinSelection -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
-        -- coin-selection. 'WithDelegation' can be used to communicate whether
+        -- coin-selection. '[Certificate]' can be used to communicate whether
         -- or not the transaction carries (un)delegation certificates.
 
     , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
@@ -148,6 +150,8 @@ newtype ErrMkTx
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)
 
-newtype WithDelegation
-    = WithDelegation Bool
+data Certificate
+    = PoolDelegationCertificate
+    | KeyRegistrationCertificate
+    | KeyDeRegistrationCertificate
     deriving (Eq, Show)

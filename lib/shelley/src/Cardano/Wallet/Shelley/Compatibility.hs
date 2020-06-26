@@ -492,7 +492,7 @@ txParametersFromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
         (Quantity (naturalToDouble (SL._minfeeB pp)))
         (Quantity (fromIntegral (SL._minfeeA pp)))
-        (Quantity 0) -- TODO: it's not as simple as this?
+        (Quantity (fromIntegral (SL._keyDeposit pp)))
     , getTxMaxSize = fromMaxTxSize $ SL._maxTxSize pp
     }
   where
