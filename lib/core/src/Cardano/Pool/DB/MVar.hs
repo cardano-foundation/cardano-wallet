@@ -84,8 +84,8 @@ newDBLayer = do
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
 
-        , unfetchedPoolMetadataRefs =
-            readPoolDB db . mUnfetchedPoolMetadataRefs
+        , unfetchedPoolMetadataRefs = \a0 ->
+            readPoolDB db . mUnfetchedPoolMetadataRefs a0
 
         , listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)

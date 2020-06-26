@@ -199,8 +199,9 @@ mListRegisteredPools db@PoolDatabase{registrations} =
 
 mUnfetchedPoolMetadataRefs
     :: Int
+    -> [StakePoolMetadataHash]
     -> ModelPoolOp [(StakePoolMetadataUrl, StakePoolMetadataHash)]
-mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
+mUnfetchedPoolMetadataRefs n ignoring db@PoolDatabase{registrations,metadata} =
     ( Right (toTuple <$> take n (Map.elems unfetched))
     , db
     )
@@ -209,7 +210,7 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     unfetched = flip Map.filter registrations $ \r ->
         case poolMetadata r of
             Nothing -> False
-            Just (_, hash) -> hash `notElem` Map.keys metadata
+            Just (_, hash) -> hash `notElem` (Map.keys metadata ++ ignoring)
 
     toTuple
         :: PoolRegistrationCertificate

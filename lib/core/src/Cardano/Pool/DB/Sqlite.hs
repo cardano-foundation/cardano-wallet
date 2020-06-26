@@ -73,6 +73,10 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
@@ -252,7 +256,7 @@ newDBLayer trace fp = do
                         , poolMetadata
                         }
 
-        , unfetchedPoolMetadataRefs = \limit -> do
+        , unfetchedPoolMetadataRefs = \limit ignoring -> do
             let nLimit = T.pack (show limit)
             let fields = T.intercalate ", "
                     [ fieldName (DBField PoolRegistrationMetadataUrl)
@@ -261,10 +265,13 @@ newDBLayer trace fp = do
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
             let registrations = tableName (DBField PoolRegistrationMetadataHash)
             let metadata = tableName (DBField PoolMetadataHash)
+            let ignored = T.intercalate ", " . fmap (around '"' . toText) $ ignoring
             let query = T.unwords
                     [ "SELECT", fields, "FROM", registrations
                     , "WHERE", metadataHash, "NOT", "IN"
                     , "(", "SELECT", metadataHash, "FROM", metadata, ")"
+                    , "AND", metadataHash, "NOT", "IN"
+                    , "(", ignored, ")"
                     , "LIMIT", nLimit
                     , ";"
                     ]
@@ -341,6 +348,9 @@ handlingPersistError trace fp action = action >>= \case
         traceWith trace MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
+
+around :: Char -> Text -> Text
+around c middle = T.pack [c] <> middle <> T.pack [c]
 
 {-------------------------------------------------------------------------------
                                    Queries
