@@ -70,7 +70,7 @@ import Test.Hspec
     , shouldReturn
     )
 import Test.QuickCheck
-    ( Positive (..), Property, classify, counterexample, property )
+    ( Positive (..), Property, classify, counterexample, property, (==>) )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 
@@ -142,6 +142,8 @@ properties = do
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
             (property . prop_unfetchedPoolMetadataRefs)
+        it "unfetchedPoolMetadataRefsIgnoring"
+            (property . prop_unfetchedPoolMetadataRefsIgnoring)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -500,6 +502,30 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
                 ]
             assertWith "fetching metadata removes it from unfetchedPoolMetadataRefs"
                 (hash `notElem` (snd <$> refs'))
+
+prop_unfetchedPoolMetadataRefsIgnoring
+    :: DBLayer IO
+    -> [PoolRegistrationCertificate]
+    -> Property
+prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
+    length metas >= 2 ==> monadicIO (setup >> propIgnoredMetadataRefs)
+  where
+    metas = mapMaybe poolMetadata entries
+
+    setup = do
+        run . atomically $ cleanDB
+        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
+
+    propIgnoredMetadataRefs = do
+        let recent = head metas
+        run . atomically $ putFetchAttempt recent
+        refs <- run . atomically $ unfetchedPoolMetadataRefs 10
+        monitor $ counterexample $ unlines
+            [ "Read from DB (" <> show (length refs) <> "): " <> show refs
+            ]
+        assertWith "recently failed URLs are ignored"
+            (recent `notElem` refs)
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

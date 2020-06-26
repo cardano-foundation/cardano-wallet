@@ -508,3 +508,22 @@ instance PersistField StakePoolMetadataUrl where
 
 instance PersistFieldSql StakePoolMetadataUrl where
     sqlType _ = sqlType (Proxy @Text)
+
+instance Read StakePoolMetadataUrl where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToHttpApiData StakePoolMetadataUrl where
+    toUrlPiece = toText
+
+instance FromHttpApiData StakePoolMetadataUrl where
+    parseUrlPiece = fromText'
+
+instance ToJSON StakePoolMetadataUrl where
+    toJSON = String . toText
+
+instance FromJSON StakePoolMetadataUrl where
+    parseJSON = aesonFromText "StakePoolMetadataUrl"
+
+instance PathPiece StakePoolMetadataUrl where
+    fromPathPiece = fromTextMaybe
+    toPathPiece = toText

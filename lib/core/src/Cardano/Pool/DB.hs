@@ -121,6 +121,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- It returns at most `n` results, where `n` is the first argument.
 
+    , putFetchAttempt
+        :: (StakePoolMetadataUrl, StakePoolMetadataHash)
+        -> stm ()
+        -- ^ Store a fetch attempt for a given hash, so that it isn't retried
+        -- too often.
+
     , listRegisteredPools
         :: stm [PoolId]
         -- ^ List the list of known pools, based on their registration

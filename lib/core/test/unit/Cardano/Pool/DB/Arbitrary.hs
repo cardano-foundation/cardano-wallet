@@ -142,13 +142,16 @@ instance Arbitrary PoolRegistrationCertificate where
       where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL
-            <*> fmap (StakePoolMetadataHash . BS.pack) (vector 32)
+            <*> arbitrary
         genURL  = do
             protocol <- elements [ "http", "https" ]
             fstP <- elements [ "cardano", "ada", "pool", "staking", "reward" ]
             sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
             extP <- elements [ ".io", ".dev", ".com", ".eu" ]
             pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
+
+instance Arbitrary StakePoolMetadataHash where
+    arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)
 
 genStakePoolMetadata
     :: StakePoolMetadataUrl

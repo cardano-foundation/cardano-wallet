@@ -57,7 +57,7 @@ spec = describe "getTxParameters" $ do
                 -- After a short while, the network layer should have gotten
                 -- protocol parameters from the node, and they should reflect
                 -- the genesis block configuration.
-                let retryPolicy = constantDelay 1_000_000 <> limitRetries 60
+                let retryPolicy = constantDelay 1_000_000 <> limitRetries 100
                 recoverAll retryPolicy $ const $
                     getProtocolParameters nl `shouldReturn`
                         protocolParameters np

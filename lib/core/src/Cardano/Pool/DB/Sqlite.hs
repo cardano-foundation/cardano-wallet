@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -73,8 +74,10 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.Time.Clock
+    ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -84,7 +87,6 @@ import Database.Persist.Sql
     , fromPersistValue
     , insertMany_
     , insert_
-    , putMany
     , rawSql
     , repsert
     , selectFirst
@@ -254,17 +256,29 @@ newDBLayer trace fp = do
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
-            let fields = T.intercalate ", "
-                    [ fieldName (DBField PoolRegistrationMetadataUrl)
-                    , fieldName (DBField PoolRegistrationMetadataHash)
-                    ]
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
+            let metadataUrl   = fieldName (DBField PoolRegistrationMetadataUrl)
+            let retryAfter    = fieldName (DBField PoolFetchAttemptsRetryAfter)
             let registrations = tableName (DBField PoolRegistrationMetadataHash)
-            let metadata = tableName (DBField PoolMetadataHash)
+            let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
+            let metadata      = tableName (DBField PoolMetadataHash)
             let query = T.unwords
-                    [ "SELECT", fields, "FROM", registrations
-                    , "WHERE", metadataHash, "NOT", "IN"
-                    , "(", "SELECT", metadataHash, "FROM", metadata, ")"
+                    [ "SELECT"
+                    , metadataUrl, ",", metadataHash
+                    , "FROM", registrations
+                    , "WHERE"
+                    , metadataHash, "NOT", "IN" -- Successfully fetched metadata
+                        , "("
+                        , "SELECT", metadataHash
+                        , "FROM", metadata
+                        , ")"
+                    , "AND"
+                    , metadataUrl, "NOT", "IN" -- Recently failed urls
+                        , "("
+                        , "SELECT", metadataUrl
+                        , "FROM", fetchAttempts
+                        , "WHERE", retryAfter, ">=", "datetime('now')"
+                        , ")"
                     , "LIMIT", nLimit
                     , ";"
                     ]
@@ -275,9 +289,33 @@ newDBLayer trace fp = do
 
             rights . fmap safeCast <$> rawSql query []
 
+        , putFetchAttempt = \(url, hash) -> do
+            -- NOTE
+            -- assuming SQLite has the same notion of "now" that the host system.
+            now <- liftIO getCurrentTime
+            let filters =
+                    [ PoolFetchAttemptsMetadataHash ==. hash
+                    , PoolFetchAttemptsMetadataUrl  ==. url
+                    ]
+            (fmap entityVal <$> selectFirst filters []) >>= \case
+                Nothing -> do
+                    let retryAfter = backoff now 0
+                    repsert
+                        (PoolMetadataFetchAttemptsKey hash url)
+                        (PoolMetadataFetchAttempts hash url retryAfter 1)
+
+                Just (PoolMetadataFetchAttempts _ _ _ retryCount) -> do
+                    let retryAfter = backoff now retryCount
+                    repsert
+                        (PoolMetadataFetchAttemptsKey hash url)
+                        (PoolMetadataFetchAttempts hash url retryAfter $ retryCount + 1)
+
         , putPoolMetadata = \hash metadata -> do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
-            putMany [PoolMetadata hash name ticker description homepage]
+            repsert
+                (PoolMetadataKey hash)
+                (PoolMetadata hash name ticker description homepage)
+            deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
         , readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
@@ -315,6 +353,7 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
+            deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
 
         , atomically = runQuery
         })
@@ -341,6 +380,29 @@ handlingPersistError trace fp action = action >>= \case
         traceWith trace MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
+
+-- | Compute a new date from a base date, with an increasing delay.
+--
+-- > backoff t 0
+-- t+3s
+--
+-- > backoff t 1
+-- t+9s
+--
+-- > backoff t 2
+-- t+27s
+--
+-- ...
+--
+-- > backoff t 9
+-- t+16h
+--
+-- > backoff t 10
+-- t+49h
+backoff :: UTCTime -> Word8 -> UTCTime
+backoff time iter = addUTCTime delay time
+  where
+    delay = fromIntegral @Integer $ foldr (*) 3 (replicate (fromIntegral iter) 3)
 
 {-------------------------------------------------------------------------------
                                    Queries

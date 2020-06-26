@@ -370,15 +370,15 @@ monitorMetadata
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
     refs <- atomically (unfetchedPoolMetadataRefs 100)
-
     successes <- fmap catMaybes $ forM refs $ \(url, hash) -> do
         traceWith tr $ MsgFetchPoolMetadata hash url
         fetchMetadata url hash >>= \case
             Left msg -> Nothing <$ do
-                traceWith tr $ MsgFetchPoolMetadataFailure hash msg
+                traceWith tr $ MsgFetchPoolMetadataFailure url msg
+                atomically $ putFetchAttempt (url, hash)
 
             Right meta -> Just hash <$ do
-                traceWith tr $ MsgFetchPoolMetadataSuccess hash meta
+                traceWith tr $ MsgFetchPoolMetadataSuccess url meta
                 atomically $ putPoolMetadata hash meta
 
     when (null refs || null successes) $ do
@@ -405,8 +405,8 @@ data StakePoolLog
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataHash StakePoolMetadataUrl
-    | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
-    | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
+    | MsgFetchPoolMetadataSuccess StakePoolMetadataUrl StakePoolMetadata
+    | MsgFetchPoolMetadataFailure StakePoolMetadataUrl String
     | MsgFetchTakeBreak Int
     deriving (Show, Eq)
 
@@ -453,12 +453,12 @@ instance ToText StakePoolLog where
         MsgFetchPoolMetadata hash url -> mconcat
             [ "Fetching metadata with hash ", pretty hash, " from ", toText url
             ]
-        MsgFetchPoolMetadataSuccess hash meta -> mconcat
-            [ "Successfully fetched metadata with hash ", pretty hash
+        MsgFetchPoolMetadataSuccess url meta -> mconcat
+            [ "Successfully fetched metadata from ", toText url
             , ": ", T.pack (show meta)
             ]
-        MsgFetchPoolMetadataFailure hash msg -> mconcat
-            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
+        MsgFetchPoolMetadataFailure url msg -> mconcat
+            [ "Failed to fetch metadata from ", toText url, ": ", T.pack msg
             ]
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, back to it in about "
