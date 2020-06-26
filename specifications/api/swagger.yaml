@@ -1790,16 +1790,6 @@ x-tagGroups:
 
 paths:
   /wallets:
-    get:
-      operationId: listWallets
-      tags: ["Wallets"]
-      summary: List
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Return a list of known wallets, ordered from oldest to newest.
-      responses: *responsesListWallets
-
     post:
       operationId: postWallet
       tags: ["Wallets"]
@@ -1814,6 +1804,44 @@ paths:
           application/json:
             schema: *ApiWalletOrAccountPostData
       responses: *responsesPostWallet
+
+    get:
+      operationId: listWallets
+      tags: ["Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known wallets, ordered from oldest to newest.
+      responses: *responsesListWallets
+
+  /wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getUTxOsStatistics
+      tags: ["Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
 
   /wallets/{walletId}:
     get:
@@ -1851,34 +1879,6 @@ paths:
             schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
-  /wallets/{walletId}/statistics/utxos:
-    get:
-      operationId: getUTxOsStatistics
-      tags: ["Wallets"]
-      summary: UTxO Statistics
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
-
-        ```
-             │
-         100 ─
-             │
-             │                                 ┌───┐
-          10 ─                         ┌───┐   │   │                   ┌───┐
-             │                 ┌───┐   │   │   │   │                   │   │
-             │                 │   │   │   │   │   │   ┌───┐           │   │
-           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
-             │ │   │           │   │   │   │   │   │   │   │           │   │
-             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
-             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
-                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
-        ```
-      parameters:
-        - *parametersWalletId
-      responses: *responsesGetUTxOsStatistics
-
   /wallets/{walletId}/passphrase:
     put:
       operationId: putWalletPassphrase
@@ -1894,39 +1894,6 @@ paths:
           application/json:
             schema: *ApiWalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
-
-  /wallets/{walletId}/transactions:
-    get:
-      operationId: listTransactions
-      tags: ["Transactions"]
-      summary: List
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Lists all incoming and outgoing wallet's transactions.
-      parameters:
-        - *parametersWalletId
-        - *parametersStartDate
-        - *parametersEndDate
-        - *parametersSortOrder
-      responses: *responsesListTransactions
-
-    post:
-      operationId: postTransaction
-      tags: ["Transactions"]
-      summary: Create
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Create and send transaction from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiPostTransactionData
-      responses: *responsesPostTransaction
 
   /wallets/{walletId}/payment-fees:
     post:
@@ -1951,7 +1918,53 @@ paths:
             schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
+  /wallets/{walletId}/transactions:
+    post:
+      operationId: postTransaction
+      tags: ["Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+    get:
+      operationId: listTransactions
+      tags: ["Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Lists all incoming and outgoing wallet's transactions.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
   /wallets/{walletId}/transactions/{transactionId}:
+    get:
+      operationId: getTransaction
+      tags: ["Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
+
     delete:
       operationId: deleteTransaction
       tags: ["Transactions"]
@@ -1968,19 +1981,6 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
-
-    get:
-      operationId: getTransaction
-      tags: ["Transactions"]
-      summary: Get
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Get transaction by id.
-      parameters:
-        - *parametersWalletId
-        - *parametersTransactionId
-      responses: *responsesGetTransaction
 
   /wallets/{walletId}/addresses:
     get:
@@ -2016,24 +2016,21 @@ paths:
         - *parametersIntendedStakeAmount
       responses: *responsesListStakePools
 
-  /stake-pools/{stakePoolId}/wallets/{walletId}:
-    put:
-      operationId: joinStakePool
+  /wallets/{walletId}/delegation-fees:
+    get:
+      operationId: getDelegationFee
       tags: ["Stake Pools"]
-      summary: Join
+      summary: Estimate Fee
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Delegate all (current and future) addresses from the given wallet to the given stake pool.
+        Estimate fee for joining or leaving a stake pool. Note that it is an
+        estimation because a delegation induces a transaction for which coins
+        have to be selected randomly within the wallet. Because of this randomness,
+        fees can only be estimated.
       parameters:
-        - *parametersStakePoolId
         - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiWalletPassphrase
-      responses: *responsesJoinStakePool
+      responses: *responsesGetDelegationFee
 
   /stake-pools/*/wallets/{walletId}:
     delete:
@@ -2061,21 +2058,24 @@ paths:
             schema: *ApiWalletPassphrase
       responses: *responsesQuitStakePool
 
-  /wallets/{walletId}/delegation-fees:
-    get:
-      operationId: getDelegationFee
+  /stake-pools/{stakePoolId}/wallets/{walletId}:
+    put:
+      operationId: joinStakePool
       tags: ["Stake Pools"]
-      summary: Estimate Fee
+      summary: Join
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Estimate fee for joining or leaving a stake pool. Note that it is an
-        estimation because a delegation induces a transaction for which coins
-        have to be selected randomly within the wallet. Because of this randomness,
-        fees can only be estimated.
+        Delegate all (current and future) addresses from the given wallet to the given stake pool.
       parameters:
+        - *parametersStakePoolId
         - *parametersWalletId
-      responses: *responsesGetDelegationFee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesJoinStakePool
 
   /wallets/{walletId}/coin-selections/random:
     post:
@@ -2099,20 +2099,6 @@ paths:
       responses: *responsesSelectCoins
 
   /wallets/{walletId}/migrations:
-    get:
-      operationId: getShelleyWalletMigrationInfo
-      tags: ["Migrations"]
-      summary: Calculate Cost
-      description: |
-        <p align="right">status: <strong>in development</strong></p>
-
-        Calculate the exact cost of sending all funds from particular Shelley wallet
-        to a set of addresses.
-      parameters:
-        - <<: *parametersWalletId
-          name: walletId
-      responses: *responsesGetWalletMigrationInfo
-
     post:
       operationId: migrateShelleyWallet
       tags: ["Migrations"]
@@ -2139,17 +2125,21 @@ paths:
             schema: *ApiShelleyWalletMigrationPostData
       responses: *responsesMigrateWallet
 
-  /byron-wallets:
     get:
-      operationId: listByronWallets
-      tags: ["Byron Wallets"]
-      summary: List
+      operationId: getShelleyWalletMigrationInfo
+      tags: ["Migrations"]
+      summary: Calculate Cost
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>in development</strong></p>
 
-        Return a list of known Byron wallets, ordered from oldest to newest.
-      responses: *responsesListByronWallets
+        Calculate the exact cost of sending all funds from particular Shelley wallet
+        to a set of addresses.
+      parameters:
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
 
+  /byron-wallets:
     post:
       operationId: postByronWallet
       tags: ["Byron Wallets"]
@@ -2177,6 +2167,44 @@ paths:
                 - <<: *ApiAccountPostData
                   title: icarus/trezor/ledger (from xpub)
       responses: *responsesPostByronWallet
+
+    get:
+      operationId: listByronWallets
+      tags: ["Byron Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known Byron wallets, ordered from oldest to newest.
+      responses: *responsesListByronWallets
+
+  /byron-wallets/{walletId}/statistics/utxos:
+    get:
+      operationId: getByronUTxOsStatistics
+      tags: ["Byron Wallets"]
+      summary: UTxO Statistics
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
+
+        ```
+             │
+         100 ─
+             │
+             │                                 ┌───┐
+          10 ─                         ┌───┐   │   │                   ┌───┐
+             │                 ┌───┐   │   │   │   │                   │   │
+             │                 │   │   │   │   │   │   ┌───┐           │   │
+           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+             │ │   │           │   │   │   │   │   │   │   │           │   │
+             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+        ```
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetUTxOsStatistics
 
   /byron-wallets/{walletId}:
     get:
@@ -2235,20 +2263,6 @@ paths:
       responses: *responsesPutWalletPassphrase
 
   /byron-wallets/{walletId}/addresses:
-      get:
-        operationId: listByronAddresses
-        tags: ["Byron Addresses"]
-        summary: List
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
-          Arbitrarily ordered for random wallets.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressState
-        responses: *responsesListAddresses
-
       post:
         operationId: createAddress
         tags: ["Byron Addresses"]
@@ -2268,6 +2282,20 @@ paths:
               schema: *ApiPostRandomAddressData
         responses: *responsesPostRandomAddress
 
+      get:
+        operationId: listByronAddresses
+        tags: ["Byron Addresses"]
+        summary: List
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
+          Arbitrarily ordered for random wallets.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressState
+        responses: *responsesListAddresses
+
   /byron-wallets/{walletId}/addresses/{addressId}:
       put:
         operationId: importAddress
@@ -2283,39 +2311,6 @@ paths:
           - *parametersWalletId
           - *parametersAddressId
         responses: *responsesPutRandomAddress
-
-  /byron-wallets/{walletId}/transactions:
-    get:
-      operationId: listByronTransactions
-      tags: ["Byron Transactions"]
-      summary: List
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        List all incoming and outgoing transactions for the given wallet.
-      parameters:
-        - *parametersWalletId
-        - *parametersStartDate
-        - *parametersEndDate
-        - *parametersSortOrder
-      responses: *responsesListTransactions
-
-    post:
-      operationId: postByronTransaction
-      tags: ["Byron Transactions"]
-      summary: Create
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Create and send transaction from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-          required: true
-          content:
-            application/json:
-              schema: *ApiPostTransactionData
-      responses: *responsesPostTransaction
 
   /byron-wallets/{walletId}/payment-fees:
     post:
@@ -2335,7 +2330,53 @@ paths:
             schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
+  /byron-wallets/{walletId}/transactions:
+    post:
+      operationId: postByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiPostTransactionData
+      responses: *responsesPostTransaction
+
+    get:
+      operationId: listByronTransactions
+      tags: ["Byron Transactions"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        List all incoming and outgoing transactions for the given wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersStartDate
+        - *parametersEndDate
+        - *parametersSortOrder
+      responses: *responsesListTransactions
+
   /byron-wallets/{walletId}/transactions/{transactionId}:
+    get:
+      operationId: getByronTransaction
+      tags: ["Byron Transactions"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Get transaction by id.
+      parameters:
+        - *parametersWalletId
+        - *parametersTransactionId
+      responses: *responsesGetTransaction
+
     delete:
       operationId: deleteByronTransaction
       tags: ["Byron Transactions"]
@@ -2352,19 +2393,6 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
-
-    get:
-      operationId: getByronTransaction
-      tags: ["Byron Transactions"]
-      summary: Get
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Get transaction by id.
-      parameters:
-        - *parametersWalletId
-        - *parametersTransactionId
-      responses: *responsesGetTransaction
 
   /byron-wallets/{walletId}/coin-selections/random:
     post:
@@ -2388,20 +2416,6 @@ paths:
       responses: *responsesSelectCoins
 
   /byron-wallets/{walletId}/migrations:
-    get:
-      operationId: getByronWalletMigrationInfo
-      tags: ["Byron Migrations"]
-      summary: Calculate Cost
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Calculate the exact cost of sending all funds from particular Byron wallet to
-        a set of addresses.
-      parameters:
-        - <<: *parametersWalletId
-          name: walletId
-      responses: *responsesGetWalletMigrationInfo
-
     post:
       operationId: migrateByronWallet
       tags: ["Byron Migrations"]
@@ -2428,33 +2442,19 @@ paths:
             schema: *ApiByronWalletMigrationPostData
       responses: *responsesMigrateWallet
 
-  /byron-wallets/{walletId}/statistics/utxos:
     get:
-      operationId: getByronUTxOsStatistics
-      tags: ["Byron Wallets"]
-      summary: UTxO Statistics
+      operationId: getByronWalletMigrationInfo
+      tags: ["Byron Migrations"]
+      summary: Calculate Cost
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
-
-        ```
-             │
-         100 ─
-             │
-             │                                 ┌───┐
-          10 ─                         ┌───┐   │   │                   ┌───┐
-             │                 ┌───┐   │   │   │   │                   │   │
-             │                 │   │   │   │   │   │   ┌───┐           │   │
-           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
-             │ │   │           │   │   │   │   │   │   │   │           │   │
-             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
-             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
-                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
-        ```
+        Calculate the exact cost of sending all funds from particular Byron wallet to
+        a set of addresses.
       parameters:
-        - *parametersWalletId
-      responses: *responsesGetUTxOsStatistics
+        - <<: *parametersWalletId
+          name: walletId
+      responses: *responsesGetWalletMigrationInfo
 
   /network/information:
     get:
