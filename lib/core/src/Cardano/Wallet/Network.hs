@@ -327,8 +327,8 @@ follow
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
     -> IO FollowExit
-follow nl tr cps yield header =
-    sleep 0 =<< initCursor nl cps
+follow nl tr cps0 yield header =
+    sleep 0 cps0 =<< initCursor nl cps0
   where
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
@@ -340,10 +340,10 @@ follow nl tr cps yield header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> Cursor target -> IO FollowExit
-    sleep delay cursor = handle retry $ do
+    sleep :: Int -> [BlockHeader] -> Cursor target -> IO FollowExit
+    sleep delay cps cursor = handle retry $ do
         when (delay > 0) (threadDelay delay)
-        step delay cursor
+        step delay cps cursor
       where
         retry (e :: SomeException) = case asyncExceptionFromException e of
             Just ThreadKilled -> do
@@ -361,19 +361,19 @@ follow nl tr cps yield header =
           where
             eT = T.pack (show e)
 
-    step :: Int -> Cursor target -> IO FollowExit
-    step delay cursor = runExceptT (nextBlocks nl cursor) >>= \case
+    step :: Int -> [BlockHeader] -> Cursor target -> IO FollowExit
+    step delay cps cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             traceWith tr $ MsgNextBlockFailed e
-            sleep (retryDelay delay) cursor
+            sleep (retryDelay delay) cps cursor
 
         Right AwaitReply -> do
             traceWith tr MsgSynced
-            sleep delay0 cursor
+            sleep delay0 cps cursor
 
         Right (RollForward cursor' _ []) -> do -- FIXME Make RollForward return NE
             traceWith tr MsgSynced
-            sleep delay0 cursor'
+            sleep delay0 cps cursor'
 
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
@@ -381,7 +381,7 @@ follow nl tr cps yield header =
             params <- getProtocolParameters nl
             action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
-            continueWith cursor' action
+            continueWith cursor' [header $ NE.last blocks] action
 
         Right (RollBackward cursor') ->
             -- NOTE
@@ -392,22 +392,26 @@ follow nl tr cps yield header =
             -- known intersection.
             case (cursorSlotId nl cursor', cps) of
                 (_, []) ->
-                    step delay0 cursor'
+                    step delay0 cps cursor'
                 (sl, _:_) | sl == slotId (last cps) ->
-                    step delay0 cursor'
+                    step delay0 cps cursor'
                 (sl, _) ->
                     destroyCursor nl cursor' $> FollowRollback sl
       where
-        continueWith :: Cursor target -> FollowAction e -> IO FollowExit
-        continueWith cursor' = \case
+        continueWith
+            :: Cursor target
+            -> [BlockHeader]
+            -> FollowAction e
+            -> IO FollowExit
+        continueWith cursor' cps' = \case
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return FollowInterrupted
             Continue ->
-                step delay0 cursor'
+                step delay0 cps' cursor'
             RetryImmediately ->
-                step delay0 cursor
+                step delay0 cps' cursor
             RetryLater ->
-                sleep delay0 cursor
+                sleep delay0 cps' cursor
 
 {-------------------------------------------------------------------------------
                                     Logging
