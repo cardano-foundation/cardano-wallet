@@ -24,6 +24,8 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Text
     ( Text )
+import Data.Time.Clock
+    ( UTCTime )
 import Data.Word
     ( Word32, Word64, Word8 )
 import Database.Persist.Class
@@ -105,5 +107,13 @@ PoolMetadata sql=pool_metadata
     poolMetadataHomepage               Text                    sql=homepage
 
     Primary poolMetadataHash
+    deriving Show Generic
+
+PoolMetadataFetchAttempts sql=pool_metadata_fetch_attempts
+    poolFetchAttemptsMetadataHash    W.StakePoolMetadataHash sql=metadata_hash
+    poolFetchAttemptsMetadataUrl     W.StakePoolMetadataUrl  sql=metadata_url
+    poolFetchAttemptsLastFetchedAt   UTCTime                 sql=last_fetched_at
+
+    Primary poolFetchAttemptsMetadataHash poolFetchAttemptsMetadataUrl
     deriving Show Generic
 |]

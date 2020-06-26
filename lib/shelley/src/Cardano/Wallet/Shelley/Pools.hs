@@ -84,8 +84,6 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Generics.Internal.VL.Lens
     ( view )
-import Data.IORef
-    ( modifyIORef, newIORef, readIORef )
 import Data.List
     ( sortOn )
 import Data.List.NonEmpty
@@ -371,30 +369,22 @@ monitorMetadata
     -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Either String StakePoolMetadata))
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr gp fetchMetadata DBLayer{..} = do
-    -- We keep an in-memory map of peers that fails to respond. Each peer is
-    -- retried three times, after what, they'll simply be ignored. If the server
-    -- is restarted, it'll retry the failed ones.
-    rebels <- newIORef (mempty :: Map StakePoolMetadataHash Int)
-    forever $ do
-        ignoring <- Map.keys . Map.filter (>= 3) <$> readIORef rebels
-        refs <- atomically (unfetchedPoolMetadataRefs 100 ignoring)
+monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
+    refs <- atomically (unfetchedPoolMetadataRefs 100)
+    successes <- fmap catMaybes $ forM refs $ \(url, hash) -> do
+        traceWith tr $ MsgFetchPoolMetadata hash url
+        fetchMetadata url hash >>= \case
+            Left msg -> Nothing <$ do
+                traceWith tr $ MsgFetchPoolMetadataFailure url msg
+                atomically $ putFetchAttempt (url, hash)
 
-        successes <- fmap catMaybes $ forM refs $ \(url, hash) -> do
-            traceWith tr $ MsgFetchPoolMetadata hash url
-            fetchMetadata url hash >>= \case
-                Left msg -> Nothing <$ do
-                    traceWith tr $ MsgFetchPoolMetadataFailure hash msg
-                    modifyIORef rebels (Map.insertWith (+) hash 1)
+            Right meta -> Just hash <$ do
+                traceWith tr $ MsgFetchPoolMetadataSuccess url meta
+                atomically $ putPoolMetadata hash meta
 
-                Right meta -> Just hash <$ do
-                    traceWith tr $ MsgFetchPoolMetadataSuccess hash meta
-                    atomically $ putPoolMetadata hash meta
-                    modifyIORef rebels (Map.delete hash)
-
-        when (null refs || null successes) $ do
-            traceWith tr $ MsgFetchTakeBreak blockFrequency
-            threadDelay blockFrequency
+    when (null refs || null successes) $ do
+        traceWith tr $ MsgFetchTakeBreak blockFrequency
+        threadDelay blockFrequency
   where
     -- NOTE
     -- If there's no metadata, we typically need not to retry sooner than the
@@ -416,8 +406,8 @@ data StakePoolLog
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataHash StakePoolMetadataUrl
-    | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
-    | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
+    | MsgFetchPoolMetadataSuccess StakePoolMetadataUrl StakePoolMetadata
+    | MsgFetchPoolMetadataFailure StakePoolMetadataUrl String
     | MsgFetchTakeBreak Int
     deriving (Show, Eq)
 
@@ -464,12 +454,12 @@ instance ToText StakePoolLog where
         MsgFetchPoolMetadata hash url -> mconcat
             [ "Fetching metadata with hash ", pretty hash, " from ", toText url
             ]
-        MsgFetchPoolMetadataSuccess hash meta -> mconcat
-            [ "Successfully fetched metadata with hash ", pretty hash
+        MsgFetchPoolMetadataSuccess url meta -> mconcat
+            [ "Successfully fetched metadata from ", toText url
             , ": ", T.pack (show meta)
             ]
-        MsgFetchPoolMetadataFailure hash msg -> mconcat
-            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
+        MsgFetchPoolMetadataFailure url msg -> mconcat
+            [ "Failed to fetch metadata from ", toText url, ": ", T.pack msg
             ]
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, back to it in about "

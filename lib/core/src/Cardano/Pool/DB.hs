@@ -114,13 +114,18 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , unfetchedPoolMetadataRefs
         :: Int
-        -> [StakePoolMetadataHash] -- ^ Hashes to ignore / discard.
         -> stm [(StakePoolMetadataUrl, StakePoolMetadataHash)]
         -- ^ Read the list of metadata remaining to fetch from remote server,
         -- possibly empty if every pool already has an associated metadata
         -- cached.
         --
         -- It returns at most `n` results, where `n` is the first argument.
+
+    , putFetchAttempt
+        :: (StakePoolMetadataUrl, StakePoolMetadataHash)
+        -> stm ()
+        -- ^ Store a fetch attempt for a given hash, so that it isn't retried
+        -- too often.
 
     , listRegisteredPools
         :: stm [PoolId]

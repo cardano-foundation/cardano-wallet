@@ -25,6 +25,7 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanPoolProduction
     , mListRegisteredPools
+    , mPutFetchAttempt
     , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
@@ -84,8 +85,11 @@ newDBLayer = do
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
 
-        , unfetchedPoolMetadataRefs = \a0 ->
-            readPoolDB db . mUnfetchedPoolMetadataRefs a0
+        , unfetchedPoolMetadataRefs =
+            readPoolDB db . mUnfetchedPoolMetadataRefs
+
+        , putFetchAttempt =
+            void . alterPoolDB (const Nothing) db . mPutFetchAttempt
 
         , listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)

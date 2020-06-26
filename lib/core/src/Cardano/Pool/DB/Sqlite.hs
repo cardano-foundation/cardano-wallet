@@ -73,10 +73,8 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
@@ -255,22 +253,31 @@ newDBLayer trace fp = do
                         , poolMetadata
                         }
 
-        , unfetchedPoolMetadataRefs = \limit ignoring -> do
+        , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
-            let fields = T.intercalate ", "
-                    [ fieldName (DBField PoolRegistrationMetadataUrl)
-                    , fieldName (DBField PoolRegistrationMetadataHash)
-                    ]
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
+            let metadataUrl   = fieldName (DBField PoolRegistrationMetadataUrl)
+            let lastFetchedAt = fieldName (DBField PoolFetchAttemptsLastFetchedAt)
             let registrations = tableName (DBField PoolRegistrationMetadataHash)
-            let metadata = tableName (DBField PoolMetadataHash)
-            let ignored = T.intercalate ", " . fmap (around '"' . toText) $ ignoring
+            let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
+            let metadata      = tableName (DBField PoolMetadataHash)
             let query = T.unwords
-                    [ "SELECT", fields, "FROM", registrations
-                    , "WHERE", metadataHash, "NOT", "IN"
-                    , "(", "SELECT", metadataHash, "FROM", metadata, ")"
-                    , "AND", metadataHash, "NOT", "IN"
-                    , "(", ignored, ")"
+                    [ "SELECT"
+                    , metadataUrl, ",", metadataHash
+                    , "FROM", registrations
+                    , "WHERE"
+                    , metadataHash, "NOT", "IN" -- Successfully fetched metadata
+                        , "("
+                        , "SELECT", metadataHash
+                        , "FROM", metadata
+                        , ")"
+                    , "AND"
+                    , metadataUrl, "NOT", "IN" -- Recently failed urls
+                        , "("
+                        , "SELECT", metadataUrl
+                        , "FROM", fetchAttempts
+                        , "WHERE", lastFetchedAt, ">=", "datetime('now', '-1 hours')"
+                        , ")"
                     , "LIMIT", nLimit
                     , ";"
                     ]
@@ -281,11 +288,20 @@ newDBLayer trace fp = do
 
             rights . fmap safeCast <$> rawSql query []
 
+        , putFetchAttempt = \(url, hash) -> do
+            -- NOTE
+            -- assuming SQLite has the same notion of "now" that the host system.
+            now <- liftIO getCurrentTime
+            repsert
+                (PoolMetadataFetchAttemptsKey hash url)
+                (PoolMetadataFetchAttempts hash url now)
+
         , putPoolMetadata = \hash metadata -> do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
             repsert
                 (PoolMetadataKey hash)
                 (PoolMetadata hash name ticker description homepage)
+            deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
         , readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
@@ -323,6 +339,7 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
+            deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
 
         , atomically = runQuery
         })
@@ -349,9 +366,6 @@ handlingPersistError trace fp action = action >>= \case
         traceWith trace MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
-
-around :: Char -> Text -> Text
-around c middle = T.pack [c] <> middle <> T.pack [c]
 
 {-------------------------------------------------------------------------------
                                    Queries

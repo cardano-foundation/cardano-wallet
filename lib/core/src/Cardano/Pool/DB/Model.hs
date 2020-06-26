@@ -41,6 +41,7 @@ module Cardano.Pool.DB.Model
     , mPutPoolRegistration
     , mReadPoolRegistration
     , mUnfetchedPoolMetadataRefs
+    , mPutFetchAttempt
     , mPutPoolMetadata
     , mListRegisteredPools
     , mReadSystemSeed
@@ -100,6 +101,9 @@ data PoolDatabase = PoolDatabase
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
 
+    , fetchAttempts :: !(Map (StakePoolMetadataUrl, StakePoolMetadataHash) Int)
+    -- ^ Metadata (failed) fetch attempts
+
     , seed :: !SystemSeed
     -- ^ Store an arbitrary random generator seed
     } deriving (Generic, Show, Eq)
@@ -117,7 +121,8 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase = PoolDatabase mempty mempty mempty mempty mempty NotSeededYet
+emptyPoolDatabase =
+    PoolDatabase mempty mempty mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -199,9 +204,8 @@ mListRegisteredPools db@PoolDatabase{registrations} =
 
 mUnfetchedPoolMetadataRefs
     :: Int
-    -> [StakePoolMetadataHash]
     -> ModelPoolOp [(StakePoolMetadataUrl, StakePoolMetadataHash)]
-mUnfetchedPoolMetadataRefs n ignoring db@PoolDatabase{registrations,metadata} =
+mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     ( Right (toTuple <$> take n (Map.elems unfetched))
     , db
     )
@@ -210,7 +214,7 @@ mUnfetchedPoolMetadataRefs n ignoring db@PoolDatabase{registrations,metadata} =
     unfetched = flip Map.filter registrations $ \r ->
         case poolMetadata r of
             Nothing -> False
-            Just (_, hash) -> hash `notElem` (Map.keys metadata ++ ignoring)
+            Just (_, hash) -> hash `notElem` Map.keys metadata
 
     toTuple
         :: PoolRegistrationCertificate
@@ -220,13 +224,23 @@ mUnfetchedPoolMetadataRefs n ignoring db@PoolDatabase{registrations,metadata} =
       where
         Just (metadataUrl, metadataHash) = poolMetadata
 
+mPutFetchAttempt
+    :: (StakePoolMetadataUrl, StakePoolMetadataHash)
+    -> ModelPoolOp ()
+mPutFetchAttempt key db@PoolDatabase{fetchAttempts} =
+    ( Right ()
+    , db { fetchAttempts = Map.insertWith (+) key 1 fetchAttempts }
+    )
+
 mPutPoolMetadata
     :: StakePoolMetadataHash
     -> StakePoolMetadata
     -> ModelPoolOp ()
-mPutPoolMetadata hash meta db@PoolDatabase{metadata} =
+mPutPoolMetadata hash meta db@PoolDatabase{metadata,fetchAttempts} =
     ( Right ()
-    , db { metadata = Map.insert hash meta metadata }
+    , db { metadata = Map.insert hash meta metadata
+         , fetchAttempts = Map.filterWithKey (\k _ -> snd k /= hash) fetchAttempts
+         }
     )
 
 mReadPoolMetadata
@@ -252,7 +266,14 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase{pools, distributions, owners, registrations, metadata, seed} =
+mRollbackTo point PoolDatabase { pools
+                               , distributions
+                               , owners
+                               , registrations
+                               , metadata
+                               , seed
+                               , fetchAttempts
+                               } =
     let
         registrations' = Map.mapMaybeWithKey (discardBy id . fst) registrations
         owners' = Map.restrictKeys owners
@@ -266,6 +287,7 @@ mRollbackTo point PoolDatabase{pools, distributions, owners, registrations, meta
             , owners = owners'
             , registrations = registrations'
             , metadata
+            , fetchAttempts
             , seed
             }
         )
