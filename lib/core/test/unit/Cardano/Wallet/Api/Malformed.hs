@@ -209,18 +209,18 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
             , ( [aesonQQ|
                 { "style": "random"
                 , "name": #{wName}
-                , "mnemonic_sentence": #{mnemonics15}
+                , "mnemonic_sentence": #{mnemonics9}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Invalid number of words: 12 words are expected."
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 12, 15, 18, 21 or 24 words are expected."
               )
             , ( [aesonQQ|
                 { "style": "icarus"
                 , "name": #{wName}
-                , "mnemonic_sentence": #{mnemonics12}
+                , "mnemonic_sentence": #{mnemonics9}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Invalid number of words: 15 words are expected."
+              , "Error in $['mnemonic_sentence']: Invalid number of words: 12, 15, 18, 21 or 24 words are expected."
               )
             , ( [aesonQQ|
                 { "style": "trezor"
@@ -241,10 +241,10 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
             , ( [aesonQQ|
                 { "style": "random"
                 , "name": #{wName}
-                , "mnemonic_sentence": #{mnemonics15}
+                , "mnemonic_sentence": #{invalidMnemonics15}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $['mnemonic_sentence']: Invalid number of words: 12 words are expected."
+              , "Error in $['mnemonic_sentence']: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
               )
             , ( [aesonQQ|
                 { "style": "icarus"

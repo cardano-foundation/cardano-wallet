@@ -1104,7 +1104,7 @@ components:
         mnemonic_sentence:
           <<: *walletMnemonicSentence
           minItems: 12
-          maxItems: 12
+          maxItems: 24
 
     ApiByronWalletRandomXPrvPostData: &ApiByronWalletRandomXPrvPostData
       type: object
@@ -1134,8 +1134,8 @@ components:
         passphrase: *walletPassphrase
         mnemonic_sentence:
           <<: *walletMnemonicSentence
-          minItems: 15
-          maxItems: 15
+          minItems: 12
+          maxItems: 24
 
     ApiByronWalletTrezorPostData: &ApiByronWalletTrezorPostData
       type: object
