@@ -221,17 +221,17 @@ spec = do
 
         it' "random" (genMnemonics @9)  scenarioFailure -- ❌
         it' "random" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @15) scenarioFailure -- ❌
-        it' "random" (genMnemonics @18) scenarioFailure -- ❌
-        it' "random" (genMnemonics @21) scenarioFailure -- ❌
-        it' "random" (genMnemonics @24) scenarioFailure -- ❌
+        it' "random" (genMnemonics @15) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics @24) scenarioSuccess -- ✔️
 
         it' "icarus" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "icarus" (genMnemonics @12) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @12) scenarioSuccess -- ✔️
         it' "icarus" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @18) scenarioFailure -- ❌
-        it' "icarus" (genMnemonics @21) scenarioFailure -- ❌
-        it' "icarus" (genMnemonics @24) scenarioFailure -- ❌
+        it' "icarus" (genMnemonics @18) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics @21) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics @24) scenarioSuccess -- ✔️
 
         it' "trezor" (genMnemonics @9)  scenarioFailure -- ❌
         it' "trezor" (genMnemonics @12) scenarioSuccess -- ✔️
