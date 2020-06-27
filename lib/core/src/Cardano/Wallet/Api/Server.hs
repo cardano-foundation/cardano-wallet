@@ -731,7 +731,7 @@ postRandomWallet
         , k ~ ByronKey
         )
     => ctx
-    -> ByronWalletPostData '[12]
+    -> ByronWalletPostData '[12,15,18,21,24]
     -> Handler ApiByronWallet
 postRandomWallet ctx body = do
     s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
@@ -776,7 +776,7 @@ postIcarusWallet
         , PaymentAddress n IcarusKey
         )
     => ctx
-    -> ByronWalletPostData '[15]
+    -> ByronWalletPostData '[12,15,18,21,24]
     -> Handler ApiByronWallet
 postIcarusWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->

@@ -288,8 +288,8 @@ type family StyleSymbol (style :: ByronWalletStyle) :: Symbol where
 
 type family AllowedMnemonics (style :: k) :: [Nat]
 
-type instance AllowedMnemonics 'Random    = '[12]
-type instance AllowedMnemonics 'Icarus    = '[15]
+type instance AllowedMnemonics 'Random    = '[12,15,18,21,24]
+type instance AllowedMnemonics 'Icarus    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Trezor    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Ledger    = '[12,15,18,21,24]
 type instance AllowedMnemonics 'Shelley   = '[15,18,21,24]
