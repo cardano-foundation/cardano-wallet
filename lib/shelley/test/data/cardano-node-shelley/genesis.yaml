@@ -16,38 +16,33 @@
 ---
 activeSlotsCoeff: 0.1
 protocolParams:
-  poolDecayRate: 0
   poolDeposit: 0
   protocolVersion:
     minor: 0
     major: 0
-  decentralisationParam: 0.97 # means 3% decentralised
+  decentralisationParam: 0.25 # means 3% decentralised
   maxTxSize: 4096
   minFeeA: 100
   maxBlockBodySize: 239857
-  keyMinRefund: 0
   minFeeB: 100000
   eMax: 0
   extraEntropy:
     tag: NeutralNonce
   maxBlockHeaderSize: 217569
   keyDeposit: 100
-  keyDecayRate: 0
-  nOpt: 100
-  rho: 0
-  poolMinRefund: 0
+  nOpt: 3
+  rho: 0.002
   minPoolCost: 0
-  tau: 0
-  a0: 0
+  tau: 0.1
+  a0: 0.1
 genDelegs:
   6bf1993f1e644eaadc3e98013e8356010fb101800b2d3b9b1306f6e3:
     delegate: 2c9291b876a234c60c91ecec26fc0a3f17b8719df29a2f8f1e3e3aae
     vrf: 42936d191c41b25747356881dc7af690a212c198ebc4feb92f97dc5decb07b72
 updateQuorum: 5
 maxMajorPV: 25446
-initialFunds: {}
 maxLovelaceSupply: 45000000000000000
-protocolMagicId: 1
+protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
 epochLength: 100
