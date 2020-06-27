@@ -273,9 +273,9 @@ newDBLayer trace fp = do
                         , "FROM", metadata
                         , ")"
                     , "AND"
-                    , metadataUrl, "NOT", "IN" -- Recently failed urls
+                    , metadataHash, "NOT", "IN" -- Recently failed urls
                         , "("
-                        , "SELECT", metadataUrl
+                        , "SELECT", metadataHash
                         , "FROM", fetchAttempts
                         , "WHERE", retryAfter, ">=", "datetime('now')"
                         , ")"
