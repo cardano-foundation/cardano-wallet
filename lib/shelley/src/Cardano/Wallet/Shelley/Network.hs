@@ -38,6 +38,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Logging
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrGetAccountBalance (..)
@@ -243,18 +245,18 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
 
-    (nodeTipQ, protocolParamsVar, localTxSubmissionQ) <-
+    (nodeTipChan, protocolParamsVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
     nodeTipVar <- atomically $ newTVar TipGenesis
-    let updateNodeTip = readChan nodeTipQ >>= (atomically . writeTVar nodeTipVar)
+    let updateNodeTip = readChan nodeTipChan >>= (atomically . writeTVar nodeTipVar)
     link =<< async (forever updateNodeTip)
 
     action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
-            , watchNodeTip = _watchNodeTip nodeTipQ
+            , watchNodeTip = _watchNodeTip nodeTipChan
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , destroyCursor = _destroyCursor
@@ -272,14 +274,14 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
-        nodeTipQ <- newChan
+        nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
-            (writeChan nodeTipQ)
+            (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
-        pure (nodeTipQ, protocolParamsVar, localTxSubmissionQ)
+        pure (nodeTipChan, protocolParamsVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
@@ -381,13 +383,13 @@ withNetworkLayer tr np addrInfo versionData action = do
         liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData res
         return res
 
-    _watchNodeTip nodeTipQ cb = do
-        chan <- dupChan nodeTipQ
+    _watchNodeTip nodeTipChan cb = do
+        chan <- dupChan nodeTipChan
         let toBlockHeader = fromTip getGenesisBlockHash getEpochLength
         forever $ do
             header <- toBlockHeader <$> readChan chan
-            traceWith tr (MsgWatcherUpdate header)
-            cb header
+            bracketTracer (contramap (MsgWatcherUpdate header) tr) $
+                cb header
 
 type instance GetStakeDistribution (IO Shelley) m
     = (Point ShelleyBlock
@@ -720,7 +722,7 @@ data NetworkLayerLog
         Delegations RewardAccounts
     | MsgDestroyCursor ThreadId
     | MsgFetchedNodePoolLsqData NodePoolLsqData
-    | MsgWatcherUpdate W.BlockHeader
+    | MsgWatcherUpdate W.BlockHeader BracketLog
 
 data QueryClientName
     = TipSyncClient
@@ -790,8 +792,9 @@ instance ToText NetworkLayerLog where
             ]
         MsgFetchedNodePoolLsqData d ->
             "Fetched pool data from node tip using LSQ: " <> pretty d
-        MsgWatcherUpdate tip ->
-            "Update watcher with tip: " <> pretty tip
+        MsgWatcherUpdate tip b ->
+            "Update watcher with tip: " <> pretty tip <>
+            ". Callback " <> toText b <> "."
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where

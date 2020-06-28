@@ -127,7 +127,8 @@ data NetworkLayer m target block = NetworkLayer
         :: (BlockHeader -> m ())
         -> m ()
         -- ^ Register a callback for when the node tip changes.
-        -- The callback isn't allowed to fail.
+        -- This function should never finish, unless the callback throws an
+        -- exception, which will be rethrown by this function.
 
     , getProtocolParameters
         :: m ProtocolParameters
