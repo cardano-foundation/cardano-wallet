@@ -52,6 +52,7 @@ import Cardano.Wallet.Api.Server
     , getTransaction
     , getUTxOsStatistics
     , getWallet
+    , idleWorker
     , liftHandler
     , listAddresses
     , listTransactions
@@ -177,7 +178,8 @@ server byron icarus ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
-            SomeAccount x -> postAccountWallet icarus mkLegacyWallet IcarusKey x
+            SomeAccount x ->
+                postAccountWallet icarus mkLegacyWallet IcarusKey idleWorker x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)

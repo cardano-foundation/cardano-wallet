@@ -526,8 +526,10 @@ postWallet
     -> WalletOrAccountPostData
     -> Handler ApiWallet
 postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
-    Left  body' -> postShelleyWallet ctx generateKey body'
-    Right body' -> postAccountWallet ctx mkShelleyWallet liftKey body'
+    Left  body' ->
+        postShelleyWallet ctx generateKey body'
+    Right body' ->
+        postAccountWallet ctx mkShelleyWallet liftKey W.manageRewardBalance body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -578,14 +580,16 @@ postAccountWallet
     => ctx
     -> MkApiWallet ctx s w
     -> (XPub -> k 'AccountK XPub)
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with restore action
     -> AccountPostData
     -> Handler w
-postAccountWallet ctx mkWallet liftKey body = do
+postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @t @k wrk wid)
+        (`coworker` wid)
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
