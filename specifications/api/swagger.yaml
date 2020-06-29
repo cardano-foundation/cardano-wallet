@@ -817,7 +817,7 @@ components:
         - epoch_stability
         - active_slot_coefficient
         - decentralization_level
-        - desired_number_of_pools
+        - desired_pool_number
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -826,7 +826,7 @@ components:
         epoch_stability: *numberOfBlocks
         active_slot_coefficient: *percentage
         decentralization_level: *percentage
-        desired_number_of_pools: *stakePoolsNumber
+        desired_pool_number: *stakePoolsNumber
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object

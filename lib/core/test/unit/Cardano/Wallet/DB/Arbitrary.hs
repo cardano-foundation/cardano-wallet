@@ -571,7 +571,8 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    arbitrary = ProtocolParameters <$> arbitrary <*> arbitrary
+    arbitrary =
+        ProtocolParameters <$> arbitrary <*> arbitrary <*> choose (1, 2000)
     shrink = genericShrink
 
 instance Arbitrary TxParameters where

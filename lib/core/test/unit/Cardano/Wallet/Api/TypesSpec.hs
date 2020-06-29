@@ -778,6 +778,8 @@ spec = do
                         activeSlotCoefficient (x :: ApiNetworkParameters)
                     , decentralizationLevel =
                         decentralizationLevel (x :: ApiNetworkParameters)
+                    , desiredPoolNumber =
+                        desiredPoolNumber (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x
@@ -1173,7 +1175,15 @@ instance Arbitrary (Quantity "percent" Double) where
     arbitrary = Quantity <$> choose (0,100)
 
 instance Arbitrary ApiNetworkParameters where
-    arbitrary = genericArbitrary
+    arbitrary = ApiNetworkParameters
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> choose (1, 2000)
     shrink = genericShrink
 
 instance Arbitrary SlotId where
