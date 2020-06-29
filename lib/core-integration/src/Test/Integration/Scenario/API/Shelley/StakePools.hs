@@ -47,7 +47,7 @@ import Data.Quantity
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy, xit )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -65,7 +65,6 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
-    , getFromResponse
     , getSlotParams
     , joinStakePool
     , mkEpochInfo
@@ -265,7 +264,7 @@ spec = do
                 [ expectField #delegation (`shouldBe` notDelegating [])
                 ]
 
-    xit "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
             <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
@@ -293,37 +292,38 @@ spec = do
                     (.> (Quantity 0))
                 ]
 
-        -- Quit a pool
-        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-        eventually "Certificates are inserted after quiting a pool" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-
-        -- Check that rewards have stopped flowing.
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        reward <- getFromResponse (#balance . #getApiT . #reward) <$>
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-
-        waitForNextEpoch ctx
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField
-                    (#balance . #getApiT . #reward)
-                    (`shouldBe` reward)
-            ]
+-- TODO: Check if we can enable this
+--        -- Quit a pool
+--        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+--            [ expectResponseCode HTTP.status202
+--            , expectField (#status . #getApiT) (`shouldBe` Pending)
+--            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+--            ]
+--        eventually "Certificates are inserted after quiting a pool" $ do
+--            let ep = Link.listTransactions @'Shelley w
+--            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+--                [ expectListField 0
+--                    (#direction . #getApiT) (`shouldBe` Outgoing)
+--                , expectListField 0
+--                    (#status . #getApiT) (`shouldBe` InLedger)
+--                , expectListField 1
+--                    (#direction . #getApiT) (`shouldBe` Outgoing)
+--                , expectListField 1
+--                    (#status . #getApiT) (`shouldBe` InLedger)
+--                ]
+--
+--        -- Check that rewards have stopped flowing.
+--        waitForNextEpoch ctx
+--        waitForNextEpoch ctx
+--        reward <- getFromResponse (#balance . #getApiT . #reward) <$>
+--            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+--
+--        waitForNextEpoch ctx
+--        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+--            [ expectField
+--                    (#balance . #getApiT . #reward)
+--                    (`shouldBe` reward)
+--            ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
