@@ -242,27 +242,31 @@ spec = do
                 [ expectField #delegation (`shouldBe` delegating pool2 [])
                 ]
 
-        --quiting
-        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
+        -- TODO: This requires us to first be able to empty a reward account as
+        -- part of the quitting process. This can be tackled after we're done
+        -- with ADP-287.
+        --
+        -- --quiting
+        -- quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+        --     [ expectResponseCode HTTP.status202
+        --     , expectField (#status . #getApiT) (`shouldBe` Pending)
+        --     , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+        --     ]
 
-        -- Wait for the certificate to be inserted
-        eventually "Certificates are inserted" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 2
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 2
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        -- -- Wait for the certificate to be inserted
+        -- eventually "Certificates are inserted" $ do
+        --     let ep = Link.listTransactions @'Shelley w
+        --     request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+        --         [ expectListField 2
+        --             (#direction . #getApiT) (`shouldBe` Outgoing)
+        --         , expectListField 2
+        --             (#status . #getApiT) (`shouldBe` InLedger)
+        --         ]
 
-        eventually "Wallet is not delegating" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField #delegation (`shouldBe` notDelegating [])
-                ]
+        -- eventually "Wallet is not delegating" $ do
+        --     request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        --         [ expectField #delegation (`shouldBe` notDelegating [])
+        --         ]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx
