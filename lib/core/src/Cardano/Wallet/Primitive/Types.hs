@@ -1402,9 +1402,9 @@ data ProtocolParameters = ProtocolParameters
         :: TxParameters
         -- ^ Parameters that affect transaction construction.
     , desiredNumberOfStakePools
-        :: Word16
+        :: Maybe Word16
         -- ^ The current desired number of stakepools in the network.
-        -- Also known as k parameter.
+        -- Also known as k parameter. If specified has to be bigger than 0.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters

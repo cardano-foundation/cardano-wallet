@@ -189,6 +189,7 @@ mainnetNetworkParameters = W.NetworkParameters
             , getTxMaxSize =
                 Quantity 4096
             }
+        , desiredNumberOfStakePools = Nothing
         }
     }
 
@@ -429,6 +430,7 @@ protocolParametersFromPP pp = W.ProtocolParameters
         { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
         , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
         }
+    , desiredNumberOfStakePools = Nothing
     }
 
 -- | Extract the protocol parameters relevant to the wallet out of the

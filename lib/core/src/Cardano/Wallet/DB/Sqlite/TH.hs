@@ -147,11 +147,11 @@ Checkpoint
     deriving Show Generic
 
 ProtocolParameters
-    protocolParametersWalletId              W.WalletId  sql=wallet_id
-    protocolParametersFeePolicy             W.FeePolicy sql=fee_policy
-    protocolParametersTxMaxSize             Word16      sql=tx_max_size
-    protocolParametersDecentralizationLevel Percentage  sql=decentralization_level
-    protocolParametersDesiredNumberOfPools  Word16      sql=desired_pool_number
+    protocolParametersWalletId              W.WalletId      sql=wallet_id
+    protocolParametersFeePolicy             W.FeePolicy     sql=fee_policy
+    protocolParametersTxMaxSize             Word16          sql=tx_max_size
+    protocolParametersDecentralizationLevel Percentage      sql=decentralization_level
+    protocolParametersDesiredNumberOfPools  Word16 Maybe    sql=desired_pool_number
     Primary protocolParametersWalletId
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic

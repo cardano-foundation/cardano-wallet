@@ -1183,7 +1183,7 @@ instance Arbitrary ApiNetworkParameters where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> choose (1, 2000)
+        <*> oneof [pure Nothing, Just <$> choose (1, 2000)]
     shrink = genericShrink
 
 instance Arbitrary SlotId where
