@@ -30,6 +30,11 @@ x-slotNumber: &slotNumber
   minimum: 0
   example: 1337
 
+x-stakePoolsNumber: &stakePoolsNumber
+  type: integer
+  minimum: 1
+  example: 150
+
 x-numberOfSeconds: &numberOfSeconds
   type: object
   required:
@@ -812,6 +817,7 @@ components:
         - epoch_stability
         - active_slot_coefficient
         - decentralization_level
+        - desired_number_of_pools
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -820,6 +826,7 @@ components:
         epoch_stability: *numberOfBlocks
         active_slot_coefficient: *percentage
         decentralization_level: *percentage
+        desired_number_of_pools: *stakePoolsNumber
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object

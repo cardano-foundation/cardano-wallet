@@ -1401,6 +1401,10 @@ data ProtocolParameters = ProtocolParameters
     , txParameters
         :: TxParameters
         -- ^ Parameters that affect transaction construction.
+    , desiredNumberOfStakePools
+        :: Word16
+        -- ^ The current desired number of stakepools in the network.
+        -- Also known as k parameter.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -1409,6 +1413,7 @@ instance Buildable ProtocolParameters where
     build pp = blockListF' "" id
         [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
         , "Transaction parameters: " <> build (pp ^. #txParameters)
+        , "K parameter: " <> build (pp ^. #desiredNumberOfStakePools)
         ]
 
 -- | Indicates the current level of decentralization in the network.
