@@ -238,9 +238,9 @@ serveWallet
                 let gp = genesisParameters np
                 let el = getEpochLength gp
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
-                    (\_ _ -> pure ())
+                    Server.idleWorker
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
-                    (\_ _ -> pure ())
+                    Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
                     Server.manageRewardBalance
 

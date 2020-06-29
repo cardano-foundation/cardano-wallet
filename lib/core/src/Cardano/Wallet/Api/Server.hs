@@ -86,6 +86,7 @@ module Cardano.Wallet.Api.Server
 
     -- * Workers
     , manageRewardBalance
+    , idleWorker
     ) where
 
 import Prelude
@@ -279,12 +280,14 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
-    ( forM, void, (>=>) )
+    ( forM, forever, void, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -669,7 +672,7 @@ postLegacyWallet
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-        (\_ -> pure ())
+        (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -762,7 +765,7 @@ postRandomWalletFromXPrv ctx body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-        (\_ -> pure ())
+        (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -1461,7 +1464,7 @@ initWorker
     -> (WorkerCtx ctx -> ExceptT ErrNoSuchWallet IO ())
         -- ^ Restore action
     -> (WorkerCtx ctx -> IO ())
-        -- ^ Action to run concurrently with restore
+        -- ^ Action to run concurrently with restore action
     -> ExceptT ErrCreateWallet IO WalletId
 initWorker ctx wid createWallet restoreWallet coworker =
     liftIO (Registry.lookup re wid) >>= \case
@@ -1495,6 +1498,11 @@ initWorker ctx wid createWallet restoreWallet coworker =
         }
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
+
+-- | Something to pass as the coworker action to 'newApiLayer', which does
+-- nothing, and never exits.
+idleWorker :: ctx -> wid -> IO ()
+idleWorker _ _ = forever $ threadDelay maxBound
 
 -- | Handler for fetching the 'ArgGenChange' for the 'RndState' (i.e. the root
 -- XPrv), necessary to derive new change addresses.
