@@ -320,6 +320,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                                         policy
                                 , getTxMaxSize = softTxMaxSize
                                 }
+                            , desiredNumberOfStakePools = Nothing
                             }
                         }
                     )
