@@ -1,4 +1,4 @@
-The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'mnemonic generate')
+The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'recovery-phrase generate')
 
 <!--
 ATTENTION:
@@ -15,42 +15,41 @@ Available OPTIONS:
   -h | --help
 
 Available COMMANDS:
-  <a href="#launch">launch</a>                Launch and monitor a wallet server and its chain producers.
-  <a href="#serve">serve</a>                 Serve an HTTP API that listens for commands/actions.
-  mnemonic
-    <a href="#mnemonic-generate">generate</a>            Generate BIP-39 mnemonic words
-    <a href="#mnemonic-reward-credentials">reward-credentials</a>  Derive reward account private key from mnemonic.
+  <a href="#launch">launch</a>                      Launch and monitor a wallet server and its chain producers.
+  <a href="#serve">serve</a>                       Serve an HTTP API that listens for commands/actions.
+  recovery-phrase
+    <a href="#recovery-phrase-generate">generate</a>               Generate an English recovery phrases
   wallet
-    <a href="#wallet-list">list</a>                List all known wallets
+    <a href="#wallet-list">list</a>                   List all known wallets
     create
-      <a href="#wallet-create-from-mnemonic">from-mnemonic</a>     Create a new wallet using a mnemonic
-      <a href="#wallet-create-from-public-key">from-public-key</a>   Create a wallet using a public account key
-    <a href="#wallet-get">get</a>                 Fetch a particular wallet
-    <a href="#wallet-utxo">utxo</a>                Get a wallet's UTxO distribution
+      <a href="#wallet-create-from-recovery-phrase">from-recovery-phrase</a> Create a new wallet using a recovery-phrase
+      <a href="#wallet-create-from-public-key">from-public-key</a>      Create a wallet using a public account key
+    <a href="#wallet-get">get</a>                    Fetch a particular wallet
+    <a href="#wallet-utxo">utxo</a>                   Get a wallet's UTxO distribution
     update
-      <a href="#wallet-update-passphrase">passphrase</a>        Update a wallet's master passphrase
-      <a href="#wallet-update-name">name</a>              Update a wallet's name
-    <a href="#wallet-delete">delete</a>              Forget a wallet and its metadata
+      <a href="#wallet-update-passphrase">passphrase</a>           Update a wallet's master passphrase
+      <a href="#wallet-update-name">name</a>                 Update a wallet's name
+    <a href="#wallet-delete">delete</a>                 Forget a wallet and its metadata
   transaction
-    <a href="#transaction-create">create</a>              Create a transaction from a known wallet
-    <a href="#transaction-fees">fees</a>                Estimate fees for a transaction
-    <a href="#transaction-list">list</a>                List the transactions associated with a wallet
-    <a href="#transaction-submit">submit</a>              Submit an externally-signed transaction
-    <a href="#transaction-forget">forget</a>              Forget a pending transaction with specified id
+    <a href="#transaction-create">create</a>                 Create a transaction from a known wallet
+    <a href="#transaction-fees">fees</a>                   Estimate fees for a transaction
+    <a href="#transaction-list">list</a>                   List the transactions associated with a wallet
+    <a href="#transaction-submit">submit</a>                 Submit an externally-signed transaction
+    <a href="#transaction-forget">forget</a>                 Forget a pending transaction with specified id
   address
-    <a href="#address-list">list</a>                List all known addresses of a wallet
+    <a href="#address-list">list</a>                   List all known addresses of a wallet
   stake-pool
-      <a href="#stake-pool-list">list</a>              List all known stake pools
+      <a href="#stake-pool-list">list</a>                 List all known stake pools
   network
-    <a href="#network-information">information</a>         View network information
-    <a href="#network-parameters">parameters</a>          View network parameters
-    <a href="#network-clock">clock</a>               View NTP offset
+    <a href="#network-information">information</a>            View network information
+    <a href="#network-parameters">parameters</a>             View network parameters
+    <a href="#network-clock">clock</a>                  View NTP offset
   key
-    <a href="#key-root">root</a>                Extract root extended private key from a mnemonic sentence.
-    <a href="#key-child">child</a>               Derive child keys.
-    <a href="#key-public">public</a>              Extract public key from a private key.
-    <a href="#key-inspect">inspect</a>             Show information about a key.
-  <a href="#version">version</a>               Show the program's current version
+    <a href="#key-from-recovery-phrase">from-recovery-phrase</a>   Convert a recovery phrase to an extended private key
+    <a href="#key-child">child</a>                  Derive child keys from a parent public or private key
+    <a href="#key-public">public</a>                 Get the public counterpart of a private key
+    <a href="#key-inspect">inspect</a>                Show information about a key
+  <a href="#version">version</a>                  Show the program's current version
 </pre>
 
 > :information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility softwares like `jq`!
@@ -318,29 +317,21 @@ databases, use:
 $ cardano-wallet serve --trace-wallet-db=debug ...
 ```
 
-## mnemonic generate
+## recovery-phrase generate
 
-> `cardano-wallet mnemonic generate [--size=INT]`
+> `cardano-wallet recovery-phrase generate [--size=INT]`
 
-Generates mnemonic words
+Generate an English recovery phrase
 
 ```
-$ cardano-wallet mnemonic generate
+$ cardano-wallet recovery-phrase generate
 ```
 
 These words will be used to create a wallet later. You may also ask for a specific number of words using the `--size` option:
 
 ```
-$ cardano-wallet mnemonic generate --size 21
+$ cardano-wallet recovery-phrase generate --size 21
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
-## mnemonic reward-credentials
-
-> `cardano-wallet mnemonic reward-credentials`
-
-An interactive command to derive your reward account private key from a given mnemonic. Only for the incentivized testnet.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
@@ -356,17 +347,17 @@ $ cardano-wallet wallet list
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## wallet create from mnemonic
+## wallet create from recovery-phrase
 
-> `cardano-wallet wallet create from-mnemonic [--port=INT] <name> [--address-pool-gap=INT]`
+> `cardano-wallet wallet create from-recovery-phrase [--port=INT] <name> [--address-pool-gap=INT]`
 
-Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for mnemonic words and password.
+Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for recovery-phrase words and password.
 
 ```
 $ cardano-wallet wallet create "My Wallet"
-Please enter a 15–24 word mnemonic sentence: <enter generated mnemonic words here>
+Please enter a 15–24 word recovery-phrase sentence: <enter generated recovery-phrase words here>
 (Enter a blank line if you do not wish to use a second factor.)
-Please enter a 9–12 word mnemonic second factor: <skip or enter new mnemonic words here>
+Please enter a 9–12 word recovery-phrase second factor: <skip or enter new recovery-phrase words here>
 Please enter a passphrase: ****************
 Enter the passphrase a second time: ****************
 ```
@@ -631,30 +622,26 @@ Ok.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
-## key root
+## key from-recovery-phrase
 
-Extract the root extended private key from a mnemonic sentence. New mnemonic sentences can be generated using <a href="#mnemonic-generate">`mnemonic generate`</a>.
+Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <a href="#recovery-phrase-generate">`recovery-phrase generate`</a>.
 
 > ```
-> Usage: cardano-wallet key root [--wallet-style WALLET_STYLE]
->                                [--encoding KEY-ENCODING]
->                                MNEMONIC_WORD...
-> Extract root extended private key from a mnemonic sentence.
->
+> Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
+>   Convert a recovery phrase to an extended private key
+> 
 > Available options:
->  -h,--help                Show this help text
->  --wallet-style WALLET_STYLE
->                           Any of the following (default: icarus)
->                             icarus (15 words)
->                             trezor (12, 15, 18, 21 or 24 words)
->                             ledger (12, 15, 18, 21 or 24 words)
->  --key-encoding KEY-ENCODING
->                           Either 'hex' or 'bech32' (default: hex)
-> ```
+>   -h,--help                Show this help text
+>   STYLE                    Byron | Icarus | Jormungandr | Shelley
+> 
+> The recovery phrase is read from stdin.
 
-```bash
-$ cardano-wallet key root --wallet-style icarus -- express theme celery coral <...11 more words>
-68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168f...
+
+Example:
+
+```console
+$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus
+xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76v4jpd69a40un7sszdnw58qv527zlegvapwaee47uu724q4us4eurh52m027kk0602judjjw58gffvcqzkv2hs
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
@@ -664,44 +651,58 @@ $ cardano-wallet key root --wallet-style icarus -- express theme celery coral <.
 Derive child key from root private key. The parent key is read from standard input.
 
 > ```
-> Usage: cardano-wallet key child --path DER-PATH
->   Derive child keys.
->
+> Usage: cardano-wallet key child ([--base16] | [--base58] | [--bech32]) [--legacy] DERIVATION-PATH
+>   Derive child keys from a parent public/private key
+> 
 > Available options:
 >   -h,--help                Show this help text
->   --path DER-PATH          Derivation path e.g. 44H/1815H/0H/0
+>   DERIVATION-PATH          Slash-separated derivation path. 
+>                            Hardened indexes are marked with a 'H' (e.g. 1852H/1815H/0H/0).
+> 
+> The parent key is read from stdin.
 > ```
 
-```bash
-$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key child --path 44H/1815H/0H/0
+```console
+$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus > root.xprv
+$ cat root.xprv | cardano-wallet key child 44H/1815H/0H/0
+xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## key public
 
-Extract the public key of an extended private key. Keys can be obtained using <a href="#key-root">`key root`</a> and <a href="#key-child">`key child`</a>. The private key is read from standard input.
+Extract the public key of an extended private key. Keys can be obtained using <a href="#key-from-recovery-phrase">`key from-recovery-phrase`</a> and <a href="#key-child">`key child`</a>. 
 
-> `cardano-wallet key public`
+> ```
+> Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
+>   Get the public counterpart of a private key
+> 
+> Available options:
+>   -h,--help                Show this help text
+> 
+> The private key is read from stdin.
+> ```
 
-```bash
-$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key public
-b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
+```console
+$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus > root.xprv
+$ cat root.xprv | cardano-wallet key public
+xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ynczj338r7f5kzs43xs2fkmktekd4fgnc8q98
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## key inspect
 
-Show information about a key. The key is read from standard input.
-
-> `cardano-wallet key inspect`
-
-```bash
-$ echo 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b | cardano-wallet key inspect
-extended private key: 68f0cb3d83b5278f0b4c9c4a4ab50e49aef13f348ceafaf8257168fd8f3b894fa47646b6e206864404f3208b7dee1e71cd16096ac9205d9dd5250ae0e963dd79
-chain code: 411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b
-```
+> ```
+> Usage: cardano-wallet-jormungandr key inspect 
+>   Show information about a key
+> 
+> Available options:
+>   -h,--help                Show this help text
+> 
+> The parent key is read from stdin.
+> ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
