@@ -300,10 +300,8 @@ withNetworkLayer tr np addrInfo versionData action = do
     _stakeDistribution =
         notImplemented "stakeDistribution"
 
-    -- At the moment it's not necessasy to implement this method unless
-    -- monitoring a reward account.
     _watchNodeTip =
-        notImplemented "stakeDistribution"
+        notImplemented "watchNodeTip"
 
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.

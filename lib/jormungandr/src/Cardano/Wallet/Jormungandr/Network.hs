@@ -473,6 +473,10 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
             _ ->
                 RollBackward $ Cursor emptyBlockHeaders
 
+    -- NOTE: Because the jormungandr REST API is a polling API, this relies on
+    -- another thread (e.g. the chain 'follow' operation) to be periodically
+    -- calling 'getNodeTip' to drive updates. This only works because the sole
+    -- user of 'watchNodeTip' is 'manageRewardBalance'.
     _watchNodeTip cb = do
         watcher <- liftIO . atomically $ dupTChan tipNotify
         prevVar <- liftIO $ newIORef Nothing
