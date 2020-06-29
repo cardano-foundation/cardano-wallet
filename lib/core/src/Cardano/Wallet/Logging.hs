@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -43,10 +45,14 @@ import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
+import Data.Aeson
+    ( ToJSON )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.Generics
+    ( Generic )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -138,7 +144,7 @@ data BracketLog
     -- ^ Logged after the action finishes.
     | BracketException
     -- ^ Logged when the action throws an exception.
-    deriving (Show, Eq)
+    deriving (Generic, Show, Eq, ToJSON)
 
 instance ToText BracketLog where
     toText b = case b of
