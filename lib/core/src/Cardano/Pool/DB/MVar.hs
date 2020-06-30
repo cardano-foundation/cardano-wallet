@@ -29,11 +29,13 @@ import Cardano.Pool.DB.Model
     , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
+    , mPutPoolRetirement
     , mPutStakeDistribution
     , mReadCursor
     , mReadPoolMetadata
     , mReadPoolProduction
     , mReadPoolRegistration
+    , mReadPoolRetirement
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
@@ -84,6 +86,12 @@ newDBLayer = do
 
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
+
+        , putPoolRetirement = \slot cert ->
+            void $ alterPoolDB (const Nothing) db $ mPutPoolRetirement slot cert
+
+        , readPoolRetirement =
+            readPoolDB db . mReadPoolRetirement
 
         , unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs

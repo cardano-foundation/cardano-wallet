@@ -24,6 +24,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , PoolId
     , PoolRegistrationCertificate
+    , PoolRetirementCertificate
     , SlotId (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -111,6 +112,17 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         :: PoolId
         -> stm (Maybe PoolRegistrationCertificate)
         -- ^ Find a registration certificate associated to a given pool
+
+    , putPoolRetirement
+        :: SlotId
+        -> PoolRetirementCertificate
+        -> stm ()
+        -- ^ Add a retirement certificate for a particular pool.
+
+    , readPoolRetirement
+        :: PoolId
+        -> stm (Maybe PoolRetirementCertificate)
+        -- ^ Find a retirement certificate for a particular pool.
 
     , unfetchedPoolMetadataRefs
         :: Int

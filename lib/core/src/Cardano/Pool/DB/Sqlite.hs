@@ -49,6 +49,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
@@ -247,6 +248,32 @@ newDBLayer trace fp = do
                         , poolCost
                         , poolPledge
                         , poolMetadata
+                        }
+
+        , putPoolRetirement = \slotId PoolRetirementCertificate
+            { poolId
+            , retiredIn
+            } -> do
+            let EpochNo retirementEpoch = retiredIn
+            repsert (PoolRetirementKey poolId slotId) $ PoolRetirement
+                poolId
+                slotId
+                (fromIntegral retirementEpoch)
+
+        , readPoolRetirement = \poolId -> do
+            let filterBy = [ PoolRetirementPoolId ==. poolId ]
+            let orderBy  = [ Desc PoolRetirementSlot ]
+            selectFirst filterBy orderBy >>= \case
+                Nothing -> pure Nothing
+                Just meta -> do
+                    let PoolRetirement
+                            _poolId
+                            _slotId
+                            retirementEpoch = entityVal meta
+                    let retiredIn = EpochNo (fromIntegral retirementEpoch)
+                    pure $ Just $ PoolRetirementCertificate
+                        { poolId
+                        , retiredIn
                         }
 
         , unfetchedPoolMetadataRefs = \limit -> do

@@ -40,6 +40,8 @@ module Cardano.Pool.DB.Model
     , mReadPoolMetadata
     , mPutPoolRegistration
     , mReadPoolRegistration
+    , mPutPoolRetirement
+    , mReadPoolRetirement
     , mUnfetchedPoolMetadataRefs
     , mPutFetchAttempt
     , mPutPoolMetadata
@@ -57,6 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -98,6 +101,9 @@ data PoolDatabase = PoolDatabase
     , registrations :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain registrations associated with pools
 
+    , retirements :: !(Map (SlotId, PoolId) PoolRetirementCertificate)
+    -- ^ On-chain retirements associated with pools
+
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
 
@@ -122,7 +128,7 @@ instance Eq SystemSeed where
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
-    PoolDatabase mempty mempty mempty mempty mempty mempty NotSeededYet
+    PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -202,6 +208,25 @@ mReadPoolRegistration poolId db@PoolDatabase{registrations} =
   where
     only k (_, k') _ = k == k'
 
+mPutPoolRetirement :: SlotId -> PoolRetirementCertificate -> ModelPoolOp ()
+mPutPoolRetirement sl retirement db@PoolDatabase {retirements} =
+    ( Right ()
+    , db { retirements = Map.insert (sl, poolId) retirement retirements }
+    )
+  where
+    PoolRetirementCertificate poolId _retiredIn = retirement
+
+mReadPoolRetirement :: PoolId -> ModelPoolOp (Maybe PoolRetirementCertificate)
+mReadPoolRetirement poolId db@PoolDatabase {retirements} =
+    ( Right
+        $ fmap snd
+        $ Map.lookupMax
+        $ Map.filterWithKey (only poolId) retirements
+    , db
+    )
+  where
+    only k (_, k') _ = k == k'
+
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
 mListRegisteredPools db@PoolDatabase{registrations} =
     ( snd <$> Map.keys registrations, db )
@@ -274,12 +299,14 @@ mRollbackTo point PoolDatabase { pools
                                , distributions
                                , owners
                                , registrations
+                               , retirements
                                , metadata
                                , seed
                                , fetchAttempts
                                } =
     let
         registrations' = Map.mapMaybeWithKey (discardBy id . fst) registrations
+        retirements' = Map.mapMaybeWithKey (discardBy id . fst) retirements
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys registrations'
@@ -291,6 +318,7 @@ mRollbackTo point PoolDatabase { pools
                 Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
             , registrations = registrations'
+            , retirements = retirements'
             , metadata
             , fetchAttempts
             , seed
