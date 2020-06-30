@@ -1,0 +1,6 @@
+stateDiagram
+  [*] --> pending: request
+  [*] --> in_ledger: discover
+  pending --> in_ledger: discover
+  pending --> [*]: forget
+  in_ledger --> pending: rollback

@@ -1,10 +1,12 @@
-# Foreword
+# Coding Standards
+
+## Foreword
 
 This file contains agreed-upon coding standards and best practices, as well as proposals for changes or new standards. Proposals are prefixed with `[PROPOSAL]` and are voted on by the wallet backend team through polls on Slack. To be accepted, a practice should be voted with majority + 1, with neutral votes counting as positive votes. 
 
 Each proposal should start with a section justifying the standard with rational arguments. When it makes sense, we should also provide examples of good and bad practices to make the point clearer.
 
-# Summary
+## Summary
 
 * [Code Formatting](#code-formatting)
     * [Editor configuration via `.editorconfig`](#editor-configuration-via-editorconfig)
@@ -36,9 +38,9 @@ Each proposal should start with a section justifying the standard with rational 
     * [Test files are separated and self-contained](#test-files-are-separated-and-self-contained)
     * [Unit test files names match their corresponding module](#unit-test-files-names-match-their-corresponding-module)
 
-# Code Formatting
+## Code Formatting
 
-## Editor Configuration via `.editorconfig`
+### Editor Configuration via `.editorconfig`
 
 A `.editorconfig` (see https://editorconfig.org/) at the root of the project specifies for various filetype:
 
@@ -54,7 +56,7 @@ This file should be parsed and enforced by any contributor's editor.
 > easily written and supported by any decent editor out there. Agreeing on such rules prevent our version control
 > system to go crazy because people use different encoding or indentation style. It makes the overall code more consistent.
 
-## Limit line length to 80 characters
+### Limit line length to 80 characters
 
 Source code, including comments, should **not** exceed 80 characters in length, unless in exceptional situations.
 
@@ -66,11 +68,11 @@ Source code, including comments, should **not** exceed 80 characters in length, 
 
 <details><summary>See Examples and Exceptions</summary>
 
-### Examples
+#### Examples
 
 If you find yourself exceeding 80 characters, there are several strategies you can use.
 
-#### Strategy #1: Wrap code
+##### Strategy #1: Wrap code
 
 By inserting carriage returns in the right place, we can often reveal the underlying structure of an expression. Haskell allows you to break up long expressions so that they occur over multiple lines. For example:
 
@@ -105,7 +107,7 @@ Another example of wrapping:
             (checkCoverage prop_2_6_2)
 ```
 
-#### Strategy #2: Place comments on their own line instead of attempting to align them vertically
+##### Strategy #2: Place comments on their own line instead of attempting to align them vertically
 
 ```Haskell
 -- BAD
@@ -131,7 +133,7 @@ mkMagicalBlock
   -> Block
 ```
 
-#### Strategy #3: Break up long string literals
+##### Strategy #3: Break up long string literals
 
 Haskell provides convenient support for multi-line string literals:
 
@@ -161,17 +163,17 @@ spec = do
     \only very limited amounts of oxygen." $ do
 ```
 
-#### Strategy #4: Reduce nesting
+##### Strategy #4: Reduce nesting
 
 If your function contains so many levels of nesting that it's hard to keep things within 80 characters (even with careful use of wrapping), consider breaking your function up into smaller parts.
 
-### Exceptions
+#### Exceptions
 
 Sometimes, it's **impossible** to adhere to this rule.
 
 Here is a list of allowed exceptions:
 
-#### Exception #1: URLs in comments
+##### Exception #1: URLs in comments
 
 According to the standard, URLs can be extremely long. In some situations, we need to place URLs in source code comments. If a URL is longer than 80 characters, then place it on its own line:
 
@@ -182,7 +184,7 @@ According to the standard, URLs can be extremely long. In some situations, we ne
 
 </details>
 
-## Use only a single blank line between top-level definitions
+### Use only a single blank line between top-level definitions
 
 A source code file **should not** contain multiple consecutive blank lines.
 
@@ -244,7 +246,7 @@ newtype BlockHeader = BlockHeader
 
 </details>
 
-## Avoid Variable-Length Indentation
+### Avoid Variable-Length Indentation
 
 Variables, arguments, fields and tokens in general shouldn't be aligned based
 on the length of a previous token. Rather, tokens should go over a new line and
@@ -309,7 +311,7 @@ data MyRecord = MyRecord
 </details>
 
 
-## Stylish-Haskell is used to format grouped imports & language pragmas
+### Stylish-Haskell is used to format grouped imports & language pragmas
 
 Contributors' editors should pick up and enforce the rules defined by the `.stylish-haskell.yaml`
 configuration file at the root of the project. Also, in order to maximize readability, imports
@@ -438,9 +440,9 @@ steps:
   ```
 </details>
 
-# Haskell Practices
+## Haskell Practices
 
-## Favor `newtype` and tagged type over type-aliases
+### Favor `newtype` and tagged type over type-aliases
 
 Instead of writing type aliases, one should favor wrapping up values in newtype
 when it makes sense, or, have them wrapped into a tagged type with a phantom
@@ -479,7 +481,7 @@ robustness.
   ```
 </details>
 
-## Language extensions are specified on top of each module
+### Language extensions are specified on top of each module
 
 Haskell's language extension are specified on top of each module. 
 
@@ -556,7 +558,7 @@ As a start, we'll use the following built-in rules from `hlint` with the followi
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 ```
 
-## We use explicit imports by default, and favor qualified imports for ambiguous functions
+### We use explicit imports by default, and favor qualified imports for ambiguous functions
 
 Apart from the chosen prelude, there should be no implicit imports. Instead,
 every function or class used from a given module should be listed explicitly.
@@ -627,7 +629,7 @@ import should be used instead (this is mainly the case for modules coming from
 </details>
 
 
-## All modules begin with a helpful documentation comment
+### All modules begin with a helpful documentation comment
 
 The comments might answer the question _why?_ They _might_:
 1. Explain the relation to other modules
@@ -678,7 +680,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 
 </details>
 
-## Prefer named constants over magic numbers
+### Prefer named constants over magic numbers
 
 > **Why**
 >
@@ -691,7 +693,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 <details>
   <summary>See examples</summary>
 
-### BAD
+#### BAD
 ```hs
 humanReadableCharIsValid :: Char -> Bool
 humanReadableCharIsValid c = c >= chr 33 && c <= chr 126
@@ -707,7 +709,7 @@ instance Arbitrary HumanReadableChar where
     arbitrary = HumanReadableChar <$>
         choose (chr 33, chr 126)
 ```
-### GOOD
+#### GOOD
 ```hs
 -- | The lower bound of the set of characters permitted to appear within the
 --   human-readable part of a Bech32 string.
@@ -748,7 +750,7 @@ instance Arbitrary HumanReadableChar where
 
 </details>
 
-## Avoid wildcards when pattern-matching on sum types
+### Avoid wildcards when pattern-matching on sum types
 
 When pattern-matching on sum types or finite structures, we should avoid
 the use of the wildcard `_` as much as possible, and instead favor explicit
@@ -786,7 +788,7 @@ of the new branches.
   ```
 </details>
 
-## Prefer pattern-matching to equality testing on sum types.
+### Prefer pattern-matching to equality testing on sum types.
 
 For expressions that evaluate differently depending on a value of a sum type,
 prefer pattern matching over equality testing for values of that type.
@@ -828,9 +830,9 @@ prefer pattern matching over equality testing for values of that type.
   ```
 </details>
 
-# QuickCheck
+## QuickCheck
 
-## See your property fail
+### See your property fail
 
 This is a general practice in TDD (**T**est **D**riven **D**evelopment) but
 even more important in property-based testing.  You want to see _how_ your
@@ -845,7 +847,7 @@ understand the reason of the failure and debug it.
 > properties failing at least once to see whether the level of details is
 > sufficient, as well as the efficiency of the shrinkers.
 
-## Define properties as separate functions
+### Define properties as separate functions
 
 It is often tempting to write properties inlined with `hspec` other combinators
 instead of having them as separate functions. However, we recommend writing 
@@ -904,7 +906,7 @@ it "Eventually converge for decreasing functions" $ do
 
 </details>
 
-## Provide readable counter-examples on failures
+### Provide readable counter-examples on failures
 
 Use [counterexample](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:counterexample) to display human-readable
 counter examples when a test fails; in particular, for data-types which have a [Buildable](https://hackage.haskell.org/package/fmt-0.6.1.2/docs/Fmt.html#t:Buildable) instances
@@ -944,7 +946,7 @@ property (bs' === Just expected)
 ```
 </details>
 
-## Tag interesting cases in complex properties
+### Tag interesting cases in complex properties
 
 Quickcheck provides good tooling for labelling (see [label](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:label) and classifying (see [classify](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:classify))
 inputs or results of a property. These should be used in properties dealing with several classes of values.
@@ -1038,7 +1040,7 @@ prop_accuracy r = withMaxSuccess 1000 $ monadicIO $ do
 ```
 </details>
 
-## Write properties to assert the validity of complex generators (and shrinkers)
+### Write properties to assert the validity of complex generators (and shrinkers)
 
 Arbitrary generators, and in particular complex ones, should be tested independently 
 to make sure they yield correct values. This also includes shrinkers associated with 
@@ -1081,7 +1083,7 @@ prop_nonSingletonRangeGenerator = property $ \(nsr :: NonSingletonRange Int) ->
 ```
 </details>
 
-## Use `checkCoverage` to measure coverage requirements
+### Use `checkCoverage` to measure coverage requirements
 
 Using [label](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:label) or [classify](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:classify)
 instruments QuickCheck to gather some metrics about a particular properties and print out results in the console. However, 
@@ -1125,7 +1127,7 @@ spec = do
 </details>
 
 
-## Avoid `liftIO` in monadic properties
+### Avoid `liftIO` in monadic properties
 
 When running monadic properties in IO, it is often required to lift a
 particular IO action.  Unfortunately, the `PropertyM` monad in which the
@@ -1168,9 +1170,9 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 ```
 </details>
 
-# Testing
+## Testing
 
-## Test files are separated and self-contained
+### Test files are separated and self-contained
 
 Test files do not import other test files. Arbitrary instances are not shared
 across test files and are defined locally. If we do observe a recurring pattern
