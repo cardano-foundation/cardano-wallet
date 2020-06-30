@@ -1,6 +1,3 @@
-#####################
-cardano-wallet README
-#####################
 .. raw:: html
 
    <p align="center">
