@@ -311,8 +311,6 @@ benchmark latency
     , stm
     , temporary
     , text
-    , text-class
-    , time
   build-tools:
       cardano-wallet-jormungandr
   type:
