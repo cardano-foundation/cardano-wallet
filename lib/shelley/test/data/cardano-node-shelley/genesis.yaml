@@ -14,7 +14,7 @@
 # See also: lib/shelley/src/Cardano/Wallet/Shelley/Launch.hs for details.
 
 ---
-activeSlotsCoeff: 0.8
+activeSlotsCoeff: 0.5
 protocolParams:
   poolDeposit: 0
   protocolVersion:
@@ -47,12 +47,12 @@ maxLovelaceSupply: 45000000000000000
 protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
-epochLength: 100
+epochLength: 200
 staking:
 slotsPerKESPeriod: 86400
 slotLength: 0.2
 maxKESEvolutions: 90
-securityParam: 8
+securityParam: 10
 systemStart: "2020-06-19T16:07:37.740128433Z"
 initialFunds:
   # Cluster Faucets, used for setting up stake pools
