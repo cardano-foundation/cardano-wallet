@@ -98,7 +98,7 @@ dummyProtocolParameters :: ProtocolParameters
 dummyProtocolParameters = ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = dummyTxParameters
-    , desiredNumberOfStakePools = Just 100
+    , desiredNumberOfStakePools = 100
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.

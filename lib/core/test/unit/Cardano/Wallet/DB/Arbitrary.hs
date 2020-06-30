@@ -341,7 +341,6 @@ instance Arbitrary WalletMetadata where
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary
 
-
 {-------------------------------------------------------------------------------
                                    Blocks
 -------------------------------------------------------------------------------}
@@ -574,7 +573,7 @@ instance Arbitrary ProtocolParameters where
     arbitrary = ProtocolParameters
         <$> arbitrary
         <*> arbitrary
-        <*> oneof [pure Nothing, Just <$> choose (1, 2000)]
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary TxParameters where

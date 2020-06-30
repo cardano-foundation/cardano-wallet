@@ -423,7 +423,7 @@ mockJormungandrClient logLine = JormungandrClient
                     { getFeePolicy = error "mock gp"
                     , getTxMaxSize = error "mock gp"
                     }
-                , desiredNumberOfStakePools = Nothing
+                , desiredNumberOfStakePools = 10
                 }
             })
 

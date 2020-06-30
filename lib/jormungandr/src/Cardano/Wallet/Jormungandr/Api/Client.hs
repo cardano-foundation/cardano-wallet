@@ -67,6 +67,8 @@ import Cardano.Wallet.Jormungandr.Binary
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( softTxMaxSize )
+import Cardano.Wallet.Jormungandr.Rewards
+    ( PoolCapping (..) )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
@@ -295,9 +297,14 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                         Just $ ActiveSlotCoefficient $ fromIntegral f / 1000
                     _ -> Nothing
 
+        let mpoolCapping = mapMaybe getPoolCapping params
+              where
+                getPoolCapping = \case
+                    ConfigPoolCapping (PoolCapping _ x) -> Just x
+                    _ -> Nothing
 
-        case (mpolicy, mduration, mblock0T, mepLength, mStability, mcoeff) of
-            ([policy],[duration],[block0T], [epLength], [stability],[coeff]) ->
+        case (mpolicy, mduration, mblock0T, mepLength, mStability, mcoeff, mpoolCapping) of
+            ([policy],[duration],[block0T], [epLength], [stability],[coeff],[poolcapping]) ->
                 return
                     ( jblock
                     , NetworkParameters
@@ -320,7 +327,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                                         policy
                                 , getTxMaxSize = softTxMaxSize
                                 }
-                            , desiredNumberOfStakePools = Nothing
+                            , desiredNumberOfStakePools = fromIntegral poolcapping
                             }
                         }
                     )

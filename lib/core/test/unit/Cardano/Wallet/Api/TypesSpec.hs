@@ -1175,15 +1175,7 @@ instance Arbitrary (Quantity "percent" Double) where
     arbitrary = Quantity <$> choose (0,100)
 
 instance Arbitrary ApiNetworkParameters where
-    arbitrary = ApiNetworkParameters
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> oneof [pure Nothing, Just <$> choose (1, 2000)]
+    arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary SlotId where

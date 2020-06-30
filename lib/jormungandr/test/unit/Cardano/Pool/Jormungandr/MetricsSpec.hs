@@ -507,7 +507,7 @@ genesisProtocolParameters :: ProtocolParameters
 genesisProtocolParameters = ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = genesisTxParameters
-    , desiredNumberOfStakePools = Nothing
+    , desiredNumberOfStakePools = 10
     }
 
 genesisTxParameters :: TxParameters

@@ -502,7 +502,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , epochStability :: !(Quantity "block" Word32)
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     , decentralizationLevel :: !(Quantity "percent" Percentage)
-    , desiredPoolNumber :: !(Maybe Word16)
+    , desiredPoolNumber :: !Word16
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters

@@ -32,8 +32,8 @@ x-slotNumber: &slotNumber
 
 x-stakePoolsNumber: &stakePoolsNumber
   type: integer
-  minimum: 1
-  example: 150
+  minimum: 0
+  example: 100
 
 x-numberOfSeconds: &numberOfSeconds
   type: object
@@ -817,6 +817,7 @@ components:
         - epoch_stability
         - active_slot_coefficient
         - decentralization_level
+        - desired_pool_number
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date

@@ -503,8 +503,8 @@ txParametersFromPParams pp = W.TxParameters
 
 desiredNumberOfStakePoolsFromPParams
     :: SL.PParams
-    -> Maybe Word16
-desiredNumberOfStakePoolsFromPParams pp = Just $ fromIntegral (SL._nOpt pp)
+    -> Word16
+desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
