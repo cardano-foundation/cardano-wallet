@@ -10,8 +10,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Main where
 
 import Prelude
@@ -25,7 +23,7 @@ import Cardano.BM.Data.LogItem
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( ToObject (..), contramap, nullTracer )
+    ( contramap, nullTracer )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
@@ -80,16 +78,12 @@ import Control.Monad
     ( forM_, mapM_, replicateM, replicateM_ )
 import Control.Monad.STM
     ( atomically )
-import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text.Class
-    ( toText )
 import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
@@ -464,11 +458,3 @@ benchWithServer tracers action = do
                 block0
                 (gp, vData)
                 (act gp)
-
-instance ToJSON ApiLog where
-    toJSON = toJSON . toText
-
-instance FromJSON ApiLog where
-    parseJSON _ = fail "FromJSON ApiLog stub"
-
-instance ToObject ApiLog
