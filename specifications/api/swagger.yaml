@@ -551,6 +551,14 @@ x-stakePoolMetadata: &stakePoolMetadata
       format: uri
       example: https://iohk.io
 
+x-stakePoolRetirement: &stakePoolRetirement
+  <<: *epochInfo
+  description: |
+      The epoch in which a stake pool retires.
+
+      May be omitted if the wallet hasn't yet found a retirement certificate
+      for this stake pool.
+
 x-jormungandrStakePoolMetadata: &jormungandrStakePoolMetadata
   description: |
     Information about the stake pool.
@@ -841,6 +849,7 @@ components:
         margin: *stakePoolMargin
         pledge: *stakePoolPledge
         metadata: *stakePoolMetadata
+        retirement: *stakePoolRetirement
 
     ApiJormungandrStakePool: &ApiJormungandrStakePool
       type: object

@@ -1004,6 +1004,7 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary ApiStakePoolMetrics where
     arbitrary = ApiStakePoolMetrics
