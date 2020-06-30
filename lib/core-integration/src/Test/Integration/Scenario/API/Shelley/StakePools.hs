@@ -42,8 +42,12 @@ import Data.List
     ( sortOn )
 import Data.Maybe
     ( mapMaybe )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -89,6 +93,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
+import qualified Data.Set as Set
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -446,6 +451,14 @@ spec = do
 
     let listPools ctx = request @[ApiStakePool] @IO ctx (Link.listStakePools arbitraryStake) Default Empty
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
+        -- TODO: Add a /short/ eventually (not currently possible) as this test
+        -- fails when run in isolation.
+        --
+        -- When run immediately after the stake-pool are setup, the chain-sync
+        -- tip hasn't caught up with the epoch when they first exist.
+        --
+        -- A simple threadDelay could be added either here, in the test setup
+        -- also.
         it "immediately has non-zero saturation & stake" $ \ctx -> do
             r <- listPools ctx
             expectResponseCode HTTP.status200 r
@@ -470,34 +483,23 @@ spec = do
                 r <- listPools ctx
                 expectResponseCode HTTP.status200 r
                 let oneMillionAda = 1_000_000_000_000
-                verify r
-                    [ expectListField 0
-                        (#cost) (`shouldBe` Just (Quantity 0))
-                    , expectListField 1
-                        (#cost) (`shouldBe` Just (Quantity 0))
-                    , expectListField 2
-                        (#cost) (`shouldBe` Just (Quantity 0))
+                let pools = either (error . show) id $ snd r
 
-                    , expectListField 0
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
-                    , expectListField 1
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
-                    , expectListField 2
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
+                -- To ignore the ordering of the pools, we use Set.
+                setOf pools (view #cost)
+                    `shouldBe` Set.singleton (Just $ Quantity 0)
 
-                    , expectListField 0
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
-                    , expectListField 1
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
-                    , expectListField 2
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                setOf pools (view #margin)
+                    `shouldBe`
+                    Set.singleton
+                        (Just $ Quantity $ unsafeMkPercentage 0.1)
 
-                    -- TODO: Test that we have non-zero non-myopic member
-                    -- rewards, and sort by it.
-                    ]
+                setOf pools (view #pledge)
+                    `shouldBe`
+                    Set.fromList
+                        [ Just (Quantity oneMillionAda)
+                        , Just (Quantity $ 2 * oneMillionAda)
+                        ]
 
         it "at least one pool eventually produces block" $ \ctx -> do
             eventually "eventually produces block" $ do
@@ -543,6 +545,14 @@ spec = do
                         `shouldBe` metadataList
                     ]
 
+        it "contains and is sorted by non-myopic-rewards" $ \ctx -> do
+            eventually "eventually shows non-zero rewards" $ do
+                Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx
+                let rewards = view (#metrics . #nonMyopicMemberRewards)
+                pools `shouldBe` sortOn (Down . rewards) pools
+                -- Make sure the rewards are not all equal:
+                rewards pool1 .> rewards pool3
+
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
         r <- request @[ApiStakePool] @IO ctx
             (Link.listStakePools Nothing) Default Empty
@@ -566,5 +576,8 @@ spec = do
     arbitraryStake :: Maybe Coin
     arbitraryStake = Just $ ada 10000
       where ada = Coin . (1000*1000*)
+
+    setOf :: Ord b => [a] -> (a -> b) -> Set b
+    setOf xs f = Set.fromList $ map f xs
 
     passwd = "Secure Passphrase"
