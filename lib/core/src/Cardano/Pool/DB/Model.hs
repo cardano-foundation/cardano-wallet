@@ -190,9 +190,13 @@ mPutPoolRegistration sl registration db@PoolDatabase{owners,registrations} =
   where
     PoolRegistrationCertificate { poolId , poolOwners } = registration
 
-mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
+mReadPoolRegistration
+    :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
 mReadPoolRegistration poolId db@PoolDatabase{registrations} =
-    ( Right $ fmap snd $ Map.lookupMax $ Map.filterWithKey (only poolId) registrations
+    ( Right
+        $ fmap snd
+        $ Map.lookupMax
+        $ Map.filterWithKey (only poolId) registrations
     , db
     )
   where
@@ -283,7 +287,8 @@ mRollbackTo point PoolDatabase { pools
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
-            , distributions = Map.mapMaybeWithKey (discardBy epochNumber) distributions
+            , distributions =
+                Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
             , registrations = registrations'
             , metadata

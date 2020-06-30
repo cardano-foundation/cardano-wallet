@@ -354,9 +354,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
             let (slot, registrations) = fromShelleyBlock' getEpochLength blk
-            runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
-                Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
-                Right () -> pure ()
+            runExceptT (putPoolProduction (getHeader blk) (getProducer blk))
+                >>= \case
+                    Left e ->
+                        liftIO $ traceWith tr $ MsgErrProduction e
+                    Right () ->
+                        pure ()
             forM_ registrations $ \case
                 Registration pool -> do
                     liftIO $ traceWith tr $ MsgStakePoolRegistration pool
@@ -368,7 +371,9 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
 monitorMetadata
     :: Tracer IO StakePoolLog
     -> GenesisParameters
-    -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Either String StakePoolMetadata))
+    -> (StakePoolMetadataUrl
+        -> StakePoolMetadataHash
+        -> IO (Either String StakePoolMetadata))
     -> DBLayer IO
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
@@ -441,8 +446,10 @@ instance ToText StakePoolLog where
             ]
         MsgHaltMonitoring ->
             "Stopping stake pool monitoring as requested."
-        MsgCrashMonitoring ->
-            "Chain follower exited with error. Worker will no longer monitor stake pools."
+        MsgCrashMonitoring -> mconcat
+            [ "Chain follower exited with error. "
+            , "Worker will no longer monitor stake pools."
+            ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
         MsgStakePoolRegistration pool ->
@@ -464,6 +471,7 @@ instance ToText StakePoolLog where
             [ "Failed to fetch metadata from ", toText url, ": ", T.pack msg
             ]
         MsgFetchTakeBreak delay -> mconcat
-            [ "Taking a little break from fetching metadata, back to it in about "
+            [ "Taking a little break from fetching metadata, "
+            , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]

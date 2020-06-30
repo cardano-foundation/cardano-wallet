@@ -224,7 +224,7 @@ newDBLayer trace fp = do
 
         , readPoolRegistration = \poolId -> do
             let filterBy = [ PoolRegistrationPoolId ==. poolId ]
-            let orderBy  = [ Desc PoolRegistrationSlot ]
+            let orderBy = [ Desc PoolRegistrationSlot ]
             selectFirst filterBy orderBy >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
@@ -237,13 +237,16 @@ newDBLayer trace fp = do
                             poolPledge_
                             poolMetadataUrl
                             poolMetadataHash = entityVal meta
-                    let poolMargin = unsafeMkPercentage $ toRational $ marginNum % marginDen
+                    let poolMargin = unsafeMkPercentage $
+                            toRational $ marginNum % marginDen
                     let poolCost = Quantity poolCost_
                     let poolPledge = Quantity poolPledge_
-                    let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
-                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
-                        [ PoolOwnerPoolId ==. poolId ]
-                        [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
+                    let poolMetadata =
+                          (,) <$> poolMetadataUrl <*> poolMetadataHash
+                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
+                        selectList
+                            [ PoolOwnerPoolId ==. poolId ]
+                            [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
                     pure $ Just $ PoolRegistrationCertificate
                         { poolId
                         , poolOwners
