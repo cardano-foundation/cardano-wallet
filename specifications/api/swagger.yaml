@@ -49,6 +49,15 @@ x-epochNumber: &epochNumber
   minimum: 0
   example: 14
 
+x-epochInfo: &epochInfo
+  type: object
+  required:
+    - epoch_number
+    - epoch_start_time
+  properties:
+    epoch_number: *epochNumber
+    epoch_start_time: *date
+
 x-blockId: &blockId
   description: The hash of genesis block
   type: string
@@ -759,15 +768,6 @@ components:
         id: *addressId
         state: *addressState
 
-    ApiEpochInfo: &ApiEpochInfo
-      type: object
-      required:
-        - epoch_number
-        - epoch_start_time
-      properties:
-        epoch_number: *epochNumber
-        epoch_start_time: *date
-
     ApiNetworkTip: &ApiNetworkTip
       description: A network tip
       type: object
@@ -789,7 +789,7 @@ components:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip
         network_tip: *ApiNetworkTip
-        next_epoch: *ApiEpochInfo
+        next_epoch: *epochInfo
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
@@ -907,7 +907,7 @@ components:
       properties:
         status: *delegationStatus
         target: *delegationTarget
-        changes_at: *ApiEpochInfo
+        changes_at: *epochInfo
       example:
         status: not_delegating
         changes_at:
