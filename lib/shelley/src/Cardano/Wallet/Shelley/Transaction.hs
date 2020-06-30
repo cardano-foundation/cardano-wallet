@@ -9,6 +9,7 @@
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -81,8 +82,6 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeXPrv )
 import Control.Monad
     ( forM )
 import Crypto.Error
@@ -96,11 +95,13 @@ import Data.List
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word8 )
+import Ouroboros.Consensus.Shelley.Protocol.Crypto
+    ( Crypto (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -113,8 +114,8 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
@@ -402,26 +403,31 @@ computeTxSize certs (CoinSelection inps outs chngs) =
                 Cardano.shelleyDeregisterStakingAddress dummyKeyHash
 
     (addrWits, certWits) =
-        ( Set.map dummyWitness $ Set.fromList (fst <$> inps)
+        ( Set.map dummyWitnessUniq $ Set.fromList (fst <$> inps)
         , if null certs
             then Set.empty
-            else Set.singleton (dummyWitness dummyTxIn)
+            else Set.singleton (dummyWitness "a")
         )
       where
-        dummyWitness :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
-        dummyWitness = mkWitness unsigned . (,mempty) . dummyXPrv
+        dummyWitness :: BL.ByteString -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
+        dummyWitness chaff = SL.WitVKey key sig
+          where
+            sig = SignedDSIGN
+                $ fromMaybe (error "error creating dummy witness sig")
+                $ rawDeserialiseSigDSIGN
+                $ bloatChaff sigLen
+            key = SL.VKey
+                $ fromMaybe (error "error creating dummy witness ver key")
+                $ rawDeserialiseVerKeyDSIGN
+                $ bloatChaff keyLen
+            sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+            keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+            bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
 
-        dummyTxIn :: TxIn
-        dummyTxIn = TxIn (Hash (BS.pack (replicate 32 0))) 0
-
-        -- NOTE: We need relatively unique fake XPrv so that we can generate
-        -- relatively unique witnesses. So we use the transaction input as a
-        -- source of entropy to create a somewhat unique fake XPrv corresponding
-        -- to that input.
-        dummyXPrv :: TxIn -> XPrv
-        dummyXPrv (TxIn (Hash txid) ix) =
-            unsafeXPrv $ BS.take 128 $ mconcat $ replicate 4 $
-                txid <> B8.pack (show ix)
+        dummyWitnessUniq :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
+        dummyWitnessUniq (TxIn (Hash txid) ix) = dummyWitness chaff
+          where
+            chaff = L8.pack (show ix) <> BL.fromStrict txid
 
     wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
