@@ -46,6 +46,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -79,7 +81,6 @@ import Test.Integration.Framework.DSL
     , walletId
     , (.<=)
     , (.>)
-    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -92,6 +93,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
+import qualified Data.Set as Set
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -481,35 +483,23 @@ spec = do
                 r <- listPools ctx
                 expectResponseCode HTTP.status200 r
                 let oneMillionAda = 1_000_000_000_000
-                verify r
-                    [ expectListField 0
-                        (#cost) (`shouldBe` Just (Quantity 0))
-                    , expectListField 1
-                        (#cost) (`shouldBe` Just (Quantity 0))
-                    , expectListField 2
-                        (#cost) (`shouldBe` Just (Quantity 0))
+                let pools = either (error . show) id $ snd r
 
-                    , expectListField 0
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
-                    , expectListField 1
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
-                    , expectListField 2
-                        #margin (`shouldBe` Just
-                            (Quantity $ unsafeMkPercentage 0.1 ))
+                -- To ignore the ordering of the pools, we use Set.
+                setOf pools (view #cost)
+                    `shouldBe` Set.singleton (Just $ Quantity 0)
 
-                    -- In our setup one pool will have 2 million ada as pledge.
-                    -- If we were to naively test for that here, we would also
-                    -- test that the pools are sorted by non-myopic-rewards,
-                    -- but this is tested in a test below.
-                    , expectListField 0
-                        #pledge (.>= Just (Quantity oneMillionAda))
-                    , expectListField 1
-                        #pledge (.>= Just (Quantity oneMillionAda))
-                    , expectListField 2
-                        #pledge (.>= Just (Quantity oneMillionAda))
-                    ]
+                setOf pools (view #margin)
+                    `shouldBe`
+                    Set.singleton
+                        (Just $ Quantity $ unsafeMkPercentage 0.1)
+
+                setOf pools (view #pledge)
+                    `shouldBe`
+                    Set.fromList
+                        [ Just (Quantity oneMillionAda)
+                        , Just (Quantity $ 2 * oneMillionAda)
+                        ]
 
         it "at least one pool eventually produces block" $ \ctx -> do
             eventually "eventually produces block" $ do
@@ -586,5 +576,8 @@ spec = do
     arbitraryStake :: Maybe Coin
     arbitraryStake = Just $ ada 10000
       where ada = Coin . (1000*1000*)
+
+    setOf :: Ord b => [a] -> (a -> b) -> Set b
+    setOf xs f = Set.fromList $ map f xs
 
     passwd = "Secure Passphrase"
