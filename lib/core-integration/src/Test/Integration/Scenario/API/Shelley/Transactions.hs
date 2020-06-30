@@ -1175,23 +1175,24 @@ spec = do
                         (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
                 ]
 
-        -- Verify Tx in source wallet is Outgoing and InLedger
-        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
-        r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
-        verify r1
-            [ expectResponseCode HTTP.status200
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#status . #getApiT) (`shouldBe` InLedger)
-            ]
+        eventually "Transactions are available and in ledger" $ do
+            -- Verify Tx in source wallet is Outgoing and InLedger
+            let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
+            r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify r1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
-        -- Verify Tx in destination wallet is Incoming and InLedger
-        let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
-        r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
-        verify r2
-            [ expectResponseCode HTTP.status200
-            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
-            , expectField (#status . #getApiT) (`shouldBe` InLedger)
-            ]
+            -- Verify Tx in destination wallet is Incoming and InLedger
+            let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
+            r2 <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify r2
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
     it "TRANS_GET_02 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx

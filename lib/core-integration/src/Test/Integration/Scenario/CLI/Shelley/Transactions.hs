@@ -870,31 +870,32 @@ spec = do
                         (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
 
-        let wSrcId = T.unpack (wSrc ^. walletId)
-        let txId =  getTxId txJson
+        eventually "Transactions are available and in ledger" $ do
+            let wSrcId = T.unpack (wSrc ^. walletId)
+            let txId =  getTxId txJson
 
-        -- Verify Tx in source wallet is Outgoing and InLedger
-        (Exit code1, Stdout out1, Stderr err1) <-
-            getTransactionViaCLI @t ctx wSrcId txId
-        err1 `shouldBe` "Ok.\n"
-        code1 `shouldBe` ExitSuccess
-        outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
-        verify outJson1
-            [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
-            ]
+            -- Verify Tx in source wallet is Outgoing and InLedger
+            (Exit code1, Stdout out1, Stderr err1) <-
+                getTransactionViaCLI @t ctx wSrcId txId
+            err1 `shouldBe` "Ok.\n"
+            code1 `shouldBe` ExitSuccess
+            outJson1 <- expectValidJSON (Proxy @(ApiTransaction n)) out1
+            verify outJson1
+                [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
-        let wDestId = T.unpack (wDest ^. walletId)
-        -- Verify Tx in destination wallet is Incoming and InLedger
-        (Exit code2, Stdout out2, Stderr err2) <-
-            getTransactionViaCLI @t ctx wDestId txId
-        err2 `shouldBe` "Ok.\n"
-        code2 `shouldBe` ExitSuccess
-        outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
-        verify outJson2
-            [ expectCliField (#direction . #getApiT) (`shouldBe` Incoming)
-            , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
-            ]
+            let wDestId = T.unpack (wDest ^. walletId)
+            -- Verify Tx in destination wallet is Incoming and InLedger
+            (Exit code2, Stdout out2, Stderr err2) <-
+                getTransactionViaCLI @t ctx wDestId txId
+            err2 `shouldBe` "Ok.\n"
+            code2 `shouldBe` ExitSuccess
+            outJson2 <- expectValidJSON (Proxy @(ApiTransaction n)) out2
+            verify outJson2
+                [ expectCliField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
 
     it "TRANS_GET_02 - Deleted wallet" $ \ctx -> do
         wid <- emptyWallet' ctx
