@@ -11,7 +11,7 @@ request forgetting about it in order to try spending (concurrently) the same
 UTxO in another transaction. But, the transaction may still show up later in a
 block and therefore, appear in the wallet.
 
-:information_source: About `discover`
+> About `discover`
 
 Discovering a transaction happens regardless of a transaction being present
 or not as `pending`. Actually, only outgoing transactions are going through 
