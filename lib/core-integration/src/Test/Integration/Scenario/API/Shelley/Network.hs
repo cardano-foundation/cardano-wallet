@@ -36,7 +36,7 @@ spec = do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
         let Right d = Quantity <$> mkPercentage (3 % 4)
-        let nOpt = 100
+        let nOpt = 3
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)]
