@@ -1,6 +1,26 @@
-.. cardano-wallet
+==============
+cardano-wallet
+==============
 
-cardano-wallet Technical Documentation
-=============================================
+.. include:: ../README.rst
 
-This repo contains the technical documentation for cardano-wallet.
+.. toctree::
+   :maxdepth: 3
+   :titlesonly:
+   :hidden:
+
+   Overview
+   About-Address-Derivation
+   About-Address-Format---Byron
+   About-Coin-Selection
+   About-Transactions-Lifecycle
+   About-UTxO
+   Building
+   Code-Review-Guidelines
+   Coding-Standards
+   Development-Process
+   Docker
+   Hydra
+   Logging-Guidelines
+   Release-Checklist
+   Resources
