@@ -2,7 +2,7 @@
 
 ## Transaction states
 
-![State Diagram](./controllers_brief.svg)<img src="./AboutTransactionsLifecycle/state_diagram.svg">
+![State Diagram](./controllers_brief.svg)<img src="state_diagram.svg">
 
 ### About `forget`
 
@@ -20,4 +20,4 @@ may be discovered directly in blocks.
 
 ## Submitting a transaction
 
-![Sequence Diagram](./controllers_brief.svg)<img src="./AboutTransactionsLifecycle/sequence_diagram.svg">
+![Sequence Diagram](./controllers_brief.svg)<img src="sequence_diagram.svg">
