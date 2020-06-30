@@ -11,7 +11,7 @@
     flags = { unexpected_thunks = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-cli"; version = "1.14.0"; };
+      identifier = { name = "cardano-cli"; version = "1.14.2"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -121,8 +121,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "46f296f8a9f3f497d9bd41e20c8398d2b5730c86";
-      sha256 = "05wv990vcg41sl68ii991fkgxp9fgcyig1asp94ig30xb1cg2zbl";
+      rev = "924a6f7d8c2bdb1bf525be8b0d5626e440697b01";
+      sha256 = "0bi1vwmb1w6wc2szpr8v1nbsci9y36lnjr4v5pli1wvll1hhpw3c";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }
