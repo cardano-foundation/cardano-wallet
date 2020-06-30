@@ -82,6 +82,7 @@ PoolOwner sql=pool_owner
 
     Primary poolOwnerPoolId poolOwnerSlot poolOwnerOwner poolOwnerIndex
     Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId poolOwnerSlot ! ON DELETE CASCADE
+    Foreign PoolRetirement fk_retirement_pool_id poolOwnerPoolId poolOwnerSlot ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Mapping of registration certificate to pool
@@ -96,6 +97,15 @@ PoolRegistration sql=pool_registration
     poolRegistrationMetadataHash       W.StakePoolMetadataHash Maybe sql=metadata_hash
 
     Primary poolRegistrationPoolId poolRegistrationSlot
+    deriving Show Generic
+
+-- Mapping of retirement certificates to pools
+PoolRetirement sql=pool_retirement
+    poolRetirementPoolId  W.PoolId  sql=pool_id
+    poolRetirementSlot    W.SlotId  sql=slot
+    poolRetirementEpoch   Word64    sql=epoch
+
+    Primary poolRetirementPoolId poolRetirementSlot
     deriving Show Generic
 
 -- Cached metadata after they've been fetched from a remote server.
