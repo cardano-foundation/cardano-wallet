@@ -79,6 +79,7 @@ import Test.Integration.Framework.DSL
     , walletId
     , (.<=)
     , (.>)
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -498,12 +499,16 @@ spec = do
                         #margin (`shouldBe` Just
                             (Quantity $ unsafeMkPercentage 0.1 ))
 
+                    -- In our setup one pool will have 2 million ada as pledge.
+                    -- If we were to naively test for that here, we would also
+                    -- test that the pools are sorted by non-myopic-rewards,
+                    -- but this is tested in a test below.
                     , expectListField 0
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                        #pledge (.>= Just (Quantity oneMillionAda))
                     , expectListField 1
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                        #pledge (.>= Just (Quantity oneMillionAda))
                     , expectListField 2
-                        #pledge (`shouldBe` Just (Quantity oneMillionAda))
+                        #pledge (.>= Just (Quantity oneMillionAda))
                     ]
 
         it "at least one pool eventually produces block" $ \ctx -> do

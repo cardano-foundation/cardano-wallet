@@ -331,10 +331,12 @@ withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
                     T.pack (show e)
                 writeChan waitGroup (Left e)
 
+        let pledgeOf 0 = 2*oneMillionAda
+            pledgeOf _ = oneMillionAda
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
                 let spCfg = NodeParams severity systemStart (port, peers)
-                withStakePool tr dir idx spCfg $ do
+                withStakePool tr dir idx spCfg (pledgeOf idx) $ do
                     writeChan waitGroup $ Right port
                     readChan doneGroup)
 
@@ -474,8 +476,10 @@ setupStakePoolData
     -- ^ Parameters used for generating config files.
     -> String
     -- ^ Base URL of metadata server.
+    -> Integer
+    -- ^ Pledge (and stake) amount
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr dir name params url = do
+setupStakePoolData tr dir name params url pledgeAmt = do
     let NodeParams severity systemStart (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
@@ -484,7 +488,7 @@ setupStakePoolData tr dir name params url = do
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
 
     stakeCert <- issueStakeCert tr dir stakePub
-    poolCert <- issuePoolCert tr dir opPub vrfPub stakePub url metadata
+    poolCert <- issuePoolCert tr dir opPub vrfPub stakePub url metadata pledgeAmt
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
@@ -501,7 +505,8 @@ setupStakePoolData tr dir name params url = do
     -- in the transaction used to registered the stake key and the pool
     -- itself.  Thus, in a single transaction, we end up with a
     -- registered pool with some stake!
-    (rawTx, faucetPrv) <- prepareTx tr dir stakePub [stakeCert, poolCert, dlgCert]
+    (rawTx, faucetPrv) <-
+        prepareTx tr dir stakePub [stakeCert, poolCert, dlgCert] pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -531,15 +536,17 @@ withStakePool
     -- ^ Stake pool index in the cluster
     -> NodeParams
     -- ^ Configuration for the underlying node
+    -> Integer
+    -- ^ Pledge amount / initial stake
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr baseDir idx params action =
+withStakePool tr baseDir idx params pledgeAmt action =
     bracketTracer' tr "withStakePool" $ do
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
-            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url
+            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url pledgeAmt
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
                 timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
@@ -708,8 +715,9 @@ issuePoolCert
     -> FilePath
     -> String
     -> Aeson.Value
+    -> Integer
     -> IO FilePath
-issuePoolCert tr dir opPub vrfPub stakePub baseURL metadata = do
+issuePoolCert tr dir opPub vrfPub stakePub baseURL metadata pledgeAmt = do
     let file  = dir </> "pool.cert"
     let bytes = Aeson.encode metadata
     BL8.writeFile (dir </> "metadata.json") bytes
@@ -748,8 +756,9 @@ prepareTx
     -> FilePath
     -> FilePath
     -> [FilePath]
+    -> Integer
     -> IO (FilePath, FilePath)
-prepareTx tr dir stakePub certs = do
+prepareTx tr dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
@@ -984,10 +993,6 @@ operators = unsafePerformIO $ newMVar
 -- | Deposit amount required for registering certificates.
 depositAmt :: Integer
 depositAmt = 100
-
--- | Pledge amount used for each pool.
-pledgeAmt :: Integer
-pledgeAmt = oneMillionAda
 
 -- | Initial amount in each of these special cluster faucet
 faucetAmt :: Integer
