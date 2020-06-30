@@ -276,21 +276,21 @@ mkFeeEstimator policy = \case
 -------------------------------------------------------------------------------}
 
 data TestsLog
-    = MsgBracket BracketLog
+    = MsgBracket Text BracketLog
     | MsgBaseUrl Text
     | MsgCluster ClusterLog
     deriving (Show)
 
 instance ToText TestsLog where
     toText = \case
-        MsgBracket b -> toText b
+        MsgBracket name b -> name <> ": " <> toText b
         MsgBaseUrl txt -> txt
         MsgCluster msg -> toText msg
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
-        MsgBracket _ -> Debug
+        MsgBracket _ _ -> Debug
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
 
@@ -304,8 +304,8 @@ withTracers action = do
         let tracers = setupTracers (tracerSeverities (Just Info)) tr
         action (trMessageText trTests, tracers)
 
-bracketTracer' :: Monad m => Tracer m TestsLog -> Text -> m a -> m a
-bracketTracer' tr = bracketTracer (contramap MsgBracket tr)
+bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
+bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
 
 -- Allow configuring @cardano-node@ log level with the
 -- @CARDANO_NODE_TRACING_MIN_SEVERITY@ environment variable.

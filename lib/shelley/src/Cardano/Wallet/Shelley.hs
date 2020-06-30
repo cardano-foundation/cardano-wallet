@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     )
 import Cardano.Wallet.Registry
-    ( WorkerLog (..), defaultWorkerAfter )
+    ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
@@ -238,8 +238,12 @@ serveWallet
                 let gp = genesisParameters np
                 let el = getEpochLength gp
                 randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
+                    Server.idleWorker
                 icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
+                    Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
+                    Server.manageRewardBalance
+
                 withPoolsMonitoring databaseDir gp nl $ \spl -> do
                     startServer
                         proxy
@@ -309,14 +313,15 @@ serveWallet
             )
         => TransactionLayer t k
         -> NetworkLayer IO t ShelleyBlock
+        -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
         -> IO (ApiLayer s t k)
-    apiLayer tl nl = do
+    apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues $ getActiveSlotCoefficient gp)
             databaseDir
-        Server.newApiLayer walletEngineTracer params nl' tl db
+        Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
         gp@GenesisParameters
             { getGenesisBlockHash

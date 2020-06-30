@@ -274,6 +274,7 @@ serveWallet
             (DefaultFieldValues $ getActiveSlotCoefficient gp)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
+            Server.idleWorker
       where
         gp@GenesisParameters
             { getGenesisBlockHash

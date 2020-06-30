@@ -40,8 +40,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, newMVar, readMVar )
+import Control.Concurrent.STM.TChan
+    ( newBroadcastTChanIO )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Control
@@ -337,17 +341,18 @@ type TestNetworkLayer m =
 
 -- | Instantiate new network layer with mock jormungandr.
 mockNetworkLayer
-    :: forall m. (MonadFail m, MonadBaseControl IO m)
+    :: forall m. (MonadFail m, MonadBaseControl IO m, MonadIO m)
     => (String -> StateT S m ()) -- ^ logger function
     -> StateT S m (TestNetworkLayer m, Cursor Jormungandr -> m (Maybe BlockHeader))
 mockNetworkLayer logLine = do
     let jm = mockJormungandrClient logLine
     Quantity k <- gets mockNodeK
     st <- newMVar emptyBlockHeaders
+    chan <- liftIO newBroadcastTChanIO
     Right (_b0, np) <-
         runExceptT $ getInitialBlockchainParameters jm genesisHash
     pure
-        ( fromJBlock <$> mkRawNetworkLayer np (fromIntegral k) st jm
+        ( fromJBlock <$> mkRawNetworkLayer np (fromIntegral k) st chan jm
         , findIntersection st
         )
   where

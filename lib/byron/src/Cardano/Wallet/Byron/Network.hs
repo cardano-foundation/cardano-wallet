@@ -241,6 +241,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
+            , watchNodeTip = _watchNodeTip
             }
   where
     gp@W.GenesisParameters
@@ -295,8 +296,12 @@ withNetworkLayer tr np addrInfo versionData action = do
         case result of
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+
     _stakeDistribution =
         notImplemented "stakeDistribution"
+
+    _watchNodeTip =
+        notImplemented "watchNodeTip"
 
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.

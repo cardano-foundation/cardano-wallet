@@ -59,7 +59,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 
 import qualified Data.List as L
 
@@ -183,6 +183,24 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- 1. Stored on-chain.
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotId').
+
+    , putDelegationRewardBalance
+        :: PrimaryKey WalletId
+        -> Quantity "lovelace" Word64
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Store the latest known reward account balance.
+        --
+        -- This is separate from checkpoints because the data corresponds to the
+        -- node tip.
+        -- This is separate from putWalletMeta because it's not meta data
+
+    , readDelegationRewardBalance
+        :: PrimaryKey WalletId
+        -> stm (Quantity "lovelace" Word64)
+        -- ^ Get the reward account balance.
+        --
+        -- Returns zero if the wallet isn't found or if wallet hasn't delegated
+        -- stake.
 
     , putTxHistory
         :: PrimaryKey WalletId

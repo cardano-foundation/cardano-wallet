@@ -14,18 +14,16 @@
 # See also: lib/shelley/src/Cardano/Wallet/Shelley/Launch.hs for details.
 
 ---
-activeSlotsCoeff: 0.1
+activeSlotsCoeff: 0.8
 protocolParams:
-  poolDecayRate: 0
   poolDeposit: 0
   protocolVersion:
     minor: 0
     major: 0
-  decentralisationParam: 0.97 # means 3% decentralised
+  decentralisationParam: 0.25 # means 75% decentralised
   maxTxSize: 4096
   minFeeA: 100
   maxBlockBodySize: 239857
-  keyMinRefund: 0
   minFeeB: 100000
   eMax: 0
   extraEntropy:
@@ -33,21 +31,20 @@ protocolParams:
   maxBlockHeaderSize: 217569
   keyDeposit: 100
   keyDecayRate: 0
-  nOpt: 100
-  rho: 0
+  nOpt: 3
+  rho: 0.178650067
   poolMinRefund: 0
   minPoolCost: 0
-  tau: 0
-  a0: 0
+  tau: 0.0
+  a0: 0.1
 genDelegs:
   6bf1993f1e644eaadc3e98013e8356010fb101800b2d3b9b1306f6e3:
     delegate: 2c9291b876a234c60c91ecec26fc0a3f17b8719df29a2f8f1e3e3aae
     vrf: 42936d191c41b25747356881dc7af690a212c198ebc4feb92f97dc5decb07b72
 updateQuorum: 5
 maxMajorPV: 25446
-initialFunds: {}
 maxLovelaceSupply: 45000000000000000
-protocolMagicId: 1
+protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
 epochLength: 100
@@ -55,7 +52,7 @@ staking:
 slotsPerKESPeriod: 86400
 slotLength: 0.2
 maxKESEvolutions: 90
-securityParam: 10
+securityParam: 8
 systemStart: "2020-06-19T16:07:37.740128433Z"
 initialFunds:
   # Cluster Faucets, used for setting up stake pools

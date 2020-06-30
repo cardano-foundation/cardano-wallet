@@ -39,11 +39,13 @@ import Cardano.Wallet.DB.Model
     , mListWallets
     , mPutCheckpoint
     , mPutDelegationCertificate
+    , mPutDelegationRewardBalance
     , mPutPrivateKey
     , mPutProtocolParameters
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
+    , mReadDelegationRewardBalance
     , mReadPrivateKey
     , mReadProtocolParameters
     , mReadTxHistory
@@ -161,6 +163,16 @@ newDBLayer = do
                 alterDB errNoSuchWallet db (mPutProtocolParameters pk txp)
 
         , readProtocolParameters = readDB db . mReadProtocolParameters
+
+        {-----------------------------------------------------------------------
+                                 Delegation Rewards
+        -----------------------------------------------------------------------}
+
+        , putDelegationRewardBalance = \pk amt -> ExceptT $
+            alterDB errNoSuchWallet db (mPutDelegationRewardBalance pk amt)
+
+        , readDelegationRewardBalance =
+            readDB db . mReadDelegationRewardBalance
 
         {-----------------------------------------------------------------------
                                       Execution

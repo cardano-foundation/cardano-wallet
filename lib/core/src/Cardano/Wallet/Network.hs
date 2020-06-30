@@ -123,6 +123,13 @@ data NetworkLayer m target block = NetworkLayer
         :: ExceptT ErrCurrentNodeTip m BlockHeader
         -- ^ Get the current tip from the chain producer
 
+    , watchNodeTip
+        :: (BlockHeader -> m ())
+        -> m ()
+        -- ^ Register a callback for when the node tip changes.
+        -- This function should never finish, unless the callback throws an
+        -- exception, which will be rethrown by this function.
+
     , getProtocolParameters
         :: m ProtocolParameters
 

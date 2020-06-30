@@ -174,11 +174,11 @@ data Worker key resource = Worker
     , workerResource :: resource
     } deriving (Generic)
 
--- | See 'newWorker'
+-- | See 'register'
 data MkWorker key resource msg ctx = MkWorker
     { workerBefore :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task to execute before the main worker's task. When creating a
-        -- worker, this task is guaranteed to have terminated once 'newWorker'
+        -- worker, this task is guaranteed to have terminated once 'register'
         -- returns.
     , workerMain :: WorkerCtx ctx -> key -> IO ()
         -- ^ A task for the worker, possibly infinite

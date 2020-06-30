@@ -52,6 +52,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog )
+import Cardano.Wallet.Logging
+    ( BracketLog, bracketTracer )
 import Control.Concurrent.MVar
     ( newMVar, withMVarMasked )
 import Control.Exception
@@ -65,7 +67,7 @@ import Control.Monad.Logger
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, recovering )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( ToJSON (..) )
 import Data.Function
@@ -214,23 +216,23 @@ startSqliteBackend
     -> Tracer IO DBLog
     -> Maybe FilePath
     -> IO (Either MigrationError SqliteContext)
-startSqliteBackend manualMigration autoMigration trace fp = do
-    (backend, connection) <-
-        createSqliteBackend trace fp manualMigration (queryLogFunc trace)
-    lock <- newMVar ()
-    let traceRun = traceWith trace . MsgRun
+startSqliteBackend manualMigration autoMigration tr fp = do
+    (unsafeBackend, connection) <-
+        createSqliteBackend tr fp manualMigration (queryLogFunc tr)
+    lock <- newMVar unsafeBackend
     let observe :: IO a -> IO a
-        observe = bracket_ (traceRun False) (traceRun True)
+        observe = bracketTracer (contramap MsgRun tr)
     let runQuery :: SqlPersistT IO a -> IO a
-        runQuery cmd = withMVarMasked lock $ const $ observe $ runSqlConn cmd backend
+        runQuery cmd = withMVarMasked lock $ \backend ->
+            observe $ runSqlConn cmd backend
     autoMigrationResult <-
-        withForeignKeysDisabled trace connection
+        withForeignKeysDisabled tr connection
             $ runQuery (runMigrationQuiet autoMigration)
             & tryJust (matchMigrationError @PersistException)
             & tryJust (matchMigrationError @SqliteException)
             & fmap join
-    traceWith trace $ MsgMigrations $ fmap length autoMigrationResult
-    let ctx = SqliteContext backend runQuery fp trace
+    traceWith tr $ MsgMigrations $ fmap length autoMigrationResult
+    let ctx = SqliteContext unsafeBackend runQuery fp tr
     case autoMigrationResult of
         Left e -> do
             destroyDBLayer ctx
@@ -361,7 +363,7 @@ sqliteConnStr = maybe ":memory:" T.pack
 data DBLog
     = MsgMigrations (Either MigrationError Int)
     | MsgQuery Text Severity
-    | MsgRun Bool
+    | MsgRun BracketLog
     | MsgConnStr Text
     | MsgClosing (Maybe FilePath)
     | MsgWillOpenDB (Maybe FilePath)
@@ -463,8 +465,7 @@ instance ToText DBLog where
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
-        MsgRun False -> "Running database action - Start"
-        MsgRun True -> "Running database action - Finish"
+        MsgRun b -> "Running database action - " <> toText b
         MsgWillOpenDB fp -> "Will open db at " <> (maybe "in-memory" T.pack fp)
         MsgConnStr connStr -> "Using connection string: " <> connStr
         MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"

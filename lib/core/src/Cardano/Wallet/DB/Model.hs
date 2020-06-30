@@ -57,6 +57,8 @@ module Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mPutProtocolParameters
     , mReadProtocolParameters
+    , mPutDelegationRewardBalance
+    , mReadDelegationRewardBalance
     , mCheckWallet
     ) where
 
@@ -107,7 +109,7 @@ import Data.Ord
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import GHC.Generics
     ( Generic )
 
@@ -141,6 +143,7 @@ data WalletDatabase s xprv = WalletDatabase
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
     , protocolParameters :: !ProtocolParameters
+    , rewardAccountBalance :: !(Quantity "lovelace" Word64)
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -204,6 +207,7 @@ mInitializeWallet wid cp meta txs0 pp db@Database{wallets,txs}
                 , txHistory = history
                 , xprv = Nothing
                 , protocolParameters = pp
+                , rewardAccountBalance = minBound
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
             history = Map.fromList $ first txId <$> txs0
@@ -439,6 +443,16 @@ mReadProtocolParameters
     :: Ord wid => wid -> ModelOp wid s xprv (Maybe ProtocolParameters)
 mReadProtocolParameters wid db@(Database wallets _) =
     (Right (protocolParameters <$> Map.lookup wid wallets), db)
+
+mPutDelegationRewardBalance
+    :: Ord wid => wid -> Quantity "lovelace" Word64 -> ModelOp wid s xprv ()
+mPutDelegationRewardBalance wid amt = alterModel wid $ \wal ->
+    ((), wal { rewardAccountBalance = amt })
+
+mReadDelegationRewardBalance
+    :: Ord wid => wid -> ModelOp wid s xprv (Quantity "lovelace" Word64)
+mReadDelegationRewardBalance wid db@(Database wallets _) =
+    (Right (maybe minBound rewardAccountBalance $ Map.lookup wid wallets), db)
 
 {-------------------------------------------------------------------------------
                              Model function helpers

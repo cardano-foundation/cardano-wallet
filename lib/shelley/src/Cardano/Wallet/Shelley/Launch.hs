@@ -411,6 +411,9 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
     name = "bft"
     dir = baseDir </> name
 
+-- | Launches a @cardano-node@ with the given configuration which will not forge
+-- blocks, but has every other cluster node as its peer. Any transactions
+-- submitted to this node will be broadcast to every node in the cluster.
 withPassiveNode
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
@@ -422,7 +425,7 @@ withPassiveNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
     bracketTracer' tr "withPassiveNode" $ do
         createDirectory dir
 
@@ -444,7 +447,7 @@ withPassiveNode tr baseDir (NodeParams severity systemStart (port, peers)) actio
                 }
 
         withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
-            action socket
+            act socket
   where
     name = "node"
     dir = baseDir </> name
@@ -1142,7 +1145,7 @@ data ClusterLog
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
     | MsgTempNoCleanup FilePath
-    | MsgBracket BracketLog
+    | MsgBracket Text BracketLog
     | MsgCLIStatus String ExitCode String String
     | MsgCLIRetry String
     | MsgCLIRetryResult String Int String
@@ -1163,7 +1166,7 @@ instance ToText ClusterLog where
                 <> " at " <> T.pack baseUrl
         MsgTempNoCleanup dir ->
             "NO_CLEANUP of temporary directory " <> T.pack dir
-        MsgBracket b -> toText b
+        MsgBracket name b -> name <> ": " <> toText b
         MsgCLIStatus msg st out err -> case st of
             ExitSuccess -> "Successfully finished " <> T.pack msg
             ExitFailure code -> "Failed " <> T.pack msg <> " with exit code " <>
@@ -1195,7 +1198,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgLauncher _ msg -> getSeverityAnnotation msg
         MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
-        MsgBracket _ -> Debug
+        MsgBracket _ _ -> Debug
         MsgCLIStatus _ ExitSuccess _ _-> Debug
         MsgCLIStatus _ (ExitFailure _) _ _-> Error
         MsgCLIRetry _ -> Info
@@ -1207,5 +1210,5 @@ instance HasSeverityAnnotation ClusterLog where
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug
 
-bracketTracer' :: Monad m => Tracer m ClusterLog -> Text -> m a -> m a
-bracketTracer' tr = bracketTracer (contramap MsgBracket tr)
+bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
+bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)

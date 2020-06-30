@@ -66,6 +66,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
     , DelegationCertificate (..)
+    , DelegationReward (..)
     , EntityField (..)
     , Key (..)
     , PrivateKey (..)
@@ -682,6 +683,23 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
 
         , readProtocolParameters =
             \(PrimaryKey wid) -> selectProtocolParameters wid
+
+        {-----------------------------------------------------------------------
+                                 Delegation Rewards
+        -----------------------------------------------------------------------}
+
+        , putDelegationRewardBalance =
+            \(PrimaryKey wid) (Quantity amt) -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> Right <$> repsert
+                    (DelegationRewardKey wid)
+                    (DelegationReward wid amt)
+
+        , readDelegationRewardBalance =
+            \(PrimaryKey wid) ->
+                maybe minBound (Quantity . rewardAccountBalance . entityVal) <$>
+                selectFirst [RewardWalletId ==. wid] []
 
         {-----------------------------------------------------------------------
                                      ACID Execution

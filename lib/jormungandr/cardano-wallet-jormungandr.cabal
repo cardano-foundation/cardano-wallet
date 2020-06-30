@@ -69,6 +69,7 @@ library
     , servant-client
     , servant-client-core
     , servant-server
+    , stm
     , temporary
     , text
     , text-class
@@ -169,6 +170,7 @@ test-suite unit
     , safe
     , servant
     , servant-swagger
+    , stm
     , swagger2
     , temporary
     , text
@@ -243,6 +245,7 @@ test-suite jormungandr-integration
     , process
     , retry
     , servant
+    , stm
     , temporary
     , text
     , text-class

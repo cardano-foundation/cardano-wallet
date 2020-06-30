@@ -659,7 +659,7 @@ dummyNetworkLayer = NetworkLayer
     , cursorSlotId =
         error "dummyNetworkLayer: cursorSlotId not implemented"
     , currentNodeTip =
-        pure $ BlockHeader (SlotId 0 0) (Quantity 0) dummyHash dummyHash
+        pure dummyTip
     , getProtocolParameters =
         error "dummyNetworkLayer: getProtocolParameters not implemented"
     , postTx =
@@ -668,8 +668,11 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: stakeDistribution not implemented"
     , getAccountBalance =
         error "dummyNetworkLayer: getAccountBalance not implemented"
+    , watchNodeTip =
+        error "dummyNetworkLayer: watchNodeTip not implemented"
     }
   where
+    dummyTip = BlockHeader (SlotId 0 0) (Quantity 0) dummyHash dummyHash
     dummyHash = Hash "dummy hash"
 
 newtype DummyState

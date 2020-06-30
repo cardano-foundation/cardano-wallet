@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -37,16 +39,20 @@ import Cardano.BM.Trace
     ( Trace, traceNamedItem )
 import Control.Monad
     ( when )
+import Control.Monad.Catch
+    ( MonadCatch, onException )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
-import Control.Tracer.Observe
-    ( ObserveIndicator (..) )
+import Data.Aeson
+    ( ToJSON )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.Generics
+    ( Generic )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -130,18 +136,26 @@ filterNonEmpty tr = Tracer $ \arg -> do
 stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
 stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
 
-data BracketLog = BracketLog Text ObserveIndicator
-   deriving (Show)
+-- | Used for tracing around an action.
+data BracketLog
+    = BracketStart
+    -- ^ Logged before the action starts.
+    | BracketFinish
+    -- ^ Logged after the action finishes.
+    | BracketException
+    -- ^ Logged when the action throws an exception.
+    deriving (Generic, Show, Eq, ToJSON)
 
 instance ToText BracketLog where
-    toText (BracketLog name b) =
-        name <> ": " <> case b of
-            ObserveBefore -> "start"
-            ObserveAfter -> "finish"
+    toText b = case b of
+        BracketStart -> "start"
+        BracketFinish -> "finish"
+        BracketException -> "exception"
 
-bracketTracer :: Monad m => Tracer m BracketLog -> Text -> m a -> m a
-bracketTracer tr name action = do
-    traceWith tr $ BracketLog name ObserveBefore
-    res <- action
-    traceWith tr $ BracketLog name ObserveAfter
+-- | Run a monadic action with 'BracketLog' traced around it.
+bracketTracer :: MonadCatch m => Tracer m BracketLog -> m a -> m a
+bracketTracer tr action = do
+    traceWith tr BracketStart
+    res <- action `onException` traceWith tr BracketException
+    traceWith tr BracketFinish
     pure res

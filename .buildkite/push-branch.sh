@@ -54,7 +54,7 @@ fi
 
 advance_branch "$this_branch" "$head"
 
-common_ref=$(git merge-base "$this_branch" "$other_branch" || true)
+common_ref=$(git merge-base "origin/$this_branch" "origin/$other_branch" || true)
 
 if [ -n "$common_ref" ]; then
   advance_branch "$common_branch" "$common_ref"

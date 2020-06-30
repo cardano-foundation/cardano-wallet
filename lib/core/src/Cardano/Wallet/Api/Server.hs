@@ -83,6 +83,10 @@ module Cardano.Wallet.Api.Server
     , rndStateChange
     , assignMigrationAddresses
     , withWorkerCtx
+
+    -- * Workers
+    , manageRewardBalance
+    , idleWorker
     ) where
 
 import Prelude
@@ -130,6 +134,7 @@ import Cardano.Wallet
     , HasLogger
     , WalletLog
     , genesisData
+    , manageRewardBalance
     )
 import Cardano.Wallet.Api
     ( ApiLayer (..)
@@ -275,10 +280,14 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
+import Control.Concurrent
+    ( threadDelay )
+import Control.Concurrent.Async
+    ( race_ )
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
-    ( forM, void, (>=>) )
+    ( forM, forever, void, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -368,8 +377,6 @@ import System.IO.Error
     )
 import System.Random
     ( getStdRandom, random )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Network as NW
@@ -512,7 +519,6 @@ postWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable k
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -520,8 +526,10 @@ postWallet
     -> WalletOrAccountPostData
     -> Handler ApiWallet
 postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
-    Left  body' -> postShelleyWallet ctx generateKey body'
-    Right body' -> postAccountWallet ctx mkShelleyWallet liftKey body'
+    Left  body' ->
+        postShelleyWallet ctx generateKey body'
+    Right body' ->
+        postAccountWallet ctx mkShelleyWallet liftKey W.manageRewardBalance body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -535,7 +543,6 @@ postShelleyWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , HasRewardAccount s k
-        , Typeable k
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -546,6 +553,7 @@ postShelleyWallet ctx generateKey body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @t @k wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
@@ -572,13 +580,16 @@ postAccountWallet
     => ctx
     -> MkApiWallet ctx s w
     -> (XPub -> k 'AccountK XPub)
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with restore action
     -> AccountPostData
     -> Handler w
-postAccountWallet ctx mkWallet liftKey body = do
+postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+        (`coworker` wid)
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
@@ -592,14 +603,14 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , IsOurs s Address
-        , HasRewardAccount s k
         , HasWorkerRegistry s k ctx
-        , Typeable k
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.fetchRewardBalance @_ @s @t @k wrk wid
+    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+        -- never fails - returns zero if balance not found
+        Handler $ ExceptT $ Right <$>
+        W.fetchRewardBalance @_ @s @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -665,6 +676,7 @@ postLegacyWallet
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+        (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -757,6 +769,7 @@ postRandomWalletFromXPrv ctx body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
+        (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -1454,8 +1467,10 @@ initWorker
         -- ^ Create action
     -> (WorkerCtx ctx -> ExceptT ErrNoSuchWallet IO ())
         -- ^ Restore action
+    -> (WorkerCtx ctx -> IO ())
+        -- ^ Action to run concurrently with restore action
     -> ExceptT ErrCreateWallet IO WalletId
-initWorker ctx wid createWallet restoreWallet =
+initWorker ctx wid createWallet restoreWallet coworker =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
             throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
@@ -1475,7 +1490,9 @@ initWorker ctx wid createWallet restoreWallet =
         , workerMain = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            unsafeRunExceptT $ restoreWallet ctx'
+            race_
+                (unsafeRunExceptT $ restoreWallet ctx')
+                (coworker ctx')
 
         , workerAfter =
             defaultWorkerAfter
@@ -1485,6 +1502,11 @@ initWorker ctx wid createWallet restoreWallet =
         }
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
+
+-- | Something to pass as the coworker action to 'newApiLayer', which does
+-- nothing, and never exits.
+idleWorker :: ctx -> wid -> IO ()
+idleWorker _ _ = forever $ threadDelay maxBound
 
 -- | Handler for fetching the 'ArgGenChange' for the 'RndState' (i.e. the root
 -- XPrv), necessary to derive new change addresses.
@@ -1591,11 +1613,13 @@ newApiLayer
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with wallet restore
     -> IO ctx
-newApiLayer tr g0 nw tl df = do
+newApiLayer tr g0 nw tl df coworker = do
     re <- Registry.empty
     let ctx = ApiLayer tr g0 nw tl df re
-    listDatabases df >>= mapM_ (registerWorker ctx)
+    listDatabases df >>= mapM_ (registerWorker ctx coworker)
     return ctx
 
 -- | Register a restoration worker to the registry.
@@ -1606,9 +1630,10 @@ registerWorker
         , IsOurs s Address
         )
     => ApiLayer s t k
+    -> (WorkerCtx ctx -> WalletId -> IO ())
     -> WalletId
     -> IO ()
-registerWorker ctx wid =
+registerWorker ctx coworker wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
     (_, NetworkParameters gp _, _) = ctx ^. genesisData
@@ -1622,8 +1647,9 @@ registerWorker ctx wid =
         , workerMain = \ctx' _ -> do
             -- FIXME:
             -- Review error handling here
-            unsafeRunExceptT $
-                W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid
+            race_
+                (unsafeRunExceptT $ W.restoreWallet @(WorkerCtx ctx) @s @t ctx' wid)
+                (coworker ctx' wid)
 
         , workerAfter =
             defaultWorkerAfter

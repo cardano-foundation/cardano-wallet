@@ -35,6 +35,6 @@ spec = do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let Right d = Quantity <$> mkPercentage (3 % 100)
+        let Right d = Quantity <$> mkPercentage (3 % 4)
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d) ]

@@ -15,7 +15,8 @@ in pkgs: super: with pkgs; {
     # https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html
     deployments = let
       environments = {
-        inherit (pkgs.commonLib.cardanoLib.environments) ff mainnet testnet;
+        inherit (pkgs.commonLib.cardanoLib.environments)
+          ff mainnet shelley_qa shelley_testnet testnet;
       };
       updateConfig = cfg: cfg // {
         GenesisFile = "genesis.json";

@@ -74,6 +74,7 @@ module Cardano.Wallet
     , updateWalletPassphrase
     , walletSyncProgress
     , fetchRewardBalance
+    , manageRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
     , ErrWalletAlreadyExists (..)
@@ -209,8 +210,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -355,7 +354,7 @@ import Data.Generics.Product.Typed
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( isJust, mapMaybe )
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -364,8 +363,6 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
-import Data.Type.Equality
-    ( testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -380,8 +377,6 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
-import Type.Reflection
-    ( Typeable, typeRep )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -866,41 +861,47 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
--- | Fetch the reward balance of a given wallet.
+-- | Fetch the cached reward balance of a given wallet from the database.
+fetchRewardBalance
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> IO (Quantity "lovelace" Word64)
+fetchRewardBalance ctx wid = db & \DBLayer{..} ->
+    atomically $ readDelegationRewardBalance pk
+  where
+    pk = PrimaryKey wid
+    db = ctx ^. dbLayer @s @k
+
+-- | Query the node for the reward balance of a given wallet.
 --
 -- Rather than force all callers of 'readWallet' to wait for fetching the
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
-fetchRewardBalance
+queryRewardBalance
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , HasRewardAccount s k
-        , HasLogger WalletLog ctx
-        , Typeable k
         )
     => ctx
     -> WalletId
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
-fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
-    -- FIXME: issue #1750 re-enable querying reward balance when it's faster
-    if isShelleyKey then do
-        lift $ traceWith tr MsgTemporaryDisableFetchReward
-        pure $ Quantity 0
-    else do
-        let pk = PrimaryKey wid
-        cp <- withExceptT ErrFetchRewardsNoSuchWallet
-            . mapExceptT atomically
-            . withNoSuchWallet wid
-            $ readCheckpoint pk
-        mapExceptT (fmap handleErr)
-            . getAccountBalance nw
-            . toChimericAccount @s @k
-            . rewardAccountKey
-            $ getState cp
+queryRewardBalance ctx wid = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrFetchRewardsNoSuchWallet
+        . mapExceptT atomically
+        . withNoSuchWallet wid
+        $ readCheckpoint pk
+    mapExceptT (fmap handleErr)
+        . getAccountBalance nw
+        . toChimericAccount @s @k
+        . rewardAccountKey
+        $ getState cp
   where
+    pk = PrimaryKey wid
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
-    tr = ctx ^. logger
     handleErr = \case
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
@@ -908,9 +909,42 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} -> do
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
 
-    isShelleyKey = isJust $ testEquality
-        (typeRep @(k 'RootK XPrv))
-        (typeRep @(ShelleyKey 'RootK XPrv))
+manageRewardBalance
+    :: forall ctx s t k.
+        ( HasLogger WalletLog ctx
+        , HasNetworkLayer t ctx
+        , HasDBLayer s k ctx
+        , HasRewardAccount s k
+        , ctx ~ WalletLayer s t k
+        )
+    => ctx
+    -> WalletId
+    -> IO ()
+manageRewardBalance ctx wid = db & \DBLayer{..} -> do
+    watchNodeTip $ \bh -> do
+         traceWith tr $ MsgRewardBalanceQuery bh
+         query <- runExceptT $ queryRewardBalance @ctx @s @t @k ctx wid
+         traceWith tr $ MsgRewardBalanceResult query
+         case query of
+            Right amt -> do
+                res <- atomically $ runExceptT $ putDelegationRewardBalance pk amt
+                -- It can happen that the wallet doesn't exist _yet_, whereas we
+                -- already have a reward balance. If that's the case, we log and
+                -- move on.
+                case res of
+                    Left err -> traceWith tr $ MsgRewardBalanceNoSuchWallet err
+                    Right () -> pure ()
+            Left _err ->
+                -- Occasionaly failing to query is generally not fatal. It will
+                -- just update the balance next time the tip changes.
+                pure ()
+    traceWith tr MsgRewardBalanceExited
+
+  where
+    pk = PrimaryKey wid
+    db = ctx ^. dbLayer @s @k
+    NetworkLayer{watchNodeTip} = ctx ^. networkLayer @t
+    tr = ctx ^. logger @WalletLog
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1957,6 +1991,7 @@ data ErrQuitStakePool
 data ErrFetchRewards
     = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
     | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
+    deriving (Generic, Eq, Show)
 
 data ErrSelectForMigration
     = ErrSelectForMigrationNoSuchWallet ErrNoSuchWallet
@@ -2058,7 +2093,10 @@ data WalletLog
     | MsgDelegationCoinSelection CoinSelection
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
-    | MsgTemporaryDisableFetchReward
+    | MsgRewardBalanceQuery BlockHeader
+    | MsgRewardBalanceResult (Either ErrFetchRewards (Quantity "lovelace" Word64))
+    | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
+    | MsgRewardBalanceExited
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2100,8 +2138,18 @@ instance ToText WalletLog where
             "Coins selected for payment: \n" <> pretty sel
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
-        MsgTemporaryDisableFetchReward ->
-            "FIXME: (issue #1750) fetching reward temporarily disabled."
+        MsgRewardBalanceQuery bh ->
+            "Updating the reward balance for block " <> pretty bh
+        MsgRewardBalanceResult (Right amt) ->
+            "The reward balance is " <> pretty amt
+        MsgRewardBalanceNoSuchWallet err ->
+            "Trying to store a balance for a wallet that doesn't exist (yet?): " <>
+            T.pack (show err)
+        MsgRewardBalanceResult (Left err) ->
+            "Problem fetching reward balance. Will try again on next chain update. " <>
+            T.pack (show err)
+        MsgRewardBalanceExited ->
+            "Reward balance worker has exited."
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2120,4 +2168,8 @@ instance HasSeverityAnnotation WalletLog where
         MsgDelegationCoinSelection _ -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
-        MsgTemporaryDisableFetchReward -> Warning
+        MsgRewardBalanceQuery _ -> Debug
+        MsgRewardBalanceResult (Right _) -> Debug
+        MsgRewardBalanceResult (Left _) -> Notice
+        MsgRewardBalanceNoSuchWallet{} -> Warning
+        MsgRewardBalanceExited -> Notice
