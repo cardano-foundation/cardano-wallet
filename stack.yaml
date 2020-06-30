@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/0f7d49e6ce0d0d5aaedb05b25993b8aac3e0979c/snapshots/cardano-1.14.0.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/633f6141c3e7211dbb0c6ae6ad50d4976313e190/snapshots/cardano-1.14.2.yaml
 packages:
 - lib/core
 - lib/core-integration
@@ -41,7 +41,7 @@ extra-deps:
     - persistent-template
 
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 2303830a5e92189925d6425c5eea15d19f62eda3
+  commit: 197015670a0c6df4eaae63d66ae7b3e48007abc0
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
