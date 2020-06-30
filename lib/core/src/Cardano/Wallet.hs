@@ -282,7 +282,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
-    , UTxO
+    , UTxO (..)
     , UTxOStatistics
     , UnsignedTx (..)
     , WalletDelegation (..)
@@ -368,7 +368,7 @@ import Data.Vector.Shuffle
 import Data.Word
     ( Word16, Word64 )
 import Fmt
-    ( blockListF, pretty )
+    ( blockListF, pretty, (+|), (|+) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -384,6 +384,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1134,6 +1135,7 @@ selectCoinsForPaymentFromUTxO
     -> NonEmpty TxOut
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
+    lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients utxo
@@ -2091,6 +2093,7 @@ data WalletLog
     | MsgTip BlockHeader
     | MsgBlocks (NonEmpty Block)
     | MsgDelegationCoinSelection CoinSelection
+    | MsgPaymentCoinSelectionStart W.UTxO W.TxParameters (NonEmpty TxOut)
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
     | MsgRewardBalanceQuery BlockHeader
@@ -2134,6 +2137,10 @@ instance ToText WalletLog where
             "blocks: " <> pretty (NE.toList blocks)
         MsgDelegationCoinSelection sel ->
             "Coins selected for delegation: \n" <> pretty sel
+        MsgPaymentCoinSelectionStart utxo _txp recipients ->
+            "Starting coin selection " <>
+            "|utxo| = "+|Map.size (getUTxO utxo)|+" " <>
+            "#recipients = "+|NE.length recipients|+""
         MsgPaymentCoinSelection sel ->
             "Coins selected for payment: \n" <> pretty sel
         MsgPaymentCoinSelectionAdjusted sel ->
@@ -2166,6 +2173,7 @@ instance HasSeverityAnnotation WalletLog where
         MsgTip _ -> Info
         MsgBlocks _ -> Debug
         MsgDelegationCoinSelection _ -> Debug
+        MsgPaymentCoinSelectionStart{} -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
         MsgRewardBalanceQuery _ -> Debug
