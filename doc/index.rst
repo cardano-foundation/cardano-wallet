@@ -7,7 +7,6 @@ cardano-wallet
 .. toctree::
    :maxdepth: 3
    :titlesonly:
-   :hidden:
 
    Overview
    About-Address-Derivation
