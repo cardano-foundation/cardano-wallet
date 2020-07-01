@@ -266,7 +266,7 @@ mkFeeEstimator policy = \case
             outs =
                 replicate (nOuts + nChgs) (Coin minBound)
         in
-            CoinSelection inps [] outs
+            CoinSelection inps [] outs Nothing
 
     computeFee selection dlg =
         fromIntegral $ getFee $ _minimumFee policy dlg selection

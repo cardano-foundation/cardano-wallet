@@ -355,13 +355,14 @@ spec = do
 
 -- Check whether a selection is valid
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c) =
+isValidSelection (CoinSelection i o c r) =
     let
         oAmt = sum $ map (fromIntegral . getCoin . coin) o
         cAmt = sum $ map (fromIntegral . getCoin) c
         iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
+        rAmt = maybe (0 :: Integer) (fromIntegral . getCoin) r
     in
-        (iAmt :: Integer) >= (oAmt + cAmt)
+        iAmt + rAmt >= oAmt + cAmt
 
 -- | Data for running fee calculation properties
 data FeeProp = FeeProp
@@ -496,7 +497,7 @@ feeUnitTest
 feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
     (utxo, sel) <- setup
     result <- runExceptT $ do
-        (CoinSelection inps outs chngs) <-
+        (CoinSelection inps outs chngs _rsv) <-
             adjustForFee (feeOptions feeF dustF) utxo sel
         return $ FeeOutput
             { csInps = map (getCoin . coin . snd) inps
@@ -511,7 +512,7 @@ feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title
         inps <- (Map.toList . getUTxO) <$> generate (genUTxO $ Coin <$> inpsF)
         outs <- generate (genTxOut $ Coin <$> outsF)
         let chngs = map Coin chngsF
-        pure (utxo, CoinSelection inps outs chngs)
+        pure (utxo, CoinSelection inps outs chngs Nothing)
 
     title :: String
     title = mempty
@@ -625,7 +626,7 @@ instance Arbitrary Address where
         ]
 
 instance Arbitrary CoinSelection where
-    shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+    shrink sel@(CoinSelection inps outs chgs rsv) = case (inps, outs, chgs) of
         ([_], [_], []) ->
             []
         _ ->
@@ -635,10 +636,10 @@ instance Arbitrary CoinSelection where
                 chgs' = drop 1 chgs
             in
                 filter (\s -> s /= sel && isValidSelection s)
-                    [ CoinSelection inps' outs' chgs'
-                    , CoinSelection inps' outs chgs
-                    , CoinSelection inps outs' chgs
-                    , CoinSelection inps outs chgs'
+                    [ CoinSelection inps' outs' chgs' rsv
+                    , CoinSelection inps' outs chgs rsv
+                    , CoinSelection inps outs' chgs rsv
+                    , CoinSelection inps outs chgs' rsv
                     ]
     arbitrary = do
         outs <- choose (1, 10)

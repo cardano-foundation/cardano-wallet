@@ -170,6 +170,7 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
             { inputs = inps
             , outputs = [txout]
             , change = mkChange txout inps
+            , reserve = Nothing
             }
         , utxo
         )

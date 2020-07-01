@@ -48,6 +48,8 @@ data CoinSelection = CoinSelection
       -- ^ Picked outputs
     , change  :: [Coin]
       -- ^ Resulting changes
+    , reserve :: Maybe Coin
+      -- ^ A coin reserve, from a reward balance or a deposit.
     } deriving (Generic, Show, Eq)
 
 -- NOTE
@@ -59,16 +61,22 @@ instance Semigroup CoinSelection where
         { inputs = inputs a <> inputs b
         , outputs = outputs a <> outputs b
         , change = change a <> change b
+        , reserve = case (reserve a, reserve b) of
+            (Nothing, Nothing) -> Nothing
+            (Just (Coin ca), Nothing) -> Just (Coin ca)
+            (Nothing, Just (Coin cb)) -> Just (Coin cb)
+            (Just (Coin ca), Just (Coin cb)) -> Just (Coin (ca + cb))
         }
 
 instance Monoid CoinSelection where
-    mempty = CoinSelection [] [] []
+    mempty = CoinSelection [] [] [] Nothing
 
 instance Buildable CoinSelection where
-    build (CoinSelection inps outs chngs) = mempty
+    build (CoinSelection inps outs chngs rsv) = mempty
         <> nameF "inputs" (blockListF' "-" inpsF inps)
         <> nameF "outputs" (blockListF outs)
         <> nameF "change" (listF chngs)
+        <> nameF "reserve" (maybe "ø" build rsv)
       where
         inpsF (txin, txout) = build txin <> " (~ " <> build txout <> ")"
 
@@ -83,7 +91,10 @@ data CoinSelectionOptions e = CoinSelectionOptions
 
 -- | Calculate the sum of all input values
 inputBalance :: CoinSelection -> Word64
-inputBalance =  foldl' (\total -> addTxOut total . snd) 0 . inputs
+inputBalance cs =
+    maybe 0 getCoin (reserve cs)
+    +
+    foldl' (\total -> addTxOut total . snd) 0 (inputs cs)
 
 -- | Calculate the sum of all output values
 outputBalance :: CoinSelection -> Word64

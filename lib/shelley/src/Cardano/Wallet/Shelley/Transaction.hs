@@ -153,7 +153,8 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkStdTx keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
-        let fee = realFee ownedIns outs
+        let rsv = error "TODO: handle reserve"
+        let fee = realFee rsv ownedIns outs
         let unsigned = mkUnsignedTx timeToLive ownedIns outs [] fee
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
@@ -212,7 +213,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let LinearFee a b _ = policy
         let fee = _minimumFee (LinearFee a b (Quantity 0))
                 certsInfo
-                (CoinSelection inps (outs ++ chgs) [])
+                (CoinSelection inps (outs ++ chgs) [] (error "TODO: handle me"))
         let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs) certs fee
         let metadata = SL.SNothing
 
@@ -245,6 +246,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
+        let rsv = error "TODO: handle reserve"
 
         -- NOTE / FIXME
         -- When registering a stake key, users gave a deposit fixed by the fee
@@ -269,7 +271,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- undergo _now_. So long as the deposit key isn't updated via protocol
         -- updates, the present solution will work fine.
         chgs' <- mapFirst (withDeposit policy) chgs
-        let fee = realFee inps (outs ++ chgs)
+        let fee = realFee rsv inps (outs ++ chgs)
         let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs') certs fee
         let metadata = SL.SNothing
 
@@ -325,6 +327,7 @@ dummyCoinSel nInps nOuts = CoinSelection
     (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1])
     (replicate nOuts dummyTxOut)
     (replicate nOuts (Coin 1))
+    (error "TODO: handle me")
   where
     dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
     dummyTxOut  = TxOut dummyAddr (Coin 1)
@@ -370,21 +373,22 @@ _minimumFee policy certs coinSel =
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
         needsDeposit = isJust $ find (== KeyRegistrationCertificate) certs
 
-realFee :: [(TxIn, TxOut)] -> [TxOut] -> Fee
-realFee inps outs = Fee
+realFee :: Maybe Coin -> [(TxIn, TxOut)] -> [TxOut] -> Fee
+realFee rsv inps outs = Fee
     $ sum (map (getCoin . coin . snd) inps)
+    + maybe 0 getCoin rsv
     - sum (map (getCoin . coin) outs)
 
 computeTxSize
     :: [Certificate]
     -> CoinSelection
     -> Integer
-computeTxSize certs (CoinSelection inps outs chngs) =
+computeTxSize certs (CoinSelection inps outs chngs rsv) =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound inps outs' certs' (realFee inps outs')
+    unsigned = mkUnsignedTx maxBound inps outs' certs' (realFee rsv inps outs')
       where
         outs' :: [TxOut]
         outs' = outs <> (dummyOutput <$> chngs)

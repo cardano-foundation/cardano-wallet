@@ -103,6 +103,7 @@ depleteUTxO feeOpts batchSize utxo =
         , change =
             let chgs = mapMaybe (noDust . snd) inps
             in if null chgs then [dustThreshold feeOpts] else chgs
+        , reserve = Nothing
         }
       where
         noDust :: TxOut -> Maybe Coin

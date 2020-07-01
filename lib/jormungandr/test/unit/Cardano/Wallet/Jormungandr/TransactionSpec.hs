@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.Jormungandr.Transaction
-    ( ErrExceededInpsOrOuts (..), newTransactionLayer )
+    ( ErrValidateSelection (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -602,7 +602,7 @@ tooNumerousInpsTest
 tooNumerousInpsTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = validateSelection tl (CoinSelection inps outs chngs)
+    let res = validateSelection tl (CoinSelection inps outs chngs Nothing)
           where
             tl = newTransactionLayer @JormungandrKey block0
             inps = replicate 256
@@ -625,7 +625,7 @@ tooNumerousOutsTest
 tooNumerousOutsTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = validateSelection tl (CoinSelection inps outs chngs)
+    let res = validateSelection tl (CoinSelection inps outs chngs Nothing)
           where
             tl = newTransactionLayer @JormungandrKey block0
             inps = replicate 255

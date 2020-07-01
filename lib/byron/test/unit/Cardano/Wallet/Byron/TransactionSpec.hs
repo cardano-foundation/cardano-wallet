@@ -157,6 +157,8 @@ spec = do
                         ]
                     , change =
                         [Coin 30_556]
+                    , reserve =
+                        Nothing
                     }
 
             runExceptT (adjustForFee opts utxo csel) >>= \case
@@ -365,7 +367,7 @@ propSizeEstimation pm genSel genChngAddrs =
         idPolicy = LinearFee (Quantity 0) (Quantity 1) (Quantity 0)
 
     fromCoinSelection :: CoinSelection -> [Address] -> CBOR.Encoding
-    fromCoinSelection (CoinSelection inps outs chngs) chngAddrs =
+    fromCoinSelection (CoinSelection inps outs chngs _) chngAddrs =
         CBOR.encodeSignedTx (fst <$> inps, outs <> outs') wits
       where
         dummySig =
@@ -444,7 +446,7 @@ genSelection = do
         }
 
 shrinkSelection :: CoinSelection -> [CoinSelection]
-shrinkSelection sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+shrinkSelection sel@(CoinSelection inps outs chgs rsv) = case (inps, outs, chgs) of
     ([_], [_], []) ->
         []
     _ ->
@@ -457,24 +459,25 @@ shrinkSelection sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
             chgs'' = drop 1 chgs
         in
             filter (\s -> s /= sel && isValidSelection s)
-                [ CoinSelection inps' outs' chgs'
-                , CoinSelection inps' outs chgs
-                , CoinSelection inps outs chgs'
-                , CoinSelection inps outs' chgs
-                , CoinSelection inps'' outs'' chgs''
-                , CoinSelection inps'' outs chgs
-                , CoinSelection inps outs'' chgs
-                , CoinSelection inps outs chgs''
+                [ CoinSelection inps' outs' chgs' rsv
+                , CoinSelection inps' outs chgs rsv
+                , CoinSelection inps outs chgs' rsv
+                , CoinSelection inps outs' chgs rsv
+                , CoinSelection inps'' outs'' chgs'' rsv
+                , CoinSelection inps'' outs chgs rsv
+                , CoinSelection inps outs'' chgs rsv
+                , CoinSelection inps outs chgs'' rsv
                 ]
 
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c) =
+isValidSelection (CoinSelection i o c r) =
     let
         oAmt = sum $ map (fromIntegral . getCoin . coin) o
         cAmt = sum $ map (fromIntegral . getCoin) c
         iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
+        rAmt = maybe (0 :: Integer) (fromIntegral . getCoin) r
     in
-        (iAmt :: Integer) >= (oAmt + cAmt)
+        iAmt + rAmt >= oAmt + cAmt
 
 genTxIn :: Gen TxIn
 genTxIn = TxIn

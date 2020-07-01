@@ -164,7 +164,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         :: MonadRandom m
         => CoinSelection
         -> StateT UTxO (ExceptT ErrAdjustForFee m) CoinSelection
-    go coinSel@(CoinSelection inps outs chgs) = do
+    go coinSel@(CoinSelection inps outs chgs rsv) = do
         -- Substract fee from change outputs, proportionally to their value.
         let (coinSel', remFee) = rebalanceChangeOutputs opt coinSel
 
@@ -189,7 +189,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- we can now correctly cover fee.
             inps' <- coverRemainingFee remFee
             let extraChange = splitChange (Coin $ balance' inps') chgs
-            go $ CoinSelection (inps <> inps') outs extraChange
+            go $ CoinSelection (inps <> inps') outs extraChange rsv
 
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.

@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,7 +11,7 @@
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
-    , ErrExceededInpsOrOuts (..)
+    , ErrValidateSelection (..)
     ) where
 
 import Prelude
@@ -50,7 +51,6 @@ import Cardano.Wallet.Transaction
     ( Certificate (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -59,6 +59,8 @@ import Control.Monad
     ( forM, when )
 import Data.Either.Combinators
     ( maybeToRight )
+import Data.Maybe
+    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -66,7 +68,9 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
+import qualified Cardano.Wallet.Transaction as W
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 
 -- | Construct a 'TransactionLayer' compatible with Jormungandr and 'Jörmungandr'
 newTransactionLayer
@@ -116,9 +120,11 @@ newTransactionLayer block0H = TransactionLayer
 
     , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
-    , validateSelection = \(CoinSelection inps outs _) -> do
+    , validateSelection = \(CoinSelection inps outs _ rsv) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
             $ Left ErrExceededInpsOrOuts
+        when (isJust rsv)
+            $ Left ErrReserveNotAllowed
 
     , allowUnbalancedTx = False
     }
@@ -149,7 +155,7 @@ newTransactionLayer block0H = TransactionLayer
         -> [Certificate]
         -> CoinSelection
         -> Fee
-    _minimumFee policy certs (CoinSelection inps outs chgs) =
+    _minimumFee policy certs (CoinSelection inps outs chgs _) =
         Fee $ ceiling (a + b*fromIntegral ios + c*fromIntegral cs)
       where
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
@@ -175,17 +181,25 @@ instance TxWitnessTagFor JormungandrKey where txWitnessTagFor = TxWitnessUTxO
 instance TxWitnessTagFor IcarusKey      where txWitnessTagFor = TxWitnessLegacyUTxO
 instance TxWitnessTagFor ByronKey       where txWitnessTagFor = TxWitnessLegacyUTxO
 
--- | Transaction with improper number of inputs and outputs is tried
-data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts
+data ErrValidateSelection
+    = ErrExceededInpsOrOuts
+        -- ^ Transaction with improper number of inputs and outputs is tried
+    | ErrReserveNotAllowed
+        -- ^ Transaction has a reserve input amount, not allowed for this backend
     deriving (Eq, Show)
 
-instance Buildable ErrExceededInpsOrOuts where
-    build _ = build $ mconcat
-        [ "I can't validate coin selection because either the number of inputs "
-        , "is more than ", maxI," or the number of outputs exceeds ", maxO, "."
-        ]
+instance Buildable ErrValidateSelection where
+    build = \case
+        ErrExceededInpsOrOuts -> build $ T.unwords
+            [ "I can't validate coin selection because either the number of inputs"
+            , "is more than", maxI, "or the number of outputs exceeds", maxO <> "."
+            ]
+        ErrReserveNotAllowed -> build $ T.unwords
+            [ "The given coin selection was given a reserve amount and this is"
+            , "not allowed for this backend / era."
+            ]
       where
         maxI = toText maxNumberOfInputs
         maxO = toText maxNumberOfOutputs
 
-type instance ErrValidateSelection Jormungandr = ErrExceededInpsOrOuts
+type instance W.ErrValidateSelection Jormungandr = ErrValidateSelection

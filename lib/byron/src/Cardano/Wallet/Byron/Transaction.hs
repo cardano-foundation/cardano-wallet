@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -53,7 +54,6 @@ import Cardano.Wallet.Transaction
     ( Certificate (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -68,6 +68,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either.Combinators
     ( maybeToRight )
+import Data.Maybe
+    ( isJust )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -81,6 +83,7 @@ import GHC.Stack
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Transaction as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -136,7 +139,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
         -> [Certificate]
         -> CoinSelection
         -> Fee
-    _minimumFee policy _ (CoinSelection inps outs chngs) =
+    _minimumFee policy _ (CoinSelection inps outs chngs _) =
         computeFee $ sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
       where
         dummyOutput :: Coin -> TxOut
@@ -160,10 +163,12 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 
     _validateSelection
         :: CoinSelection
-        -> Either (ErrValidateSelection t) ()
-    _validateSelection (CoinSelection _ outs _) =
+        -> Either ErrValidateSelection ()
+    _validateSelection (CoinSelection _ outs _ rsv) = do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs) $
             Left ErrInvalidTxOutAmount
+        when (isJust rsv) $
+            Left ErrReserveNotAllowed
 
     _decodeSignedTx
         :: ByteString
@@ -195,13 +200,22 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 -- Extra validations on coin selection
 --
 
--- | Transaction with 0 output amount is tried
-data ErrInvalidTxOutAmount = ErrInvalidTxOutAmount
+data ErrValidateSelection
+    = ErrInvalidTxOutAmount
+    -- ^ Transaction with 0 output amount is tried
+    | ErrReserveNotAllowed
+    -- ^ Transaction has a reserve input amount, not allowed for this backend
 
-instance Buildable ErrInvalidTxOutAmount where
-    build _ = "Invalid coin selection: at least one output is null."
+instance Buildable ErrValidateSelection where
+    build = \case
+        ErrInvalidTxOutAmount ->
+            "Invalid coin selection: at least one output is null."
+        ErrReserveNotAllowed -> build $ T.unwords
+            [ "The given coin selection was given a reserve amount and this is"
+            , "not allowed for this backend / era."
+            ]
 
-type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
+type instance W.ErrValidateSelection (IO Byron) = ErrValidateSelection
 
 --------------------------------------------------------------------------------
 -- Internal

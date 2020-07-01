@@ -480,6 +480,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         ]
         [ TxOut (Address "destination") (Coin 14) ]
         []
+        Nothing
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
@@ -563,6 +564,7 @@ coinSelectionForFee (FeeGen (Coin fee)) = CoinSelection
     { inputs = [(TxIn (Hash "") 0, TxOut (Address "") (Coin (1 + fee)))]
     , outputs = [TxOut (Address "") (Coin 1)]
     , change = []
+    , reserve = Nothing
     }
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances

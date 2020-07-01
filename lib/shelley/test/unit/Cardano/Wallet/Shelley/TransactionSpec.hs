@@ -145,7 +145,7 @@ prop_decodeSignedTxRoundtrip
     -> Property
 prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     let ownedIns = Map.toList $ getUTxO utxo
-    let unsigned = mkUnsignedTx slotNo ownedIns outs [] (realFee ownedIns outs)
+    let unsigned = mkUnsignedTx slotNo ownedIns outs [] (realFee Nothing ownedIns outs)
     let addrWits = Set.fromList $ map (mkWitness unsigned) pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet addrWits mempty mempty

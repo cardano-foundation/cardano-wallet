@@ -1177,7 +1177,7 @@ selectCoinsForDelegationFromUTxO
     -> [Certificate]
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp certs = do
-    let sel = CoinSelection [] [] []
+    let sel = CoinSelection [] [] [] Nothing
     let feePolicy = feeOpts tl certs (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
@@ -1321,7 +1321,7 @@ signPayment
     -> Passphrase "raw"
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs) = db & \DBLayer{..} -> do
+signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs _rsv) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
@@ -1393,7 +1393,7 @@ selectCoinsExternal
     -> NonEmpty TxOut
     -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
 selectCoinsExternal ctx wid argGenChange payments = do
-    CoinSelection mInputs mPayments mChange <-
+    CoinSelection mInputs mPayments mChange _mReserve <-
         withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
             selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
     mOutputs <- db & \DBLayer{..} ->
@@ -1442,7 +1442,7 @@ signDelegation
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
-    let (CoinSelection ins outs chgs) = coinSel
+    let (CoinSelection ins outs chgs _rsv) = coinSel
     nodeTip <- withExceptT ErrSignDelegationNetwork $ currentNodeTip nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd

@@ -51,6 +51,7 @@ spec = do
                 { rsInputs = [17]
                 , rsChange = []
                 , rsOutputs = [17]
+                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -64,6 +65,7 @@ spec = do
                 { rsInputs = [17]
                 , rsChange = [16]
                 , rsOutputs = [1]
+                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -77,6 +79,7 @@ spec = do
                 { rsInputs = [12, 17]
                 , rsChange = [11]
                 , rsOutputs = [18]
+                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -90,6 +93,7 @@ spec = do
                 { rsInputs = [10, 12, 17]
                 , rsChange = [9]
                 , rsOutputs = [30]
+                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -103,6 +107,7 @@ spec = do
                 { rsInputs = [6,10,5]
                 , rsChange = [5,4]
                 , rsOutputs = [11,1]
+                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 3
@@ -226,7 +231,7 @@ propAtLeast
 propAtLeast (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
-    prop (CoinSelection inps _ _) =
+    prop (CoinSelection inps _ _ _) =
         L.length inps `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo
@@ -237,7 +242,7 @@ propInputDecreasingOrder
 propInputDecreasingOrder (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
-    prop (CoinSelection inps _ _) =
+    prop (CoinSelection inps _ _ _) =
         let
             utxo' = (Map.toList . getUTxO) $
                 utxo `excluding` (Set.fromList . map fst $ inps)
