@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.Fee
     , ErrAdjustForFee(..)
     , OnDanglingChange(..)
     , adjustForFee
-    , rebalanceChangeOutputs
+    , rebalanceSelection
     ) where
 
 import Prelude
@@ -166,7 +166,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -> StateT UTxO (ExceptT ErrAdjustForFee m) CoinSelection
     go coinSel@(CoinSelection inps outs chgs rsv) = do
         -- Substract fee from change outputs, proportionally to their value.
-        let (coinSel', remFee) = rebalanceChangeOutputs opt coinSel
+        let (coinSel', remFee) = rebalanceSelection opt coinSel
 
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
@@ -188,8 +188,8 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
             inps' <- coverRemainingFee remFee
-            let extraChange = splitChange (Coin $ balance' inps') chgs
-            go $ CoinSelection (inps <> inps') outs extraChange rsv
+            let chgs' = splitChange (Coin $ balance' inps') chgs
+            go $ CoinSelection (inps <> inps') outs chgs' rsv
 
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.
@@ -214,14 +214,25 @@ coverRemainingFee (Fee fee) = go [] where
 --
 -- We divvy up the fee over all change outputs proportionally, to try and keep
 -- any output:change ratio as unchanged as possible
-rebalanceChangeOutputs
+rebalanceSelection
     :: FeeOptions
     -> CoinSelection
     -> (CoinSelection, Fee)
-rebalanceChangeOutputs opts s
+rebalanceSelection opts s
     -- selection is now balanced, nothing to do.
     | φ_original == δ_original =
         (s, Fee 0)
+
+    -- some fee left to pay, and the reserve is enough to pay for fee, use it.
+    | φ_original > δ_original && reserve s >= Just (Coin 0) =
+        let
+            -- Safe because of the above guard.
+            Just (Coin r) = reserve s
+            (remFee, r') = if r > φ_original
+                then (Fee 0, Coin (r - φ_original))
+                else (Fee (φ_original - r), Coin 0)
+        in
+            (s { reserve = (const r') <$> reserve s }, remFee)
 
     -- some fee left to pay, but we've depleted all change outputs
     | φ_original > δ_original && null (change s) =
@@ -232,7 +243,7 @@ rebalanceChangeOutputs opts s
         let chgs' = removeDust (Coin 0)
                 $ map reduceSingleChange
                 $ divvyFee (Fee $ φ_original - δ_original) (change s)
-        rebalanceChangeOutputs opts (s { change = chgs' })
+        rebalanceSelection opts (s { change = chgs' })
 
     -- we've left too much, but adding a change output would be more
     -- expensive than not having it. Here we have two choices:
@@ -253,7 +264,7 @@ rebalanceChangeOutputs opts s
 
     -- So, we can simply add the change output, and iterate.
     | otherwise =
-        rebalanceChangeOutputs opts sDangling
+        rebalanceSelection opts sDangling
   where
     -- The original requested fee amount
     Fee φ_original = estimateFee opts s

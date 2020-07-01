@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.Fee
     , FeePolicy (..)
     , OnDanglingChange (..)
     , adjustForFee
-    , rebalanceChangeOutputs
+    , rebalanceSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -168,7 +168,7 @@ spec = do
     it "1561 - The fee balancing algorithm converges for any coin selection."
         $ property
         $ withMaxSuccess 10000
-        $ forAllBlind (genSelection @'Mainnet @ByronKey) prop_rebalanceChangeOutputs
+        $ forAllBlind (genSelection @'Mainnet @ByronKey) prop_rebalanceSelection
 
     describe "Fee estimation calculation" $ do
         it "Byron / Mainnet" $ property $
@@ -285,12 +285,12 @@ spec = do
                                 Properties
 -------------------------------------------------------------------------------}
 
-prop_rebalanceChangeOutputs
+prop_rebalanceSelection
     :: CoinSelection
     -> OnDanglingChange
     -> Property
-prop_rebalanceChangeOutputs sel onDangling = do
-    let (sel', fee') = rebalanceChangeOutputs opts sel
+prop_rebalanceSelection sel onDangling = do
+    let (sel', fee') = rebalanceSelection opts sel
     let prop = case onDangling of
             PayAndBalance ->
                 fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
