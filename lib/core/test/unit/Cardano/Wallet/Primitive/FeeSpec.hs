@@ -52,6 +52,8 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Maybe
+    ( isNothing )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -65,13 +67,17 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , classify
+    , conjoin
     , counterexample
     , coverTable
     , disjoin
     , elements
     , expectFailure
     , forAllBlind
+    , frequency
     , generate
+    , oneof
     , property
     , scale
     , tabulate
@@ -407,15 +413,15 @@ propReducedChanges
     -> ShowFmt FeeProp
     -> Property
 propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
-    isRight coinSel' ==> let Right s = coinSel' in prop s
+    withMaxSuccess 1000 $ isRight coinSel' ==> let Right s = coinSel' in prop s
   where
     prop s = do
         let chgs' = sum $ map getCoin $ change s
         let chgs = sum $ map getCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
-        disjoin
-            [ chgs' `shouldSatisfy` (<= chgs)
+        classify (reserve coinSel > Just (Coin fee)) "reserve > fee" $ disjoin
+            [ chgs' `shouldSatisfy` (< chgs)
             , length inps' `shouldSatisfy` (>= length inps)
             ]
     feeOpt = feeOptions fee dust
@@ -495,12 +501,19 @@ prop_rebalanceSelection
     -> Property
 prop_rebalanceSelection sel onDangling = do
     let (sel', fee') = rebalanceSelection opts sel
-    let prop = case onDangling of
+    let selectionIsBalanced = case onDangling of
             PayAndBalance ->
                 fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
             SaveMoney ->
                 fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
-    property prop
+    let reserveIsEmpty =
+            case reserve sel of
+                Nothing -> isNothing (reserve sel')
+                Just{}  -> reserve sel' == Just (Coin 0)
+    conjoin
+        [ property selectionIsBalanced
+        , property reserveIsEmpty
+        ]
         & counterexample (unlines
             [ "selection (before):", pretty sel
             , "selection (after):", pretty sel'
@@ -508,6 +521,14 @@ prop_rebalanceSelection sel onDangling = do
             , "delta (after):  " <> show (delta sel')
             , "remaining fee:  " <> show (getFee fee')
             ])
+        & classify (reserveNonNull && feeLargerThanDelta)
+            "reserve > 0 && fee > delta"
+        & classify (reserveLargerThanFee && feeLargerThanDelta)
+            "reserve > fee && fee > delta"
+        & classify reserveLargerThanFee
+            "reserve > fee"
+        & classify feeLargerThanDelta
+            "fee > delta"
   where
     delta s = inputBalance s - (outputBalance s + changeBalance s)
     opts = FeeOptions
@@ -522,6 +543,13 @@ prop_rebalanceSelection sel onDangling = do
         , dustThreshold = minBound
         , onDanglingChange = onDangling
         }
+
+    reserveNonNull =
+        reserve sel > Just (Coin 0)
+    reserveLargerThanFee =
+        reserve sel > Just (Coin $ getFee $ estimateFee opts sel)
+    feeLargerThanDelta =
+        getFee (estimateFee opts sel) > delta sel
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
@@ -627,9 +655,17 @@ genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
 genSelectionFor outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
     utxo <- vector (NE.length outs * 3) >>= genUTxO
+    rsv <- frequency
+        [ (3, pure Nothing)
+        , (1, Just . Coin <$> oneof
+            [ choose (1, 10000)
+            , choose (500000, 1000000)
+            ]
+          )
+        ]
     case runIdentity $ runExceptT $ largestFirst opts outs utxo of
         Left _ -> genSelectionFor outs
-        Right (s,_) -> return s
+        Right (s,_) -> pure $ s { reserve = rsv }
 
 instance Arbitrary TxIn where
     shrink _ = []

@@ -213,7 +213,13 @@ coverRemainingFee (Fee fee) = go [] where
 -- change outputs if any are left, or the remaining fee otherwise
 --
 -- We divvy up the fee over all change outputs proportionally, to try and keep
--- any output:change ratio as unchanged as possible
+-- any output:change ratio as unchanged as possible.
+--
+-- This function either consumes an existing reserve on a selection, or turn it
+-- into a change output. Therefore, the resulting coin selection _will_ not have
+-- any reserve. Note that the reserve will be either 'Nothing', to indicate that
+-- there was no reserve at all, or 'Just 0' to indicate that there was a
+-- reserve, but it has been consumed entirely.
 rebalanceSelection
     :: FeeOptions
     -> CoinSelection
@@ -223,16 +229,16 @@ rebalanceSelection opts s
     | φ_original == δ_original =
         (s, Fee 0)
 
-    -- some fee left to pay, and the reserve is enough to pay for fee, use it.
-    | φ_original > δ_original && reserve s >= Just (Coin 0) =
+    -- some fee left to pay, and the reserve is non-empty, use it first.
+    | φ_original > δ_original && reserve s > Just (Coin 0) =
         let
             -- Safe because of the above guard.
             Just (Coin r) = reserve s
-            (remFee, r') = if r > φ_original
-                then (Fee 0, Coin (r - φ_original))
-                else (Fee (φ_original - r), Coin 0)
+            r' = if r > φ_original
+                then Coin (r - φ_original)
+                else Coin 0
         in
-            (s { reserve = (const r') <$> reserve s }, remFee)
+            rebalanceSelection opts (s { reserve = Just r' })
 
     -- some fee left to pay, but we've depleted all change outputs
     | φ_original > δ_original && null (change s) =
@@ -277,7 +283,10 @@ rebalanceSelection opts s
     δ_dangling = φ_original -- by construction of the change output
 
     extraChng = Coin (δ_original - φ_original)
-    sDangling = s { change = splitChange extraChng (change s) }
+    sDangling = s
+        { change = splitChange extraChng (change s)
+        , reserve = Coin 0 <$ reserve s
+        }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.
