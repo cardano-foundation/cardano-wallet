@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.FeeSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..), changeBalance, inputBalance, outputBalance )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
@@ -23,6 +23,7 @@ import Cardano.Wallet.Primitive.Fee
     , OnDanglingChange (..)
     , adjustForFee
     , divvyFee
+    , rebalanceSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -45,6 +46,8 @@ import Crypto.Random.Types
     ( withDRG )
 import Data.Either
     ( isRight )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
@@ -52,7 +55,7 @@ import Data.List.NonEmpty
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), nameF, tupleF )
+    ( Buildable (..), nameF, pretty, tupleF )
 import Test.Hspec
     ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
@@ -62,10 +65,12 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , counterexample
     , coverTable
     , disjoin
     , elements
     , expectFailure
+    , forAllBlind
     , generate
     , property
     , scale
@@ -349,6 +354,13 @@ spec = do
         it "expectFailure: empty list"
             (expectFailure propDivvyFeeInvariantEmptyList)
 
+    describe "prop_rebalanceSelection" $ do
+        it "The fee balancing algorithm converges for any coin selection."
+            $ property
+            $ withMaxSuccess 10000
+            $ forAllBlind genSelection prop_rebalanceSelection
+
+
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
 -------------------------------------------------------------------------------}
@@ -474,6 +486,44 @@ propDivvyFeeInvariantEmptyList (fee, outs) =
     prop = divvyFee fee outs `seq` True
 
 {-------------------------------------------------------------------------------
+                         Fee Adjustment - properties
+-------------------------------------------------------------------------------}
+
+prop_rebalanceSelection
+    :: CoinSelection
+    -> OnDanglingChange
+    -> Property
+prop_rebalanceSelection sel onDangling = do
+    let (sel', fee') = rebalanceSelection opts sel
+    let prop = case onDangling of
+            PayAndBalance ->
+                fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
+            SaveMoney ->
+                fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
+    property prop
+        & counterexample (unlines
+            [ "selection (before):", pretty sel
+            , "selection (after):", pretty sel'
+            , "delta (before): " <> show (delta sel)
+            , "delta (after):  " <> show (delta sel')
+            , "remaining fee:  " <> show (getFee fee')
+            ])
+  where
+    delta s = inputBalance s - (outputBalance s + changeBalance s)
+    opts = FeeOptions
+        -- NOTE
+        -- Dummy fee policy but, following a similar rule as the fee policy on
+        -- Byron / Shelley (bigger transaction cost more) with sensible values.
+        { estimateFee = \cs ->
+            let
+                size = fromIntegral $ length $ show cs
+            in
+                Fee (100000 + 100 * size)
+        , dustThreshold = minBound
+        , onDanglingChange = onDangling
+        }
+
+{-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
 -------------------------------------------------------------------------------}
 
@@ -568,12 +618,17 @@ genTxOut coins = do
     outs <- vector n
     return $ zipWith TxOut outs coins
 
-genSelection :: NonEmpty TxOut -> Gen CoinSelection
-genSelection outs = do
+genSelection :: Gen CoinSelection
+genSelection = do
+    outs <- choose (1, 10) >>= vector >>= genTxOut
+    genSelectionFor (NE.fromList outs)
+
+genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
+genSelectionFor outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
     utxo <- vector (NE.length outs * 3) >>= genUTxO
     case runIdentity $ runExceptT $ largestFirst opts outs utxo of
-        Left _ -> genSelection outs
+        Left _ -> genSelectionFor outs
         Right (s,_) -> return s
 
 instance Arbitrary TxIn where
@@ -645,7 +700,11 @@ instance Arbitrary CoinSelection where
         outs <- choose (1, 10)
             >>= vector
             >>= genTxOut
-        genSelection (NE.fromList outs)
+        genSelectionFor (NE.fromList outs)
+
+instance Arbitrary OnDanglingChange
+  where
+    arbitrary = elements [ PayAndBalance, SaveMoney ]
 
 instance Arbitrary FeeOptions where
     arbitrary = do

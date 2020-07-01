@@ -48,12 +48,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionOptions (..)
-    , changeBalance
-    , inputBalance
-    , outputBalance
-    )
+    ( CoinSelection (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
@@ -62,7 +57,6 @@ import Cardano.Wallet.Primitive.Fee
     , FeePolicy (..)
     , OnDanglingChange (..)
     , adjustForFee
-    , rebalanceSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -164,11 +158,6 @@ spec = do
             runExceptT (adjustForFee opts utxo csel) >>= \case
                 Left e -> expectationFailure $ "failed with: " <> show e
                 Right{}-> pure ()
-
-    it "1561 - The fee balancing algorithm converges for any coin selection."
-        $ property
-        $ withMaxSuccess 10000
-        $ forAllBlind (genSelection @'Mainnet @ByronKey) prop_rebalanceSelection
 
     describe "Fee estimation calculation" $ do
         it "Byron / Mainnet" $ property $
@@ -284,38 +273,6 @@ spec = do
 {-------------------------------------------------------------------------------
                                 Properties
 -------------------------------------------------------------------------------}
-
-prop_rebalanceSelection
-    :: CoinSelection
-    -> OnDanglingChange
-    -> Property
-prop_rebalanceSelection sel onDangling = do
-    let (sel', fee') = rebalanceSelection opts sel
-    let prop = case onDangling of
-            PayAndBalance ->
-                fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
-            SaveMoney ->
-                fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
-    property prop
-        & counterexample (unlines
-            [ "selection (before):", pretty sel
-            , "selection (after):", pretty sel'
-            , "delta (before): " <> show (delta sel)
-            , "delta (after):  " <> show (delta sel')
-            , "remaining fee:  " <> show (getFee fee')
-            ])
-  where
-    delta s = inputBalance s - (outputBalance s + changeBalance s)
-    opts = FeeOptions
-        { estimateFee = minimumFee tlayer feePolicy []
-        , dustThreshold = minBound
-        , onDanglingChange = onDangling
-        }
-      where
-        tlayer =
-            newTransactionLayer @'Mainnet @ByronKey Proxy mainnetMagic
-        feePolicy =
-            LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
 
 propSizeEstimation
     :: forall n k.
