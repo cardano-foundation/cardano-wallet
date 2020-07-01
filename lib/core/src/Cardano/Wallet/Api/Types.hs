@@ -396,6 +396,7 @@ data ApiStakePool = ApiStakePool
     , cost :: !(Maybe (Quantity "lovelace" Natural))
     , margin :: !(Maybe (Quantity "percent" Percentage))
     , pledge :: !(Maybe (Quantity "lovelace" Natural))
+    , retirement :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

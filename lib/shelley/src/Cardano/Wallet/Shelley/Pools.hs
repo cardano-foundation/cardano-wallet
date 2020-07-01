@@ -225,6 +225,10 @@ combineDbAndLsqData =
         , Api.cost = fmap fromIntegral . poolCost . regCert <$> dbData
         , Api.pledge = fmap fromIntegral . poolPledge . regCert <$> dbData
         , Api.margin = Quantity . poolMargin . regCert <$> dbData
+          -- TODO: Report the actual retirement status of a pool.
+          -- For the moment, we always report that a pool will never retire.
+          -- See https://github.com/input-output-hk/cardano-wallet/milestone/89
+        , Api.retirement = Nothing
         }
 
 -- | Combines all the LSQ data into a single map.
