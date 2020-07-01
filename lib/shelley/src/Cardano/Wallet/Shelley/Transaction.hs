@@ -125,6 +125,31 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
+
+-- | Type encapsulating what we need to know to add things -- payloads,
+-- certificates -- to a transaction.
+--
+-- Designed to allow us to have /one/ @_mkTx@ which doesn't care whether we
+-- include certificates or not.
+data TxPayload c = TxPayload
+    { _certificates :: [Cardano.Certificate]
+      -- ^ Certificates to be included in the transactions.
+
+    , _extraWitnesses :: SL.TxBody c -> SL.WitnessSet c
+      -- ^ Create payload-specific witesses given the unsigned transaction body.
+
+    , _fee :: Fee
+      -- ^ When constructing the @TxPayload@ you are responsible to calculate
+      -- the fee. This is because the payload may affect the fee.
+      --
+      -- TODO: Perhaps we could specify some kind of @extraCost@ instead of the
+      -- absolute @fee@, but didn't seem to fit with our current @minimumFee@
+      -- and @realFee@.
+    }
+
+emptyTxPayload :: Crypto c => Fee -> TxPayload c
+emptyTxPayload = TxPayload mempty (const mempty)
+
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
@@ -135,7 +160,10 @@ newTransactionLayer
     -> EpochLength
     -> TransactionLayer t k
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
-    { mkStdTx = _mkStdTx
+    { mkStdTx = \keyFrom slot ownedIns outs -> do
+        let fee = realFee ownedIns outs
+        let payload = emptyTxPayload fee
+        _mkTx payload keyFrom slot ownedIns outs
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
@@ -145,16 +173,16 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     , allowUnbalancedTx = True
     }
   where
-    _mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    _mkTx
+        :: TxPayload TPraosStandardCrypto
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> SlotId -- ^ The current slot
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom slot ownedIns outs = do
+    _mkTx (TxPayload certs mkExtraWits fee) keyFrom slot ownedIns outs = do
         let timeToLive = defaultTTL epochLength slot
-        let fee = realFee ownedIns outs
-        let unsigned = mkUnsignedTx timeToLive ownedIns outs [] fee
+        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs fee
 
         addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
@@ -162,7 +190,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         let metadata = SL.SNothing
 
-        let wits = SL.WitnessSet addrWits mempty mempty
+        let wits = (SL.WitnessSet addrWits mempty mempty) <> mkExtraWits unsigned
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _mkDelegationJoinTx
@@ -186,7 +214,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx policy dlg poolId (accXPrv, pwd') keyFrom slot inps outs chgs = do
-        let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
         let (certs, certsInfo) = case dlg of
                 (WalletDelegation NotDelegating []) ->
@@ -213,17 +240,18 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let fee = _minimumFee (LinearFee a b (Quantity 0))
                 certsInfo
                 (CoinSelection inps (outs ++ chgs) [])
-        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs) certs fee
-        let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
-            (k, pwd) <- lookupPrivateKey keyFrom addr
-            pure $ mkWitness unsigned (getRawKey k, pwd)
-        let certWits =
-                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
-        let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+        let certWits unsigned =
+                SL.WitnessSet
+                    (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                    mempty -- msig wits
+                    mempty -- boot wits
 
-        pure $ toSealed $ SL.Tx unsigned wits metadata
+        let payload = TxPayload certs certWits fee
+        -- NOTE: mkDelegationJoinTx, and mkStdTx differs in their arguments
+        -- in mkDelegationJoinTx, we need to add the change outputs to the other
+        -- outputs.
+        _mkTx payload keyFrom slot inps (outs ++ chgs)
 
     _mkDelegationQuitTx
         :: FeePolicy
@@ -242,7 +270,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- ^ Change, with assigned address
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationQuitTx policy (accXPrv, pwd') keyFrom slot inps outs chgs = do
-        let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
 
@@ -270,17 +297,15 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- updates, the present solution will work fine.
         chgs' <- mapFirst (withDeposit policy) chgs
         let fee = realFee inps (outs ++ chgs)
-        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs') certs fee
-        let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
-            (k, pwd) <- lookupPrivateKey keyFrom addr
-            pure $ mkWitness unsigned (getRawKey k, pwd)
-        let certWits =
-                Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd'))
-        let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+        let certWits unsigned =
+                SL.WitnessSet
+                    (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                    mempty -- msig wits
+                    mempty -- boot wits
 
-        pure $ toSealed $ SL.Tx unsigned wits metadata
+        let payload = TxPayload certs certWits fee
+        _mkTx payload keyFrom slot inps (outs ++ chgs')
       where
         withDeposit :: FeePolicy -> TxOut -> TxOut
         withDeposit (LinearFee _ _ (Quantity deposit)) (TxOut addr (Coin c)) =
