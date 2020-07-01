@@ -30,6 +30,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkUnsignedTx
     , mkWitness
     , realFee
+    , mkTx
     ) where
 
 import Prelude
@@ -150,6 +151,27 @@ data TxPayload c = TxPayload
 emptyTxPayload :: Crypto c => Fee -> TxPayload c
 emptyTxPayload = TxPayload mempty (const mempty)
 
+
+mkTx
+    :: WalletKey k
+    => TxPayload TPraosStandardCrypto
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> SlotNo -- ^ Time to live
+    -> [(TxIn, TxOut)]
+    -> [TxOut]
+    -> Either ErrMkTx (Tx, SealedTx)
+mkTx (TxPayload certs mkExtraWits fee) keyFrom timeToLive ownedIns outs = do
+    let unsigned = mkUnsignedTx timeToLive ownedIns outs certs fee
+
+    addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+        (k, pwd) <- lookupPrivateKey keyFrom addr
+        pure $ mkWitness unsigned (getRawKey k, pwd)
+
+    let metadata = SL.SNothing
+
+    let wits = (SL.WitnessSet addrWits mempty mempty) <> mkExtraWits unsigned
+    pure $ toSealed $ SL.Tx unsigned wits metadata
+
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
@@ -162,8 +184,8 @@ newTransactionLayer
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = \keyFrom slot ownedIns outs -> do
         let fee = realFee ownedIns outs
-        let payload = emptyTxPayload fee
-        _mkTx payload keyFrom slot ownedIns outs
+        let timeToLive = defaultTTL epochLength slot
+        mkTx (emptyTxPayload fee) keyFrom timeToLive ownedIns outs
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
@@ -173,26 +195,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     , allowUnbalancedTx = True
     }
   where
-    _mkTx
-        :: TxPayload TPraosStandardCrypto
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId -- ^ The current slot
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
-        -> Either ErrMkTx (Tx, SealedTx)
-    _mkTx (TxPayload certs mkExtraWits fee) keyFrom slot ownedIns outs = do
-        let timeToLive = defaultTTL epochLength slot
-        let unsigned = mkUnsignedTx timeToLive ownedIns outs certs fee
-
-        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
-            (k, pwd) <- lookupPrivateKey keyFrom addr
-            pure $ mkWitness unsigned (getRawKey k, pwd)
-
-        let metadata = SL.SNothing
-
-        let wits = (SL.WitnessSet addrWits mempty mempty) <> mkExtraWits unsigned
-        pure $ toSealed $ SL.Tx unsigned wits metadata
-
     _mkDelegationJoinTx
         :: FeePolicy
             -- Latest fee policy
@@ -215,6 +217,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx policy dlg poolId (accXPrv, pwd') keyFrom slot inps outs chgs = do
         let accXPub = toXPub $ getRawKey accXPrv
+        let timeToLive = defaultTTL epochLength slot
         let (certs, certsInfo) = case dlg of
                 (WalletDelegation NotDelegating []) ->
                     ( [ toStakeKeyRegCert  accXPub
@@ -251,7 +254,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -- NOTE: mkDelegationJoinTx, and mkStdTx differs in their arguments
         -- in mkDelegationJoinTx, we need to add the change outputs to the other
         -- outputs.
-        _mkTx payload keyFrom slot inps (outs ++ chgs)
+        mkTx payload keyFrom timeToLive inps (outs ++ chgs)
 
     _mkDelegationQuitTx
         :: FeePolicy
@@ -271,6 +274,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationQuitTx policy (accXPrv, pwd') keyFrom slot inps outs chgs = do
         let accXPub = toXPub $ getRawKey accXPrv
+        let timeToLive = defaultTTL epochLength slot
         let certs = [toStakeKeyDeregCert accXPub]
 
         -- NOTE / FIXME
@@ -305,7 +309,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                     mempty -- boot wits
 
         let payload = TxPayload certs certWits fee
-        _mkTx payload keyFrom slot inps (outs ++ chgs')
+        mkTx payload keyFrom timeToLive inps (outs ++ chgs')
       where
         withDeposit :: FeePolicy -> TxOut -> TxOut
         withDeposit (LinearFee _ _ (Quantity deposit)) (TxOut addr (Coin c)) =
