@@ -232,7 +232,7 @@ import Data.Time.Clock
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -502,6 +502,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , epochStability :: !(Quantity "block" Word32)
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     , decentralizationLevel :: !(Quantity "percent" Percentage)
+    , desiredPoolNumber :: !Word16
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
@@ -516,6 +517,7 @@ toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
         $ unActiveSlotCoefficient
         $ getActiveSlotCoefficient gp)
     (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
+    (view #desiredNumberOfStakePools pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

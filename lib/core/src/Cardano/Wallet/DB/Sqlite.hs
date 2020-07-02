@@ -1003,18 +1003,22 @@ mkProtocolParametersEntity
     -> W.ProtocolParameters
     -> ProtocolParameters
 mkProtocolParametersEntity wid pp =
-    ProtocolParameters wid fp (getQuantity mx) dl
+    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum
   where
-    (W.ProtocolParameters (W.DecentralizationLevel dl) (W.TxParameters fp mx)) =
-        pp
+    (W.ProtocolParameters
+        (W.DecentralizationLevel dl)
+        (W.TxParameters fp mx)
+        desiredPoolNum
+        ) = pp
 
 protocolParametersFromEntity
     :: ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromEntity (ProtocolParameters _ fp mx dl) =
+protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum) =
     W.ProtocolParameters
         (W.DecentralizationLevel dl)
         (W.TxParameters fp (Quantity mx))
+        poolNum
 
 {-------------------------------------------------------------------------------
                                    DB Queries

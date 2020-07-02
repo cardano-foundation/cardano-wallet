@@ -778,6 +778,8 @@ spec = do
                         activeSlotCoefficient (x :: ApiNetworkParameters)
                     , decentralizationLevel =
                         decentralizationLevel (x :: ApiNetworkParameters)
+                    , desiredPoolNumber =
+                        desiredPoolNumber (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x

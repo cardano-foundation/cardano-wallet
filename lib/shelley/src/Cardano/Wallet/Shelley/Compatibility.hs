@@ -454,6 +454,8 @@ fromPParams pp = W.ProtocolParameters
         decentralizationLevelFromPParams pp
     , txParameters =
         txParametersFromPParams pp
+    , desiredNumberOfStakePools =
+        desiredNumberOfStakePoolsFromPParams pp
     }
 
 -- | Extract the current network decentralization level from the given set of
@@ -498,6 +500,11 @@ txParametersFromPParams pp = W.TxParameters
   where
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
+
+desiredNumberOfStakePoolsFromPParams
+    :: SL.PParams
+    -> Word16
+desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData

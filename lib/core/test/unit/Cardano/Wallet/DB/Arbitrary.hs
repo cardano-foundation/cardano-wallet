@@ -341,7 +341,6 @@ instance Arbitrary WalletMetadata where
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary
 
-
 {-------------------------------------------------------------------------------
                                    Blocks
 -------------------------------------------------------------------------------}
@@ -571,7 +570,10 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
-    arbitrary = ProtocolParameters <$> arbitrary <*> arbitrary
+    arbitrary = ProtocolParameters
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary TxParameters where
