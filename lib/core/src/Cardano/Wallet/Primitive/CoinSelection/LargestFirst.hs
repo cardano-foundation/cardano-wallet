@@ -104,11 +104,10 @@ atLeast (utxo0, selection) txout =
     coverOutput (target, ins) utxo
         | target <= 0 = Just
             ( utxo
-            , selection <> CoinSelection
+            , selection <> mempty
                 { inputs  = ins
                 , outputs = [txout]
                 , change  = filter (/= (Coin 0)) [Coin (fromIntegral $ abs target)]
-                , reserve = Nothing
                 }
             )
         | null utxo =

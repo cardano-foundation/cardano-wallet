@@ -166,11 +166,10 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
     (maxN, inps, utxo) <- improve (maxN0, inps0, utxo0)
     return
         ( maxN
-        , selection <> CoinSelection
+        , selection <> mempty
             { inputs = inps
             , outputs = [txout]
             , change = mkChange txout inps
-            , reserve = Nothing
             }
         , utxo
         )

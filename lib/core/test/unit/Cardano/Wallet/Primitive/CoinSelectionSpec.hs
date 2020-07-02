@@ -137,9 +137,7 @@ prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
     let getCoinValueFromInp =
             sum . map (\(_, TxOut _ (Coin c)) -> c)
     let selsCoinValue =
-            sum $
-            (\(CoinSelection inps _ _ _) -> getCoinValueFromInp inps) . getCS
-            <$> cs
+            sum $ getCoinValueFromInp . inputs . getCS <$> cs
     let getCoinValueFromTxOut (UnsignedTx _ txouts) =
             sum $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
     let txsCoinValue =
@@ -158,9 +156,7 @@ prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     let getCoinValueFromInp =
             f . map (\(_, TxOut _ (Coin c)) -> c)
-    let selsCoinValue =
-            (\(CoinSelection inps _ _ _) -> getCoinValueFromInp inps) . getCS
-            <$> cs
+    let selsCoinValue = getCoinValueFromInp . inputs . getCS <$> cs
     let getCoinValueFromTxOut (UnsignedTx _ txouts) =
             f $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
     let txsCoinValue = map getCoinValueFromTxOut
@@ -173,8 +169,7 @@ prop_allInputsAreUsed
     -> Property
 prop_allInputsAreUsed (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
-    let csInps =
-            Set.fromList $ concatMap (\(CoinSelection inp _ _ _) -> inp) sels
+    let csInps = Set.fromList $ concatMap inputs sels
     let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
     let txsCoinValue = Set.fromList . concatMap getInpsFromTx
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
@@ -187,8 +182,7 @@ prop_allInputsAreUsedPerTx
     -> Property
 prop_allInputsAreUsedPerTx (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
-    let csInps =
-             Set.fromList . (\(CoinSelection inp _ _ _) -> inp) <$> sels
+    let csInps = Set.fromList . inputs <$> sels
     let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
     let txsCoinValue = map (Set.fromList . getInpsFromTx)
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
@@ -267,7 +261,6 @@ data CoinSelectionResult = CoinSelectionResult
     { rsInputs :: [Word64]
     , rsChange :: [Word64]
     , rsOutputs :: [Word64]
-    , rsReserve :: Maybe Word64
     } deriving (Eq, Show)
 
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
@@ -286,13 +279,11 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
-            (CoinSelection inps outs chngs rsv, _) <-
-                run (CoinSelectionOptions (const n) fn) txOuts utxo
+            cs <- fst <$> run (CoinSelectionOptions (const n) fn) txOuts utxo
             return $ CoinSelectionResult
-                { rsInputs  = map (getCoin . coin . snd) inps
-                , rsChange  = map getCoin chngs
-                , rsOutputs = map (getCoin . coin) outs
-                , rsReserve = getCoin <$> rsv
+                { rsInputs  = map (getCoin . coin . snd) (inputs cs)
+                , rsChange  = map getCoin (change cs)
+                , rsOutputs = map (getCoin . coin) (outputs cs)
                 }
         result `shouldBe` expected
   where
@@ -347,8 +338,10 @@ instance Arbitrary CoinSelectionForMigration where
     arbitrary = do
         txIntxOuts <- Map.toList . getUTxO <$> arbitrary
         let chgs = map (\(_, TxOut _ c) -> c) txIntxOuts
-        pure $ CoinSelectionForMigration
-            $ CoinSelection txIntxOuts [] chgs Nothing
+        pure $ CoinSelectionForMigration $ mempty
+            { inputs = txIntxOuts
+            , change = chgs
+            }
 
 instance Arbitrary CoinSelectionsSetup where
     arbitrary = do

@@ -70,9 +70,7 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: FeePolicy
-            -- Latest fee policy
-        -> WalletDelegation
+        :: WalletDelegation
             -- Wallet current delegation status
         -> PoolId
             -- Pool Id to which we're planning to delegate
@@ -82,12 +80,9 @@ data TransactionLayer t k = TransactionLayer
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            --  Resolved inputs
-        -> [TxOut]
-            -- Outputs
-        -> [TxOut]
-            -- Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
@@ -97,20 +92,15 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: FeePolicy
-            -- Latest fee policy
-        -> (k 'AddressK XPrv, Passphrase "encryption")
+        :: (k 'AddressK XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            -- Resolved inputs
-        -> [TxOut]
-            -- Outputs
-        -> [TxOut]
-            -- Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.

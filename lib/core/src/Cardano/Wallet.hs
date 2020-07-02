@@ -278,7 +278,6 @@ import Cardano.Wallet.Primitive.Types
     , SyncTolerance
     , TransactionInfo (..)
     , Tx
-    , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
@@ -1177,10 +1176,9 @@ selectCoinsForDelegationFromUTxO
     -> [Certificate]
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp certs = do
-    let sel = CoinSelection [] [] [] Nothing
     let feePolicy = feeOpts tl certs (txp ^. #getFeePolicy)
     withExceptT ErrSelectForDelegationFee $ do
-        balancedSel <- adjustForFee feePolicy utxo sel
+        balancedSel <- adjustForFee feePolicy utxo mempty
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
         pure balancedSel
   where
@@ -1293,15 +1291,15 @@ assignChangeAddresses
         , MonadIO m
         )
     => ArgGenChange s
-    -> [TxOut]
-    -> [Coin]
+    -> CoinSelection
     -> s
-    -> m ([TxOut], s)
-assignChangeAddresses argGenChange outs chgs = runStateT $ do
-    chgsOuts <- forM chgs $ \c -> do
+    -> m (CoinSelection, s)
+assignChangeAddresses argGenChange cs = runStateT $ do
+    chgsOuts <- forM (change cs) $ \c -> do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr c
-    liftIO $ shuffle (outs ++ chgsOuts)
+    outs' <- liftIO $ shuffle (outputs cs ++ chgsOuts)
+    pure $ cs { change = [], outputs = outs' }
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1321,23 +1319,22 @@ signPayment
     -> Passphrase "raw"
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signPayment ctx wid argGenChange pwd (CoinSelection ins outs chgs _rsv) = db & \DBLayer{..} -> do
+signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (allOuts, s') <-
-                assignChangeAddresses argGenChange outs chgs (getState cp)
+            (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl keyFrom (nodeTip ^. #slotId) ins allOuts
+                mkStdTx tl keyFrom (nodeTip ^. #slotId) (inputs cs') (outputs cs')
 
             let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins allOuts
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' cs'
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1369,7 +1366,8 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
                 mkStdTx tl keyFrom (nodeTip ^. #slotId) inps outs
 
             let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) (getState cp) inps outs
+            let cs = mempty { inputs = inps, outputs = outs }
+            let (time, meta) = mkTxMeta gp (currentTip cp) (getState cp) cs
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1379,6 +1377,9 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     outs = NE.toList outsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
+--
+-- TODO
+-- This function completely disregard deposit and withdrawals.
 selectCoinsExternal
     :: forall ctx s t k e.
         ( GenChange s
@@ -1393,20 +1394,18 @@ selectCoinsExternal
     -> NonEmpty TxOut
     -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
 selectCoinsExternal ctx wid argGenChange payments = do
-    CoinSelection mInputs mPayments mChange _mReserve <-
-        withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
-            selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
-    mOutputs <- db & \DBLayer{..} ->
+    cs <- withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
+        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
+    cs' <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
                 cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
-                (mOutputs, s') <- assignChangeAddresses
-                    argGenChange mPayments mChange $ getState cp
+                (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-                pure mOutputs
+                pure cs'
     UnsignedTx
-        <$> ensureNonEmpty mInputs  ErrSelectCoinsExternalUnableToAssignInputs
-        <*> ensureNonEmpty mOutputs ErrSelectCoinsExternalUnableToAssignOutputs
+        <$> ensureNonEmpty (inputs cs') ErrSelectCoinsExternalUnableToAssignInputs
+        <*> ensureNonEmpty (outputs cs') ErrSelectCoinsExternalUnableToAssignOutputs
   where
     db = ctx ^. dbLayer @s @k
     ensureNonEmpty
@@ -1442,18 +1441,14 @@ signDelegation
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
-    let (CoinSelection ins outs chgs _rsv) = coinSel
     nodeTip <- withExceptT ErrSignDelegationNetwork $ currentNodeTip nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
-        txp <- txParameters <$> withExceptT ErrSignDelegationNoSuchWallet
-            (readWalletProtocolParameters @ctx @s @k ctx wid)
-        let feePolicy = txp ^. #getFeePolicy
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (chgs', s') <-
-                assignChangeAddresses argGenChange [] chgs (getState cp)
+            (coinSel', s') <- assignChangeAddresses argGenChange coinSel (getState cp)
+
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             (WalletMetadata _ _ _ wDeleg) <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
@@ -1464,20 +1459,20 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     Join poolId ->
-                        mkDelegationJoinTx tl feePolicy wDeleg poolId
+                        mkDelegationJoinTx tl wDeleg poolId
                             (rewardAcc, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
-                            ins outs chgs'
+                            coinSel'
                     Quit ->
-                        mkDelegationQuitTx tl feePolicy
+                        mkDelegationQuitTx tl
                             (rewardAcc, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
-                            ins outs chgs'
+                            coinSel'
 
             let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' ins (outs ++ chgs')
+            let (time, meta) = mkTxMeta gp (currentTip cp) s' coinSel'
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1491,16 +1486,17 @@ mkTxMeta
     => GenesisParameters
     -> BlockHeader
     -> s
-    -> [(TxIn, TxOut)]
-    -> [TxOut]
+    -> CoinSelection
     -> (UTCTime, TxMeta)
-mkTxMeta gp blockHeader wState ins outs =
+mkTxMeta gp blockHeader wState cs =
     let
         amtOuts =
-            sum (mapMaybe ourCoins outs)
+            sum (mapMaybe ourCoins (outputs cs))
 
         amtInps = fromIntegral $
-            sum (getCoin . coin . snd <$> ins)
+            sum (getCoin . coin . snd <$> (inputs cs))
+            + withdrawal cs
+            + reclaim cs
     in
         ( slotStartTime (slotParams gp) (blockHeader ^. #slotId)
         , TxMeta

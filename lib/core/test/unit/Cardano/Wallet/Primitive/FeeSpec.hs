@@ -13,7 +13,12 @@ module Cardano.Wallet.Primitive.FeeSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), changeBalance, inputBalance, outputBalance )
+    ( CoinSelection (..)
+    , changeBalance
+    , feeBalance
+    , inputBalance
+    , outputBalance
+    )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
@@ -341,6 +346,10 @@ spec = do
     describe "Fee Calculation: Generators" $ do
         it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
             property $ isValidSelection cs
+                & counterexample ("output balance: "
+                    <> show (outputBalance cs + changeBalance cs))
+                & counterexample ("input balance:  "
+                    <> show (inputBalance cs))
 
     before getSystemDRG $ describe "Fee Adjustment properties" $ do
         it "Fee adjustment is deterministic when there's no extra inputs"
@@ -371,14 +380,13 @@ spec = do
 
 -- Check whether a selection is valid
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c r) =
+isValidSelection cs =
     let
-        oAmt = sum $ map (fromIntegral . getCoin . coin) o
-        cAmt = sum $ map (fromIntegral . getCoin) c
-        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
-        rAmt = maybe (0 :: Integer) (fromIntegral . getCoin) r
+        oAmt = sum $ map (fromIntegral . getCoin . coin) (outputs cs)
+        cAmt = sum $ map (fromIntegral . getCoin) (change cs)
+        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) (inputs cs)
     in
-        iAmt + rAmt >= oAmt + cAmt
+        iAmt + (withdrawal cs) + (reclaim cs) >= oAmt + cAmt + (deposit cs)
 
 -- | Data for running fee calculation properties
 data FeeProp = FeeProp
@@ -418,10 +426,11 @@ propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
         let chgs = sum $ map getCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
-        classify (reserve coinSel > Just (Coin fee)) "reserve > fee" $ disjoin
+        classify (reserve coinSel > fee) "reserve > fee" $ disjoin
             [ chgs' `shouldSatisfy` (< chgs)
             , length inps' `shouldSatisfy` (>= length inps)
             ]
+    reserve cs = withdrawal cs + reclaim cs
     feeOpt = feeOptions fee dust
     coinSel' = left show $ fst $ withDRG drg $ runExceptT $
         adjustForFee feeOpt utxo coinSel
@@ -504,11 +513,11 @@ prop_rebalanceSelection sel onDangling = do
                 fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
             SaveMoney ->
                 fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
-    let reserveIsUnchanged =
-            reserve sel == reserve sel'
+    let equalityModuloChange =
+            sel { change = [] } == sel' { change = [] }
     conjoin
         [ property selectionIsBalanced
-        , property reserveIsUnchanged
+        , property equalityModuloChange
         ]
         & counterexample (unlines
             [ "selection (before):", pretty sel
@@ -541,9 +550,9 @@ prop_rebalanceSelection sel onDangling = do
         }
 
     reserveNonNull =
-        reserve sel > Just (Coin 0)
+        withdrawal sel + reclaim sel > 0
     reserveLargerThanFee =
-        reserve sel > Just (Coin $ getFee $ estimateFee opts sel)
+        withdrawal sel + reclaim sel > getFee (estimateFee opts sel)
     feeLargerThanDelta =
         getFee (estimateFee opts sel) > delta sel
 
@@ -569,14 +578,13 @@ feeUnitTest
     -> Either ErrAdjustForFee FeeOutput
     -> SpecWith ()
 feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
-    (utxo, sel) <- setup
+    (utxo, cs) <- setup
     result <- runExceptT $ do
-        (CoinSelection inps outs chngs _rsv) <-
-            adjustForFee (feeOptions feeF dustF) utxo sel
+        cs' <- adjustForFee (feeOptions feeF dustF) utxo cs
         return $ FeeOutput
-            { csInps = map (getCoin . coin . snd) inps
-            , csOuts = map (getCoin . coin) outs
-            , csChngs = map getCoin chngs
+            { csInps  = map (getCoin . coin . snd) (inputs cs')
+            , csOuts  = map (getCoin . coin) (outputs cs')
+            , csChngs = map getCoin (change cs')
             }
     result `shouldBe` expected
   where
@@ -586,7 +594,7 @@ feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title
         inps <- (Map.toList . getUTxO) <$> generate (genUTxO $ Coin <$> inpsF)
         outs <- generate (genTxOut $ Coin <$> outsF)
         let chngs = map Coin chngsF
-        pure (utxo, CoinSelection inps outs chngs Nothing)
+        pure (utxo, mempty { inputs = inps, outputs = outs, change = chngs })
 
     title :: String
     title = mempty
@@ -647,21 +655,39 @@ genSelection = do
     outs <- choose (1, 10) >>= vector >>= genTxOut
     genSelectionFor (NE.fromList outs)
 
+genWithdrawal :: Gen Word64
+genWithdrawal = frequency
+    [ (3, pure 0)
+    , (1, oneof
+        [ choose (1, 10000)
+        , choose (500000, 1000000)
+        ]
+      )
+    ]
+
+genReclaim :: Gen Word64
+genReclaim = genWithdrawal
+
+genDeposit :: Word64 -> Gen Word64
+genDeposit sup
+    | sup == 0  = pure 0
+    | otherwise = frequency
+        [ (3, pure 0)
+        , (1, choose (1, sup))
+        ]
+
 genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
 genSelectionFor outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
     utxo <- vector (NE.length outs * 3) >>= genUTxO
-    rsv <- frequency
-        [ (3, pure Nothing)
-        , (1, Just . Coin <$> oneof
-            [ choose (1, 10000)
-            , choose (500000, 1000000)
-            ]
-          )
-        ]
     case runIdentity $ runExceptT $ largestFirst opts outs utxo of
         Left _ -> genSelectionFor outs
-        Right (s,_) -> pure $ s { reserve = rsv }
+        Right (s,_) -> do
+            withdrawal_ <- genWithdrawal
+            reclaim_ <- genReclaim
+            let s' = s { withdrawal = withdrawal_, reclaim = reclaim_ }
+            deposit_ <- genDeposit (feeBalance s')
+            pure $ s' { deposit = deposit_ }
 
 instance Arbitrary TxIn where
     shrink _ = []
@@ -713,20 +739,26 @@ instance Arbitrary Address where
         ]
 
 instance Arbitrary CoinSelection where
-    shrink sel@(CoinSelection inps outs chgs rsv) = case (inps, outs, chgs) of
+    shrink cs = case (inputs cs, outputs cs, change cs) of
         ([_], [_], []) ->
             []
         _ ->
             let
-                inps' = if length inps > 1 then drop 1 inps else inps
-                outs' = if length outs > 1 then drop 1 outs else outs
+                shrinkList xs
+                    | length xs > 1 = drop 1 xs
+                    | otherwise     = xs
+                inps  = inputs cs
+                inps' = shrinkList inps
+                outs  = outputs cs
+                outs' = shrinkList outs
+                chgs  = change cs
                 chgs' = drop 1 chgs
             in
-                filter (\s -> s /= sel && isValidSelection s)
-                    [ CoinSelection inps' outs' chgs' rsv
-                    , CoinSelection inps' outs chgs rsv
-                    , CoinSelection inps outs' chgs rsv
-                    , CoinSelection inps outs chgs' rsv
+                filter (\s -> s /= cs && isValidSelection s)
+                    [ cs { inputs = inps', outputs = outs', change = chgs' }
+                    , cs { inputs = inps', outputs = outs , change = chgs  }
+                    , cs { inputs = inps , outputs = outs', change = chgs  }
+                    , cs { inputs = inps , outputs = outs , change = chgs' }
                     ]
     arbitrary = do
         outs <- choose (1, 10)

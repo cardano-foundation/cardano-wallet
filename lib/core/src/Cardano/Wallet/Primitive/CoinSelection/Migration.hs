@@ -97,13 +97,11 @@ depleteUTxO feeOpts batchSize utxo =
     -- Note that the selection may look a bit weird at first sight as it has
     -- no outputs (we are paying everything to ourselves!).
     mkCoinSelection :: [(TxIn, TxOut)] -> CoinSelection
-    mkCoinSelection inps = CoinSelection
+    mkCoinSelection inps = mempty
         { inputs = inps
-        , outputs = []
         , change =
             let chgs = mapMaybe (noDust . snd) inps
             in if null chgs then [dustThreshold feeOpts] else chgs
-        , reserve = Nothing
         }
       where
         noDust :: TxOut -> Maybe Coin

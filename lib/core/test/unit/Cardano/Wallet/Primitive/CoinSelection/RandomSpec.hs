@@ -53,7 +53,6 @@ spec = do
                 { rsInputs = [1,1,1,1]
                 , rsChange = [2]
                 , rsOutputs = [2]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -67,7 +66,6 @@ spec = do
                 { rsInputs = [1,1,1,1,1,1]
                 , rsChange = [2,1]
                 , rsOutputs = [2,1]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -81,7 +79,6 @@ spec = do
                 { rsInputs = [1,1,1,1,1]
                 , rsChange = [2]
                 , rsOutputs = [2,1]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -95,7 +92,6 @@ spec = do
                 { rsInputs = [1,1,1,1]
                 , rsChange = [1]
                 , rsOutputs = [2,1]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -109,7 +105,6 @@ spec = do
                 { rsInputs = [5]
                 , rsChange = [3]
                 , rsOutputs = [2]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -123,7 +118,6 @@ spec = do
                 { rsInputs = [10,10]
                 , rsChange = [8,8]
                 , rsOutputs = [2,2]
-                , rsReserve = Nothing
                 }
             )
             (CoinSelectionFixture
@@ -138,7 +132,6 @@ spec = do
                 { rsInputs = [1,1,1,1]
                 , rsChange = [1]
                 , rsOutputs = [3]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
@@ -152,7 +145,6 @@ spec = do
                 { rsInputs = [oneAda, oneAda, oneAda, oneAda]
                 , rsChange = [oneAda, oneAda `div` 2]
                 , rsOutputs = [2*oneAda,oneAda `div` 2]
-                , rsReserve = Nothing
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
@@ -255,8 +247,8 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
                 (selection1, selection2)
         in prop (s1, s2)
   where
-    prop (CoinSelection inps1 _ _ _, CoinSelection inps2 _ _ _) =
-        L.length inps1 `shouldSatisfy` (>= L.length inps2)
+    prop (cs1, cs2) =
+        L.length (inputs cs1) `shouldSatisfy` (>= L.length (inputs cs2))
     (selection1,_) = withDRG drg
         (runExceptT $ random opt txOuts utxo)
     selection2 = runIdentity $ runExceptT $
