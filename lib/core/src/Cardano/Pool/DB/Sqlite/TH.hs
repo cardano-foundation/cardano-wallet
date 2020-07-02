@@ -81,31 +81,31 @@ PoolOwner sql=pool_owner
     poolOwnerIndex      Word8        sql=pool_owner_index
 
     Primary poolOwnerPoolId poolOwnerSlot poolOwnerOwner poolOwnerIndex
-    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId poolOwnerSlot ! ON DELETE CASCADE
-    Foreign PoolRetirement fk_retirement_pool_id poolOwnerPoolId poolOwnerSlot ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Mapping of registration certificate to pool
 PoolRegistration sql=pool_registration
-    poolRegistrationPoolId             W.PoolId                      sql=pool_id
-    poolRegistrationSlot               W.SlotId                      sql=slot
-    poolRegistrationMarginNumerator    Word64                        sql=margin_numerator
-    poolRegistrationMarginDenominator  Word64                        sql=margin_denominator
-    poolRegistrationCost               Word64                        sql=cost
-    poolRegistrationPledge             Word64                        sql=pledge
-    poolRegistrationMetadataUrl        W.StakePoolMetadataUrl  Maybe sql=metadata_url
-    poolRegistrationMetadataHash       W.StakePoolMetadataHash Maybe sql=metadata_hash
+    poolRegistrationPoolId            W.PoolId                      sql=pool_id
+    poolRegistrationSlot              W.SlotId                      sql=slot
+    poolRegistrationSlotInternalIndex W.SlotInternalIndex           sql=slot_internal_index
+    poolRegistrationMarginNumerator   Word64                        sql=margin_numerator
+    poolRegistrationMarginDenominator Word64                        sql=margin_denominator
+    poolRegistrationCost              Word64                        sql=cost
+    poolRegistrationPledge            Word64                        sql=pledge
+    poolRegistrationMetadataUrl       W.StakePoolMetadataUrl  Maybe sql=metadata_url
+    poolRegistrationMetadataHash      W.StakePoolMetadataHash Maybe sql=metadata_hash
 
-    Primary poolRegistrationPoolId poolRegistrationSlot
+    Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
     deriving Show Generic
 
 -- Mapping of retirement certificates to pools
 PoolRetirement sql=pool_retirement
-    poolRetirementPoolId  W.PoolId  sql=pool_id
-    poolRetirementSlot    W.SlotId  sql=slot
-    poolRetirementEpoch   Word64    sql=epoch
+    poolRetirementPoolId              W.PoolId            sql=pool_id
+    poolRetirementSlot                W.SlotId            sql=slot
+    poolRetirementSlotInternalIndex   W.SlotInternalIndex sql=slot_internal_index
+    poolRetirementEpoch               Word64              sql=epoch
 
-    Primary poolRetirementPoolId poolRetirementSlot
+    Primary poolRetirementPoolId poolRetirementSlot poolRetirementSlotInternalIndex
     deriving Show Generic
 
 -- Cached metadata after they've been fetched from a remote server.

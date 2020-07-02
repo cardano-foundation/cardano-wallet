@@ -61,10 +61,13 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
+    , SlotInternalIndex (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
+import Data.Bifunctor
+    ( first )
 import Data.Foldable
     ( fold )
 import Data.Map.Strict
@@ -88,6 +91,8 @@ import qualified Data.Set as Set
                             Model Database Types
 -------------------------------------------------------------------------------}
 
+type SlotIndex = (SlotId, SlotInternalIndex)
+
 data PoolDatabase = PoolDatabase
     { pools :: !(Map PoolId [BlockHeader])
     -- ^ Information of what blocks were produced by which stake pools
@@ -98,10 +103,12 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , registrations :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
+    , registrations
+        :: !(Map (SlotIndex, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain registrations associated with pools
 
-    , retirements :: !(Map (SlotId, PoolId) PoolRetirementCertificate)
+    , retirements
+        :: !(Map (SlotIndex, PoolId) PoolRetirementCertificate)
     -- ^ On-chain retirements associated with pools
 
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
@@ -186,45 +193,58 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
-mPutPoolRegistration :: SlotId -> PoolRegistrationCertificate -> ModelPoolOp ()
-mPutPoolRegistration sl registration db@PoolDatabase{owners,registrations} =
+mPutPoolRegistration
+    :: SlotIndex
+    -> PoolRegistrationCertificate
+    -> ModelPoolOp ()
+mPutPoolRegistration sp registration db =
     ( Right ()
     , db { owners = Map.insert poolId poolOwners owners
-         , registrations = Map.insert (sl, poolId) registration registrations
+         , registrations = Map.insert (sp, poolId) registration registrations
          }
     )
   where
-    PoolRegistrationCertificate { poolId , poolOwners } = registration
+    PoolDatabase {owners, registrations} = db
+    PoolRegistrationCertificate {poolId, poolOwners} = registration
 
 mReadPoolRegistration
-    :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
-mReadPoolRegistration poolId db@PoolDatabase{registrations} =
+    :: PoolId
+    -> ModelPoolOp (Maybe (SlotIndex, PoolRegistrationCertificate))
+mReadPoolRegistration poolId db =
     ( Right
-        $ fmap snd
+        $ fmap (first fst)
         $ Map.lookupMax
         $ Map.filterWithKey (only poolId) registrations
     , db
     )
   where
+    PoolDatabase {registrations} = db
     only k (_, k') _ = k == k'
 
-mPutPoolRetirement :: SlotId -> PoolRetirementCertificate -> ModelPoolOp ()
-mPutPoolRetirement sl retirement db@PoolDatabase {retirements} =
+mPutPoolRetirement
+    :: SlotIndex
+    -> PoolRetirementCertificate
+    -> ModelPoolOp ()
+mPutPoolRetirement sp retirement db =
     ( Right ()
-    , db { retirements = Map.insert (sl, poolId) retirement retirements }
+    , db { retirements = Map.insert (sp, poolId) retirement retirements }
     )
   where
+    PoolDatabase {retirements} = db
     PoolRetirementCertificate poolId _retiredIn = retirement
 
-mReadPoolRetirement :: PoolId -> ModelPoolOp (Maybe PoolRetirementCertificate)
-mReadPoolRetirement poolId db@PoolDatabase {retirements} =
+mReadPoolRetirement
+    :: PoolId
+    -> ModelPoolOp (Maybe (SlotIndex, PoolRetirementCertificate))
+mReadPoolRetirement poolId db =
     ( Right
-        $ fmap snd
+        $ fmap (first fst)
         $ Map.lookupMax
         $ Map.filterWithKey (only poolId) retirements
     , db
     )
   where
+    PoolDatabase {retirements} = db
     only k (_, k') _ = k == k'
 
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
@@ -239,7 +259,7 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     , db
     )
   where
-    unfetched :: Map (SlotId, PoolId) PoolRegistrationCertificate
+    unfetched :: Map (SlotIndex, PoolId) PoolRegistrationCertificate
     unfetched = flip Map.filter registrations $ \r ->
         case poolMetadata r of
             Nothing -> False
@@ -305,8 +325,10 @@ mRollbackTo point PoolDatabase { pools
                                , fetchAttempts
                                } =
     let
-        registrations' = Map.mapMaybeWithKey (discardBy id . fst) registrations
-        retirements' = Map.mapMaybeWithKey (discardBy id . fst) retirements
+        registrations' =
+            Map.mapMaybeWithKey (discardBy id . fst . fst) registrations
+        retirements' =
+            Map.mapMaybeWithKey (discardBy id . fst . fst) retirements
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys registrations'

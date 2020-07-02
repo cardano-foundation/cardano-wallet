@@ -25,6 +25,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , SlotInternalIndex (..)
     , SlotNo (..)
     , SlotParameters (..)
     , StakePoolMetadata (..)
@@ -93,6 +94,10 @@ instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
         uncurry SlotId <$> shrink (ep, sl)
     arbitrary = applyArbitrary2 SlotId
+
+instance Arbitrary SlotInternalIndex where
+    arbitrary = SlotInternalIndex <$> arbitrary
+    shrink = fmap SlotInternalIndex . shrink . unSlotInternalIndex
 
 instance Arbitrary SlotNo where
     shrink (SlotNo x) = SlotNo <$> shrink x

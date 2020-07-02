@@ -198,7 +198,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
                 readPoolRegistration poolId >>= \case
-                    Nothing -> putPoolRegistration sl0 r
+                    Nothing -> putPoolRegistration (sl0, minBound) r
                     Just{}  -> pure ()
             readPoolProductionCursor (max 100 (fromIntegral k))
 
@@ -222,7 +222,8 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
                 lift $ putStakeDistribution ep (Map.toList dist)
             forM_ blocks $ \b -> do
                 forM_ (poolRegistrations b) $ \pool -> do
-                    lift $ putPoolRegistration (b ^. #header . #slotId) pool
+                    lift $ putPoolRegistration
+                        (b ^. #header . #slotId, minBound) pool
                     liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)
@@ -356,7 +357,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         epConstants = mkEpCst totalStake
 
         mergeRegistration poolId (stake, production, performance) =
-            fmap mkStakePool <$> readPoolRegistration poolId
+            fmap (mkStakePool . snd) <$> readPoolRegistration poolId
           where
             mkStakePool PoolRegistrationCertificate{poolCost,poolMargin,poolOwners} =
                 ( StakePool

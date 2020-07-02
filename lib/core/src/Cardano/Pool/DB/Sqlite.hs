@@ -199,11 +199,15 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \slotId cert -> do
+        , putPoolRegistration = \(slotId, slotInternalIndex) cert -> do
             let poolId = view #poolId cert
             deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. slotId]
-            let poolRegistrationKey = PoolRegistrationKey poolId slotId
-            let poolRegistrationRow = PoolRegistration poolId slotId
+            let poolRegistrationKey = PoolRegistrationKey
+                    poolId slotId slotInternalIndex
+            let poolRegistrationRow = PoolRegistration
+                    (poolId)
+                    (slotId)
+                    (slotInternalIndex)
                     (fromIntegral $ numerator
                         $ getPercentage $ poolMargin cert)
                     (fromIntegral $ denominator
@@ -218,13 +222,17 @@ newDBLayer trace fp = do
 
         , readPoolRegistration = \poolId -> do
             let filterBy = [ PoolRegistrationPoolId ==. poolId ]
-            let orderBy = [ Desc PoolRegistrationSlot ]
+            let orderBy =
+                  [ Desc PoolRegistrationSlot
+                  , Desc PoolRegistrationSlotInternalIndex
+                  ]
             selectFirst filterBy orderBy >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
                     let PoolRegistration
                             _poolId
-                            _point
+                            slotId
+                            slotInternalIndex
                             marginNum
                             marginDen
                             poolCost_
@@ -241,40 +249,49 @@ newDBLayer trace fp = do
                         selectList
                             [ PoolOwnerPoolId ==. poolId ]
                             [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
-                    pure $ Just $ PoolRegistrationCertificate
-                        { poolId
-                        , poolOwners
-                        , poolMargin
-                        , poolCost
-                        , poolPledge
-                        , poolMetadata
-                        }
+                    let cert = PoolRegistrationCertificate
+                            { poolId
+                            , poolOwners
+                            , poolMargin
+                            , poolCost
+                            , poolPledge
+                            , poolMetadata
+                            }
+                    pure $ Just ((slotId, slotInternalIndex), cert)
 
-        , putPoolRetirement = \slotId PoolRetirementCertificate
-            { poolId
-            , retiredIn
-            } -> do
+        , putPoolRetirement = \(slotId, slotInternalIndex) cert -> do
+            let PoolRetirementCertificate
+                    { poolId
+                    , retiredIn
+                    } = cert
             let EpochNo retirementEpoch = retiredIn
-            repsert (PoolRetirementKey poolId slotId) $ PoolRetirement
-                poolId
-                slotId
-                (fromIntegral retirementEpoch)
+            repsert (PoolRetirementKey poolId slotId slotInternalIndex) $
+                PoolRetirement
+                    poolId
+                    slotId
+                    slotInternalIndex
+                    (fromIntegral retirementEpoch)
 
         , readPoolRetirement = \poolId -> do
             let filterBy = [ PoolRetirementPoolId ==. poolId ]
-            let orderBy  = [ Desc PoolRetirementSlot ]
+            let orderBy =
+                    [ Desc PoolRetirementSlot
+                    , Desc PoolRetirementSlotInternalIndex
+                    ]
             selectFirst filterBy orderBy >>= \case
                 Nothing -> pure Nothing
                 Just meta -> do
                     let PoolRetirement
                             _poolId
-                            _slotId
+                            slotId
+                            slotInternalIndex
                             retirementEpoch = entityVal meta
                     let retiredIn = EpochNo (fromIntegral retirementEpoch)
-                    pure $ Just $ PoolRetirementCertificate
-                        { poolId
-                        , retiredIn
-                        }
+                    let cert = PoolRetirementCertificate
+                            { poolId
+                            , retiredIn
+                            }
+                    pure $ Just ((slotId, slotInternalIndex), cert)
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)

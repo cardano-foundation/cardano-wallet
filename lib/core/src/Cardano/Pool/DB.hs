@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate
     , PoolRetirementCertificate
     , SlotId (..)
+    , SlotInternalIndex (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -101,7 +102,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , putPoolRegistration
-        :: SlotId
+        :: SlotIndex
         -> PoolRegistrationCertificate
         -> stm ()
         -- ^ Add a mapping between stake pools and their corresponding
@@ -110,18 +111,18 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , readPoolRegistration
         :: PoolId
-        -> stm (Maybe PoolRegistrationCertificate)
+        -> stm (Maybe (SlotIndex, PoolRegistrationCertificate))
         -- ^ Find a registration certificate associated to a given pool
 
     , putPoolRetirement
-        :: SlotId
+        :: SlotIndex
         -> PoolRetirementCertificate
         -> stm ()
         -- ^ Add a retirement certificate for a particular pool.
 
     , readPoolRetirement
         :: PoolId
-        -> stm (Maybe PoolRetirementCertificate)
+        -> stm (Maybe (SlotIndex, PoolRetirementCertificate))
         -- ^ Find a retirement certificate for a particular pool.
 
     , unfetchedPoolMetadataRefs
@@ -177,6 +178,8 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
+
+type SlotIndex = (SlotId, SlotInternalIndex)
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists

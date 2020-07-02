@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
+    , SlotInternalIndex (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -398,8 +399,9 @@ prop_poolRegistration DBLayer {..} entries =
     setup = run $ atomically cleanDB
     expected = L.sort entries
     prop = do
-        run . atomically $ mapM_ (putPoolRegistration (SlotId 0 0)) entries
-        pools <- run . atomically $ L.sort . catMaybes
+        run . atomically $
+            mapM_ (putPoolRegistration (SlotId 0 0, minBound)) entries
+        pools <- run . atomically $ L.sort . fmap snd . catMaybes
             <$> mapM (readPoolRegistration . poolId) entries
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
@@ -407,10 +409,12 @@ prop_poolRegistration DBLayer {..} entries =
             ]
         assert (pools == expected)
 
+type SlotIndex = (SlotId, SlotInternalIndex)
+
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotId
-    -> [(SlotId, PoolRegistrationCertificate)]
+    -> [(SlotIndex, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     monadicIO (setup >> prop)
@@ -421,7 +425,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         case L.find (on (==) poolId pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
-            Just (sl, pool') ->
+            Just ((sl, _), pool') ->
                 (sl <= rollbackPoint) && (pool == pool')
 
     ownerHasManyPools =
@@ -431,7 +435,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     prop = do
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries
         run . atomically $ rollbackTo rollbackPoint
-        pools <- run . atomically $ L.sort . catMaybes
+        pools <- run . atomically $ L.sort . fmap snd . catMaybes
             <$> mapM (readPoolRegistration . poolId . snd) entries
         monitor $ classify (length pools < length entries) "rolled back some"
         monitor $ classify ownerHasManyPools "owner has many pools"
@@ -453,7 +457,7 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         pools <- run . atomically $ listRegisteredPools
         monitor $ classify (any hasDuplicateOwners entries)
@@ -472,7 +476,7 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
   where
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         monitor $ classify (length entries > 10) "10+ entries"
         monitor $ classify (length entries > 50) "50+ entries"
@@ -514,7 +518,7 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
 
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
 
     propIgnoredMetadataRefs = do

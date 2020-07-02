@@ -208,7 +208,8 @@ prop_trackRegistrations test = monadicIO $ do
         race_ (takeMVar done) (monitorStakePools tr (block0, Quantity 10) nl db)
 
         let pids = poolId <$> expected
-        atomically $ L.sort . catMaybes <$> mapM readPoolRegistration pids
+        atomically $ L.sort . fmap snd . catMaybes <$>
+            mapM readPoolRegistration pids
 
     let numDiscoveryLogs = length (filter isDiscoveryMsg logs)
 

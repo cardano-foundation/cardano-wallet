@@ -295,7 +295,7 @@ readDBPoolData
     -> IO (Map PoolId PoolDBMetrics)
 readDBPoolData DBLayer{..} = atomically $ do
     pools <- listRegisteredPools
-    registrations <- mapM readPoolRegistration pools
+    registrations <- fmap (fmap snd) <$> mapM readPoolRegistration pools
     let certMap = Map.fromList
             [(poolId, cert) | (poolId, Just cert) <- zip pools registrations]
     prodMap <- readTotalProduction
@@ -363,10 +363,10 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             forM_ registrations $ \case
                 Registration cert -> do
                     liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                    putPoolRegistration slot cert
+                    putPoolRegistration (slot, minBound) cert
                 Retirement cert -> do
                     liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                    putPoolRetirement slot cert
+                    putPoolRetirement (slot, minBound) cert
         pure Continue
 
 monitorMetadata
