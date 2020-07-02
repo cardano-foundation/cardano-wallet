@@ -96,9 +96,12 @@ data CoinSelectionOptions e = CoinSelectionOptions
 -- | Calculate the sum of all input values
 inputBalance :: CoinSelection -> Word64
 inputBalance cs =
-    withdrawal cs + reclaim cs
-    +
     foldl' (\total -> addTxOut total . snd) 0 (inputs cs)
+    +
+    -- NOTE
+    -- reclaim and withdrawal can only count towards the input balance if and
+    -- only if there's already a transaction input.
+    if null (inputs cs) then 0 else withdrawal cs + reclaim cs
 
 -- | Calculate the sum of all output values
 outputBalance :: CoinSelection -> Word64
