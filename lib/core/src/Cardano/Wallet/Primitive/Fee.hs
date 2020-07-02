@@ -229,6 +229,15 @@ rebalanceSelection
     -> CoinSelection
     -> (CoinSelection, Fee)
 rebalanceSelection opts s
+    -- When inputs of a coin selection are less than outputs, we can't do
+    -- anything, another input needs to be selected first. A case where this
+    -- could occur is when selections are balanced in the context of delegation
+    -- / de-registration.
+    --
+    -- A transaction would have initially no inputs, but have a deposit amount.
+    | inputBalance s < outputBalance s + changeBalance s =
+        (s, Fee φ_original)
+
     -- selection is now balanced, nothing to do.
     | φ_original == δ_original =
         (s, Fee 0)

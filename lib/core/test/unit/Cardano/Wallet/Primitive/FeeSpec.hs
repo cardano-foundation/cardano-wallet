@@ -371,7 +371,7 @@ spec = do
         it "The fee balancing algorithm converges for any coin selection."
             $ property
             $ withMaxSuccess 10000
-            $ forAllBlind genSelection prop_rebalanceSelection
+            $ forAllBlind genSelection' prop_rebalanceSelection
 
 
 {-------------------------------------------------------------------------------
@@ -508,15 +508,20 @@ prop_rebalanceSelection
     -> Property
 prop_rebalanceSelection sel onDangling = do
     let (sel', fee') = rebalanceSelection opts sel
+
     let selectionIsBalanced = case onDangling of
             PayAndBalance ->
-                fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
+                delta sel' == fromIntegral (getFee $ estimateFee opts sel')
             SaveMoney ->
-                fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
+                delta sel' >= fromIntegral (getFee $ estimateFee opts sel')
+
     let equalityModuloChange =
             sel { change = [] } == sel' { change = [] }
+
     conjoin
-        [ property selectionIsBalanced
+        [ fee' == Fee 0 ==> selectionIsBalanced
+        , selectionIsBalanced ==> not (null (inputs sel'))
+        , selectionIsBalanced ==> isValidSelection sel'
         , property equalityModuloChange
         ]
         & counterexample (unlines
@@ -524,6 +529,7 @@ prop_rebalanceSelection sel onDangling = do
             , "selection (after):", pretty sel'
             , "delta (before): " <> show (delta sel)
             , "delta (after):  " <> show (delta sel')
+            , "total fee:      " <> show (getFee $ estimateFee opts sel')
             , "remaining fee:  " <> show (getFee fee')
             ])
         & classify (reserveNonNull && feeLargerThanDelta)
@@ -534,8 +540,15 @@ prop_rebalanceSelection sel onDangling = do
             "reserve > fee"
         & classify feeLargerThanDelta
             "fee > delta"
+        & classify (null (inputs sel))
+            "no inputs"
   where
-    delta s = inputBalance s - (outputBalance s + changeBalance s)
+    delta :: CoinSelection -> Integer
+    delta s =
+        fromIntegral (inputBalance s)
+        -
+        fromIntegral (outputBalance s + changeBalance s)
+
     opts = FeeOptions
         -- NOTE
         -- Dummy fee policy but, following a similar rule as the fee policy on
@@ -554,7 +567,7 @@ prop_rebalanceSelection sel onDangling = do
     reserveLargerThanFee =
         withdrawal sel + reclaim sel > getFee (estimateFee opts sel)
     feeLargerThanDelta =
-        getFee (estimateFee opts sel) > delta sel
+        fromIntegral (getFee $ estimateFee opts sel) > delta sel
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
@@ -654,6 +667,20 @@ genSelection :: Gen CoinSelection
 genSelection = do
     outs <- choose (1, 10) >>= vector >>= genTxOut
     genSelectionFor (NE.fromList outs)
+
+-- Like 'genSelection', but allows for having empty input and output.
+genSelection' :: Gen CoinSelection
+genSelection' = frequency
+    [ (4, genSelection)
+    , (1, do
+        reclaim_ <- genReclaim
+        pure $ mempty { reclaim = reclaim_ }
+      )
+    , (1, do
+        deposit_ <- genDeposit 100000
+        pure $ mempty { deposit = deposit_ }
+      )
+    ]
 
 genWithdrawal :: Gen Word64
 genWithdrawal = frequency

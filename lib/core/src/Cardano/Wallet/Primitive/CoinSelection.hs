@@ -106,9 +106,9 @@ inputBalance cs =
 -- | Calculate the sum of all output values
 outputBalance :: CoinSelection -> Word64
 outputBalance cs =
-    deposit cs
-    +
     foldl' addTxOut 0 (outputs cs)
+    +
+    deposit cs
 
 -- | Calculate the sum of all output values
 changeBalance :: CoinSelection -> Word64
