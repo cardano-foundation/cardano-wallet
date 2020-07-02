@@ -16,6 +16,13 @@
       - name: Module reused between components
       - module: Cardano.Wallet.Byron.Faucet
 - package:
+  - name: cardano-wallet-shelley
+  - section:
+    - name: test:integration bench:latency
+    - message:
+      - name: Module reused between components
+      - module: Cardano.Wallet.Shelley.Faucet
+- package:
   - name: cardano-wallet-core
   - section:
     - name: test:unit
