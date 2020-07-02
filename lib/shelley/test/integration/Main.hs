@@ -66,8 +66,6 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog, withCluster, withSystemTempDir, withTempDir )
 import Cardano.Wallet.Shelley.Transaction
     ( _minimumFee )
-import Cardano.Wallet.Transaction
-    ( Certificate (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -200,6 +198,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                     , _networkParameters = np
                     , _target = Proxy
                     }
+
         let action' = bracketTracer' tr "spec" . action
         race (takeMVar ctx >>= action') (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
@@ -239,18 +238,16 @@ mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
     PaymentDescription i o c ->
         let
-            fee = computeFee (dummySelection i o c) []
+            fee = computeFee (dummySelection i o c) Nothing
         in
             ( fee, fee )
 
-    DelegDescription i o _ ->
+    DelegDescription action ->
         let
-            fee = computeFee (dummySelection i o 0)
-                    [ PoolDelegationCertificate
-                    , KeyRegistrationCertificate
-                    ]
+            feeMin = computeFee (dummySelection 0 0 0) (Just action)
+            feeMax = computeFee (dummySelection 1 0 1) (Just action)
         in
-            ( fee, fee )
+            ( feeMin, feeMax )
   where
     genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)
 
@@ -266,10 +263,10 @@ mkFeeEstimator policy = \case
             outs =
                 replicate (nOuts + nChgs) (Coin minBound)
         in
-            CoinSelection inps [] outs Nothing
+            mempty { inputs = inps, change = outs }
 
-    computeFee selection dlg =
-        fromIntegral $ getFee $ _minimumFee policy dlg selection
+    computeFee selection action =
+        fromIntegral $ getFee $ _minimumFee policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging

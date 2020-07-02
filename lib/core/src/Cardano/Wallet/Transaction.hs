@@ -146,6 +146,7 @@ data TransactionLayer t k = TransactionLayer
 
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
+    deriving (Show)
 
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:

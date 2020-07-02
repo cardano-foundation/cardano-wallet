@@ -244,9 +244,12 @@ mkFeeEstimator policy = \case
     PaymentDescription nInps nOuts nChgs ->
         let fee = linear (nInps + nOuts + nChgs) 0
         in (fee, fee)
-    DelegDescription nInps nOuts nCerts ->
-        let fee = linear (nInps + nOuts) nCerts
-        in (fee, fee)
+    DelegDescription _action ->
+        let
+            feeMin = linear 0 1
+            feeMax = linear 2 1
+        in
+            (feeMin, feeMax)
   where
     LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
     -- NOTE¹
