@@ -361,11 +361,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                     Right () ->
                         pure ()
             forM_ registrations $ \case
-                Registration pool -> do
-                    liftIO $ traceWith tr $ MsgStakePoolRegistration pool
-                    putPoolRegistration slot pool
+                Registration cert -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRegistration cert
+                    putPoolRegistration slot cert
                 Retirement cert -> do
                     liftIO $ traceWith tr $ MsgStakePoolRetirement cert
+                    putPoolRetirement slot cert
         pure Continue
 
 monitorMetadata
