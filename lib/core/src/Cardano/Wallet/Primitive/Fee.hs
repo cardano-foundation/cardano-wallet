@@ -229,13 +229,13 @@ rebalanceSelection
     -> CoinSelection
     -> (CoinSelection, Fee)
 rebalanceSelection opts s
-    -- When inputs of a coin selection are less than outputs, we can't do
-    -- anything, another input needs to be selected first. A case where this
-    -- could occur is when selections are balanced in the context of delegation
-    -- / de-registration.
+    -- When there are no inputs, exit right away a pick a first input.
     --
-    -- A transaction would have initially no inputs, but have a deposit amount.
-    | inputBalance s < outputBalance s + changeBalance s =
+    -- A case where this could occur is when selections are balanced in the
+    -- context of delegation / de-registration.
+    --
+    -- A transaction would have initially no inputs.
+    | null (inputs s) =
         (s, Fee φ_original)
 
     -- selection is now balanced, nothing to do.
@@ -276,8 +276,14 @@ rebalanceSelection opts s
   where
     -- The original requested fee amount
     Fee φ_original = estimateFee opts s
-    -- The initial amount left for fee (i.e. inputs - outputs)
-    δ_original = inputBalance s - (outputBalance s + changeBalance s)
+    -- The initial amount left for fee (i.e. inputs - outputs), with a minimum
+    -- of 0 in case there are more output than inputs. This is possible when
+    -- there are other elements apart from normal outputs like a deposit.
+    δ_original
+        | inputBalance s >= (outputBalance s + changeBalance s) =
+            inputBalance s - (outputBalance s + changeBalance s)
+        | otherwise =
+            0
 
     -- The new amount left after balancing (i.e. φ_original)
     Fee φ_dangling = estimateFee opts sDangling

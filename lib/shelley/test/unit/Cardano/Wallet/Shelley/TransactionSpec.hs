@@ -53,7 +53,6 @@ import Cardano.Wallet.Shelley.Transaction
     ( mkUnsignedTx
     , mkWitness
     , newTransactionLayer
-    , realFee
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     )
@@ -144,8 +143,9 @@ prop_decodeSignedTxRoundtrip
     :: DecodeSetup
     -> Property
 prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
-    let ownedIns = Map.toList $ getUTxO utxo
-    let unsigned = mkUnsignedTx slotNo ownedIns outs [] (realFee Nothing ownedIns outs)
+    let inps = Map.toList $ getUTxO utxo
+    let cs = mempty { CS.inputs = inps, CS.outputs = outs }
+    let unsigned = mkUnsignedTx slotNo cs []
     let addrWits = Set.fromList $ map (mkWitness unsigned) pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet addrWits mempty mempty
@@ -196,7 +196,7 @@ testCoinSelOpts = coinSelOpts tl (Quantity 4096)
     tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts tl [] feePolicy
+testFeeOpts = feeOpts tl Nothing feePolicy
   where
     pm        = ProtocolMagic 1
     epLength  = EpochLength 42 -- irrelevant here
