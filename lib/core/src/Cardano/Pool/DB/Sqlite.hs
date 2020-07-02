@@ -65,6 +65,8 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either
     ( rights )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( foldl' )
 import Data.Map.Strict
@@ -196,31 +198,22 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \point PoolRegistrationCertificate
-            { poolId
-            , poolOwners
-            , poolMargin
-            , poolCost
-            , poolPledge
-            , poolMetadata
-            } -> do
-            let poolMarginN = fromIntegral $ numerator $ getPercentage poolMargin
-            let poolMarginD = fromIntegral $ denominator $ getPercentage poolMargin
-            let poolCost_ = getQuantity poolCost
-            let poolPledge_ = getQuantity poolPledge
-            let poolMetadataUrl = fst <$> poolMetadata
-            let poolMetadataHash = snd <$> poolMetadata
-            deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. point]
-            _ <- repsert (PoolRegistrationKey poolId point) $ PoolRegistration
-                    poolId
-                    point
-                    poolMarginN
-                    poolMarginD
-                    poolCost_
-                    poolPledge_
-                    poolMetadataUrl
-                    poolMetadataHash
-            insertMany_ $ zipWith (PoolOwner poolId point) poolOwners [0..]
+        , putPoolRegistration = \slotId cert -> do
+            let poolId = view #poolId cert
+            deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. slotId]
+            let poolRegistrationKey = PoolRegistrationKey poolId slotId
+            let poolRegistrationRow = PoolRegistration poolId slotId
+                    (fromIntegral $ numerator
+                        $ getPercentage $ poolMargin cert)
+                    (fromIntegral $ denominator
+                        $ getPercentage $ poolMargin cert)
+                    (getQuantity $ poolCost cert)
+                    (getQuantity $ poolPledge cert)
+                    (fst <$> poolMetadata cert)
+                    (snd <$> poolMetadata cert)
+            _ <- repsert poolRegistrationKey poolRegistrationRow
+            insertMany_ $
+                zipWith (PoolOwner poolId slotId) (poolOwners cert) [0..]
 
         , readPoolRegistration = \poolId -> do
             let filterBy = [ PoolRegistrationPoolId ==. poolId ]
