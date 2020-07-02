@@ -13,6 +13,8 @@ module Main where
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv, xprvFromBytes, xpubFromBytes )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -23,6 +25,8 @@ import Cardano.CLI
     ( Port (..), parseLoggingSeverity, withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Server
@@ -31,10 +35,14 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiWallet, WalletStyle (..) )
 import Cardano.Wallet.Logging
     ( BracketLog (..), bracketTracer, trMessageText )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( Depth (..), NetworkDiscriminant (..), paymentAddress, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -59,15 +67,19 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley )
+    ( Shelley, initialFundsPseudoTxIn, toStakeKeyRegCert )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog, withCluster, withSystemTempDir, withTempDir )
+import Cardano.Wallet.Shelley.Network
+    ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
-    ( _minimumFee )
+    ( TxPayload (..), mkTx, _minimumFee )
 import Cardano.Wallet.Transaction
     ( Certificate (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -77,7 +89,9 @@ import Control.Exception
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -209,19 +223,21 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         let tr' = contramap MsgCluster tr
         withSystemTempDir tr' "test" $ \dir ->
             withCluster tr' minSev 3 dir $ \socketPath block0 (gp, vData) ->
-                withTempDir tr' dir "wallets" $ \db ->
-                    serveWallet @(IO Shelley)
-                        (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                        tracers
-                        (SyncTolerance 10)
-                        (Just db)
-                        "127.0.0.1"
-                        ListenOnRandomPort
-                        Nothing
-                        socketPath
-                        block0
-                        (gp, vData)
-                        (onStart gp)
+                withTempDir tr' dir "wallets" $ \db -> do
+                    withNetworkLayer nullTracer gp socketPath vData $ \nl -> do
+                        preregisterStakingKeysForTests nl
+                        serveWallet @(IO Shelley)
+                            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                            tracers
+                            (SyncTolerance 10)
+                            (Just db)
+                            "127.0.0.1"
+                            ListenOnRandomPort
+                            Nothing
+                            socketPath
+                            block0
+                            (gp, vData)
+                            (onStart gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
@@ -324,3 +340,40 @@ minSeverityFromEnv def var = lookupEnv var >>= \case
     Nothing -> pure def
     Just "" -> pure def
     Just arg -> either die pure (parseLoggingSeverity arg)
+
+-- | Pre-register a staking key for the STAKE_POOLS_JOIN_05 test.
+preregisterStakingKeysForTests :: NetworkLayer IO t b -> IO ()
+preregisterStakingKeysForTests nl = do
+    let payload = TxPayload
+            [toStakeKeyRegCert rewardPub]
+            (const mempty)
+            (Fee 9999999900)
+    let keystore = const (Just (xprv, mempty))
+    let txIn = initialFundsPseudoTxIn addr
+
+    let dummyOut = TxOut addr (Coin 0)
+
+    let Right (_, tx) = mkTx
+            @ShelleyKey
+            payload
+            keystore
+            (SlotNo 5000)
+            [(txIn, dummyOut)]
+            []
+    unsafeRunExceptT $ postTx nl tx
+  where
+
+    addr :: Address
+    addr = paymentAddress @'Mainnet (publicKey xprv)
+
+    -- The wallet's reward key
+    Just rewardPub = xpubFromBytes $ unsafeFromHex
+            "949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f30\
+            \42af27ce48e0fce0f88696b6ed3476f8c3412cce2f984931fb7658dee1872e"
+
+    xprv :: ShelleyKey 'AddressK XPrv
+    xprv = ShelleyKey $ fromJust $  xprvFromBytes $ unsafeFromHex
+            "90b23d7d7d2d77e943bf81b89af4f4b263049b4c2c7f52b9ae\
+            \2093bff8ff8c4e845d4583dcbf226613bc1b823811fe682483\
+            \c71bf0de92dc7f8f05bacdaba79994f3d3f3cc1793d8afe804\
+            \53ab06a875d21ed1adcfad913617796c8662d375fc"

@@ -31,6 +31,8 @@ module Cardano.Wallet.Shelley.Transaction
     , mkWitness
     , realFee
     , mkTx
+    , TxPayload (..)
+    , emptyTxPayload
     ) where
 
 import Prelude

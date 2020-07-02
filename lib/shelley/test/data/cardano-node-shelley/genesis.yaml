@@ -1427,3 +1427,8 @@ initialFunds:
 - 610cdec48bb2168dbaa18f5a7e67ede598449e3783891f926d99c7ace8: 1
 - 61d1e87828a2ff41f11e575e7827d0c38f48f2bf6778b359042c7a2e3e: 1
 - 610130f3030867e827cb09eb1bf50401b0d9f413b2ca872b57a8d2fae4: 1
+
+# Special wallet ["over", "decorate", "flock", "badge", "beauty", "stamp", "chest", "owner", "excess", "omit", "bid", "raccoon", "spin", "reduce", "rival"]
+# for STAKE_POOLS_JOIN_05.
+- 6199a7c32aaa55a628d936b539f01d5415318dec8bcb5e59ec71af695b: 10000000000
+- 60386c7a86d8844f4085a50241556043c9842d72c315c897a42a8a0510: 10000000000

@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -48,6 +49,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
@@ -71,6 +74,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , getSlotParams
     , joinStakePool
+    , json
     , mkEpochInfo
     , notDelegating
     , quitStakePool
@@ -333,6 +337,28 @@ spec = do
 --                    (#balance . #getApiT . #reward)
 --                    (`shouldBe` reward)
 --            ]
+
+    it "STAKE_POOLS_JOIN_05 - Can join when stake key already exists" $ \ctx -> do
+        pendingWith "tracking stake key registrations"
+        let (walletWithPreRegKey:: [Text]) =
+                [ "over", "decorate", "flock", "badge", "beauty"
+                , "stamp" , "chest", "owner", "excess", "omit"
+                , "bid", "raccoon", "spin" , "reduce", "rival"
+                ]
+        let payload = Json [json| {
+                "name": "Wallet with pre-registered stake key",
+                "mnemonic_sentence": #{walletWithPreRegKey},
+                "passphrase": "Secure Passphrase"
+                } |]
+        (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) payload
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
+
+        joinStakePool @n ctx pool (w, passwd)>>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
