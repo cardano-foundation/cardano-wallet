@@ -1102,11 +1102,12 @@ selectCoinsForPayment
     => ctx
     -> WalletId
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPayment ctx wid recipients = do
+selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+    selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients withdrawal
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1132,8 +1133,9 @@ selectCoinsForPaymentFromUTxO
     -> W.UTxO
     -> W.TxParameters
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
+selectCoinsForPaymentFromUTxO ctx utxo txp recipients (Quantity withdrawal) = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
@@ -1141,7 +1143,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp recipients = do
     lift . traceWith tr $ MsgPaymentCoinSelection sel
     let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy)
     withExceptT ErrSelectForPaymentFee $ do
-        balancedSel <- adjustForFee feePolicy utxo' sel
+        balancedSel <- adjustForFee feePolicy utxo' (sel { withdrawal })
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
         pure balancedSel
   where
@@ -1264,12 +1266,13 @@ estimateFeeForPayment
     => ctx
     -> WalletId
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
-estimateFeeForPayment ctx wid recipients = do
+estimateFeeForPayment ctx wid recipients withdrawal = do
     (utxo, txp) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
     let selectCoins =
-            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients
+            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients withdrawal
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
         `catchE` handleCannotCover utxo recipients
 
@@ -1385,9 +1388,6 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     outs = NE.toList outsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
---
--- TODO
--- This function completely disregard deposit and withdrawals.
 selectCoinsExternal
     :: forall ctx s t k e.
         ( GenChange s
@@ -1400,10 +1400,11 @@ selectCoinsExternal
     -> WalletId
     -> ArgGenChange s
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
-selectCoinsExternal ctx wid argGenChange payments = do
+selectCoinsExternal ctx wid argGenChange payments withdrawal = do
     cs <- withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
-        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments
+        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments withdrawal
     cs' <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do

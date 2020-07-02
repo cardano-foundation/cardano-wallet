@@ -1037,11 +1037,13 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx genChange (ApiT wid) body =
+selectCoins ctx gen (ApiT wid) body =
     fmap mkApiCoinSelection
-        $ withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid genChange
-        $ coerceCoin <$> body ^. #payments
+    $ withWorkerCtx ctx wid liftE liftE
+    $ \wrk -> do
+        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        let outs = coerceCoin <$> body ^. #payments
+        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1126,8 +1128,9 @@ postTransaction ctx genChange (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.selectCoinsForPayment @_ @s @t wrk wid outs
+    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.signPayment @_ @s @t @k wrk wid genChange pwd selection
@@ -1212,8 +1215,10 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler
-        (apiFee <$> W.estimateFeeForPayment @_ @s @t @k wrk wid outs)
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
+        pure $ apiFee fee
 
 joinStakePool
     :: forall ctx s t n k.
