@@ -631,6 +631,8 @@ dummyTransactionLayer = TransactionLayer
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
+    , initDelegationSelection =
+        error "dummyTransactionLayer: initDelegationSelection not implemented"
     , mkDelegationJoinTx =
         error "dummyTransactionLayer: mkDelegationJoinTx not implemented"
     , mkDelegationQuitTx =

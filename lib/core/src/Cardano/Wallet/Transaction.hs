@@ -17,7 +17,7 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
-    , Certificate (..)
+    , DelegationAction (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , WalletDelegation
     )
 import Data.ByteString
     ( ByteString )
@@ -70,9 +69,7 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: WalletDelegation
-            -- Wallet current delegation status
-        -> PoolId
+        :: PoolId
             -- Pool Id to which we're planning to delegate
         -> (k 'AddressK XPrv, Passphrase "encryption")
             -- Reward account
@@ -107,10 +104,18 @@ data TransactionLayer t k = TransactionLayer
         --
         -- The certificate is the public key of the reward account.
 
-    , minimumFee :: FeePolicy -> [Certificate] -> CoinSelection -> Fee
+    , initDelegationSelection
+        :: FeePolicy
+            -- Current fee policy
+        -> DelegationAction
+            -- What sort of action is going on
+        -> CoinSelection
+        -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
+        -- accordingly.
+
+    , minimumFee :: FeePolicy -> Maybe DelegationAction -> CoinSelection -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
-        -- coin-selection. '[Certificate]' can be used to communicate whether
-        -- or not the transaction carries (un)delegation certificates.
+        -- coin-selection.
 
     , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
@@ -139,6 +144,9 @@ data TransactionLayer t k = TransactionLayer
         -- ^ Decode an externally-signed transaction to the chain producer
     }
 
+-- | Whether the user is attempting any particular delegation action.
+data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
+
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:
 --
@@ -161,10 +169,4 @@ data ErrMkTx
     -- creating a stake key. This requires at least one change output, which
     -- ought to be present anyway by construction of the coin selection when
     -- quitting delegation.
-    deriving (Eq, Show)
-
-data Certificate
-    = PoolDelegationCertificate
-    | KeyRegistrationCertificate
-    | KeyDeRegistrationCertificate
     deriving (Eq, Show)
