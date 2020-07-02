@@ -48,7 +48,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( ChimericAccount (..), Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
-    ( Certificate (..)
+    ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , TransactionLayer (..)
@@ -68,6 +68,7 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Transaction as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -87,7 +88,7 @@ newTransactionLayer block0H = TransactionLayer
             ( MkFragmentSimpleTransaction (txWitnessTagFor @k)
             ) keyFrom inps outs
 
-    , mkDelegationJoinTx = \_ _ pool accXPrv keyFrom _ inps outs chgs ->
+    , mkDelegationJoinTx = \pool accXPrv keyFrom _ cs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
@@ -95,9 +96,9 @@ newTransactionLayer block0H = TransactionLayer
                 (DlgFull pool)
                 acc
                 (first getRawKey accXPrv)
-            ) keyFrom inps (outs ++ chgs)
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
-    , mkDelegationQuitTx = \_ accXPrv keyFrom _ inps outs chgs ->
+    , mkDelegationQuitTx = \accXPrv keyFrom _ cs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
@@ -105,7 +106,9 @@ newTransactionLayer block0H = TransactionLayer
                 DlgNone
                 acc
                 (first getRawKey accXPrv)
-            ) keyFrom inps (outs ++ chgs)
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
+
+    , initDelegationSelection = const mempty
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -120,11 +123,11 @@ newTransactionLayer block0H = TransactionLayer
 
     , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
-    , validateSelection = \(CoinSelection inps outs _ rsv) -> do
-        when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
+    , validateSelection = \cs -> do
+        let tooManyInputs  = length (CS.inputs cs)  > maxNumberOfInputs
+        let tooManyOutputs = length (CS.outputs cs) > maxNumberOfOutputs
+        when (tooManyInputs || tooManyOutputs)
             $ Left ErrExceededInpsOrOuts
-        when (isJust rsv)
-            $ Left ErrReserveNotAllowed
 
     , allowUnbalancedTx = False
     }
@@ -152,15 +155,15 @@ newTransactionLayer block0H = TransactionLayer
     -- is multiplied by the total number of inputs and outputs.
     _minimumFee
         :: FeePolicy
-        -> [Certificate]
+        -> Maybe DelegationAction
         -> CoinSelection
         -> Fee
-    _minimumFee policy certs (CoinSelection inps outs chgs _) =
-        Fee $ ceiling (a + b*fromIntegral ios + c*fromIntegral cs)
+    _minimumFee policy action cs =
+        Fee $ ceiling (a + b*fromIntegral ios + c*certs)
       where
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
-        cs  = length $ filter (/= KeyRegistrationCertificate) certs
-        ios = length inps + length outs + length chgs
+        certs = if isJust action then 1 else 0
+        ios = length (CS.inputs cs) + length (CS.outputs cs) + length (CS.change cs)
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we
@@ -184,8 +187,6 @@ instance TxWitnessTagFor ByronKey       where txWitnessTagFor = TxWitnessLegacyU
 data ErrValidateSelection
     = ErrExceededInpsOrOuts
         -- ^ Transaction with improper number of inputs and outputs is tried
-    | ErrReserveNotAllowed
-        -- ^ Transaction has a reserve input amount, not allowed for this backend
     deriving (Eq, Show)
 
 instance Buildable ErrValidateSelection where
@@ -193,10 +194,6 @@ instance Buildable ErrValidateSelection where
         ErrExceededInpsOrOuts -> build $ T.unwords
             [ "I can't validate coin selection because either the number of inputs"
             , "is more than", maxI, "or the number of outputs exceeds", maxO <> "."
-            ]
-        ErrReserveNotAllowed -> build $ T.unwords
-            [ "The given coin selection was given a reserve amount and this is"
-            , "not allowed for this backend / era."
             ]
       where
         maxI = toText maxNumberOfInputs

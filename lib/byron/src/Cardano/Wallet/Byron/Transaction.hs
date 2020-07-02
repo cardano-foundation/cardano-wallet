@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
-    ( Certificate (..)
+    ( DelegationAction
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , TransactionLayer (..)
@@ -83,6 +83,7 @@ import GHC.Stack
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Transaction as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -105,6 +106,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
+    , initDelegationSelection = _initDelegationSelection
     , decodeSignedTx = _decodeSignedTx
     , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
@@ -136,11 +138,13 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 
     _minimumFee
         :: FeePolicy
-        -> [Certificate]
+        -> Maybe DelegationAction
         -> CoinSelection
         -> Fee
-    _minimumFee policy _ (CoinSelection inps outs chngs _) =
-        computeFee $ sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
+    _minimumFee policy _ cs =
+        computeFee $ sizeOfSignedTx
+            (fst <$> CS.inputs cs)
+            (CS.outputs cs <> map dummyOutput (CS.change cs))
       where
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut (dummyAddress @n)
@@ -164,11 +168,9 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     _validateSelection
         :: CoinSelection
         -> Either ErrValidateSelection ()
-    _validateSelection (CoinSelection _ outs _ rsv) = do
-        when (any (\ (TxOut _ c) -> c == Coin 0) outs) $
+    _validateSelection cs = do
+        when (any (\ (TxOut _ c) -> c == Coin 0) (CS.outputs cs)) $
             Left ErrInvalidTxOutAmount
-        when (isJust rsv) $
-            Left ErrReserveNotAllowed
 
     _decodeSignedTx
         :: ByteString
@@ -196,6 +198,9 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     _mkDelegationQuitTx =
         notImplemented "mkDelegationQuitTx"
 
+    _initDelegationSelection =
+        notImplemented "initDelegationSelection"
+
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
 --
@@ -203,17 +208,11 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 data ErrValidateSelection
     = ErrInvalidTxOutAmount
     -- ^ Transaction with 0 output amount is tried
-    | ErrReserveNotAllowed
-    -- ^ Transaction has a reserve input amount, not allowed for this backend
 
 instance Buildable ErrValidateSelection where
     build = \case
         ErrInvalidTxOutAmount ->
             "Invalid coin selection: at least one output is null."
-        ErrReserveNotAllowed -> build $ T.unwords
-            [ "The given coin selection was given a reserve amount and this is"
-            , "not allowed for this backend / era."
-            ]
 
 type instance W.ErrValidateSelection (IO Byron) = ErrValidateSelection
 

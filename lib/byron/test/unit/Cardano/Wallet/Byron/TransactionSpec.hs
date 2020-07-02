@@ -128,7 +128,7 @@ spec = do
     describe "Coin Selection w/ Byron" $ do
         it "REG #1561 - Correct balancing of amounts close to the limit" $ do
             let opts = FeeOptions
-                    { estimateFee = minimumFee tlayer feePolicy []
+                    { estimateFee = minimumFee tlayer feePolicy Nothing
                     , dustThreshold = minBound
                     , onDanglingChange = SaveMoney
                     }
@@ -140,7 +140,7 @@ spec = do
 
             let addr = Address "fake-address"
             let utxo = UTxO mempty
-            let csel = CoinSelection
+            let csel = mempty
                     { inputs =
                         [ ( TxIn (Hash "0") 0
                           , TxOut addr (Coin 1_000_000)
@@ -151,8 +151,6 @@ spec = do
                         ]
                     , change =
                         [Coin 30_556]
-                    , reserve =
-                        Nothing
                     }
 
             runExceptT (adjustForFee opts utxo csel) >>= \case
@@ -317,14 +315,14 @@ propSizeEstimation pm genSel genChngAddrs =
     estimateSize :: TransactionLayer t k -> CoinSelection -> Quantity "bytes" Int
     estimateSize tl sel =
         let
-            Fee fee = minimumFee tl idPolicy [] sel
+            Fee fee = minimumFee tl idPolicy Nothing sel
         in
             Quantity $ fromIntegral fee
       where
         idPolicy = LinearFee (Quantity 0) (Quantity 1) (Quantity 0)
 
     fromCoinSelection :: CoinSelection -> [Address] -> CBOR.Encoding
-    fromCoinSelection (CoinSelection inps outs chngs _) chngAddrs =
+    fromCoinSelection (CoinSelection inps _ _ outs chngs _) chngAddrs =
         CBOR.encodeSignedTx (fst <$> inps, outs <> outs') wits
       where
         dummySig =
@@ -403,7 +401,7 @@ genSelection = do
         }
 
 shrinkSelection :: CoinSelection -> [CoinSelection]
-shrinkSelection sel@(CoinSelection inps outs chgs rsv) = case (inps, outs, chgs) of
+shrinkSelection sel@(CoinSelection inps _ _ outs chgs _) = case (inps, outs, chgs) of
     ([_], [_], []) ->
         []
     _ ->
@@ -416,25 +414,24 @@ shrinkSelection sel@(CoinSelection inps outs chgs rsv) = case (inps, outs, chgs)
             chgs'' = drop 1 chgs
         in
             filter (\s -> s /= sel && isValidSelection s)
-                [ CoinSelection inps' outs' chgs' rsv
-                , CoinSelection inps' outs chgs rsv
-                , CoinSelection inps outs chgs' rsv
-                , CoinSelection inps outs' chgs rsv
-                , CoinSelection inps'' outs'' chgs'' rsv
-                , CoinSelection inps'' outs chgs rsv
-                , CoinSelection inps outs'' chgs rsv
-                , CoinSelection inps outs chgs'' rsv
+                [ mempty { inputs = inps' , outputs = outs' , change = chgs'  }
+                , mempty { inputs = inps' , outputs = outs  , change = chgs   }
+                , mempty { inputs = inps  , outputs = outs  , change = chgs'  }
+                , mempty { inputs = inps  , outputs = outs' , change = chgs   }
+                , mempty { inputs = inps'', outputs = outs'', change = chgs'' }
+                , mempty { inputs = inps'', outputs = outs  , change = chgs   }
+                , mempty { inputs = inps  , outputs = outs'', change = chgs   }
+                , mempty { inputs = inps  , outputs = outs  , change = chgs'' }
                 ]
 
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c r) =
+isValidSelection (CoinSelection i _ _ o c _) =
     let
         oAmt = sum $ map (fromIntegral . getCoin . coin) o
         cAmt = sum $ map (fromIntegral . getCoin) c
         iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
-        rAmt = maybe (0 :: Integer) (fromIntegral . getCoin) r
     in
-        iAmt + rAmt >= oAmt + cAmt
+        (iAmt :: Integer) >= oAmt + cAmt
 
 genTxIn :: Gen TxIn
 genTxIn = TxIn
