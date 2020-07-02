@@ -229,17 +229,6 @@ rebalanceSelection opts s
     | φ_original == δ_original =
         (s, Fee 0)
 
-    -- some fee left to pay, and the reserve is non-empty, use it first.
-    | φ_original > δ_original && reserve s > Just (Coin 0) =
-        let
-            -- Safe because of the above guard.
-            Just (Coin r) = reserve s
-            r' = if r > φ_original
-                then Coin (r - φ_original)
-                else Coin 0
-        in
-            rebalanceSelection opts (s { reserve = Just r' })
-
     -- some fee left to pay, but we've depleted all change outputs
     | φ_original > δ_original && null (change s) =
         (s, Fee (φ_original - δ_original))
@@ -283,10 +272,7 @@ rebalanceSelection opts s
     δ_dangling = φ_original -- by construction of the change output
 
     extraChng = Coin (δ_original - φ_original)
-    sDangling = s
-        { change = splitChange extraChng (change s)
-        , reserve = Coin 0 <$ reserve s
-        }
+    sDangling = s { change = splitChange extraChng (change s) }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.

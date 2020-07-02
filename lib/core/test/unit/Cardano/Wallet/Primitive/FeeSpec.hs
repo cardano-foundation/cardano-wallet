@@ -52,8 +52,6 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty )
-import Data.Maybe
-    ( isNothing )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -506,13 +504,11 @@ prop_rebalanceSelection sel onDangling = do
                 fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
             SaveMoney ->
                 fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
-    let reserveIsEmpty =
-            case reserve sel of
-                Nothing -> isNothing (reserve sel')
-                Just{}  -> reserve sel' == Just (Coin 0)
+    let reserveIsUnchanged =
+            reserve sel == reserve sel'
     conjoin
         [ property selectionIsBalanced
-        , property reserveIsEmpty
+        , property reserveIsUnchanged
         ]
         & counterexample (unlines
             [ "selection (before):", pretty sel
