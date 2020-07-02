@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolOwner (..)
     , SlotId (..)
+    , SlotInternalIndex (..)
     , SlotNo (..)
     , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
@@ -326,6 +327,22 @@ instance FromHttpApiData SlotId where
 instance PathPiece SlotId where
     toPathPiece = error "toPathPiece stub needed for persistent"
     fromPathPiece = error "fromPathPiece stub needed for persistent"
+
+----------------------------------------------------------------------------
+-- SlotInternalIndex
+
+instance PersistFieldSql SlotInternalIndex where
+    sqlType _ = sqlType (Proxy @Word64)
+
+instance PersistField SlotInternalIndex where
+    toPersistValue = toPersistValue . unSlotInternalIndex
+    fromPersistValue = fmap SlotInternalIndex . fromPersistValue
+
+instance ToJSON SlotInternalIndex where
+    toJSON = toJSON . unSlotInternalIndex
+
+instance FromJSON SlotInternalIndex where
+    parseJSON = fmap SlotInternalIndex . parseJSON
 
 ----------------------------------------------------------------------------
 -- TxStatus
