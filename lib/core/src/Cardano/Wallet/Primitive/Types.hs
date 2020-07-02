@@ -1413,7 +1413,7 @@ instance Buildable ProtocolParameters where
     build pp = blockListF' "" id
         [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
         , "Transaction parameters: " <> build (pp ^. #txParameters)
-        , "K parameter: " <> build (pp ^. #desiredNumberOfStakePools)
+        , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
         ]
 
 -- | Indicates the current level of decentralization in the network.
