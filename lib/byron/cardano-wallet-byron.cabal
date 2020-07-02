@@ -277,8 +277,6 @@ benchmark latency
    , stm
    , temporary
    , text
-  build-tools:
-      cardano-wallet-byron
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

@@ -246,9 +246,6 @@
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
-          build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (errorHandler.buildToolDepError "cardano-wallet-jormungandr")))
-            ];
           buildable = true;
           };
         };
