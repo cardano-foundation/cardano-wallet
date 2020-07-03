@@ -156,6 +156,16 @@ ProtocolParameters
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
+-- Track whether the wallet's stake key is registered or not.
+StakeKeyCertificate
+    stakeKeyCertWalletId             W.WalletId     sql=wallet_id
+    stakeKeyCertSlot                 W.SlotId       sql=slot
+    stakeKeyCertIsReg                Bool           sql=is_reg
+
+    Primary stakeKeyCertWalletId stakeKeyCertSlot
+    Foreign Wallet stakeKeyRegistration stakeKeyCertWalletId ! ON DELETE CASCADE
+    deriving Show Generic
+
 -- Store known delegation certificates for a particular wallet
 DelegationCertificate
     certWalletId             W.WalletId     sql=wallet_id

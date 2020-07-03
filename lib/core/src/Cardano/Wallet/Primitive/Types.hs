@@ -1844,6 +1844,7 @@ instance NFData ChimericAccount
 data DelegationCertificate
     = CertDelegateNone ChimericAccount
     | CertDelegateFull ChimericAccount PoolId
+    | CertRegisterKey ChimericAccount
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
@@ -1852,11 +1853,14 @@ dlgCertAccount :: DelegationCertificate -> ChimericAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
     CertDelegateFull acc _ -> acc
+    CertRegisterKey acc -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
+    CertRegisterKey _ -> Nothing
+
 
 -- | Sum-type of pool registration- and retirement- certificates. Mirrors the
 --  @PoolCert@ type in cardano-ledger-specs.

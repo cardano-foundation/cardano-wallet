@@ -77,6 +77,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -573,6 +574,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                         [ TxMetaDirection ==. W.Incoming
                         , TxMetaSlot >. nearestPoint
                         ]
+                    deleteStakeKeyCerts wid
+                        [ StakeKeyCertSlot >. nearestPoint
+                        ]
                     pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) -> ExceptT $ do
@@ -604,9 +608,32 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> pure <$> repsert
-                    (DelegationCertificateKey wid sl)
-                    (DelegationCertificate wid sl (W.dlgCertPoolId cert))
+                Just _  -> case cert of
+                    W.CertDelegateNone _ -> do
+                        repsert
+                            (DelegationCertificateKey wid sl)
+                            (DelegationCertificate wid sl Nothing)
+                        pure <$> repsert
+                            (StakeKeyCertificateKey wid sl)
+                            (StakeKeyCertificate wid sl False)
+                    W.CertDelegateFull _ pool ->
+                        pure <$> repsert
+                            (DelegationCertificateKey wid sl)
+                            (DelegationCertificate wid sl (Just pool))
+                    W.CertRegisterKey _ ->
+                        pure <$> repsert
+                            (StakeKeyCertificateKey wid sl)
+                            (StakeKeyCertificate wid sl True)
+
+        , readIsStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
+            val <- fmap entityVal <$> selectFirst
+                    [StakeKeyCertWalletId ==. wid]
+                    [Desc StakeKeyCertSlot]
+
+            return $ case val of
+                Nothing -> Left $ ErrNoSuchWallet wid
+                Just (StakeKeyCertificate _ _ isReg) -> Right isReg
+
 
         {-----------------------------------------------------------------------
                                      Tx History
@@ -1067,6 +1094,15 @@ deleteTxMetas
     -> SqlPersistT IO ()
 deleteTxMetas wid filters =
     deleteWhere ((TxMetaWalletId ==. wid) : filters)
+
+
+-- | Delete stake key certificates for a wallet.
+deleteStakeKeyCerts
+    :: W.WalletId
+    -> [Filter StakeKeyCertificate]
+    -> SqlPersistT IO ()
+deleteStakeKeyCerts wid filters =
+    deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
 
 updateTxMetas
     :: W.WalletId

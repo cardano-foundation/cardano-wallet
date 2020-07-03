@@ -118,6 +118,8 @@ newDBLayer = do
             cert `deepseq` sl `deepseq`
                 alterDB errNoSuchWallet db (mPutDelegationCertificate pk cert sl)
 
+        , readIsStakeKeyRegistered = error "todo"
+
         {-----------------------------------------------------------------------
                                      Tx History
         -----------------------------------------------------------------------}

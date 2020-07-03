@@ -676,7 +676,8 @@ fromShelleyDelegationCert = \case
     SL.DCertDeleg (SL.DeRegKey credentials) ->
         Just $ W.CertDelegateNone (fromStakeCredential credentials)
 
-    SL.DCertDeleg SL.RegKey{} -> Nothing
+    SL.DCertDeleg (SL.RegKey cred) ->
+        Just $ W.CertRegisterKey $ fromStakeCredential cred
     SL.DCertPool{}            -> Nothing
     SL.DCertGenesis{}         -> Nothing
     SL.DCertMir{}             -> Nothing

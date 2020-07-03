@@ -169,6 +169,10 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- Return 'Nothing' if there's no such wallet.
 
+    , readIsStakeKeyRegistered
+        :: PrimaryKey WalletId
+        -> ExceptT ErrNoSuchWallet stm Bool
+
     , putDelegationCertificate
         :: PrimaryKey WalletId
         -> DelegationCertificate
