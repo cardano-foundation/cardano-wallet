@@ -563,7 +563,8 @@ spec = do
             eventually "eventually shows non-zero rewards" $ do
                 Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx
                 let rewards = view (#metrics . #nonMyopicMemberRewards)
-                pools `shouldBe` sortOn (Down . rewards) pools
+                (rewards <$> pools) `shouldBe`
+                    (rewards <$> sortOn (Down . rewards) pools)
                 -- Make sure the rewards are not all equal:
                 rewards pool1 .> rewards pool3
 

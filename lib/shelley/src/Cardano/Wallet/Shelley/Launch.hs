@@ -1095,7 +1095,7 @@ cartouche = T.unlines
     , "#                                                                              #"
     , "#        Cluster is booting. Stake pools are being registered on chain.        #"
     , "#                                                                              #"
-    , "#        This may take roughly 30s, after what pools will become active        #"
+    , "#        This may take roughly 60s, after what pools will become active        #"
     , "#        and will start producing blocks. Please be patient...                 #"
     , "#                                                                              #"
     , "#  ⚠                           DISCLAIMER                                   ⚠  #"
