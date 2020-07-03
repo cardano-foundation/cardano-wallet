@@ -133,18 +133,14 @@ test-suite unit
     , cardano-crypto-wrapper
     , cardano-wallet-byron
     , cardano-wallet-core
-    , cardano-wallet-test-utils
     , cborg
     , containers
     , fmt
-    , generic-lens
     , hspec
-    , iohk-monitoring
     , memory
     , ouroboros-consensus-byron
     , ouroboros-network
     , QuickCheck
-    , retry
     , text
     , transformers
   build-tools:
@@ -157,7 +153,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Byron.CompatibilitySpec
-      Cardano.Wallet.Byron.NetworkSpec
       Cardano.Wallet.Byron.TransactionSpec
 
 test-suite integration

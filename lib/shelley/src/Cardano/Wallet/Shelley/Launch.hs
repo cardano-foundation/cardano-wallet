@@ -404,7 +404,11 @@ withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
                 , nodeLoggingHostname = Just name
                 }
 
-        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
+        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) -> do
+            setEnv "CARDANO_NODE_SOCKET_PATH" socket
+            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
+            tx <- signTx tr dir rawTx [faucetPrv]
+            submitTx tr "pre-registered stake key" tx
             action socket block0 (networkParams, versionData)
   where
     source :: FilePath
@@ -506,7 +510,7 @@ setupStakePoolData tr dir name params url pledgeAmt = do
     -- itself.  Thus, in a single transaction, we end up with a
     -- registered pool with some stake!
     (rawTx, faucetPrv) <-
-        prepareTx tr dir stakePub [stakeCert, poolCert, dlgCert] pledgeAmt
+        preparePoolRegistration tr dir stakePub [stakeCert, poolCert, dlgCert] pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -751,14 +755,14 @@ issueDlgCert tr dir stakePub opPub = do
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
-prepareTx
+preparePoolRegistration
     :: Tracer IO ClusterLog
     -> FilePath
     -> FilePath
     -> [FilePath]
     -> Integer
     -> IO (FilePath, FilePath)
-prepareTx tr dir stakePub certs pledgeAmt = do
+preparePoolRegistration tr dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
@@ -784,6 +788,46 @@ prepareTx tr dir stakePub certs pledgeAmt = do
         , "--out-file", file
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
+    pure (file, faucetPrv)
+
+-- | Generate a raw transaction. We kill two birds one stone here by also
+-- automatically delegating 'pledge' amount to the given stake key.
+prepareKeyRegistration
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> IO (FilePath, FilePath)
+prepareKeyRegistration tr dir = do
+    let file = dir </> "tx.raw"
+
+    let stakePub = dir </> "pre-registered-stake.pub"
+    writeFile stakePub preRegisteredStakeKey
+
+    (faucetInput, faucetPrv) <- takeFaucet dir
+
+    cert <- issueStakeCert tr dir stakePub
+
+    let sinkPrv = dir </> "sink.prv"
+    let sinkPub = dir </> "sink.pub"
+    void $ cli tr
+        [ "shelley", "address", "key-gen"
+        , "--signing-key-file", sinkPrv
+        , "--verification-key-file", sinkPub
+        ]
+    addr <- cli tr
+        [ "shelley", "address", "build"
+        , "--payment-verification-key-file", sinkPub
+        , "--mainnet"
+        ]
+
+    void $ cli tr
+        [ "shelley", "transaction", "build-raw"
+        , "--tx-in", faucetInput
+        , "--tx-out", init addr <> "+" <> "1"
+        , "--ttl", "100"
+        , "--fee", show (faucetAmt - depositAmt - 1)
+        , "--certificate-file", cert
+        , "--out-file", file
+        ]
     pure (file, faucetPrv)
 
 -- | Sign a transaction with all the necessary signatures.
@@ -989,6 +1033,22 @@ operators = unsafePerformIO $ newMVar
       )
     ]
 {-# NOINLINE operators #-}
+
+-- | A public stake key associated with a mnemonic that we pre-registered for
+-- STAKE_POOLS_JOIN_05.
+--
+-- ["over", "decorate", "flock", "badge", "beauty"
+-- , "stamp", "chest", "owner", "excess", "omit"
+-- , "bid", "raccoon", "spin", "reduce", "rival"
+-- ]
+preRegisteredStakeKey
+    :: String
+preRegisteredStakeKey = unlines
+    [ "type: StakingVerificationKeyShelley"
+    , "title: Free form text"
+    , "cbor-hex:"
+    , " 18b95820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
+    ]
 
 -- | Deposit amount required for registering certificates.
 depositAmt :: Integer

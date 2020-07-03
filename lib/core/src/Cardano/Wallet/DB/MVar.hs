@@ -35,6 +35,7 @@ import Cardano.Wallet.DB.Model
     , emptyDatabase
     , mCheckWallet
     , mInitializeWallet
+    , mIsStakeKeyRegistered
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
@@ -117,6 +118,9 @@ newDBLayer = do
         , putDelegationCertificate = \pk cert sl -> ExceptT $ do
             cert `deepseq` sl `deepseq`
                 alterDB errNoSuchWallet db (mPutDelegationCertificate pk cert sl)
+
+        , isStakeKeyRegistered =
+            ExceptT . alterDB errNoSuchWallet db . mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History

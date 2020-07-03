@@ -1245,11 +1245,11 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
     (utxo, txp) <- withExceptT ErrSelectForDelegationNoSuchWallet
         $ selectCoinsSetup @ctx @s @k ctx wid
 
-    walMeta <- mapExceptT atomically
+    isKeyReg <- mapExceptT atomically
         $ withExceptT ErrSelectForDelegationNoSuchWallet
-        $ withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+        $ isStakeKeyRegistered (PrimaryKey wid)
 
-    let action = nextJoinAction pid walMeta
+    let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp action
     estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
   where
@@ -1712,13 +1712,17 @@ joinStakePool
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
 joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
-    walMeta <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
-        withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+    (isKeyReg, walMeta) <- mapExceptT atomically
+        $ withExceptT ErrJoinStakePoolNoSuchWallet
+        $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
+              <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
     withExceptT ErrJoinStakePoolCannotJoin $ except $
         guardJoin pools (walMeta ^. #delegation) pid
 
-    let action = nextJoinAction pid walMeta
+    let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
+    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+
     selection <- withExceptT ErrJoinStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
@@ -1731,6 +1735,7 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
+    tr = ctx ^. logger
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
@@ -1771,16 +1776,6 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
-
-nextJoinAction
-    :: PoolId
-    -> WalletMetadata
-    -> DelegationAction
-nextJoinAction pid meta = case (delegation meta) of
-    (WalletDelegation NotDelegating []) ->
-        RegisterKeyAndJoin pid
-    _ ->
-        Join pid
 
 
 {-------------------------------------------------------------------------------
@@ -2163,6 +2158,7 @@ data WalletLog
     | MsgTip BlockHeader
     | MsgBlocks (NonEmpty Block)
     | MsgDelegationCoinSelection CoinSelection
+    | MsgIsStakeKeyRegistered Bool
     | MsgPaymentCoinSelectionStart W.UTxO W.TxParameters (NonEmpty TxOut)
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
@@ -2191,6 +2187,11 @@ instance ToText WalletLog where
                 , " within slot "
                 , pretty slotId
                 ]
+            CertRegisterKey {} -> mconcat
+                [ "Discovered stake key registration "
+                , " within slot "
+                , pretty slotId
+                ]
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
         MsgWalletMetadata meta ->
@@ -2207,6 +2208,10 @@ instance ToText WalletLog where
             "blocks: " <> pretty (NE.toList blocks)
         MsgDelegationCoinSelection sel ->
             "Coins selected for delegation: \n" <> pretty sel
+        MsgIsStakeKeyRegistered True ->
+            "Wallet stake key is registered. Will not register it again."
+        MsgIsStakeKeyRegistered False ->
+            "Wallet stake key is not registered. Will register..."
         MsgPaymentCoinSelectionStart utxo _txp recipients ->
             "Starting coin selection " <>
             "|utxo| = "+|Map.size (getUTxO utxo)|+" " <>
@@ -2246,6 +2251,7 @@ instance HasSeverityAnnotation WalletLog where
         MsgPaymentCoinSelectionStart{} -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
+        MsgIsStakeKeyRegistered _ -> Info
         MsgRewardBalanceQuery _ -> Debug
         MsgRewardBalanceResult (Right _) -> Debug
         MsgRewardBalanceResult (Left _) -> Notice

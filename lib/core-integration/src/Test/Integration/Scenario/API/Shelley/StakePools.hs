@@ -53,6 +53,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( toText )
 import Numeric.Natural
@@ -368,6 +370,29 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NonNullReward
             ]
+
+    it "STAKE_POOLS_JOIN_05 - Can join when stake key already exists" $ \ctx -> do
+        let walletWithPreRegKey =
+                [ "over", "decorate", "flock", "badge", "beauty"
+                , "stamp" , "chest", "owner", "excess", "omit"
+                , "bid", "raccoon", "spin" , "reduce", "rival"
+                ] :: [Text]
+        let payload = Json [json| {
+                "name": "Wallet with pre-registered stake key",
+                "mnemonic_sentence": #{walletWithPreRegKey},
+                "passphrase": "Secure Passphrase"
+                } |]
+
+        (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) payload
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
+
+        eventually "wallet join a pool" $ do
+            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \

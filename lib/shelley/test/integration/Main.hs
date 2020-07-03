@@ -208,7 +208,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         let tr' = contramap MsgCluster tr
         withSystemTempDir tr' "test" $ \dir ->
             withCluster tr' minSev 3 dir $ \socketPath block0 (gp, vData) ->
-                withTempDir tr' dir "wallets" $ \db ->
+                withTempDir tr' dir "wallets" $ \db -> do
                     serveWallet @(IO Shelley)
                         (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                         tracers

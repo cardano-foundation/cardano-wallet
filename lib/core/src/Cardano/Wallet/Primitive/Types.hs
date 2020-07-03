@@ -148,6 +148,7 @@ module Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
+    , StakeKeyCertificate (..)
 
     -- * Querying
     , SortOrder (..)
@@ -1844,19 +1845,30 @@ instance NFData ChimericAccount
 data DelegationCertificate
     = CertDelegateNone ChimericAccount
     | CertDelegateFull ChimericAccount PoolId
+    | CertRegisterKey ChimericAccount
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
+
+data StakeKeyCertificate
+    = StakeKeyRegistration
+    | StakeKeyDeregistration
+    deriving (Generic, Show, Read, Eq)
+
+instance NFData StakeKeyCertificate
 
 dlgCertAccount :: DelegationCertificate -> ChimericAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
     CertDelegateFull acc _ -> acc
+    CertRegisterKey acc -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
+    CertRegisterKey _ -> Nothing
+
 
 -- | Sum-type of pool registration- and retirement- certificates. Mirrors the
 --  @PoolCert@ type in cardano-ledger-specs.
