@@ -95,6 +95,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
+    , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
@@ -191,6 +192,29 @@ spec = do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#balance . #getApiT . #reward) (.<= (Quantity 0))
                 , expectField (#balance . #getApiT . #available) (.> previousBalance)
+                ]
+
+        -- Quit delegation altogether.
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+        eventually "Certificates are inserted after quiting a pool" $ do
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 2
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 2
+                    (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
     it "STAKE_POOLS_JOIN_02 - Cannot join already joined stake pool" $ \ctx -> do
@@ -311,7 +335,7 @@ spec = do
                 [ expectField #delegation (`shouldBe` delegating pool2 [])
                 ]
 
-    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd
             <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
@@ -339,38 +363,11 @@ spec = do
                     (.> (Quantity 0))
                 ]
 
--- TODO: Check if we can enable this
---        -- Quit a pool
---        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
---            [ expectResponseCode HTTP.status202
---            , expectField (#status . #getApiT) (`shouldBe` Pending)
---            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
---            ]
---        eventually "Certificates are inserted after quiting a pool" $ do
---            let ep = Link.listTransactions @'Shelley w
---            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
---                [ expectListField 0
---                    (#direction . #getApiT) (`shouldBe` Outgoing)
---                , expectListField 0
---                    (#status . #getApiT) (`shouldBe` InLedger)
---                , expectListField 1
---                    (#direction . #getApiT) (`shouldBe` Outgoing)
---                , expectListField 1
---                    (#status . #getApiT) (`shouldBe` InLedger)
---                ]
---
---        -- Check that rewards have stopped flowing.
---        waitForNextEpoch ctx
---        waitForNextEpoch ctx
---        reward <- getFromResponse (#balance . #getApiT . #reward) <$>
---            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
---
---        waitForNextEpoch ctx
---        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
---            [ expectField
---                    (#balance . #getApiT . #reward)
---                    (`shouldBe` reward)
---            ]
+        -- Can't quite if unspoiled rewards.
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NonNullReward
+            ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
