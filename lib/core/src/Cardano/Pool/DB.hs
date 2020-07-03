@@ -14,6 +14,7 @@ module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
 
+    , CertificatePublicationTime
     , PoolRegistrationStatus (..)
     , determinePoolRegistrationStatus
     , readPoolRegistrationStatus
@@ -107,7 +108,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
     , putPoolRegistration
-        :: SlotIndex
+        :: CertificatePublicationTime
         -> PoolRegistrationCertificate
         -> stm ()
         -- ^ Add a mapping between stake pools and their corresponding
@@ -116,19 +117,21 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , readPoolRegistration
         :: PoolId
-        -> stm (Maybe (SlotIndex, PoolRegistrationCertificate))
-        -- ^ Find a registration certificate associated to a given pool
+        -> stm (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
+        -- ^ Find the /latest/ registration certificate for the given pool,
+        -- along with the point in time that the certificate was added.
 
     , putPoolRetirement
-        :: SlotIndex
+        :: CertificatePublicationTime
         -> PoolRetirementCertificate
         -> stm ()
         -- ^ Add a retirement certificate for a particular pool.
 
     , readPoolRetirement
         :: PoolId
-        -> stm (Maybe (SlotIndex, PoolRetirementCertificate))
-        -- ^ Find a retirement certificate for a particular pool.
+        -> stm (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
+        -- ^ Find the /latest/ retirement certificate for the given pool,
+        -- along with the point in time that the certificate was added.
 
     , unfetchedPoolMetadataRefs
         :: Int
@@ -184,8 +187,18 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
 
-type SlotIndex = (SlotId, SlotInternalIndex)
+-- | Represents an abstract notion of a certificate publication time.
+--
+-- Certificates published at later times take precedence over certificates
+-- published at earlier times.
+--
+type CertificatePublicationTime = (SlotId, SlotInternalIndex)
 
+-- | Indicates the current registration status of a pool.
+--
+-- Use the 'readPoolRegistrationStatus' function to query the registration
+-- status for a particular pool and database backend.
+--
 data PoolRegistrationStatus
     = PoolNotRegistered
         -- ^ Indicates that a pool is not registered.
@@ -200,9 +213,12 @@ data PoolRegistrationStatus
         -- Records the latest registration and retirement certificates.
     deriving (Eq, Show)
 
+-- | Given the latest registration and retirement certificates for a pool,
+-- determine the pool's current registration status based on the relative
+-- order in which the certificates were published.
 determinePoolRegistrationStatus
-    :: Maybe (SlotIndex, PoolRegistrationCertificate)
-    -> Maybe (SlotIndex, PoolRetirementCertificate)
+    :: Maybe (CertificatePublicationTime, PoolRegistrationCertificate)
+    -> Maybe (CertificatePublicationTime, PoolRetirementCertificate)
     -> PoolRegistrationStatus
 determinePoolRegistrationStatus = f
   where
@@ -216,6 +232,10 @@ determinePoolRegistrationStatus = f
         | otherwise =
             PoolRegisteredAndRetired regCert retCert
 
+-- | Reads the current registration status of a pool.
+--
+-- See 'PoolRegistrationStatus' for more details.
+--
 readPoolRegistrationStatus
     :: DBLayer m
     -> PoolId

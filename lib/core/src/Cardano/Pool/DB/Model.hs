@@ -53,6 +53,8 @@ module Cardano.Pool.DB.Model
 
 import Prelude
 
+import Cardano.Pool.DB
+    ( CertificatePublicationTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochNo (..)
@@ -61,7 +63,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
-    , SlotInternalIndex (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -91,8 +92,6 @@ import qualified Data.Set as Set
                             Model Database Types
 -------------------------------------------------------------------------------}
 
-type SlotIndex = (SlotId, SlotInternalIndex)
-
 data PoolDatabase = PoolDatabase
     { pools :: !(Map PoolId [BlockHeader])
     -- ^ Information of what blocks were produced by which stake pools
@@ -103,12 +102,12 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , registrations
-        :: !(Map (SlotIndex, PoolId) PoolRegistrationCertificate)
+    , registrations ::
+        !(Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain registrations associated with pools
 
-    , retirements
-        :: !(Map (SlotIndex, PoolId) PoolRetirementCertificate)
+    , retirements ::
+        !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
     -- ^ On-chain retirements associated with pools
 
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
@@ -194,7 +193,7 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     )
 
 mPutPoolRegistration
-    :: SlotIndex
+    :: CertificatePublicationTime
     -> PoolRegistrationCertificate
     -> ModelPoolOp ()
 mPutPoolRegistration sp registration db =
@@ -209,7 +208,8 @@ mPutPoolRegistration sp registration db =
 
 mReadPoolRegistration
     :: PoolId
-    -> ModelPoolOp (Maybe (SlotIndex, PoolRegistrationCertificate))
+    -> ModelPoolOp
+        (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
 mReadPoolRegistration poolId db =
     ( Right
         $ fmap (first fst)
@@ -222,7 +222,7 @@ mReadPoolRegistration poolId db =
     only k (_, k') _ = k == k'
 
 mPutPoolRetirement
-    :: SlotIndex
+    :: CertificatePublicationTime
     -> PoolRetirementCertificate
     -> ModelPoolOp ()
 mPutPoolRetirement sp retirement db =
@@ -235,7 +235,8 @@ mPutPoolRetirement sp retirement db =
 
 mReadPoolRetirement
     :: PoolId
-    -> ModelPoolOp (Maybe (SlotIndex, PoolRetirementCertificate))
+    -> ModelPoolOp
+        (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
 mReadPoolRetirement poolId db =
     ( Right
         $ fmap (first fst)
@@ -259,7 +260,8 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     , db
     )
   where
-    unfetched :: Map (SlotIndex, PoolId) PoolRegistrationCertificate
+    unfetched
+        :: Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate
     unfetched = flip Map.filter registrations $ \r ->
         case poolMetadata r of
             Nothing -> False

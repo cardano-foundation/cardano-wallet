@@ -16,7 +16,7 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( CertificatePublicationTime, DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , SlotId (..)
-    , SlotInternalIndex (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -409,12 +408,10 @@ prop_poolRegistration DBLayer {..} entries =
             ]
         assert (pools == expected)
 
-type SlotIndex = (SlotId, SlotInternalIndex)
-
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotId
-    -> [(SlotIndex, PoolRegistrationCertificate)]
+    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     monadicIO (setup >> prop)
