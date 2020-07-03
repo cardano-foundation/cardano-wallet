@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -75,8 +76,11 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
+    , getFromResponse
     , getSlotParams
     , joinStakePool
+    , json
+    , listAddresses
     , mkEpochInfo
     , notDelegating
     , quitStakePool
@@ -85,6 +89,8 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
+    , (.<=)
+    , (.>)
     , (.>)
     )
 import Test.Integration.Framework.TestData
@@ -133,6 +139,59 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
             ]
+
+    it "STAKE_POOLS_JOIN_01 - Can join a pool, earn rewards and collect them" $ \ctx -> do
+        -- Setup
+        w <- fixtureWallet ctx
+
+        -- Join Pool
+        pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool] ctx
+            (Link.listStakePools arbitraryStake) Empty
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Earn rewards
+        waitForNextEpoch ctx
+        previousBalance <- eventually "Wallet gets rewards" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            verify r
+                [ expectField (#balance . #getApiT . #reward) (.> (Quantity 0))
+                ]
+            let Quantity totalBalance =
+                    getFromResponse (#balance . #getApiT . #total) r
+            let Quantity rewardBalance =
+                    getFromResponse (#balance . #getApiT . #reward) r
+            pure $ Quantity (totalBalance - rewardBalance)
+
+        -- Use rewards
+        addrs <- listAddresses @n ctx w
+        let coin = 1 :: Natural
+        let addr = (addrs !! 1) ^. #id
+        let payload = [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        request @(ApiTransaction n) ctx (Link.createTransaction @'Shelley w) Default (Json payload) >>= flip verify
+            [ expectField #amount (.> (Quantity coin))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Rewards are have been consumed.
+        eventually "Wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                [ expectField (#balance . #getApiT . #reward) (.<= (Quantity 0))
+                , expectField (#balance . #getApiT . #available) (.> previousBalance)
+                ]
 
     it "STAKE_POOLS_JOIN_02 - Cannot join already joined stake pool" $ \ctx -> do
         w <- fixtureWallet ctx
@@ -251,32 +310,6 @@ spec = do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` delegating pool2 [])
                 ]
-
-        -- TODO: This requires us to first be able to empty a reward account as
-        -- part of the quitting process. This can be tackled after we're done
-        -- with ADP-287.
-        --
-        -- --quiting
-        -- quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-        --     [ expectResponseCode HTTP.status202
-        --     , expectField (#status . #getApiT) (`shouldBe` Pending)
-        --     , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-        --     ]
-
-        -- -- Wait for the certificate to be inserted
-        -- eventually "Certificates are inserted" $ do
-        --     let ep = Link.listTransactions @'Shelley w
-        --     request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-        --         [ expectListField 2
-        --             (#direction . #getApiT) (`shouldBe` Outgoing)
-        --         , expectListField 2
-        --             (#status . #getApiT) (`shouldBe` InLedger)
-        --         ]
-
-        -- eventually "Wallet is not delegating" $ do
-        --     request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-        --         [ expectField #delegation (`shouldBe` notDelegating [])
-        --         ]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \ctx -> do
         w <- fixtureWallet ctx

@@ -362,16 +362,10 @@ computeTxSize action cs =
             , CS.change  = []
             }
 
-        withdrawals = mkWithdrawals
-            (ChimericAccount dummyKeyHashRaw)
-            (withdrawal cs)
-
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
 
         dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ dummyKeyHashRaw
-
-        dummyKeyHashRaw = BS.pack (replicate 28 0)
 
         certs = case action of
             Nothing -> []
@@ -386,8 +380,16 @@ computeTxSize action cs =
                 [ Cardano.shelleyDeregisterStakingAddress dummyKeyHash
                 ]
 
+    dummyKeyHashRaw = BS.pack (replicate 28 0)
+
+    withdrawals = mkWithdrawals
+        (ChimericAccount dummyKeyHashRaw)
+        (withdrawal cs)
+
     (addrWits, certWits) =
-        ( Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs)
+        ( Set.union
+            (Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs))
+            (if Map.null withdrawals then Set.empty else Set.singleton (dummyWitness "0"))
         , case action of
             Nothing -> Set.empty
             Just{}  -> Set.singleton (dummyWitness "a")
