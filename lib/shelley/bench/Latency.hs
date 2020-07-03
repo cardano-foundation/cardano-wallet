@@ -32,6 +32,7 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
     , ApiNetworkInformation
+    , ApiStakePool
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -46,7 +47,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncTolerance (..) )
+    ( Coin (..), SyncTolerance (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -292,11 +293,20 @@ walletApiBench capture benchWithServer = do
             (Link.getTransactionFee @'Shelley wal1) Default payload
         fmtResult "postTransactionFee " t6
 
-        t7 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
+        t7 <- measureApiLogs capture $ request @[ApiStakePool] ctx
+            (Link.listStakePools arbitraryStake) Default Empty
+
+        fmtResult "listStakePools     " t7
+
+        t8 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
-        fmtResult "getNetworkInfo     " t7
+        fmtResult "getNetworkInfo     " t8
 
         pure ()
+     where
+       arbitraryStake :: Maybe Coin
+       arbitraryStake = Just $ ada 10000
+         where ada = Coin . (1000*1000*)
 
     runWarmUpScenario = benchWithServer $ \ctx -> do
         -- this one is to have comparable results from first to last measurement
