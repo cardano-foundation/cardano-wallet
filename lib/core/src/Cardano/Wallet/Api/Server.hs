@@ -1903,13 +1903,6 @@ instance LiftHandler ErrMkTx where
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
                 ]
-        ErrChangeIsEmptyForRetirement ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "That's embarassing. I need to one change output to give you "
-                , "back you key registration deposit but it seems that I've "
-                , "generated a coin selection that has none! Since the coin "
-                , "selection algorithm has randomness, retrying may work."
-                ]
 
 instance LiftHandler ErrSignPayment where
     handler = \case

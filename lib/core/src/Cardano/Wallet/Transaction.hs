@@ -162,12 +162,7 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-data ErrMkTx
+newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrChangeIsEmptyForRetirement
-    -- ^ When retiring on Shelley, we need to add a deposit amount made when
-    -- creating a stake key. This requires at least one change output, which
-    -- ought to be present anyway by construction of the coin selection when
-    -- quitting delegation.
     deriving (Eq, Show)
