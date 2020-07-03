@@ -609,8 +609,7 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        Handler $ ExceptT $ Right <$>
-        W.fetchRewardBalance @_ @s @k wrk wid
+        liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -1041,7 +1040,7 @@ selectCoins ctx gen (ApiT wid) body =
     fmap mkApiCoinSelection
     $ withWorkerCtx ctx wid liftE liftE
     $ \wrk -> do
-        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
         let outs = coerceCoin <$> body ^. #payments
         liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
 
@@ -1129,7 +1128,7 @@ postTransaction ctx genChange (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
         liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1216,7 +1215,7 @@ postTransactionFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
         pure $ apiFee fee
 

@@ -77,6 +77,7 @@ module Cardano.Wallet
     , manageRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
+    , readNextWithdrawal
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -874,6 +875,48 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
   where
     pk = PrimaryKey wid
     db = ctx ^. dbLayer @s @k
+
+-- | Read the current withdrawal capacity of a wallet. Note that, this simply
+-- returns 0 if:
+--
+-- a) There's no reward account for this type of wallet.
+-- b) The current reward value is too small to be considered (adding it would
+-- cost more than its value).
+readNextWithdrawal
+    :: forall ctx s t k.
+        ( HasDBLayer s k ctx
+        , HasTransactionLayer t k ctx
+        )
+    => ctx
+    -> WalletId
+    -> IO (Quantity "lovelace" Word64)
+readNextWithdrawal ctx wid = db & \DBLayer{..} -> do
+    (pp, withdrawal) <- atomically $ (,)
+        <$> readProtocolParameters pk
+        <*> fmap getQuantity (readDelegationRewardBalance pk)
+    case pp of
+        -- May happen if done very early, in which case, rewards are probably
+        -- not woth considering anyway.
+        Nothing -> pure (Quantity 0)
+
+        Just ProtocolParameters{txParameters} -> do
+            let policy = W.getFeePolicy txParameters
+
+            let costOfWithdrawal =
+                    minFee policy (mempty { withdrawal })
+                    -
+                    minFee policy mempty
+
+            pure $ if toInteger withdrawal < 2 * costOfWithdrawal
+                then Quantity 0
+                else Quantity withdrawal
+  where
+    db = ctx ^. dbLayer @s @k
+    tl = ctx ^. transactionLayer @t @k
+    pk = PrimaryKey wid
+
+    minFee :: FeePolicy -> CoinSelection -> Integer
+    minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
 
 -- | Query the node for the reward balance of a given wallet.
 --
