@@ -1,4 +1,5 @@
-resolver: snapshot.yaml
+resolver: cardano-1.14.x.yaml
+
 packages:
 - lib/core
 - lib/core-integration
