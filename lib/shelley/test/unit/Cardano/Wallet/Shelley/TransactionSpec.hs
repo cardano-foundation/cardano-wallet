@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -34,7 +35,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelectionOptions )
+    ( CoinSelection (withdrawal), CoinSelectionOptions )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
@@ -48,7 +49,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( toSealed )
+    ( Shelley, toSealed )
 import Cardano.Wallet.Shelley.Transaction
     ( mkUnsignedTx
     , mkWitness
@@ -56,12 +57,14 @@ import Cardano.Wallet.Shelley.Transaction
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer (..) )
 import Control.Monad
     ( replicateM )
 import Control.Monad.Trans.Except
     ( catchE, runExceptT, withExceptT )
 import Data.Function
-    ( on )
+    ( on, (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -80,6 +83,9 @@ import Test.QuickCheck
     , Property
     , arbitraryPrintableChar
     , choose
+    , classify
+    , counterexample
+    , property
     , scale
     , vectorOf
     , withMaxSuccess
@@ -120,6 +126,26 @@ spec = do
         prop "less outputs ==> more inputs" prop_lessOutputsMeansMoreInputs
         prop "bigger size  ==> more inputs" prop_biggerMaxSizeMeansMoreInputs
 
+    describe "cost of withdrawal" $ do
+        it "one can measure the cost of withdrawal" $ property $ \withdrawal ->
+            let
+                policy :: FeePolicy
+                policy = LinearFee (Quantity 100000) (Quantity 100) (Quantity 0)
+
+                minFee :: CoinSelection -> Integer
+                minFee = fromIntegral . getFee . minimumFee tl policy Nothing
+                  where tl = testTxLayer
+
+                costOfWithdrawal :: Integer
+                costOfWithdrawal =
+                    minFee (mempty { withdrawal }) - minFee mempty
+            in
+                (if withdrawal == 0
+                    then property $ costOfWithdrawal == 0
+                    else property $ costOfWithdrawal > 0
+                ) & classify (withdrawal == 0) "null withdrawal"
+                & counterexample ("cost of withdrawal: " <> show costOfWithdrawal)
+
     it "regression #1740 - fee estimation at the boundaries" $ do
         let utxo = UTxO $ Map.fromList
                 [ ( TxIn dummyTxId 0
@@ -145,7 +171,7 @@ prop_decodeSignedTxRoundtrip
 prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let unsigned = mkUnsignedTx slotNo cs []
+    let unsigned = mkUnsignedTx slotNo cs mempty []
     let addrWits = Set.fromList $ map (mkWitness unsigned) pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet addrWits mempty mempty
@@ -189,19 +215,18 @@ prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts = withMaxSuccess 1000 $
         _estimateMaxNumberOfInputs (Quantity (size * 2)) nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
-testCoinSelOpts = coinSelOpts tl (Quantity 4096)
-  where
-    pm        = ProtocolMagic 1
-    epLength  = EpochLength 42 -- irrelevant here
-    tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
+testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts tl Nothing feePolicy
+testFeeOpts = feeOpts testTxLayer Nothing feePolicy
+  where
+    feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
+
+testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
+testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
   where
     pm        = ProtocolMagic 1
     epLength  = EpochLength 42 -- irrelevant here
-    tl        = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
-    feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
 data DecodeSetup = DecodeSetup
     { inputs :: UTxO

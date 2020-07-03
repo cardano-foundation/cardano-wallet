@@ -42,7 +42,14 @@ import Cardano.Crypto.DSIGN
 import Cardano.Crypto.DSIGN.Ed25519
     ( VerKeyDSIGN (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), NetworkDiscriminant (..), Passphrase, WalletKey (..) )
+    ( ChimericAccount (..)
+    , Depth (..)
+    , NetworkDiscriminant (..)
+    , Passphrase
+    , WalletKey (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( toChimericAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
@@ -96,7 +103,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16, Word8 )
+    ( Word16, Word64, Word8 )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
@@ -114,10 +121,12 @@ import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
+import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
@@ -156,20 +165,27 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx rewardAcnt keyFrom slot cs = do
+    _mkStdTx (rewardAcnt, pwdAcnt) keyFrom slot cs = do
         let timeToLive = defaultTTL epochLength slot
-        let withdrawals = mempty -- TODO
+        let withdrawals = mkWithdrawals
+                (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
+                (withdrawal cs)
+
         let unsigned = mkUnsignedTx timeToLive cs withdrawals []
 
         addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
 
-        withdrawalsWits <- pure mempty
+        let withdrawalsWits
+                | Map.null withdrawals = Set.empty
+                | otherwise = Set.singleton $
+                    mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+
+        let wits = SL.WitnessSet (Set.union addrWits withdrawalsWits) mempty mempty
 
         let metadata = SL.SNothing
 
-        let wits = SL.WitnessSet addrWits withdrawalsWits mempty
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _initDelegationSelection
@@ -346,13 +362,16 @@ computeTxSize action cs =
             , CS.change  = []
             }
 
-        withdrawals :: Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
-        withdrawals = mempty
+        withdrawals = mkWithdrawals
+            (ChimericAccount dummyKeyHashRaw)
+            (withdrawal cs)
 
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
 
-        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (replicate 28 0)
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ dummyKeyHashRaw
+
+        dummyKeyHashRaw = BS.pack (replicate 28 0)
 
         certs = case action of
             Nothing -> []
@@ -422,6 +441,21 @@ mkUnsignedTx ttl cs withdrawals certs =
             Nothing -- Metadata hash
     in
         unsigned
+
+mkWithdrawals
+    :: ChimericAccount
+    -> Word64
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
+mkWithdrawals (ChimericAccount keyHash) amount
+    | amount == 0 = mempty
+    | otherwise = Map.fromList
+        [ ( SL.RewardAcnt SL.Mainnet keyHashObj
+          , SL.Coin $ fromIntegral amount
+          )
+        ]
+  where
+    keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
+
 
 -- TODO: The SlotId-SlotNo conversion based on epoch length would not
 -- work if the epoch length changed in a hard fork.
