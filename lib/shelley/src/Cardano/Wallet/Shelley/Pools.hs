@@ -188,8 +188,8 @@ data PoolLsqData = PoolLsqData
 
 -- | Stake pool-related data that has been read from the database.
 data PoolDbData = PoolDbData
-    { regCert :: PoolRegistrationCertificate
-    , retCert :: Maybe PoolRetirementCertificate
+    { registrationCert :: PoolRegistrationCertificate
+    , retirementCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
     , metadata :: Maybe StakePoolMetadata
     }
@@ -229,14 +229,19 @@ combineDbAndLsqData sp =
             , Api.producedBlocks = maybe (Quantity 0)
                     (fmap fromIntegral . nProducedBlocks) dbData
             }
-        , Api.metadata = dbData >>= metadata >>= (return . ApiT)
-        , Api.cost = fmap fromIntegral . poolCost . regCert <$> dbData
-        , Api.pledge = fmap fromIntegral . poolPledge . regCert <$> dbData
-        , Api.margin = Quantity . poolMargin . regCert <$> dbData
+        , Api.metadata =
+            dbData >>= metadata >>= (return . ApiT)
+        , Api.cost =
+            fmap fromIntegral . poolCost . registrationCert <$> dbData
+        , Api.pledge =
+            fmap fromIntegral . poolPledge . registrationCert <$> dbData
+        , Api.margin =
+            Quantity . poolMargin . registrationCert <$> dbData
           -- TODO: Report the actual retirement status of a pool.
           -- For the moment, we always report that a pool will never retire.
           -- See https://github.com/input-output-hk/cardano-wallet/milestone/89
-        , Api.retirement = toApiEpochInfo . retiredIn <$> (retCert =<< dbData)
+        , Api.retirement =
+            toApiEpochInfo . retiredIn <$> (retirementCert =<< dbData)
         }
 
     toApiEpochInfo ep =
