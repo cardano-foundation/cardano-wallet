@@ -50,6 +50,7 @@ module Cardano.Wallet.DB.Model
     , mPutWalletMeta
     , mReadWalletMeta
     , mPutDelegationCertificate
+    , mIsStakeKeyRegistered
     , mPutTxHistory
     , mReadTxHistory
     , mRemovePendingTx
@@ -78,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotId (..)
     , SortOrder (..)
+    , StakeKeyCertificate (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
@@ -139,6 +141,7 @@ deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 data WalletDatabase s xprv = WalletDatabase
     { checkpoints :: !(Map SlotId (Wallet s))
     , certificates :: !(Map SlotId (Maybe PoolId))
+    , stakeKeys :: !(Map SlotId StakeKeyCertificate)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
@@ -202,6 +205,7 @@ mInitializeWallet wid cp meta txs0 pp db@Database{wallets,txs}
         let
             wal = WalletDatabase
                 { checkpoints = Map.singleton (tip cp) cp
+                , stakeKeys = mempty
                 , certificates = mempty
                 , metadata = meta
                 , txHistory = history
@@ -353,11 +357,25 @@ mPutDelegationCertificate
     -> DelegationCertificate
     -> SlotId
     -> ModelOp wid s xprv ()
-mPutDelegationCertificate wid cert slot = alterModel wid $ \wal ->
-    ( ()
+mPutDelegationCertificate wid cert slot = alterModel wid
+    $ \wal@WalletDatabase{certificates,stakeKeys} ->
+        ( ()
+        , wal
+            { certificates = Map.insert slot (dlgCertPoolId cert) certificates
+            , stakeKeys = case cert of
+                CertDelegateNone{} -> Map.insert slot StakeKeyDeregistration stakeKeys
+                CertDelegateFull{} -> stakeKeys
+                CertRegisterKey{}  -> Map.insert slot StakeKeyRegistration stakeKeys
+            }
+        )
+
+mIsStakeKeyRegistered
+    :: Ord wid
+    => wid
+    -> ModelOp wid s xprv Bool
+mIsStakeKeyRegistered wid = alterModel wid $ \wal@WalletDatabase{stakeKeys} ->
+    ( maybe False ((== StakeKeyRegistration) . snd) (Map.lookupMax stakeKeys)
     , wal
-        { certificates = Map.insert slot (dlgCertPoolId cert) (certificates wal)
-        }
     )
 
 mPutTxHistory

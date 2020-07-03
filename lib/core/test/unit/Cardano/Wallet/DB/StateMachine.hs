@@ -71,6 +71,7 @@ import Cardano.Wallet.DB.Model
     , emptyDatabase
     , mCleanDB
     , mInitializeWallet
+    , mIsStakeKeyRegistered
     , mListCheckpoints
     , mListWallets
     , mPutCheckpoint
@@ -124,6 +125,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
+    , StakeKeyCertificate
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -298,6 +300,7 @@ data Cmd s wid
     | RollbackTo wid SlotId
     | RemovePendingTx wid (Hash "Tx")
     | PutDelegationCertificate wid DelegationCertificate SlotId
+    | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid (Quantity "lovelace" Word64)
     | ReadDelegationRewardBalance wid
     deriving (Show, Functor, Foldable, Traversable)
@@ -314,6 +317,7 @@ data Success s wid
     | BlockHeaders [BlockHeader]
     | Point SlotId
     | DelegationRewardBalance (Quantity "lovelace" Word64)
+    | StakeKeyStatus Bool
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
@@ -357,6 +361,8 @@ runMock = \case
         first (Resp . fmap Metadata) . mReadWalletMeta wid
     PutDelegationCertificate wid cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate wid cert sl
+    IsStakeKeyRegistered wid ->
+        first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered wid
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
     ReadTxHistory wid order range status ->
@@ -419,6 +425,8 @@ runIO db@DBLayer{..} = fmap Resp . go
             atomically (readWalletMeta $ PrimaryKey wid)
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putDelegationCertificate (PrimaryKey wid) pool sl
+        IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
+            mapExceptT atomically $ isStakeKeyRegistered (PrimaryKey wid)
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
         ReadTxHistory wid order range status -> Right . TxHistory <$>
@@ -572,6 +580,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
         , (5, ReadWalletMeta <$> genId')
         , (5, PutDelegationCertificate <$> genId' <*> arbitrary <*> arbitrary)
+        , (1, IsStakeKeyRegistered <$> genId')
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
         , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange <*> arbitrary)
         , (4, RemovePendingTx <$> genId' <*> arbitrary)
@@ -701,6 +710,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At PutWalletMeta{}) = "PutWalletMeta"
     cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
     cmdName (At PutDelegationCertificate{}) = "PutDelegationCertificate"
+    cmdName (At IsStakeKeyRegistered{}) = "IsStakeKeyRegistered"
     cmdName (At PutTxHistory{}) = "PutTxHistory"
     cmdName (At ReadTxHistory{}) = "ReadTxHistory"
     cmdName (At PutPrivateKey{}) = "PutPrivateKey"
@@ -715,7 +725,8 @@ instance CommandNames (At (Cmd s)) where
         [ "CleanDB"
         , "CreateWallet", "RemoveWallet", "ListWallets"
         , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
-        , "PutWalletMeta", "ReadWalletMeta", "PutDelegationCertificate"
+        , "PutWalletMeta", "ReadWalletMeta"
+        , "PutDelegationCertificate", "IsStakeKeyRegistered"
         , "PutTxHistory", "ReadTxHistory", "RemovePendingTx"
         , "PutPrivateKey", "ReadPrivateKey"
         , "PutProtocolParameters", "ReadProtocolParameters"
@@ -842,6 +853,9 @@ instance ToExpr Direction where
 
 instance ToExpr MWid where
     toExpr = defaultExprViaShow
+
+instance ToExpr StakeKeyCertificate where
+    toExpr = genericToExpr
 
 {-------------------------------------------------------------------------------
   Tagging
