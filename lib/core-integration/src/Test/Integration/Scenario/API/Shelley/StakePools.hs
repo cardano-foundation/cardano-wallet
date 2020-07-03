@@ -563,7 +563,9 @@ spec = do
             eventually "eventually shows non-zero rewards" $ do
                 Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx
                 let rewards = view (#metrics . #nonMyopicMemberRewards)
-                pools `shouldBe` sortOn (Down . rewards) pools
+                print (rewards <$> pools) -- FIXME temporary
+                (rewards <$> pools) `shouldBe`
+                    (rewards <$> sortOn (Down . rewards) pools)
                 -- Make sure the rewards are not all equal:
                 rewards pool1 .> rewards pool3
 
@@ -588,7 +590,7 @@ spec = do
             ]
   where
     arbitraryStake :: Maybe Coin
-    arbitraryStake = Just $ ada 10000
+    arbitraryStake = Just $ ada 10000000000
       where ada = Coin . (1000*1000*)
 
     dummyPool :: PoolId
