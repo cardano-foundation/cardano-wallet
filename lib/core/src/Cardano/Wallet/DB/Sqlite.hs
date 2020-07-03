@@ -626,14 +626,15 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                             (StakeKeyCertificate wid sl True)
 
         , readIsStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
-            val <- fmap entityVal <$> selectFirst
-                    [StakeKeyCertWalletId ==. wid]
-                    [Desc StakeKeyCertSlot]
-
-            return $ case val of
-                Nothing -> Left $ ErrNoSuchWallet wid
-                Just (StakeKeyCertificate _ _ isReg) -> Right isReg
-
+              selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just{} -> do
+                    val <- fmap entityVal <$> selectFirst
+                        [StakeKeyCertWalletId ==. wid]
+                        [Desc StakeKeyCertSlot]
+                    return $ case val of
+                        Nothing -> Right False
+                        Just (StakeKeyCertificate _ _ isReg) -> Right isReg
 
         {-----------------------------------------------------------------------
                                      Tx History
