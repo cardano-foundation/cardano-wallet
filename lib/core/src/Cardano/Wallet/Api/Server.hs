@@ -607,15 +607,15 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+    Quantity reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+        liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending cp
-            , reward = Quantity $ fromIntegral $ getQuantity reward
+            { available = Quantity $ reward + availableBalance pending cp
+            , total = Quantity $ reward + totalBalance pending cp
+            , reward = Quantity reward
             }
         , delegation = toApiWalletDelegation (meta ^. #delegation)
         , id = ApiT wid
