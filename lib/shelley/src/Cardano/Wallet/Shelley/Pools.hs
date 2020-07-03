@@ -353,20 +353,31 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         -> IO (FollowAction ())
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
-            let (slot, registrations) = fromShelleyBlock' getEpochLength blk
+            let (slot, certificates) = fromShelleyBlock' getEpochLength blk
             runExceptT (putPoolProduction (getHeader blk) (getProducer blk))
                 >>= \case
                     Left e ->
                         liftIO $ traceWith tr $ MsgErrProduction e
                     Right () ->
                         pure ()
-            forM_ registrations $ \case
-                Registration cert -> do
+
+            -- A Shelley block can contain multiple certificates relating to
+            -- the same pool.
+            --
+            -- The order in which certificates appear within a block determines
+            -- their precedence relative to one another.
+            --
+            -- Certificates that appear later in a block have higher precedence
+            -- than certificates that appear earlier.
+            --
+            let certificateIndices = [minBound ..]
+            forM_ (certificateIndices `zip` certificates) $ \case
+                (slotInternalIndex, Registration cert) -> do
                     liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                    putPoolRegistration (slot, minBound) cert
-                Retirement cert -> do
+                    putPoolRegistration (slot, slotInternalIndex) cert
+                (slotInternalIndex, Retirement cert) -> do
                     liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                    putPoolRetirement (slot, minBound) cert
+                    putPoolRetirement (slot, slotInternalIndex) cert
         pure Continue
 
 monitorMetadata
