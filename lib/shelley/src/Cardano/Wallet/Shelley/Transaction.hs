@@ -29,6 +29,9 @@ module Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkWitness
+    , mkTx
+    , TxPayload (..)
+    , emptyTxPayload
     ) where
 
 import Prelude
@@ -137,7 +140,7 @@ import qualified Shelley.Spec.Ledger.UTxO as SL
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
--- Designed to allow us to have /one/ @_mkTx@ which doesn't care whether we
+-- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
 -- include certificates or not.
 data TxPayload c = TxPayload
     { _certificates :: [Cardano.Certificate]
@@ -145,10 +148,46 @@ data TxPayload c = TxPayload
 
     , _extraWitnesses :: SL.TxBody c -> SL.WitnessSet c
       -- ^ Create payload-specific witesses given the unsigned transaction body.
+      --
+      -- Caller has the freedom and responsibility to provide the correct
+      -- witnesses for what they're trying to do.
     }
 
 emptyTxPayload :: Crypto c => TxPayload c
 emptyTxPayload = TxPayload mempty mempty
+
+mkTx
+    :: WalletKey k
+    => TxPayload TPraosStandardCrypto
+    -> SlotNo
+    -- ^ Time to Live
+    -> (k 'AddressK XPrv, Passphrase "encryption")
+    -- ^ Reward account
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -> CoinSelection
+    -> Either ErrMkTx (Tx, SealedTx)
+mkTx (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
+    let withdrawals = mkWithdrawals
+            (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
+            (withdrawal cs)
+
+    let unsigned = mkUnsignedTx timeToLive cs withdrawals certs
+
+    addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+        (k, pwd) <- lookupPrivateKey keyFrom addr
+        pure $ mkWitness unsigned (getRawKey k, pwd)
+
+    let withdrawalsWits
+            | Map.null withdrawals = Set.empty
+            | otherwise = Set.singleton $
+                mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+
+    let wits = (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
+            <> mkExtraWits unsigned
+
+    let metadata = SL.SNothing
+
+    pure $ toSealed $ SL.Tx unsigned wits metadata
 
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
@@ -160,7 +199,7 @@ newTransactionLayer
     -> EpochLength
     -> TransactionLayer t k
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
-    { mkStdTx = _mkTx emptyTxPayload
+    { mkStdTx = \acc ks tip -> mkTx emptyTxPayload (defaultTTL epochLength tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -171,37 +210,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     , allowUnbalancedTx = True
     }
   where
-    _mkTx
-        :: TxPayload TPraosStandardCrypto
-        -> (k 'AddressK XPrv, Passphrase "encryption")
-           -- ^ Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId -- ^ The current slot
-        -> CoinSelection
-        -> Either ErrMkTx (Tx, SealedTx)
-    _mkTx (TxPayload certs mkExtraWits) (rewardAcnt, pwdAcnt) keyFrom slot cs = do
-        let timeToLive = defaultTTL epochLength slot
-        let withdrawals = mkWithdrawals
-                (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
-                (withdrawal cs)
-
-        let unsigned = mkUnsignedTx timeToLive cs withdrawals certs
-
-        addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
-            (k, pwd) <- lookupPrivateKey keyFrom addr
-            pure $ mkWitness unsigned (getRawKey k, pwd)
-
-        let withdrawalsWits
-                | Map.null withdrawals = Set.empty
-                | otherwise = Set.singleton $
-                    mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
-
-        let wits = (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
-                <> mkExtraWits unsigned
-
-        let metadata = SL.SNothing
-
-        pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _initDelegationSelection
         :: FeePolicy
@@ -229,7 +237,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- ^ A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom slot cs = do
+    _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom tip cs = do
         let accXPub = toXPub $ getRawKey accXPrv
         let certs =
                 if deposit cs > 0 then
@@ -245,7 +253,8 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                 mempty
 
         let payload = TxPayload certs mkWits
-        _mkTx payload acc keyFrom slot cs
+        let ttl = defaultTTL epochLength tip
+        mkTx payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption")
@@ -258,7 +267,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationQuitTx acc@(accXPrv, pwd') keyFrom slot cs = do
+    _mkDelegationQuitTx acc@(accXPrv, pwd') keyFrom tip cs = do
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
         let mkWits unsigned = SL.WitnessSet
@@ -267,7 +276,8 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                 mempty
 
         let payload = TxPayload certs mkWits
-        _mkTx payload acc keyFrom slot cs
+        let ttl = defaultTTL epochLength tip
+        mkTx payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
     :: Quantity "byte" Word16
