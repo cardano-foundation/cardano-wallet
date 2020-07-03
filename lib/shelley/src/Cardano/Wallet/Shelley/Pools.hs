@@ -32,7 +32,11 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , PoolRegistrationStatus (..)
+    , readPoolRegistrationStatus
+    )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -55,9 +59,12 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotId
     , SlotLength (..)
+    , SlotParameters
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , epochStartTime
+    , slotParams
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -159,7 +166,7 @@ newStakePoolLayer gp nl db = StakePoolLayer
               . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
               . map snd
               . Map.toList
-              $ combineDbAndLsqData lsqData chainData
+              $ combineDbAndLsqData (slotParams gp) lsqData chainData
 
     -- Note: We shouldn't have to do this conversion.
     el = getEpochLength gp
@@ -182,16 +189,18 @@ data PoolLsqMetrics = PoolLsqMetrics
 -- | Stake Pool data fields that we read from the DB.
 data PoolDBMetrics = PoolDBMetrics
     { regCert :: PoolRegistrationCertificate
+    , retCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
     , metadata :: Maybe StakePoolMetadata
     }
 
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
-    :: Map PoolId PoolLsqMetrics
+    :: SlotParameters
+    -> Map PoolId PoolLsqMetrics
     -> Map PoolId PoolDBMetrics
     -> Map PoolId Api.ApiStakePool
-combineDbAndLsqData =
+combineDbAndLsqData sp =
     Map.merge lsqButNoChain chainButNoLsq bothPresent
   where
     lsqButNoChain = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
@@ -227,8 +236,11 @@ combineDbAndLsqData =
           -- TODO: Report the actual retirement status of a pool.
           -- For the moment, we always report that a pool will never retire.
           -- See https://github.com/input-output-hk/cardano-wallet/milestone/89
-        , Api.retirement = Nothing
+        , Api.retirement = toApiEpochInfo . retiredIn <$> (retCert =<< dbData)
         }
+
+    toApiEpochInfo ep =
+        Api.ApiEpochInfo (ApiT ep) (epochStartTime sp ep)
 
 -- | Combines all the LSQ data into a single map.
 --
@@ -272,10 +284,12 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
 -- | Combines all the chain-following data into a single map
 -- (doesn't include metadata)
 combineChainData
-    :: Map PoolId PoolRegistrationCertificate
+    :: Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId
-        (PoolRegistrationCertificate, Quantity "block" Word64)
+        ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+        , Quantity "block" Word64
+        )
 combineChainData =
     Map.merge registeredNoProductions notRegisteredButProducing bothPresent
   where
@@ -293,25 +307,41 @@ combineChainData =
 readDBPoolData
     :: DBLayer IO
     -> IO (Map PoolId PoolDBMetrics)
-readDBPoolData DBLayer{..} = atomically $ do
+readDBPoolData db@DBLayer{..} = atomically $ do
     pools <- listRegisteredPools
-    registrations <- fmap (fmap snd) <$> mapM readPoolRegistration pools
+    registrationStatuses <- mapM (liftIO . readPoolRegistrationStatus db) pools
     let certMap = Map.fromList
-            [(poolId, cert) | (poolId, Just cert) <- zip pools registrations]
+            [ (poolId, certs)
+            | (poolId, Just certs) <- zip pools
+                (certificatesFromRegistrationStatus <$> registrationStatuses)
+            ]
     prodMap <- readTotalProduction
     metaMap <- readPoolMetadata
     return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
   where
+    certificatesFromRegistrationStatus
+        :: PoolRegistrationStatus
+        -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+    certificatesFromRegistrationStatus = \case
+        PoolNotRegistered ->
+            Nothing
+        PoolRegistered regCert ->
+            Just (regCert, Nothing)
+        PoolRegisteredAndRetired regCert retCert ->
+            Just (regCert, Just retCert)
+
     lookupMetaIn
         :: Map StakePoolMetadataHash StakePoolMetadata
-        -> (PoolRegistrationCertificate, Quantity "block" Word64)
+        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+            , Quantity "block" Word64
+            )
         -> PoolDBMetrics
-    lookupMetaIn m (cert, n) =
+    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
         let
-            metaHash = snd <$> poolMetadata cert
+            metaHash = snd <$> poolMetadata registrationCert
             meta = flip Map.lookup m =<< metaHash
         in
-            PoolDBMetrics cert n meta
+            PoolDBMetrics registrationCert mRetirementCert n meta
 
 --
 -- Monitoring stake pool
