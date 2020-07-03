@@ -55,6 +55,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
+    , errMsg403NonNullReward
     , errMsg403NothingToMigrate
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
@@ -368,6 +369,10 @@ errMsg403NotDelegating :: String
 errMsg403NotDelegating = "It seems that you're trying to retire from \
     \delegation although you're not even delegating, nor won't be in an \
     \immediate future."
+
+errMsg403NonNullReward :: String
+errMsg403NonNullReward = "It seems that you're trying to retire from delegation \
+    \although you've unspoiled rewards in your rewards account!"
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "

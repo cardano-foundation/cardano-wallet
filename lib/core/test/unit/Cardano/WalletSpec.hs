@@ -138,7 +138,7 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
@@ -262,22 +262,22 @@ spec = do
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [not_delegating]" $ do
             let next1 = next (EpochNo 1) NotDelegating
             let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
-            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [B, not_delegating]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            W.guardQuit dlg `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Can quit when active: not_delegating, next = [A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = NotDelegating, next = [next1]}
-            W.guardQuit dlg `shouldBe` Right ()
+            W.guardQuit dlg (Quantity 0) `shouldBe` Right ()
      where
          pidA = PoolId "A"
          pidB = PoolId "B"
@@ -298,22 +298,29 @@ prop_guardJoinQuit
     -> Property
 prop_guardJoinQuit knownPools dlg pid =
     case W.guardJoin knownPools dlg pid of
-        Right () -> label "I can join" $ property True
-        Left W.ErrNoSuchPool{}  -> label "ErrNoSuchPool" $ property True
+        Right () ->
+            label "I can join" $ property True
+        Left W.ErrNoSuchPool{}  ->
+            label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
-            label "ErrAlreadyDelegating" (W.guardQuit dlg === Right ())
+            label "ErrAlreadyDelegating"
+                (W.guardQuit dlg (Quantity 0) === Right ())
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId
     -> WalletDelegation
+    -> Word64
     -> Property
-prop_guardQuitJoin (NonEmpty knownPools) dlg =
-    case W.guardQuit dlg of
+prop_guardQuitJoin (NonEmpty knownPools) dlg rewards =
+    case W.guardQuit dlg (Quantity rewards) of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
             label "ErrNotDelegatingOrAboutTo"
                 (W.guardJoin knownPools dlg (last knownPools) === Right ())
+        Left W.ErrNonNullRewards{} ->
+            label "ErrNonNullRewards"
+                (property $ rewards /= 0)
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)

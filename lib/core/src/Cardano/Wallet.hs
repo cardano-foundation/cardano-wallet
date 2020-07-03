@@ -1753,8 +1753,9 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
+    rewards <- liftIO $ fetchRewardBalance @ctx @s @k ctx wid
     withExceptT ErrQuitStakePoolCannotQuit $ except $
-        guardQuit (walMeta ^. #delegation)
+        guardQuit (walMeta ^. #delegation) rewards
 
     let action = Quit
 
@@ -2078,6 +2079,7 @@ data ErrCannotJoin
 
 data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
+    | ErrNonNullRewards (Quantity "lovelace" Word64)
     deriving (Generic, Eq, Show)
 
 -- | Can't perform given operation because the wallet died.
@@ -2131,11 +2133,16 @@ guardJoin knownPools WalletDelegation{active,next} pid = do
 
 guardQuit
     :: WalletDelegation
+    -> Quantity "lovelace" Word64
     -> Either ErrCannotQuit ()
-guardQuit WalletDelegation{active,next} = do
+guardQuit WalletDelegation{active,next} rewards = do
     let last_ = maybe active (view #status) $ lastMay next
+
     unless (isDelegatingTo anyone last_) $
         Left ErrNotDelegatingOrAboutTo
+
+    unless (rewards == Quantity 0) $
+        Left $ ErrNonNullRewards rewards
   where
     anyone = const True
 

@@ -2123,6 +2123,13 @@ instance LiftHandler ErrQuitStakePool where
                     , "although you're not even delegating, nor won't be in an "
                     , "immediate future."
                     ]
+            ErrNonNullRewards (Quantity rewards) ->
+                apiError err403 NonNullRewards $ mconcat
+                    [ "It seems that you're trying to retire from delegation "
+                    , "although you've unspoiled rewards in your rewards "
+                    , "account! Make sure to withdraw your ", pretty rewards
+                    , " lovelace first."
+                    ]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case

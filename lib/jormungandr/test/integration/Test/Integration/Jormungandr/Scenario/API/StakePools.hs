@@ -92,6 +92,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
     , errMsg403NoRootKey
+    , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
@@ -354,35 +355,10 @@ spec = do
                     (.> (Quantity 0))
                 ]
 
-        -- Quit a pool
+        -- Can't quit a pool
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-        eventually "Certificates are inserted after quiting a pool" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 1
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 1
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
-
-        waitForNextEpoch ctx
-        waitForNextEpoch ctx
-        reward <- getFromResponse (#balance . #getApiT . #reward) <$>
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-
-        waitForNextEpoch ctx
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField
-                    (#balance . #getApiT . #reward)
-                    (`shouldBe` reward)
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NonNullReward
             ]
 
     it "STAKE_POOLS_JOIN_04 -\
