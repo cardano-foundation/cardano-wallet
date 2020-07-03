@@ -25,6 +25,8 @@ import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
+import Cardano.Wallet.Transaction
+    ( DelegationAction )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -99,11 +101,7 @@ data Context t = Context
 
 -- | Describe a transaction in terms of its inputs and outputs
 data TxDescription
-    = DelegDescription
-        { nInputs :: Int
-        , nOutputs :: Int
-        , nCertificates :: Int
-        }
+    = DelegDescription DelegationAction
     | PaymentDescription
         { nInputs :: Int
         , nOutputs :: Int

@@ -29,6 +29,9 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
 
+    -- * Reward Account
+    , toChimericAccountRaw
+
     -- * Address
     , decodeShelleyAddress
     ) where
@@ -346,7 +349,10 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance forall n. HasRewardAccount (SeqState n ShelleyKey) ShelleyKey where
     rewardAccountKey  = Seq.rewardAccountKey
-    toChimericAccount = ChimericAccount . blake2b224 . xpubPublicKey . getKey
+    toChimericAccount = toChimericAccountRaw . getKey
+
+toChimericAccountRaw :: XPub -> ChimericAccount
+toChimericAccountRaw = ChimericAccount . blake2b224 . xpubPublicKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

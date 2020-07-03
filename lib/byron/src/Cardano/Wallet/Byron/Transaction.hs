@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -46,14 +47,12 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx (..)
     , SlotId (..)
     , Tx (..)
-    , TxIn (..)
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
-    ( Certificate (..)
+    ( DelegationAction
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -81,6 +80,8 @@ import GHC.Stack
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Transaction as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -102,6 +103,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     { mkStdTx = _mkStdTx
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
+    , initDelegationSelection = _initDelegationSelection
     , decodeSignedTx = _decodeSignedTx
     , minimumFee = _minimumFee
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
@@ -110,18 +112,23 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     }
   where
     _mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom _slotId inps outs = do
-        let tx = (fst <$> inps, outs)
+    _mkStdTx _rewardAcnt keyFrom _slotId cs = do
+        let tx = (fst <$> CS.inputs cs, CS.outputs cs)
         let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
-        witnesses <- forM inps $ \(_, TxOut addr _) ->
+        witnesses <- forM (CS.inputs cs) $ \(_, TxOut addr _) ->
             mkWitness protocolMagic sigData <$> lookupPrivateKey addr
         pure
-            ( Tx (Hash sigData) (second coin <$> inps) outs
+            ( Tx (Hash sigData) (second coin <$> CS.inputs cs) (CS.outputs cs)
             , SealedTx $ CBOR.toStrictByteString $ CBOR.encodeSignedTx tx witnesses
             )
       where
@@ -133,11 +140,13 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 
     _minimumFee
         :: FeePolicy
-        -> [Certificate]
+        -> Maybe DelegationAction
         -> CoinSelection
         -> Fee
-    _minimumFee policy _ (CoinSelection inps outs chngs) =
-        computeFee $ sizeOfSignedTx (fst <$> inps) (outs <> map dummyOutput chngs)
+    _minimumFee policy _ cs =
+        computeFee $ sizeOfSignedTx
+            (fst <$> CS.inputs cs)
+            (CS.outputs cs <> map dummyOutput (CS.change cs))
       where
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut (dummyAddress @n)
@@ -160,9 +169,9 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
 
     _validateSelection
         :: CoinSelection
-        -> Either (ErrValidateSelection t) ()
-    _validateSelection (CoinSelection _ outs _) =
-        when (any (\ (TxOut _ c) -> c == Coin 0) outs) $
+        -> Either ErrValidateSelection ()
+    _validateSelection cs = do
+        when (any (\ (TxOut _ c) -> c == Coin 0) (CS.outputs cs)) $
             Left ErrInvalidTxOutAmount
 
     _decodeSignedTx
@@ -191,17 +200,23 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     _mkDelegationQuitTx =
         notImplemented "mkDelegationQuitTx"
 
+    _initDelegationSelection =
+        notImplemented "initDelegationSelection"
+
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
 --
 
--- | Transaction with 0 output amount is tried
-data ErrInvalidTxOutAmount = ErrInvalidTxOutAmount
+data ErrValidateSelection
+    = ErrInvalidTxOutAmount
+    -- ^ Transaction with 0 output amount is tried
 
-instance Buildable ErrInvalidTxOutAmount where
-    build _ = "Invalid coin selection: at least one output is null."
+instance Buildable ErrValidateSelection where
+    build = \case
+        ErrInvalidTxOutAmount ->
+            "Invalid coin selection: at least one output is null."
 
-type instance ErrValidateSelection (IO Byron) = ErrInvalidTxOutAmount
+type instance W.ErrValidateSelection (IO Byron) = ErrValidateSelection
 
 --------------------------------------------------------------------------------
 -- Internal

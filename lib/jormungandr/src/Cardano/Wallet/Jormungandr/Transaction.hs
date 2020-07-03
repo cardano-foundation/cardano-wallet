@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -10,7 +11,7 @@
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
-    , ErrExceededInpsOrOuts (..)
+    , ErrValidateSelection (..)
     ) where
 
 import Prelude
@@ -47,10 +48,9 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( ChimericAccount (..), Hash (..), SealedTx (..), Tx (..), TxOut (..) )
 import Cardano.Wallet.Transaction
-    ( Certificate (..)
+    ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -59,6 +59,8 @@ import Control.Monad
     ( forM, when )
 import Data.Either.Combinators
     ( maybeToRight )
+import Data.Maybe
+    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -66,7 +68,10 @@ import Data.Text.Class
 import Fmt
     ( Buildable (..) )
 
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Transaction as W
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 
 -- | Construct a 'TransactionLayer' compatible with Jormungandr and 'Jörmungandr'
 newTransactionLayer
@@ -78,12 +83,12 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer block0H = TransactionLayer
-    { mkStdTx = \keyFrom _ inps outs ->
+    { mkStdTx = \_rewardAcnt keyFrom _ cs ->
         mkFragment
             ( MkFragmentSimpleTransaction (txWitnessTagFor @k)
-            ) keyFrom inps outs
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
-    , mkDelegationJoinTx = \_ _ pool accXPrv keyFrom _ inps outs chgs ->
+    , mkDelegationJoinTx = \pool accXPrv keyFrom _ cs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
@@ -91,9 +96,9 @@ newTransactionLayer block0H = TransactionLayer
                 (DlgFull pool)
                 acc
                 (first getRawKey accXPrv)
-            ) keyFrom inps (outs ++ chgs)
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
-    , mkDelegationQuitTx = \_ accXPrv keyFrom _ inps outs chgs ->
+    , mkDelegationQuitTx = \accXPrv keyFrom _ cs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
@@ -101,7 +106,9 @@ newTransactionLayer block0H = TransactionLayer
                 DlgNone
                 acc
                 (first getRawKey accXPrv)
-            ) keyFrom inps (outs ++ chgs)
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
+
+    , initDelegationSelection = const mempty
 
     , decodeSignedTx = \payload -> do
         let errInvalidPayload =
@@ -116,8 +123,10 @@ newTransactionLayer block0H = TransactionLayer
 
     , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
 
-    , validateSelection = \(CoinSelection inps outs _) -> do
-        when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
+    , validateSelection = \cs -> do
+        let tooManyInputs  = length (CS.inputs cs)  > maxNumberOfInputs
+        let tooManyOutputs = length (CS.outputs cs) > maxNumberOfOutputs
+        when (tooManyInputs || tooManyOutputs)
             $ Left ErrExceededInpsOrOuts
 
     , allowUnbalancedTx = False
@@ -146,15 +155,15 @@ newTransactionLayer block0H = TransactionLayer
     -- is multiplied by the total number of inputs and outputs.
     _minimumFee
         :: FeePolicy
-        -> [Certificate]
+        -> Maybe DelegationAction
         -> CoinSelection
         -> Fee
-    _minimumFee policy certs (CoinSelection inps outs chgs) =
-        Fee $ ceiling (a + b*fromIntegral ios + c*fromIntegral cs)
+    _minimumFee policy action cs =
+        Fee $ ceiling (a + b*fromIntegral ios + c*certs)
       where
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
-        cs  = length $ filter (/= KeyRegistrationCertificate) certs
-        ios = length inps + length outs + length chgs
+        certs = if isJust action then 1 else 0
+        ios = length (CS.inputs cs) + length (CS.outputs cs) + length (CS.change cs)
 
 -- | Provide a transaction witness for a given private key. The type of witness
 -- is different between types of keys and, with backward-compatible support, we
@@ -175,17 +184,19 @@ instance TxWitnessTagFor JormungandrKey where txWitnessTagFor = TxWitnessUTxO
 instance TxWitnessTagFor IcarusKey      where txWitnessTagFor = TxWitnessLegacyUTxO
 instance TxWitnessTagFor ByronKey       where txWitnessTagFor = TxWitnessLegacyUTxO
 
--- | Transaction with improper number of inputs and outputs is tried
-data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts
+data ErrValidateSelection
+    = ErrExceededInpsOrOuts
+        -- ^ Transaction with improper number of inputs and outputs is tried
     deriving (Eq, Show)
 
-instance Buildable ErrExceededInpsOrOuts where
-    build _ = build $ mconcat
-        [ "I can't validate coin selection because either the number of inputs "
-        , "is more than ", maxI," or the number of outputs exceeds ", maxO, "."
-        ]
+instance Buildable ErrValidateSelection where
+    build = \case
+        ErrExceededInpsOrOuts -> build $ T.unwords
+            [ "I can't validate coin selection because either the number of inputs"
+            , "is more than", maxI, "or the number of outputs exceeds", maxO <> "."
+            ]
       where
         maxI = toText maxNumberOfInputs
         maxO = toText maxNumberOfOutputs
 
-type instance ErrValidateSelection Jormungandr = ErrExceededInpsOrOuts
+type instance W.ErrValidateSelection Jormungandr = ErrValidateSelection

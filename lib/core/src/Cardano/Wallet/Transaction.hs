@@ -17,7 +17,7 @@ module Cardano.Wallet.Transaction
     (
     -- * Interface
       TransactionLayer (..)
-    , Certificate (..)
+    , DelegationAction (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -36,15 +36,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , PoolId
-    , SealedTx (..)
-    , SlotId (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    , WalletDelegation
-    )
+    ( Address (..), PoolId, SealedTx (..), SlotId (..), Tx (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -56,10 +48,15 @@ import Data.Word
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
@@ -70,11 +67,7 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: FeePolicy
-            -- Latest fee policy
-        -> WalletDelegation
-            -- Wallet current delegation status
-        -> PoolId
+        :: PoolId
             -- Pool Id to which we're planning to delegate
         -> (k 'AddressK XPrv, Passphrase "encryption")
             -- Reward account
@@ -82,12 +75,9 @@ data TransactionLayer t k = TransactionLayer
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            --  Resolved inputs
-        -> [TxOut]
-            -- Outputs
-        -> [TxOut]
-            -- Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
@@ -97,32 +87,37 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: FeePolicy
-            -- Latest fee policy
-        -> (k 'AddressK XPrv, Passphrase "encryption")
+        :: (k 'AddressK XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            -- Resolved inputs
-        -> [TxOut]
-            -- Outputs
-        -> [TxOut]
-            -- Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.
         --
         -- The certificate is the public key of the reward account.
 
-    , minimumFee :: FeePolicy -> [Certificate] -> CoinSelection -> Fee
-        -- ^ Compute a minimal fee amount necessary to pay for a given
-        -- coin-selection. '[Certificate]' can be used to communicate whether
-        -- or not the transaction carries (un)delegation certificates.
+    , initDelegationSelection
+        :: FeePolicy
+            -- Current fee policy
+        -> DelegationAction
+            -- What sort of action is going on
+        -> CoinSelection
+        -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
+        -- accordingly.
 
-    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
+    , minimumFee
+        :: FeePolicy -> Maybe DelegationAction -> CoinSelection -> Fee
+        -- ^ Compute a minimal fee amount necessary to pay for a given
+        -- coin-selection.
+
+    , estimateMaxNumberOfInputs
+        :: Quantity "byte" Word16 -> Word8 -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
         -- transaction size and desired number of outputs.
         --
@@ -149,6 +144,10 @@ data TransactionLayer t k = TransactionLayer
         -- ^ Decode an externally-signed transaction to the chain producer
     }
 
+-- | Whether the user is attempting any particular delegation action.
+data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
+    deriving (Show)
+
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:
 --
@@ -163,18 +162,7 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-data ErrMkTx
+newtype ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrChangeIsEmptyForRetirement
-    -- ^ When retiring on Shelley, we need to add a deposit amount made when
-    -- creating a stake key. This requires at least one change output, which
-    -- ought to be present anyway by construction of the coin selection when
-    -- quitting delegation.
-    deriving (Eq, Show)
-
-data Certificate
-    = PoolDelegationCertificate
-    | KeyRegistrationCertificate
-    | KeyDeRegistrationCertificate
     deriving (Eq, Show)

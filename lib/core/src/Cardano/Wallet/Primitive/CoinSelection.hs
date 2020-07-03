@@ -44,10 +44,16 @@ import GHC.Generics
 data CoinSelection = CoinSelection
     { inputs  :: [(TxIn, TxOut)]
       -- ^ Picked inputs
+    , withdrawal :: Word64
+      -- ^ An available withdrawal amount, counting as an extra input
+    , reclaim :: Word64
+      -- ^ Claim back a deposit, counting as a an extra input
     , outputs :: [TxOut]
       -- ^ Picked outputs
     , change  :: [Coin]
       -- ^ Resulting changes
+    , deposit :: Word64
+      -- ^ A deposit counting as an extra output
     } deriving (Generic, Show, Eq)
 
 -- NOTE
@@ -57,18 +63,24 @@ data CoinSelection = CoinSelection
 instance Semigroup CoinSelection where
     a <> b = CoinSelection
         { inputs = inputs a <> inputs b
+        , withdrawal = withdrawal a + withdrawal b
+        , reclaim = reclaim a + reclaim b
         , outputs = outputs a <> outputs b
         , change = change a <> change b
+        , deposit = deposit a + deposit b
         }
 
 instance Monoid CoinSelection where
-    mempty = CoinSelection [] [] []
+    mempty = CoinSelection [] 0 0 [] [] 0
 
 instance Buildable CoinSelection where
-    build (CoinSelection inps outs chngs) = mempty
+    build (CoinSelection inps draw back outs chngs depo) = mempty
         <> nameF "inputs" (blockListF' "-" inpsF inps)
+        <> nameF "withdrawal" (build draw)
+        <> nameF "reclaim" (build back)
         <> nameF "outputs" (blockListF outs)
         <> nameF "change" (listF chngs)
+        <> nameF "deposit" (build depo)
       where
         inpsF (txin, txout) = build txin <> " (~ " <> build txout <> ")"
 
@@ -83,11 +95,20 @@ data CoinSelectionOptions e = CoinSelectionOptions
 
 -- | Calculate the sum of all input values
 inputBalance :: CoinSelection -> Word64
-inputBalance =  foldl' (\total -> addTxOut total . snd) 0 . inputs
+inputBalance cs =
+    foldl' (\total -> addTxOut total . snd) 0 (inputs cs)
+    +
+    -- NOTE
+    -- reclaim and withdrawal can only count towards the input balance if and
+    -- only if there's already a transaction input.
+    if null (inputs cs) then 0 else withdrawal cs + reclaim cs
 
 -- | Calculate the sum of all output values
 outputBalance :: CoinSelection -> Word64
-outputBalance = foldl' addTxOut 0 . outputs
+outputBalance cs =
+    foldl' addTxOut 0 (outputs cs)
+    +
+    deposit cs
 
 -- | Calculate the sum of all output values
 changeBalance :: CoinSelection -> Word64

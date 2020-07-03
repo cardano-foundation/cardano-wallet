@@ -247,8 +247,8 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
                 (selection1, selection2)
         in prop (s1, s2)
   where
-    prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
-        L.length inps1 `shouldSatisfy` (>= L.length inps2)
+    prop (cs1, cs2) =
+        L.length (inputs cs1) `shouldSatisfy` (>= L.length (inputs cs2))
     (selection1,_) = withDRG drg
         (runExceptT $ random opt txOuts utxo)
     selection2 = runIdentity $ runExceptT $

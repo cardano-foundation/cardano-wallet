@@ -61,7 +61,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), feeBalance )
+    ( CoinSelection, feeBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Types
@@ -178,6 +178,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -473,13 +474,15 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
             unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () newPwd selection
         txOld `shouldBe` txNew
   where
-    selection = CoinSelection
-        [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
-          , TxOut (Address "source") (Coin 42)
-          )
-        ]
-        [ TxOut (Address "destination") (Coin 14) ]
-        []
+    selection = mempty
+        { CS.inputs =
+            [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
+              , TxOut (Address "source") (Coin 42)
+              )
+            ]
+        , CS.outputs =
+            [ TxOut (Address "destination") (Coin 14) ]
+        }
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
@@ -559,10 +562,9 @@ instance Arbitrary FeeGen where
 
 -- | Manufacture a coin selection that would result in the given fee.
 coinSelectionForFee :: FeeGen -> CoinSelection
-coinSelectionForFee (FeeGen (Coin fee)) = CoinSelection
-    { inputs = [(TxIn (Hash "") 0, TxOut (Address "") (Coin (1 + fee)))]
-    , outputs = [TxOut (Address "") (Coin 1)]
-    , change = []
+coinSelectionForFee (FeeGen (Coin fee)) = mempty
+    { CS.inputs  = [(TxIn (Hash "") 0, TxOut (Address "") (Coin (1 + fee)))]
+    , CS.outputs = [TxOut (Address "") (Coin 1)]
     }
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -615,11 +617,11 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom _slot inps outs -> do
-        let inps' = map (second coin) inps
-        let tid = mkTxId inps' outs
-        let tx = Tx tid inps' outs
-        wit <- forM inps $ \(_, TxOut addr _) -> do
+    { mkStdTx = \_ keyFrom _slot cs -> do
+        let inps' = map (second coin) (CS.inputs cs)
+        let tid = mkTxId inps' (CS.outputs cs)
+        let tx = Tx tid inps' (CS.outputs cs)
+        wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
             let (Hash sigData) = txId tx
@@ -629,6 +631,8 @@ dummyTransactionLayer = TransactionLayer
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
+    , initDelegationSelection =
+        error "dummyTransactionLayer: initDelegationSelection not implemented"
     , mkDelegationJoinTx =
         error "dummyTransactionLayer: mkDelegationJoinTx not implemented"
     , mkDelegationQuitTx =

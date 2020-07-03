@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,7 +17,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.Jormungandr.Transaction
-    ( ErrExceededInpsOrOuts (..), newTransactionLayer )
+    ( ErrValidateSelection (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -42,8 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
-    , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
@@ -503,7 +502,9 @@ goldenTestStdTx
     -> ByteString
     -> SpecWith ()
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
-    let tx = mkStdTx tl keystore (SlotId 0 0) inps outs
+    let cs = mempty { inputs = inps, outputs = outs }
+    let rewardAcnt = error "unused"
+    let tx = mkStdTx tl rewardAcnt keystore (SlotId 0 0) cs
     let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
@@ -519,26 +520,20 @@ goldenTestDelegationCertTx
     -> [TxOut]
     -> ByteString
     -> SpecWith ()
-goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inps outs bytes' = it title $ do
-    let walDelegs = WalletDelegation NotDelegating []
+goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inputs outputs bytes' = it title $ do
     let res = mkDelegationJoinTx tl
-            policy
-            walDelegs
             pool
             (accountXPrv, pass)
             keystore
             (SlotId 0 0)
-            inps
-            outs
-            []
+            (mempty { inputs, outputs })
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` Right (unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))
   where
     title = "golden test mkCertificateTx: " <> show pool
-        <> show inps <> show outs
+        <> show inputs <> show outputs
     showHex = B8.unpack . hex
-    policy = error "fee policy unused by Jörmungandr"
 
 xprvSeqFromSeed
     :: ByteString
@@ -578,16 +573,20 @@ unknownInputTest
 unknownInputTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = mkStdTx tl keyFrom (SlotId 0 0) inps outs
+    let res = mkStdTx tl rewardAcnt keyFrom (SlotId 0 0) cs
           where
             tl = newTransactionLayer @JormungandrKey block0
+            rewardAcnt = error "unused"
             keyFrom = const Nothing
-            inps =
-                [ ( TxIn (Hash "arbitrary") 0
-                  , TxOut addr (Coin 0)
-                  )
-                ]
-            outs = []
+            cs = mempty
+                { inputs =
+                    [ ( TxIn (Hash "arbitrary") 0
+                      , TxOut addr (Coin 0)
+                      )
+                    ]
+                , outputs =
+                    []
+                }
     res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
   where
     title = "Unknown input address yields an error ("
@@ -602,15 +601,15 @@ tooNumerousInpsTest
 tooNumerousInpsTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = validateSelection tl (CoinSelection inps outs chngs)
+    let res = validateSelection tl $ mempty { inputs, outputs, change }
           where
             tl = newTransactionLayer @JormungandrKey block0
-            inps = replicate 256
+            inputs = replicate 256
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 1)
                 )
-            outs = []
-            chngs = []
+            outputs = []
+            change  = []
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous inputs yields an error ("
@@ -625,15 +624,15 @@ tooNumerousOutsTest
 tooNumerousOutsTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = validateSelection tl (CoinSelection inps outs chngs)
+    let res = validateSelection tl $ mempty { inputs, outputs, change }
           where
             tl = newTransactionLayer @JormungandrKey block0
-            inps = replicate 255
+            inputs = replicate 255
                 ( TxIn (Hash "arbitrary") 0
                 , TxOut addr (Coin 10)
                 )
-            outs = replicate 256 (TxOut addr (Coin 9))
-            chngs = replicate 256 (Coin 9)
+            outputs = replicate 256 (TxOut addr (Coin 9))
+            change  = replicate 256 (Coin 9)
     res `shouldBe` Left ErrExceededInpsOrOuts
   where
     title = "Too numerous outputs yields an error ("

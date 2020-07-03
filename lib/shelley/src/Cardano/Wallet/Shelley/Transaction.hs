@@ -29,7 +29,6 @@ module Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkWitness
-    , realFee
     ) where
 
 import Prelude
@@ -43,9 +42,16 @@ import Cardano.Crypto.DSIGN
 import Cardano.Crypto.DSIGN.Ed25519
     ( VerKeyDSIGN (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), NetworkDiscriminant (..), Passphrase, WalletKey (..) )
+    ( ChimericAccount (..)
+    , Depth (..)
+    , NetworkDiscriminant (..)
+    , Passphrase
+    , WalletKey (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( toChimericAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -60,8 +66,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -76,7 +80,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakePoolDlgCert
     )
 import Cardano.Wallet.Transaction
-    ( Certificate (..)
+    ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrValidateSelection
@@ -90,16 +94,16 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.ByteString
     ( ByteString )
-import Data.List
-    ( find )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16, Word8 )
+    ( Word16, Word64, Word8 )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
@@ -109,6 +113,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -116,9 +121,12 @@ import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
+import qualified Shelley.Spec.Ledger.Coin as SL
+import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
@@ -136,6 +144,7 @@ newTransactionLayer
     -> TransactionLayer t k
 newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     { mkStdTx = _mkStdTx
+    , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
@@ -146,31 +155,54 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     }
   where
     _mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId -- ^ The current slot
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
+        -> SlotId
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom slot ownedIns outs = do
+    _mkStdTx (rewardAcnt, pwdAcnt) keyFrom slot cs = do
         let timeToLive = defaultTTL epochLength slot
-        let fee = realFee ownedIns outs
-        let unsigned = mkUnsignedTx timeToLive ownedIns outs [] fee
+        let withdrawals = mkWithdrawals
+                (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
+                (withdrawal cs)
 
-        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+        let unsigned = mkUnsignedTx timeToLive cs withdrawals []
+
+        addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
 
+        let withdrawalsWits
+                | Map.null withdrawals = Set.empty
+                | otherwise = Set.singleton $
+                    mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+
+        let wits = SL.WitnessSet (Set.union addrWits withdrawalsWits) mempty mempty
+
         let metadata = SL.SNothing
 
-        let wits = SL.WitnessSet addrWits mempty mempty
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
-    _mkDelegationJoinTx
+    _initDelegationSelection
         :: FeePolicy
-            -- Latest fee policy
-        -> WalletDelegation
-            -- Wallet current delegation status
-        -> PoolId
+            -- Current fee policy
+        -> DelegationAction
+            -- What sort of action is going on
+        -> CoinSelection
+        -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
+        -- accordingly.
+    _initDelegationSelection (LinearFee _ _ (Quantity c)) = \case
+        Quit{} -> mempty { reclaim = round c }
+        Join{} -> mempty
+        RegisterKeyAndJoin{} -> mempty { deposit = round c }
+
+    _mkDelegationJoinTx
+        :: PoolId
             -- Pool Id to which we're planning to delegate
         -> (k 'AddressK XPrv, Passphrase "encryption")
             -- Reward account
@@ -178,45 +210,25 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            --  Resolved inputs
-        -> [TxOut]
-            -- Outputs
-        -> [TxOut]
-            -- Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationJoinTx policy dlg poolId (accXPrv, pwd') keyFrom slot inps outs chgs = do
+    _mkDelegationJoinTx poolId (accXPrv, pwd') keyFrom slot cs = do
         let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
-        let (certs, certsInfo) = case dlg of
-                (WalletDelegation NotDelegating []) ->
-                    ( [ toStakeKeyRegCert  accXPub
-                      , toStakePoolDlgCert accXPub poolId
-                      ]
-                    , [ PoolDelegationCertificate
-                      , KeyRegistrationCertificate
-                      ]
-                    )
-                _ ->
-                    ( [ toStakePoolDlgCert accXPub poolId ]
-                    , [ PoolDelegationCertificate ]
-                    )
-        -- NOTE
-        -- We treat key deposit as a _fee_ when constucting the coin selection,
-        -- so that we are sure that there are enough inputs selected to cover
-        -- for the deposit. However, the deposit is "implicit" when constructing
-        -- a transaction and needs to be removed from the actual fee.
-        --
-        -- This is why here, we recalculate the fee without the "certificate
-        -- fee". The missing amount is the actual deposit.
-        let LinearFee a b _ = policy
-        let fee = _minimumFee (LinearFee a b (Quantity 0))
-                certsInfo
-                (CoinSelection inps (outs ++ chgs) [])
-        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs) certs fee
+        let certs =
+                if deposit cs > 0 then
+                    [ toStakeKeyRegCert  accXPub
+                    , toStakePoolDlgCert accXPub poolId
+                    ]
+                else
+                    [ toStakePoolDlgCert accXPub poolId ]
+
+        let unsigned = mkUnsignedTx timeToLive cs mempty certs
         let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
+        addrWits <- fmap Set.fromList $ forM (inputs cs) $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
@@ -226,54 +238,25 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _mkDelegationQuitTx
-        :: FeePolicy
-            -- Latest fee policy
-        -> (k 'AddressK XPrv, Passphrase "encryption")
+        :: (k 'AddressK XPrv, Passphrase "encryption")
             -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotId
             -- Tip of the chain, for TTL
-        -> [(TxIn, TxOut)]
-            -- ^ Resolved inputs
-        -> [TxOut]
-            -- ^ Outputs
-        -> [TxOut]
-            -- ^ Change, with assigned address
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationQuitTx policy (accXPrv, pwd') keyFrom slot inps outs chgs = do
+    _mkDelegationQuitTx (accXPrv, pwd') keyFrom slot cs = do
         let timeToLive = defaultTTL epochLength slot
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
 
-        -- NOTE / FIXME
-        -- When registering a stake key, users gave a deposit fixed by the fee
-        -- policy. When de-registing a key, the deposit should be given back.
-        --
-        -- The deposit doesn't come from an explicit input, but rather, from an
-        -- implicit balance available from the input side. So, output are
-        -- allowed to create more than what's consumed as inputs. We therefore
-        -- add the deposit to the first change output available, which doesn't
-        -- change the fee in Shelley. Still, the real fee are computed from the
-        -- differences between inputs and outputs BEFORE the deposit is added.
-        --
-        -- There's on "gotcha" with this method: it isn't resilient to protocol
-        -- updates. So, if a key is registered at a given epoch, with a deposit
-        -- X and later on, the deposit amount is changed to Y, Y /= X, then,
-        -- when de-registering the stake key, there'll be a mismatch between the
-        -- amount expected by the ledger, and the amount given by the wallet.
-        -- Ideally, the deposit amount should be deduced from the transaction
-        -- that was used to register the key! We don't have any ways at the
-        -- moment to lookup such a transaction from the database and making it
-        -- so would require some extensive changes that are quite risky to
-        -- undergo _now_. So long as the deposit key isn't updated via protocol
-        -- updates, the present solution will work fine.
-        chgs' <- mapFirst (withDeposit policy) chgs
-        let fee = realFee inps (outs ++ chgs)
-        let unsigned = mkUnsignedTx timeToLive inps (outs ++ chgs') certs fee
+        let unsigned = mkUnsignedTx timeToLive cs mempty certs
         let metadata = SL.SNothing
 
-        addrWits <- fmap Set.fromList $ forM inps $ \(_, TxOut addr _) -> do
+        addrWits <- fmap Set.fromList $ forM (inputs cs) $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
         let certWits =
@@ -281,14 +264,6 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
 
         pure $ toSealed $ SL.Tx unsigned wits metadata
-      where
-        withDeposit :: FeePolicy -> TxOut -> TxOut
-        withDeposit (LinearFee _ _ (Quantity deposit)) (TxOut addr (Coin c)) =
-            TxOut addr (Coin (c + round deposit))
-
-        mapFirst :: (a -> a) -> [a] -> Either ErrMkTx [a]
-        mapFirst _     [] = Left ErrChangeIsEmptyForRetirement
-        mapFirst fn (h:q) = Right (fn h:q)
 
 _estimateMaxNumberOfInputs
     :: Quantity "byte" Word16
@@ -317,14 +292,15 @@ _estimateMaxNumberOfInputs (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize [] sel
+        size = computeTxSize Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
-dummyCoinSel nInps nOuts = CoinSelection
-    (map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1])
-    (replicate nOuts dummyTxOut)
-    (replicate nOuts (Coin 1))
+dummyCoinSel nInps nOuts = mempty
+    { CS.inputs = map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
+    , CS.outputs = replicate nOuts dummyTxOut
+    , CS.change = replicate nOuts (Coin 1)
+    }
   where
     dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
     dummyTxOut  = TxOut dummyAddr (Coin 1)
@@ -357,56 +333,66 @@ _decodeSignedTx bytes = do
 
 _minimumFee
     :: FeePolicy
-    -> [Certificate]
+    -> Maybe DelegationAction
     -> CoinSelection
     -> Fee
-_minimumFee policy certs coinSel =
-    computeFee $ computeTxSize certs coinSel
+_minimumFee policy action cs =
+    computeFee $ computeTxSize action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
-        Fee $ ceiling (a + b*fromIntegral size + if needsDeposit then c else 0)
+        Fee $ ceiling (a + b*fromIntegral size)
       where
-        LinearFee (Quantity a) (Quantity b) (Quantity c) = policy
-        needsDeposit = isJust $ find (== KeyRegistrationCertificate) certs
-
-realFee :: [(TxIn, TxOut)] -> [TxOut] -> Fee
-realFee inps outs = Fee
-    $ sum (map (getCoin . coin . snd) inps)
-    - sum (map (getCoin . coin) outs)
+        LinearFee (Quantity a) (Quantity b) _unused = policy
 
 computeTxSize
-    :: [Certificate]
+    :: Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize certs (CoinSelection inps outs chngs) =
+computeTxSize action cs =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound inps outs' certs' (realFee inps outs')
+    unsigned = mkUnsignedTx maxBound cs' withdrawals certs
       where
-        outs' :: [TxOut]
-        outs' = outs <> (dummyOutput <$> chngs)
+        cs' :: CoinSelection
+        cs' = cs
+            { CS.outputs = CS.outputs cs <> (dummyOutput <$> change cs)
+            , CS.change  = []
+            }
 
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
 
-        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ BS.pack (replicate 28 0)
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ dummyKeyHashRaw
 
-        certs' = flip map certs $ \case
-            PoolDelegationCertificate ->
-                Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
-            KeyRegistrationCertificate ->
-                Cardano.shelleyRegisterStakingAddress dummyKeyHash
-            KeyDeRegistrationCertificate ->
-                Cardano.shelleyDeregisterStakingAddress dummyKeyHash
+        certs = case action of
+            Nothing -> []
+            Just RegisterKeyAndJoin{} ->
+                [ Cardano.shelleyRegisterStakingAddress dummyKeyHash
+                , Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
+                ]
+            Just Join{} ->
+                [ Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
+                ]
+            Just Quit ->
+                [ Cardano.shelleyDeregisterStakingAddress dummyKeyHash
+                ]
+
+    dummyKeyHashRaw = BS.pack (replicate 28 0)
+
+    withdrawals = mkWithdrawals
+        (ChimericAccount dummyKeyHashRaw)
+        (withdrawal cs)
 
     (addrWits, certWits) =
-        ( Set.map dummyWitnessUniq $ Set.fromList (fst <$> inps)
-        , if null certs
-            then Set.empty
-            else Set.singleton (dummyWitness "a")
+        ( Set.union
+            (Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs))
+            (if Map.null withdrawals then Set.empty else Set.singleton (dummyWitness "0"))
+        , case action of
+            Nothing -> Set.empty
+            Just{}  -> Set.singleton (dummyWitness "a")
         )
       where
         dummyWitness :: BL.ByteString -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
@@ -440,25 +426,38 @@ lookupPrivateKey keyFrom addr =
 
 mkUnsignedTx
     :: Cardano.SlotNo
-    -> [(TxIn, TxOut)]
-    -> [TxOut]
+    -> CoinSelection
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
     -> [Cardano.Certificate]
-        -- ^ TODO: This should be not be a Cardano type, but a wallet type.
-    -> Fee
     -> Cardano.ShelleyTxBody
-mkUnsignedTx ttl ownedIns outs certs fee =
+mkUnsignedTx ttl cs withdrawals certs =
     let
         Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
-            (toCardanoTxIn . fst <$> ownedIns)
-            (map toCardanoTxOut outs)
+            (toCardanoTxIn . fst <$> CS.inputs cs)
+            (map toCardanoTxOut $ CS.outputs cs)
             ttl
-            (toCardanoLovelace $ Coin $ getFee fee)
+            (toCardanoLovelace $ Coin $ feeBalance cs)
             certs
-            (Cardano.WithdrawalsShelley $ SL.Wdrl mempty) -- Withdrawals
+            (Cardano.WithdrawalsShelley $ SL.Wdrl withdrawals)
             Nothing -- Update
             Nothing -- Metadata hash
     in
         unsigned
+
+mkWithdrawals
+    :: ChimericAccount
+    -> Word64
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
+mkWithdrawals (ChimericAccount keyHash) amount
+    | amount == 0 = mempty
+    | otherwise = Map.fromList
+        [ ( SL.RewardAcnt SL.Mainnet keyHashObj
+          , SL.Coin $ fromIntegral amount
+          )
+        ]
+  where
+    keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
+
 
 -- TODO: The SlotId-SlotNo conversion based on epoch length would not
 -- work if the epoch length changed in a hard fork.

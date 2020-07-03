@@ -607,16 +607,15 @@ mkShelleyWallet
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+    Quantity reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        Handler $ ExceptT $ Right <$>
-        W.fetchRewardBalance @_ @s @k wrk wid
+        liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending cp
-            , reward = Quantity $ fromIntegral $ getQuantity reward
+            { available = Quantity $ reward + availableBalance pending cp
+            , total = Quantity $ reward + totalBalance pending cp
+            , reward = Quantity reward
             }
         , delegation = toApiWalletDelegation (meta ^. #delegation)
         , id = ApiT wid
@@ -1037,11 +1036,13 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsData n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx genChange (ApiT wid) body =
+selectCoins ctx gen (ApiT wid) body =
     fmap mkApiCoinSelection
-        $ withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid genChange
-        $ coerceCoin <$> body ^. #payments
+    $ withWorkerCtx ctx wid liftE liftE
+    $ \wrk -> do
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        let outs = coerceCoin <$> body ^. #payments
+        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1116,6 +1117,8 @@ postTransaction
         , GenChange s
         , IsOwned s k
         , ctx ~ ApiLayer s t k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ArgGenChange s
@@ -1126,8 +1129,9 @@ postTransaction ctx genChange (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.selectCoinsForPayment @_ @s @t wrk wid outs
+    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.signPayment @_ @s @t @k wrk wid genChange pwd selection
@@ -1212,8 +1216,10 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #payments)
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler
-        (apiFee <$> W.estimateFeeForPayment @_ @s @t @k wrk wid outs)
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
+        pure $ apiFee fee
 
 joinStakePool
     :: forall ctx s t n k.
@@ -1321,7 +1327,11 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n p. IsOwned s k
+    :: forall s t k n p.
+        ( IsOwned s k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        )
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
@@ -1898,13 +1908,6 @@ instance LiftHandler ErrMkTx where
                 , "I haven't found the corresponding private key for a known "
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
-                ]
-        ErrChangeIsEmptyForRetirement ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "That's embarassing. I need to one change output to give you "
-                , "back you key registration deposit but it seems that I've "
-                , "generated a coin selection that has none! Since the coin "
-                , "selection algorithm has randomness, retrying may work."
                 ]
 
 instance LiftHandler ErrSignPayment where

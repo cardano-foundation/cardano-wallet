@@ -13,7 +13,12 @@ module Cardano.Wallet.Primitive.FeeSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
+    ( CoinSelection (..)
+    , changeBalance
+    , feeBalance
+    , inputBalance
+    , outputBalance
+    )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
@@ -23,6 +28,7 @@ import Cardano.Wallet.Primitive.Fee
     , OnDanglingChange (..)
     , adjustForFee
     , divvyFee
+    , rebalanceSelection
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -45,6 +51,8 @@ import Crypto.Random.Types
     ( withDRG )
 import Data.Either
     ( isRight )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
@@ -52,7 +60,7 @@ import Data.List.NonEmpty
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), nameF, tupleF )
+    ( Buildable (..), nameF, pretty, tupleF )
 import Test.Hspec
     ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
@@ -62,11 +70,17 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , classify
+    , conjoin
+    , counterexample
     , coverTable
     , disjoin
     , elements
     , expectFailure
+    , forAllBlind
+    , frequency
     , generate
+    , oneof
     , property
     , scale
     , tabulate
@@ -332,6 +346,10 @@ spec = do
     describe "Fee Calculation: Generators" $ do
         it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
             property $ isValidSelection cs
+                & counterexample ("output balance: "
+                    <> show (outputBalance cs + changeBalance cs))
+                & counterexample ("input balance:  "
+                    <> show (inputBalance cs))
 
     before getSystemDRG $ describe "Fee Adjustment properties" $ do
         it "Fee adjustment is deterministic when there's no extra inputs"
@@ -349,19 +367,26 @@ spec = do
         it "expectFailure: empty list"
             (expectFailure propDivvyFeeInvariantEmptyList)
 
+    describe "prop_rebalanceSelection" $ do
+        it "The fee balancing algorithm converges for any coin selection."
+            $ property
+            $ withMaxSuccess 10000
+            $ forAllBlind genSelection' prop_rebalanceSelection
+
+
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
 -------------------------------------------------------------------------------}
 
 -- Check whether a selection is valid
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c) =
+isValidSelection cs =
     let
-        oAmt = sum $ map (fromIntegral . getCoin . coin) o
-        cAmt = sum $ map (fromIntegral . getCoin) c
-        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
+        oAmt = sum $ map (fromIntegral . getCoin . coin) (outputs cs)
+        cAmt = sum $ map (fromIntegral . getCoin) (change cs)
+        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) (inputs cs)
     in
-        (iAmt :: Integer) >= (oAmt + cAmt)
+        iAmt + (withdrawal cs) + (reclaim cs) >= oAmt + cAmt + (deposit cs)
 
 -- | Data for running fee calculation properties
 data FeeProp = FeeProp
@@ -394,17 +419,18 @@ propReducedChanges
     -> ShowFmt FeeProp
     -> Property
 propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
-    isRight coinSel' ==> let Right s = coinSel' in prop s
+    withMaxSuccess 1000 $ isRight coinSel' ==> let Right s = coinSel' in prop s
   where
     prop s = do
         let chgs' = sum $ map getCoin $ change s
         let chgs = sum $ map getCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
-        disjoin
-            [ chgs' `shouldSatisfy` (<= chgs)
+        classify (reserve coinSel > fee) "reserve > fee" $ disjoin
+            [ chgs' `shouldSatisfy` (< chgs)
             , length inps' `shouldSatisfy` (>= length inps)
             ]
+    reserve cs = withdrawal cs + reclaim cs
     feeOpt = feeOptions fee dust
     coinSel' = left show $ fst $ withDRG drg $ runExceptT $
         adjustForFee feeOpt utxo coinSel
@@ -473,6 +499,77 @@ propDivvyFeeInvariantEmptyList (fee, outs) =
     prop = divvyFee fee outs `seq` True
 
 {-------------------------------------------------------------------------------
+                         Fee Adjustment - properties
+-------------------------------------------------------------------------------}
+
+prop_rebalanceSelection
+    :: CoinSelection
+    -> OnDanglingChange
+    -> Property
+prop_rebalanceSelection sel onDangling = do
+    let (sel', fee') = rebalanceSelection opts sel
+
+    let selectionIsBalanced = case onDangling of
+            PayAndBalance ->
+                delta sel' == fromIntegral (getFee $ estimateFee opts sel')
+            SaveMoney ->
+                delta sel' >= fromIntegral (getFee $ estimateFee opts sel')
+
+    let equalityModuloChange =
+            sel { change = [] } == sel' { change = [] }
+
+    conjoin
+        [ fee' == Fee 0 ==> selectionIsBalanced
+        , selectionIsBalanced ==> not (null (inputs sel'))
+        , selectionIsBalanced ==> isValidSelection sel'
+        , property equalityModuloChange
+        ]
+        & counterexample (unlines
+            [ "selection (before):", pretty sel
+            , "selection (after):", pretty sel'
+            , "delta (before): " <> show (delta sel)
+            , "delta (after):  " <> show (delta sel')
+            , "total fee:      " <> show (getFee $ estimateFee opts sel')
+            , "remaining fee:  " <> show (getFee fee')
+            ])
+        & classify (reserveNonNull && feeLargerThanDelta)
+            "reserve > 0 && fee > delta"
+        & classify (reserveLargerThanFee && feeLargerThanDelta)
+            "reserve > fee && fee > delta"
+        & classify reserveLargerThanFee
+            "reserve > fee"
+        & classify feeLargerThanDelta
+            "fee > delta"
+        & classify (null (inputs sel))
+            "no inputs"
+  where
+    delta :: CoinSelection -> Integer
+    delta s =
+        fromIntegral (inputBalance s)
+        -
+        fromIntegral (outputBalance s + changeBalance s)
+
+    opts = FeeOptions
+        -- NOTE
+        -- Dummy fee policy but, following a similar rule as the fee policy on
+        -- Byron / Shelley (bigger transaction cost more) with sensible values.
+        { estimateFee = \cs ->
+            let
+                size = fromIntegral $ length $ show cs
+            in
+                Fee (100000 + 100 * size)
+        , dustThreshold = minBound
+        , onDanglingChange = onDangling
+        }
+
+    reserveNonNull =
+        withdrawal sel + reclaim sel > 0
+    reserveLargerThanFee =
+        withdrawal sel + reclaim sel > getFee (estimateFee opts sel)
+    feeLargerThanDelta =
+        fromIntegral (getFee $ estimateFee opts sel) > delta sel
+
+{-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
 -------------------------------------------------------------------------------}
 
@@ -494,14 +591,13 @@ feeUnitTest
     -> Either ErrAdjustForFee FeeOutput
     -> SpecWith ()
 feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
-    (utxo, sel) <- setup
+    (utxo, cs) <- setup
     result <- runExceptT $ do
-        (CoinSelection inps outs chngs) <-
-            adjustForFee (feeOptions feeF dustF) utxo sel
+        cs' <- adjustForFee (feeOptions feeF dustF) utxo cs
         return $ FeeOutput
-            { csInps = map (getCoin . coin . snd) inps
-            , csOuts = map (getCoin . coin) outs
-            , csChngs = map getCoin chngs
+            { csInps  = map (getCoin . coin . snd) (inputs cs')
+            , csOuts  = map (getCoin . coin) (outputs cs')
+            , csChngs = map getCoin (change cs')
             }
     result `shouldBe` expected
   where
@@ -511,7 +607,7 @@ feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title
         inps <- (Map.toList . getUTxO) <$> generate (genUTxO $ Coin <$> inpsF)
         outs <- generate (genTxOut $ Coin <$> outsF)
         let chngs = map Coin chngsF
-        pure (utxo, CoinSelection inps outs chngs)
+        pure (utxo, mempty { inputs = inps, outputs = outs, change = chngs })
 
     title :: String
     title = mempty
@@ -567,13 +663,58 @@ genTxOut coins = do
     outs <- vector n
     return $ zipWith TxOut outs coins
 
-genSelection :: NonEmpty TxOut -> Gen CoinSelection
-genSelection outs = do
+genSelection :: Gen CoinSelection
+genSelection = do
+    outs <- choose (1, 10) >>= vector >>= genTxOut
+    genSelectionFor (NE.fromList outs)
+
+-- Like 'genSelection', but allows for having empty input and output.
+genSelection' :: Gen CoinSelection
+genSelection' = frequency
+    [ (4, genSelection)
+    , (1, do
+        reclaim_ <- genReclaim
+        pure $ mempty { reclaim = reclaim_ }
+      )
+    , (1, do
+        deposit_ <- genDeposit 100000
+        pure $ mempty { deposit = deposit_ }
+      )
+    ]
+
+genWithdrawal :: Gen Word64
+genWithdrawal = frequency
+    [ (3, pure 0)
+    , (1, oneof
+        [ choose (1, 10000)
+        , choose (500000, 1000000)
+        ]
+      )
+    ]
+
+genReclaim :: Gen Word64
+genReclaim = genWithdrawal
+
+genDeposit :: Word64 -> Gen Word64
+genDeposit sup
+    | sup == 0  = pure 0
+    | otherwise = frequency
+        [ (3, pure 0)
+        , (1, choose (1, sup))
+        ]
+
+genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
+genSelectionFor outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
     utxo <- vector (NE.length outs * 3) >>= genUTxO
     case runIdentity $ runExceptT $ largestFirst opts outs utxo of
-        Left _ -> genSelection outs
-        Right (s,_) -> return s
+        Left _ -> genSelectionFor outs
+        Right (s,_) -> do
+            withdrawal_ <- genWithdrawal
+            reclaim_ <- genReclaim
+            let s' = s { withdrawal = withdrawal_, reclaim = reclaim_ }
+            deposit_ <- genDeposit (feeBalance s')
+            pure $ s' { deposit = deposit_ }
 
 instance Arbitrary TxIn where
     shrink _ = []
@@ -625,26 +766,36 @@ instance Arbitrary Address where
         ]
 
 instance Arbitrary CoinSelection where
-    shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+    shrink cs = case (inputs cs, outputs cs, change cs) of
         ([_], [_], []) ->
             []
         _ ->
             let
-                inps' = if length inps > 1 then drop 1 inps else inps
-                outs' = if length outs > 1 then drop 1 outs else outs
+                shrinkList xs
+                    | length xs > 1 = drop 1 xs
+                    | otherwise     = xs
+                inps  = inputs cs
+                inps' = shrinkList inps
+                outs  = outputs cs
+                outs' = shrinkList outs
+                chgs  = change cs
                 chgs' = drop 1 chgs
             in
-                filter (\s -> s /= sel && isValidSelection s)
-                    [ CoinSelection inps' outs' chgs'
-                    , CoinSelection inps' outs chgs
-                    , CoinSelection inps outs' chgs
-                    , CoinSelection inps outs chgs'
+                filter (\s -> s /= cs && isValidSelection s)
+                    [ cs { inputs = inps', outputs = outs', change = chgs' }
+                    , cs { inputs = inps', outputs = outs , change = chgs  }
+                    , cs { inputs = inps , outputs = outs', change = chgs  }
+                    , cs { inputs = inps , outputs = outs , change = chgs' }
                     ]
     arbitrary = do
         outs <- choose (1, 10)
             >>= vector
             >>= genTxOut
-        genSelection (NE.fromList outs)
+        genSelectionFor (NE.fromList outs)
+
+instance Arbitrary OnDanglingChange
+  where
+    arbitrary = elements [ PayAndBalance, SaveMoney ]
 
 instance Arbitrary FeeOptions where
     arbitrary = do

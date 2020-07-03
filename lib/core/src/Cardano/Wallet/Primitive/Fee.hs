@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.Fee
     , ErrAdjustForFee(..)
     , OnDanglingChange(..)
     , adjustForFee
-    , rebalanceChangeOutputs
+    , rebalanceSelection
     ) where
 
 import Prelude
@@ -164,9 +164,9 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         :: MonadRandom m
         => CoinSelection
         -> StateT UTxO (ExceptT ErrAdjustForFee m) CoinSelection
-    go coinSel@(CoinSelection inps outs chgs) = do
+    go coinSel@(CoinSelection inps _ _ outs chgs _) = do
         -- Substract fee from change outputs, proportionally to their value.
-        let (coinSel', remFee) = rebalanceChangeOutputs opt coinSel
+        let (coinSel', remFee) = rebalanceSelection opt coinSel
 
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
@@ -188,8 +188,12 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
             inps' <- coverRemainingFee remFee
-            let extraChange = splitChange (Coin $ balance' inps') chgs
-            go $ CoinSelection (inps <> inps') outs extraChange
+            let chgs' = splitChange (Coin $ balance' inps') chgs
+            go $ coinSel
+                { inputs  = inps <> inps'
+                , outputs = outs
+                , change  = chgs'
+                }
 
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.
@@ -213,12 +217,27 @@ coverRemainingFee (Fee fee) = go [] where
 -- change outputs if any are left, or the remaining fee otherwise
 --
 -- We divvy up the fee over all change outputs proportionally, to try and keep
--- any output:change ratio as unchanged as possible
-rebalanceChangeOutputs
+-- any output:change ratio as unchanged as possible.
+--
+-- This function either consumes an existing reserve on a selection, or turn it
+-- into a change output. Therefore, the resulting coin selection _will_ not have
+-- any reserve. Note that the reserve will be either 'Nothing', to indicate that
+-- there was no reserve at all, or 'Just 0' to indicate that there was a
+-- reserve, but it has been consumed entirely.
+rebalanceSelection
     :: FeeOptions
     -> CoinSelection
     -> (CoinSelection, Fee)
-rebalanceChangeOutputs opts s
+rebalanceSelection opts s
+    -- When there are no inputs, exit right away a pick a first input.
+    --
+    -- A case where this could occur is when selections are balanced in the
+    -- context of delegation / de-registration.
+    --
+    -- A transaction would have initially no inputs.
+    | null (inputs s) =
+        (s, Fee φ_original)
+
     -- selection is now balanced, nothing to do.
     | φ_original == δ_original =
         (s, Fee 0)
@@ -232,7 +251,7 @@ rebalanceChangeOutputs opts s
         let chgs' = removeDust (Coin 0)
                 $ map reduceSingleChange
                 $ divvyFee (Fee $ φ_original - δ_original) (change s)
-        rebalanceChangeOutputs opts (s { change = chgs' })
+        rebalanceSelection opts (s { change = chgs' })
 
     -- we've left too much, but adding a change output would be more
     -- expensive than not having it. Here we have two choices:
@@ -253,12 +272,18 @@ rebalanceChangeOutputs opts s
 
     -- So, we can simply add the change output, and iterate.
     | otherwise =
-        rebalanceChangeOutputs opts sDangling
+        rebalanceSelection opts sDangling
   where
     -- The original requested fee amount
     Fee φ_original = estimateFee opts s
-    -- The initial amount left for fee (i.e. inputs - outputs)
-    δ_original = inputBalance s - (outputBalance s + changeBalance s)
+    -- The initial amount left for fee (i.e. inputs - outputs), with a minimum
+    -- of 0 in case there are more output than inputs. This is possible when
+    -- there are other elements apart from normal outputs like a deposit.
+    δ_original
+        | inputBalance s >= (outputBalance s + changeBalance s) =
+            inputBalance s - (outputBalance s + changeBalance s)
+        | otherwise =
+            0
 
     -- The new amount left after balancing (i.e. φ_original)
     Fee φ_dangling = estimateFee opts sDangling

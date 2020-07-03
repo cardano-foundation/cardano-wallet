@@ -226,8 +226,8 @@ propAtLeast
 propAtLeast (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
-    prop (CoinSelection inps _ _) =
-        L.length inps `shouldSatisfy` (>= NE.length txOuts)
+    prop cs =
+        L.length (inputs cs) `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo
 
@@ -237,12 +237,12 @@ propInputDecreasingOrder
 propInputDecreasingOrder (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
-    prop (CoinSelection inps _ _) =
+    prop cs =
         let
             utxo' = (Map.toList . getUTxO) $
-                utxo `excluding` (Set.fromList . map fst $ inps)
+                utxo `excluding` (Set.fromList . map fst $ inputs cs)
         in unless (L.null utxo') $
-            (getExtremumValue L.minimum inps)
+            getExtremumValue L.minimum (inputs cs)
             `shouldSatisfy`
             (>= (getExtremumValue L.maximum utxo'))
     getExtremumValue f = f . map (getCoin . coin . snd)

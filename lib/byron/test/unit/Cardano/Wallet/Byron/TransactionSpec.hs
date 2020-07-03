@@ -48,12 +48,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionOptions (..)
-    , changeBalance
-    , inputBalance
-    , outputBalance
-    )
+    ( CoinSelection (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
@@ -62,7 +57,6 @@ import Cardano.Wallet.Primitive.Fee
     , FeePolicy (..)
     , OnDanglingChange (..)
     , adjustForFee
-    , rebalanceChangeOutputs
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -134,7 +128,7 @@ spec = do
     describe "Coin Selection w/ Byron" $ do
         it "REG #1561 - Correct balancing of amounts close to the limit" $ do
             let opts = FeeOptions
-                    { estimateFee = minimumFee tlayer feePolicy []
+                    { estimateFee = minimumFee tlayer feePolicy Nothing
                     , dustThreshold = minBound
                     , onDanglingChange = SaveMoney
                     }
@@ -146,7 +140,7 @@ spec = do
 
             let addr = Address "fake-address"
             let utxo = UTxO mempty
-            let csel = CoinSelection
+            let csel = mempty
                     { inputs =
                         [ ( TxIn (Hash "0") 0
                           , TxOut addr (Coin 1_000_000)
@@ -162,11 +156,6 @@ spec = do
             runExceptT (adjustForFee opts utxo csel) >>= \case
                 Left e -> expectationFailure $ "failed with: " <> show e
                 Right{}-> pure ()
-
-    it "1561 - The fee balancing algorithm converges for any coin selection."
-        $ property
-        $ withMaxSuccess 10000
-        $ forAllBlind (genSelection @'Mainnet @ByronKey) prop_rebalanceChangeOutputs
 
     describe "Fee estimation calculation" $ do
         it "Byron / Mainnet" $ property $
@@ -283,38 +272,6 @@ spec = do
                                 Properties
 -------------------------------------------------------------------------------}
 
-prop_rebalanceChangeOutputs
-    :: CoinSelection
-    -> OnDanglingChange
-    -> Property
-prop_rebalanceChangeOutputs sel onDangling = do
-    let (sel', fee') = rebalanceChangeOutputs opts sel
-    let prop = case onDangling of
-            PayAndBalance ->
-                fee' /= Fee 0 || Fee (delta sel') == estimateFee opts sel'
-            SaveMoney ->
-                fee' /= Fee 0 || Fee (delta sel') >= estimateFee opts sel'
-    property prop
-        & counterexample (unlines
-            [ "selection (before):", pretty sel
-            , "selection (after):", pretty sel'
-            , "delta (before): " <> show (delta sel)
-            , "delta (after):  " <> show (delta sel')
-            , "remaining fee:  " <> show (getFee fee')
-            ])
-  where
-    delta s = inputBalance s - (outputBalance s + changeBalance s)
-    opts = FeeOptions
-        { estimateFee = minimumFee tlayer feePolicy []
-        , dustThreshold = minBound
-        , onDanglingChange = onDangling
-        }
-      where
-        tlayer =
-            newTransactionLayer @'Mainnet @ByronKey Proxy mainnetMagic
-        feePolicy =
-            LinearFee (Quantity 155381) (Quantity 43) (Quantity 0)
-
 propSizeEstimation
     :: forall n k.
        ( WalletKey k
@@ -358,14 +315,14 @@ propSizeEstimation pm genSel genChngAddrs =
     estimateSize :: TransactionLayer t k -> CoinSelection -> Quantity "bytes" Int
     estimateSize tl sel =
         let
-            Fee fee = minimumFee tl idPolicy [] sel
+            Fee fee = minimumFee tl idPolicy Nothing sel
         in
             Quantity $ fromIntegral fee
       where
         idPolicy = LinearFee (Quantity 0) (Quantity 1) (Quantity 0)
 
     fromCoinSelection :: CoinSelection -> [Address] -> CBOR.Encoding
-    fromCoinSelection (CoinSelection inps outs chngs) chngAddrs =
+    fromCoinSelection (CoinSelection inps _ _ outs chngs _) chngAddrs =
         CBOR.encodeSignedTx (fst <$> inps, outs <> outs') wits
       where
         dummySig =
@@ -444,7 +401,7 @@ genSelection = do
         }
 
 shrinkSelection :: CoinSelection -> [CoinSelection]
-shrinkSelection sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+shrinkSelection sel@(CoinSelection inps _ _ outs chgs _) = case (inps, outs, chgs) of
     ([_], [_], []) ->
         []
     _ ->
@@ -457,24 +414,24 @@ shrinkSelection sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
             chgs'' = drop 1 chgs
         in
             filter (\s -> s /= sel && isValidSelection s)
-                [ CoinSelection inps' outs' chgs'
-                , CoinSelection inps' outs chgs
-                , CoinSelection inps outs chgs'
-                , CoinSelection inps outs' chgs
-                , CoinSelection inps'' outs'' chgs''
-                , CoinSelection inps'' outs chgs
-                , CoinSelection inps outs'' chgs
-                , CoinSelection inps outs chgs''
+                [ mempty { inputs = inps' , outputs = outs' , change = chgs'  }
+                , mempty { inputs = inps' , outputs = outs  , change = chgs   }
+                , mempty { inputs = inps  , outputs = outs  , change = chgs'  }
+                , mempty { inputs = inps  , outputs = outs' , change = chgs   }
+                , mempty { inputs = inps'', outputs = outs'', change = chgs'' }
+                , mempty { inputs = inps'', outputs = outs  , change = chgs   }
+                , mempty { inputs = inps  , outputs = outs'', change = chgs   }
+                , mempty { inputs = inps  , outputs = outs  , change = chgs'' }
                 ]
 
 isValidSelection :: CoinSelection -> Bool
-isValidSelection (CoinSelection i o c) =
+isValidSelection (CoinSelection i _ _ o c _) =
     let
         oAmt = sum $ map (fromIntegral . getCoin . coin) o
         cAmt = sum $ map (fromIntegral . getCoin) c
         iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
     in
-        (iAmt :: Integer) >= (oAmt + cAmt)
+        (iAmt :: Integer) >= oAmt + cAmt
 
 genTxIn :: Gen TxIn
 genTxIn = TxIn
@@ -539,8 +496,10 @@ goldenTestSignedTx proxy pm nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
+    let cs = mempty { inputs = inps, outputs = outs }
     let curSlot = error "current slot not needed in byron mkStdTx"
-    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom curSlot inps outs
+    let rewardAcnt = error "reward account not needed in byron mkStdTx"
+    let res = mkStdTx (newTransactionLayer proxy pm) rewardAcnt keyFrom curSlot cs
     case res of
         Left e -> fail (show e)
         Right (_tx, SealedTx bytes) ->
