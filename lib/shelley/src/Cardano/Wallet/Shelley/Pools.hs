@@ -178,16 +178,16 @@ newStakePoolLayer gp nl db = StakePoolLayer
 --
 --
 
--- | Stake Pool data fields that we can fetch from the node over Local State
--- Query.
-data PoolLsqMetrics = PoolLsqMetrics
+-- | Stake pool-related data that has been read from the node using a local
+--   state query.
+data PoolLsqData = PoolLsqData
     { nonMyopicMemberRewards :: Quantity "lovelace" Word64
     , relativeStake :: Percentage
     , saturation :: Double
     } deriving (Eq, Show, Generic)
 
--- | Stake Pool data fields that we read from the DB.
-data PoolDBMetrics = PoolDBMetrics
+-- | Stake pool-related data that has been read from the database.
+data PoolDbData = PoolDbData
     { regCert :: PoolRegistrationCertificate
     , retCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
@@ -197,8 +197,8 @@ data PoolDBMetrics = PoolDBMetrics
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
     :: SlotParameters
-    -> Map PoolId PoolLsqMetrics
-    -> Map PoolId PoolDBMetrics
+    -> Map PoolId PoolLsqData
+    -> Map PoolId PoolDbData
     -> Map PoolId Api.ApiStakePool
 combineDbAndLsqData sp =
     Map.merge lsqButNoChain chainButNoLsq bothPresent
@@ -213,12 +213,12 @@ combineDbAndLsqData sp =
 
     mkApiPool
         :: PoolId
-        -> PoolLsqMetrics
-        -> Maybe PoolDBMetrics
+        -> PoolLsqData
+        -> Maybe PoolDbData
         -> Api.ApiStakePool
     mkApiPool
         pid
-        (PoolLsqMetrics prew pstk psat)
+        (PoolLsqData prew pstk psat)
         dbData
         = Api.ApiStakePool
         { Api.id = (ApiT pid)
@@ -251,7 +251,7 @@ combineDbAndLsqData sp =
 -- would be completely impractical.
 combineLsqData
     :: NodePoolLsqData
-    -> Map PoolId PoolLsqMetrics
+    -> Map PoolId PoolLsqData
 combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
@@ -261,7 +261,7 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards
     -- to 0 here:
-    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
+    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqData
         { nonMyopicMemberRewards = Quantity 0
         , relativeStake = s
         , saturation = (sat s)
@@ -271,7 +271,7 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     -- should we treat it?
     --
     -- The pool with rewards but not stake didn't seem to be retiring.
-    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqMetrics
+    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqData
         { nonMyopicMemberRewards = r
         , relativeStake = noStake
         , saturation = sat noStake
@@ -279,7 +279,7 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
       where
         noStake = unsafeMkPercentage 0
 
-    bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
+    bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
 -- (doesn't include metadata)
@@ -306,7 +306,7 @@ combineChainData =
 -- hand-written Sqlite query.
 readDBPoolData
     :: DBLayer IO
-    -> IO (Map PoolId PoolDBMetrics)
+    -> IO (Map PoolId PoolDbData)
 readDBPoolData db@DBLayer{..} = atomically $ do
     pools <- listRegisteredPools
     registrationStatuses <- mapM (liftIO . readPoolRegistrationStatus db) pools
@@ -335,13 +335,13 @@ readDBPoolData db@DBLayer{..} = atomically $ do
         ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
             , Quantity "block" Word64
             )
-        -> PoolDBMetrics
+        -> PoolDbData
     lookupMetaIn m ((registrationCert, mRetirementCert), n) =
         let
             metaHash = snd <$> poolMetadata registrationCert
             meta = flip Map.lookup m =<< metaHash
         in
-            PoolDBMetrics registrationCert mRetirementCert n meta
+            PoolDbData registrationCert mRetirementCert n meta
 
 --
 -- Monitoring stake pool
