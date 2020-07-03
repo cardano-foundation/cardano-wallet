@@ -143,15 +143,11 @@ test-suite unit
     , cardano-crypto-class
     , cardano-wallet-core
     , cardano-wallet-shelley
-    , cardano-wallet-test-utils
     , containers
-    , generic-lens
     , hspec
-    , iohk-monitoring
     , memory
     , ouroboros-consensus-shelley
     , ouroboros-network
-    , retry
     , shelley-spec-ledger
     , text
     , text-class
@@ -167,7 +163,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
-      Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.TransactionSpec
 
 test-suite integration
@@ -187,8 +182,6 @@ test-suite integration
     , async
     , bytestring
     , cardano-wallet-cli
-    , cardano-addresses
-    , cardano-slotting
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
