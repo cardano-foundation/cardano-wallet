@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -12,6 +13,10 @@
 module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
+
+    , PoolRegistrationStatus (..)
+    , determinePoolRegistrationStatus
+    , readPoolRegistrationStatus
 
       -- * Errors
     , ErrPointAlreadyExists (..)
@@ -180,6 +185,46 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
     }
 
 type SlotIndex = (SlotId, SlotInternalIndex)
+
+data PoolRegistrationStatus
+    = PoolNotRegistered
+        -- ^ Indicates that a pool is not registered.
+    | PoolRegistered
+        PoolRegistrationCertificate
+        -- ^ Indicates that a pool is registered BUT NOT marked for retirement.
+        -- Records the latest registration certificate.
+    | PoolRegisteredAndRetired
+        PoolRegistrationCertificate
+        PoolRetirementCertificate
+        -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
+        -- Records the latest registration and retirement certificates.
+    deriving (Eq, Show)
+
+determinePoolRegistrationStatus
+    :: Maybe (SlotIndex, PoolRegistrationCertificate)
+    -> Maybe (SlotIndex, PoolRetirementCertificate)
+    -> PoolRegistrationStatus
+determinePoolRegistrationStatus = f
+  where
+    f Nothing _ =
+        PoolNotRegistered
+    f (Just (_, regCert)) Nothing =
+        PoolRegistered regCert
+    f (Just (regTime, regCert)) (Just (retTime, retCert))
+        | regTime > retTime =
+            PoolRegistered regCert
+        | otherwise =
+            PoolRegisteredAndRetired regCert retCert
+
+readPoolRegistrationStatus
+    :: DBLayer m
+    -> PoolId
+    -> m PoolRegistrationStatus
+readPoolRegistrationStatus
+    DBLayer {atomically, readPoolRegistration, readPoolRetirement} poolId =
+        atomically $ determinePoolRegistrationStatus
+            <$> readPoolRegistration poolId
+            <*> readPoolRetirement poolId
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists
