@@ -38,7 +38,6 @@ module Cardano.Wallet.Shelley.Compatibility
       -- * Genesis
     , emptyGenesis
     , genesisTip
-    , initialFundsPseudoTxIn
 
       -- * Conversions
     , toShelleyHash
@@ -626,14 +625,6 @@ fromShelleyTxIn (SL.TxIn txid ix) =
     unsafeCast :: Natural -> Word32
     unsafeCast = fromIntegral
 
--- | Create a TxIn pointing to the initial funds in the genesis file.
-initialFundsPseudoTxIn :: W.Address -> W.TxIn
-initialFundsPseudoTxIn =
-    fromShelleyTxIn
-    . SL.initialFundsPseudoTxIn @TPraosStandardCrypto
-    . fromMaybe (error "initialFundsPseudoTxIn: invalid addr")
-    . toShelleyAddress
-
 fromShelleyTxOut :: SL.TxOut crypto -> W.TxOut
 fromShelleyTxOut (SL.TxOut addr amount) =
   W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
@@ -641,9 +632,6 @@ fromShelleyTxOut (SL.TxOut addr amount) =
 fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address
     . SL.serialiseAddr
-
-toShelleyAddress :: O.Crypto crypto => W.Address -> Maybe (SL.Addr crypto)
-toShelleyAddress = SL.deserialiseAddr . W.unAddress
 
 fromShelleyCoin :: SL.Coin -> W.Coin
 fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
