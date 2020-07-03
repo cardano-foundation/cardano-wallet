@@ -265,6 +265,7 @@ test-suite jormungandr-integration
       Cardano.Wallet.Jormungandr.NetworkSpec
       Test.Integration.Jcli
       Test.Integration.Jormungandr.Fixture
+      Test.Integration.Jormungandr.Scenario.API.Network
       Test.Integration.Jormungandr.Scenario.API.StakePools
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher

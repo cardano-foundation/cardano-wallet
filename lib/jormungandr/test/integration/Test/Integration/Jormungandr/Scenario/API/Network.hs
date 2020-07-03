@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Test.Integration.Scenario.API.Shelley.Network
+module Test.Integration.Jormungandr.Scenario.API.Network
     ( spec
     ) where
 
@@ -35,10 +35,9 @@ spec = do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let Right d = Quantity <$> mkPercentage (3 % 4)
-        -- for Shelley desiredPoolNumber is node's nOpt protocol parameter
-        -- in integration test setup it is 3
-        let nOpt = 3
+        let Right d = Quantity <$> mkPercentage (0 % 1)
+        -- for Jörmungandr desiredPoolNumber is maximum value of pool capping
+        let nOpt = 10
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)]

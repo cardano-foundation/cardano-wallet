@@ -100,6 +100,7 @@ import Test.Utils.StaticServer
 import qualified Cardano.Pool.Jormungandr.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
+import qualified Test.Integration.Jormungandr.Scenario.API.Network as NetworkJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
@@ -147,6 +148,7 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ TransactionsApiJormungandr.spec @n @t
             withCtxOnly $ TransactionsCliJormungandr.spec @n @t
             withCtxOnly Network.spec
+            withCtxOnly NetworkJormungandr.spec
             StakePoolsApiJormungandr.spec @n
 
         describe "CLI Specifications" $ specWithServer @n tr $ do
