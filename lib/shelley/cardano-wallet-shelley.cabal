@@ -187,6 +187,8 @@ test-suite integration
     , async
     , bytestring
     , cardano-wallet-cli
+    , cardano-addresses
+    , cardano-slotting
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-launcher

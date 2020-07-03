@@ -41,6 +41,8 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
+import Control.Concurrent
+    ( threadDelay )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -53,6 +55,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( toText )
 import Numeric.Natural
@@ -367,6 +371,30 @@ spec = do
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NonNullReward
+            ]
+
+    it "STAKE_POOLS_JOIN_05 - Can join when stake key already exists" $ \ctx -> do
+        let (walletWithPreRegKey:: [Text]) =
+                [ "over", "decorate", "flock", "badge", "beauty"
+                , "stamp" , "chest", "owner", "excess", "omit"
+                , "bid", "raccoon", "spin" , "reduce", "rival"
+                ]
+        let payload = Json [json| {
+                "name": "Wallet with pre-registered stake key",
+                "mnemonic_sentence": #{walletWithPreRegKey},
+                "passphrase": "Secure Passphrase"
+                } |]
+
+        threadDelay 4000000
+
+        (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) payload
+        pool:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
+
+        joinStakePool @n ctx pool (w, passwd)>>= flip verify
+            [ expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
