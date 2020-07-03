@@ -36,14 +36,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , PoolId
-    , SealedTx (..)
-    , SlotId (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    )
+    ( Address (..), PoolId, SealedTx (..), SlotId (..), Tx (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -55,10 +48,15 @@ import Data.Word
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
@@ -113,11 +111,13 @@ data TransactionLayer t k = TransactionLayer
         -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
         -- accordingly.
 
-    , minimumFee :: FeePolicy -> Maybe DelegationAction -> CoinSelection -> Fee
+    , minimumFee
+        :: FeePolicy -> Maybe DelegationAction -> CoinSelection -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
         -- coin-selection.
 
-    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
+    , estimateMaxNumberOfInputs
+        :: Quantity "byte" Word16 -> Word8 -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
         -- transaction size and desired number of outputs.
         --

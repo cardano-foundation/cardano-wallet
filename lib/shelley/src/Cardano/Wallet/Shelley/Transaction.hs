@@ -87,6 +87,8 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.ByteString
     ( ByteString )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -115,6 +117,7 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
+import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
@@ -143,23 +146,30 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
     }
   where
     _mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-        -> SlotId -- ^ The current slot
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
+        -> SlotId
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom slot ownedIns outs = do
+    _mkStdTx rewardAcnt keyFrom slot cs = do
         let timeToLive = defaultTTL epochLength slot
-        let cs = mempty { CS.inputs = ownedIns, CS.outputs = outs }
-        let unsigned = mkUnsignedTx timeToLive cs []
+        let withdrawals = mempty -- TODO
+        let unsigned = mkUnsignedTx timeToLive cs withdrawals []
 
-        addrWits <- fmap Set.fromList $ forM ownedIns $ \(_, TxOut addr _) -> do
+        addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (k, pwd) <- lookupPrivateKey keyFrom addr
             pure $ mkWitness unsigned (getRawKey k, pwd)
 
+        withdrawalsWits <- pure mempty
+
         let metadata = SL.SNothing
 
-        let wits = SL.WitnessSet addrWits mempty mempty
+        let wits = SL.WitnessSet addrWits withdrawalsWits mempty
         pure $ toSealed $ SL.Tx unsigned wits metadata
 
     _initDelegationSelection
@@ -199,7 +209,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
                 else
                     [ toStakePoolDlgCert accXPub poolId ]
 
-        let unsigned = mkUnsignedTx timeToLive cs certs
+        let unsigned = mkUnsignedTx timeToLive cs mempty certs
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM (inputs cs) $ \(_, TxOut addr _) -> do
@@ -227,7 +237,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
 
-        let unsigned = mkUnsignedTx timeToLive cs certs
+        let unsigned = mkUnsignedTx timeToLive cs mempty certs
         let metadata = SL.SNothing
 
         addrWits <- fmap Set.fromList $ forM (inputs cs) $ \(_, TxOut addr _) -> do
@@ -328,13 +338,16 @@ computeTxSize action cs =
  where
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound cs' certs
+    unsigned = mkUnsignedTx maxBound cs' withdrawals certs
       where
         cs' :: CoinSelection
         cs' = cs
             { CS.outputs = CS.outputs cs <> (dummyOutput <$> change cs)
             , CS.change  = []
             }
+
+        withdrawals :: Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
+        withdrawals = mempty
 
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
@@ -393,9 +406,10 @@ lookupPrivateKey keyFrom addr =
 mkUnsignedTx
     :: Cardano.SlotNo
     -> CoinSelection
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
     -> [Cardano.Certificate]
     -> Cardano.ShelleyTxBody
-mkUnsignedTx ttl cs certs =
+mkUnsignedTx ttl cs withdrawals certs =
     let
         Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
             (toCardanoTxIn . fst <$> CS.inputs cs)
@@ -403,7 +417,7 @@ mkUnsignedTx ttl cs certs =
             ttl
             (toCardanoLovelace $ Coin $ feeBalance cs)
             certs
-            (Cardano.WithdrawalsShelley $ SL.Wdrl mempty) -- Withdrawals
+            (Cardano.WithdrawalsShelley $ SL.Wdrl withdrawals)
             Nothing -- Update
             Nothing -- Metadata hash
     in

@@ -502,7 +502,9 @@ goldenTestStdTx
     -> ByteString
     -> SpecWith ()
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
-    let tx = mkStdTx tl keystore (SlotId 0 0) inps outs
+    let cs = mempty { inputs = inps, outputs = outs }
+    let rewardAcnt = error "unused"
+    let tx = mkStdTx tl rewardAcnt keystore (SlotId 0 0) cs
     let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
@@ -571,16 +573,20 @@ unknownInputTest
 unknownInputTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = mkStdTx tl keyFrom (SlotId 0 0) inps outs
+    let res = mkStdTx tl rewardAcnt keyFrom (SlotId 0 0) cs
           where
             tl = newTransactionLayer @JormungandrKey block0
+            rewardAcnt = error "unused"
             keyFrom = const Nothing
-            inps =
-                [ ( TxIn (Hash "arbitrary") 0
-                  , TxOut addr (Coin 0)
-                  )
-                ]
-            outs = []
+            cs = mempty
+                { inputs =
+                    [ ( TxIn (Hash "arbitrary") 0
+                      , TxOut addr (Coin 0)
+                      )
+                    ]
+                , outputs =
+                    []
+                }
     res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
   where
     title = "Unknown input address yields an error ("

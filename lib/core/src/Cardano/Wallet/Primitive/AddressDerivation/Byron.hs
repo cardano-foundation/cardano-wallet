@@ -98,7 +98,9 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat )
 
+
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
@@ -311,6 +313,23 @@ changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey
 {-------------------------------------------------------------------------------
                                  HD derivation
 -------------------------------------------------------------------------------}
+
+-- TODO
+-- This instance is unsound. It only exists because we need to derive the
+-- reward account in the wallet engine when making transaction (in case there
+-- are any withdrawals).
+--
+-- With 'ByronKey', withdrawals will always be `0`, and the result of this
+-- function shouldn't be evaluated (relying on lazyness here). If they do, then
+-- we're doing something wrong.
+instance W.HardDerivation ByronKey where
+    type AddressIndexDerivationType ByronKey = 'WholeDomain
+
+    deriveAccountPrivateKey _ _ _ = error
+        "unsound evaluation of 'deriveAccountPrivateKey' in the context of Byron key"
+
+    deriveAddressPrivateKey _ _ _ _ = error
+        "unsound evaluation of 'deriveAddressPrivateKey' in the context of Byron key"
 
 -- | Derives account private key from the given root private key, using
 -- derivation scheme 1.

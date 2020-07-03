@@ -108,6 +108,7 @@ import Test.QuickCheck
     ( generate, vector )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteArray as BA
@@ -515,15 +516,18 @@ fixtureExternalTx ctx toSend = do
             , nOutputs = 1
             , nChanges = 1
             }
-    let theInps =
-            [ (TxIn theTxId 0, TxOut addrSrc (Coin (fromIntegral amt))) ]
-    let theOuts =
-            [ TxOut addrDest' (Coin (fromIntegral toSend))
-            , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
-            ]
+    let cs = mempty
+            { CS.inputs =
+                [ (TxIn theTxId 0, TxOut addrSrc (Coin (fromIntegral amt))) ]
+            , CS.outputs =
+                [ TxOut addrDest' (Coin (fromIntegral toSend))
+                , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
+                ]
+            }
     tl <- newTransactionLayer <$> getBlock0H
+    let rewardAcnt = error "rewardAcnt unused"
     let curSlot = error "current slot not needed in jormungandr mkStdTx"
-    let (Right (tx, bin)) = mkStdTx tl keystore curSlot theInps theOuts
+    let (Right (tx, bin)) = mkStdTx tl rewardAcnt keystore curSlot cs
 
     return ExternalTxFixture
         { srcWallet = wSrc

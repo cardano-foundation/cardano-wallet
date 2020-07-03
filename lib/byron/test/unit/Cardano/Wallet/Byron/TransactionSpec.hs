@@ -496,8 +496,10 @@ goldenTestSignedTx proxy pm nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
+    let cs = mempty { inputs = inps, outputs = outs }
     let curSlot = error "current slot not needed in byron mkStdTx"
-    let res = mkStdTx (newTransactionLayer proxy pm) keyFrom curSlot inps outs
+    let rewardAcnt = error "reward account not needed in byron mkStdTx"
+    let res = mkStdTx (newTransactionLayer proxy pm) rewardAcnt keyFrom curSlot cs
     case res of
         Left e -> fail (show e)
         Right (_tx, SealedTx bytes) ->

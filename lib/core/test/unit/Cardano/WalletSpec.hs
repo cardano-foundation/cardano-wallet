@@ -617,11 +617,11 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom _slot inps outs -> do
-        let inps' = map (second coin) inps
-        let tid = mkTxId inps' outs
-        let tx = Tx tid inps' outs
-        wit <- forM inps $ \(_, TxOut addr _) -> do
+    { mkStdTx = \_ keyFrom _slot cs -> do
+        let inps' = map (second coin) (CS.inputs cs)
+        let tid = mkTxId inps' (CS.outputs cs)
+        let tx = Tx tid inps' (CS.outputs cs)
+        wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
             let (Hash sigData) = txId tx

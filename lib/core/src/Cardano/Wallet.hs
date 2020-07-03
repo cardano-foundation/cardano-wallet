@@ -1366,6 +1366,8 @@ signPayment
         , HasNetworkLayer t ctx
         , IsOwned s k
         , GenChange s
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> WalletId
@@ -1375,6 +1377,7 @@ signPayment
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+        let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
@@ -1383,9 +1386,10 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
+            let keyFrom = isOwned (getState cp) (xprv, pwdP)
+            let rewardAcnt = deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl keyFrom (nodeTip ^. #slotId) (inputs cs') (outputs cs')
+                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotId) cs'
 
             let gp = blockchainParameters cp
             let (time, meta) = mkTxMeta gp (currentTip cp) s' cs'
@@ -1402,6 +1406,8 @@ signTx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> WalletId
@@ -1410,17 +1416,19 @@ signTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+        let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
 
-            let keyFrom = isOwned (getState cp) (xprv, preparePassphrase scheme pwd)
+            let cs = mempty { inputs = inps, outputs = outs }
+            let keyFrom = isOwned (getState cp) (xprv, pwdP)
+            let rewardAcnt = deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl keyFrom (nodeTip ^. #slotId) inps outs
+                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotId) cs
 
             let gp = blockchainParameters cp
-            let cs = mempty { inputs = inps, outputs = outs }
             let (time, meta) = mkTxMeta gp (currentTip cp) (getState cp) cs
             return (tx, meta, time, sealedTx)
   where
@@ -1504,27 +1512,27 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let rewardAcc = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
-                    Join poolId ->
+                    RegisterKeyAndJoin poolId ->
                         mkDelegationJoinTx tl poolId
-                            (rewardAcc, pwdP)
+                            (rewardAcnt, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
                             coinSel'
 
-                    RegisterKeyAndJoin poolId ->
+                    Join poolId ->
                         mkDelegationJoinTx tl poolId
-                            (rewardAcc, pwdP)
+                            (rewardAcnt, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
                             coinSel'
 
                     Quit ->
                         mkDelegationQuitTx tl
-                            (rewardAcc, pwdP)
+                            (rewardAcnt, pwdP)
                             keyFrom
                             (nodeTip ^. #slotId)
                             coinSel'

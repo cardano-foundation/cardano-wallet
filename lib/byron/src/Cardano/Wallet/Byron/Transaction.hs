@@ -47,7 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx (..)
     , SlotId (..)
     , Tx (..)
-    , TxIn (..)
     , TxOut (..)
     )
 import Cardano.Wallet.Transaction
@@ -68,8 +67,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either.Combinators
     ( maybeToRight )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -115,18 +112,23 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     }
   where
     _mkStdTx
-        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+        :: (k 'AddressK XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store
         -> SlotId
-        -> [(TxIn, TxOut)]
-        -> [TxOut]
+            -- Tip of the chain, for TTL
+        -> CoinSelection
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
-    _mkStdTx keyFrom _slotId inps outs = do
-        let tx = (fst <$> inps, outs)
+    _mkStdTx _rewardAcnt keyFrom _slotId cs = do
+        let tx = (fst <$> CS.inputs cs, CS.outputs cs)
         let sigData = blake2b256 $ CBOR.toStrictByteString $ CBOR.encodeTx tx
-        witnesses <- forM inps $ \(_, TxOut addr _) ->
+        witnesses <- forM (CS.inputs cs) $ \(_, TxOut addr _) ->
             mkWitness protocolMagic sigData <$> lookupPrivateKey addr
         pure
-            ( Tx (Hash sigData) (second coin <$> inps) outs
+            ( Tx (Hash sigData) (second coin <$> CS.inputs cs) (CS.outputs cs)
             , SealedTx $ CBOR.toStrictByteString $ CBOR.encodeSignedTx tx witnesses
             )
       where

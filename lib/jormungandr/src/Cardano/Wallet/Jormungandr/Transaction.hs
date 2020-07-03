@@ -83,10 +83,10 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer block0H = TransactionLayer
-    { mkStdTx = \keyFrom _ inps outs ->
+    { mkStdTx = \_rewardAcnt keyFrom _ cs ->
         mkFragment
             ( MkFragmentSimpleTransaction (txWitnessTagFor @k)
-            ) keyFrom inps outs
+            ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
     , mkDelegationJoinTx = \pool accXPrv keyFrom _ cs ->
         let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv

@@ -1117,6 +1117,8 @@ postTransaction
         , GenChange s
         , IsOwned s k
         , ctx ~ ApiLayer s t k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ArgGenChange s
@@ -1325,7 +1327,11 @@ getMigrationInfo ctx (ApiT wid) = do
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
 migrateWallet
-    :: forall s t k n p. IsOwned s k
+    :: forall s t k n p.
+        ( IsOwned s k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        )
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
