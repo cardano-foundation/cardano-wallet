@@ -158,9 +158,9 @@ ProtocolParameters
 
 -- Track whether the wallet's stake key is registered or not.
 StakeKeyCertificate
-    stakeKeyCertWalletId             W.WalletId     sql=wallet_id
-    stakeKeyCertSlot                 W.SlotId       sql=slot
-    stakeKeyCertIsReg                Bool           sql=is_reg
+    stakeKeyCertWalletId             W.WalletId            sql=wallet_id
+    stakeKeyCertSlot                 W.SlotId              sql=slot
+    stakeKeyCertType                 W.StakeKeyCertificate sql=type
 
     Primary stakeKeyCertWalletId stakeKeyCertSlot
     Foreign Wallet stakeKeyRegistration stakeKeyCertWalletId ! ON DELETE CASCADE

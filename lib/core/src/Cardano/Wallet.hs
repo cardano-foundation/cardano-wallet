@@ -1247,7 +1247,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 
     isKeyReg <- mapExceptT atomically
         $ withExceptT ErrSelectForDelegationNoSuchWallet
-        $ readIsStakeKeyRegistered (PrimaryKey wid)
+        $ isStakeKeyRegistered (PrimaryKey wid)
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp action
@@ -1712,10 +1712,10 @@ joinStakePool
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
 joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
-    (isKeyReg, walMeta) <- mapExceptT atomically $ withExceptT ErrJoinStakePoolNoSuchWallet $
-        (,)
-            <$> readIsStakeKeyRegistered (PrimaryKey wid)
-            <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
+    (isKeyReg, walMeta) <- mapExceptT atomically
+        $ withExceptT ErrJoinStakePoolNoSuchWallet
+        $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
+              <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
     withExceptT ErrJoinStakePoolCannotJoin $ except $
         guardJoin pools (walMeta ^. #delegation) pid

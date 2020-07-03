@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SlotId (..)
     , SlotNo (..)
+    , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker
@@ -129,6 +130,17 @@ fromPersistValueRead pv = fromPersistValue pv >>= readWithErr
   where
     readWithErr = toEither . readMaybe . T.unpack
     toEither = maybe (Left $ "not a valid value: " <> T.pack (show pv)) Right
+
+
+----------------------------------------------------------------------------
+-- StakeKeyCertificate
+
+instance PersistField StakeKeyCertificate where
+    toPersistValue = toPersistValue . show
+    fromPersistValue = fromPersistValueRead
+
+instance PersistFieldSql StakeKeyCertificate where
+    sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
 -- Direction

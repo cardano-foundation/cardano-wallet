@@ -615,7 +615,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                             (DelegationCertificate wid sl Nothing)
                         pure <$> repsert
                             (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl False)
+                            (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
                     W.CertDelegateFull _ pool ->
                         pure <$> repsert
                             (DelegationCertificateKey wid sl)
@@ -623,9 +623,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                     W.CertRegisterKey _ ->
                         pure <$> repsert
                             (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl True)
+                            (StakeKeyCertificate wid sl W.StakeKeyRegistration)
 
-        , readIsStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
+        , isStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
               selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just{} -> do
@@ -634,7 +634,8 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                         [Desc StakeKeyCertSlot]
                     return $ case val of
                         Nothing -> Right False
-                        Just (StakeKeyCertificate _ _ isReg) -> Right isReg
+                        Just (StakeKeyCertificate _ _ status) ->
+                            Right (status == W.StakeKeyRegistration)
 
         {-----------------------------------------------------------------------
                                      Tx History

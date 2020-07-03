@@ -148,6 +148,7 @@ module Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
+    , StakeKeyCertificate (..)
 
     -- * Querying
     , SortOrder (..)
@@ -1848,6 +1849,13 @@ data DelegationCertificate
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
+
+data StakeKeyCertificate
+    = StakeKeyRegistration
+    | StakeKeyDeregistration
+    deriving (Generic, Show, Read, Eq)
+
+instance NFData StakeKeyCertificate
 
 dlgCertAccount :: DelegationCertificate -> ChimericAccount
 dlgCertAccount = \case
