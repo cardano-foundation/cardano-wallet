@@ -266,7 +266,7 @@ mkFeeEstimator policy = \case
             mempty { inputs = inps, change = outs }
 
     computeFee selection action =
-        fromIntegral $ getFee $ _minimumFee policy action selection
+        fromIntegral $ getFee $ _minimumFee (Proxy @'Mainnet) policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging
