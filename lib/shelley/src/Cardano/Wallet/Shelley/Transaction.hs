@@ -186,6 +186,7 @@ mkTx
        , WalletKey k
        )
     => Proxy n
+    -> ProtocolMagic
     -> TxPayload TPraosStandardCrypto
     -> SlotNo
     -- ^ Time to Live
@@ -194,7 +195,7 @@ mkTx
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
+mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
     let withdrawals = mkWithdrawals
             proxy
             (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
@@ -202,17 +203,27 @@ mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFro
 
     let unsigned = mkUnsignedTx timeToLive cs withdrawals certs
 
-    addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
-        (k, pwd) <- lookupPrivateKey keyFrom addr
-        pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
+    wits <- case (txWitnessTagFor @k) of
+        TxWitnessShelleyUTxO -> do
+            addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+                (k, pwd) <- lookupPrivateKey keyFrom addr
+                pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
-    let withdrawalsWits
-            | Map.null withdrawals = Set.empty
-            | otherwise = Set.singleton $
-                mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+            let withdrawalsWits
+                    | Map.null withdrawals = Set.empty
+                    | otherwise = Set.singleton $
+                      mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
 
-    let wits = (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
-            <> mkExtraWits unsigned
+            pure $ (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
+                <> mkExtraWits unsigned
+
+        TxWitnessByronUTxO -> do
+            let toSigningKey (k,_) = Crypto.SigningKey $ getRawKey k
+            bootstrapWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+                (k, pwd) <- lookupPrivateKey keyFrom addr
+                pure $ mkByronWitness unsigned pm (getRawKey k, pwd)
+            pure $ SL.WitnessSet mempty mempty bootstrapWits
+                <> mkExtraWits unsigned --- TO_DO - this is needed?
 
     let metadata = SL.SNothing
 
@@ -229,9 +240,9 @@ newTransactionLayer
     -> ProtocolMagic
     -> EpochLength
     -> TransactionLayer t k
-newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
+newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
     { mkStdTx = \acc ks tip ->
-        mkTx proxy emptyTxPayload (defaultTTL epochLength tip) acc ks
+        mkTx proxy protocolMagic emptyTxPayload (defaultTTL epochLength tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -285,7 +296,7 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx proxy payload ttl acc keyFrom cs
+        mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption")
@@ -308,7 +319,7 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx proxy payload ttl acc keyFrom cs
+        mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
     :: forall (n :: NetworkDiscriminant). Typeable n
