@@ -153,6 +153,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IOManager
     ( withIOManager )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
@@ -172,6 +174,7 @@ data SomeNetworkDiscriminant where
             , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
+            , Typeable n
             )
         => Proxy n
         -> SomeNetworkDiscriminant

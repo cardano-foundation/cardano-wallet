@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
+    , fromNetworkDiscriminant
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
@@ -111,6 +112,8 @@ import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -157,8 +160,9 @@ emptyTxPayload :: Crypto c => TxPayload c
 emptyTxPayload = TxPayload mempty mempty
 
 mkTx
-    :: WalletKey k
-    => TxPayload TPraosStandardCrypto
+    :: forall (n :: NetworkDiscriminant) k. (Typeable n, WalletKey k)
+    => Proxy n
+    -> TxPayload TPraosStandardCrypto
     -> SlotNo
     -- ^ Time to Live
     -> (k 'AddressK XPrv, Passphrase "encryption")
@@ -166,8 +170,9 @@ mkTx
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
+mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
     let withdrawals = mkWithdrawals
+            proxy
             (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
             (withdrawal cs)
 
@@ -193,24 +198,25 @@ newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
         , WalletKey k
+        , Typeable n
         )
     => Proxy n
     -> ProtocolMagic
     -> EpochLength
     -> TransactionLayer t k
-newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
-    { mkStdTx = \acc ks tip -> mkTx emptyTxPayload (defaultTTL epochLength tip) acc ks
+newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
+    { mkStdTx = \acc ks tip ->
+        mkTx proxy emptyTxPayload (defaultTTL epochLength tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , minimumFee = _minimumFee
-    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs
+    , minimumFee = _minimumFee proxy
+    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs proxy
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
     }
   where
-
     _initDelegationSelection
         :: FeePolicy
             -- Current fee policy
@@ -254,7 +260,7 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx payload ttl acc keyFrom cs
+        mkTx proxy payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption")
@@ -277,15 +283,17 @@ newTransactionLayer _proxy _protocolMagic epochLength = TransactionLayer
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx payload ttl acc keyFrom cs
+        mkTx proxy payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
-    :: Quantity "byte" Word16
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy n
+    -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs (Quantity maxSize) nOuts =
+_estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
       fromIntegral $ bisect (lowerBound, upperBound)
   where
     bisect (!inf, !sup)
@@ -306,7 +314,7 @@ _estimateMaxNumberOfInputs (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize Nothing sel
+        size = computeTxSize proxy Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -346,12 +354,14 @@ _decodeSignedTx bytes = do
             Left $ ErrDecodeSignedTxWrongPayload (Cardano.renderApiError apiErr)
 
 _minimumFee
-    :: FeePolicy
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> FeePolicy
     -> Maybe DelegationAction
     -> CoinSelection
     -> Fee
-_minimumFee policy action cs =
-    computeFee $ computeTxSize action cs
+_minimumFee proxy policy action cs =
+    computeFee $ computeTxSize proxy action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -360,10 +370,12 @@ _minimumFee policy action cs =
         LinearFee (Quantity a) (Quantity b) _unused = policy
 
 computeTxSize
-    :: Maybe DelegationAction
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize action cs =
+computeTxSize proxy action cs =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
@@ -397,6 +409,7 @@ computeTxSize action cs =
     dummyKeyHashRaw = BS.pack (replicate 28 0)
 
     withdrawals = mkWithdrawals
+        proxy
         (ChimericAccount dummyKeyHashRaw)
         (withdrawal cs)
 
@@ -459,19 +472,20 @@ mkUnsignedTx ttl cs withdrawals certs =
         unsigned
 
 mkWithdrawals
-    :: ChimericAccount
+    :: forall (n :: NetworkDiscriminant). (Typeable n)
+    => Proxy n
+    -> ChimericAccount
     -> Word64
     -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
-mkWithdrawals (ChimericAccount keyHash) amount
+mkWithdrawals proxy (ChimericAccount keyHash) amount
     | amount == 0 = mempty
     | otherwise = Map.fromList
-        [ ( SL.RewardAcnt SL.Mainnet keyHashObj
+        [ ( SL.RewardAcnt (fromNetworkDiscriminant proxy) keyHashObj
           , SL.Coin $ fromIntegral amount
           )
         ]
   where
     keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
-
 
 -- TODO: The SlotId-SlotNo conversion based on epoch length would not
 -- work if the epoch length changed in a hard fork.

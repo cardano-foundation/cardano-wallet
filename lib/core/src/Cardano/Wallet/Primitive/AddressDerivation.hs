@@ -472,7 +472,7 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -------------------------------------------------------------------------------}
 
 -- | Available network options.
-data NetworkDiscriminant = Mainnet | Testnet Nat
+data NetworkDiscriminant = Mainnet | Testnet Nat deriving Typeable
 
 class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
     networkDiscriminantVal :: Text
