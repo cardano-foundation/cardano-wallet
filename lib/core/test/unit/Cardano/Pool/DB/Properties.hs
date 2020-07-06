@@ -60,7 +60,7 @@ import Data.List.Extra
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, isJust, isNothing, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -168,7 +168,11 @@ properties = do
         it "unfetchedPoolMetadataRefsIgnoring"
             (property . prop_unfetchedPoolMetadataRefsIgnoring)
         it "prop_determinePoolRegistrationStatus_orderCorrect" $
-            (property . const prop_determinePoolRegistrationStatus_orderCorrect)
+            (property . const
+                prop_determinePoolRegistrationStatus_orderCorrect)
+        it "prop_determinePoolRegistrationStatus_neverRegistered" $
+            (property . const
+                prop_determinePoolRegistrationStatus_neverRegistered)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -605,6 +609,21 @@ prop_determinePoolRegistrationStatus_orderCorrect regData retData =
     result = determinePoolRegistrationStatus
         (pure (regTime, regCert))
         (pure (retTime, retCert))
+
+prop_determinePoolRegistrationStatus_neverRegistered
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => Maybe (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolRegistrationStatus_neverRegistered maybeRetData =
+    checkCoverage
+        $ cover 10 (isJust maybeRetData)
+            "with retirement data"
+        $ cover 10 (isNothing maybeRetData)
+            "without retirement data"
+        $ property
+        $ result `shouldBe` PoolNotRegistered
+  where
+    result = determinePoolRegistrationStatus Nothing maybeRetData
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
