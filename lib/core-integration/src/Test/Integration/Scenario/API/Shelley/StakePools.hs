@@ -18,6 +18,7 @@ import Cardano.Wallet.Api.Types
     ( ApiStakePool
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
     , ApiWallet
     , ApiWithdrawRewards (..)
     , DecodeAddress
@@ -92,7 +93,6 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , walletId
-    , (.<=)
     , (.>)
     , (.>)
     )
@@ -159,14 +159,18 @@ spec = do
 
         -- Earn rewards
         waitForNextEpoch ctx
-        previousBalance <- eventually "Wallet gets rewards" $ do
+        (previousBalance, walletRewards) <- eventually "Wallet gets rewards" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             verify r
                 [ expectField (#balance . #getApiT . #reward) (.> (Quantity 0))
                 ]
-            pure $ getFromResponse (#balance . #getApiT . #available) r
+            let availableBalance =
+                    getFromResponse (#balance . #getApiT . #available) r
+            let rewardBalance =
+                    getFromResponse (#balance . #getApiT . #reward) r
+            pure (availableBalance, rewardBalance)
 
-        -- Use rewards
+        -- Try to use rewards
         addrs <- listAddresses @n ctx w
         let coin = 1 :: Natural
         let addr = (addrs !! 1) ^. #id
@@ -181,6 +185,23 @@ spec = do
                     ]
                 , "passphrase": #{fixturePassphrase}
                 }|]
+
+        -- cannot use rewards by default
+        r1 <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley w)
+            Default (Json payload)
+        expectResponseCode HTTP.status202 r1
+        let txId1 = getFromResponse #id r1
+        eventually "Wallet has not consumed rewards" $ do
+          let linkSrc = Link.getTransaction @'Shelley w (ApiTxId txId1)
+          request @(ApiTransaction n) ctx linkSrc Default Empty  >>= flip verify
+              [ expectField (#status . #getApiT) (`shouldBe` InLedger)
+              ]
+          request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+              [ expectField (#balance . #getApiT . #reward) (`shouldBe` walletRewards)
+              ]
+
+        -- can use rewards with special transaction query param (ApiWithdrawRewards True)
         request @(ApiTransaction n) ctx
             (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
             Default (Json payload) >>= flip verify
@@ -191,7 +212,7 @@ spec = do
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField (#balance . #getApiT . #reward) (.<= (Quantity 0))
+                [ expectField (#balance . #getApiT . #reward) (`shouldBe` (Quantity 0))
                 , expectField (#balance . #getApiT . #available) (.> previousBalance)
                 ]
 
@@ -521,7 +542,7 @@ spec = do
                 r <- listPools ctx
                 expectResponseCode HTTP.status200 r
                 let oneMillionAda = 1_000_000_000_000
-                let pools = either (error . show) id $ snd r
+                let pools = either (error . show) Prelude.id $ snd r
 
                 -- To ignore the ordering of the pools, we use Set.
                 setOf pools (view #cost)
@@ -576,7 +597,7 @@ spec = do
 
                 verify r
                     [ expectListSize 3
-                    , expectField id $ \pools ->
+                    , expectField Prelude.id $ \pools ->
                         -- To ignore the arbitrary order,
                         -- we sort on the names before comparing
                         sortOn name ( mapMaybe (fmap getApiT . view #metadata) pools)
