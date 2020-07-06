@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,6 +25,7 @@ import Cardano.Pool.DB
     , ErrPointAlreadyExists (..)
     , PoolRegistrationStatus (..)
     , determinePoolRegistrationStatus
+    , readPoolRegistrationStatus
     )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
@@ -32,10 +34,12 @@ import Cardano.Pool.DB.Sqlite
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , EpochNo
+    , PoolCertificate (..)
     , PoolId
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
+    , SlotInternalIndex (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -50,7 +54,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Function
-    ( on )
+    ( on, (&) )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -60,7 +64,7 @@ import Data.List.Extra
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust, isNothing, mapMaybe )
+    ( catMaybes, isJust, isNothing, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -155,6 +159,8 @@ properties = do
             (property . prop_poolRegistration)
         it "putPoolRetirement then readPoolRetirement yields expected result"
             (property . prop_poolRetirement)
+        it "readPoolRegistrationStatus should respect registration order"
+            (property . prop_readPoolRegistrationStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
         it "readStake . putStake a1 . putStake s0 == pure a1"
@@ -466,6 +472,85 @@ prop_poolRetirement DBLayer {..} entries =
             , show entriesOut
             ]
         assert (entriesIn == entriesOut)
+
+prop_readPoolRegistrationStatus
+    :: DBLayer IO
+    -> PoolId
+    -> [PoolCertificate]
+    -> Property
+prop_readPoolRegistrationStatus
+    db@DBLayer {..} sharedPoolId certificatesManyPoolIds =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    expectedStatus = determinePoolRegistrationStatus
+        mFinalRegistration
+        mFinalRetirement
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putCertificate) certificatePublications
+        actualStatus <- run $ readPoolRegistrationStatus db sharedPoolId
+        monitor $ counterexample $ unlines
+            [ "\nFinal registration: "
+            , show mFinalRegistration
+            , "\nFinal retirement: "
+            , show mFinalRetirement
+            , "\nExpected status: "
+            , show expectedStatus
+            , "\nActual status: "
+            , show actualStatus
+            , "\nNumber of certificate publications: "
+            , show (length certificatePublications)
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> certificatePublications)
+            ]
+        assert (actualStatus == expectedStatus)
+
+    certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    mFinalRegistration = certificatePublications
+        & reverse
+        & fmap (traverse toRegistrationCertificate)
+        & catMaybes
+        & listToMaybe
+
+    mFinalRetirement = certificatePublications
+        & reverse
+        & fmap (traverse toRetirementCertificate)
+        & catMaybes
+        & listToMaybe
+
+    publicationTimes =
+        [(SlotId en sn, SlotInternalIndex ii)
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    certificates = setPoolId sharedPoolId <$> certificatesManyPoolIds
+
+    toRegistrationCertificate = \case
+        Registration cert -> Just cert
+        Retirement _ -> Nothing
+
+    toRetirementCertificate = \case
+        Retirement cert -> Just cert
+        Registration _ -> Nothing
+
+    putCertificate cpt = \case
+        Registration cert ->
+            putPoolRegistration cpt cert
+        Retirement cert ->
+            putPoolRetirement cpt cert
+
+    setPoolId newPoolId = \case
+        Registration cert -> Registration
+            $ set #poolId newPoolId cert
+        Retirement cert -> Retirement
+            $ set #poolId newPoolId cert
 
 prop_rollbackRegistration
     :: DBLayer IO
