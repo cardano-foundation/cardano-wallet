@@ -157,6 +157,9 @@ let
     stackShell = import ./nix/stack-shell.nix {
       walletPackages = self;
     };
+    # This attribute ensures that every single derivation required for
+    # evaluation of the haskell package set is built and cached on CI.
+    inherit (pkgs.haskell-nix) haskellNixRoots;
   };
 
 in
