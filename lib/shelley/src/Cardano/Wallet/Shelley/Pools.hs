@@ -499,8 +499,8 @@ instance ToText StakePoolLog where
             ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
-        MsgStakePoolRegistration pool ->
-            "Discovered stake pool registration: " <> pretty pool
+        MsgStakePoolRegistration cert ->
+            "Discovered stake pool registration: " <> pretty cert
         MsgStakePoolRetirement cert ->
             "Discovered stake pool retirement: " <> pretty cert
         MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat

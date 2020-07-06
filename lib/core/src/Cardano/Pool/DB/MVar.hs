@@ -81,14 +81,16 @@ newDBLayer = do
         , readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        , putPoolRegistration = \a0 a1 ->
-            void $ alterPoolDB (const Nothing) db $ mPutPoolRegistration a0 a1
+        , putPoolRegistration = \cpt cert -> void
+              $ alterPoolDB (const Nothing) db
+              $ mPutPoolRegistration cpt cert
 
         , readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
 
-        , putPoolRetirement = \slot cert ->
-            void $ alterPoolDB (const Nothing) db $ mPutPoolRetirement slot cert
+        , putPoolRetirement = \cpt cert -> void
+            $ alterPoolDB (const Nothing) db
+            $ mPutPoolRetirement cpt cert
 
         , readPoolRetirement =
             readPoolDB db . mReadPoolRetirement

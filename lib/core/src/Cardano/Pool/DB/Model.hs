@@ -196,15 +196,16 @@ mPutPoolRegistration
     :: CertificatePublicationTime
     -> PoolRegistrationCertificate
     -> ModelPoolOp ()
-mPutPoolRegistration sp registration db =
+mPutPoolRegistration cpt cert db =
     ( Right ()
-    , db { owners = Map.insert poolId poolOwners owners
-         , registrations = Map.insert (sp, poolId) registration registrations
-         }
+    , db
+        { owners = Map.insert poolId poolOwners owners
+        , registrations = Map.insert (cpt, poolId) cert registrations
+        }
     )
   where
     PoolDatabase {owners, registrations} = db
-    PoolRegistrationCertificate {poolId, poolOwners} = registration
+    PoolRegistrationCertificate {poolId, poolOwners} = cert
 
 mReadPoolRegistration
     :: PoolId
@@ -225,13 +226,13 @@ mPutPoolRetirement
     :: CertificatePublicationTime
     -> PoolRetirementCertificate
     -> ModelPoolOp ()
-mPutPoolRetirement sp retirement db =
+mPutPoolRetirement cpt cert db =
     ( Right ()
-    , db { retirements = Map.insert (sp, poolId) retirement retirements }
+    , db {retirements = Map.insert (cpt, poolId) cert retirements}
     )
   where
     PoolDatabase {retirements} = db
-    PoolRetirementCertificate poolId _retiredIn = retirement
+    PoolRetirementCertificate poolId _retiredIn = cert
 
 mReadPoolRetirement
     :: PoolId
