@@ -50,8 +50,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( toChimericAccountRaw )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
@@ -153,6 +159,21 @@ data TxPayload c = TxPayload
 emptyTxPayload :: Crypto c => TxPayload c
 emptyTxPayload = TxPayload mempty mempty
 
+data TxWitnessTag
+    = TxWitnessByronUTxO
+    | TxWitnessShelleyUTxO
+    deriving (Show, Eq)
+
+-- | Provide a transaction witness for a given private key. The type of witness
+-- is different between types of keys and, with backward-compatible support, we
+-- need to support many types for one backend target.
+class TxWitnessTagFor (k :: Depth -> * -> *) where
+    txWitnessTagFor :: TxWitnessTag
+
+instance TxWitnessTagFor ShelleyKey  where txWitnessTagFor = TxWitnessShelleyUTxO
+instance TxWitnessTagFor IcarusKey   where txWitnessTagFor = TxWitnessByronUTxO
+instance TxWitnessTagFor ByronKey    where txWitnessTagFor = TxWitnessByronUTxO
+
 mkTx
     :: forall (n :: NetworkDiscriminant) k. (Typeable n, WalletKey k)
     => Proxy n
@@ -191,6 +212,7 @@ mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFro
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
+        , TxWitnessTagFor k
         , WalletKey k
         , Typeable n
         )
