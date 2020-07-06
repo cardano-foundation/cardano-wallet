@@ -141,8 +141,9 @@ let
         ]) ++ (with pkgs; [
           niv
           pkgconfig
-          sqlite-interactive
           python3Packages.openapi-spec-validator
+          ruby
+          sqlite-interactive
           yq
         ]);
       tools = {
