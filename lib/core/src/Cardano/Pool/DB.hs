@@ -2,6 +2,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -43,6 +44,8 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -226,11 +229,43 @@ determinePoolRegistrationStatus = f
         PoolNotRegistered
     f (Just (_, regCert)) Nothing =
         PoolRegistered regCert
-    f (Just (regTime, regCert)) (Just (retTime, retCert))
+    f (Just reg) (Just ret) =
+        g reg ret
+
+    g (regTime, regCert) (retTime, retCert)
+        | regPoolId /= retPoolId =
+            differentPoolsError
         | regTime > retTime =
             PoolRegistered regCert
-        | otherwise =
+        | regTime < retTime =
             PoolRegisteredAndRetired regCert retCert
+        | otherwise =
+            timeCollisionError
+      where
+        regPoolId = view #poolId regCert
+        retPoolId = view #poolId retCert
+
+        differentPoolsError = error $ mconcat
+            [ "determinePoolRegistrationStatus:"
+            , " called with certificates for different pools:"
+            , " pool id of registration certificate: "
+            , show regPoolId
+            , " pool id of retirement certificate: "
+            , show retPoolId
+            ]
+
+        timeCollisionError = error $ mconcat
+            [ "determinePoolRegistrationStatus:"
+            , " called with identical certificate publication times:"
+            , " pool id of registration certificate: "
+            , show regPoolId
+            , " pool id of retirement certificate: "
+            , show retPoolId
+            , " publication time of registration certificate: "
+            , show regPoolId
+            , " publication time of retirement certificate: "
+            , show retPoolId
+            ]
 
 -- | Reads the current registration status of a pool.
 --
