@@ -22,7 +22,7 @@ in pkgs.runCommand name {
   buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
 } ''
   mkdir ${name}
-  cp -R ${concatMapStringsSep " " (exe: "${exe}/bin/*") exes} ${name}
+  cp -fR ${concatMapStringsSep " " (exe: "${exe}/bin/*") exes} ${name}
   chmod -R 755 ${name}
 
   mkdir -p $out/nix-support

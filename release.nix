@@ -188,66 +188,85 @@ let
   ############################################################################
   # Release distribution jobs - these all have a Hydra download link.
 
+  # Which exes should be put in the release archive.
+  releaseContents = rec {
+    jormungandr = [
+      "cardano-wallet-jormungandr"
+      "jormungandr"
+      "jormungandr-cli"
+    ];
+    cardanoNodeCommon = [
+      "bech32"
+      "cardano-address"
+      "cardano-cli"
+      "cardano-node"
+      "cardano-tx"
+    ];
+    byron = [ "cardano-wallet-byron" ] ++ cardanoNodeCommon;
+    shelley = [ "cardano-wallet-shelley" ] ++ cardanoNodeCommon;
+  };
+
+  # function to take a list of jobs by name from a jobset.
+  selectExes = subjobs: system: map (exe: subjobs.${exe}.${system});
+
   releaseDistJobs = optionalAttrs buildWindows {
     # Windows release ZIP archive - jormungandr
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
-      exe = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
+      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.jormungandr;
     };
 
     # Windows release ZIP archive - byron rewrite
     cardano-wallet-byron-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
-      exe = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
+      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.byron;
     };
 
     # Windows release ZIP archive - shelley
     cardano-wallet-shelley-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
-      exe = jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux;
+      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.shelley;
     };
 
     # This is used for testing the build on windows.
-    cardano-wallet-tests-win64 = import ./nix/windows-testing-bundle.nix {
+    cardano-wallet-tests-win64 = let
+      winJobs = jobs."${mingwW64.config}";
+    in import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
-      cardano-wallet-jormungandr = jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux;
-      cardano-wallet-byron = jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux;
-      cardano-wallet-shelley = jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux;
-      cardano-node = jobs.x86_64-w64-mingw32.cardano-node.x86_64-linux;
-      tests = collectTests jobs.x86_64-w64-mingw32.tests;
-      benchmarks = collectTests jobs.x86_64-w64-mingw32.benchmarks;
+      cardano-wallet-jormungandr = winJobs.cardano-wallet-jormungandr.x86_64-linux;
+      cardano-wallet-byron = winJobs.cardano-wallet-byron.x86_64-linux;
+      cardano-wallet-shelley = winJobs.cardano-wallet-shelley.x86_64-linux;
+      cardano-node = winJobs.cardano-node.x86_64-linux;
+      tests = collectTests winJobs.tests;
+      benchmarks = collectTests winJobs.benchmarks;
     };
   } // optionalAttrs buildMusl {
     # Fully-static linux binaries
     cardano-wallet-jormungandr-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
-      exes = [ jobs.musl64.cardano-wallet-jormungandr.x86_64-linux ];
+      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.jormungandr;
     };
     cardano-wallet-byron-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
-      exes = [
-        jobs.musl64.cardano-wallet-byron.x86_64-linux
-        # SRE-83 dependencies fail to build
-        # jobs.musl64.cardano-node.x86_64-linux
-      ];
+      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.byron;
     };
     cardano-wallet-shelley-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
-      exes = [ jobs.musl64.cardano-wallet-shelley.x86_64-linux ];
+      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.shelley;
     };
   } // optionalAttrs buildMacOS {
     # macOS binary and dependencies in tarball
     cardano-wallet-jormungandr-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
-      exes = [ jobs.native.cardano-wallet-jormungandr.x86_64-darwin ];
+      exes = selectExes jobs.native "x86_64-darwin" releaseContents.jormungandr;
     };
     cardano-wallet-byron-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
-      exes = [ jobs.native.cardano-wallet-byron.x86_64-darwin ];
+      exes = selectExes jobs.native "x86_64-darwin" releaseContents.byron;
     };
     cardano-wallet-shelley-macos64 = import ./nix/macos-release.nix {
       inherit pkgs;
-      exes = [ jobs.native.cardano-wallet-shelley.x86_64-darwin ];
+      exes = selectExes jobs.native "x86_64-darwin" releaseContents.shelley;
     };
   };
 

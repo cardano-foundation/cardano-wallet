@@ -7,17 +7,19 @@
 ############################################################################
 
 { pkgs
-, exe
+, exes ? []
 }:
 
 let
+  # Take the filename from the first exe passed in
+  exe = pkgs.lib.head exes;
   name = "${exe.meta.name}-win64";
 
 in pkgs.runCommand name { buildInputs = [ pkgs.buildPackages.zip ]; } ''
   mkdir -p $out/nix-support release
   cd release
 
-  cp ${exe}/bin/* .
+  cp -fR ${pkgs.lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} .
   chmod -R +w .
 
   zip -r $out/${name}.zip .
