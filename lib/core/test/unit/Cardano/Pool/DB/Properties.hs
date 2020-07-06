@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -38,6 +39,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Function
     ( on )
 import Data.Functor
@@ -401,7 +404,7 @@ prop_poolRegistration DBLayer {..} entries =
         run . atomically $
             mapM_ (putPoolRegistration (SlotId 0 0, minBound)) entries
         pools <- run . atomically $ L.sort . fmap snd . catMaybes
-            <$> mapM (readPoolRegistration . poolId) entries
+            <$> mapM (readPoolRegistration . view #poolId) entries
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             , "Expected    : " <> show expected
@@ -419,7 +422,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     setup = run $ atomically cleanDB
 
     beforeRollback pool = do
-        case L.find (on (==) poolId pool . snd) entries of
+        case L.find (on (==) (view #poolId) pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
             Just ((sl, _), pool') ->
@@ -433,7 +436,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries
         run . atomically $ rollbackTo rollbackPoint
         pools <- run . atomically $ L.sort . fmap snd . catMaybes
-            <$> mapM (readPoolRegistration . poolId . snd) entries
+            <$> mapM (readPoolRegistration . (view #poolId) . snd) entries
         monitor $ classify (length pools < length entries) "rolled back some"
         monitor $ classify ownerHasManyPools "owner has many pools"
         monitor $ counterexample $ unlines
@@ -462,7 +465,7 @@ prop_listRegisteredPools DBLayer {..} entries =
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             ]
-        assert (pools == (poolId <$> reverse entries))
+        assert (pools == (view #poolId <$> reverse entries))
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
