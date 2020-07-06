@@ -426,6 +426,7 @@ withBenchDBLayer tr action =
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
+        , Sqlite.defaultDesiredNumberOfPool = 0
         }
 
     -- This tweaks the DB support the AnyAddressState.

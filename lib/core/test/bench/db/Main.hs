@@ -342,7 +342,10 @@ setupDB = do
 
 defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 50
+        -- NOTE value in the genesis when at the time this migration was needed.
+    }
 
 cleanupDB :: (FilePath, SqliteContext, DBLayerBench) -> IO ()
 cleanupDB (db, ctx, _) = do

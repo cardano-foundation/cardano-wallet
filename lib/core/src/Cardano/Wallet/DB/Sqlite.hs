@@ -141,7 +141,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -328,6 +328,8 @@ migrateManually tr defaultFieldValues =
 
         addActiveSlotCoefficientIfMissing conn
 
+        addDesiredPoolNumberIfMissing conn
+
         -- FIXME
         -- Temporary migration to fix Daedalus flight wallets. This should
         -- really be removed as soon as we have a fix for the cardano-sl:wallet
@@ -434,11 +436,36 @@ migrateManually tr defaultFieldValues =
                 Sqlite.finalize addColumn
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
+
       where
         activeSlotCoeff = DBField CheckpointActiveSlotCoeff
         value = toText
             $ W.unActiveSlotCoefficient
             $ defaultActiveSlotCoefficient defaultFieldValues
+
+    -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
+    -- table if it is missing.
+    --
+    addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
+    addDesiredPoolNumberIfMissing conn = do
+        isFieldPresent conn desiredPoolNumber >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded desiredPoolNumber
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded desiredPoolNumber value
+                addColumn <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName desiredPoolNumber
+                    , "ADD COLUMN", fieldName desiredPoolNumber
+                    , fieldType desiredPoolNumber, "NOT NULL", "DEFAULT", value
+                    , ";"
+                    ]
+                _ <- Sqlite.step addColumn
+                Sqlite.finalize addColumn
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded desiredPoolNumber
+      where
+        desiredPoolNumber = DBField ProtocolParametersDesiredNumberOfPools
+        value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
@@ -467,8 +494,10 @@ migrateManually tr defaultFieldValues =
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
 --
-newtype DefaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient }
+data DefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
+    , defaultDesiredNumberOfPool :: Word16
+    }
 
 -- | Sets up a connection to the SQLite database.
 --
