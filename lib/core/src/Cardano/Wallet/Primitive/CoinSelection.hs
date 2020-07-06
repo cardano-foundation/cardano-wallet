@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , outputBalance
     , changeBalance
     , feeBalance
+    , proportionallyTo
     , ErrCoinSelection (..)
     , CoinSelectionOptions (..)
     ) where
@@ -30,6 +31,8 @@ import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..) )
 import Data.List
     ( foldl' )
+import Data.Ratio
+    ( Ratio, denominator, numerator )
 import Data.Word
     ( Word64, Word8 )
 import Fmt
@@ -122,6 +125,25 @@ addTxOut total = addCoin total . coin
 
 addCoin :: Integral a => a -> Coin -> a
 addCoin total c = total + (fromIntegral (getCoin c))
+
+-- | Compute the fraction of the first input to match the given ratio, rounded
+-- down.
+--
+-- /invariant:/ The ratio mustn't be greater than 1 without risk to overflow.
+--
+-- >>> 10 `proportionallyTo` 1%1
+-- 10
+--
+-- >>> 10 `proportionallyTo` 1%2
+-- 5
+--
+-- >>> 10 `proportionallyTo` 1%3
+-- 3
+proportionallyTo :: Integral a => a -> Ratio a -> a
+proportionallyTo n r
+    | r > 1 = error "proportionallyTo: ratio is greater than 1!"
+    | otherwise = fromIntegral $
+        toInteger n * toInteger (numerator r) `div` toInteger (denominator r)
 
 data ErrCoinSelection e
     = ErrNotEnoughMoney Word64 Word64

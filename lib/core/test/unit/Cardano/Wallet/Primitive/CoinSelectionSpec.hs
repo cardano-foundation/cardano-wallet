@@ -28,7 +28,11 @@ import Prelude
 import Cardano.Wallet.Api.Server
     ( assignMigrationAddresses )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , ErrCoinSelection (..)
+    , proportionallyTo
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -47,6 +51,8 @@ import Data.Maybe
     ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( Ratio, (%) )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -65,6 +71,7 @@ import Test.QuickCheck
     , applyArbitrary2
     , checkCoverageWith
     , choose
+    , conjoin
     , counterexample
     , cover
     , elements
@@ -72,6 +79,7 @@ import Test.QuickCheck
     , scale
     , vector
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
@@ -101,6 +109,16 @@ spec = do
         prop "All inputs are used" prop_allInputsAreUsed
         prop "All inputs are used per transaction" prop_allInputsAreUsedPerTx
         prop "Addresses are recycled fairly" prop_fairAddressesRecycled
+
+    describe "proportionallyTo" $ do
+        prop "proportionallyTo behaves as expected" prop_proportionallyTo
+        it "10 `proportionallyTo` 1%1 == 10" $
+            (10 `proportionallyTo` (1%1)) `shouldBe` (10 :: Integer)
+        it "10 `proportionallyTo` 1%2 == 5" $
+            (10 `proportionallyTo` (1%2)) `shouldBe` (5 :: Integer)
+        it "10 `proportionallyTo` 1%3 == 3" $
+            (10 `proportionallyTo` (1%3)) `shouldBe` (3 :: Integer)
+
   where
     lowerConfidence :: Confidence
     lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
@@ -108,6 +126,15 @@ spec = do
 {-------------------------------------------------------------------------------
                                  Properties
 -------------------------------------------------------------------------------}
+
+prop_proportionallyTo
+    :: Word8
+    -> Ratio Word8
+    -> Property
+prop_proportionallyTo n r = conjoin
+    [ r <= 1 ==> n `proportionallyTo` r <= n
+    , n `proportionallyTo` 1 === n
+    ]
 
 prop_utxoToListOrderDeterministic
     :: UTxO

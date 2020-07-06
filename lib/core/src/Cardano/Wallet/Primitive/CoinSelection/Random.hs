@@ -18,7 +18,11 @@ module Cardano.Wallet.Primitive.CoinSelection.Random
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , ErrCoinSelection (..)
+    , proportionallyTo
+    )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
@@ -51,10 +55,10 @@ import Data.Ord
     ( comparing )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Ratio
-    ( Ratio, denominator, numerator, (%) )
 import Data.Word
     ( Word64 )
+import Data.Ratio
+    ( (%) )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -278,18 +282,3 @@ mkChange (TxOut _ (Coin out)) inps =
                 []
             c ->
                 [ Coin c ]
-
--- | Compute the fraction of the first input to match the given ratio, rounded
--- down.
---
--- >>> 10 `proportionallyTo` 1%1
--- 10
---
--- >>> 10 `proportionallyTo` 1%2
--- 5
---
--- >>> 10 `proportionallyTo` 1%3
--- 3
-proportionallyTo :: Integral a => a -> Ratio a -> a
-proportionallyTo n r = fromIntegral $
-    toInteger n * toInteger (numerator r) `div` toInteger (denominator r)
