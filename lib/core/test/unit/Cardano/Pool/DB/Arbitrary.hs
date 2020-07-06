@@ -24,6 +24,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , SlotInternalIndex (..)
     , SlotNo (..)
@@ -59,6 +60,7 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , genericShrink
     , listOf
     , oneof
     , scale
@@ -154,6 +156,12 @@ instance Arbitrary PoolRegistrationCertificate where
             sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
             extP <- elements [ ".io", ".dev", ".com", ".eu" ]
             pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
+
+instance Arbitrary PoolRetirementCertificate where
+    arbitrary = PoolRetirementCertificate
+        <$> arbitrary
+        <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary StakePoolMetadataHash where
     arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)
