@@ -41,6 +41,7 @@ library
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-crypto-wrapper
     , cardano-ledger
     , cardano-slotting
     , cardano-wallet-cli

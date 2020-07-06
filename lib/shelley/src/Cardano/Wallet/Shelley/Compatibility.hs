@@ -73,6 +73,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromChainHash
     , fromGenesisData
     , fromNetworkMagic
+    , toByronNetworkMagic
     , fromSlotNo
     , fromTip
     , fromTip'
@@ -756,6 +757,13 @@ fromNetworkDiscriminant _ =
     case testEquality (typeRep @n) (typeRep @'Mainnet) of
         Just{}  -> SL.Mainnet
         Nothing -> SL.Testnet
+
+toByronNetworkMagic :: W.ProtocolMagic -> Byron.NetworkMagic
+toByronNetworkMagic pm@(W.ProtocolMagic magic) =
+    if pm == W.mainnetMagic then
+        Byron.NetworkMainOrStage
+    else
+        Byron.NetworkTestnet (fromIntegral magic)
 
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
 toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)

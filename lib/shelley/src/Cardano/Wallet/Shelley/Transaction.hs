@@ -36,7 +36,7 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xpubPublicKey )
+    ( XPrv, XPub, toXPub, xprvToBytes, xpubPublicKey )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -79,6 +79,7 @@ import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
     , fromNetworkDiscriminant
+    , toByronNetworkMagic
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
@@ -120,6 +121,9 @@ import Type.Reflection
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Typed as CardanoTyped
+import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Crypto as Crypto
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
@@ -130,6 +134,7 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
@@ -529,6 +534,21 @@ signWith msg (prv, pass) =
 unsafeMkEd25519 :: XPub -> Ed25519.PublicKey
 unsafeMkEd25519 =
     throwCryptoError . Ed25519.publicKey . xpubPublicKey
+
+mkByronWitness
+    :: SL.TxBody TPraosStandardCrypto
+    -> ProtocolMagic
+    -> (XPrv, Passphrase "encryption")
+    -> SL.BootstrapWitness TPraosStandardCrypto
+mkByronWitness body protocolMagic (prv, pwd) =
+    let signingKey = Crypto.SigningKey prv
+        bytes = xprvToBytes prv
+        addrAttr = Byron.AddrAttributes
+            (Just $ Byron.HDAddressPayload bytes)
+            (toByronNetworkMagic protocolMagic)
+        (SL.TxId txHash) = SL.txid body
+     in error "waiting for proper cardano-ledger-spec"
+        --SL.makeBootstrapWitness txHash signingKey addrAttr
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
