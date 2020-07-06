@@ -200,8 +200,17 @@ let
 
         # split data output for ekg to reduce closure size
         packages.ekg.components.library.enableSeparateDataOutput = true;
-        enableLibraryProfiling = profiling;
       }
+
+      # Enable profiling on executables if the profiling argument is set.
+      (lib.optionalAttrs profiling {
+        enableLibraryProfiling = true;
+        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.enableExecutableProfiling = true;
+        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron.enableExecutableProfiling = true;
+        packages.cardano-wallet-byron.components.benchmarks.restore.enableExecutableProfiling = true;
+        packages.cardano-wallet-byron.components.benchmarks.latency.enableExecutableProfiling = true;
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.enableExecutableProfiling = true;
+      })
 
       # Musl libc fully static build
       (lib.optionalAttrs stdenv.hostPlatform.isMusl (let

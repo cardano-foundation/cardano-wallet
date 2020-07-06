@@ -67,16 +67,18 @@ let
     filter = removeSocketFilesFilter;
   };
 
-  haskellPackages = import ./nix/haskell.nix {
+  buildHaskellPackages = args: import ./nix/haskell.nix ({
     inherit config lib stdenv pkgs buildPackages;
     inherit (pkgs) haskell-nix;
     inherit src pr;
-  };
+  } // args);
+  haskellPackages = buildHaskellPackages {};
+  profiledHaskellPackages = buildHaskellPackages { profiling = true; };
 
   getPackageChecks = mapAttrs (_: package: package.checks);
 
   self = {
-    inherit pkgs commonLib src haskellPackages stackNixRegenerate;
+    inherit pkgs commonLib src haskellPackages profiledHaskellPackages;
     # Jormungandr
     inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
@@ -157,6 +159,9 @@ let
     stackShell = import ./nix/stack-shell.nix {
       walletPackages = self;
     };
+    # This is the ./nix/regenerate.sh script. Put it here so that it's
+    # built and cached on CI.
+    inherit stackNixRegenerate;
     # This attribute ensures that every single derivation required for
     # evaluation of the haskell package set is built and cached on CI.
     inherit (pkgs.haskell-nix) haskellNixRoots;
