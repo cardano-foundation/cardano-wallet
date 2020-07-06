@@ -73,7 +73,6 @@ let
     inherit src pr;
   };
 
-  filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = mapAttrs (_: package: package.checks);
 
   self = {
@@ -107,11 +106,11 @@ let
     };
 
     # `tests` are the test suites which have been built.
-    tests = collectComponents "tests" isCardanoWallet haskellPackages;
+    tests = collectComponents "tests" isProjectPackage haskellPackages;
     # `checks` are the result of executing the tests.
-    checks = pkgs.recurseIntoAttrs (getPackageChecks (filterCardanoPackages haskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages haskellPackages));
     # `benchmarks` are only built, not run.
-    benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+    benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
 
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
@@ -123,36 +122,28 @@ let
 
     shell = haskellPackages.shellFor {
       name = "cardano-wallet-shell";
-      packages = ps: with ps; [
-        cardano-wallet-cli
-        cardano-wallet-core
-        cardano-wallet-core-integration
-        cardano-wallet-byron
-        cardano-wallet-shelley
-        cardano-wallet-jormungandr
-        cardano-wallet-launcher
-        cardano-wallet-test-utils
-        text-class
-      ];
-      buildInputs = (with pkgs.haskell-nix.haskellPackages; [
-          weeder.components.exes.weeder
-          hlint.components.exes.hlint
-        ])
-        ++ (with self; [
+      packages = ps: attrValues (selectProjectPackages ps);
+      buildInputs = (with self; [
           jormungandr
           jormungandr-cli
           cardano-node
           cardano-cli
+          haskellPackages.cardano-addresses.components.exes.cardano-address
         ]) ++ (with pkgs; [
-          stack
-          cabal-install
           niv
           pkgconfig
           sqlite-interactive
           python3Packages.openapi-spec-validator
           yq
         ]);
-      tools.stylish-haskell = "0.11.0.0";
+      tools = {
+        cabal = "3.2.0.0";
+        ghcid = "0.8.7";
+        ghcide = "0.2.0";
+        hlint = "3.1.6";
+        stylish-haskell = "0.11.0.0";
+        weeder = "1.0.9";
+      };
       CARDANO_NODE_CONFIGS = cardano-node.deployments;
       meta.platforms = lib.platforms.unix;
     };
