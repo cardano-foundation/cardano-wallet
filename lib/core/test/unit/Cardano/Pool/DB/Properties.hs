@@ -153,6 +153,8 @@ properties = do
             (property . prop_putStakeReadStake)
         it "putPoolRegistration then readPoolRegistration yields expected result"
             (property . prop_poolRegistration)
+        it "putPoolRetirement then readPoolRetirement yields expected result"
+            (property . prop_poolRetirement)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
         it "readStake . putStake a1 . putStake s0 == pure a1"
@@ -434,6 +436,29 @@ prop_poolRegistration DBLayer {..} entries =
             mapM_ (uncurry putPoolRegistration) entriesIn
         entriesOut <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . view #poolId . snd) entries
+        monitor $ counterexample $ unlines
+            [ "Written into DB: "
+            , show entriesIn
+            , "Read from DB: "
+            , show entriesOut
+            ]
+        assert (entriesIn == entriesOut)
+
+-- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
+prop_poolRetirement
+    :: DBLayer IO
+    -> [(CertificatePublicationTime, PoolRetirementCertificate)]
+    -> Property
+prop_poolRetirement DBLayer {..} entries =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    entriesIn = L.sort entries
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) entriesIn
+        entriesOut <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRetirement . view #poolId . snd) entries
         monitor $ counterexample $ unlines
             [ "Written into DB: "
             , show entriesIn
