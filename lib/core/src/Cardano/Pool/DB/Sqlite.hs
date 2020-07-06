@@ -399,6 +399,7 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
+            deleteWhere ([] :: [Filter PoolRetirement])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
