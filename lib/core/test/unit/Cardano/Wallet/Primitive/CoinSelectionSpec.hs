@@ -45,6 +45,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -243,6 +245,9 @@ data CoinSelectionFixture = CoinSelectionFixture
         -- ^ Value (in Lovelace) & number of available coins in the UTxO
     , txOutputs :: NonEmpty Word64
         -- ^ Value (in Lovelace) & number of requested outputs
+    , totalWithdrawal :: Word64
+        -- ^ Total withdrawal available for the selection. May be split across
+        -- outputs.
     }
 
 -- | A dummy error for testing extra validation
@@ -263,11 +268,13 @@ data CoinSelectionResult = CoinSelectionResult
     , rsOutputs :: [Word64]
     } deriving (Eq, Show)
 
+
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
 -- given coin selection on it.
 coinSelectionUnitTest
     :: ( CoinSelectionOptions ErrValidation
          -> NonEmpty TxOut
+         -> Quantity "lovelace" Word64
          -> UTxO
          -> ExceptT (ErrCoinSelection ErrValidation) IO (CoinSelection, UTxO)
        )
@@ -275,11 +282,12 @@ coinSelectionUnitTest
     -> Either (ErrCoinSelection ErrValidation) CoinSelectionResult
     -> CoinSelectionFixture
     -> SpecWith ()
-coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
+coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF w) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
-            cs <- fst <$> run (CoinSelectionOptions (const n) fn) txOuts utxo
+            cs <- fst <$> run
+                (CoinSelectionOptions (const n) fn) txOuts (Quantity w) utxo
             return $ CoinSelectionResult
                 { rsInputs  = map (getCoin . coin . snd) (inputs cs)
                 , rsChange  = map getCoin (change cs)

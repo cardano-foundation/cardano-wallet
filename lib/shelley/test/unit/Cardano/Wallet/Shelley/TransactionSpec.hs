@@ -159,7 +159,7 @@ spec = do
 
         let selectCoins = flip catchE (handleCannotCover utxo recipients) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-                    CS.random testCoinSelOpts recipients utxo
+                    CS.random testCoinSelOpts recipients (Quantity 0) utxo
                 withExceptT ErrSelectForPaymentFee $
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins

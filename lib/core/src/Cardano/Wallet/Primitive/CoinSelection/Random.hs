@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
@@ -48,6 +49,10 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
     ( comparing )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Ratio
+    ( Ratio, denominator, numerator, (%) )
 import Data.Word
     ( Word64 )
 
@@ -112,36 +117,54 @@ random
     :: forall m e. MonadRandom m
     => CoinSelectionOptions e
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> UTxO
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
-random opt outs utxo = do
+random opt outs (Quantity totalWithdraw) utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
+    let totalOut = sum (getCoin . coin <$> outs)
     randomMaybe <- lift $ runMaybeT $
-        foldM makeSelection (maxN, utxo, []) (descending outs)
+        foldM
+            (\acc out ->
+                let
+                    withdraw = totalWithdraw
+                        `proportionallyTo` (getCoin (coin out) % totalOut)
+                in
+                    makeSelection (Quantity withdraw) acc out
+            )
+            (maxN, utxo, [])
+            (descending outs)
     case randomMaybe of
         Just (maxN', utxo', res) -> do
             (_, sel, remUtxo) <- lift $
                 foldM improveTxOut (maxN', mempty, utxo') (reverse res)
-            guard sel $> (sel, remUtxo)
+            -- NOTE re-assigning total withdrawal to cope with potential
+            -- rounding issues.
+            guard sel $> (sel { withdrawal = totalWithdraw }, remUtxo)
         Nothing ->
-            largestFirst opt outs utxo
+            largestFirst opt outs (Quantity totalWithdraw) utxo
   where
     guard = except . left ErrInvalidSelection . validate opt
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
     :: forall m. MonadRandom m
-    => (Word64, UTxO, [([(TxIn, TxOut)], TxOut)])
+    => Quantity "lovelace" Word64
+    -> (Word64, UTxO, [(Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)])
     -> TxOut
-    -> MaybeT m (Word64, UTxO, [([(TxIn, TxOut)], TxOut)])
-makeSelection (maxNumInputs, utxo0, selection) txout = do
+    -> MaybeT m
+        ( Word64 -- Number of remaining inputs that can be selected
+        , UTxO -- New UTxO
+        , [(Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)] -- Ongoing selection
+        )
+makeSelection withdraw (maxNumInputs, utxo0, selection) txout = do
     (inps, utxo1) <- coverRandomly ([], utxo0)
     return
         ( maxNumInputs - fromIntegral (L.length inps)
         , utxo1
-        , (inps, txout) : selection
+        , (withdraw, inps, txout) : selection
         )
   where
     coverRandomly
@@ -149,9 +172,9 @@ makeSelection (maxNumInputs, utxo0, selection) txout = do
         => ([(TxIn, TxOut)], UTxO)
         -> MaybeT m ([(TxIn, TxOut)], UTxO)
     coverRandomly (inps, utxo)
-        | L.length inps > (fromIntegral maxNumInputs) =
+        | L.length inps > fromIntegral maxNumInputs =
             MaybeT $ return Nothing
-        | balance' inps >= targetMin (mkTargetRange txout) =
+        | totalBalance withdraw inps >= targetMin (mkTargetRange txout) =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
             pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
@@ -160,9 +183,9 @@ makeSelection (maxNumInputs, utxo0, selection) txout = do
 improveTxOut
     :: forall m. MonadRandom m
     => (Word64, CoinSelection, UTxO)
-    -> ([(TxIn, TxOut)], TxOut)
+    -> (Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)
     -> m (Word64, CoinSelection, UTxO)
-improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
+improveTxOut (maxN0, selection, utxo0) (withdraw, inps0, txout) = do
     (maxN, inps, utxo) <- improve (maxN0, inps0, utxo0)
     return
         ( maxN
@@ -170,6 +193,7 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
             { inputs = inps
             , outputs = [txout]
             , change = mkChange txout inps
+            , withdrawal = getQuantity withdraw
             }
         , utxo
         )
@@ -181,7 +205,7 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
         => (Word64, [(TxIn, TxOut)], UTxO)
         -> m (Word64, [(TxIn, TxOut)], UTxO)
     improve (maxN, inps, utxo)
-        | maxN >= 1 && balance' inps < targetAim target = do
+        | maxN >= 1 && totalBalance withdraw inps < targetAim target = do
             runMaybeT (pickRandomT utxo) >>= \case
                 Nothing ->
                     return (maxN, inps, utxo)
@@ -198,12 +222,12 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
     isImprovement io selected =
         let
             condA = -- (a) It doesn’t exceed a specified upper limit.
-                balance' (io : selected) < targetMax target
+                totalBalance withdraw (io : selected) < targetMax target
 
             condB = -- (b) Addition gets us closer to the ideal change
-                distance (targetAim target) (balance' (io : selected))
+                distance (targetAim target) (totalBalance withdraw (io : selected))
                 <
-                distance (targetAim target) (balance' selected)
+                distance (targetAim target) (totalBalance withdraw selected)
 
             -- (c) Doesn't exceed maximum number of inputs
             -- Guaranteed by the precondition on 'improve'.
@@ -213,6 +237,13 @@ improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
 {-------------------------------------------------------------------------------
                                  Internals
 -------------------------------------------------------------------------------}
+
+-- | Total UTxO balance + withdrawal. The withdrawal only counts towards the
+-- balance if there's at least one input.
+totalBalance :: Quantity "lovelace" Word64 -> [(TxIn, TxOut)] -> Word64
+totalBalance (Quantity withdraw) inps
+    | null inps = 0
+    | otherwise = balance' inps + withdraw
 
 -- | Re-wrap 'pickRandom' in a 'MaybeT' monad
 pickRandomT :: MonadRandom m => UTxO -> MaybeT m ((TxIn, TxOut), UTxO)
@@ -247,3 +278,18 @@ mkChange (TxOut _ (Coin out)) inps =
                 []
             c ->
                 [ Coin c ]
+
+-- | Compute the fraction of the first input to match the given ratio, rounded
+-- down.
+--
+-- >>> 10 `proportionallyTo` 1%1
+-- 10
+--
+-- >>> 10 `proportionallyTo` 1%2
+-- 5
+--
+-- >>> 10 `proportionallyTo` 1%3
+-- 3
+proportionallyTo :: Integral a => a -> Ratio a -> a
+proportionallyTo n r = fromIntegral $
+    toInteger n * toInteger (numerator r) `div` toInteger (denominator r)

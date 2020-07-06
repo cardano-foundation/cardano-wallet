@@ -35,6 +35,8 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( Spec, before, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -59,6 +61,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -72,6 +75,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| [1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -85,6 +89,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1]
                 , txOutputs = 2 :| [1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -98,6 +103,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1]
                 , txOutputs = 2 :| [1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -111,6 +117,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [5,5,5]
                 , txOutputs = 2 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -125,6 +132,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [10,10,10]
                 , txOutputs = 2 :| [2]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "cannot cover aim, but only min"
@@ -138,6 +146,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "REG CO-450: no fallback"
@@ -151,6 +160,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [oneAda, oneAda, oneAda, oneAda]
                 , txOutputs = 2*oneAda :| [oneAda `div` 2]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
@@ -160,6 +170,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [10,10,10,10]
                 , txOutputs = 38 :| [1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -169,6 +180,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "each output needs <maxNumOfInputs"
@@ -178,6 +190,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 100 1)
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "each output needs >maxNumInputs"
@@ -187,6 +200,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 10 10)
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -196,6 +210,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -205,6 +220,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| [1,1,1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random ""
@@ -214,6 +230,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1,1,1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest random "custom validation"
@@ -223,6 +240,7 @@ spec = do
                 , validateSelection = alwaysFail
                 , utxoInputs = [1,1]
                 , txOutputs = 2 :| []
+                , totalWithdrawal = 0
                 })
 
     before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do
@@ -250,9 +268,9 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
     prop (cs1, cs2) =
         L.length (inputs cs1) `shouldSatisfy` (>= L.length (inputs cs2))
     (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts utxo)
+        (runExceptT $ random opt txOuts (Quantity 0) utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts utxo
+        largestFirst opt txOuts (Quantity 0) utxo
     opt = CoinSelectionOptions (const 100) noValidation
 
 propErrors
@@ -267,7 +285,7 @@ propErrors drg (CoinSelProp utxo txOuts) = do
     prop (err1, err2) =
         err1 === err2
     (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts utxo)
+        (runExceptT $ random opt txOuts (Quantity 0) utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts utxo
+        largestFirst opt txOuts (Quantity 0) utxo
     opt = (CoinSelectionOptions (const 1) noValidation)

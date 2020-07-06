@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
 
 
@@ -31,6 +32,10 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
     ( Down (..) )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Word
+    ( Word64 )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -42,9 +47,10 @@ largestFirst
     :: forall m e. Monad m
     => CoinSelectionOptions e
     -> NonEmpty TxOut
+    -> Quantity "lovelace" Word64
     -> UTxO
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
-largestFirst opt outs utxo = do
+largestFirst opt outs _withdrawals utxo = do
     let descending = L.sortOn (Down . coin) . NE.toList
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt (fromIntegral nOuts)
