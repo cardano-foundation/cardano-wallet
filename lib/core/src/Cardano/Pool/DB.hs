@@ -220,8 +220,9 @@ data PoolRegistrationStatus
 -- determine the pool's current registration status based on the relative
 -- order in which the certificates were published.
 determinePoolRegistrationStatus
-    :: Maybe (CertificatePublicationTime, PoolRegistrationCertificate)
-    -> Maybe (CertificatePublicationTime, PoolRetirementCertificate)
+    :: Ord certificatePublicationTime
+    => Maybe (certificatePublicationTime, PoolRegistrationCertificate)
+    -> Maybe (certificatePublicationTime, PoolRetirementCertificate)
     -> PoolRegistrationStatus
 determinePoolRegistrationStatus = f
   where
