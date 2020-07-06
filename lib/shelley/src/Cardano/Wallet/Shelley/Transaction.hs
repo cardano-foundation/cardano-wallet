@@ -37,7 +37,7 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xprvToBytes, xpubPublicKey )
+    ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , mainnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -471,7 +472,31 @@ computeTxSize proxy witTag action cs =
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+    byronWits = Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs)
+      where
+        dummyWitness :: BL.ByteString -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitness chaff = error "waiting for proper cardano-ledger-spec"
+                            --SL.makeBootstrapWitness chaff signingKey addrAttr
+          where
+            addrAttr = Byron.AddrAttributes
+                       (Just $ Byron.HDAddressPayload (bloatChaff keyLen))
+                       (toByronNetworkMagic mainnetMagic)
+            (Just xprv) = xprvFromBytes (bloatChaff sigLen)
+            signingKey = Crypto.SigningKey xprv
+            sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+            keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+            bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
+
+        dummyWitnessUniq :: TxIn -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitnessUniq (TxIn (Hash txid) ix) = dummyWitness chaff
+          where
+            chaff = L8.pack (show ix) <> BL.fromStrict txid
+
+    wits = case witTag of
+        TxWitnessShelleyUTxO ->
+            SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+        TxWitnessByronUTxO ->
+           SL.WitnessSet mempty mempty byronWits
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
