@@ -727,7 +727,9 @@ temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0 }
+    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
+    , defaultDesiredNumberOfPool = 0
+    }
 
 newDBLayer'
     :: PersistState s

@@ -97,6 +97,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -153,6 +154,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IOManager
     ( withIOManager )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
@@ -172,6 +175,7 @@ data SomeNetworkDiscriminant where
             , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
+            , Typeable n
             )
         => Proxy n
         -> SomeNetworkDiscriminant
@@ -319,7 +323,13 @@ serveWallet
         let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
-            (DefaultFieldValues $ getActiveSlotCoefficient gp)
+            (DefaultFieldValues
+                { defaultActiveSlotCoefficient =
+                    getActiveSlotCoefficient gp
+                , defaultDesiredNumberOfPool =
+                    desiredNumberOfStakePools (protocolParameters np)
+                }
+            )
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where

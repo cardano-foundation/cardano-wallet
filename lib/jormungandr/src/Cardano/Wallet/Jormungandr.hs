@@ -126,6 +126,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , ProtocolParameters (..)
     , SyncTolerance
     , WalletId
     )
@@ -282,8 +283,12 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues
-                $ getActiveSlotCoefficient
-                $ genesisParameters np)
+                { defaultActiveSlotCoefficient =
+                    getActiveSlotCoefficient (genesisParameters np)
+                , defaultDesiredNumberOfPool =
+                    desiredNumberOfStakePools (protocolParameters np)
+                }
+            )
             databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock block0, np, sTolerance) nl' tl db
