@@ -28,6 +28,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
     , mkShelleyWitness
+    , mkByronWitness
     , mkTx
     , TxPayload (..)
     , emptyTxPayload

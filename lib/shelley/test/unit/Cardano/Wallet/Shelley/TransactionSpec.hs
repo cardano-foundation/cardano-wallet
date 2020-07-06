@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -47,11 +48,13 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , mainnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkShelleyWitness
+    ( mkByronWitness
+    , mkShelleyWitness
     , mkUnsignedTx
     , newTransactionLayer
     , _decodeSignedTx
@@ -85,6 +88,7 @@ import Test.QuickCheck
     , choose
     , classify
     , counterexample
+    , oneof
     , property
     , scale
     , vectorOf
@@ -109,8 +113,9 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 
 spec :: Spec
 spec = do
-    describe "decodeSignedTx testing" $
-        prop "roundtrip" prop_decodeSignedTxRoundtrip
+    describe "decodeSignedTx testing" $ do
+        prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
+        prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     describe "estimateMaxNumberOfInputs" $ do
         let proxy = Proxy @'Mainnet
@@ -166,10 +171,10 @@ spec = do
 
         res `shouldBe` Right (FeeEstimation 165281 165281)
 
-prop_decodeSignedTxRoundtrip
-    :: DecodeSetup
+prop_decodeSignedShelleyTxRoundtrip
+    :: DecodeShelleySetup
     -> Property
-prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
+prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
@@ -179,6 +184,21 @@ prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     let ledgerTx = SL.Tx unsigned wits metadata
 
     _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
+        === Right (toSealed ledgerTx)
+
+prop_decodeSignedByronTxRoundtrip
+    :: DecodeByronSetup
+    -> Property
+prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs) = do
+    let inps = Map.toList $ getUTxO utxo
+    let cs = mempty { CS.inputs = inps, CS.outputs = outs }
+    let unsigned = mkUnsignedTx slotNo cs mempty []
+    let byronWits = Set.fromList $ map (mkByronWitness unsigned magic) pairs
+    let metadata = SL.SNothing
+    let wits = SL.WitnessSet mempty mempty byronWits
+    let ledgerTx = SL.Tx unsigned wits metadata
+
+    _decodeSignedTx (Cardano.txSignedToCBOR (Cardano.TxSignedShelley ledgerTx))
         === Right (toSealed ledgerTx)
 
 -- | Increasing the number of outputs reduces the number of inputs.
@@ -234,14 +254,22 @@ testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
     pm        = ProtocolMagic 1
     epLength  = EpochLength 42 -- irrelevant here
 
-data DecodeSetup = DecodeSetup
+data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO
     , outputs :: [TxOut]
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
 
-instance Arbitrary DecodeSetup where
+data DecodeByronSetup = DecodeByronSetup
+    { inputs :: UTxO
+    , outputs :: [TxOut]
+    , ttl :: SlotNo
+    , protocolMagic :: ProtocolMagic
+    , keyPasswd :: [(XPrv, Passphrase "encryption")]
+    } deriving Show
+
+instance Arbitrary DecodeShelleySetup where
     arbitrary = do
         utxo <- arbitrary
         n <- choose (1,10)
@@ -249,7 +277,19 @@ instance Arbitrary DecodeSetup where
         slot <- arbitrary
         let numInps = Map.size $ getUTxO utxo
         pairs <- vectorOf numInps arbitrary
-        pure $ DecodeSetup utxo outs slot pairs
+        pure $ DecodeShelleySetup utxo outs slot pairs
+
+instance Arbitrary DecodeByronSetup where
+    arbitrary = do
+        utxo <- arbitrary
+        n <- choose (1,10)
+        outs <- vectorOf n arbitrary
+        let pmTestnet = ProtocolMagic <$> arbitrary
+        pm <- oneof [pure mainnetMagic, pmTestnet]
+        let numInps = Map.size $ getUTxO utxo
+        slot <- arbitrary
+        pairs <- vectorOf numInps arbitrary
+        pure $ DecodeByronSetup utxo outs slot pm pairs
 
 instance Arbitrary SlotNo where
     arbitrary = SlotNo <$> choose (1, 1000)
