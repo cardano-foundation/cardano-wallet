@@ -390,26 +390,28 @@ prop_putStakePutStake DBLayer {..} epoch a b =
         monitor $ classify (null a && null b) "a & b are empty"
         assert (L.sort res == L.sort b)
 
--- | Heavily relies on the fact that PoolId have a entropy that is sufficient
+-- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRegistration
     :: DBLayer IO
-    -> [PoolRegistrationCertificate]
+    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
 prop_poolRegistration DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
-    expected = L.sort entries
+    entriesIn = L.sort entries
     prop = do
-        run . atomically $
-            mapM_ (putPoolRegistration (SlotId 0 0, minBound)) entries
-        pools <- run . atomically $ L.sort . fmap snd . catMaybes
-            <$> mapM (readPoolRegistration . view #poolId) entries
+        run $ atomically $
+            mapM_ (uncurry putPoolRegistration) entriesIn
+        entriesOut <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . view #poolId . snd) entries
         monitor $ counterexample $ unlines
-            [ "Read from DB: " <> show pools
-            , "Expected    : " <> show expected
+            [ "Written into DB: "
+            , show entriesIn
+            , "Read from DB: "
+            , show entriesOut
             ]
-        assert (pools == expected)
+        assert (entriesIn == entriesOut)
 
 prop_rollbackRegistration
     :: DBLayer IO
