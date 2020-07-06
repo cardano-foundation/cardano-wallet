@@ -821,5 +821,5 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgAccountDelegationAndRewards{} -> Info
         MsgDestroyCursor{}               -> Notice
         MsgWillQueryRewardsForStake{}    -> Info
-        MsgFetchedNodePoolLsqData{}      -> Info
+        MsgFetchedNodePoolLsqData{}      -> Debug
         MsgWatcherUpdate{}               -> Debug
