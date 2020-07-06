@@ -73,6 +73,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
+    , fromNetworkDiscriminant
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
@@ -105,8 +106,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Type.Equality
-    ( testEquality )
 import Data.Word
     ( Word16, Word64, Word8 )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
@@ -114,7 +113,7 @@ import Ouroboros.Consensus.Shelley.Protocol.Crypto
 import Ouroboros.Network.Block
     ( SlotNo )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( Typeable )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -478,19 +477,15 @@ mkWithdrawals
     -> ChimericAccount
     -> Word64
     -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
-mkWithdrawals _ (ChimericAccount keyHash) amount
+mkWithdrawals proxy (ChimericAccount keyHash) amount
     | amount == 0 = mempty
     | otherwise = Map.fromList
-        [ ( SL.RewardAcnt network keyHashObj
+        [ ( SL.RewardAcnt (fromNetworkDiscriminant proxy) keyHashObj
           , SL.Coin $ fromIntegral amount
           )
         ]
   where
     keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
-    network =
-        case testEquality (typeRep @n) (typeRep @'Mainnet) of
-            Just{}  -> SL.Mainnet
-            Nothing -> SL.Testnet
 
 -- TODO: The SlotId-SlotNo conversion based on epoch length would not
 -- work if the epoch length changed in a hard fork.

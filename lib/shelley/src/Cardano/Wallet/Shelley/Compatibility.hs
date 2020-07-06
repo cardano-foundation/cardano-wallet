@@ -77,6 +77,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromTip'
     , fromPParams
+    , fromNetworkDiscriminant
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -132,12 +133,16 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Type.Equality
+    ( testEquality )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -175,6 +180,8 @@ import Ouroboros.Network.Point
     ( WithOrigin (..) )
 import Shelley.Spec.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -740,6 +747,15 @@ fromUnitInterval x =
         , "encountered invalid parameter value: "
         , show x
         ]
+
+fromNetworkDiscriminant
+    :: forall (n :: NetworkDiscriminant). (Typeable n)
+    => Proxy n
+    -> SL.Network
+fromNetworkDiscriminant _ =
+    case testEquality (typeRep @n) (typeRep @'Mainnet) of
+        Just{}  -> SL.Mainnet
+        Nothing -> SL.Testnet
 
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
 toSealed :: SL.Tx TPraosStandardCrypto -> (W.Tx, W.SealedTx)
