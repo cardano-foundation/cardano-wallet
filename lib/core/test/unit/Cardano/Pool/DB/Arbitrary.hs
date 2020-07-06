@@ -21,6 +21,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
+    , PoolCertificate (..)
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
@@ -162,6 +163,15 @@ instance Arbitrary PoolRetirementCertificate where
         <$> arbitrary
         <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary PoolCertificate where
+    arbitrary = oneof
+        [ Registration
+            <$> arbitrary
+        , Retirement
+            <$> arbitrary
+        ]
+    shrink = const []
 
 instance Arbitrary StakePoolMetadataHash where
     arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)
