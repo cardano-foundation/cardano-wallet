@@ -51,8 +51,8 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx
-    , mkWitness
+    ( mkShelleyWitness
+    , mkUnsignedTx
     , newTransactionLayer
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
@@ -173,7 +173,7 @@ prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    let addrWits = Set.fromList $ map (mkWitness unsigned) pairs
+    let addrWits = Set.fromList $ map (mkShelleyWitness unsigned) pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet addrWits mempty mempty
     let ledgerTx = SL.Tx unsigned wits metadata

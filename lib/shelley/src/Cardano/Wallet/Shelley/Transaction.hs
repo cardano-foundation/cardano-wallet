@@ -27,7 +27,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
-    , mkWitness
+    , mkShelleyWitness
     , mkTx
     , TxPayload (..)
     , emptyTxPayload
@@ -175,7 +175,11 @@ instance TxWitnessTagFor IcarusKey   where txWitnessTagFor = TxWitnessByronUTxO
 instance TxWitnessTagFor ByronKey    where txWitnessTagFor = TxWitnessByronUTxO
 
 mkTx
-    :: forall (n :: NetworkDiscriminant) k. (Typeable n, WalletKey k)
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       , WalletKey k
+       )
     => Proxy n
     -> TxPayload TPraosStandardCrypto
     -> SlotNo
@@ -195,12 +199,12 @@ mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFro
 
     addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
         (k, pwd) <- lookupPrivateKey keyFrom addr
-        pure $ mkWitness unsigned (getRawKey k, pwd)
+        pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
     let withdrawalsWits
             | Map.null withdrawals = Set.empty
             | otherwise = Set.singleton $
-                mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+                mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
 
     let wits = (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
             <> mkExtraWits unsigned
@@ -270,7 +274,7 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
                     [ toStakePoolDlgCert accXPub poolId ]
 
         let mkWits unsigned = SL.WitnessSet
-                (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
                 mempty
                 mempty
 
@@ -293,7 +297,7 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
         let mkWits unsigned = SL.WitnessSet
-                (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
                 mempty
                 mempty
 
@@ -498,11 +502,11 @@ defaultTTL :: EpochLength -> SlotId -> SlotNo
 defaultTTL epochLength slot =
     (toSlotNo epochLength slot) + 7200
 
-mkWitness
+mkShelleyWitness
     :: SL.TxBody TPraosStandardCrypto
     -> (XPrv, Passphrase "encryption")
     -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
-mkWitness body (prv, pwd) =
+mkShelleyWitness body (prv, pwd) =
     SL.WitVKey key sig
   where
     sig = SignedDSIGN
