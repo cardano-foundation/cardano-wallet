@@ -1365,6 +1365,16 @@ x-parametersForceNtpCheck: &parametersForceNtpCheck
   schema:
     type: boolean
 
+x-parametersWithdrawal: &parametersWithdrawal
+  in: query
+  name: withdrawRewards
+  allowEmptyValue: true
+  description: |
+    Withdraw rewards as change in this transaction, provided they contribute positively towards the balance (i.e. adding them results in at least as much value as their value after fee calculation).
+
+    This is a flag, off by default.
+  schema:
+    type: boolean
 
 #############################################################################
 #                                                                           #
@@ -1927,6 +1937,7 @@ paths:
 
       parameters:
         - *parametersWalletId
+        - *parametersWithdrawal
       requestBody:
         required: true
         content:
@@ -1945,6 +1956,7 @@ paths:
         Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersWithdrawal
       requestBody:
         required: true
         content:

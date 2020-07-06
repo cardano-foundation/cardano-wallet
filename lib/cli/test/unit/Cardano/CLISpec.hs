@@ -251,7 +251,7 @@ spec = do
 
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           --payment PAYMENT"
+            , "                           --payment PAYMENT [--withdraw-rewards]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
@@ -261,10 +261,14 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            ,"  --withdraw-rewards       Withdraw rewards as change in this"
+            ,"                           transaction, provided they contribute"
+            ,"                           positively to the balance."
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
             [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
+            , "                         [--withdraw-rewards]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
@@ -274,6 +278,9 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            ,"  --withdraw-rewards       Withdraw rewards as change in this"
+            ,"                           transaction, provided they contribute"
+            ,"                           positively to the balance."
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`

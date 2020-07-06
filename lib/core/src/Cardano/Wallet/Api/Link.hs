@@ -58,9 +58,11 @@ module Cardano.Wallet.Api.Link
 
       -- * Transactions
     , createTransaction
+    , createTransaction'
     , listTransactions
     , listTransactions'
     , getTransactionFee
+    , getTransactionFee'
     , deleteTransaction
     , getTransaction
 
@@ -90,6 +92,7 @@ import Cardano.Wallet.Api.Types
     ( ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
+    , ApiWithdrawRewards (..)
     , Iso8601Time
     , WalletStyle (..)
     )
@@ -313,10 +316,25 @@ createTransaction
     => w
     -> (Method, Text)
 createTransaction w = discriminate @style
-    (endpoint @(Api.CreateTransaction Net) (wid &))
+    (endpoint @(Api.CreateTransaction Net) (($ False) . ($ wid)))
     (endpoint @(Api.CreateByronTransaction Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
+
+createTransaction'
+    :: forall style w.
+        ( HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> ApiWithdrawRewards
+    -> (Method, Text)
+createTransaction' w (ApiWithdrawRewards withdraw) = discriminate @style
+    (endpoint @(Api.CreateTransaction Net) (($ withdraw) . ($ wid)))
+    (endpoint @(Api.CreateByronTransaction Net) (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
 
 listTransactions
     :: forall (style :: WalletStyle) w.
@@ -353,10 +371,25 @@ getTransactionFee
     => w
     -> (Method, Text)
 getTransactionFee w = discriminate @style
-    (endpoint @(Api.PostTransactionFee Net) (wid &))
+    (endpoint @(Api.PostTransactionFee Net) (($ False) . ($ wid)))
     (endpoint @(Api.PostByronTransactionFee Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
+
+getTransactionFee'
+    :: forall style w.
+        ( HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> ApiWithdrawRewards
+    -> (Method, Text)
+getTransactionFee' w (ApiWithdrawRewards withdraw) = discriminate @style
+    (endpoint @(Api.PostTransactionFee Net) (($ withdraw) . ($ wid)))
+    (endpoint @(Api.PostByronTransactionFee Net) (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
 
 deleteTransaction
     :: forall (style :: WalletStyle) w t.

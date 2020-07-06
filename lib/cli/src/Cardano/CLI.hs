@@ -128,6 +128,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ApiWallet
+    , ApiWithdrawRewards (..)
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
@@ -689,6 +690,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _payments :: NonEmpty Text
+    , _withdrawRewards :: Bool
     }
 
 cmdTransactionCreate
@@ -704,7 +706,8 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        <*> withdrawRewardsFlag
+    exec (TransactionCreateArgs wPort wId wAddressAmounts wWithdraw) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -714,6 +717,7 @@ cmdTransactionCreate mkTxClient mkWalletClient =
                 runClient wPort Aeson.encodePretty $ postTransaction
                     mkTxClient
                     (ApiT wId)
+                    (ApiWithdrawRewards wWithdraw)
                     (Aeson.object
                         [ "payments" .= wPayments
                         , "passphrase" .= ApiT wPwd
@@ -735,7 +739,8 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        <*> withdrawRewardsFlag
+    exec (TransactionCreateArgs wPort wId wAddressAmounts wWithdraw) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -744,6 +749,7 @@ cmdTransactionFees mkTxClient mkWalletClient =
                 runClient wPort Aeson.encodePretty $ postTransactionFee
                     mkTxClient
                     (ApiT wId)
+                    (ApiWithdrawRewards wWithdraw)
                     (Aeson.object [ "payments" .= wPayments ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
@@ -1334,6 +1340,13 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 addressIdArgument :: Parser Text
 addressIdArgument = argumentT $ mempty
     <> metavar "ADDRESS"
+
+-- | [--withdraw-rewards]
+withdrawRewardsFlag :: Parser Bool
+withdrawRewardsFlag = switch $ mempty
+    <> long "withdraw-rewards"
+    <> help "Withdraw rewards as change in this transaction, provided they \
+            \contribute positively to the balance."
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a
