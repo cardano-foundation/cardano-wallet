@@ -164,11 +164,7 @@ spec = do
             verify r
                 [ expectField (#balance . #getApiT . #reward) (.> (Quantity 0))
                 ]
-            let Quantity totalBalance =
-                    getFromResponse (#balance . #getApiT . #total) r
-            let Quantity rewardBalance =
-                    getFromResponse (#balance . #getApiT . #reward) r
-            pure $ Quantity (totalBalance - rewardBalance)
+            pure $ getFromResponse (#balance . #getApiT . #available) r
 
         -- Use rewards
         addrs <- listAddresses @n ctx w

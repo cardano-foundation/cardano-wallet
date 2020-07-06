@@ -613,7 +613,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
-            { available = Quantity $ reward + availableBalance pending cp
+            { available = Quantity $ availableBalance pending cp
             , total = Quantity $ reward + totalBalance pending cp
             , reward = Quantity reward
             }
