@@ -308,6 +308,7 @@ type Transactions n =
 type CreateTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
+    :> QueryFlag "withdrawRewards"
     :> ReqBody '[JSON] (PostTransactionDataT n)
     :> PostAccepted '[JSON] (ApiTransactionT n)
 
@@ -331,6 +332,7 @@ type GetTransaction n = "wallets"
 type PostTransactionFee n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "payment-fees"
+    :> QueryFlag "withdrawRewards"
     :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 

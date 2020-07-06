@@ -1040,7 +1040,9 @@ selectCoins ctx gen (ApiT wid) body =
     fmap mkApiCoinSelection
     $ withWorkerCtx ctx wid liftE liftE
     $ \wrk -> do
-        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        -- TODO:
+        -- Allow representing withdrawals as part of external coin selections.
+        let withdrawal = Quantity 0
         let outs = coerceCoin <$> body ^. #payments
         liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
 
@@ -1123,14 +1125,17 @@ postTransaction
     => ctx
     -> ArgGenChange s
     -> ApiT WalletId
+    -> Bool
     -> PostTransactionData n
     -> Handler (ApiTransaction n)
-postTransaction ctx genChange (ApiT wid) body = do
+postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        withdrawal <- if withdrawRewards
+            then liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+            else pure (Quantity 0)
         liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1212,12 +1217,15 @@ postTransactionFee
         )
     => ctx
     -> ApiT WalletId
+    -> Bool
     -> PostTransactionFeeData n
     -> Handler ApiFee
-postTransactionFee ctx (ApiT wid) body = do
+postTransactionFee ctx (ApiT wid) withdrawRewards body = do
     let outs = coerceCoin <$> (body ^. #payments)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+        withdrawal <- if withdrawRewards
+            then liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+            else pure $ Quantity 0
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
         pure $ apiFee fee
 

@@ -74,6 +74,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
+    , ApiWithdrawRewards (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -143,10 +144,12 @@ data TransactionClient = TransactionClient
         -> ClientM [ApiTransactionT Aeson.Value]
     , postTransaction
         :: ApiT WalletId
+        -> ApiWithdrawRewards
         -> PostTransactionDataT Aeson.Value
         -> ClientM (ApiTransactionT Aeson.Value)
     , postTransactionFee
         :: ApiT WalletId
+        -> ApiWithdrawRewards
         -> PostTransactionFeeDataT Aeson.Value
         -> ClientM ApiFee
     , postExternalTransaction
@@ -269,8 +272,8 @@ transactionClient =
     in
         TransactionClient
             { listTransactions = _listTransactions
-            , postTransaction = _postTransaction
-            , postTransactionFee = _postTransactionFee
+            , postTransaction = \wid -> _postTransaction wid . coerce
+            , postTransactionFee = \wid -> _postTransactionFee wid . coerce
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
             , getTransaction = _getTransaction
@@ -293,8 +296,8 @@ byronTransactionClient =
 
     in TransactionClient
         { listTransactions = _listTransactions
-        , postTransaction = _postTransaction
-        , postTransactionFee = _postTransactionFee
+        , postTransaction = \wid _ -> _postTransaction wid
+        , postTransactionFee = \wid _ -> _postTransactionFee wid
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction

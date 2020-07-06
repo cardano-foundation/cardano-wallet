@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
+    , ApiWithdrawRewards (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -597,6 +598,9 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
 newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
+
+newtype ApiWithdrawRewards = ApiWithdrawRewards Bool
+    deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode

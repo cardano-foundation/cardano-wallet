@@ -152,9 +152,9 @@ server byron icarus ntp =
 
     transactions :: Server (Transactions n)
     transactions =
-             (\_ _ -> throwError err501)
+             (\_ _ _ -> throwError err501)
         :<|> (\_ _ _ _ -> throwError err501)
-        :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
@@ -237,11 +237,11 @@ server byron icarus ntp =
                  (byron , do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
-                    postTransaction byron genChange wid tx
+                    postTransaction byron genChange wid False tx
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
-                    postTransaction icarus genChange wid tx
+                    postTransaction icarus genChange wid False tx
                  )
              )
         :<|>
@@ -251,8 +251,8 @@ server byron icarus ntp =
              )
         :<|>
             (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid tx)
-                (icarus, postTransactionFee icarus wid tx)
+                (byron , postTransactionFee byron wid False tx)
+                (icarus, postTransactionFee icarus wid False tx)
             )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)

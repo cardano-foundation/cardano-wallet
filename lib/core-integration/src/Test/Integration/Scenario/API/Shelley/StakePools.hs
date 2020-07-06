@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
+    , ApiWithdrawRewards (..)
     , DecodeAddress
     , EncodeAddress
     , WalletStyle (..)
@@ -184,10 +185,12 @@ spec = do
                     ]
                 , "passphrase": #{fixturePassphrase}
                 }|]
-        request @(ApiTransaction n) ctx (Link.createTransaction @'Shelley w) Default (Json payload) >>= flip verify
-            [ expectField #amount (.> (Quantity coin))
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
+        request @(ApiTransaction n) ctx
+            (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
+            Default (Json payload) >>= flip verify
+                [ expectField #amount (.> (Quantity coin))
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
