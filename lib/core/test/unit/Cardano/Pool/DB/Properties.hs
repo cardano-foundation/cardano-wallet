@@ -167,12 +167,15 @@ properties = do
             (property . prop_unfetchedPoolMetadataRefs)
         it "unfetchedPoolMetadataRefsIgnoring"
             (property . prop_unfetchedPoolMetadataRefsIgnoring)
-        it "prop_determinePoolRegistrationStatus_orderCorrect" $
+        it "prop_determinePoolRegistrationStatus_orderCorrect"
             (property . const
                 prop_determinePoolRegistrationStatus_orderCorrect)
-        it "prop_determinePoolRegistrationStatus_neverRegistered" $
+        it "prop_determinePoolRegistrationStatus_neverRegistered"
             (property . const
                 prop_determinePoolRegistrationStatus_neverRegistered)
+        it "prop_determinePoolRegistrationStatus_differentPools"
+            (property . const
+                prop_determinePoolRegistrationStatus_differentPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -624,6 +627,26 @@ prop_determinePoolRegistrationStatus_neverRegistered maybeRetData =
         $ result `shouldBe` PoolNotRegistered
   where
     result = determinePoolRegistrationStatus Nothing maybeRetData
+
+prop_determinePoolRegistrationStatus_differentPools
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => (certificatePublicationTime, PoolRegistrationCertificate)
+    -> (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolRegistrationStatus_differentPools regData retData =
+    property $ (regPoolId /= retPoolId) ==> prop
+  where
+    prop = evaluate result `shouldThrow` anyException
+
+    regPoolId = view #poolId regCert
+    retPoolId = view #poolId retCert
+
+    (regTime, regCert) = regData
+    (retTime, retCert) = retData
+
+    result = determinePoolRegistrationStatus
+        (pure (regTime, regCert))
+        (pure (retTime, retCert))
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
