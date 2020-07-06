@@ -381,6 +381,9 @@ withNetworkLayer tr np addrInfo versionData action = do
                 (optimumNumberOfPools pparams)
                 rewardMap
                 stakeMap
+        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqDataSummary
+            (Map.size stakeMap)
+            (Map.size rewardMap)
         liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData res
         return res
 
@@ -724,6 +727,9 @@ data NetworkLayerLog
     | MsgDestroyCursor ThreadId
     | MsgWillQueryRewardsForStake W.Coin
     | MsgFetchedNodePoolLsqData NodePoolLsqData
+    | MsgFetchedNodePoolLsqDataSummary Int Int
+        -- ^ Number of pools in stake distribution, and rewards map,
+        -- respectively.
     | MsgWatcherUpdate W.BlockHeader BracketLog
 
 data QueryClientName
@@ -796,6 +802,13 @@ instance ToText NetworkLayerLog where
             "Will query non-myopic rewards using the stake " <> pretty c
         MsgFetchedNodePoolLsqData d ->
             "Fetched pool data from node tip using LSQ: " <> pretty d
+        MsgFetchedNodePoolLsqDataSummary inStake inRewards -> mconcat
+            [ "Fetched pool data from node tip using LSQ. Got "
+            , T.pack (show inStake)
+            , " pools in the stake distribution, and "
+            , T.pack (show inRewards)
+            , " pools in the non-myopic member reward map."
+            ]
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: " <> pretty tip <>
             ". Callback " <> toText b <> "."
@@ -803,23 +816,24 @@ instance ToText NetworkLayerLog where
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
     getSeverityAnnotation = \case
-        MsgCouldntConnect 0              -> Debug
-        MsgCouldntConnect 1              -> Notice
-        MsgCouldntConnect{}              -> Warning
-        MsgConnectionLost{}              -> Warning
-        MsgTxSubmission{}                -> Info
-        MsgHandshakeTracer{}             -> Info
-        MsgFindIntersectionTimeout       -> Warning
-        MsgFindIntersection{}            -> Info
-        MsgIntersectionFound{}           -> Info
-        MsgPostSealedTx{}                -> Debug
-        MsgLocalStateQuery{}             -> Debug
-        MsgNodeTip{}                     -> Debug
-        MsgProtocolParameters{}          -> Info
-        MsgLocalStateQueryError{}        -> Error
-        MsgGetRewardAccountBalance{}     -> Info
-        MsgAccountDelegationAndRewards{} -> Info
-        MsgDestroyCursor{}               -> Notice
-        MsgWillQueryRewardsForStake{}    -> Info
-        MsgFetchedNodePoolLsqData{}      -> Debug
-        MsgWatcherUpdate{}               -> Debug
+        MsgCouldntConnect 0                -> Debug
+        MsgCouldntConnect 1                -> Notice
+        MsgCouldntConnect{}                -> Warning
+        MsgConnectionLost{}                -> Warning
+        MsgTxSubmission{}                  -> Info
+        MsgHandshakeTracer{}               -> Info
+        MsgFindIntersectionTimeout         -> Warning
+        MsgFindIntersection{}              -> Info
+        MsgIntersectionFound{}             -> Info
+        MsgPostSealedTx{}                  -> Debug
+        MsgLocalStateQuery{}               -> Debug
+        MsgNodeTip{}                       -> Debug
+        MsgProtocolParameters{}            -> Info
+        MsgLocalStateQueryError{}          -> Error
+        MsgGetRewardAccountBalance{}       -> Info
+        MsgAccountDelegationAndRewards{}   -> Info
+        MsgDestroyCursor{}                 -> Notice
+        MsgWillQueryRewardsForStake{}      -> Info
+        MsgFetchedNodePoolLsqData{}        -> Debug
+        MsgFetchedNodePoolLsqDataSummary{} -> Info
+        MsgWatcherUpdate{}                 -> Debug
