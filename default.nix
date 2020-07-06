@@ -77,12 +77,17 @@ let
 
   self = {
     inherit pkgs commonLib src haskellPackages stackNixRegenerate;
+    # Jormungandr
     inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
     inherit (pkgs) cardano-node cardano-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
     # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
     inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
+    # adrestia tool belt
+    inherit (haskellPackages.bech32.components.exes) bech32;
+    inherit (haskellPackages.cardano-addresses.components.exes) cardano-address;
+    inherit (haskellPackages.cardano-transactions.components.exes) cardano-tx;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
       inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
@@ -128,7 +133,9 @@ let
           jormungandr-cli
           cardano-node
           cardano-cli
-          haskellPackages.cardano-addresses.components.exes.cardano-address
+          cardano-address
+          cardano-tx
+          bech32
         ]) ++ (with pkgs; [
           niv
           pkgconfig
