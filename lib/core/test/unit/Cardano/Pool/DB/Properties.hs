@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Pool.DB.Properties
     ( properties
@@ -17,7 +19,12 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime, DBLayer (..), ErrPointAlreadyExists (..) )
+    ( CertificatePublicationTime
+    , DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , PoolRegistrationStatus (..)
+    , determinePoolRegistrationStatus
+    )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
@@ -27,24 +34,27 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
+import Control.Exception
+    ( evaluate )
 import Control.Monad
     ( forM_, replicateM, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Function
     ( on )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( set, view )
 import Data.List.Extra
     ( nubOrd )
 import Data.Map.Strict
@@ -65,15 +75,25 @@ import Test.Hspec
     ( Expectation
     , Spec
     , SpecWith
+    , anyException
     , beforeAll
     , beforeWith
     , describe
     , it
     , shouldBe
     , shouldReturn
+    , shouldThrow
     )
 import Test.QuickCheck
-    ( Positive (..), Property, classify, counterexample, property, (==>) )
+    ( Positive (..)
+    , Property
+    , checkCoverage
+    , classify
+    , counterexample
+    , cover
+    , property
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 
@@ -147,6 +167,8 @@ properties = do
             (property . prop_unfetchedPoolMetadataRefs)
         it "unfetchedPoolMetadataRefsIgnoring"
             (property . prop_unfetchedPoolMetadataRefsIgnoring)
+        it "prop_determinePoolRegistrationStatus_orderCorrect" $
+            (property . const prop_determinePoolRegistrationStatus_orderCorrect)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -548,6 +570,41 @@ prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
         monitor $ counterexample $ show seeds
         monitor $ counterexample $ show $ filter (/= firstS) seeds
         assert (all (== firstS) seeds)
+
+prop_determinePoolRegistrationStatus_orderCorrect
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => (certificatePublicationTime, PoolRegistrationCertificate)
+    -> (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolRegistrationStatus_orderCorrect regData retData =
+    checkCoverage
+        $ cover 10 (regTime > retTime)
+            "registration cert time > retirement cert time"
+        $ cover 10 (regTime < retTime)
+            "registration cert time < retirement cert time"
+        $ cover 2 (regTime == retTime)
+            "registration cert time = retirement cert time"
+        $ property prop
+  where
+    prop
+        | regTime > retTime =
+            result `shouldBe` PoolRegistered regCert
+        | regTime < retTime =
+            result `shouldBe` PoolRegisteredAndRetired regCert retCert
+        | otherwise =
+            evaluate result `shouldThrow` anyException
+
+    sharedPoolId = view #poolId regCertAnyPool
+
+    (regTime, regCertAnyPool) = regData
+    (retTime, retCertAnyPool) = retData
+
+    regCert = set #poolId sharedPoolId regCertAnyPool
+    retCert = set #poolId sharedPoolId retCertAnyPool
+
+    result = determinePoolRegistrationStatus
+        (pure (regTime, regCert))
+        (pure (retTime, retCert))
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
