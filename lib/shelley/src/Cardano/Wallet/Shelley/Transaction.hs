@@ -56,9 +56,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( toChimericAccountRaw )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey, toChimericAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
@@ -248,8 +246,8 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , minimumFee = _minimumFee proxy
-    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs proxy
+    , minimumFee = _minimumFee @_ @k proxy
+    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @_ @k proxy
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
     }
@@ -323,7 +321,11 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
         mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
-    :: forall (n :: NetworkDiscriminant). Typeable n
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       , WalletKey k
+       )
     => Proxy n
     -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
@@ -351,7 +353,7 @@ _estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize proxy Nothing sel
+        size = computeTxSize proxy (txWitnessTagFor @k) Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -376,14 +378,18 @@ _decodeSignedTx bytes = do
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
 _minimumFee
-    :: forall (n :: NetworkDiscriminant). Typeable n
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       , WalletKey k
+       )
     => Proxy (n :: NetworkDiscriminant)
     -> FeePolicy
     -> Maybe DelegationAction
     -> CoinSelection
     -> Fee
 _minimumFee proxy policy action cs =
-    computeFee $ computeTxSize proxy action cs
+    computeFee $ computeTxSize proxy (txWitnessTagFor @k) action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -394,10 +400,11 @@ _minimumFee proxy policy action cs =
 computeTxSize
     :: forall (n :: NetworkDiscriminant). Typeable n
     => Proxy (n :: NetworkDiscriminant)
+    -> TxWitnessTag
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize proxy action cs =
+computeTxSize proxy witTag action cs =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
