@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , outputBalance
     , changeBalance
     , feeBalance
+    , totalBalance
     , proportionallyTo
     , ErrCoinSelection (..)
     , CoinSelectionOptions (..)
@@ -28,9 +29,11 @@ module Cardano.Wallet.Primitive.CoinSelection
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..) )
+    ( Coin (..), TxIn, TxOut (..), balance' )
 import Data.List
     ( foldl' )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Ratio
     ( Ratio, denominator, numerator )
 import Data.Word
@@ -119,6 +122,10 @@ changeBalance = foldl' addCoin 0 . change
 
 feeBalance :: CoinSelection -> Word64
 feeBalance sel = inputBalance sel - outputBalance sel - changeBalance sel
+
+-- | Total UTxO balance + withdrawal.
+totalBalance :: Quantity "lovelace" Word64 -> [(TxIn, TxOut)] -> Word64
+totalBalance (Quantity withdraw) inps = balance' inps + withdraw
 
 addTxOut :: Integral a => a -> TxOut -> a
 addTxOut total = addCoin total . coin

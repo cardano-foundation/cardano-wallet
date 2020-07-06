@@ -163,6 +163,95 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
+        coinSelectionUnitTest random "withdrawal simple"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = []
+                , rsOutputs = [2]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 2 :| []
+                , totalWithdrawal = 1
+                })
+
+        coinSelectionUnitTest random "withdrawal multi-output"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1]
+                , rsChange = []
+                , rsOutputs = [2,2]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1,1]
+                , txOutputs = 2 :| [2]
+                , totalWithdrawal = 2
+                })
+
+        coinSelectionUnitTest random "withdrawal not even"
+            -- 10 Ada available as withdrawal
+            --
+            -- - 7 Ada goes to the first output (10/14 * 10 ~= 7)
+            -- - 2 Ada goes to the other output ( 4/14 * 10 ~= 2)
+            (Right $ CoinSelectionResult
+                { rsInputs = [5,5]
+                , rsChange = [2,3]
+                , rsOutputs = [10, 4]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [5,5]
+                , txOutputs = 10 :| [4]
+                , totalWithdrawal = 10
+                })
+
+        coinSelectionUnitTest random "withdrawal cover next output"
+            -- 20 Ada available as withdrawal
+            --
+            -- - 10 Ada goes to the first output
+            -- - 10 Ada goes to the other output
+            --
+            -- The first output has to select an available input first, which
+            -- leaves no input for the second, but it can be covered with the
+            -- withdrawal.
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = [1]
+                , rsOutputs = [10, 10]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 10 :| [10]
+                , totalWithdrawal = 20
+                })
+
+        coinSelectionUnitTest random "withdrawal requires at least one input"
+            (Left ErrInputsDepleted)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = []
+                , txOutputs = 1 :| []
+                , totalWithdrawal = 10
+                })
+
+        coinSelectionUnitTest random "not enough funds, withdrawal correctly counted"
+            (Left $ ErrNotEnoughMoney 11 100)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 100 :| []
+                , totalWithdrawal = 10
+                })
+
+
         coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
             (Left ErrInputsDepleted)
             (CoinSelectionFixture

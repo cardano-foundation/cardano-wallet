@@ -17,9 +17,13 @@ module Cardano.Wallet.Primitive.CoinSelection.LargestFirst (
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
+    ( CoinSelection (..)
+    , CoinSelectionOptions (..)
+    , ErrCoinSelection (..)
+    , totalBalance
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..) )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -50,7 +54,7 @@ largestFirst
     -> Quantity "lovelace" Word64
     -> UTxO
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
-largestFirst opt outs _withdrawals utxo = do
+largestFirst opt outs withdraw utxo = do
     let descending = L.sortOn (Down . coin) . NE.toList
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt (fromIntegral nOuts)
@@ -65,11 +69,15 @@ largestFirst opt outs _withdrawals utxo = do
             guard s $> (s, UTxO $ Map.fromList utxo')
         Nothing -> do
             let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
-            let utxoBalance = fromIntegral $ balance utxo
+            let utxoList = Map.toList $ getUTxO utxo
+            let total = totalBalance withdraw utxoList
             let nUtxo = fromIntegral $ Map.size $ getUTxO utxo
 
-            when (utxoBalance < moneyRequested)
-                $ throwE $ ErrNotEnoughMoney utxoBalance moneyRequested
+            when (null utxoList)
+                $ throwE ErrInputsDepleted
+
+            when (total < moneyRequested)
+                $ throwE $ ErrNotEnoughMoney total moneyRequested
 
             when (nUtxo < nOuts)
                 $ throwE $ ErrUtxoNotEnoughFragmented nUtxo nOuts

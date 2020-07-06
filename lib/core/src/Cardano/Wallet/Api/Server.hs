@@ -1878,10 +1878,9 @@ instance Buildable e => LiftHandler (ErrCoinSelection e) where
                 ]
         ErrInputsDepleted ->
             apiError err403 InputsDepleted $ mconcat
-                [ "I had to select inputs to construct the "
-                , "requested transaction. Unfortunately, one output of the "
-                , "transaction depleted all available inputs. "
-                , "Try sending a smaller amount."
+                [ "I cannot select enough UTxO from your wallet to construct "
+                , "an adequate transaction. Try sending a smaller amount or "
+                , "increasing the number of available UTxO."
                 ]
         ErrInvalidSelection e ->
             apiError err403 InvalidCoinSelection $ pretty e

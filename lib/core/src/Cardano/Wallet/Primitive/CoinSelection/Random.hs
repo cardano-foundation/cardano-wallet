@@ -22,19 +22,12 @@ import Cardano.Wallet.Primitive.CoinSelection
     , CoinSelectionOptions (..)
     , ErrCoinSelection (..)
     , proportionallyTo
+    , totalBalance
     )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
-    , TxIn
-    , TxOut (..)
-    , UTxO (..)
-    , balance'
-    , distance
-    , invariant
-    , pickRandom
-    )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..), distance, invariant, pickRandom )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -55,10 +48,10 @@ import Data.Ord
     ( comparing )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Word
-    ( Word64 )
 import Data.Ratio
     ( (%) )
+import Data.Word
+    ( Word64 )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -178,10 +171,16 @@ makeSelection withdraw (maxNumInputs, utxo0, selection) txout = do
     coverRandomly (inps, utxo)
         | L.length inps > fromIntegral maxNumInputs =
             MaybeT $ return Nothing
-        | totalBalance withdraw inps >= targetMin (mkTargetRange txout) =
+        | currentBalance >= targetMin (mkTargetRange txout) =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
             pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
+      where
+        -- Withdrawal can only count towards the input balance if there's been
+        -- at least one selected input.
+        currentBalance
+            | null inps && null selection = totalBalance (Quantity 0) inps
+            | otherwise = totalBalance withdraw inps
 
 -- | Perform an improvement to random selection on a given output.
 improveTxOut
@@ -196,7 +195,7 @@ improveTxOut (maxN0, selection, utxo0) (withdraw, inps0, txout) = do
         , selection <> mempty
             { inputs = inps
             , outputs = [txout]
-            , change = mkChange txout inps
+            , change = mkChange withdraw txout inps
             , withdrawal = getQuantity withdraw
             }
         , utxo
@@ -242,13 +241,6 @@ improveTxOut (maxN0, selection, utxo0) (withdraw, inps0, txout) = do
                                  Internals
 -------------------------------------------------------------------------------}
 
--- | Total UTxO balance + withdrawal. The withdrawal only counts towards the
--- balance if there's at least one input.
-totalBalance :: Quantity "lovelace" Word64 -> [(TxIn, TxOut)] -> Word64
-totalBalance (Quantity withdraw) inps
-    | null inps = 0
-    | otherwise = balance' inps + withdraw
-
 -- | Re-wrap 'pickRandom' in a 'MaybeT' monad
 pickRandomT :: MonadRandom m => UTxO -> MaybeT m ((TxIn, TxOut), UTxO)
 pickRandomT =
@@ -266,12 +258,12 @@ mkTargetRange (TxOut _ (Coin c)) = TargetRange
 -- of inputs.
 --
 -- > pre-condition: the output must be smaller (or eq) than the sum of inputs
-mkChange :: TxOut -> [(TxIn, TxOut)] -> [Coin]
-mkChange (TxOut _ (Coin out)) inps =
+mkChange :: Quantity "lovelace" Word64 -> TxOut -> [(TxIn, TxOut)] -> [Coin]
+mkChange withdraw (TxOut _ (Coin out)) inps =
     let
         selected = invariant
             "mkChange: output is smaller than selected inputs!"
-            (balance' inps)
+            (totalBalance withdraw inps)
             (>= out)
         Coin maxCoinValue = maxBound
     in
