@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -30,6 +31,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Tracing
+    ( ToObject )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -39,7 +42,7 @@ import Control.Concurrent.MVar
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
-    ( Value (..) )
+    ( FromJSON (..), ToJSON (..), Value (..) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Builder
@@ -117,7 +120,7 @@ data ApiLoggerSettings = ApiLoggerSettings
 
 -- | Just a wrapper for readability
 newtype RequestId = RequestId Integer
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, ToJSON)
 
 -- | Create a new opaque 'ApiLoggerSettings'
 newApiLoggerSettings :: IO ApiLoggerSettings
@@ -216,7 +219,7 @@ data ApiLog = ApiLog
     -- ^ Unique integer associated with the request, for the purpose of tracing.
     , logMsg :: HandlerLog
     -- ^ Event trace for the handler.
-    } deriving (Generic, Show)
+    } deriving (Generic, Show, ToJSON)
 
 instance HasPrivacyAnnotation ApiLog where
     getPrivacyAnnotation (ApiLog _ msg) = getPrivacyAnnotation msg
@@ -228,6 +231,11 @@ instance ToText ApiLog where
     toText (ApiLog rid msg) =
         "[" <> T.pack (show rid) <> "] "
         <> toText msg
+
+-- These instance are required by iohk-monitoring
+instance ToObject ApiLog
+instance FromJSON ApiLog where
+    parseJSON _ = fail "FromJSON ApiLog stub"
 
 -- | Tracer events related to the handling of a single request.
 data HandlerLog
@@ -256,6 +264,9 @@ instance ToText HandlerLog where
             tsec = T.pack $ show time
         LogResponseBody body -> T.decodeUtf8 body
         LogRequestFinish -> "Completed response to API request"
+
+instance ToJSON HandlerLog where
+    toJSON = String . toText
 
 -- | Removes sensitive details from valid request payloads and completely
 -- obfuscate invalid payloads.

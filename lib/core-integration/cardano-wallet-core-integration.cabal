@@ -47,16 +47,19 @@ library
     , directory
     , exceptions
     , extra
+    , fmt
     , generic-lens
     , hspec
     , hspec-expectations-lifted
     , http-api-data
     , http-client
     , http-types
+    , iohk-monitoring
     , memory
     , process
     , retry
     , scrypt
+    , stm
     , template-haskell
     , text
     , text-class
@@ -92,3 +95,4 @@ library
       Test.Integration.Scenario.CLI.Network
       Test.Integration.Scenario.CLI.Port
       Cardano.Wallet.TransactionSpecShared
+      Cardano.Wallet.LatencyBenchShared

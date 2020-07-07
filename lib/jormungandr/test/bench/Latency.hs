@@ -17,18 +17,10 @@ module Main
 
 import Prelude
 
-import Cardano.BM.Backend.Switchboard
-    ( effectuate )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (..), LogObject (..) )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( LogObject (..) )
 import Cardano.BM.Data.Tracer
-    ( ToObject (..), contramap )
-import Cardano.BM.Setup
-    ( setupTrace_, shutdown )
+    ( contramap )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.CLI
@@ -59,6 +51,8 @@ import Cardano.Wallet.Jormungandr.Launch
     ( withConfig )
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..) )
+import Cardano.Wallet.LatencyBenchShared
+    ( LogCaptureFunc, fmtResult, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
@@ -76,33 +70,23 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Concurrent.STM.TVar
-    ( TVar, newTVarIO, readTVarIO, writeTVar )
+    ( TVar )
 import Control.Exception
-    ( bracket, onException, throwIO )
+    ( throwIO )
 import Control.Monad
     ( mapM_, replicateM, replicateM_ )
-import Control.Monad.STM
-    ( atomically )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), Value )
+    ( Value )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
-import Data.Time
-    ( NominalDiffTime )
-import Data.Time.Clock
-    ( diffUTCTime )
 import Fmt
-    ( Builder, build, fixedF, fmtLn, padLeftF, (+|), (|+) )
+    ( fmtLn )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -110,7 +94,7 @@ import Network.HTTP.Client
     , responseTimeoutMicro
     )
 import Network.Wai.Middleware.Logging
-    ( ApiLog (..), HandlerLog (..) )
+    ( ApiLog (..) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -133,55 +117,66 @@ import Test.Integration.Framework.DSL
     , verify
     )
 
-import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
-main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
+main = withUtf8Encoding $
+    withLatencyLogging setupTracers $ \tracers capture ->
+        walletApiBench @t @n capture (benchWithJormServer tracers)
+  where
+    setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
+    setupTracers tvar = nullTracers
+        { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
 
+walletApiBench
+    :: forall t (n :: NetworkDiscriminant). (t ~ Jormungandr, n ~ 'Testnet 0)
+    => LogCaptureFunc ApiLog ()
+    -> ((Context t -> IO ()) -> IO ())
+    -> IO ()
+walletApiBench capture benchWithServer = do
     fmtLn "Non-cached run"
-    runBareScenario logging tvar
+    runWarmUpScenario
 
     fmtLn "Latencies for 2 fixture wallets scenario"
-    runScenario logging tvar (nFixtureWallet 2)
+    runScenario (nFixtureWallet 2)
 
     fmtLn "Latencies for 10 fixture wallets scenario"
-    runScenario logging tvar (nFixtureWallet 10)
+    runScenario (nFixtureWallet 10)
 
     fmtLn "Latencies for 100 fixture wallets scenario"
-    runScenario logging tvar (nFixtureWallet 100)
+    runScenario (nFixtureWallet 100)
 
     fmtLn "Latencies for 2 fixture wallets with 10 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 2 10)
+    runScenario (nFixtureWalletWithTxs 2 10)
 
     fmtLn "Latencies for 2 fixture wallets with 20 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 2 20)
+    runScenario (nFixtureWalletWithTxs 2 20)
 
     fmtLn "Latencies for 2 fixture wallets with 100 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 2 100)
+    runScenario (nFixtureWalletWithTxs 2 100)
 
     fmtLn "Latencies for 10 fixture wallets with 10 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 10 10)
+    runScenario (nFixtureWalletWithTxs 10 10)
 
     fmtLn "Latencies for 10 fixture wallets with 20 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 10 20)
+    runScenario (nFixtureWalletWithTxs 10 20)
 
     fmtLn "Latencies for 10 fixture wallets with 100 txs scenario"
-    runScenario logging tvar (nFixtureWalletWithTxs 10 100)
+    runScenario (nFixtureWalletWithTxs 10 100)
 
     fmtLn "Latencies for 2 fixture wallets with 100 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 1)
+    runScenario (nFixtureWalletWithUTxOs 2 1)
 
     fmtLn "Latencies for 2 fixture wallets with 200 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 2)
+    runScenario (nFixtureWalletWithUTxOs 2 2)
 
     fmtLn "Latencies for 2 fixture wallets with 500 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 5)
+    runScenario (nFixtureWalletWithUTxOs 2 5)
 
     fmtLn "Latencies for 2 fixture wallets with 1000 utxos scenario"
-    runScenario logging tvar (nFixtureWalletWithUTxOs 2 10)
+    runScenario (nFixtureWalletWithUTxOs 2 10)
   where
     -- Creates n fixture wallets and return two of them
     nFixtureWallet n ctx = do
@@ -315,30 +310,30 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
         expectResponseCode HTTP.status202 r
         return ()
 
-    runScenario logging tvar scenario = benchWithServer logging $ \ctx -> do
+    runScenario scenario = benchWithServer $ \ctx -> do
         (wal1, wal2) <- scenario ctx
 
-        t1 <- measureApiLogs tvar
+        t1 <- measureApiLogs capture
             (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
 
         fmtResult "listWallets        " t1
 
-        t2 <- measureApiLogs tvar
+        t2 <- measureApiLogs capture
             (request @ApiWallet ctx (Link.getWallet @'Shelley wal1) Default Empty)
 
         fmtResult "getWallet          " t2
 
-        t3 <- measureApiLogs tvar
+        t3 <- measureApiLogs capture
             (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
 
         fmtResult "getUTxOsStatistics " t3
 
-        t4 <- measureApiLogs tvar
+        t4 <- measureApiLogs capture
             (request @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
 
         fmtResult "listAddresses      " t4
 
-        t5 <- measureApiLogs tvar
+        t5 <- measureApiLogs capture
             (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
 
         fmtResult "listTransactions   " t5
@@ -355,122 +350,36 @@ main = withUtf8Encoding $ withLatencyLogging $ \logging tvar -> do
                     }
                 }]
             }|]
-        t6 <- measureApiLogs tvar $ request @ApiFee ctx
+        t6 <- measureApiLogs capture $ request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wal1) Default payload
 
         fmtResult "postTransactionFee " t6
 
-        t7 <- measureApiLogs tvar $ request @[ApiStakePool] ctx
+        t7 <- measureApiLogs capture $ request @[ApiStakePool] ctx
             Link.listJormungandrStakePools Default Empty
 
         fmtResult "listStakePools     " t7
 
-        t8 <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+        t8 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
 
         fmtResult "getNetworkInfo     " t8
 
         pure ()
 
-    runBareScenario logging tvar  = benchWithServer logging $ \ctx -> do
+    runWarmUpScenario = benchWithServer $ \ctx -> do
         -- this one is to have comparable results from first to last measurement
         -- in runScenario
-        t <- measureApiLogs tvar $ request @ApiNetworkInformation ctx
+        t <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
         fmtResult "getNetworkInfo     " t
         pure ()
 
-meanAvg :: [NominalDiffTime] -> Double
-meanAvg ts = sum (map realToFrac ts) * 1000 / fromIntegral (length ts)
-
-buildResult :: [NominalDiffTime] -> Builder
-buildResult [] = "ERR"
-buildResult ts = build $ fixedF 1 $ meanAvg ts
-
-fmtResult :: String -> [NominalDiffTime] -> IO ()
-fmtResult title ts =
-    let titleExt = title|+" - " :: String
-        titleF = padLeftF 25 ' ' titleExt
-    in fmtLn (titleF+|buildResult ts|+" ms")
-
-isLogRequestStart :: ApiLog -> Bool
-isLogRequestStart = \case
-    ApiLog _ LogRequestStart -> True
-    _ -> False
-
-isLogRequestFinish :: ApiLog -> Bool
-isLogRequestFinish = \case
-    ApiLog _ LogRequestFinish -> True
-    _ -> False
-
-measureApiLogs
-    :: TVar [LogObject ApiLog] -- ^ Log message variable.
-    -> IO a -- ^ Action to run
-    -> IO [NominalDiffTime]
-measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
-
--- | Run tests for at least this long to get accurate timings.
-sampleNTimes :: Int
-sampleNTimes = 10
-
--- | Measure how long an action takes based on trace points and taking an
--- average of results over a short time period.
-measureLatency
-    :: (msg -> Bool) -- ^ Predicate for start message
-    -> (msg -> Bool) -- ^ Predicate for end message
-    -> TVar [LogObject msg] -- ^ Log message variable.
-    -> IO a -- ^ Action to run
-    -> IO [NominalDiffTime]
-measureLatency start finish tvar action = do
-    atomically $ writeTVar tvar []
-    replicateM_ sampleNTimes action
-    extractTimings start finish . reverse <$> readTVarIO tvar
-
--- | Scan through iohk-monitoring logs and extract time differences between
--- start and end messages.
-extractTimings
-    :: (a -> Bool) -- ^ Predicate for start message
-    -> (a -> Bool) -- ^ Predicate for end message
-    -> [LogObject a] -- ^ Log messages
-    -> [NominalDiffTime]
-extractTimings isStart isFinish msgs = map2 mkDiff filtered
-  where
-    map2 _ [] = []
-    map2 f (a:b:xs) = (f a b:map2 f xs)
-    map2 _ _ = error "start trace without matching finish trace"
-
-    mkDiff (False, start) (True, finish) = diffUTCTime finish start
-    mkDiff (False, _) _ = error "missing finish trace"
-    mkDiff (True, _) _ = error "missing start trace"
-
-    filtered = mapMaybe filterMsg msgs
-    filterMsg logObj = case loContent logObj of
-        LogMessage msg | isStart msg -> Just (False, getTimestamp logObj)
-        LogMessage msg | isFinish msg -> Just (True, getTimestamp logObj)
-        _ -> Nothing
-    getTimestamp = tstamp . loMeta
-
-withLatencyLogging
-    ::(Tracers IO -> TVar [LogObject ApiLog] -> IO a)
-    -> IO a
-withLatencyLogging action = do
-    tvar <- newTVarIO []
-    cfg <- defaultConfigStdout
-    CM.setMinSeverity cfg Debug
-    bracket (setupTrace_ cfg "bench-latency") (shutdown . snd) $ \(_, sb) -> do
-        action (setupTracers tvar) tvar `onException` do
-            fmtLn "Action failed. Here are the captured logs:"
-            readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
-
-setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
-setupTracers tvar = nullTracers
-    { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
-
-benchWithServer
+benchWithJormServer
     :: Tracers IO
     -> (Context Jormungandr -> IO ())
     -> IO ()
-benchWithServer tracers action = withConfig $ \jmCfg -> do
+benchWithJormServer tracers action = withConfig $ \jmCfg -> do
     ctx <- newEmptyMVar
     race_ (takeMVar ctx >>= action) $ do
         res <- serveWallet @('Testnet 0)
@@ -497,11 +406,3 @@ benchWithServer tracers action = withConfig $ \jmCfg -> do
                     , _target = Proxy
                     }
         throwIO $ ProcessHasExited "Server has unexpectedly exited" res
-
-instance ToJSON ApiLog where
-    toJSON = toJSON . toText
-
-instance FromJSON ApiLog where
-    parseJSON _ = fail "FromJSON ApiLog stub"
-
-instance ToObject ApiLog

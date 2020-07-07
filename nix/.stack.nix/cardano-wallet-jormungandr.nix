@@ -245,8 +245,6 @@
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.cardano-wallet-jormungandr or (pkgs.buildPackages.cardano-wallet-jormungandr or (errorHandler.buildToolDepError "cardano-wallet-jormungandr")))
