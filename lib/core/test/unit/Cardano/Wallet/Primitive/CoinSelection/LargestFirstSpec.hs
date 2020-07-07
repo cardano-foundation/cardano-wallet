@@ -118,6 +118,44 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
+        coinSelectionUnitTest largestFirst "with withdrawal"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = []
+                , rsOutputs = [100]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 100 :| []
+                , totalWithdrawal = 99
+                })
+
+        coinSelectionUnitTest largestFirst "with withdrawal & change"
+            (Right $ CoinSelectionResult
+                { rsInputs = [30]
+                , rsChange = [40]
+                , rsOutputs = [40]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [10,30]
+                , txOutputs = 40 :| []
+                , totalWithdrawal = 50
+                })
+
+        coinSelectionUnitTest largestFirst "withdrawal requires at least one input"
+            (Left ErrInputsDepleted)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = []
+                , txOutputs = 1 :| []
+                , totalWithdrawal = 10
+                })
+
         coinSelectionUnitTest largestFirst "not enough coins"
             (Left $ ErrNotEnoughMoney 39 40)
             (CoinSelectionFixture
