@@ -1,4 +1,4 @@
-name: cardano-1.14.x
+name: cardano-1.15.x
 
 resolver: lts-14.25
 
@@ -64,7 +64,7 @@ packages:
   commit: 2547ad1e80aeabca2899951601079408becbc92c
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: 0294e7edd67a77c41dfdf4cd47af23dbefea0d9b
+  commit: 12b13f390d64df6af6054b0d33bb3767756da041
   subdirs:
   - byron/ledger/impl
   - byron/crypto
@@ -78,7 +78,7 @@ packages:
   - shelley/chain-and-ledger/executable-spec/test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: a2161bac700fac55d2400b37f9935ed8ea527550
+  commit: 97b3e95c67940608f5acda929cf861e8ebfeddd1
   subdirs:
   - cardano-api
   - cardano-cli
@@ -92,7 +92,7 @@ packages:
   - test
 
 - git: https://github.com/input-output-hk/cardano-shell
-  commit: 601bb4324c258e3c8cbd2d532e5696fd09e2582e
+  commit: 5257fc818ef7df60986834310432e197aac90711
   subdirs:
   - cardano-shell
 
@@ -115,7 +115,7 @@ packages:
   - plugins/backend-trace-forwarder
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: ceafa31844e6e9883d5d5634544045eab9c5f2e9
+  commit: 1361bb92814c65e5964732777fc7f8ec9ebdccfe
   subdirs:
   - io-sim
   - io-sim-classes
