@@ -82,6 +82,7 @@ PoolOwner sql=pool_owner
     poolOwnerIndex              Word8               sql=pool_owner_index
 
     Primary poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex poolOwnerOwner poolOwnerIndex
+    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Mapping of registration certificate to pool
