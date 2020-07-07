@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , SlotId (..)
     , SlotInternalIndex (..)
+    , slotMinBound
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -64,7 +65,7 @@ import Data.List.Extra
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust, isNothing, listToMaybe, mapMaybe )
+    ( catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -169,6 +170,8 @@ properties = do
             (property . prop_readPoolRegistrationStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
+        it "rollback of PoolRetirement"
+            (property . prop_rollbackRetirement)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -690,6 +693,84 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
             [ "Read from DB:   " <> show pools
             ]
         assert (all beforeRollback pools)
+
+-- Verify that retirement certificates are correctly rolled back.
+--
+prop_rollbackRetirement
+    :: DBLayer IO
+    -> [PoolRetirementCertificate]
+    -> Property
+prop_rollbackRetirement DBLayer{..} certificates =
+    checkCoverage
+        $ cover 4 (rollbackPoint == slotMinBound)
+            "rollbackPoint = slotMinBound"
+        $ cover 4 (rollbackPoint > slotMinBound)
+            "rollbackPoint > slotMinBound"
+        $ cover 4 (null expectedPublications)
+            "length expectedPublications = 0"
+        $ cover 4 (not (null expectedPublications))
+            "length expectedPublications > 0"
+        $ cover 4
+            ( (&&)
+                (not (null expectedPublications))
+                (length expectedPublications < length allPublications)
+            )
+            "0 < length expectedPublications < length allPublications"
+        $ monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) allPublications
+        run $ atomically $ rollbackTo rollbackPoint
+        retrievedPublications <- catMaybes <$>
+            run (atomically $ mapM readPoolRetirement poolIds)
+        monitor $ counterexample $ unlines
+            [ "\nRollback point: "
+            , show rollbackPoint
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> allPublications)
+            , "\nExpected certificate publications: "
+            , unlines (("\n" <>) . show <$> expectedPublications)
+            , "\nRetrieved certificate publications: "
+            , unlines (("\n" <>) . show <$> retrievedPublications)
+            ]
+        assert $ (==)
+            retrievedPublications
+            expectedPublications
+
+    poolIds :: [PoolId]
+    poolIds = view #poolId <$> certificates
+
+    rollbackPoint :: SlotId
+    rollbackPoint =
+        -- Pick a slot that approximately corresponds to the midpoint of the
+        -- certificate publication list.
+        publicationTimes
+            & drop (length certificates `div` 2)
+            & fmap fst
+            & listToMaybe
+            & fromMaybe slotMinBound
+
+    allPublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
+    allPublications = publicationTimes `zip` certificates
+
+    expectedPublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
+    expectedPublications =
+        filter
+            (\((slotId, _), _) -> slotId <= rollbackPoint)
+            allPublications
+
+    publicationTimes :: [CertificatePublicationTime]
+    publicationTimes =
+        [(SlotId en sn, SlotInternalIndex ii)
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
 
 prop_listRegisteredPools
     :: DBLayer IO
