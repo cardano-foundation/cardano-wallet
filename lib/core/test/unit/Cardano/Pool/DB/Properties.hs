@@ -162,6 +162,9 @@ properties = do
         it "prop_multiple_putPoolRegistration_single_readPoolRegistration"
             (property .
                 prop_multiple_putPoolRegistration_single_readPoolRegistration)
+        it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
+            (property .
+                prop_multiple_putPoolRetirement_single_readPoolRetirement)
         it "readPoolRegistrationStatus should respect registration order"
             (property . prop_readPoolRegistrationStatus)
         it "rollback of PoolRegistration"
@@ -511,6 +514,56 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    mExpectedCertificatePublication = certificatePublications
+        & reverse
+        & listToMaybe
+
+    publicationTimes =
+        [(SlotId en sn, SlotInternalIndex ii)
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
+
+-- | For the same pool, write multiple pool retirement certificates to the
+--   database and then read back the current retirement certificate.
+--
+prop_multiple_putPoolRetirement_single_readPoolRetirement
+    :: DBLayer IO
+    -> PoolId
+    -> [PoolRetirementCertificate]
+    -> Property
+prop_multiple_putPoolRetirement_single_readPoolRetirement
+    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) certificatePublications
+        mRetrievedCertificatePublication <-
+            run $ atomically $ readPoolRetirement sharedPoolId
+        monitor $ counterexample $ unlines
+            [ "\nExpected certificate publication: "
+            , show mExpectedCertificatePublication
+            , "\nRetrieved certificate publication: "
+            , show mRetrievedCertificatePublication
+            , "\nNumber of certificate publications: "
+            , show (length certificatePublications)
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> certificatePublications)
+            ]
+        assert $ (==)
+            mRetrievedCertificatePublication
+            mExpectedCertificatePublication
+
+    certificatePublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
     certificatePublications = publicationTimes `zip` certificates
 
     mExpectedCertificatePublication = certificatePublications
