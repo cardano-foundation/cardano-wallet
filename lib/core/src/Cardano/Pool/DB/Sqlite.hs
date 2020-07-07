@@ -378,6 +378,7 @@ newDBLayer trace fp = do
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
             deleteWhere [ PoolRegistrationSlot >. point ]
+            deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
         , readPoolProductionCursor = \k -> do
