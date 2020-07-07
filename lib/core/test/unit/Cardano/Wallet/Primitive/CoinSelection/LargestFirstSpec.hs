@@ -38,7 +38,7 @@ import Data.Quantity
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( Property, property, (===), (==>) )
+    ( Property, expectFailure, property, (===), (==>) )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -106,8 +106,8 @@ spec = do
 
         coinSelectionUnitTest largestFirst ""
             (Right $ CoinSelectionResult
-                { rsInputs = [6,10,5]
-                , rsChange = [5,4]
+                { rsInputs = [6,10]
+                , rsChange = [4]
                 , rsOutputs = [11,1]
                 })
             (CoinSelectionFixture
@@ -128,7 +128,7 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-        coinSelectionUnitTest largestFirst "not enough coin & not fragmented enough"
+        coinSelectionUnitTest largestFirst "not enough coin & fragmentation doesn't matter"
             (Left $ ErrNotEnoughMoney 39 43)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
@@ -138,8 +138,12 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-        coinSelectionUnitTest largestFirst "enough coins, but not fragmented enough"
-            (Left $ ErrUtxoNotEnoughFragmented 3 4)
+        coinSelectionUnitTest largestFirst "enough coins, fragmentation doesn't matter"
+            (Right $ CoinSelectionResult
+                { rsInputs = [12,17,20]
+                , rsChange = [6]
+                , rsOutputs = [40,1,1,1]
+                })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
@@ -149,25 +153,17 @@ spec = do
                 })
 
         coinSelectionUnitTest largestFirst
-            "enough coins, fragmented enough, but one output depletes all inputs"
-            (Left ErrInputsDepleted)
+            "enough coins, one output does not deplete all inputs"
+            (Right $ CoinSelectionResult
+                { rsInputs = [12,17,20]
+                , rsChange = [8]
+                , rsOutputs = [40,1]
+                })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1]
-                , totalWithdrawal = 0
-                })
-
-        coinSelectionUnitTest
-            largestFirst
-            "enough coins, fragmented enough, but the input needed to stay for the next output is depleted"
-            (Left ErrInputsDepleted)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = noValidation
-                , utxoInputs = [20,20,10,5]
-                , txOutputs = 41 :| [6]
                 , totalWithdrawal = 0
                 })
 
@@ -191,17 +187,6 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-        coinSelectionUnitTest largestFirst
-            "enough coins but, strict maximumNumberOfInputs"
-            (Left $ ErrMaximumInputsReached 2)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 2
-                , validateSelection = noValidation
-                , utxoInputs = [1,2,10,6,5]
-                , txOutputs = 11 :| [1]
-                , totalWithdrawal = 0
-                })
-
         coinSelectionUnitTest largestFirst "custom validation"
             (Left $ ErrInvalidSelection ErrValidation)
             (CoinSelectionFixture
@@ -216,9 +201,9 @@ spec = do
         it "forall (UTxO, NonEmpty TxOut), running algorithm twice yields \
             \exactly the same result"
             (property propDeterministic)
-        it "forall (UTxO, NonEmpty TxOut), there's at least as many selected \
-            \inputs as there are requested outputs"
-            (property propAtLeast)
+        it "There exists (UTxO, NonEmpty TxOut) for which at there are less \
+            \inputs selected than there are requested outputs"
+            (expectFailure $ property propAtLeast)
         it "forall (UTxO, NonEmpty TxOut), for all selected input, there's no \
             \bigger input in the UTxO that is not already in the selected inputs"
             (property propInputDecreasingOrder)

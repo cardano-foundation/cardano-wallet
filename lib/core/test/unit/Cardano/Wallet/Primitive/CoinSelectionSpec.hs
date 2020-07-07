@@ -65,7 +65,6 @@ import Test.QuickCheck
     , applyArbitrary2
     , checkCoverageWith
     , choose
-    , conjoin
     , counterexample
     , cover
     , elements
@@ -73,7 +72,6 @@ import Test.QuickCheck
     , scale
     , vector
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )

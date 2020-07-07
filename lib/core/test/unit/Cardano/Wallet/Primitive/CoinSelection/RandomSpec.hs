@@ -270,17 +270,6 @@ spec = do
                 , totalWithdrawal = 10
                 })
 
-
-        coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
-            (Left ErrInputsDepleted)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = noValidation
-                , utxoInputs = [10,10,10,10]
-                , txOutputs = 38 :| [1]
-                , totalWithdrawal = 0
-                })
-
         coinSelectionUnitTest random ""
             (Left $ ErrMaximumInputsReached 2)
             (CoinSelectionFixture
@@ -327,16 +316,6 @@ spec = do
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
-                , txOutputs = 40 :| [1,1,1]
-                , totalWithdrawal = 0
-                })
-
-        coinSelectionUnitTest random ""
-            (Left $ ErrUtxoNotEnoughFragmented 3 4)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = noValidation
-                , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1,1,1]
                 , totalWithdrawal = 0
                 })
