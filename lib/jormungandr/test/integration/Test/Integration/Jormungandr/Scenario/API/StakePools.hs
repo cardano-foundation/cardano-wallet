@@ -677,7 +677,7 @@ spec = do
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
-    it "STAKE_POOL_NEXT_01 - Can join/re-join another/quit stake pool" $ \(_,_,ctx) -> do
+    it "STAKE_POOL_NEXT_01 - Can join/re-join another but cannot quit stake pool" $ \(_,_,ctx) -> do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
@@ -722,21 +722,15 @@ spec = do
                 [ expectField #delegation (`shouldBe` delegating (p2 ^. #id) [])
                 ]
 
-        --quiting
-        r3 <- quitStakePool @n ctx (w, fixturePassphrase)
-        expectResponseCode HTTP.status202 r3
-        waitAllTxsInLedger @n ctx w
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-            [ expectField #delegation
-                (`shouldBe` delegating (p2 ^. #id)
-                    [ (Nothing, mkEpochInfo (currentEpoch + 7) sp)
-                    ]
-                )
+        -- Can't quit a pool because rewards were earned.
+        -- (Jörmungandr also does not allow spending rewards at this moment.
+        --  Transactions with withdrawRewards=true are rejected by the node
+        --  and infinitely 'pending' in the wallet)
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NonNullReward
             ]
-        eventually "Wallet is not delegating" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField #delegation (`shouldBe` notDelegating [])
-                ]
+
 
     it "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
         $ \(_,_,ctx) -> do
