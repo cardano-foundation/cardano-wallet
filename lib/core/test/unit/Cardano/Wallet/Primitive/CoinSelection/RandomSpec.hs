@@ -191,36 +191,14 @@ spec = do
                 , totalWithdrawal = 2
                 })
 
-        coinSelectionUnitTest random "withdrawal not even"
-            -- 10 Ada available as withdrawal
-            --
-            -- - 7 Ada goes to the first output (10/14 * 10 ~= 7)
-            -- - 2 Ada goes to the other output ( 4/14 * 10 ~= 2)
-            (Right $ CoinSelectionResult
-                { rsInputs = [5,5]
-                , rsChange = [2,3]
-                , rsOutputs = [10, 4]
-                })
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = noValidation
-                , utxoInputs = [5,5]
-                , txOutputs = 10 :| [4]
-                , totalWithdrawal = 10
-                })
-
-        coinSelectionUnitTest random "withdrawal cover next output"
-            -- 20 Ada available as withdrawal
-            --
-            -- - 10 Ada goes to the first output
-            -- - 10 Ada goes to the other output
-            --
-            -- The first output has to select an available input first, which
-            -- leaves no input for the second, but it can be covered with the
-            -- withdrawal.
+        coinSelectionUnitTest random "withdrawal cover next output, no improvement"
+            -- NOTE
+            -- There's no change because the withdrawal covers it all _just_
+            -- perfectly, the exceeding withdrawal remains available as a
+            -- positive delta for fee balancing.
             (Right $ CoinSelectionResult
                 { rsInputs = [1]
-                , rsChange = [1]
+                , rsChange = []
                 , rsOutputs = [10, 10]
                 })
             (CoinSelectionFixture
@@ -229,6 +207,47 @@ spec = do
                 , utxoInputs = [1]
                 , txOutputs = 10 :| [10]
                 , totalWithdrawal = 20
+                })
+
+        coinSelectionUnitTest random "withdrawal cover next, with input improvement"
+            -- NOTE
+            -- This one is tricky, but here's what's happening
+            --
+            -- 1. A first input is selected
+            -- 2. Part of the withdrawal (5) is used to cover for the remainder
+            -- 3. Rest of the withdrawal (1) is used to cover the second output
+            -- 4. The first input selection is "improved", so another input is
+            --    picked (hence the change of roughly the same size)
+            -- 5. There are no more inputs available, so the second input can't
+            --    be improved.
+            --
+            -- At the end, still remains 4 Lovelace that can be used in the fee
+            -- balancing.
+            (Right $ CoinSelectionResult
+                { rsInputs = [5,5]
+                , rsChange = [5]
+                , rsOutputs = [10, 1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [5,5]
+                , txOutputs = 10 :| [1]
+                , totalWithdrawal = 10
+                })
+
+        coinSelectionUnitTest random "withdrawal can cover many next outputs"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = []
+                , rsOutputs = [1,1,1,1,1,1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 1 :| [1,1,1,1,1]
+                , totalWithdrawal = 5
                 })
 
         coinSelectionUnitTest random "withdrawal requires at least one input"

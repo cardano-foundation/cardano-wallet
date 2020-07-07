@@ -165,12 +165,15 @@ makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
     coverRandomly (inps, utxo)
         | L.length inps > fromIntegral maxN =
             MaybeT $ return Nothing
-        | currentBalance >= targetMin =
+        | currentBalance >= targetMin = do
+            let remainder
+                    | inputBalance >= targetMin = 0
+                    | otherwise = targetMin - inputBalance
             MaybeT $ return $ Just
                 ( mempty
                     { inputs = inps
                     , outputs = [txout]
-                    , withdrawal = currentBalance - inputBalance
+                    , withdrawal = min remainder (getQuantity withdrawal0)
                     }
                 , utxo
                 )
