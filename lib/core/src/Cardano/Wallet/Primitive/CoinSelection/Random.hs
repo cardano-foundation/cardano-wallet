@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -21,7 +22,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionOptions (..)
     , ErrCoinSelection (..)
-    , proportionallyTo
     , totalBalance
     )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
@@ -48,8 +48,6 @@ import Data.Ord
     ( comparing )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Ratio
-    ( (%) )
 import Data.Word
     ( Word64 )
 
@@ -117,98 +115,104 @@ random
     -> Quantity "lovelace" Word64
     -> UTxO
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
-random opt outs (Quantity totalWithdraw) utxo = do
+random opt outs (Quantity withdrawal) utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
-    let totalOut = sum (getCoin . coin <$> outs)
-    randomMaybe <- lift $ runMaybeT $
-        foldM
-            (\acc out ->
-                let
-                    withdraw = totalWithdraw
-                        `proportionallyTo` (getCoin (coin out) % totalOut)
-                in
-                    makeSelection (Quantity withdraw) acc out
-            )
-            (maxN, utxo, [])
-            (descending outs)
+    randomMaybe <- lift $ runMaybeT $ do
+        let initialState = SelectionState maxN utxo (Quantity withdrawal) []
+        foldM makeSelection initialState (descending outs)
     case randomMaybe of
-        Just (maxN', utxo', res) -> do
+        Just (SelectionState maxN' utxo' _ res) -> do
             (_, sel, remUtxo) <- lift $
                 foldM improveTxOut (maxN', mempty, utxo') (reverse res)
-            -- NOTE re-assigning total withdrawal to cope with potential
-            -- rounding issues.
-            guard sel $> (sel { withdrawal = totalWithdraw }, remUtxo)
+            let result = sel { withdrawal }
+            guard result $> (result, remUtxo)
         Nothing ->
-            largestFirst opt outs (Quantity totalWithdraw) utxo
+            largestFirst opt outs (Quantity withdrawal) utxo
   where
     guard = except . left ErrInvalidSelection . validate opt
+
+-- A little type-alias to ease signature below
+data SelectionState = SelectionState
+    { _maxN :: Word64
+    , _utxo :: UTxO
+    , _withdrawal :: Quantity "lovelace" Word64
+    , _selection :: [CoinSelection]
+    } deriving Show
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
     :: forall m. MonadRandom m
-    => Quantity "lovelace" Word64
-    -> (Word64, UTxO, [(Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)])
+    => SelectionState
     -> TxOut
-    -> MaybeT m
-        ( Word64 -- Number of remaining inputs that can be selected
-        , UTxO -- New UTxO
-        , [(Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)] -- Ongoing selection
-        )
-makeSelection withdraw (maxNumInputs, utxo0, selection) txout = do
-    (inps, utxo1) <- coverRandomly ([], utxo0)
-    return
-        ( maxNumInputs - fromIntegral (L.length inps)
-        , utxo1
-        , (withdraw, inps, txout) : selection
-        )
+    -> MaybeT m SelectionState
+makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
+    (selection', utxo') <- coverRandomly ([], utxo0)
+    return $ SelectionState
+        { _maxN = maxN - fromIntegral (L.length $ inputs selection')
+        , _utxo = utxo'
+        , _withdrawal = (\w -> w - withdrawal selection') <$> withdrawal0
+        , _selection = selection' : selection0
+        }
   where
+    TargetRange{targetMin} = mkTargetRange $ getCoin $ coin txout
+
     coverRandomly
         :: forall m. MonadRandom m
         => ([(TxIn, TxOut)], UTxO)
-        -> MaybeT m ([(TxIn, TxOut)], UTxO)
+        -> MaybeT m (CoinSelection, UTxO)
     coverRandomly (inps, utxo)
-        | L.length inps > fromIntegral maxNumInputs =
+        | L.length inps > fromIntegral maxN =
             MaybeT $ return Nothing
-        | currentBalance >= targetMin (mkTargetRange txout) =
-            MaybeT $ return $ Just (inps, utxo)
+        | currentBalance >= targetMin =
+            MaybeT $ return $ Just
+                ( mempty
+                    { inputs = inps
+                    , outputs = [txout]
+                    , withdrawal = currentBalance - inputBalance
+                    }
+                , utxo
+                )
         | otherwise = do
             pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
       where
         -- Withdrawal can only count towards the input balance if there's been
         -- at least one selected input.
         currentBalance
-            | null inps && null selection = totalBalance (Quantity 0) inps
-            | otherwise = totalBalance withdraw inps
+            | null inps && null selection0 = inputBalance
+            | otherwise = totalBalance withdrawal0 inps
+
+        inputBalance =
+            totalBalance (Quantity 0) inps
 
 -- | Perform an improvement to random selection on a given output.
 improveTxOut
     :: forall m. MonadRandom m
     => (Word64, CoinSelection, UTxO)
-    -> (Quantity "lovelace" Word64, [(TxIn, TxOut)], TxOut)
+    -> CoinSelection
     -> m (Word64, CoinSelection, UTxO)
-improveTxOut (maxN0, selection, utxo0) (withdraw, inps0, txout) = do
+improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _) = do
     (maxN, inps, utxo) <- improve (maxN0, inps0, utxo0)
     return
         ( maxN
         , selection <> mempty
             { inputs = inps
-            , outputs = [txout]
-            , change = mkChange withdraw txout inps
-            , withdrawal = getQuantity withdraw
+            , outputs = outs
+            , change = mkChange (Quantity withdraw) outs inps
+            , withdrawal = withdraw
             }
         , utxo
         )
   where
-    target = mkTargetRange txout
+    target = mkTargetRange $ sum $ getCoin . coin <$> outs
 
     improve
         :: forall m. MonadRandom m
         => (Word64, [(TxIn, TxOut)], UTxO)
         -> m (Word64, [(TxIn, TxOut)], UTxO)
     improve (maxN, inps, utxo)
-        | maxN >= 1 && totalBalance withdraw inps < targetAim target = do
+        | maxN >= 1 && totalBalance (Quantity withdraw) inps < targetAim target = do
             runMaybeT (pickRandomT utxo) >>= \case
                 Nothing ->
                     return (maxN, inps, utxo)
@@ -224,13 +228,21 @@ improveTxOut (maxN0, selection, utxo0) (withdraw, inps0, txout) = do
     isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
     isImprovement io selected =
         let
+            balanceWithExtraInput =
+                totalBalance (Quantity withdraw) (io : selected)
+
+            balanceWithoutExtraInput =
+                totalBalance (Quantity withdraw) selected
+
             condA = -- (a) It doesn’t exceed a specified upper limit.
-                totalBalance withdraw (io : selected) < targetMax target
+                balanceWithExtraInput
+                <
+                targetMax target
 
             condB = -- (b) Addition gets us closer to the ideal change
-                distance (targetAim target) (totalBalance withdraw (io : selected))
+                distance (targetAim target) balanceWithExtraInput
                 <
-                distance (targetAim target) (totalBalance withdraw selected)
+                distance (targetAim target) balanceWithoutExtraInput
 
             -- (c) Doesn't exceed maximum number of inputs
             -- Guaranteed by the precondition on 'improve'.
@@ -247,20 +259,21 @@ pickRandomT =
     MaybeT . fmap (\(m,u) -> (,u) <$> m) . pickRandom
 
 -- | Compute the target range for a given output
-mkTargetRange :: TxOut -> TargetRange
-mkTargetRange (TxOut _ (Coin c)) = TargetRange
-    { targetMin = c
-    , targetAim = 2 * c
-    , targetMax = 3 * c
+mkTargetRange :: Word64 -> TargetRange
+mkTargetRange base = TargetRange
+    { targetMin = base
+    , targetAim = 2 * base
+    , targetMax = 3 * base
     }
 
 -- | Compute corresponding change outputs from a target output and a selection
 -- of inputs.
 --
 -- > pre-condition: the output must be smaller (or eq) than the sum of inputs
-mkChange :: Quantity "lovelace" Word64 -> TxOut -> [(TxIn, TxOut)] -> [Coin]
-mkChange withdraw (TxOut _ (Coin out)) inps =
+mkChange :: Quantity "lovelace" Word64 -> [TxOut] -> [(TxIn, TxOut)] -> [Coin]
+mkChange withdraw outs inps =
     let
+        out = sum $ getCoin . coin <$> outs
         selected = invariant
             "mkChange: output is smaller than selected inputs!"
             (totalBalance withdraw inps)
