@@ -482,8 +482,9 @@ prop_poolRetirement DBLayer {..} entries =
             ]
         assert (entriesIn == entriesOut)
 
--- | For the same pool, write multiple pool registration certificates to the
---   database and then read back the current registration certificate.
+-- For the same pool, write /multiple/ pool registration certificates to the
+-- database and then read back the current registration certificate, verifying
+-- that the certificate returned is the last one to have been written.
 --
 prop_multiple_putPoolRegistration_single_readPoolRegistration
     :: DBLayer IO
@@ -532,8 +533,9 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 
     certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
--- | For the same pool, write multiple pool retirement certificates to the
---   database and then read back the current retirement certificate.
+-- For the same pool, write /multiple/ pool retirement certificates to the
+-- database and then read back the current retirement certificate, verifying
+-- that the certificate returned is the last one to have been written.
 --
 prop_multiple_putPoolRetirement_single_readPoolRetirement
     :: DBLayer IO
@@ -582,6 +584,15 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
 
     certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
+-- After writing an /arbitrary/ sequence of interleaved registration and
+-- retirement certificates for the same pool to the database, verify that
+-- reading the current registration status returns a result that reflects
+-- the correct order of precedence for these certificates.
+--
+-- Note that this property /assumes/ the correctness of the pure function
+-- 'determinePoolRegistrationStatus', which is tested /elsewhere/ with
+-- the @prop_determinePoolRegistrationStatus@ series of properties.
+--
 prop_readPoolRegistrationStatus
     :: DBLayer IO
     -> PoolId
@@ -892,10 +903,15 @@ prop_determinePoolRegistrationStatus_orderCorrect regData retData =
   where
     prop
         | regTime > retTime =
+            -- A re-registration always /supercedes/ a prior retirement.
             result `shouldBe` PoolRegistered regCert
         | regTime < retTime =
+            -- A retirement always /augments/ the latest registration.
             result `shouldBe` PoolRegisteredAndRetired regCert retCert
         | otherwise =
+            -- If a registration certificate and a retirement certificate
+            -- for the same pool appear to have been published at exactly
+            -- the same time, this represents a programming error.
             evaluate result `shouldThrow` anyException
 
     sharedPoolId = view #poolId regCertAnyPool
@@ -910,6 +926,10 @@ prop_determinePoolRegistrationStatus_orderCorrect regData retData =
         (pure (regTime, regCert))
         (pure (retTime, retCert))
 
+-- If we've never seen a registration certificate for a given pool, we /always/
+-- indicate that the pool was /not registered/, /regardless/ of whether or not
+-- we've seen a retirement certificate for that pool.
+--
 prop_determinePoolRegistrationStatus_neverRegistered
     :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
     => Maybe (certificatePublicationTime, PoolRetirementCertificate)
@@ -925,6 +945,9 @@ prop_determinePoolRegistrationStatus_neverRegistered maybeRetData =
   where
     result = determinePoolRegistrationStatus Nothing maybeRetData
 
+-- Calling 'determinePoolRegistrationStatus' with certificates from different
+-- pools is a programming error, and should result in an exception.
+--
 prop_determinePoolRegistrationStatus_differentPools
     :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
     => (certificatePublicationTime, PoolRegistrationCertificate)
