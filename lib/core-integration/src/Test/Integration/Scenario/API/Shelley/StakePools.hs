@@ -94,7 +94,6 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , walletId
     , (.>)
-    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -508,7 +507,7 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
-    let listPools ctx = request @[ApiStakePool] @IO ctx (Link.listStakePools arbitraryStake) Default Empty
+    let listPools ctx stake = request @[ApiStakePool] @IO ctx (Link.listStakePools stake) Default Empty
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
         -- TODO: Add a /short/ eventually (not currently possible) as this test
         -- fails when run in isolation.
@@ -519,7 +518,7 @@ spec = do
         -- A simple threadDelay could be added either here, in the test setup
         -- also.
         it "immediately has non-zero saturation & stake" $ \ctx -> do
-            r <- listPools ctx
+            r <- listPools ctx arbitraryStake
             expectResponseCode HTTP.status200 r
             verify r
                 [ expectListSize 3
@@ -539,7 +538,7 @@ spec = do
 
         it "eventually has correct margin, cost and pledge" $ \ctx -> do
             eventually "pool worker finds the certificate" $ do
-                r <- listPools ctx
+                r <- listPools ctx arbitraryStake
                 expectResponseCode HTTP.status200 r
                 let oneMillionAda = 1_000_000_000_000
                 let pools = either (error . show) Prelude.id $ snd r
@@ -562,7 +561,7 @@ spec = do
 
         it "at least one pool eventually produces block" $ \ctx -> do
             eventually "eventually produces block" $ do
-                (_, Right r) <- listPools ctx
+                (_, Right r) <- listPools ctx arbitraryStake
                 let production = sum $
                         getQuantity . view (#metrics . #producedBlocks) <$> r
                 let saturation =
@@ -573,7 +572,7 @@ spec = do
 
         it "contains pool metadata" $ \ctx -> do
             eventually "metadata is fetched" $ do
-                r <- listPools ctx
+                r <- listPools ctx arbitraryStake
                 let metadataList =
                         [ StakePoolMetadata
                             { ticker = (StakePoolTicker "GPA")
@@ -606,13 +605,26 @@ spec = do
 
         it "contains and is sorted by non-myopic-rewards" $ \ctx -> do
             eventually "eventually shows non-zero rewards" $ do
-                Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx
+                Right pools@[pool1,_pool2,pool3] <- snd <$> listPools ctx arbitraryStake
                 let rewards = view (#metrics . #nonMyopicMemberRewards)
                 print (rewards <$> pools) -- FIXME temporary
                 (rewards <$> pools) `shouldBe`
                     (rewards <$> sortOn (Down . rewards) pools)
                 -- Make sure the rewards are not all equal:
                 rewards pool1 .> rewards pool3
+
+        it "non-myopic-rewards are based on stake" $ \ctx -> do
+            eventually "rewards are smaller for smaller stakes" $ do
+                let stakeSmall = Just (Coin 10_000_000)
+                let stakeBig = Just (Coin 1000_000_000)
+                Right poolsStakeSmall <- snd <$> listPools ctx stakeSmall
+                Right poolsStakeBig <- snd <$> listPools ctx stakeBig
+                let rewards = view (#metrics . #nonMyopicMemberRewards . #getQuantity)
+                let rewardsStakeSmall = sum (rewards <$> poolsStakeSmall)
+                let rewardsStakeBig = sum (rewards <$> poolsStakeBig)
+
+                rewardsStakeBig .> rewardsStakeSmall
+
 
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
         r <- request @[ApiStakePool] @IO ctx
