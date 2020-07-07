@@ -94,8 +94,6 @@ import Control.Monad
     ( forM )
 import Crypto.Error
     ( throwCryptoError )
-import Crypto.Hash.Utils
-    ( blake2b256 )
 import Data.ByteString
     ( ByteString )
 import Data.Map.Strict
@@ -116,13 +114,10 @@ import Type.Reflection
     ( Typeable )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Api.Typed as CardanoTyped
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Codec.CBOR.Read as CBOR
-import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -332,26 +327,11 @@ _decodeSignedTx
     :: ByteString
     -> Either ErrDecodeSignedTx (Tx, SealedTx)
 _decodeSignedTx bytes = do
-    case Cardano.txSignedFromCBOR bytes of
-        Right (Cardano.TxSignedShelley txValid) ->
+    case CardanoTyped.deserialiseFromCBOR CardanoTyped.AsShelleyTx bytes of
+        Right (CardanoTyped.ShelleyTx txValid) ->
             pure $ toSealed txValid
-        Right (Cardano.TxSignedByron{}) ->
-            case CBOR.deserialiseFromBytes CBOR.decodeSignedTx (BL.fromStrict bytes) of
-                Left e ->
-                    Left $ ErrDecodeSignedTxWrongPayload $ T.pack $ show e
-                Right (_, ((inps, outs), _)) -> Right
-                    ( W.Tx
-                        { W.txId = Hash
-                            $ blake2b256
-                            $ CBOR.toStrictByteString
-                            $ CBOR.encodeTx (inps, outs)
-                        , W.resolvedInputs = (,Coin 0) <$> inps
-                        , W.outputs = outs
-                        }
-                    , SealedTx bytes
-                    )
-        Left apiErr ->
-            Left $ ErrDecodeSignedTxWrongPayload (Cardano.renderApiError apiErr)
+        Left decodeErr ->
+            Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
 _minimumFee
     :: forall (n :: NetworkDiscriminant). Typeable n

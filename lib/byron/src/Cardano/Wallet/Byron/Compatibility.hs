@@ -126,6 +126,10 @@ import Ouroboros.Network.Block
     , Point (..)
     , SlotNo (..)
     , Tip (..)
+    , blockHash
+    , blockNo
+    , blockPrevHash
+    , blockSlot
     , genesisPoint
     , getLegacyTipBlockNo
     , getTipPoint

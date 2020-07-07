@@ -41,14 +41,14 @@ module Cardano.Wallet.Shelley.Launch
 
 import Prelude
 
+import Cardano.Api.Shelley.Genesis
+    ( ShelleyGenesis (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.CLI
     ( optionT )
-import Cardano.Config.Shelley.Genesis
-    ( ShelleyGenesis (..) )
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited (..) )
 import Cardano.Launcher.Node
