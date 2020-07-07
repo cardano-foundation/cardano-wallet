@@ -143,6 +143,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Random
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.CoinSelection
+      Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.LargestFirst
       Cardano.Wallet.Primitive.CoinSelection.Migration
       Cardano.Wallet.Primitive.CoinSelection.Random

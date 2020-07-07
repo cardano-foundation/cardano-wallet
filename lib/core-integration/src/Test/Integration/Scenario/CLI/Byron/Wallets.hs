@@ -27,7 +27,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_ )

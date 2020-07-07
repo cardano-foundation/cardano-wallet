@@ -241,6 +241,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..), SyncTolerance, syncProgressRelativeToTime )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState (..)
@@ -252,8 +254,6 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , SortOrder (..)
-    , SyncProgress
-    , SyncTolerance
     , TransactionInfo (TransactionInfo)
     , Tx (..)
     , TxIn (..)
@@ -265,7 +265,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , slotAt
     , slotMinBound
-    , syncProgressRelativeToTime
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
@@ -937,7 +936,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
     whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
         let wrk = hoistResource db (MsgFromWorker wid) ctx
         (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending W.NotResponding
+        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending NotResponding
 
 listWallets
     :: forall ctx s t k apiWallet.

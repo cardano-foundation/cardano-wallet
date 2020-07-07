@@ -27,8 +27,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( SyncProgress (..), walletNameMaxLength, walletNameMinLength )
+    ( walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens

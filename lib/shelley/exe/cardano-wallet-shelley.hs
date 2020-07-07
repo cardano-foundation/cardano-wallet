@@ -76,7 +76,7 @@ import Cardano.Wallet.Api.Types
     ( ApiStakePool )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Shelley
     ( TracerSeverities

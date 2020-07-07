@@ -138,13 +138,14 @@ import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , Coin (..)
     , NetworkParameters
     , SortOrder (..)
-    , SyncTolerance
     , WalletId (..)
     )
 import Cardano.Wallet.Registry

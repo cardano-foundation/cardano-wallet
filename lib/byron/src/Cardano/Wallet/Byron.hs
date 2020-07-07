@@ -96,6 +96,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
@@ -103,7 +105,6 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
-    , SyncTolerance
     , WalletId
     )
 import Cardano.Wallet.Registry

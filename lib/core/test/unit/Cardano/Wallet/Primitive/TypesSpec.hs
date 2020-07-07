@@ -21,6 +21,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..), SyncTolerance (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -45,8 +47,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
-    , SyncProgress (..)
-    , SyncTolerance (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -73,7 +73,6 @@ import Cardano.Wallet.Primitive.Types
     , log10
     , mapRangeLowerBound
     , mapRangeUpperBound
-    , mkSyncTolerance
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -92,7 +91,6 @@ import Cardano.Wallet.Primitive.Types
     , slotRangeFromTimeRange
     , slotStartTime
     , slotSucc
-    , syncProgress
     , unsafeEpochNo
     , walletNameMaxLength
     , walletNameMinLength

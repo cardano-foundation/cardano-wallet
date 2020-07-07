@@ -143,6 +143,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -162,7 +164,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , StakePoolMetadata
     , StartTime (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)

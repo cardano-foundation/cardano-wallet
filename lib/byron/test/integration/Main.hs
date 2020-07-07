@@ -50,13 +50,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , FeePolicy (..)
     , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
-    , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)
     , TxParameters (..)

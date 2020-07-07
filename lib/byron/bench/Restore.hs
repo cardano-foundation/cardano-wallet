@@ -97,6 +97,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.Model
     ( currentTip, totalUTxO )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..), mkSyncTolerance, syncProgressRelativeToTime )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
@@ -105,15 +107,12 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotId (..)
-    , SyncProgress (..)
     , WalletId (..)
     , WalletName (..)
     , computeUtxoStatistics
     , log10
-    , mkSyncTolerance
     , slotAt
     , slotParams
-    , syncProgressRelativeToTime
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeRunExceptT )
