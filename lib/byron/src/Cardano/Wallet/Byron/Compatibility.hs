@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -36,7 +37,6 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Conversions
     , toByronHash
-    , toEpochSlots
     , toGenTx
     , toPoint
     , toSlotNo
@@ -46,6 +46,7 @@ module Cardano.Wallet.Byron.Compatibility
     , fromByronHash
     , fromChainHash
     , fromGenesisData
+    , byronCodecConfig
     , fromNetworkMagic
     , fromProtocolMagicId
     , fromSlotNo
@@ -118,8 +119,14 @@ import GHC.TypeLits
     ( KnownNat )
 import Numeric.Natural
     ( Natural )
+import Ouroboros.Consensus.Block.Abstract
+    ( getHeader, headerPrevHash )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..), ByronHash (..), GenTx, fromMempoolPayload )
+import Ouroboros.Consensus.Byron.Ledger.Config
+    ( CodecConfig (..) )
+import Ouroboros.Consensus.Config.SecurityParam
+    ( SecurityParam (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash
@@ -128,15 +135,12 @@ import Ouroboros.Network.Block
     , Tip (..)
     , blockHash
     , blockNo
-    , blockPrevHash
     , blockSlot
     , genesisPoint
     , getLegacyTipBlockNo
     , getTipPoint
     , legacyTip
     )
-import Ouroboros.Network.ChainFragment
-    ( HasHeader (..) )
 import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.Magic
@@ -309,13 +313,20 @@ toGenTx =
     . BL.fromStrict
     . W.getSealedTx
 
-fromByronBlock :: W.Hash "Genesis" -> W.EpochLength -> ByronBlock -> W.Block
-fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of
+byronCodecConfig :: W.GenesisParameters -> CodecConfig ByronBlock
+byronCodecConfig W.GenesisParameters{getEpochLength,getEpochStability} =
+    ByronCodecConfig (toEpochSlots getEpochLength) (SecurityParam k)
+  where
+    k = fromIntegral . getQuantity $ getEpochStability
+
+fromByronBlock :: W.GenesisParameters -> ByronBlock -> W.Block
+fromByronBlock gp byronBlk = case byronBlockRaw byronBlk of
   ABOBBlock blk  ->
     mkBlock $ fromTxAux <$> unTxPayload (blockTxPayload blk)
   ABOBBoundary _ ->
     mkBlock []
   where
+    W.GenesisParameters genesisHash _ _ epLength _ _ = gp
     mkBlock :: [W.Tx] -> W.Block
     mkBlock txs = W.Block
         { header = W.BlockHeader
@@ -326,7 +337,7 @@ fromByronBlock genesisHash epLength byronBlk = case byronBlockRaw byronBlk of
             , headerHash =
                 fromByronHash $ blockHash byronBlk
             , parentHeaderHash =
-                fromChainHash genesisHash $ blockPrevHash byronBlk
+                fromChainHash genesisHash $ headerPrevHash (byronCodecConfig gp) (getHeader byronBlk)
             }
         , transactions = txs
         , delegations  = []

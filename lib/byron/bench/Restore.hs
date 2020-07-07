@@ -367,8 +367,7 @@ bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname,
     let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
     withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
-        let convert =
-                fromByronBlock (getGenesisBlockHash gp) (getEpochLength gp)
+        let convert = fromByronBlock gp
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
@@ -447,8 +446,7 @@ prepareNode _ socketPath np vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
     sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
-        let convert =
-                fromByronBlock (getGenesisBlockHash gp) (getEpochLength gp)
+        let convert = fromByronBlock gp
         let nw = convert <$> nw'
         waitForNodeSync nw logQuiet gp
     sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
