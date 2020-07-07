@@ -75,12 +75,13 @@ StakeDistribution sql=stake_distribution
 
 -- Mapping from pool id to owner.
 PoolOwner sql=pool_owner
-    poolOwnerPoolId     W.PoolId     sql=pool_id
-    poolOwnerSlot       W.SlotId     sql=slot
-    poolOwnerOwner      W.PoolOwner  sql=pool_owner
-    poolOwnerIndex      Word8        sql=pool_owner_index
+    poolOwnerPoolId             W.PoolId            sql=pool_id
+    poolOwnerSlot               W.SlotId            sql=slot
+    poolOwnerSlotInternalIndex  W.SlotInternalIndex sql=slot_internal_index
+    poolOwnerOwner              W.PoolOwner         sql=pool_owner
+    poolOwnerIndex              Word8               sql=pool_owner_index
 
-    Primary poolOwnerPoolId poolOwnerSlot poolOwnerOwner poolOwnerIndex
+    Primary poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex poolOwnerOwner poolOwnerIndex
     deriving Show Generic
 
 -- Mapping of registration certificate to pool

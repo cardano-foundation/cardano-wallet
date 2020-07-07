@@ -218,7 +218,10 @@ newDBLayer trace fp = do
                     (snd <$> poolMetadata cert)
             _ <- repsert poolRegistrationKey poolRegistrationRow
             insertMany_ $
-                zipWith (PoolOwner poolId slotId) (poolOwners cert) [0..]
+                zipWith
+                    (PoolOwner poolId slotId slotInternalIndex)
+                    (poolOwners cert)
+                    [0..]
 
         , readPoolRegistration = \poolId -> do
             let filterBy = [ PoolRegistrationPoolId ==. poolId ]
@@ -247,8 +250,14 @@ newDBLayer trace fp = do
                           (,) <$> poolMetadataUrl <*> poolMetadataHash
                     poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
                         selectList
-                            [ PoolOwnerPoolId ==. poolId ]
-                            [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
+                            [ PoolOwnerPoolId
+                                ==. poolId
+                            , PoolOwnerSlot
+                                ==. slotId
+                            , PoolOwnerSlotInternalIndex
+                                ==. slotInternalIndex
+                            ]
+                            [ Asc PoolOwnerIndex ]
                     let cert = PoolRegistrationCertificate
                             { poolId
                             , poolOwners
