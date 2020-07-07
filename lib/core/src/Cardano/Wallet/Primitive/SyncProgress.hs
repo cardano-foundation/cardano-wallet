@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 
+-- | Functionality for calculating @SyncProgress@ of wallets.
 module Cardano.Wallet.Primitive.SyncProgress
     ( -- * Types
       SyncProgress (..)
@@ -128,7 +129,10 @@ syncProgress
     :: SyncTolerance
         -- ^ A time tolerance inside which we consider ourselves synced
     -> SlotParameters
-        -- ^ Parameters relative to slot arithmetics
+        -- ^ Parameters for slot arithmetic which are assumed to be static.
+        --
+        -- NOTE: This is no longer the case with the Hard Fork Combinator and
+        -- Byron-to-Shelley era transition.
     -> BlockHeader
         -- ^ Local tip
     -> SlotId
@@ -170,7 +174,10 @@ syncProgressRelativeToTime
     :: SyncTolerance
         -- ^ A time tolerance inside which we consider ourselves synced
     -> SlotParameters
-        -- ^ Parameters relative to slot arithmetics
+        -- ^ Parameters for slot arithmetic which are assumed to be static.
+        --
+        -- NOTE: This is no longer the case with the Hard Fork Combinator and
+        -- Byron-to-Shelley era transition.
     -> BlockHeader
     -- ^ Local tip
     -> UTCTime
