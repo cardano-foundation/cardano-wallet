@@ -94,7 +94,6 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , walletId
     , (.>)
-    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403DelegationFee
@@ -620,11 +619,11 @@ spec = do
                 let stakeBig = Just (Coin 1000_000_000)
                 Right poolsStakeSmall <- snd <$> listPools ctx stakeSmall
                 Right poolsStakeBig <- snd <$> listPools ctx stakeBig
-                let rewards = view (#metrics . #nonMyopicMemberRewards)
-                let rewardsStakeSmall = rewards <$> poolsStakeSmall
-                let rewardsStakeBig = rewards <$> poolsStakeBig
+                let rewards = view (#metrics . #nonMyopicMemberRewards . #getQuantity)
+                let rewardsStakeSmall = sum (rewards <$> poolsStakeSmall)
+                let rewardsStakeBig = sum (rewards <$> poolsStakeBig)
 
-                rewardsStakeSmall `shouldSatisfy` (< rewardsStakeBig)
+                rewardsStakeBig .> rewardsStakeSmall
 
 
     it "STAKE_POOLS_LIST_05 - Fails without query parameter" $ \ctx -> do
