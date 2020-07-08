@@ -23,6 +23,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     , insertedAt
@@ -120,6 +121,7 @@ data TestCase a = TestCase
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
 spec = do

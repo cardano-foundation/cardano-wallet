@@ -22,6 +22,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , DecodeAddress (..)
+    , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , WalletStyle (..)
     )
@@ -120,6 +121,7 @@ spec
         , EncodeAddress n
         , KnownCommand t
         , DecodeAddress n
+        , DecodeStakeAddress n
         )
     => SpecWith (Context t)
 spec = describe "BYRON_TXS_CLI" $ do
@@ -486,6 +488,7 @@ spec = describe "BYRON_TXS_CLI" $ do
 scenario_TRANS_CREATE_01_02
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , KnownCommand t
         )
@@ -573,6 +576,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
 scenario_TRANS_ESTIMATE_01_02
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , KnownCommand t
         )
@@ -610,6 +614,7 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
 scenario_TRANS_CREATE_04b
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         , KnownCommand t
@@ -633,6 +638,7 @@ scenario_TRANS_CREATE_04b = it title $ \ctx -> do
 scenario_TRANS_CREATE_04c
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         , KnownCommand t
@@ -656,6 +662,7 @@ scenario_TRANS_CREATE_04c = it title $ \ctx -> do
 scenario_TRANS_CREATE_04d
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         , KnownCommand t
@@ -679,6 +686,7 @@ scenario_TRANS_CREATE_04d = it title $ \ctx -> do
 scenario_TRANS_ESTIMATE_04b
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         , KnownCommand t
@@ -711,6 +719,7 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
 scenario_TRANS_ESTIMATE_04c
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         , KnownCommand t
@@ -734,6 +743,7 @@ scenario_TRANS_ESTIMATE_04c = it title $ \ctx -> do
 scenario_TRANS_CREATE_07
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n ByronKey
         , KnownCommand t
@@ -765,6 +775,7 @@ scenario_TRANS_CREATE_07 = it title $ \ctx -> do
 fixtureCantCoverFee
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         )
@@ -782,6 +793,7 @@ fixtureCantCoverFee ctx = do
 fixtureNotEnoughMoney
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         )
@@ -798,6 +810,7 @@ fixtureNotEnoughMoney ctx = do
 fixtureWrongPassphrase
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         )
@@ -813,6 +826,7 @@ fixtureWrongPassphrase ctx = do
 fixtureDeletedWallet
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )

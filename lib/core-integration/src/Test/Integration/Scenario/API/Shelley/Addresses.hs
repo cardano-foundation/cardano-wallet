@@ -17,6 +17,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     )
@@ -63,6 +64,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
 spec = do

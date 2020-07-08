@@ -627,8 +627,8 @@ dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ keyFrom _slot cs -> do
         let inps' = map (second coin) (CS.inputs cs)
-        let tid = mkTxId inps' (CS.outputs cs)
-        let tx = Tx tid inps' (CS.outputs cs)
+        let tid = mkTxId inps' (CS.outputs cs) mempty
+        let tx = Tx tid inps' (CS.outputs cs) mempty
         wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
@@ -788,9 +788,19 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> arbitrary
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs) =
-        [Tx tid ins' outs | ins' <- shrinkList' ins ] ++
-        [Tx tid ins outs' | outs' <- shrinkList' outs ]
+    shrink (Tx tid ins outs wdrls) = mconcat
+        [ [ Tx tid ins' outs  wdrls
+          | ins' <- shrinkList' ins
+          ]
+
+        , [ Tx tid ins  outs' wdrls
+          | outs' <- shrinkList' outs
+          ]
+
+        , [ Tx tid ins  outs (Map.fromList wdrls')
+          | wdrls' <- shrinkList' (Map.toList wdrls)
+          ]
+        ]
       where
         shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
@@ -798,6 +808,10 @@ instance Arbitrary Tx where
         <$> arbitrary
         <*> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         <*> fmap (L.take 5 . getNonEmpty) arbitrary
+        <*> fmap (Map.fromList . L.take 5) arbitrary
+
+instance Arbitrary ChimericAccount where
+    arbitrary = ChimericAccount . BS.pack <$> vector 28
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

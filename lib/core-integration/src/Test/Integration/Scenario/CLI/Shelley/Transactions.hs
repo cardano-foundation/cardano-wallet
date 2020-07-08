@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress (..)
     , getApiT
     )
@@ -102,6 +103,7 @@ import qualified Data.Text as T
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
 spec = do

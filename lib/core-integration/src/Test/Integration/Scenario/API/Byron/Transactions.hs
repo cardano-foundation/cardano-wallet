@@ -16,7 +16,12 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiTransaction, DecodeAddress, WalletStyle (..) )
+    ( ApiByronWallet
+    , ApiTransaction
+    , DecodeAddress
+    , DecodeStakeAddress
+    , WalletStyle (..)
+    )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -65,6 +70,7 @@ data TestCase a = TestCase
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     ) => SpecWith (Context t)
 spec = do
 

@@ -1713,14 +1713,13 @@ newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
 instance NFData ChimericAccount
 
 instance Buildable ChimericAccount where
-    build = build . Hash @"Account" . unChimericAccount
+    build = build . Hash @"ChimericAccount" . unChimericAccount
 
 instance ToText ChimericAccount where
-    toText = toText . Hash @"Account" . unChimericAccount
+    toText = toText . Hash @"ChimericAccount" . unChimericAccount
 
 instance FromText ChimericAccount where
-    fromText = fmap (ChimericAccount . getHash @"Account") . fromText
-
+    fromText = fmap (ChimericAccount . getHash @"ChimericAccount") . fromText
 
 -- | Represent a delegation certificate.
 data DelegationCertificate
@@ -1852,11 +1851,12 @@ instance Buildable (Hash tag) where
 instance ToText (Hash tag) where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
-instance FromText (Hash "Tx")           where fromText = hashFromText 32
-instance FromText (Hash "Account")      where fromText = hashFromText 32
-instance FromText (Hash "Genesis")      where fromText = hashFromText 32
-instance FromText (Hash "Block")        where fromText = hashFromText 32
-instance FromText (Hash "BlockHeader")  where fromText = hashFromText 32
+instance FromText (Hash "Tx")              where fromText = hashFromText 32
+instance FromText (Hash "Account")         where fromText = hashFromText 32
+instance FromText (Hash "Genesis")         where fromText = hashFromText 32
+instance FromText (Hash "Block")           where fromText = hashFromText 32
+instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
+instance FromText (Hash "ChimericAccount") where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)

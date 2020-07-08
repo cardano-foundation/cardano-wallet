@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , BoundType
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , Dom (..)
@@ -203,6 +204,7 @@ spec = do
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
         textRoundtrip $ Proxy @(Hash "Account")
+        textRoundtrip $ Proxy @(Hash "ChimericAccount")
         textRoundtrip $ Proxy @(Hash "Block")
         textRoundtrip $ Proxy @(Hash "BlockHeader")
         textRoundtrip $ Proxy @SyncTolerance
@@ -1093,6 +1095,9 @@ instance Arbitrary (Hash "Block") where
 instance Arbitrary (Hash "Account") where
     arbitrary = Hash . BS.pack <$> vector 32
 
+instance Arbitrary (Hash "ChimericAccount") where
+    arbitrary = Hash . BS.pack <$> vector 28
+
 instance Arbitrary (Hash "BlockHeader") where
     arbitrary = Hash . BS.pack <$> vector 32
 
@@ -1182,19 +1187,26 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs) =
-        (flip (Tx tid) outs <$> shrink ins) <> ((Tx tid) ins <$> shrink outs)
+    shrink (Tx tid ins outs wdrls) = mconcat
+        [ (\ins' -> Tx tid ins' outs wdrls) <$> shrink ins
+        , (\outs' -> Tx tid ins  outs' wdrls) <$> shrink outs
+        , (Tx tid ins outs . Map.fromList) <$> shrink (Map.toList wdrls)
+        ]
     arbitrary = do
         ins <- choose (1, 3) >>= vector
         outs <- choose (1, 3) >>= vector
+        wdrls <- choose (1,3) >>= vector
         tid <- genHash
-        return $ Tx tid ins outs
+        return $ Tx tid ins outs (Map.fromList wdrls)
       where
         genHash = elements
           [ Hash "Tx1"
           , Hash "Tx2"
           , Hash "Tx3"
           ]
+
+instance Arbitrary ChimericAccount where
+    arbitrary = ChimericAccount . BS.pack <$> vector 28
 
 instance Arbitrary BlockHeader where
     shrink _ = []

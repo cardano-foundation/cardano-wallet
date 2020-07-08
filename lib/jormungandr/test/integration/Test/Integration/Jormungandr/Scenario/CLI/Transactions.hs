@@ -13,7 +13,12 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxId (..), ApiWallet, DecodeAddress (..), getApiT )
+    ( ApiTxId (..)
+    , ApiWallet
+    , DecodeAddress (..)
+    , DecodeStakeAddress
+    , getApiT
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), hex )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
@@ -71,6 +76,7 @@ import qualified Data.Text.Encoding as T
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
+    , DecodeStakeAddress n
     , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
 spec = do

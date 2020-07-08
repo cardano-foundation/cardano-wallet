@@ -110,6 +110,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Address
     , BlockHeader
+    , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel
     , DelegationCertificate
@@ -855,6 +856,9 @@ instance ToExpr MWid where
     toExpr = defaultExprViaShow
 
 instance ToExpr StakeKeyCertificate where
+    toExpr = genericToExpr
+
+instance ToExpr ChimericAccount where
     toExpr = genericToExpr
 
 {-------------------------------------------------------------------------------

@@ -51,11 +51,16 @@ import Cardano.Wallet.Api.Malformed
 import Cardano.Wallet.Api.Server
     ( LiftHandler (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, DecodeAddress (..), EncodeAddress (..) )
+    ( ApiStakePool
+    , DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
+    ( Address (..), ChimericAccount (..) )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -320,6 +325,13 @@ instance EncodeAddress ('Testnet 0) where
 
 instance DecodeAddress ('Testnet 0) where
     decodeAddress _ = pure (Address "<addr>")
+
+-- Dummy instances
+instance EncodeStakeAddress ('Testnet 0) where
+    encodeStakeAddress = T.pack . show
+
+instance DecodeStakeAddress ('Testnet 0) where
+    decodeStakeAddress _ = pure (ChimericAccount "<acct>")
 
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest

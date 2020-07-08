@@ -582,7 +582,7 @@ fileModeSpec =  do
                                 , parentHeaderHash = hashA
                                 })
                                 mockTxs
-                                []
+                                mempty
                         let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
                         atomically $ do
                             unsafeRunExceptT $ putCheckpoint testPk cpB
@@ -592,8 +592,8 @@ fileModeSpec =  do
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
                             [ Tx (dummyHash "tx1")
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                                [ TxOut (head ourAddrs) (Coin 4)
-                                ]
+                                [ TxOut (head ourAddrs) (Coin 4) ]
+                                mempty
                             ]
 
                 -- Slot 1 0
@@ -604,11 +604,11 @@ fileModeSpec =  do
                 mockApply (dummyHash "block2a")
                             [ Tx
                                 (dummyHash "tx2a")
-                                [ (TxIn (dummyHash "tx1") 0, Coin 4)
-                                ]
+                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
                                 [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
                                 , TxOut (ourAddrs !! 1) (Coin 2)
                                 ]
+                                mempty
                             ]
 
                 -- Slot 3 0
@@ -840,6 +840,7 @@ testTxs =
     [ ( Tx (mockHash @String "tx2")
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (Coin 1) ]
+        mempty
       , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
       )
     ]
