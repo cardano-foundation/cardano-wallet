@@ -215,6 +215,11 @@ x-amount: &amount
       enum:
         - lovelace
 
+x-stakeAddress: &stakeAddress
+  type: string
+  format: bech32
+  example: stake_addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2x
+
 x-addressId: &addressId
   type: string
   format: base58|bech32
@@ -459,6 +464,20 @@ x-transactionOutputs: &transactionOutputs
     properties:
       address: *addressId
       amount: *transactionAmount
+
+x-transactionWithdrawals: &transactionWithdrawals
+  description: A list of withdrawals from stake addresses.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    additionalProperties: false
+    required:
+      - stake_address
+      - amount
+    properties:
+      stake_address: *stakeAddress
+      amount: *amount
 
 x-transactionResolvedInputs: &transactionResolvedInputs
   description: A list of transaction inputs
@@ -904,6 +923,7 @@ components:
         - direction
         - inputs
         - outputs
+        - withdrawals
         - status
       properties:
         id: *transactionId
@@ -914,6 +934,7 @@ components:
         direction: *transactionDirection
         inputs: *transactionInputs
         outputs: *transactionOutputs
+        withdrawals: *transactionWithdrawals
         status: *transactionStatus
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
