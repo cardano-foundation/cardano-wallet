@@ -8,6 +8,10 @@ To get the latest release of `cardano-wallet-byron`, run:
 
     docker pull inputoutput/cardano-wallet:byron
 
+To get the latest release of `cardano-wallet-shelley`, run:
+
+    docker pull inputoutput/cardano-wallet:shelley
+
 To get the latest release of `cardano-wallet-jormungandr`, run:
 
     docker pull inputoutput/cardano-wallet:jormungandr
@@ -18,6 +22,18 @@ To run basic CLI commands, use:
 
 ```
 docker run --rm inputoutput/cardano-wallet:byron --help
+```
+
+See [Wallet Command Line Interface](./Wallet-command-line-interface)
+for full documentation of the CLI.
+
+
+## Running the Docker container for `cardano-wallet-shelley`
+
+To run basic CLI commands, use:
+
+```
+docker run --rm inputoutput/cardano-wallet:shelley --help
 ```
 
 See [Wallet Command Line Interface](./Wallet-command-line-interface)
@@ -109,6 +125,10 @@ The following tags are pushed to [DockerHub][].
 | `inputoutput/cardano-wallet:dev-master-byron`       | cardano-node (Byron reboot) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
 | `inputoutput/cardano-wallet:2020.4.28-byron`        | cardano-node (Byron reboot) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
 | `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-byron` | cardano-node (Byron reboot) | A certain revision of the master branch (aa46adf for example). |
+| `inputoutput/cardano-wallet:shelley`                  | cardano-node (Shelley only) | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
+| `inputoutput/cardano-wallet:dev-master-shelley`       | cardano-node (Shelley only) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
+| `inputoutput/cardano-wallet:2020.4.28-shelley`        | cardano-node (Shelley only) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
+| `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-shelley` | cardano-node (Shelley only) | A certain revision of the master branch (aa46adf for example). |
 | `inputoutput/cardano-wallet:jormungandr`            | Jörmungandr                 | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
 | `inputoutput/cardano-wallet:dev-master-jormungandr` | Jörmungandr                 | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
 | `inputoutput/cardano-wallet:2020.1.7-jormungandr`   | Jörmungandr                 | [v2020-01-07](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-01-07) (for example) |
