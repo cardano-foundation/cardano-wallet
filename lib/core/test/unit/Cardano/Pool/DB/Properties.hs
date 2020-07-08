@@ -21,10 +21,8 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime (..)
-    , DBLayer (..)
+    ( DBLayer (..)
     , ErrPointAlreadyExists (..)
-    , PoolRegistrationStatus (..)
     , determinePoolRegistrationStatus
     , readPoolRegistrationStatus
     )
@@ -34,10 +32,12 @@ import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo
     , PoolCertificate (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
     , SlotInternalIndex (..)

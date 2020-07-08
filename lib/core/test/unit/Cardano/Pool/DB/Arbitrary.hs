@@ -13,14 +13,13 @@ module Cardano.Pool.DB.Arbitrary
 
 import Prelude
 
-import Cardano.Pool.DB
-    ( CertificatePublicationTime (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Gen
     ( genPercentage )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)

@@ -32,12 +32,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime (..)
-    , DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , PoolRegistrationStatus (..)
-    , readPoolRegistrationStatus
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolRegistrationStatus )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -51,11 +46,13 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
+    , CertificatePublicationTime (..)
     , Coin (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters
     , SlotId

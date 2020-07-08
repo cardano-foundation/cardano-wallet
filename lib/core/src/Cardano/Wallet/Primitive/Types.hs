@@ -57,10 +57,12 @@ module Cardano.Wallet.Primitive.Types
     , AddressState (..)
 
     -- * Delegation and stake pools
+    , CertificatePublicationTime (..)
     , ChimericAccount (..)
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , PoolRegistrationStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , PoolCertificate (..)
@@ -1738,7 +1740,6 @@ dlgCertPoolId = \case
     CertDelegateFull _ poolId -> Just poolId
     CertRegisterKey _ -> Nothing
 
-
 -- | Sum-type of pool registration- and retirement- certificates. Mirrors the
 --  @PoolCert@ type in cardano-ledger-specs.
 data PoolCertificate
@@ -1782,6 +1783,38 @@ instance Buildable PoolRetirementCertificate where
         <> build p
         <> " retiring at "
         <> build e
+
+-- | Represents an abstract notion of a certificate publication time.
+--
+-- Certificates published at later times take precedence over certificates
+-- published at earlier times.
+--
+data CertificatePublicationTime = CertificatePublicationTime
+    { slotId
+        :: SlotId
+    , slotInternalIndex
+        :: SlotInternalIndex
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+-- | Indicates the current registration status of a pool.
+--
+-- Use the 'readPoolRegistrationStatus' function to query the registration
+-- status for a particular pool and database backend.
+--
+data PoolRegistrationStatus
+    = PoolNotRegistered
+        -- ^ Indicates that a pool is not registered.
+    | PoolRegistered
+        PoolRegistrationCertificate
+        -- ^ Indicates that a pool is registered BUT NOT marked for retirement.
+        -- Records the latest registration certificate.
+    | PoolRegisteredAndRetired
+        PoolRegistrationCertificate
+        PoolRetirementCertificate
+        -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
+        -- Records the latest registration and retirement certificates.
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

@@ -54,10 +54,9 @@ module Cardano.Pool.DB.Model
 
 import Prelude
 
-import Cardano.Pool.DB
-    ( CertificatePublicationTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime
     , EpochNo (..)
     , PoolId
     , PoolOwner (..)

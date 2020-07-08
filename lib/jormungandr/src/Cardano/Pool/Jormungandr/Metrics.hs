@@ -48,7 +48,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime (..), DBLayer (..), ErrPointAlreadyExists )
+    ( DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
     ( RegistryLog
     , StakePoolMetadata
@@ -76,6 +76,7 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
     , PoolOwner (..)

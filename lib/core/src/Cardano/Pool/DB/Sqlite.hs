@@ -42,14 +42,12 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime (..)
-    , DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
     , PoolRegistrationCertificate (..)

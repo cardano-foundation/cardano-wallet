@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -15,9 +14,6 @@
 module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
-
-    , CertificatePublicationTime (..)
-    , PoolRegistrationStatus (..)
     , determinePoolRegistrationStatus
     , readPoolRegistrationStatus
 
@@ -29,12 +25,13 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
     , PoolRegistrationCertificate
+    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate
     , SlotId (..)
-    , SlotInternalIndex (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -53,8 +50,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
-import GHC.Generics
-    ( Generic )
 import System.Random
     ( StdGen )
 
@@ -192,38 +187,6 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
-
--- | Represents an abstract notion of a certificate publication time.
---
--- Certificates published at later times take precedence over certificates
--- published at earlier times.
---
-data CertificatePublicationTime = CertificatePublicationTime
-    { slotId
-        :: SlotId
-    , slotInternalIndex
-        :: SlotInternalIndex
-    }
-    deriving (Eq, Generic, Ord, Show)
-
--- | Indicates the current registration status of a pool.
---
--- Use the 'readPoolRegistrationStatus' function to query the registration
--- status for a particular pool and database backend.
---
-data PoolRegistrationStatus
-    = PoolNotRegistered
-        -- ^ Indicates that a pool is not registered.
-    | PoolRegistered
-        PoolRegistrationCertificate
-        -- ^ Indicates that a pool is registered BUT NOT marked for retirement.
-        -- Records the latest registration certificate.
-    | PoolRegisteredAndRetired
-        PoolRegistrationCertificate
-        PoolRetirementCertificate
-        -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
-        -- Records the latest registration and retirement certificates.
-    deriving (Eq, Show)
 
 -- | Given the /latest/ registration and retirement certificates for a pool,
 --   determine the pool's current registration status based on the relative
