@@ -931,20 +931,23 @@ data TxMeta = TxMeta
     , slotNo :: !SlotNo
     , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
+    , expiry :: !(Maybe SlotNo)
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) (Quantity a)) = mempty
+    build (TxMeta s d sl (Quantity bh) (Quantity a) mex) = mempty
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> fixedF @Double 6 (fromIntegral a / 1e6)
         <> " " <> build s
         <> " since " <> build sl <> "#" <> build bh
+        <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
 
 data TxStatus
     = Pending
     | InLedger
+    | Expired
     deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData TxStatus
@@ -993,7 +996,7 @@ newtype SealedTx = SealedTx { getSealedTx :: ByteString }
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess)
 
--- | True if the given tuple refers to a pending transaction
+-- | True if the given metadata refers to a pending transaction
 isPending :: TxMeta -> Bool
 isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 

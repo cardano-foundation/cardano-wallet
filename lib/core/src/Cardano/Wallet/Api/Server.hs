@@ -176,6 +176,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiSelectCoinsData (..)
+    , ApiSlotReference (..)
     , ApiT (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
@@ -1332,9 +1333,11 @@ mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime 
         case meta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
+            Expired  -> #pendingSince
     return $ case meta ^. #status of
         Pending  -> apiTx
         InLedger -> apiTx { depth = Just depth  }
+        Expired  -> apiTx
   where
       drop2nd (a,_,c) = (a,c)
 
@@ -1801,7 +1804,8 @@ mkApiTransaction
     -> m (ApiTransaction n)
 mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
     timeRef <- timeReference
-    return $ tx & setTimeReference .~ Just timeRef
+    expRef <- expirySlotReference
+    return $ tx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     tx :: ApiTransaction n
     tx = ApiTransaction
@@ -1809,6 +1813,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , amount = meta ^. #amount
         , insertedAt = Nothing
         , pendingSince = Nothing
+        , expiresAt = Nothing
         , depth = Nothing
         , direction = ApiT (meta ^. #direction)
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
@@ -1835,6 +1840,16 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
                     , height = natural (meta ^. #blockHeight)
                     , absoluteSlotNumber = ApiT $ meta ^. #slotNo
                     }
+
+    expirySlotReference :: m (Maybe ApiSlotReference)
+    expirySlotReference = case meta ^. #expiry of
+        Just expirySlot -> do
+            expiryTimestamp <- ti (startTime expirySlot)
+            pure $ Just $ ApiSlotReference
+                { time = expiryTimestamp
+                , absoluteSlotNumber = ApiT expirySlot
+                }
+        Nothing -> pure Nothing
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr c) =

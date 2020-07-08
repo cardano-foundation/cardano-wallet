@@ -840,6 +840,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     let k = gp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
+    updatePendingTx (PrimaryKey wid) (view #slotNo localTip)
     putTxHistory (PrimaryKey wid) txs
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
         liftIO $ logDelegation delegation
@@ -1595,10 +1596,10 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -
 
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRewardAccount (xprv, pwdP)
-            (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) md cs'
+            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
+                pure $ mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) md cs'
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs'
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs' txExp
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1636,10 +1637,11 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             let cs = mempty { inputs = inps, outputs = outs }
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
-            (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
+            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
+                pure $ mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) tx cs
+            (time, meta) <- liftIO $
+                mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1729,7 +1731,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
+            (tx, sealedTx, txExp) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     RegisterKeyAndJoin poolId ->
                         mkDelegationJoinTx tl poolId
@@ -1753,7 +1755,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                             coinSel'
 
             (time, meta) <- liftIO $
-                mkTxMeta ti (currentTip cp) s' tx coinSel'
+                mkTxMeta ti (currentTip cp) s' tx coinSel' txExp
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1762,8 +1764,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
 
--- | Construct transaction metadata from a current block header and a list
--- of input and output.
+-- | Construct transaction metadata for a pending transaction from the block
+-- header of the current tip and a list of input and output.
 --
 -- FIXME: There's a logic duplication regarding the calculation of the transaction
 -- amount between right here, and the Primitive.Model (see prefilterBlocks).
@@ -1774,8 +1776,9 @@ mkTxMeta
     -> s
     -> Tx
     -> CoinSelection
+    -> SlotNo
     -> m (UTCTime, TxMeta)
-mkTxMeta interpretTime blockHeader wState tx cs =
+mkTxMeta interpretTime blockHeader wState tx cs expiry =
     let
         amtOuts =
             sum (mapMaybe ourCoins (outputs cs))
@@ -1794,6 +1797,7 @@ mkTxMeta interpretTime blockHeader wState tx cs =
                 , slotNo = blockHeader ^. #slotNo
                 , blockHeight = blockHeader ^. #blockHeight
                 , amount = Quantity $ distance amtInps amtOuts
+                , expiry = Just expiry
                 }
             )
   where
@@ -1848,7 +1852,8 @@ submitExternalTx ctx bytes = do
     nw = ctx ^. networkLayer @t
     tl = ctx ^. transactionLayer @t @k
 
--- | Forget pending transaction.
+-- | Forget pending transaction. This happens at the request of the user and
+-- will remove the transaction from the history.
 forgetPendingTx
     :: forall ctx s k.
         ( HasDBLayer s k ctx

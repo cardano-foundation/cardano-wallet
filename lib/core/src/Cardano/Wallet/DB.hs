@@ -245,11 +245,18 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If the wallet doesn't exist, this operation returns an error.
 
+    , updatePendingTx
+        :: PrimaryKey WalletId
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Removes any expired transactions from the pending set and marks
+        -- their status as expired.
+
     , removePendingTx
         :: PrimaryKey WalletId
         -> Hash "Tx"
         -> ExceptT ErrRemovePendingTx stm ()
-        -- ^ Remove a pending transaction.
+        -- ^ Manually remove a pending transaction.
 
     , putPrivateKey
         :: PrimaryKey WalletId

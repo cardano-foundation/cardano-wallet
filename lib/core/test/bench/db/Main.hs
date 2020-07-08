@@ -518,6 +518,7 @@ mkTxHistory numTx numInputs numOutputs range =
             , slotNo = sl i
             , blockHeight = Quantity $ fromIntegral i
             , amount = Quantity (fromIntegral numOutputs)
+            , expiry = Nothing
             }
         )
     | !i <- [1..numTx]

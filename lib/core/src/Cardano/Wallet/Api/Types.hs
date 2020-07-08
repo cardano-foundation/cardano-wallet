@@ -81,6 +81,7 @@ module Cardano.Wallet.Api.Types
     , NtpSyncingStatus (..)
     , ApiNetworkClock (..)
     , ApiBlockReference (..)
+    , ApiSlotReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
     , MinWithdrawal (..)
@@ -613,6 +614,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiTimeReference)
     , pendingSince :: !(Maybe ApiTimeReference)
+    , expiresAt :: !(Maybe ApiSlotReference)
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
@@ -667,6 +669,11 @@ data ApiBlockReference = ApiBlockReference
     { epochNumber :: !(ApiT EpochNo)
     , slotNumber :: !(ApiT SlotInEpoch)
     , height :: !(Quantity "block" Natural)
+    , absoluteSlotNumber :: !(ApiT SlotNo)
+    } deriving (Eq, Generic, Show)
+
+data ApiSlotReference = ApiSlotReference
+    { time :: !UTCTime
     , absoluteSlotNumber :: !(ApiT SlotNo)
     } deriving (Eq, Generic, Show)
 
@@ -1315,6 +1322,11 @@ instance ToJSON ApiTimeReference where
 instance FromJSON ApiBlockReference where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiBlockReference where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSlotReference where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSlotReference where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT EpochNo) where
