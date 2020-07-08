@@ -393,14 +393,18 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                     Right () ->
                         pure ()
 
-            -- A Shelley block can contain multiple certificates relating to
-            -- the same pool.
+            -- A single block can contain multiple certificates relating to the
+            -- same pool.
             --
-            -- The order in which certificates appear within a block determines
-            -- their precedence relative to one another.
+            -- The /order/ in which certificates appear is /significant/:
+            -- certificates that appear later in a block /generally/ take
+            -- precedence over certificates that appear earlier on.
             --
-            -- Certificates that appear later in a block have higher precedence
-            -- than certificates that appear earlier.
+            -- We record /all/ certificates within the database, together with
+            -- the order in which they appeared.
+            --
+            -- Precedence is determined by the 'readPoolRegistrationStatus'
+            -- function.
             --
             let certificateIndices = [minBound ..]
             forM_ (certificateIndices `zip` certificates) $ \case
