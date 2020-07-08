@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ()
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SlotId (..), SlotNo (..) )
+    ( EpochNo (..), SlotId (..), SlotInEpoch (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Typeable
@@ -64,9 +64,9 @@ instance Arbitrary EpochNo where
     arbitrary = EpochNo <$> arbitrary
     shrink (EpochNo n) = EpochNo <$> shrink n
 
-instance Arbitrary SlotNo where
-    arbitrary = SlotNo <$> arbitrary
-    shrink (SlotNo n) = SlotNo <$> shrink n
+instance Arbitrary SlotInEpoch where
+    arbitrary = SlotInEpoch <$> arbitrary
+    shrink (SlotInEpoch n) = SlotInEpoch <$> shrink n
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral

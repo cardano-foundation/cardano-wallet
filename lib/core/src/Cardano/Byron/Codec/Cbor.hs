@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ProtocolMagic (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , TxIn (..)
     , TxOut (..)
     , unsafeEpochNo
@@ -317,8 +317,8 @@ decodeEpochNo :: HasCallStack => CBOR.Decoder s EpochNo
 decodeEpochNo =
     unsafeEpochNo . fromIntegral @Word64 @Word32 <$> CBOR.decodeWord64
 
-decodeSlotNo :: CBOR.Decoder s SlotNo
-decodeSlotNo = SlotNo . fromIntegral <$> CBOR.decodeWord16
+decodeSlotInEpoch :: CBOR.Decoder s SlotInEpoch
+decodeSlotInEpoch = SlotInEpoch . fromIntegral <$> CBOR.decodeWord16
 
 decodeGenesisBlockHeader :: CBOR.Decoder s BlockHeader
 decodeGenesisBlockHeader = do
@@ -492,7 +492,7 @@ decodeSlotId :: CBOR.Decoder s SlotId
 decodeSlotId = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     epoch <- decodeEpochNo
-    SlotId epoch <$> decodeSlotNo
+    SlotId epoch <$> decodeSlotInEpoch
 
 decodeSoftwareVersion :: CBOR.Decoder s ()
 decodeSoftwareVersion = do

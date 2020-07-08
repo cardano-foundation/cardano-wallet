@@ -39,7 +39,7 @@ module Cardano.Wallet.Byron.Compatibility
     , toByronHash
     , toGenTx
     , toPoint
-    , toSlotNo
+    , toSlotInEpoch
 
     , fromBlockNo
     , fromByronBlock
@@ -297,10 +297,10 @@ toPoint
     -> Point ByronBlock
 toPoint genesisH epLength (W.BlockHeader sid _ h _)
   | h == (coerce genesisH) = O.GenesisPoint
-  | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toByronHash h)
+  | otherwise = O.Point $ Point.block (toSlotInEpoch epLength sid) (toByronHash h)
 
-toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
-toSlotNo epLength =
+toSlotInEpoch :: W.EpochLength -> W.SlotId -> SlotNo
+toSlotInEpoch epLength =
     SlotNo . W.flatSlot epLength
 
 -- | SealedTx are the result of rightfully constructed byron transactions so, it

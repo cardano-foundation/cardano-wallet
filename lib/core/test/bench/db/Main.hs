@@ -83,7 +83,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , Range (..)
     , SlotId (..)
-    , SlotNo (unSlotNo)
+    , SlotInEpoch (unSlotInEpoch)
     , SortOrder (..)
     , TransactionInfo
     , Tx (..)
@@ -412,7 +412,7 @@ mkTxHistory numTx numInputs numOutputs range =
             { status = [InLedger, Pending] !! (i `mod` 2)
             , direction = Incoming
             , slotId = sl i
-            , blockHeight = Quantity $ fromIntegral $ unSlotNo $ slotNumber $ sl i
+            , blockHeight = Quantity $ fromIntegral $ unSlotInEpoch $ slotNumber $ sl i
             , amount = Quantity (fromIntegral numOutputs)
             }
         )
