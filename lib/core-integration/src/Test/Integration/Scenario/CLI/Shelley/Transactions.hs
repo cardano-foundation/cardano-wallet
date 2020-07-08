@@ -84,10 +84,8 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
-    , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney
-    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -194,24 +192,6 @@ spec = do
                     (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
                 ]
 
-    it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [2_124_333]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", "12333@" <> addr1
-                , "--payment", "4666@" <> addr2
-                ]
-
-        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        (T.unpack err) `shouldContain` errMsg403UTxO
-        out `shouldBe` ""
-        c `shouldBe` ExitFailure 1
-
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
@@ -251,27 +231,6 @@ spec = do
                 , expectCliField
                         (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
                 ]
-
-    it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
-        let addr3 = encodeAddress @n (getApiT $ fst $ addrs !! 3 ^. #id)
-
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", "40000000@" <> addr1
-                , "--payment", "22@" <> addr2
-                , "--payment", "22@" <> addr3
-                ]
-
-        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
-        (T.unpack err) `shouldContain` errMsg403InputsDepleted
-        out `shouldBe` ""
-        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
@@ -486,44 +445,6 @@ spec = do
                 between (feeMin, feeMax)
             ]
         c `shouldBe` ExitSuccess
-
-    it "TRANS_ESTIMATE_04 - Multiple Output Txs fees estimation doesn't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [2_124_333]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", "12333@" <> addr1
-                , "--payment", "4666@" <> addr2
-                ]
-        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
-        err `shouldContain` errMsg403UTxO
-        out `shouldBe` ""
-        c `shouldBe` ExitFailure 1
-
-    it "TRANS_ESTIMATE_05 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let addr1 = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addrs !! 2 ^. #id)
-        let addr3 = encodeAddress @n (getApiT $ fst $ addrs !! 3 ^. #id)
-
-        let args = T.unpack <$>
-                [ wSrc ^. walletId
-                , "--payment", "40000000@" <> addr1
-                , "--payment", "22@" <> addr2
-                , "--payment", "22@" <> addr3
-                ]
-
-        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
-        err `shouldContain` errMsg403InputsDepleted
-        out `shouldBe` ""
-        c `shouldBe` ExitFailure 1
 
     it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
