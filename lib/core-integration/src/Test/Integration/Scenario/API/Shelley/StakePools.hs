@@ -615,8 +615,8 @@ spec = do
 
         it "non-myopic-rewards are based on stake" $ \ctx -> do
             eventually "rewards are smaller for smaller stakes" $ do
-                let stakeSmall = Just (Coin 10_000_000)
-                let stakeBig = Just (Coin 1000_000_000)
+                let stakeSmall = Just (Coin 1_000)
+                let stakeBig = Just (Coin 10_000_000_000_000_000)
                 Right poolsStakeSmall <- snd <$> listPools ctx stakeSmall
                 Right poolsStakeBig <- snd <$> listPools ctx stakeBig
                 let rewards = view (#metrics . #nonMyopicMemberRewards . #getQuantity)
@@ -647,7 +647,7 @@ spec = do
             ]
   where
     arbitraryStake :: Maybe Coin
-    arbitraryStake = Just $ ada 10000000000
+    arbitraryStake = Just $ ada 10_000_000_000
       where ada = Coin . (1000*1000*)
 
     dummyPool :: PoolId
