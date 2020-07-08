@@ -17,10 +17,14 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Wallet.Gen
+    ( genActiveSlotCoefficient, genBlockHeader, shrinkActiveSlotCoefficient )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..), mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -45,8 +49,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
-    , SyncProgress (..)
-    , SyncTolerance (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -73,7 +75,6 @@ import Cardano.Wallet.Primitive.Types
     , log10
     , mapRangeLowerBound
     , mapRangeUpperBound
-    , mkSyncTolerance
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -92,20 +93,17 @@ import Cardano.Wallet.Primitive.Types
     , slotRangeFromTimeRange
     , slotStartTime
     , slotSucc
-    , syncProgress
     , unsafeEpochNo
     , walletNameMaxLength
     , walletNameMinLength
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic, unsafeFromHex, unsafeMkPercentage )
-import Control.DeepSeq
-    ( deepseq )
+    ( someDummyMnemonic, unsafeFromHex )
 import Control.Exception
-    ( SomeException, evaluate, try )
+    ( evaluate )
 import Control.Monad
-    ( forM_, replicateM, when )
+    ( forM_, replicateM )
 import Crypto.Hash
     ( hash )
 import Data.Either
@@ -120,8 +118,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set, (\\) )
 import Data.Text
@@ -150,7 +146,6 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , NonNegative (..)
     , NonZero (..)
     , Property
@@ -166,7 +161,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
-    , forAll
     , infiniteList
     , oneof
     , property
@@ -182,7 +176,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( monadicIO, run )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
@@ -282,135 +276,14 @@ spec = do
                 , " ... 45000000000000000 0\n"
                 ]
 
+
     let sp = SlotParameters
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
             , getGenesisBlockDate = StartTime (read "2019-11-09 16:43:02 UTC")
             , getActiveSlotCoefficient = 1
             }
-    let st = SyncTolerance 10
     let slotsPerEpoch = getEpochLength sp
-
-    describe "syncProgress" $ do
-        it "works for any two slots" $ property $ \sl0 sl1 ->
-            syncProgress st sp sl0 sl1 `deepseq` ()
-
-        let mockBlockHeader sl h = BlockHeader
-                { slotId = sl
-                , blockHeight = Quantity h
-                , headerHash = Hash "-"
-                , parentHeaderHash = Hash "-"
-                }
-
-        let mockSlotParams f = SlotParameters
-                { getEpochLength = EpochLength 10
-                , getSlotLength = SlotLength 10
-                , getGenesisBlockDate = StartTime $
-                    read "2019-01-01 00:00:00 UTC"
-                , getActiveSlotCoefficient = f
-                }
-
-        let syncTolerance = SyncTolerance 0
-
-        it "unit test #1 - 0/10   0%" $ do
-            let slotParams = mockSlotParams 1
-            let nodeTip = mockBlockHeader (SlotId 0 0) 0
-            let ntwkTip = SlotId 1 0
-            syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0)
-
-        it "unit test #2 - 10/20 50%" $ do
-            let slotParams = mockSlotParams 1
-            let nodeTip = mockBlockHeader (SlotId 1 0) 10
-            let ntwkTip = SlotId 2 0
-            syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.5)
-
-        it "unit test #3 - 12/15 80% " $ do
-            let slotParams = mockSlotParams 0.5
-            let nodeTip = mockBlockHeader (SlotId 2 2) 12
-            let ntwkTip = SlotId 2 8
-            syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.8)
-
-        it "unit test #4 - 10/10 100%" $ do
-            let slotParams = mockSlotParams 1
-            let nodeTip = mockBlockHeader (SlotId 1 0) 10
-            let ntwkTip = SlotId 1 0
-            syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Ready
-
-        it "unit test #5 - 11/10 100%" $ do
-            let slotParams = mockSlotParams 1
-            let nodeTip = mockBlockHeader (SlotId 1 1) 11
-            let ntwkTip = SlotId 1 0
-            syncProgress syncTolerance slotParams nodeTip ntwkTip
-                `shouldBe` Ready
-
-        --   100 |                          +  +
-        --       |
-        --       |                       +
-        --       |                    +
-        --       |              +  +
-        --       |
-        --       |           +
-        --       |     +  +
-        --       |  +
-        --       |
-        --       |--|--|--|--|--|--|--|--|--|--|
-        --       0  1  2  3  4  5  6  7  8  9  10
-        --
-        it "unit test #5 - distribution over several slots" $ do
-            let slotParams = mockSlotParams 0.5
-            let ntwkTip = SlotId 1 0
-            let plots =
-                    [ (mockBlockHeader (SlotId 0 0) 0, 0.0)
-                    , (mockBlockHeader (SlotId 0 1) 1, 0.2)
-                    , (mockBlockHeader (SlotId 0 2) 2, 1 % 3)
-                    , (mockBlockHeader (SlotId 0 3) 2, 1 % 3)
-                    , (mockBlockHeader (SlotId 0 4) 2, 0.40)
-                    , (mockBlockHeader (SlotId 0 5) 3, 0.60)
-                    , (mockBlockHeader (SlotId 0 6) 3, 0.60)
-                    , (mockBlockHeader (SlotId 0 7) 4, 2 % 3)
-                    , (mockBlockHeader (SlotId 0 8) 5, 5 % 6)
-                    , (mockBlockHeader (SlotId 0 9) 5, 1.00)
-                    , (mockBlockHeader (SlotId 1 0) 5, 1.00)
-                    ]
-            forM_ plots $ \(nodeTip, p) -> do
-                let progress = if p == 1
-                        then Ready
-                        else Syncing (Quantity $ unsafeMkPercentage p)
-                syncProgress syncTolerance slotParams nodeTip ntwkTip
-                    `shouldBe` progress
-
-        it "unit test #6 - block height 0" $ do
-            let slotParams = mockSlotParams 0.5
-            let ntwkTip = SlotId 1 0
-            let plots =
-                    [ (mockBlockHeader (SlotId 0 8) 0, 0)
-                    , (mockBlockHeader (SlotId 0 9) 0, 0)
-                    , (mockBlockHeader (SlotId 1 0) 0, 1)
-                    ]
-            forM_ plots $ \(nodeTip, p) -> do
-                let progress = if p == 1
-                        then Ready
-                        else Syncing (Quantity $ unsafeMkPercentage p)
-                syncProgress syncTolerance slotParams nodeTip ntwkTip
-                    `shouldBe` progress
-
-        it "syncProgress should never crash" $ withMaxSuccess 10000
-            $ property $ \f bh -> do
-                let slotParams = mockSlotParams f
-                let el = getEpochLength slotParams
-                let genSlotIdPair = (,) <$> (genSlotId el) <*> (genSlotId el)
-                forAll genSlotIdPair $ \(walSlot, netSlot) -> monadicIO $ do
-                    let nodeTip = mockBlockHeader walSlot bh
-                    let x = syncProgress syncTolerance slotParams nodeTip netSlot
-                    when (netSlot > walSlot) $ do
-                        res <- run (try @SomeException $ evaluate x)
-                        monitor (counterexample $ "Result: " ++ show res)
-                        assert (isRight res)
-
     describe "flatSlot" $ do
 
         it "fromFlatSlot . flatSlot == id" $ property $ \sl ->
@@ -1324,19 +1197,8 @@ instance Arbitrary Tx where
           ]
 
 instance Arbitrary BlockHeader where
-    -- No Shrinking
-    arbitrary = do
-        sl <- arbitrary
-        BlockHeader sl (mockBlockHeight sl) <$> genHash <*> genHash
-      where
-        mockBlockHeight :: SlotId -> Quantity "block" Word32
-        mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
-
-        genHash = elements
-            [ Hash "BLOCK01"
-            , Hash "BLOCK02"
-            , Hash "BLOCK03"
-            ]
+    shrink _ = []
+    arbitrary = arbitrary >>= genBlockHeader
 
 instance Arbitrary EpochNo where
     arbitrary = EpochNo <$> oneof
@@ -1352,14 +1214,6 @@ instance Arbitrary EpochNo where
         closeToMinBound =                getSmall <$> arbitrary
         closeToMaxBound = (maxBound -) . getSmall <$> arbitrary
     shrink = genericShrink
-
-
-genSlotId :: EpochLength -> Gen SlotId
-genSlotId (EpochLength el) | el > 0 = do
-    ep <- choose (0, 10)
-    sl <- choose (0, el - 1)
-    return (SlotId (unsafeEpochNo ep) (SlotNo sl))
-genSlotId _ = error "genSlotId: epochLength must > 0"
 
 instance Arbitrary SlotId where
     shrink _ = []
@@ -1407,11 +1261,8 @@ instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
 
 instance Arbitrary ActiveSlotCoefficient where
-    shrink (ActiveSlotCoefficient f)
-        | f < 1 = [1]
-        | otherwise = []
-    arbitrary =
-        ActiveSlotCoefficient <$> choose (0.001, 1.0)
+    shrink = shrinkActiveSlotCoefficient
+    arbitrary = genActiveSlotCoefficient
 
 instance Arbitrary SlotParameters where
     arbitrary = applyArbitrary4 SlotParameters

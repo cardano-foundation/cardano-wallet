@@ -86,7 +86,7 @@ import Cardano.Wallet.Byron.Launch
     )
 import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )

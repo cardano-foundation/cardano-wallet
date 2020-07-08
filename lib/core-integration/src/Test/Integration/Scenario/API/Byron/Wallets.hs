@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_, void )

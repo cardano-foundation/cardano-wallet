@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -97,6 +96,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
@@ -104,7 +105,6 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
-    , SyncTolerance
     , WalletId
     )
 import Cardano.Wallet.Registry
@@ -283,11 +283,8 @@ serveWallet
         Server.newApiLayer walletEngineTracer params nl' tl db
             Server.idleWorker
       where
-        gp@GenesisParameters
-            { getGenesisBlockHash
-            , getEpochLength
-            } = genesisParameters np
-        nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
+        gp = genesisParameters np
+        nl' = fromByronBlock gp <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode

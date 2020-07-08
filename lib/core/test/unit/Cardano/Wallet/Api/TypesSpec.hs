@@ -110,6 +110,8 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -126,7 +128,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata (..)
     , StakePoolTicker
     , StartTime (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxIn (..)
     , TxOut (..)

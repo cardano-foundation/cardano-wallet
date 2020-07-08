@@ -1,4 +1,5 @@
-type: VerKeyVRF PraosVRF
-title: VRF Verification Key
-cbor-hex:
- 5820ebfc0c8f4df93100f357ff78bf5d3a45411f2cefcc4d870a61cc19d2fd3504d6
+{
+    "type": "VerKeyVRF PraosVRF",
+    "description": "VRF Verification Key",
+    "cborHex": "58209382868eea35b76253434b232033118ada9b5d1d20cd419f0895e5cb83c6f7d5"
+}

@@ -77,7 +77,9 @@ import Ouroboros.Network.Block
     , Point (..)
     , Serialised (..)
     , Tip (..)
+    , blockNo
     , blockPoint
+    , blockSlot
     , castTip
     , getTipPoint
     , pointSlot

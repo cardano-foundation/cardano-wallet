@@ -49,7 +49,6 @@ module Test.Integration.Framework.TestData
     , errMsg403NotAByronWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
-    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg403NoPendingAnymore
     , errMsg404NoSuchPool
@@ -62,7 +61,6 @@ module Test.Integration.Framework.TestData
     , errMsg403NoRootKey
     , errMsg404NoWallet
     , errMsg409WalletExists
-    , errMsg403InputsDepleted
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
@@ -285,19 +283,15 @@ errMsg403NotAByronWallet =
 
 errMsg403NotEnoughMoney_ :: String
 errMsg403NotEnoughMoney_ =
-    "I can't process this payment because there's \
-    \not enough UTxO available in the wallet."
+    "I cannot select enough UTxO from your wallet to construct an adequate \
+    \transaction. Try sending a smaller amount or increasing the number of \
+    \available UTxO."
 
 errMsg403NotEnoughMoney :: Int -> Int -> String
 errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
     \ not enough UTxO available in the wallet. The total UTxO sums up to\
     \ " ++ show has ++ " Lovelace, but I need " ++ show needs ++ " Lovelace\
     \ (excluding fee amount) in order to proceed  with the payment."
-
-errMsg403InputsDepleted :: String
-errMsg403InputsDepleted = "I had to select inputs to construct the requested\
-    \ transaction. Unfortunately, one output of the transaction depleted all\
-    \ available inputs. Try sending a smaller amount."
 
 errMsg403TxTooBig :: Int -> String
 errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
@@ -331,11 +325,6 @@ _errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
     "I can't validate coin selection because either the number of inputs is\
     \   more than " ++ show maxNumInps ++ " or the number of outputs\
     \ exceeds " ++ show maxNumOuts ++ "."
-
-errMsg403UTxO :: String
-errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
-    \ same UTxO for different outputs. Here, I only have 1\
-    \ available, but there are 2 outputs."
 
 errMsg403WrongPass :: String
 errMsg403WrongPass = "The given encryption passphrase doesn't match the one\

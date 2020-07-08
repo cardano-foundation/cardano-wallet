@@ -39,7 +39,6 @@ library
     , cardano-addresses
     , cardano-api
     , cardano-binary
-    , cardano-config
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger

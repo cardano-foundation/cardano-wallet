@@ -17,7 +17,7 @@ import Cardano.Wallet.Api.Types
     , NtpSyncingStatus (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad
     ( when )

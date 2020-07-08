@@ -98,8 +98,10 @@ import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), NetworkParameters, SyncTolerance )
+    ( Hash (..), NetworkParameters )
 import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion, version )
 import Control.Applicative

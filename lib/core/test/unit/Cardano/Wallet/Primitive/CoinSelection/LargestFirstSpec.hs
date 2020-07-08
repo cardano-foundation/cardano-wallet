@@ -33,10 +33,12 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
-    ( Property, property, (===), (==>) )
+    ( Property, expectFailure, property, (===), (==>) )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -57,6 +59,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [10,10,17]
                 , txOutputs = 17 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst ""
@@ -70,6 +73,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 1 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst ""
@@ -83,6 +87,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 18 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst ""
@@ -96,12 +101,13 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 30 :| []
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst ""
             (Right $ CoinSelectionResult
-                { rsInputs = [6,10,5]
-                , rsChange = [5,4]
+                { rsInputs = [6,10]
+                , rsChange = [4]
                 , rsOutputs = [11,1]
                 })
             (CoinSelectionFixture
@@ -109,6 +115,45 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [1,2,10,6,5]
                 , txOutputs = 11 :| [1]
+                , totalWithdrawal = 0
+                })
+
+        coinSelectionUnitTest largestFirst "with withdrawal"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1]
+                , rsChange = []
+                , rsOutputs = [100]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [1]
+                , txOutputs = 100 :| []
+                , totalWithdrawal = 99
+                })
+
+        coinSelectionUnitTest largestFirst "with withdrawal & change"
+            (Right $ CoinSelectionResult
+                { rsInputs = [30]
+                , rsChange = [40]
+                , rsOutputs = [40]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [10,30]
+                , txOutputs = 40 :| []
+                , totalWithdrawal = 50
+                })
+
+        coinSelectionUnitTest largestFirst "withdrawal requires at least one input"
+            (Left ErrInputsDepleted)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = []
+                , txOutputs = 1 :| []
+                , totalWithdrawal = 10
                 })
 
         coinSelectionUnitTest largestFirst "not enough coins"
@@ -118,45 +163,46 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| []
+                , totalWithdrawal = 0
                 })
 
-        coinSelectionUnitTest largestFirst "not enough coin & not fragmented enough"
+        coinSelectionUnitTest largestFirst "not enough coin & fragmentation doesn't matter"
             (Left $ ErrNotEnoughMoney 39 43)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| [1,1,1]
+                , totalWithdrawal = 0
                 })
 
-        coinSelectionUnitTest largestFirst "enough coins, but not fragmented enough"
-            (Left $ ErrUtxoNotEnoughFragmented 3 4)
+        coinSelectionUnitTest largestFirst "enough coins, fragmentation doesn't matter"
+            (Right $ CoinSelectionResult
+                { rsInputs = [12,17,20]
+                , rsChange = [6]
+                , rsOutputs = [40,1,1,1]
+                })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1,1,1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst
-            "enough coins, fragmented enough, but one output depletes all inputs"
-            (Left ErrInputsDepleted)
+            "enough coins, one output does not deplete all inputs"
+            (Right $ CoinSelectionResult
+                { rsInputs = [12,17,20]
+                , rsChange = [8]
+                , rsOutputs = [40,1]
+                })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1]
-                })
-
-        coinSelectionUnitTest
-            largestFirst
-            "enough coins, fragmented enough, but the input needed to stay for the next output is depleted"
-            (Left ErrInputsDepleted)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = noValidation
-                , utxoInputs = [20,20,10,5]
-                , txOutputs = 41 :| [6]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst "each output needs <maxNumOfInputs"
@@ -166,6 +212,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 100 1)
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst "each output needs >maxNumInputs"
@@ -175,16 +222,7 @@ spec = do
                 , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 10 10)
-                })
-
-        coinSelectionUnitTest largestFirst
-            "enough coins but, strict maximumNumberOfInputs"
-            (Left $ ErrMaximumInputsReached 2)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 2
-                , validateSelection = noValidation
-                , utxoInputs = [1,2,10,6,5]
-                , txOutputs = 11 :| [1]
+                , totalWithdrawal = 0
                 })
 
         coinSelectionUnitTest largestFirst "custom validation"
@@ -194,15 +232,16 @@ spec = do
                 , validateSelection = alwaysFail
                 , utxoInputs = [1,1]
                 , txOutputs = 2 :| []
+                , totalWithdrawal = 0
                 })
 
     describe "Coin selection properties : LargestFirst algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), running algorithm twice yields \
             \exactly the same result"
             (property propDeterministic)
-        it "forall (UTxO, NonEmpty TxOut), there's at least as many selected \
-            \inputs as there are requested outputs"
-            (property propAtLeast)
+        it "There exists (UTxO, NonEmpty TxOut) for which at there are less \
+            \inputs selected than there are requested outputs"
+            (expectFailure $ property propAtLeast)
         it "forall (UTxO, NonEmpty TxOut), for all selected input, there's no \
             \bigger input in the UTxO that is not already in the selected inputs"
             (property propInputDecreasingOrder)
@@ -216,8 +255,9 @@ propDeterministic
     -> Property
 propDeterministic (CoinSelProp utxo txOuts) = do
     let opts = CoinSelectionOptions (const 100) noValidation
-    let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts utxo
-    let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts utxo
+    let withdraw = Quantity 0
+    let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts withdraw utxo
+    let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts withdraw utxo
     resultOne === resultTwo
 
 propAtLeast
@@ -228,8 +268,9 @@ propAtLeast (CoinSelProp utxo txOuts) =
   where
     prop cs =
         L.length (inputs cs) `shouldSatisfy` (>= NE.length txOuts)
-    selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo
+    selection = runIdentity $ runExceptT $ do
+        let opts = CoinSelectionOptions (const 100) noValidation
+        largestFirst opts txOuts (Quantity 0) utxo
 
 propInputDecreasingOrder
     :: CoinSelProp
@@ -246,5 +287,6 @@ propInputDecreasingOrder (CoinSelProp utxo txOuts) =
             `shouldSatisfy`
             (>= (getExtremumValue L.maximum utxo'))
     getExtremumValue f = f . map (getCoin . coin . snd)
-    selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo
+    selection = runIdentity $ runExceptT $ do
+        let opts = CoinSelectionOptions (const 100) noValidation
+        largestFirst opts txOuts (Quantity 0) utxo

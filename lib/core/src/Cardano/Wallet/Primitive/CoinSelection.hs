@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , outputBalance
     , changeBalance
     , feeBalance
+    , totalBalance
     , ErrCoinSelection (..)
     , CoinSelectionOptions (..)
     ) where
@@ -27,9 +28,11 @@ module Cardano.Wallet.Primitive.CoinSelection
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..) )
+    ( Coin (..), TxIn, TxOut (..), balance' )
 import Data.List
     ( foldl' )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64, Word8 )
 import Fmt
@@ -117,6 +120,10 @@ changeBalance = foldl' addCoin 0 . change
 feeBalance :: CoinSelection -> Word64
 feeBalance sel = inputBalance sel - outputBalance sel - changeBalance sel
 
+-- | Total UTxO balance + withdrawal.
+totalBalance :: Quantity "lovelace" Word64 -> [(TxIn, TxOut)] -> Word64
+totalBalance (Quantity withdraw) inps = balance' inps + withdraw
+
 addTxOut :: Integral a => a -> TxOut -> a
 addTxOut total = addCoin total . coin
 
@@ -128,10 +135,6 @@ data ErrCoinSelection e
     -- ^ UTxO exhausted during input selection
     -- We record the balance of the UTxO as well as the size of the payment
     -- we tried to make.
-    | ErrUtxoNotEnoughFragmented Word64 Word64
-    -- ^ UTxO is not enough fragmented for the number of transaction outputs
-    -- We record the number of UTxO entries as well as the number of the
-    -- outputs of the transaction.
     | ErrMaximumInputsReached Word64
     -- ^ When trying to construct a transaction, the max number of allowed
     -- inputs was reached.

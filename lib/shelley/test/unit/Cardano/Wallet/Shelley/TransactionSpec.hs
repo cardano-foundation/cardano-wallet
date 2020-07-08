@@ -93,7 +93,7 @@ import Test.QuickCheck
     , (==>)
     )
 
-import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CS
 import qualified Data.ByteArray as BA
@@ -159,7 +159,7 @@ spec = do
 
         let selectCoins = flip catchE (handleCannotCover utxo recipients) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-                    CS.random testCoinSelOpts recipients utxo
+                    CS.random testCoinSelOpts recipients (Quantity 0) utxo
                 withExceptT ErrSelectForPaymentFee $
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
@@ -178,7 +178,7 @@ prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     let wits = SL.WitnessSet addrWits mempty mempty
     let ledgerTx = SL.Tx unsigned wits metadata
 
-    _decodeSignedTx (Cardano.txSignedToCBOR (Cardano.TxSignedShelley ledgerTx))
+    _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
         === Right (toSealed ledgerTx)
 
 -- | Increasing the number of outputs reduces the number of inputs.
