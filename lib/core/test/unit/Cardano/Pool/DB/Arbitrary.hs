@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 
@@ -12,6 +13,8 @@ module Cardano.Pool.DB.Arbitrary
 
 import Prelude
 
+import Cardano.Pool.DB
+    ( CertificatePublicationTime (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters )
 import Cardano.Wallet.Gen
@@ -92,6 +95,10 @@ genPrintableText = T.pack . getPrintableString <$> arbitrary
 {-------------------------------------------------------------------------------
                                  Stake Pools
 -------------------------------------------------------------------------------}
+
+instance Arbitrary CertificatePublicationTime where
+    arbitrary = CertificatePublicationTime <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -20,7 +21,7 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
-    ( CertificatePublicationTime
+    ( CertificatePublicationTime (..)
     , DBLayer (..)
     , ErrPointAlreadyExists (..)
     , PoolRegistrationStatus (..)
@@ -325,15 +326,15 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
         $ L.sortOn epochNumber
-        $ map (slotId . snd) pairs
+        $ map (view #slotId . snd) pairs
     epochGroups = L.zip (uniqueEpochs pairs) slotPartition
     setup = liftIO $ atomically cleanDB
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction slot pool
         forM_ epochGroups $ \(epoch, slots) -> do
-            slots' <- (Set.fromList . map slotId . concat . Map.elems) <$>
-                atomically (readPoolProduction epoch)
+            slots' <- Set.fromList . map (view #slotId) . concat . Map.elems
+                <$> atomically (readPoolProduction epoch)
             slots' `shouldBe` (Set.fromList slots)
 
 -- | Read pool production satisfies conditions after consecutive
@@ -347,7 +348,7 @@ prop_readPoolCondAfterDeterministicRollbacks cond DBLayer{..} (StakePoolsFixture
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
-    slots = map (slotId . snd) pairs
+    slots = map (view #slotId . snd) pairs
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, point) ->
             unsafeRunExceptT $ putPoolProduction point pool
@@ -525,7 +526,7 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
         & listToMaybe
 
     publicationTimes =
-        [(SlotId en sn, SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -576,7 +577,7 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
         & listToMaybe
 
     publicationTimes =
-        [(SlotId en sn, SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -644,7 +645,7 @@ prop_readPoolRegistrationStatus
         & listToMaybe
 
     publicationTimes =
-        [(SlotId en sn, SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -686,7 +687,7 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
         case L.find (on (==) (view #poolId) pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
-            Just ((sl, _), pool') ->
+            Just (CertificatePublicationTime sl _, pool') ->
                 (sl <= rollbackPoint) && (pool == pool')
 
     ownerHasManyPools =
@@ -760,7 +761,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
         -- certificate publication list.
         publicationTimes
             & drop (length certificates `div` 2)
-            & fmap fst
+            & fmap (view #slotId)
             & listToMaybe
             & fromMaybe slotMinBound
 
@@ -772,12 +773,13 @@ prop_rollbackRetirement DBLayer{..} certificates =
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
     expectedPublications =
         filter
-            (\((slotId, _), _) -> slotId <= rollbackPoint)
+            (\(CertificatePublicationTime slotId _, _) ->
+                slotId <= rollbackPoint)
             allPublications
 
     publicationTimes :: [CertificatePublicationTime]
     publicationTimes =
-        [(SlotId en sn, SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -796,7 +798,11 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         pools <- run . atomically $ listRegisteredPools
         monitor $ classify (any hasDuplicateOwners entries)
@@ -815,7 +821,11 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
   where
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         monitor $ classify (length entries > 10) "10+ entries"
         monitor $ classify (length entries > 50) "50+ entries"
@@ -857,7 +867,11 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
 
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [(SlotId ep 0, minBound) | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
 
     propIgnoredMetadataRefs = do
@@ -981,7 +995,7 @@ noEmptyPools pools = do
     pools' `shouldBe` pools
 
 uniqueEpochs :: [(PoolId, BlockHeader)] -> [EpochNo]
-uniqueEpochs = nubOrd . map (epochNumber . slotId . snd)
+uniqueEpochs = nubOrd . map (epochNumber . view #slotId . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
@@ -989,4 +1003,6 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
     rearrange <$> mapM readPoolProduction (uniqueEpochs pairs)
   where
     rearrange ms = concat
-        [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]
+        [ [ (view #slotId h, p) | h <- hs ]
+        | (p, hs) <- concatMap Map.assocs ms
+        ]

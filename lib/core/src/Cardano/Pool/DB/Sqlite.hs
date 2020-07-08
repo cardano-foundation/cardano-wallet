@@ -42,7 +42,10 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( CertificatePublicationTime (..)
+    , DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
@@ -200,7 +203,8 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \(slotId, slotInternalIndex) cert -> do
+        , putPoolRegistration = \cpt cert -> do
+            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
             let poolId = view #poolId cert
             deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. slotId]
             let poolRegistrationKey = PoolRegistrationKey
@@ -267,9 +271,12 @@ newDBLayer trace fp = do
                             , poolPledge
                             , poolMetadata
                             }
-                    pure $ Just ((slotId, slotInternalIndex), cert)
+                    let cpt = CertificatePublicationTime
+                            {slotId, slotInternalIndex}
+                    pure $ Just (cpt, cert)
 
-        , putPoolRetirement = \(slotId, slotInternalIndex) cert -> do
+        , putPoolRetirement = \cpt cert -> do
+            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
             let PoolRetirementCertificate
                     { poolId
                     , retiredIn
@@ -301,7 +308,9 @@ newDBLayer trace fp = do
                             { poolId
                             , retiredIn
                             }
-                    pure $ Just ((slotId, slotInternalIndex), cert)
+                    let cpt = CertificatePublicationTime
+                            {slotId, slotInternalIndex}
+                    pure $ Just (cpt, cert)
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
@@ -477,7 +486,7 @@ mkPoolProduction
     -> PoolProduction
 mkPoolProduction pool block = PoolProduction
     { poolProductionPoolId = pool
-    , poolProductionSlot = slotId block
+    , poolProductionSlot = view #slotId block
     , poolProductionHeaderHash = BlockId (headerHash block)
     , poolProductionParentHash = BlockId (parentHeaderHash block)
     , poolProductionBlockHeight = getQuantity (blockHeight block)

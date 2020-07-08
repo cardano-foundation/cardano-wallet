@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -15,7 +16,7 @@ module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
 
-    , CertificatePublicationTime
+    , CertificatePublicationTime (..)
     , PoolRegistrationStatus (..)
     , determinePoolRegistrationStatus
     , readPoolRegistrationStatus
@@ -52,6 +53,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word64 )
+import GHC.Generics
+    ( Generic )
 import System.Random
     ( StdGen )
 
@@ -195,7 +198,13 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 -- Certificates published at later times take precedence over certificates
 -- published at earlier times.
 --
-type CertificatePublicationTime = (SlotId, SlotInternalIndex)
+data CertificatePublicationTime = CertificatePublicationTime
+    { slotId
+        :: SlotId
+    , slotInternalIndex
+        :: SlotInternalIndex
+    }
+    deriving (Eq, Generic, Ord, Show)
 
 -- | Indicates the current registration status of a pool.
 --

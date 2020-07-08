@@ -48,7 +48,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists )
+    ( CertificatePublicationTime (..), DBLayer (..), ErrPointAlreadyExists )
 import Cardano.Pool.Jormungandr.Metadata
     ( RegistryLog
     , StakePoolMetadata
@@ -198,8 +198,10 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
                 readPoolRegistration poolId >>= \case
-                    Nothing -> putPoolRegistration (sl0, minBound) r
-                    Just{}  -> pure ()
+                    Nothing -> do
+                        let cpt = CertificatePublicationTime sl0 minBound
+                        putPoolRegistration cpt r
+                    Just {} -> pure ()
             readPoolProductionCursor (max 100 (fromIntegral k))
 
     forward
@@ -222,8 +224,10 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
                 lift $ putStakeDistribution ep (Map.toList dist)
             forM_ blocks $ \b -> do
                 forM_ (poolRegistrations b) $ \pool -> do
-                    lift $ putPoolRegistration
-                        (b ^. #header . #slotId, minBound) pool
+                    let cpt = CertificatePublicationTime
+                            (b ^. #header . #slotId)
+                            minBound
+                    lift $ putPoolRegistration cpt pool
                     liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)

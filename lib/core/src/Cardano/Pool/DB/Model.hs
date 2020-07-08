@@ -8,6 +8,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -71,6 +72,8 @@ import Data.Bifunctor
     ( first )
 import Data.Foldable
     ( fold )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -329,9 +332,11 @@ mRollbackTo point PoolDatabase { pools
                                } =
     let
         registrations' =
-            Map.mapMaybeWithKey (discardBy id . fst . fst) registrations
+            Map.mapMaybeWithKey
+                (discardBy id . view #slotId . fst) registrations
         retirements' =
-            Map.mapMaybeWithKey (discardBy id . fst . fst) retirements
+            Map.mapMaybeWithKey
+                (discardBy id . view #slotId . fst) retirements
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys registrations'

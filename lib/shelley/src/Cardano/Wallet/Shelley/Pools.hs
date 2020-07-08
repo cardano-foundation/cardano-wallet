@@ -32,7 +32,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..)
+    ( CertificatePublicationTime (..)
+    , DBLayer (..)
     , ErrPointAlreadyExists (..)
     , PoolRegistrationStatus (..)
     , readPoolRegistrationStatus
@@ -406,14 +407,15 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             -- Precedence is determined by the 'readPoolRegistrationStatus'
             -- function.
             --
-            let certificateIndices = [minBound ..]
-            forM_ (certificateIndices `zip` certificates) $ \case
-                (slotInternalIndex, Registration cert) -> do
+            let publicationTimes =
+                    CertificatePublicationTime slot <$> [minBound ..]
+            forM_ (publicationTimes `zip` certificates) $ \case
+                (publicationTime, Registration cert) -> do
                     liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                    putPoolRegistration (slot, slotInternalIndex) cert
-                (slotInternalIndex, Retirement cert) -> do
+                    putPoolRegistration publicationTime cert
+                (publicationTime, Retirement cert) -> do
                     liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                    putPoolRetirement (slot, slotInternalIndex) cert
+                    putPoolRetirement publicationTime cert
         pure Continue
 
 monitorMetadata
