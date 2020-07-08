@@ -968,7 +968,7 @@ operators = unsafePerformIO $ newMVar
           [ "type" .= Aeson.String "Node operational certificate issue counter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
-              "00"
+              "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
           ]
       , Aeson.object
           [ "name" .= Aeson.String "Genesis Pool A"
@@ -995,7 +995,7 @@ operators = unsafePerformIO $ newMVar
           [ "type" .= Aeson.String "Node operational certificate issue counter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
-              "00"
+              "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
           ]
       , Aeson.object
           [ "name" .= Aeson.String "Genesis Pool B"
@@ -1022,7 +1022,7 @@ operators = unsafePerformIO $ newMVar
           [ "type" .= Aeson.String "Node operational certificate issue counter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
-              "00"
+              "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
           ]
       , Aeson.object
           [ "name" .= Aeson.String "Genesis Pool C"
@@ -1047,7 +1047,7 @@ preRegisteredStakeKey = Aeson.object
     [ "type" .= Aeson.String "StakingVerificationKeyShelley"
     , "description" .= Aeson.String "Free form text"
     , "cborHex" .= Aeson.String
-        "18b95820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
+        "5820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
     ]
 
 -- | Deposit amount required for registering certificates.
