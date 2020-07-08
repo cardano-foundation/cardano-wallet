@@ -38,6 +38,7 @@
           (hsPkgs."statistics-linreg" or (errorHandler.buildDepError "statistics-linreg"))
           (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           ] ++ (pkgs.lib).optionals (system.isWindows) [
           (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
           (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
@@ -104,8 +105,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "ceafa31844e6e9883d5d5634544045eab9c5f2e9";
-      sha256 = "08zkx4si4kb761n4hcmp1dmfppfgjm56z3flsdfd7qvm9kn4l78l";
+      rev = "1361bb92814c65e5964732777fc7f8ec9ebdccfe";
+      sha256 = "1znl9zzw5hswcd09zcvmgq50ppp46nbzjmw67wm4wpnw5lhnlwfy";
       });
     postUnpack = "sourceRoot+=/network-mux; echo source root reset to \$sourceRoot";
     }

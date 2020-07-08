@@ -59,10 +59,12 @@
           depends = [
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-shell" or (errorHandler.buildDepError "cardano-shell"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."quickcheck-state-machine" or (errorHandler.buildDepError "quickcheck-state-machine"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."tree-diff" or (errorHandler.buildDepError "tree-diff"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             ];
@@ -73,8 +75,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-shell";
-      rev = "601bb4324c258e3c8cbd2d532e5696fd09e2582e";
-      sha256 = "0zzd711zgj62l729hyymnv0i6jn3rx8yrww2b4a8l3csf1d9xv7n";
+      rev = "5257fc818ef7df60986834310432e197aac90711";
+      sha256 = "1si7jb084m2z9h773b1v4mgdkcjbbfpsyys3d6iz6gn0pzkijvc8";
       });
     postUnpack = "sourceRoot+=/cardano-shell; echo source root reset to \$sourceRoot";
     }
