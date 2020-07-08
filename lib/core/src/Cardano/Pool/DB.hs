@@ -216,9 +216,21 @@ data PoolRegistrationStatus
         -- Records the latest registration and retirement certificates.
     deriving (Eq, Show)
 
--- | Given the latest registration and retirement certificates for a pool,
--- determine the pool's current registration status based on the relative
--- order in which the certificates were published.
+-- | Given the /latest/ registration and retirement certificates for a pool,
+--   determine the pool's current registration status based on the relative
+--   order in which the certificates were published.
+--
+-- If two certificates are supplied, then:
+--
+--   * the certificates must be from the same pool.
+--   * the publication times must be non-equal.
+--
+-- This function determines order of precedence according to the "pool
+-- inference rule", as described in "A Formal Specification of the Cardano
+-- Ledger":
+--
+-- https://hydra.iohk.io/build/3202141/download/1/ledger-spec.pdf
+--
 determinePoolRegistrationStatus
     :: Ord certificatePublicationTime
     => Maybe (certificatePublicationTime, PoolRegistrationCertificate)
@@ -231,12 +243,19 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
         PoolRegistered regCert
     (Just (regTime, regCert), Just (retTime, retCert))
         | regPoolId /= retPoolId ->
+            -- Comparing certificates from different pools is a programming
+            -- error.
             differentPoolsError
         | regTime > retTime ->
+            -- A re-registration always /supercedes/ a prior retirement.
             PoolRegistered regCert
         | regTime < retTime ->
+            -- A retirement always /augments/ the latest known registration.
             PoolRegisteredAndRetired regCert retCert
         | otherwise ->
+            -- If a registration certificate and a retirement certificate
+            -- for the same pool appear to have been published at exactly
+            -- the same time, this indicates a programming error.
             timeCollisionError
       where
         regPoolId = view #poolId regCert
