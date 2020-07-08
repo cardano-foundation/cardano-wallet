@@ -121,7 +121,6 @@ import Type.Reflection
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Typed as CardanoTyped
-import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as Crypto
 import qualified Cardano.Crypto.Hash.Class as Hash
@@ -218,7 +217,6 @@ mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) key
                 <> mkExtraWits unsigned
 
         TxWitnessByronUTxO -> do
-            let toSigningKey (k,_) = Crypto.SigningKey $ getRawKey k
             bootstrapWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkByronWitness unsigned pm (getRawKey k, pwd)
@@ -325,7 +323,6 @@ _estimateMaxNumberOfInputs
     :: forall (n :: NetworkDiscriminant) k.
        ( Typeable n
        , TxWitnessTagFor k
-       , WalletKey k
        )
     => Proxy n
     -> Quantity "byte" Word16
@@ -382,7 +379,6 @@ _minimumFee
     :: forall (n :: NetworkDiscriminant) k.
        ( Typeable n
        , TxWitnessTagFor k
-       , WalletKey k
        )
     => Proxy (n :: NetworkDiscriminant)
     -> FeePolicy
@@ -475,10 +471,11 @@ computeTxSize proxy witTag action cs =
     byronWits = Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs)
       where
         dummyWitness :: BL.ByteString -> SL.BootstrapWitness TPraosStandardCrypto
-        dummyWitness chaff = error "waiting for proper cardano-ledger-spec"
-                            --SL.makeBootstrapWitness chaff signingKey addrAttr
+        dummyWitness chaff =
+            SL.makeBootstrapWitness credential signingKey addrAttr
           where
-            addrAttr = Byron.AddrAttributes
+            credential = Hash.UnsafeHash $ L8.toStrict chaff
+            addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
                        (Just $ Byron.HDAddressPayload (bloatChaff keyLen))
                        (toByronNetworkMagic mainnetMagic)
             (Just xprv) = xprvFromBytes (bloatChaff sigLen)
@@ -584,15 +581,14 @@ mkByronWitness
     -> ProtocolMagic
     -> (XPrv, Passphrase "encryption")
     -> SL.BootstrapWitness TPraosStandardCrypto
-mkByronWitness body protocolMagic (prv, pwd) =
+mkByronWitness body protocolMagic (prv, _pwd) =
     let signingKey = Crypto.SigningKey prv
         bytes = xprvToBytes prv
-        addrAttr = Byron.AddrAttributes
+        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
             (Just $ Byron.HDAddressPayload bytes)
             (toByronNetworkMagic protocolMagic)
         (SL.TxId txHash) = SL.txid body
-     in error "waiting for proper cardano-ledger-spec"
-        --SL.makeBootstrapWitness txHash signingKey addrAttr
+     in SL.makeBootstrapWitness txHash signingKey addrAttr
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
