@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TypeApplications #-}
@@ -63,9 +64,12 @@ import Network.HTTP.Client
     , managerResponseTimeout
     , requestFromURI
     , responseBody
+    , responseStatus
     , responseTimeoutMicro
     , withResponse
     )
+import Network.HTTP.Types.Status
+    ( status200 )
 import Network.URI
     ( URI (..), parseURI, pathSegments )
 
@@ -120,24 +124,8 @@ fetchFromRemote
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> IO (Either String StakePoolMetadata)
-fetchFromRemote (builder:_) manager url hash = runExceptT $ do
-    req <- requestFromURI =<< builder url hash
-    chunk <- ExceptT
-        $ handle fromIOException
-        $ handle fromHttpException
-        $ withResponse req manager $ \res -> do
-        -- NOTE
-        -- Metadata are _supposed to_ be made of:
-        --
-        -- - A name (at most 50 UTF-8 bytes)
-        -- - An optional description (at most 250 UTF-8 bytes)
-        -- - A ticker (at most 5 UTF-8 bytes)
-        -- - A homepage (at most 100 UTF-8 bytes)
-        --
-        -- So, the total, including a pretty JSON encoding with newlines ought
-        -- to be less than 512 bytes. For security reasons, we only download the
-        -- first 512 bytes.
-        pure . BL.toStrict <$> brReadSome (responseBody res) 512
+fetchFromRemote builders manager url hash = runExceptT $ do
+    chunk <- fromFirst builders
     when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
         , B8.unpack $ hex $ blake2b256 chunk
@@ -149,5 +137,35 @@ fetchFromRemote (builder:_) manager url hash = runExceptT $ do
     fromIOException :: Monad m => IOException -> m (Either String a)
     fromIOException = return . Left . ("IO exception: " <>) . show
 
-    fromHttpException :: Monad m => HttpException -> m (Either String a)
-    fromHttpException = return . Left . ("HTTP exception: " <>) . show
+    fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
+    fromHttpException = const (return $ Right Nothing)
+
+    -- Try each builder in order, but only if the previous builder led to a
+    -- "ConnectionFailure" exception. Other exceptions mean that we could
+    -- likely reach the server.
+    fromFirst (builder:rest) = do
+        req <- requestFromURI =<< builder url hash
+        mChunk <- ExceptT
+            $ handle fromIOException
+            $ handle fromHttpException
+            $ withResponse req manager $ \res -> do
+            -- NOTE
+            -- Metadata are _supposed to_ be made of:
+            --
+            -- - A name (at most 50 UTF-8 bytes)
+            -- - An optional description (at most 250 UTF-8 bytes)
+            -- - A ticker (at most 5 UTF-8 bytes)
+            -- - A homepage (at most 100 UTF-8 bytes)
+            --
+            -- So, the total, including a pretty JSON encoding with newlines ought
+            -- to be less than 512 bytes. For security reasons, we only download the
+            -- first 512 bytes.
+            if responseStatus res /= status200 then
+                return $ Left "Server did reply, but not positively. This metadata may be blacklisted."
+            else
+                Right . Just . BL.toStrict <$> brReadSome (responseBody res) 512
+        case mChunk of
+            Nothing -> fromFirst rest
+            Just chunk -> pure chunk
+    fromFirst [] =
+        throwE "Metadata server(s) didn't reply in a timely manner."
