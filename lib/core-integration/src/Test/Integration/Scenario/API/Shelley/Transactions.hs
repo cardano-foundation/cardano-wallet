@@ -32,8 +32,6 @@ import Cardano.Wallet.Primitive.Types
     ( Direction (..), Hash (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
     ( forM_ )
-import Data.Aeson
-    ( Value )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
@@ -97,10 +95,8 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
-    , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney
-    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -303,40 +299,6 @@ spec = do
                         (`shouldBe` Quantity (2*amt))
                 ]
 
-    it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [2_124_333]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
-        let payload = Json [json|{
-                "payments": [
-                    {
-                        "address": #{destination1},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    },
-                    {
-                        "address": #{destination2},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }
-                ],
-                "passphrase": "Secure Passphrase"
-            }|]
-
-        r <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403UTxO
-            ]
-
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         let amt = 1
@@ -386,15 +348,6 @@ spec = do
         verify ra2
             [ expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
-            ]
-
-    it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        (wSrc, payload) <- fixtureErrInputsDepleted ctx
-        r <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InputsDepleted
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
@@ -643,39 +596,6 @@ spec = do
                 between (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
-    it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith @n ctx [2_124_333]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
-        let payload = Json [json|{
-                "payments": [
-                    {
-                        "address": #{destination1},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    },
-                    {
-                        "address": #{destination2},
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        }
-                    }
-                ]
-            }|]
-
-        r <- request @ApiFee ctx
-            (Link.getTransactionFee @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403UTxO
-            ]
-
     it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
         let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
         wSrc <- fixtureWalletWith @n ctx [feeMin `div` 2]
@@ -722,15 +642,6 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage $
                 errMsg403NotEnoughMoney 1 1_000_000
-            ]
-
-    it "TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        (wSrc, payload) <- fixtureErrInputsDepleted ctx
-        r <- request @ApiFee ctx
-            (Link.getTransactionFee @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InputsDepleted
             ]
 
     it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> do
@@ -1500,26 +1411,6 @@ spec = do
         case fmap time . insertedAt <$> txs of
             (Just t):_ -> t
             _ -> error "Expected at least one transaction with a time."
-
-    fixtureErrInputsDepleted ctx = do
-        wSrc <- fixtureWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wDest
-
-        let addrIds = view #id <$> take 3 addrs
-        let amounts = [40_000_000, 22, 22] :: [Natural]
-        let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [json|{
-                "address": #{addr},
-                "amount": {
-                    "quantity": #{coin},
-                    "unit": "lovelace"
-                }
-            }|]
-        let payload = Json [json|{
-                "payments": #{payments :: [Value]},
-                "passphrase": "Secure Passphrase"
-            }|]
-        return (wSrc, payload)
 
     plusDelta, minusDelta :: UTCTime -> UTCTime
     plusDelta = addUTCTime (toEnum 1000000000)

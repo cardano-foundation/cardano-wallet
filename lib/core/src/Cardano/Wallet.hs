@@ -1177,15 +1177,15 @@ selectCoinsForPaymentFromUTxO
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPaymentFromUTxO ctx utxo txp recipients (Quantity withdrawal) = do
+selectCoinsForPaymentFromUTxO ctx utxo txp recipients withdrawal = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
-        CoinSelection.random opts recipients utxo
+        CoinSelection.random opts recipients withdrawal utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
     let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy)
     withExceptT ErrSelectForPaymentFee $ do
-        balancedSel <- adjustForFee feePolicy utxo' (sel { withdrawal })
+        balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
         pure balancedSel
   where

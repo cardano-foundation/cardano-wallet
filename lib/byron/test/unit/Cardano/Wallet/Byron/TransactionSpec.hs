@@ -390,7 +390,7 @@ genSelection = do
     genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
     genSelectionFor outs = do
         utxo <- vectorOf (NE.length outs * 3) genCoin >>= genUTxO @n @k
-        case runIdentity $ runExceptT $ largestFirst opts outs utxo of
+        case runIdentity $ runExceptT $ largestFirst opts outs (Quantity 0) utxo of
             Left _ -> genSelectionFor outs
             Right (s,_) -> return s
 

@@ -57,6 +57,8 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -707,10 +709,10 @@ genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
 genSelectionFor outs = do
     let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
     utxo <- vector (NE.length outs * 3) >>= genUTxO
-    case runIdentity $ runExceptT $ largestFirst opts outs utxo of
+    withdrawal_ <- genWithdrawal
+    case runIdentity $ runExceptT $ largestFirst opts outs (Quantity withdrawal_) utxo of
         Left _ -> genSelectionFor outs
         Right (s,_) -> do
-            withdrawal_ <- genWithdrawal
             reclaim_ <- genReclaim
             let s' = s { withdrawal = withdrawal_, reclaim = reclaim_ }
             deposit_ <- genDeposit (feeBalance s')

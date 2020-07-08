@@ -101,10 +101,8 @@ import Test.Integration.Framework.TestData
     ( cmdOk
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
-    , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney_
-    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -146,12 +144,9 @@ spec = describe "BYRON_TXS_CLI" $ do
         , fixtureRandomWalletAddrs @n
         ]
 
-    scenario_TRANS_CREATE_02x @n
-
     -- TRANS_CREATE_03 requires actually being able to compute exact fees, which
     -- is not really possible w/ cardano-node. So, skipping.
 
-    scenario_TRANS_CREATE_04a @n
     scenario_TRANS_CREATE_04b @n
     scenario_TRANS_CREATE_04c @n
     scenario_TRANS_CREATE_04d @n
@@ -167,7 +162,6 @@ spec = describe "BYRON_TXS_CLI" $ do
         , icarusAddresses @n . entropyToMnemonic <$> genEntropy
         ]
 
-    scenario_TRANS_ESTIMATE_04a @n
     scenario_TRANS_ESTIMATE_04b @n
     scenario_TRANS_ESTIMATE_04c @n
 
@@ -613,53 +607,6 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
   where
     title = "CLI_TRANS_ESTIMATE_01/02 - " ++ show (length fixtures) ++ " recipient(s)"
 
-scenario_TRANS_CREATE_02x
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        , KnownCommand t
-        )
-    => SpecWith (Context t)
-scenario_TRANS_CREATE_02x = it title $ \ctx -> do
-    -- SETUP
-    (wSrc, payments) <- fixtureSingleUTxO @n ctx
-
-    -- ACTION
-    let args = T.unpack <$> ((wSrc ^. walletId) : payments)
-    (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
-
-    -- ASSERTIONS
-    T.unpack err `shouldContain` errMsg403UTxO
-    c `shouldBe` ExitFailure 1
-    out `shouldBe` mempty
-
-  where
-    title = "CLI_TRANS_CREATE_02x - Multi-output failure w/ single UTxO"
-
-scenario_TRANS_CREATE_04a
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        , KnownCommand t
-        )
-    => SpecWith (Context t)
-scenario_TRANS_CREATE_04a = it title $ \ctx -> do
-    -- SETUP
-    (wSrc, payments) <- fixtureErrInputsDepleted @n ctx
-
-    -- ACTION
-    let args = T.unpack <$> ((wSrc ^. walletId) : payments)
-    (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
-
-    -- ASSERTIONS
-    T.unpack err `shouldContain` errMsg403InputsDepleted
-    c `shouldBe` ExitFailure 1
-    out `shouldBe` mempty
-  where
-    title = "CLI_TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered"
-
 scenario_TRANS_CREATE_04b
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
@@ -728,29 +675,6 @@ scenario_TRANS_CREATE_04d = it title $ \ctx -> do
     out `shouldBe` mempty
   where
     title = "CLI_TRANS_CREATE_04 - Wrong password"
-
-scenario_TRANS_ESTIMATE_04a
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        , KnownCommand t
-        )
-    => SpecWith (Context t)
-scenario_TRANS_ESTIMATE_04a = it title $ \ctx -> do
-    -- SETUP
-    (wSrc, payments) <- fixtureErrInputsDepleted @n ctx
-
-    -- ACTION
-    let args = T.unpack <$> ((wSrc ^. walletId) : payments)
-    (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
-
-    -- ASSERTIONS
-    err `shouldContain` errMsg403InputsDepleted
-    c `shouldBe` ExitFailure 1
-    out `shouldBe` mempty
-  where
-    title = "CLI_TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered"
 
 scenario_TRANS_ESTIMATE_04b
     :: forall (n :: NetworkDiscriminant) t.
@@ -834,47 +758,6 @@ scenario_TRANS_CREATE_07 = it title $ \ctx -> do
 --
 -- More Elaborated Fixtures
 --
-
--- | Returns a source wallet and a list of payments.
---
--- NOTE: Random or Icarus wallets can be used interchangeably here.
-fixtureSingleUTxO
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        )
-    => Context t
-    -> IO (ApiByronWallet, [Text])
-fixtureSingleUTxO ctx = do
-    wSrc  <- fixtureRandomWalletWith @n ctx [1_000_000]
-    addrs <- randomAddresses @n . entropyToMnemonic <$> genEntropy
-    let addrStr = encodeAddress @n (head addrs)
-    let payments =
-            [ "--payment", "100000@" <> addrStr
-            , "--payment", "100000@" <> addrStr
-            ]
-    pure (wSrc, payments)
-
--- | Returns a source wallet and a list of payments. If submitted, the payments
--- should result in an error 403.
---
--- NOTE: Random or Icarus wallets can be used interchangeably here.
-fixtureErrInputsDepleted
-    :: forall (n :: NetworkDiscriminant) t.
-        ( DecodeAddress n
-        , EncodeAddress n
-        , PaymentAddress n ByronKey
-        )
-    => Context t
-    -> IO (ApiByronWallet, [Text])
-fixtureErrInputsDepleted ctx = do
-    wSrc  <- fixtureRandomWalletWith @n ctx [12_000_000, 20_000_000, 17_000_000]
-    addrs <- randomAddresses @n . entropyToMnemonic <$> genEntropy
-    -- let addrStrs = encodeAddress @n <$> (addrs)
-    let amnts = [40_000_000, 22, 22] :: [Natural]
-    let payments = flip map (zip addrs amnts) $ uncurry (mkPaymentCmd @n)
-    pure (wSrc, join payments)
 
 -- | Returns a source wallet and a list of payments.
 --
