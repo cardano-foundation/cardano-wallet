@@ -83,7 +83,7 @@ let
           # provide cardano-node command to test suites
           unit.build-tools = [ pkgs.cardano-node ];
           integration.build-tools = [ pkgs.cardano-node ];
-          unit.postInstall = exePostInstall;
+          unit.postInstall = libSodiumPostInstall;
         };
         packages.cardano-wallet-shelley.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
@@ -107,9 +107,8 @@ let
           # provide cardano-node & cardano-cli to tests
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
           integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
-          unit.postInstall = exePostInstall;
+          unit.postInstall = libSodiumPostInstall;
         };
-        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.postInstall = exePostInstall;
 
         packages.cardano-wallet-jormungandr.components.tests = {
           # Next releases are going to be about cardano-node and we
@@ -124,10 +123,6 @@ let
           ];
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
-
-        # Make sure that libsodium DLLs are available.
-        packages.cardano-wallet-byron.components.library.postInstall = exePostInstall;
-        packages.cardano-wallet-shelley.components.library.postInstall = exePostInstall;
 
         # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency =
@@ -164,10 +159,30 @@ let
             '';
           };
 
+
+        # Make sure that libsodium DLLs and shell completions are available .
+        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron.postInstall = optparseCompletionPostInstall;
+        packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall;
+
         # Workaround for Haskell.nix issue
         packages.cardano-wallet-byron.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-shelley.components.all.postInstall = lib.mkForce "";
+      }
+
+      {
+        # Add shell completions for tools.
+        packages.cardano-node.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
+        packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
+        packages.cardano-addresses.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
+        packages.cardano-transactions.components.exes.cardano-tx.postInstall = optparseCompletionPostInstall;
+        packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
+        # Workaround for Haskell.nix issue
+        packages.cardano-node.components.all.postInstall = lib.mkForce "";
+        packages.cardano-addresses.components.all.postInstall = lib.mkForce "";
+        packages.cardano-transactions.components.all.postInstall = lib.mkForce "";
+        packages.bech32.components.all.postInstall = lib.mkForce "";
       }
 
       # Provide the swagger file in an environment variable for
@@ -282,8 +297,23 @@ let
 
   # Make sure that the libsodium DLL is available beside the EXEs of
   # the windows build.
-  exePostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
+  libSodiumPostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
     ln -s ${pkgs.libsodium}/bin/libsodium-23.dll $out/bin
+  '';
+
+  # This exe component postInstall script adds shell completion
+  # scripts. These completion
+  # scripts will be picked up automatically if the resulting
+  # derivation is installed, e.g. by `nix-env -i`.
+  optparseCompletionPostInstall = lib.optionalString stdenv.hostPlatform.isUnix ''
+    exeName=$(ls -1 $out/bin | head -n1)  # fixme add $exeName to Haskell.nix
+    bashCompDir="$out/share/bash-completion/completions"
+    zshCompDir="$out/share/zsh/vendor-completions"
+    fishCompDir="$out/share/fish/vendor_completions.d"
+    mkdir -p "$bashCompDir" "$zshCompDir" "$fishCompDir"
+    "$out/bin/$exeName" --bash-completion-script "$out/bin/$exeName" >"$bashCompDir/$exeName"
+    "$out/bin/$exeName" --zsh-completion-script "$out/bin/$exeName" >"$zshCompDir/_$exeName"
+    "$out/bin/$exeName" --fish-completion-script "$out/bin/$exeName" >"$fishCompDir/$exeName.fish"
   '';
 
 in

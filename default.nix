@@ -156,6 +156,17 @@ let
       };
       CARDANO_NODE_CONFIGS = cardano-node.deployments;
       meta.platforms = lib.platforms.unix;
+      shellHook = ''
+        setup_completion() {
+          local p
+          for p in $buildInputs; do
+            if [ -d "$p/share/bash-completion" ]; then
+              addToSearchPath XDG_DATA_DIRS "$p/share"
+            fi
+          done
+        }
+        setup_completion
+      '';
     };
     stackShell = import ./nix/stack-shell.nix {
       walletPackages = self;
