@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -80,6 +81,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
     , ApiWithdrawRewards (..)
+    , ApiWithdrawal (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -100,6 +102,8 @@ module Cardano.Wallet.Api.Types
     -- * User-Facing Address Encoding/Decoding
     , EncodeAddress (..)
     , DecodeAddress (..)
+    , EncodeStakeAddress (..)
+    , DecodeStakeAddress (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -150,6 +154,7 @@ import Cardano.Wallet.Primitive.Types
     , Address (..)
     , AddressState (..)
     , BoundType
+    , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel (..)
     , Direction (..)
@@ -536,7 +541,13 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
+    } deriving (Eq, Generic, Show)
+
+data ApiWithdrawal n = ApiWithdrawal
+    { stakeAddress :: !(ApiT ChimericAccount, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
@@ -788,6 +799,7 @@ instance KnownDiscovery (SeqState network key) where
 newtype ApiT a =
     ApiT { getApiT :: a }
     deriving (Generic, Show, Eq, Functor)
+deriving instance Ord a => Ord (ApiT a)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
 -- the lengths of mnemonics that are supported (and an underlying purpose). In
@@ -1149,13 +1161,21 @@ instance FromJSON a => FromJSON (AddressAmount a) where
 instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (ApiTransaction n) where
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiTransaction n)
+  where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiTransaction n) where
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiTransaction n)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance (DecodeAddress n, PassphraseMaxLength s, PassphraseMinLength s) =>
-    FromJSON (ApiWalletMigrationPostData n s) where
+instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
+  where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
     toJSON = genericToJSON defaultRecordTypeOptions
@@ -1249,6 +1269,26 @@ instance FromJSON ApiNetworkParameters where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkParameters where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeStakeAddress n => ToJSON (ApiWithdrawal n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance {-# OVERLAPS #-} (DecodeStakeAddress n)
+    => FromJSON (ApiT ChimericAccount, Proxy n)
+  where
+    parseJSON x = do
+        let proxy = Proxy @n
+        acct <- parseJSON x >>= eitherToParser
+            . bimap ShowFmt ApiT
+            . decodeStakeAddress @n
+        return (acct, proxy)
+
+instance {-# OVERLAPS #-} EncodeStakeAddress n
+    => ToJSON (ApiT ChimericAccount, Proxy n)
+  where
+    toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
@@ -1417,6 +1457,18 @@ class DecodeAddress (n :: NetworkDiscriminant) where
 
 instance DecodeAddress 'Mainnet => DecodeAddress ('Staging pm) where
     decodeAddress = decodeAddress @'Mainnet
+
+class EncodeStakeAddress (n :: NetworkDiscriminant) where
+    encodeStakeAddress :: ChimericAccount -> Text
+
+instance EncodeStakeAddress 'Mainnet => EncodeStakeAddress ('Staging pm) where
+    encodeStakeAddress = encodeStakeAddress @'Mainnet
+
+class DecodeStakeAddress (n :: NetworkDiscriminant) where
+    decodeStakeAddress :: Text -> Either TextDecodingError ChimericAccount
+
+instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
+    decodeStakeAddress = decodeStakeAddress @'Mainnet
 
 -- NOTE:
 -- The type families below are useful to allow building more flexible API

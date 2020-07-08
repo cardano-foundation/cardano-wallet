@@ -26,6 +26,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
@@ -537,5 +538,35 @@ instance FromJSON StakePoolMetadataUrl where
     parseJSON = aesonFromText "StakePoolMetadataUrl"
 
 instance PathPiece StakePoolMetadataUrl where
+    fromPathPiece = fromTextMaybe
+    toPathPiece = toText
+
+
+----------------------------------------------------------------------------
+-- ChimericAccount
+
+instance PersistField ChimericAccount where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql ChimericAccount where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read ChimericAccount where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToHttpApiData ChimericAccount where
+    toUrlPiece = toText
+
+instance FromHttpApiData ChimericAccount where
+    parseUrlPiece = fromText'
+
+instance ToJSON ChimericAccount where
+    toJSON = String . toText
+
+instance FromJSON ChimericAccount where
+    parseJSON = aesonFromText "ChimericAccount"
+
+instance PathPiece ChimericAccount where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText

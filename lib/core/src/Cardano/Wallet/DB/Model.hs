@@ -428,6 +428,8 @@ mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, d
                 <$> resolvedInputs tx
         , txInfoOutputs =
             outputs tx
+        , txInfoWithdrawals =
+            withdrawals tx
         , txInfoMeta =
             meta
         , txInfoDepth =
