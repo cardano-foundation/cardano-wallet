@@ -43,7 +43,11 @@ module Cardano.Wallet.Jormungandr.Compatibility
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -109,6 +113,15 @@ baseUrlToText = T.pack . showBaseUrl
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
+
+instance EncodeStakeAddress n where
+    encodeStakeAddress = error
+        "encodeStakeAddress: there's no such thing as stake address in Jörmungandr"
+
+instance DecodeStakeAddress n where
+    decodeStakeAddress = error
+        "decodeStakeAddress: there's no such thing as stake address in Jörmungandr"
+
 
 -- | Encode an 'Address' to a human-readable format. This produces two kinds of
 -- encodings:

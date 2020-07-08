@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -86,7 +87,11 @@ import Cardano.Crypto
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -355,6 +360,9 @@ fromTxAux txAux = case taTx txAux of
 
         , outputs =
             fromTxOut <$> NE.toList outputs
+
+        , withdrawals =
+            mempty
         }
 
 fromTxIn :: TxIn -> W.TxIn
@@ -495,6 +503,14 @@ fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
+
+instance EncodeStakeAddress n where
+    encodeStakeAddress = error
+        "encodeStakeAddress: there's no such thing as stake address in Byron"
+
+instance DecodeStakeAddress n where
+    decodeStakeAddress = error
+        "decodeStakeAddress: there's no such thing as stake address in Byron"
 
 instance EncodeAddress 'Mainnet where
     encodeAddress =

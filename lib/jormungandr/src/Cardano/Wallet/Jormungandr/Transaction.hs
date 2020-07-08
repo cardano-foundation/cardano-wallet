@@ -146,6 +146,7 @@ newTransactionLayer block0H = TransactionLayer
                 { txId = fragmentId fragment
                 , resolvedInputs = inps
                 , outputs = outs
+                , withdrawals = mempty
                 }
             , finalizeFragment fragment
             )
