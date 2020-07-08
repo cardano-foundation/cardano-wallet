@@ -237,9 +237,6 @@ combineDbAndLsqData sp =
             fmap fromIntegral . poolPledge . registrationCert <$> dbData
         , Api.margin =
             Quantity . poolMargin . registrationCert <$> dbData
-          -- TODO: Report the actual retirement status of a pool.
-          -- For the moment, we always report that a pool will never retire.
-          -- See https://github.com/input-output-hk/cardano-wallet/milestone/89
         , Api.retirement =
             toApiEpochInfo . retiredIn <$> (retirementCert =<< dbData)
         }
