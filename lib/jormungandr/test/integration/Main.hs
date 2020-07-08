@@ -52,12 +52,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..)
-    , ProtocolParameters (..)
-    , SyncTolerance (..)
-    , TxParameters (..)
-    )
+    ( NetworkParameters (..), ProtocolParameters (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar

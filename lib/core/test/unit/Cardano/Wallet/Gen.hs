@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -11,6 +12,10 @@ module Cardano.Wallet.Gen
     , genPercentage
     , shrinkPercentage
     , genLegacyAddress
+    , genBlockHeader
+    , genSlotId
+    , genActiveSlotCoefficient
+    , shrinkActiveSlotCoefficient
     ) where
 
 import Prelude
@@ -20,19 +25,31 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ProtocolMagic (..) )
+    ( ActiveSlotCoefficient (..)
+    , Address (..)
+    , BlockHeader (..)
+    , EpochLength (..)
+    , Hash (..)
+    , ProtocolMagic (..)
+    , SlotId (..)
+    , SlotNo (..)
+    , flatSlot
+    , unsafeEpochNo
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage (..) )
+    ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.Word
+    ( Word32 )
 import GHC.TypeLits
     ( natVal )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, vector )
+    ( Arbitrary (..), Gen, choose, elements, vector )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -77,3 +94,36 @@ genLegacyAddress pm = do
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress key
         $ maybe [] (pure . CBOR.encodeProtocolMagicAttr) pm
+
+--
+-- Slotting
+--
+
+
+genSlotId :: EpochLength -> Gen SlotId
+genSlotId (EpochLength el) | el > 0 = do
+    ep <- choose (0, 10)
+    sl <- choose (0, el - 1)
+    return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+genSlotId _ = error "genSlotId: epochLength must > 0"
+
+genBlockHeader :: SlotId -> Gen BlockHeader
+genBlockHeader sl = do
+        BlockHeader sl (mockBlockHeight sl) <$> genHash <*> genHash
+      where
+        mockBlockHeight :: SlotId -> Quantity "block" Word32
+        mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
+
+        genHash = elements
+            [ Hash "BLOCK01"
+            , Hash "BLOCK02"
+            , Hash "BLOCK03"
+            ]
+
+genActiveSlotCoefficient :: Gen ActiveSlotCoefficient
+genActiveSlotCoefficient = ActiveSlotCoefficient <$> choose (0.001, 1.0)
+
+shrinkActiveSlotCoefficient :: ActiveSlotCoefficient -> [ActiveSlotCoefficient]
+shrinkActiveSlotCoefficient (ActiveSlotCoefficient f)
+        | f < 1 = [1]
+        | otherwise = []

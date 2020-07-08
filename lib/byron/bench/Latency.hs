@@ -60,7 +60,7 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Control.Concurrent.Async
     ( race )

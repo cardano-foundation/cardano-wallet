@@ -59,12 +59,10 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters (..)
-    , ProtocolParameters (..)
-    , SyncTolerance (..)
-    , TxParameters (..)
-    )
+    ( NetworkParameters (..), ProtocolParameters (..), TxParameters (..) )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar

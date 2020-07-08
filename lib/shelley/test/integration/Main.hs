@@ -39,6 +39,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -46,7 +48,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
-    , SyncTolerance (..)
     , TxIn (..)
     , TxOut (..)
     , TxParameters (..)

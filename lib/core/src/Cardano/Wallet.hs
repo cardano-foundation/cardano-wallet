@@ -253,6 +253,8 @@ import Cardano.Wallet.Primitive.Model
     , initWallet
     , updateState
     )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress, SyncTolerance (..), syncProgressRelativeToTime )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -275,8 +277,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotParameters (..)
     , SortOrder (..)
-    , SyncProgress (..)
-    , SyncTolerance
     , TransactionInfo (..)
     , Tx
     , TxMeta (..)
@@ -298,7 +298,6 @@ import Cardano.Wallet.Primitive.Types
     , slotParams
     , slotRangeFromTimeRange
     , slotStartTime
-    , syncProgressRelativeToTime
     , wholeRange
     )
 import Cardano.Wallet.Transaction

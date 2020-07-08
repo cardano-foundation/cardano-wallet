@@ -22,7 +22,7 @@ import Cardano.Wallet.Api.Types
     ( ApiWallet )
 import Cardano.Wallet.Network.Ports
     ( findPort )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Exception
     ( finally )

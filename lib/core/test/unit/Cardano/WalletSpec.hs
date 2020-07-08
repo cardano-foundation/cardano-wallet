@@ -64,6 +64,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection, feeBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (BlockHeader)
@@ -79,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
-    , SyncTolerance (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , Tx (..)

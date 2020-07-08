@@ -152,15 +152,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Coin (..)
-    , Hash
-    , SortOrder
-    , SyncTolerance (..)
-    , WalletId
-    , WalletName
-    )
+    ( AddressState, Coin (..), Hash, SortOrder, WalletId, WalletName )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative

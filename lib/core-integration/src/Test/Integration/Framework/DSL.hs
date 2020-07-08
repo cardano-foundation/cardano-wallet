@@ -189,6 +189,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -201,7 +203,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotParameters (..)
     , SortOrder (..)
-    , SyncProgress (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)

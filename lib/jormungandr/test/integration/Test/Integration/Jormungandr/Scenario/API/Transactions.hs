@@ -41,11 +41,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, mkSeqStateFromRootXPrv )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
     , SealedTx (..)
-    , SyncProgress (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
