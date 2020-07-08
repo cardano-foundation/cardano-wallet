@@ -224,23 +224,19 @@ determinePoolRegistrationStatus
     => Maybe (certificatePublicationTime, PoolRegistrationCertificate)
     -> Maybe (certificatePublicationTime, PoolRetirementCertificate)
     -> PoolRegistrationStatus
-determinePoolRegistrationStatus = f
-  where
-    f Nothing _ =
+determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
+    (Nothing, _) ->
         PoolNotRegistered
-    f (Just (_, regCert)) Nothing =
+    (Just (_, regCert), Nothing) ->
         PoolRegistered regCert
-    f (Just reg) (Just ret) =
-        g reg ret
-
-    g (regTime, regCert) (retTime, retCert)
-        | regPoolId /= retPoolId =
+    (Just (regTime, regCert), Just (retTime, retCert))
+        | regPoolId /= retPoolId ->
             differentPoolsError
-        | regTime > retTime =
+        | regTime > retTime ->
             PoolRegistered regCert
-        | regTime < retTime =
+        | regTime < retTime ->
             PoolRegisteredAndRetired regCert retCert
-        | otherwise =
+        | otherwise ->
             timeCollisionError
       where
         regPoolId = view #poolId regCert
