@@ -14,7 +14,8 @@ module Cardano.Pool.Metadata
     (
 
     -- * Fetch
-    fetchFromRemote
+      fetchFromRemote
+    , StakePoolMetadataFetchLog (..)
 
     -- * Construct URLs
     , identityUrlBuilder
@@ -27,6 +28,10 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -41,9 +46,11 @@ import Control.Monad
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT, throwE )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
@@ -56,6 +63,10 @@ import Data.Coerce
     ( coerce )
 import Data.List
     ( intercalate )
+import Data.Text.Class
+    ( ToText (..) )
+import Fmt
+    ( pretty )
 import Network.HTTP.Client
     ( HttpException (..)
     , Manager
@@ -119,12 +130,13 @@ registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
     hash = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
 
 fetchFromRemote
-    :: [StakePoolMetadataUrl -> StakePoolMetadataHash -> ExceptT String IO URI]
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> [StakePoolMetadataUrl -> StakePoolMetadataHash -> ExceptT String IO URI]
     -> Manager
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
-    -> IO (Either String StakePoolMetadata)
-fetchFromRemote builders manager url hash = runExceptT $ do
+    -> IO (Maybe StakePoolMetadata)
+fetchFromRemote tr builders manager url hash = runExceptTLog $ do
     chunk <- fromFirst builders
     when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
@@ -140,11 +152,23 @@ fetchFromRemote builders manager url hash = runExceptT $ do
     fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
     fromHttpException = const (return $ Right Nothing)
 
+    runExceptTLog
+        :: ExceptT String IO StakePoolMetadata
+        -> IO (Maybe StakePoolMetadata)
+    runExceptTLog action = runExceptT action >>= \case
+        Left msg ->
+            Nothing <$ traceWith tr (MsgFetchPoolMetadataFailure hash msg)
+
+        Right meta ->
+            Just meta <$ traceWith tr (MsgFetchPoolMetadataSuccess hash meta)
+
     -- Try each builder in order, but only if the previous builder led to a
     -- "ConnectionFailure" exception. Other exceptions mean that we could
     -- likely reach the server.
     fromFirst (builder:rest) = do
-        req <- requestFromURI =<< builder url hash
+        uri <- builder url hash
+        req <- requestFromURI uri
+        liftIO $ traceWith tr $ MsgFetchPoolMetadata hash uri
         mChunk <- ExceptT
             $ handle fromIOException
             $ handle fromHttpException
@@ -165,7 +189,44 @@ fetchFromRemote builders manager url hash = runExceptT $ do
             else
                 Right . Just . BL.toStrict <$> brReadSome (responseBody res) 512
         case mChunk of
-            Nothing -> fromFirst rest
+            Nothing -> do
+                liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
+                fromFirst rest
             Just chunk -> pure chunk
     fromFirst [] =
         throwE "Metadata server(s) didn't reply in a timely manner."
+
+data StakePoolMetadataFetchLog
+    = MsgFetchPoolMetadata StakePoolMetadataHash URI
+    | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
+    | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
+    | MsgFetchPoolMetadataFallback URI Bool
+    deriving (Show, Eq)
+
+instance HasPrivacyAnnotation StakePoolMetadataFetchLog
+instance HasSeverityAnnotation StakePoolMetadataFetchLog where
+    getSeverityAnnotation = \case
+        MsgFetchPoolMetadata{} -> Info
+        MsgFetchPoolMetadataSuccess{} -> Info
+        MsgFetchPoolMetadataFailure{} -> Warning
+        MsgFetchPoolMetadataFallback{} -> Warning
+
+instance ToText StakePoolMetadataFetchLog where
+    toText = \case
+        MsgFetchPoolMetadata hash uri -> mconcat
+            [ "Fetching metadata with hash ", pretty hash
+            , " from ", T.pack (show uri)
+            ]
+        MsgFetchPoolMetadataSuccess hash meta -> mconcat
+            [ "Successfully fetched metadata with hash ", pretty hash
+            , ": ", T.pack (show meta)
+            ]
+        MsgFetchPoolMetadataFailure hash msg -> mconcat
+            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
+            ]
+        MsgFetchPoolMetadataFallback uri noMoreUrls -> mconcat
+            [ "Couldn't reach server at ", T.pack (show uri), "."
+            , if noMoreUrls
+                then ""
+                else " Falling back using a different strategy."
+            ]
