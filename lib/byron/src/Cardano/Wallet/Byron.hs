@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -283,11 +282,8 @@ serveWallet
         Server.newApiLayer walletEngineTracer params nl' tl db
             Server.idleWorker
       where
-        gp@GenesisParameters
-            { getGenesisBlockHash
-            , getEpochLength
-            } = genesisParameters np
-        nl' = fromByronBlock getGenesisBlockHash getEpochLength <$> nl
+        gp = genesisParameters np
+        nl' = fromByronBlock gp <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode

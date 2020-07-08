@@ -1,5 +1,5 @@
-type: SignKeyVRF PraosVRF
-title: VRF Signing Key
-cbor-hex:
- 584089985296795f0c9f8c6a0d6c707cb5447fb9f520befb440c1b3627f79324e738ebfc0c8f4df9
- 3100f357ff78bf5d3a45411f2cefcc4d870a61cc19d2fd3504d6
+{
+    "type": "SignKeyVRF PraosVRF",
+    "description": "VRF Signing Key",
+    "cborHex": "584083a5902cd76ca06fa33ca0c1f54a3b70afbd3f61adfa1b768af4a8a7b8ede7759382868eea35b76253434b232033118ada9b5d1d20cd419f0895e5cb83c6f7d5"
+}

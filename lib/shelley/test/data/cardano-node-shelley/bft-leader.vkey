@@ -1,4 +1,5 @@
-type: Node operator verification key
-title: Genesis delegate operator key
-cbor-hex:
- 5820baf736672d95dd19efed1e0f745f056473f1095ee682d758139ff4702181fff2
+{
+    "type": "Node operator verification key",
+    "description": "Genesis delegate operator key",
+    "cborHex": "582039205260d790d39c595138bc8c5d2e474336f260ffe911fbbf714de427c50ddc"
+}

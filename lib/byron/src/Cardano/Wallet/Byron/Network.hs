@@ -39,11 +39,11 @@ import Cardano.Chain.Byron.API
     ( ApplyMempoolPayloadErr (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron
+    , byronCodecConfig
     , fromChainHash
     , fromSlotNo
     , fromTip
     , protocolParametersFromUpdateState
-    , toEpochSlots
     , toGenTx
     , toPoint
     )
@@ -115,12 +115,8 @@ import Ouroboros.Consensus.Byron.Ledger
     , GenTx
     , Query (..)
     )
-import Ouroboros.Consensus.Byron.Ledger.Config
-    ( CodecConfig (..) )
 import Ouroboros.Consensus.Byron.Node
     ()
-import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Network.Block
@@ -443,12 +439,6 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
 
     codecs :: MonadST m => DefaultCodecs ByronBlock m
     codecs = defaultCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
-
-byronCodecConfig :: W.GenesisParameters -> CodecConfig ByronBlock
-byronCodecConfig W.GenesisParameters{getEpochLength,getEpochStability} =
-    ByronCodecConfig (toEpochSlots getEpochLength) (SecurityParam k)
-  where
-    k = fromIntegral . getQuantity $ getEpochStability
 
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do

@@ -74,29 +74,13 @@
             ];
           buildable = true;
           };
-        "db-analyser" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
-            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
-            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "ceafa31844e6e9883d5d5634544045eab9c5f2e9";
-      sha256 = "08zkx4si4kb761n4hcmp1dmfppfgjm56z3flsdfd7qvm9kn4l78l";
+      rev = "1361bb92814c65e5964732777fc7f8ec9ebdccfe";
+      sha256 = "1znl9zzw5hswcd09zcvmgq50ppp46nbzjmw67wm4wpnw5lhnlwfy";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-byron; echo source root reset to \$sourceRoot";
     }

@@ -90,10 +90,10 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Api.Shelley.Genesis
+    ( ShelleyGenesis (..) )
 import Cardano.Binary
     ( fromCBOR, serialize' )
-import Cardano.Config.Shelley.Genesis
-    ( ShelleyGenesis (..) )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), getHash )
 import Cardano.Slotting.Slot
