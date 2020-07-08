@@ -77,7 +77,7 @@ let
       weeder.version                  = "1.0.9";
     };
 
-    CARDANO_NODE_CONFIGS = walletPackages.cardano-node.deployments;
+    CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
 
     # If any build input has bash completions, add it to the search
     # path for shell completions.

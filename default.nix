@@ -73,9 +73,12 @@ let
 
   self = {
     inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
-    # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
-    inherit (pkgs) cardano-node cardano-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
+    # Cardano
+    inherit (haskellPackages.cardano-cli.components.exes) cardano-cli;
+    cardano-node = haskellPackages.cardano-node.components.exes.cardano-node // {
+      deployments = pkgs.cardano-node-deployments;
+    };
     # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
     inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
     # adrestia tool belt

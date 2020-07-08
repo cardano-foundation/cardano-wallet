@@ -40,6 +40,8 @@ let
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
+      # cardano-node packages
+      (import ./cardano-node-overlay.nix)
       # And, of course, our haskell-nix-ified stack project:
       (import ./pkgs.nix { inherit system crossSystem config; })
     ];
