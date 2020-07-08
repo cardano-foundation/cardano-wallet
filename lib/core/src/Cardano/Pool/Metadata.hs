@@ -1,4 +1,6 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -8,8 +10,14 @@
 -- from pool operators, or from smash).
 
 module Cardano.Pool.Metadata
-    ( fetchFromRemote
-    -- TODO: fetchFromAggregationServer
+    (
+
+    -- * Fetch
+    fetchFromRemote
+
+    -- * Construct URLs
+    , identityUrlBuilder
+    , registryUrlBuilder
 
     -- * re-exports
     , newManager
@@ -25,12 +33,12 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     )
-import Control.Arrow
-    ( left )
 import Control.Exception
-    ( IOException, SomeException, handle )
+    ( IOException, handle )
 import Control.Monad
     ( when )
+import Control.Monad.Catch
+    ( MonadThrow (..) )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
@@ -39,21 +47,32 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( eitherDecodeStrict )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
+import Data.Coerce
+    ( coerce )
+import Data.List
+    ( intercalate )
 import Network.HTTP.Client
-    ( HttpException
+    ( HttpException (..)
     , Manager
     , ManagerSettings
     , brReadSome
     , managerResponseTimeout
-    , parseUrlThrow
+    , requestFromURI
     , responseBody
     , responseTimeoutMicro
     , withResponse
     )
+import Network.URI
+    ( URI (..), parseURI, pathSegments )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Client.TLS as HTTPS
 
 
@@ -70,13 +89,39 @@ defaultManagerSettings =
 newManager :: MonadIO m => ManagerSettings -> m Manager
 newManager = HTTPS.newTlsManagerWith
 
+-- | Simply return a pool metadata url, unchanged
+identityUrlBuilder
+    :: forall m. (MonadThrow m)
+    => StakePoolMetadataUrl
+    -> StakePoolMetadataHash
+    -> m URI
+identityUrlBuilder (StakePoolMetadataUrl url) _ =
+    maybe (throwM e) pure $ parseURI (T.unpack url)
+  where
+    e = InvalidUrlException (T.unpack url) "Invalid URL"
+
+-- | Build a URL from a metadata hash compatible with an aggregation registry
+registryUrlBuilder
+    :: forall m. (MonadThrow m)
+    => URI
+    -> StakePoolMetadataUrl
+    -> StakePoolMetadataHash
+    -> m URI
+registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
+    pure $ baseUrl
+        { uriPath = "/" <> intercalate "/" (pathSegments baseUrl ++ [hash])
+        }
+  where
+    hash = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
+
 fetchFromRemote
-    :: Manager
+    :: (forall m. MonadThrow m => [StakePoolMetadataUrl -> StakePoolMetadataHash -> m URI])
+    -> Manager
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> IO (Either String StakePoolMetadata)
-fetchFromRemote manager url_ hash_ = runExceptT $ do
-    req <- fromInvalidUrl $ parseUrlThrow (T.unpack url)
+fetchFromRemote (builder:_) manager url hash = runExceptT $ do
+    req <- requestFromURI =<< builder url hash
     chunk <- ExceptT
         $ handle fromIOException
         $ handle fromHttpException
@@ -93,22 +138,16 @@ fetchFromRemote manager url_ hash_ = runExceptT $ do
         -- to be less than 512 bytes. For security reasons, we only download the
         -- first 512 bytes.
         pure . BL.toStrict <$> brReadSome (responseBody res) 512
-    when (blake2b256 chunk /= hash) $ throwE $ mconcat
+    when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
         , B8.unpack $ hex $ blake2b256 chunk
         , ", but expected: "
-        , B8.unpack $ hex hash
+        , B8.unpack $ hex $ coerce @_ @ByteString hash
         ]
     except $ eitherDecodeStrict chunk
   where
-    StakePoolMetadataUrl  url  = url_
-    StakePoolMetadataHash hash = hash_
-
     fromIOException :: Monad m => IOException -> m (Either String a)
     fromIOException = return . Left . ("IO exception: " <>) . show
 
     fromHttpException :: Monad m => HttpException -> m (Either String a)
     fromHttpException = return . Left . ("HTTP exception: " <>) . show
-
-    fromInvalidUrl :: Monad m => Either SomeException a -> ExceptT String m a
-    fromInvalidUrl = except . left (("Invalid metadata url: " <>) . show)
