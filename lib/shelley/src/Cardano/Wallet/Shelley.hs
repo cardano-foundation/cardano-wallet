@@ -62,7 +62,12 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, DecodeAddress, EncodeAddress )
+    ( ApiStakePool
+    , DecodeAddress
+    , DecodeStakeAddress
+    , EncodeAddress
+    , EncodeStakeAddress
+    )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
@@ -176,6 +181,8 @@ data SomeNetworkDiscriminant where
             , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
+            , DecodeStakeAddress n
+            , EncodeStakeAddress n
             , Typeable n
             )
         => Proxy n
@@ -274,6 +281,7 @@ serveWallet
             , DelegationAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
+            , EncodeStakeAddress n
             )
         => Proxy n
         -> Socket

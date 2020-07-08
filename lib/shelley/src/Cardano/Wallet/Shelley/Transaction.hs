@@ -195,12 +195,12 @@ mkTx
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
 mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
-    let withdrawals = mkWithdrawals
+    let wdrls = mkWithdrawals
             proxy
             (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
             (withdrawal cs)
 
-    let unsigned = mkUnsignedTx timeToLive cs withdrawals certs
+    let unsigned = mkUnsignedTx timeToLive cs wdrls certs
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -208,12 +208,12 @@ mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) key
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
-            let withdrawalsWits
-                    | Map.null withdrawals = Set.empty
+            let wdrlsWits
+                    | Map.null wdrls = Set.empty
                     | otherwise = Set.singleton $
                       mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
 
-            pure $ (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
+            pure $ (SL.WitnessSet (addrWits <> wdrlsWits) mempty mempty)
                 <> mkExtraWits unsigned
 
         TxWitnessByronUTxO -> do
@@ -409,7 +409,7 @@ computeTxSize proxy pm witTag action cs =
  where
     metadata = SL.SNothing
 
-    unsigned = mkUnsignedTx maxBound cs' withdrawals certs
+    unsigned = mkUnsignedTx maxBound cs' wdrls certs
       where
         cs' :: CoinSelection
         cs' = cs
@@ -437,7 +437,7 @@ computeTxSize proxy pm witTag action cs =
 
     dummyKeyHashRaw = BS.pack (replicate 28 0)
 
-    withdrawals = mkWithdrawals
+    wdrls = mkWithdrawals
         proxy
         (ChimericAccount dummyKeyHashRaw)
         (withdrawal cs)
@@ -445,7 +445,7 @@ computeTxSize proxy pm witTag action cs =
     (addrWits, certWits) =
         ( Set.union
             (Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs))
-            (if Map.null withdrawals then Set.empty else Set.singleton (dummyWitness "0"))
+            (if Map.null wdrls then Set.empty else Set.singleton (dummyWitness "0"))
         , case action of
             Nothing -> Set.empty
             Just{}  -> Set.singleton (dummyWitness "a")
@@ -529,7 +529,7 @@ mkUnsignedTx
     -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
     -> [Cardano.Certificate]
     -> Cardano.ShelleyTxBody
-mkUnsignedTx ttl cs withdrawals certs =
+mkUnsignedTx ttl cs wdrls certs =
     let
         Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
             (toCardanoTxIn . fst <$> CS.inputs cs)
@@ -537,7 +537,7 @@ mkUnsignedTx ttl cs withdrawals certs =
             ttl
             (toCardanoLovelace $ Coin $ feeBalance cs)
             certs
-            (Cardano.WithdrawalsShelley $ SL.Wdrl withdrawals)
+            (Cardano.WithdrawalsShelley $ SL.Wdrl wdrls)
             Nothing -- Update
             Nothing -- Metadata hash
     in
