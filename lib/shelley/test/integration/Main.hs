@@ -35,6 +35,8 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Fee
@@ -267,7 +269,7 @@ mkFeeEstimator policy = \case
             mempty { inputs = inps, change = outs }
 
     computeFee selection action =
-        fromIntegral $ getFee $ _minimumFee (Proxy @'Mainnet) policy action selection
+        fromIntegral $ getFee $ _minimumFee @_ @ShelleyKey (Proxy @'Mainnet) policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging
