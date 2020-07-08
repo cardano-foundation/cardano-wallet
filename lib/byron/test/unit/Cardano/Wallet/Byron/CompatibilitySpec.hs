@@ -50,8 +50,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( generateKeyFromHardwareLedger )
+import Cardano.Wallet.Primitive.Slotting
+    ( fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
-    ( EpochLength (..), Hash (..), SealedTx (..), SlotId (..), fromFlatSlot )
+    ( EpochLength (..), Hash (..), SealedTx (..), SlotId (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkSomeMnemonicFromEntropy )
 import Control.Monad

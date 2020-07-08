@@ -24,6 +24,8 @@ import Cardano.Address.Derivation
     ( xpubFromBytes )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot, unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
@@ -33,8 +35,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolMagic (..)
     , SlotId (..)
     , SlotInEpoch (..)
-    , flatSlot
-    , unsafeEpochNo
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )

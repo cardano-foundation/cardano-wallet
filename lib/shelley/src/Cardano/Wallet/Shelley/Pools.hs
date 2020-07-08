@@ -44,6 +44,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , follow
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotParameters, epochStartTime, slotParams )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
@@ -58,14 +60,11 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotId
     , SlotLength (..)
-    , SlotParameters
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
-    , epochStartTime
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
-    , slotParams
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley

@@ -60,6 +60,8 @@ import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( slotMinBound )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
@@ -69,7 +71,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
-    , slotMinBound
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress

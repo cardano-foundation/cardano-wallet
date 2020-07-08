@@ -70,6 +70,8 @@ import Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , utxo
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotParameters (..), flatSlot, slotSucc, unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -90,7 +92,6 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , SlotInEpoch (..)
-    , SlotParameters (..)
     , SortOrder (..)
     , Tx (..)
     , TxIn (..)
@@ -105,11 +106,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , flatSlot
     , isPending
     , rangeIsValid
-    , slotSucc
-    , unsafeEpochNo
     , wholeRange
     )
 import Cardano.Wallet.Unsafe

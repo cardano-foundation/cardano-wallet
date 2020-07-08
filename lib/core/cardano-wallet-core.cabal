@@ -140,6 +140,7 @@ library
       Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
       Cardano.Wallet.Primitive.AddressDerivation.Shelley
       Cardano.Wallet.Primitive.AddressDiscovery
+      Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.CoinSelection
@@ -191,6 +192,7 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cardano-slotting
     , cborg
     , connection
     , containers
