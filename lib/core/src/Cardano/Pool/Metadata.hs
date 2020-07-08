@@ -119,7 +119,7 @@ registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
     hash = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
 
 fetchFromRemote
-    :: (forall m. MonadThrow m => [StakePoolMetadataUrl -> StakePoolMetadataHash -> m URI])
+    :: [StakePoolMetadataUrl -> StakePoolMetadataHash -> ExceptT String IO URI]
     -> Manager
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash

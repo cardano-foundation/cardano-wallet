@@ -42,6 +42,7 @@ library
     , fmt
     , http-client
     , iohk-monitoring
+    , network-uri
     , servant-client
     , servant-client-core
     , text

@@ -53,6 +53,7 @@ module Cardano.CLI
     , stateDirOption
     , syncToleranceOption
     , tlsOption
+    , poolMetadataProxyOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -200,6 +201,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutNone
     )
+import Network.URI
+    ( URI, parseURI )
 import Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -1295,6 +1298,21 @@ tlsOption = TlsConfiguration
         <> long "tls-sv-key"
         <> metavar "FILE"
         <> help "The RSA Server key which signed the x.509 server certificate."
+
+poolMetadataProxyOption
+    :: Parser URI
+poolMetadataProxyOption = option (eitherReader reader) $ mempty
+    <> long "pool-metadata-proxy"
+    <> metavar "URI"
+    <> help "An optional URI to a proxy serving pool metadata (e.g. SMASH)"
+  where
+    reader :: String -> Either String URI
+    reader = maybe (Left err) Right . parseURI
+
+    err :: String
+    err =
+        "Invalid URI. Make sure the URI is well formed, with \
+        \a protocol and a host."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

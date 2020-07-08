@@ -50,6 +50,7 @@ import Cardano.CLI
     , loggingOptions
     , loggingSeverityOrOffReader
     , loggingTracers
+    , poolMetadataProxyOption
     , runCli
     , setupDirectory
     , shutdownHandlerFlag
@@ -111,6 +112,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Network.Socket
     ( SockAddr )
+import Network.URI
+    ( URI )
 import Options.Applicative
     ( CommandFields
     , Mod
@@ -171,6 +174,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
+    , _poolMetadataProxy :: Maybe URI
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -190,6 +194,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> shutdownHandlerFlag
+        <*> optional poolMetadataProxyOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs -> IO ()
@@ -202,6 +207,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       databaseDir
       sTolerance
       enableShutdownHandler
+      poolMetadataProxy
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
@@ -224,6 +230,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     host
                     listen
                     tlsConfig
+                    poolMetadataProxy
                     nodeSocket
                     block0
                     (gp, vData)
