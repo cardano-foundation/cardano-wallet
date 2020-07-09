@@ -60,6 +60,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Exception
     ( bracket, throwIO )
+import Control.Monad
+    ( forM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -227,51 +229,47 @@ newDBLayer trace fp = do
                     [0..]
 
         , readPoolRegistration = \poolId -> do
-            let filterBy = [ PoolRegistrationPoolId ==. poolId ]
-            let orderBy =
-                  [ Desc PoolRegistrationSlot
-                  , Desc PoolRegistrationSlotInternalIndex
-                  ]
-            selectFirst filterBy orderBy >>= \case
-                Nothing -> pure Nothing
-                Just meta -> do
-                    let PoolRegistration
-                            _poolId
-                            slotId
-                            slotInternalIndex
-                            marginNum
-                            marginDen
-                            poolCost_
-                            poolPledge_
-                            poolMetadataUrl
-                            poolMetadataHash = entityVal meta
-                    let poolMargin = unsafeMkPercentage $
-                            toRational $ marginNum % marginDen
-                    let poolCost = Quantity poolCost_
-                    let poolPledge = Quantity poolPledge_
-                    let poolMetadata =
-                          (,) <$> poolMetadataUrl <*> poolMetadataHash
-                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
-                        selectList
-                            [ PoolOwnerPoolId
-                                ==. poolId
-                            , PoolOwnerSlot
-                                ==. slotId
-                            , PoolOwnerSlotInternalIndex
-                                ==. slotInternalIndex
-                            ]
-                            [ Asc PoolOwnerIndex ]
-                    let cert = PoolRegistrationCertificate
-                            { poolId
-                            , poolOwners
-                            , poolMargin
-                            , poolCost
-                            , poolPledge
-                            , poolMetadata
-                            }
-                    let cpt = CertificatePublicationTime
-                            {slotId, slotInternalIndex}
-                    pure $ Just (cpt, cert)
+            result <- selectFirst
+                [ PoolRegistrationPoolId ==. poolId ]
+                [ Desc PoolRegistrationSlot
+                , Desc PoolRegistrationSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRegistration
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        marginNum
+                        marginDen
+                        poolCost_
+                        poolPledge_
+                        poolMetadataUrl
+                        poolMetadataHash = entityVal meta
+                let poolMargin = unsafeMkPercentage $
+                        toRational $ marginNum % marginDen
+                let poolCost = Quantity poolCost_
+                let poolPledge = Quantity poolPledge_
+                let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
+                poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
+                    selectList
+                        [ PoolOwnerPoolId
+                            ==. poolId
+                        , PoolOwnerSlot
+                            ==. slotId
+                        , PoolOwnerSlotInternalIndex
+                            ==. slotInternalIndex
+                        ]
+                        [ Asc PoolOwnerIndex ]
+                let cert = PoolRegistrationCertificate
+                        { poolId
+                        , poolOwners
+                        , poolMargin
+                        , poolCost
+                        , poolPledge
+                        , poolMetadata
+                        }
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
 
         , putPoolRetirement = \cpt cert -> do
             let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
@@ -288,27 +286,21 @@ newDBLayer trace fp = do
                     (fromIntegral retirementEpoch)
 
         , readPoolRetirement = \poolId -> do
-            let filterBy = [ PoolRetirementPoolId ==. poolId ]
-            let orderBy =
-                    [ Desc PoolRetirementSlot
-                    , Desc PoolRetirementSlotInternalIndex
-                    ]
-            selectFirst filterBy orderBy >>= \case
-                Nothing -> pure Nothing
-                Just meta -> do
-                    let PoolRetirement
-                            _poolId
-                            slotId
-                            slotInternalIndex
-                            retirementEpoch = entityVal meta
-                    let retiredIn = EpochNo (fromIntegral retirementEpoch)
-                    let cert = PoolRetirementCertificate
-                            { poolId
-                            , retiredIn
-                            }
-                    let cpt = CertificatePublicationTime
-                            {slotId, slotInternalIndex}
-                    pure $ Just (cpt, cert)
+            result <- selectFirst
+                [ PoolRetirementPoolId ==. poolId ]
+                [ Desc PoolRetirementSlot
+                , Desc PoolRetirementSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRetirement
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        retirementEpoch = entityVal meta
+                let retiredIn = EpochNo (fromIntegral retirementEpoch)
+                let cert = PoolRetirementCertificate {poolId, retiredIn}
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
