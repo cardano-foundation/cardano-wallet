@@ -50,6 +50,7 @@ module Cardano.Byron.Codec.Cbor
     , inspectNextToken
     , decodeList
     , decodeListIndef
+    , decodeNestedBytes
     ) where
 
 import Prelude

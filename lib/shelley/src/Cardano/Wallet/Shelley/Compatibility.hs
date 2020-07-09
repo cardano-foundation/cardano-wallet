@@ -915,8 +915,10 @@ toHDPayloadAddress (W.Address addr) = do
     payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload addr
     attributes <- CBOR.deserialiseCbor decodeAllAttributes' payload
     case filter (\(tag,_) -> tag == 1) attributes of
-        [(1, bytes)] -> Just $ Byron.HDAddressPayload bytes
-        _ -> Nothing
+        [(1, bytes)] ->
+            Byron.HDAddressPayload <$> CBOR.decodeNestedBytes CBOR.decodeBytes bytes
+        _ ->
+            Nothing
   where
     decodeAllAttributes' = do
         _ <- CBOR.decodeListLenCanonicalOf 3
