@@ -44,7 +44,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , toEpochSize
     , toGenTx
     , toPoint
-    , toSlotNo
     , toCardanoTxId
     , toCardanoTxIn
     , toCardanoTxOut
@@ -75,7 +74,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromGenesisData
     , fromNetworkMagic
     , toByronNetworkMagic
-    , fromSlotNo
     , fromTip
     , fromTip'
     , fromPParams
@@ -108,8 +106,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( PoolCertificate (..)
     , PoolRegistrationCertificate (..)
@@ -175,7 +171,6 @@ import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash
     , Point (..)
-    , SlotNo (..)
     , Tip (..)
     , genesisPoint
     , getLegacyTipBlockNo
@@ -262,8 +257,8 @@ emptyGenesis gp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
-        { slotId =
-            W.SlotId 0 0
+        { slotNo =
+            W.SlotNo 0
         , blockHeight =
             Quantity 0
         , headerHash =
@@ -336,29 +331,22 @@ toEpochSize =
 
 toPoint
     :: W.Hash "Genesis"
-    -> W.EpochLength
     -> W.BlockHeader
     -> Point ShelleyBlock
-toPoint genesisH epLength (W.BlockHeader sid _ h _)
+toPoint genesisH (W.BlockHeader sl _ h _)
   | h == (coerce genesisH) = O.GenesisPoint
-  | otherwise = O.Point $ Point.block (toSlotNo epLength sid) (toShelleyHash h)
-
-toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
-toSlotNo epLength =
-    SlotNo . flatSlot epLength
+  | otherwise = O.Point $ Point.block sl (toShelleyHash h)
 
 toBlockHeader
     :: W.Hash "Genesis"
-    -> W.EpochLength
     -> ShelleyBlock
     -> W.BlockHeader
-toBlockHeader genesisHash epLength blk =
+toBlockHeader genesisHash blk =
     let
         O.ShelleyBlock (SL.Block (SL.BHeader header _) _) headerHash = blk
     in
     W.BlockHeader
-        { slotId =
-            fromSlotNo epLength $ SL.bheaderSlotNo header
+        { slotNo = SL.bheaderSlotNo header
         , blockHeight =
             fromBlockNo $ SL.bheaderBlockNo header
         , headerHash =
@@ -377,32 +365,30 @@ getProducer blk =
 
 fromShelleyBlock
     :: W.Hash "Genesis"
-    -> W.EpochLength
     -> ShelleyBlock
     -> W.Block
-fromShelleyBlock genesisHash epLength blk =
+fromShelleyBlock genesisHash blk =
     let
        O.ShelleyBlock (SL.Block _ txSeq) _ = blk
        SL.TxSeq txs' = txSeq
        (txs, certs, _) = unzip3 $ map fromShelleyTx $ toList txs'
 
     in W.Block
-        { header = toBlockHeader genesisHash epLength blk
+        { header = toBlockHeader genesisHash blk
         , transactions = txs
         , delegations  = mconcat certs
         }
 
 fromShelleyBlock'
-    :: W.EpochLength
-    -> ShelleyBlock
-    -> (W.SlotId, [W.PoolCertificate])
-fromShelleyBlock' epLength blk =
+    :: ShelleyBlock
+    -> (W.SlotNo, [W.PoolCertificate])
+fromShelleyBlock' blk =
     let
         O.ShelleyBlock (SL.Block (SL.BHeader header _) txSeq) _ = blk
         SL.TxSeq txs' = txSeq
         (_, _, certs) = unzip3 $ map fromShelleyTx $ toList txs'
     in
-        (fromSlotNo epLength $ SL.bheaderSlotNo header, mconcat certs)
+        (SL.bheaderSlotNo header, mconcat certs)
 
 fromShelleyHash :: ShelleyHash c -> W.Hash "BlockHeader"
 fromShelleyHash (ShelleyHash (SL.HashHeader h)) = W.Hash (getHash h)
@@ -423,10 +409,6 @@ fromChainHash genesisHash = \case
     O.GenesisHash -> coerce genesisHash
     O.BlockHash h -> fromShelleyHash h
 
-fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
-fromSlotNo epLength (SlotNo sl) =
-    fromFlatSlot epLength sl
-
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
@@ -434,18 +416,17 @@ fromBlockNo (BlockNo h) =
 
 fromTip
     :: W.Hash "Genesis"
-    -> W.EpochLength
     -> Tip ShelleyBlock
     -> W.BlockHeader
-fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
+fromTip genesisHash tip = case getPoint (getTipPoint tip) of
     Origin -> W.BlockHeader
-        { slotId = W.SlotId 0 0
+        { slotNo = W.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
         , parentHeaderHash = hashOfNoParent
         }
     At blk -> W.BlockHeader
-        { slotId = fromSlotNo epLength $ Point.blockPointSlot blk
+        { slotNo = Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromShelleyHash $ Point.blockPointHash blk
         -- TODO
@@ -460,11 +441,10 @@ fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
         }
 
 fromTip' :: W.GenesisParameters -> Tip ShelleyBlock -> W.BlockHeader
-fromTip' gp = fromTip getGenesisBlockHash getEpochLength
+fromTip' gp = fromTip getGenesisBlockHash
   where
     W.GenesisParameters
-        { getEpochLength
-        , getGenesisBlockHash
+        { getGenesisBlockHash
         } = gp
 
 -- NOTE: Unsafe conversion from Natural -> Word16
@@ -580,8 +560,8 @@ fromGenesisData g initialFunds =
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
-            { slotId =
-                W.SlotId 0 0
+            { slotNo =
+                W.SlotNo 0
             , blockHeight =
                 Quantity 0
             , headerHash =

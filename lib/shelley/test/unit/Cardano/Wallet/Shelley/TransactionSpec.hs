@@ -42,7 +42,6 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , EpochLength (..)
     , Hash (..)
     , ProtocolMagic (..)
     , TxIn (..)
@@ -265,10 +264,9 @@ testFeeOpts = feeOpts testTxLayer Nothing feePolicy (Coin 0)
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
 testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
-testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
+testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm
   where
     pm        = ProtocolMagic 1
-    epLength  = EpochLength 42 -- irrelevant here
 
 data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO

@@ -21,12 +21,12 @@ import Cardano.Wallet.Jormungandr.Launch
 import Cardano.Wallet.Jormungandr.Network
     ( JormungandrBackend (..), withJormungandr, withNetworkLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer )
+    ( NetworkLayer, timeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , SlotId
+    , SlotNo
     )
 import Control.Concurrent
     ( forkIO, killThread )
@@ -53,7 +53,7 @@ spec :: Spec
 spec = around setup $ do
     it "a monitorStakePools thread with db, if killed and restarted, catches up\
         \ with one that stays running" $ \(nl, (block0, k), referenceDB) ->
-        withDB "db.sqlite" $ \db ->
+        withDB "db.sqlite" nl $ \db ->
             withMonitorStakePoolsThread (block0, k) nl db $ \worker -> do
                 eventually "db `shouldContainSameSlotsAs` referenceDB and db shouldNotBeEmpty" $ do
                     db `shouldContainSameSlotsAs` referenceDB
@@ -107,9 +107,9 @@ spec = around setup $ do
     -- | Intended as "read all pool productions from the db". Oldest first, the
     -- tip last. In practice only reads the 10000 latest, but in this module we
     -- expect the dbs to contain ~10 slots, so it doesn't matter.
-    readSlots :: DBLayer IO -> IO [SlotId]
+    readSlots :: DBLayer IO -> IO [SlotNo]
     readSlots DBLayer{atomically, readPoolProductionCursor} =
-        map slotId <$> atomically (readPoolProductionCursor 10000)
+        map slotNo <$> atomically (readPoolProductionCursor 10000)
 
     withMonitorStakePoolsThread (block0, k) nl db action = do
         bracket
@@ -122,16 +122,18 @@ spec = around setup $ do
         let tr = nullTracer
         e <- withJormungandr tr cfg $ \cp ->
             withNetworkLayer tr (UseRunning cp) $ \case
-                Right (_, (b0, np), nl) -> withDB "reference.sqlite" $ \db -> do
-                    let nl' = toSPBlock <$> nl
-                    let k = getEpochStability (genesisParameters np)
-                    let block0 = toSPBlock b0
+                Right (_, (b0, np), nl) -> withDB "reference.sqlite" nl $ \db -> do
+                    let gp = genesisParameters np
+                    let el = getEpochLength gp
+                    let nl' = toSPBlock el <$> nl
+                    let k = getEpochStability gp
+                    let block0 = toSPBlock el b0
                     withMonitorStakePoolsThread (block0, k) nl' db $ \_workerThread ->
                         cb (nl', (block0, k), db)
                 Left e -> throwIO e
         either throwIO (\_ -> return ()) e
 
-    withDB name action =
+    withDB name nl action =
         withSystemTempDirectory "stake-pool" $ \dir -> do
             let dbFile = dir </> name
-            Pool.withDBLayer nullTracer (Just dbFile) action
+            Pool.withDBLayer nullTracer (Just dbFile) (timeInterpreter nl) action

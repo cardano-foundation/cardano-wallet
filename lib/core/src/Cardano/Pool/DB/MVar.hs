@@ -42,6 +42,8 @@ import Cardano.Pool.DB.Model
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
 import Control.DeepSeq
@@ -52,13 +54,15 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Data.Functor.Identity
+    ( Identity )
 import Data.Tuple
     ( swap )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: IO (DBLayer IO)
-newDBLayer = do
+newDBLayer :: TimeInterpreter Identity -> IO (DBLayer IO)
+newDBLayer timeInterpreter = do
     db <- newMVar emptyPoolDatabase
     let readPoolRegistration_ =
             readPoolDB db . mReadPoolRegistration
@@ -71,7 +75,7 @@ newDBLayer = do
                 alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
 
         , readPoolProduction =
-            readPoolDB db . mReadPoolProduction
+            readPoolDB db . mReadPoolProduction timeInterpreter
 
         , readTotalProduction =
             readPoolDB db mReadTotalProduction
@@ -118,7 +122,7 @@ newDBLayer = do
             modifyMVar db (fmap swap . mReadSystemSeed)
 
         , rollbackTo =
-            void . alterPoolDB (const Nothing) db . mRollbackTo
+            void . alterPoolDB (const Nothing) db . mRollbackTo timeInterpreter
 
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction

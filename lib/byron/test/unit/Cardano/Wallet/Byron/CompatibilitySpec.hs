@@ -92,8 +92,8 @@ spec = do
 
     describe "Conversions" $
         it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
-            let fromTip' = fromTip gh epochLength
-            let toPoint' = toPoint gh epochLength
+            let fromTip' = fromTip gh
+            let toPoint' = toPoint gh
             toPoint' (fromTip' tip) === (getTipPoint tip)
 
     describe "Hardware Ledger" $ do

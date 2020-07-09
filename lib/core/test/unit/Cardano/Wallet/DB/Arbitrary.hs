@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, dummyGenesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.Model
     , utxo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters (..), flatSlot, slotSucc, unsafeEpochNo )
+    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -81,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , DecentralizationLevel (..)
     , DelegationCertificate (..)
     , Direction (..)
-    , EpochLength (..)
     , EpochNo (..)
     , FeePolicy (..)
     , Hash (..)
@@ -90,8 +89,8 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , ShowFmt (..)
-    , SlotId (..)
     , SlotInEpoch (..)
+    , SlotNo (..)
     , SortOrder (..)
     , Tx (..)
     , TxIn (..)
@@ -158,7 +157,6 @@ import Test.QuickCheck
     , InfiniteList (..)
     , NonEmptyList (..)
     , Positive (..)
-    , applyArbitrary2
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
@@ -229,7 +227,7 @@ instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
     arbitrary = do
         pairs <- choose (1, 10) >>= vector
         pure $ KeyValPairs $ second ShowFmt
-           <$> L.sortOn (\(k,cp) -> (k, view #slotId (currentTip cp))) pairs
+           <$> L.sortOn (\(k,cp) -> (k, view #slotNo (currentTip cp))) pairs
 
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
@@ -263,18 +261,18 @@ instance Arbitrary MockChain where
     arbitrary = do
         n0 <- choose (1, 10)
         slot0 <- arbitrary
-        height0 <- fromIntegral <$> choose (0, flatSlot epochLength slot0)
+        height0 <- fromIntegral <$> choose (0, unSlotNo slot0)
         blocks <- sequence $ flip unfoldr (slot0, height0, n0) $
             \(slot, height, n) ->
                 if n <= (0 :: Int)
                     then Nothing
                     else Just
                         ( genBlock slot height
-                        , (slotSucc sp slot, height + 1, n - 1)
+                        , (SlotNo (unSlotNo slot + 1), height + 1, n - 1)
                         )
         return (MockChain blocks)
       where
-        genBlock :: SlotId -> Word32 -> Gen Block
+        genBlock :: SlotNo -> Word32 -> Gen Block
         genBlock slot height = do
             let h = BlockHeader
                     slot
@@ -284,16 +282,6 @@ instance Arbitrary MockChain where
             Block h
                 <$> (choose (1, 10) >>= vector)
                 <*> pure []
-
-        epochLength :: EpochLength
-        epochLength = dummyGenesisParameters ^. #getEpochLength
-
-        sp :: SlotParameters
-        sp = SlotParameters
-            epochLength
-            (dummyGenesisParameters ^. #getSlotLength)
-            (dummyGenesisParameters ^. #getGenesisBlockDate)
-            (dummyGenesisParameters ^. #getActiveSlotCoefficient)
 
 instance GenState s => Arbitrary (InitialCheckpoint s) where
     shrink (InitialCheckpoint cp) = InitialCheckpoint <$> shrink cp
@@ -345,15 +333,14 @@ instance Arbitrary PassphraseScheme where
 
 instance Arbitrary BlockHeader where
     arbitrary = do
-        sid@(SlotId (EpochNo ep) (SlotInEpoch sl)) <- arbitrary
-        let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
+        slot <- arbitrary
+        let height = Quantity . fromIntegral . unSlotNo $ slot
         blockH <- arbitrary
-        pure $ BlockHeader sid (Quantity h) blockH (coerce blockH)
+        pure $ BlockHeader slot height blockH (coerce blockH)
 
-instance Arbitrary SlotId where
-    shrink (SlotId (EpochNo ep) (SlotInEpoch sl)) =
-        uncurry SlotId <$> shrink (EpochNo ep, SlotInEpoch sl)
-    arbitrary = applyArbitrary2 SlotId
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo
 
 instance Arbitrary SlotInEpoch where
     shrink (SlotInEpoch x) = SlotInEpoch <$> shrink x

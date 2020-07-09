@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash
     , ProtocolParameters
     , Range (..)
-    , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , TransactionInfo
     , Tx (..)
@@ -178,7 +178,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , putDelegationCertificate
         :: PrimaryKey WalletId
         -> DelegationCertificate
-        -> SlotId
+        -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Binds a stake pool id to a wallet. This will have an influence on
         -- the wallet metadata: the last known certificate will indicate to
@@ -188,7 +188,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- declarations are:
         --
         -- 1. Stored on-chain.
-        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotId').
+        -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
     , putDelegationRewardBalance
         :: PrimaryKey WalletId
@@ -223,7 +223,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: PrimaryKey WalletId
         -> Maybe (Quantity "lovelace" Natural)
         -> SortOrder
-        -> Range SlotId
+        -> Range SlotNo
         -> Maybe TxStatus
         -> stm [TransactionInfo]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
@@ -274,8 +274,8 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , rollbackTo
         :: PrimaryKey WalletId
-        -> SlotId
-        -> ExceptT ErrNoSuchWallet stm SlotId
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm SlotNo
         -- ^ Drops all checkpoints and transaction data after the given slot.
         --
         -- Returns the actual slot to which the database has rolled back. This

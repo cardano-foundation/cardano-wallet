@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Cardano.Wallet.Primitive.SlottingSpec
@@ -13,24 +14,43 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient, shrinkActiveSlotCoefficient )
 import Cardano.Wallet.Primitive.Slotting
-    ( epochOf, fromFlatSlot, runQuery, singleEraInterpreter )
+    ( Qry
+    , SlotParameters
+    , epochOf
+    , firstSlotInEpoch
+    , flatSlot
+    , fromFlatSlot
+    , singleEraInterpreter
+    , slotParams
+    , slotRangeFromTimeRange
+    , slotRangeFromTimeRange'
+    , slotStartTime
+    , startTime
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient
     , EpochLength (..)
+    , EpochNo (..)
     , GenesisParameters (..)
     , Hash (..)
+    , Range (..)
+    , SlotId (..)
     , SlotId (epochNumber)
     , SlotLength (..)
     , StartTime (..)
     )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time
+    ( UTCTime )
 import Data.Word
     ( Word32 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, property, (===) )
+    ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Utils.Time
@@ -38,20 +58,56 @@ import Test.Utils.Time
 
 spec :: Spec
 spec = do
-    describe "slotting" $ do
-        it "runQuery epochNo singleEraInterpreter == epochNumber . fromFlatSlot"
-            $ property $ \gp slotNo -> do
-                let run q = runQuery q (singleEraInterpreter gp)
-                let Right res = run (epochOf slotNo)
-                let legacy = epochNumber $ fromFlatSlot
-                        (getEpochLength gp)
-                        (unSlotNo slotNo)
-                res === legacy
+    describe "slotting" $
+        describe "runQuery NEW singleEraInterpreter == OLD . fromFlatSlot" $ do
+            it "epochOf and epochNumber"
+                $  property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
+
+            it "startTime and slotStartTime"
+                $ property $ legacySlottingTest slotStartTime startTime
+
+            it "slotRangeFromTimeRange and slotRangeFromTimeRange'"
+                $ withMaxSuccess 1000000 $ property $ \gp timeRange -> do
+                    let sp = slotParams gp
+                    let res = runIdentity $ singleEraInterpreter gp
+                            (slotRangeFromTimeRange timeRange)
+
+                    let legacy = slotRangeFromTimeRange' sp timeRange
+
+                    let res' = fmap (fromFlatSlot (getEpochLength gp)
+                            . unSlotNo) <$> res
+                    res' === legacy
+
+            it "(firstSlotInEpoch e) vs (SlotId e 0) "
+                $ withMaxSuccess 1000000 $ property $ \gp e -> do
+                    let res = runIdentity $ singleEraInterpreter gp
+                            (firstSlotInEpoch e)
+                    let legacy = SlotNo $ flatSlot (getEpochLength gp) $ SlotId e 0
+
+                    res === legacy
+legacySlottingTest
+    :: (Eq a, Show a)
+    => (SlotParameters -> SlotId -> a)
+    -> (SlotNo -> Qry a)
+    -> GenesisParameters
+    -> SlotNo
+    -> Property
+legacySlottingTest legacyImpl newImpl gp slotNo = withMaxSuccess 10000 $ do
+    let res = runIdentity $ singleEraInterpreter gp (newImpl slotNo)
+    let legacy = legacyImpl (slotParams gp) $ fromFlatSlot
+            (getEpochLength gp)
+            (unSlotNo slotNo)
+    res === legacy
 
 instance Arbitrary SlotNo where
     -- Don't generate /too/ large slots
     arbitrary = SlotNo . fromIntegral <$> (arbitrary @Word32)
     shrink (SlotNo x) = map SlotNo $ shrink x
+
+instance Arbitrary EpochNo where
+    -- Don't generate /too/ large numbers
+    arbitrary = EpochNo . fromIntegral <$> (arbitrary @Word32)
+    shrink _ = []
 
 instance Arbitrary GenesisParameters where
     arbitrary = genericArbitrary
@@ -80,3 +136,18 @@ instance Arbitrary ActiveSlotCoefficient where
 instance Arbitrary (Quantity "block" Word32) where
     arbitrary = Quantity <$> choose (1,100000)
     shrink (Quantity x) = map Quantity $ shrink x
+
+instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
+    arbitrary =
+        makeRangeValid . uncurry Range <$> arbitrary
+    shrink (Range p q) =
+        makeRangeValid . uncurry Range <$> shrink (p, q)
+
+-- Ensures that the start of a range is not greater than its end.
+makeRangeValid :: Ord a => Range a -> Range a
+makeRangeValid = \case
+    Range (Just p) (Just q) -> Range (Just $ min p q) (Just $ max p q)
+    r -> r
+
+instance Arbitrary UTCTime where
+    arbitrary = genUniformTime

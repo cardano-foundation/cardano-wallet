@@ -36,9 +36,14 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, block0, dummyNetworkParameters, mkTxId )
+    ( DummyTarget
+    , block0
+    , dummyNetworkParameters
+    , dummyTimeInterpreter
+    , mkTxId
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic )
+    ( genMnemonic, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -64,8 +69,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection, feeBalance )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, unsafeEpochNo )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -75,13 +78,10 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
-    , GenesisParameters (..)
     , Hash (..)
-    , NetworkParameters (..)
     , PoolId (..)
     , SealedTx (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
+    , SlotNo (..)
     , SortOrder (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
@@ -151,7 +151,6 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Positive (..)
     , Property
-    , applyArbitrary2
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
@@ -500,17 +499,17 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
-        (WalletLayerFixture DBLayer{..} wl _ slotIdTime) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture DBLayer{..} wl _ slotNoTime) <- liftIO $ setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
-            W.listTransactions wl wid Nothing Nothing Nothing Descending
+            W.listTransactions @_ @_ @_ @DummyTarget wl wid Nothing Nothing Nothing Descending
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
-        txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
+        txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
         -- Check transaction time calculation
         let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
         let expTimes = Map.fromList $
-                (\(tx, meta) -> (txId tx, slotIdTime (meta ^. #slotId))) <$> history
+                (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
         times `shouldBe` expTimes
 
 
@@ -599,7 +598,7 @@ data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState JormungandrKey
     , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget JormungandrKey
     , _fixtureWallet :: [WalletId]
-    , _fixtureSlotIdTime :: SlotId -> UTCTime
+    , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
 
 setupFixture
@@ -608,16 +607,16 @@ setupFixture
 setupFixture (wid, wname, wstate) = do
     let nl = dummyNetworkLayer
     let tl = dummyTransactionLayer
-    db <- MVar.newDBLayer
+    db <- MVar.newDBLayer timeInterpreter
     let wl = WalletLayer nullTracer (block0, np, st) nl tl db
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
-    pure $ WalletLayerFixture db wl wal slotIdTime
+    pure $ WalletLayerFixture db wl wal slotNoTime
   where
-    slotNo = flatSlot $ getEpochLength $ genesisParameters np
-    slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
+    timeInterpreter = dummyTimeInterpreter
+    slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
     np = dummyNetworkParameters
     st = SyncTolerance 10
 
@@ -668,8 +667,8 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: initCursor not implemented"
     , destroyCursor =
         error "dummyNetworkLayer: destroyCursor not implemented"
-    , cursorSlotId =
-        error "dummyNetworkLayer: cursorSlotId not implemented"
+    , cursorSlotNo =
+        error "dummyNetworkLayer: cursorSlotNo not implemented"
     , currentNodeTip =
         pure dummyTip
     , getProtocolParameters =
@@ -682,9 +681,10 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: getAccountBalance not implemented"
     , watchNodeTip =
         error "dummyNetworkLayer: watchNodeTip not implemented"
+    , timeInterpreter = dummyTimeInterpreter
     }
   where
-    dummyTip = BlockHeader (SlotId 0 0) (Quantity 0) dummyHash dummyHash
+    dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash dummyHash
     dummyHash = Hash "dummy hash"
 
 newtype DummyState
@@ -755,13 +755,9 @@ instance {-# OVERLAPS #-} Arbitrary (JormungandrKey 'RootK XPrv, Passphrase "enc
         let key = generateKeyFromSeed (mw, Nothing) pwd
         return (key, pwd)
 
-instance Arbitrary SlotId where
-    shrink _ = []
-    arbitrary = applyArbitrary2 SlotId
-
-instance Arbitrary SlotInEpoch where
-    shrink (SlotInEpoch x) = SlotInEpoch <$> shrink x
-    arbitrary = SlotInEpoch <$> arbitrary
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
@@ -826,8 +822,6 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId
-            <$> (unsafeEpochNo <$> choose (0, 1000))
-            <*> (SlotInEpoch <$> choose (0, 21599)))
+        <*> genSlotNo
         <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)

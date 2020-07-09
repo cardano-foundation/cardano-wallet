@@ -58,8 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters
-    , SlotId
     , SlotLength (..)
+    , SlotNo
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -168,11 +168,8 @@ newStakePoolLayer gp nl db = StakePoolLayer
             . Map.toList
             $ combineDbAndLsqData (slotParams gp) lsqData dbData
 
-    -- Note: We shouldn't have to do this conversion.
-    el = getEpochLength gp
     gh = getGenesisBlockHash gp
-    getTip = fmap (toPoint gh el) . liftIO $
-        unsafeRunExceptT $ currentNodeTip nl
+    getTip = fmap (toPoint gh) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
 
 --
 -- Data Combination functions
@@ -358,7 +355,6 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
   where
     GenesisParameters
         { getGenesisBlockHash
-        , getEpochLength
         , getEpochStability
         } = gp
 
@@ -367,7 +363,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
       where k = fromIntegral $ getQuantity getEpochStability
 
     getHeader :: ShelleyBlock -> BlockHeader
-    getHeader = toBlockHeader getGenesisBlockHash getEpochLength
+    getHeader = toBlockHeader getGenesisBlockHash
 
     forward
         :: NonEmpty ShelleyBlock
@@ -375,7 +371,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         -> IO (FollowAction ())
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
-            let (slot, certificates) = fromShelleyBlock' getEpochLength blk
+            let (slot, certificates) = fromShelleyBlock' blk
             runExceptT (putPoolProduction (getHeader blk) (getProducer blk))
                 >>= \case
                     Left e ->
@@ -447,7 +443,7 @@ data StakePoolLog
     | MsgStartMonitoring [BlockHeader]
     | MsgHaltMonitoring
     | MsgCrashMonitoring
-    | MsgRollingBackTo SlotId
+    | MsgRollingBackTo SlotNo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists

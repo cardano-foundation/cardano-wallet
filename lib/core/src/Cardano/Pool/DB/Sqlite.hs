@@ -45,6 +45,8 @@ import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, epochOf, firstSlotInEpoch )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -52,7 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , SlotId (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
     )
@@ -135,14 +136,15 @@ withDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
+    -> TimeInterpreter IO
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace fp action = do
+withDBLayer trace fp timeInterpreter action = do
     traceWith trace (MsgWillOpenDB fp)
     bracket before after (action . snd)
   where
-    before = newDBLayer trace fp
+    before = newDBLayer trace fp timeInterpreter
     after = destroyDBLayer . fst
 
 -- | Sets up a connection to the SQLite database.
@@ -160,8 +162,9 @@ newDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
+    -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO)
-newDBLayer trace fp = do
+newDBLayer trace fp timeInterpreter = do
     let io = startSqliteBackend
             (ManualMigration mempty)
             migrateAll
@@ -174,7 +177,8 @@ newDBLayer trace fp = do
                 insert_ (mkPoolProduction pool point)
 
         , readPoolProduction = \epoch -> do
-            production <- fmap fromPoolProduction <$> selectPoolProduction epoch
+            production <- fmap fromPoolProduction
+                <$> selectPoolProduction timeInterpreter epoch
 
             let toMap :: Ord a => Map a [b] -> (a,b) -> Map a [b]
                 toMap m (k, v) = Map.alter (alter v) k m
@@ -209,18 +213,18 @@ newDBLayer trace fp = do
                 <*> readPoolRetirement_ poolId
 
         , putPoolRegistration = \cpt cert -> do
-            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
+            let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let poolId = view #poolId cert
             deleteWhere
                 [ PoolOwnerPoolId ==. poolId
-                , PoolOwnerSlot ==. slotId
+                , PoolOwnerSlot ==. slotNo
                 , PoolOwnerSlotInternalIndex ==. slotInternalIndex
                 ]
             let poolRegistrationKey = PoolRegistrationKey
-                    poolId slotId slotInternalIndex
+                    poolId slotNo slotInternalIndex
             let poolRegistrationRow = PoolRegistration
                     (poolId)
-                    (slotId)
+                    (slotNo)
                     (slotInternalIndex)
                     (fromIntegral $ numerator
                         $ getPercentage $ poolMargin cert)
@@ -233,23 +237,23 @@ newDBLayer trace fp = do
             _ <- repsert poolRegistrationKey poolRegistrationRow
             insertMany_ $
                 zipWith
-                    (PoolOwner poolId slotId slotInternalIndex)
+                    (PoolOwner poolId slotNo slotInternalIndex)
                     (poolOwners cert)
                     [0..]
 
         , readPoolRegistration = readPoolRegistration_
 
         , putPoolRetirement = \cpt cert -> do
-            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
+            let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let PoolRetirementCertificate
                     { poolId
                     , retiredIn
                     } = cert
             let EpochNo retirementEpoch = retiredIn
-            repsert (PoolRetirementKey poolId slotId slotInternalIndex) $
+            repsert (PoolRetirementKey poolId slotNo slotInternalIndex) $
                 PoolRetirement
                     poolId
-                    slotId
+                    slotNo
                     slotInternalIndex
                     (fromIntegral retirementEpoch)
 
@@ -329,9 +333,11 @@ newDBLayer trace fp = do
                 ]
 
         , rollbackTo = \point -> do
-            let (EpochNo epoch) = epochNumber point
-            deleteWhere [ PoolProductionSlot >. point ]
+            -- TODO#1901: What if the time conversion blocks or fails?
+            EpochNo epoch <- liftIO $ timeInterpreter (epochOf point)
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
+
+            deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ PoolRegistrationSlot >. point ]
             deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
@@ -372,7 +378,7 @@ newDBLayer trace fp = do
             forM result $ \meta -> do
                 let PoolRegistration
                         _poolId
-                        slotId
+                        slotNo
                         slotInternalIndex
                         marginNum
                         marginDen
@@ -390,7 +396,7 @@ newDBLayer trace fp = do
                         [ PoolOwnerPoolId
                             ==. poolId
                         , PoolOwnerSlot
-                            ==. slotId
+                            ==. slotNo
                         , PoolOwnerSlotInternalIndex
                             ==. slotInternalIndex
                         ]
@@ -403,7 +409,7 @@ newDBLayer trace fp = do
                         , poolPledge
                         , poolMetadata
                         }
-                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
         readPoolRetirement_ poolId = do
@@ -415,12 +421,12 @@ newDBLayer trace fp = do
             forM result $ \meta -> do
                 let PoolRetirement
                         _poolId
-                        slotId
+                        slotNo
                         slotInternalIndex
                         retirementEpoch = entityVal meta
                 let retiredIn = EpochNo (fromIntegral retirementEpoch)
                 let cert = PoolRetirementCertificate {poolId, retiredIn}
-                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
 -- | 'Temporary', catches migration error from previous versions and if any,
@@ -474,12 +480,17 @@ backoff time iter = addUTCTime delay time
 -------------------------------------------------------------------------------}
 
 selectPoolProduction
-    :: EpochNo
+    :: TimeInterpreter IO
+    -> EpochNo
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction epoch = fmap entityVal <$> selectList
-    [ PoolProductionSlot >=. SlotId epoch 0
-    , PoolProductionSlot <. SlotId (epoch + 1) 0 ]
-    [Asc PoolProductionSlot]
+selectPoolProduction timeInterpreter epoch = do
+    -- TODO#1901: Perhaps we should split the IO and pure parts of @TimeInterpreter@?
+    e <- liftIO $ timeInterpreter $ firstSlotInEpoch epoch
+    eplus1 <- liftIO $ timeInterpreter $ firstSlotInEpoch (epoch + 1)
+    fmap entityVal <$> selectList
+        [ PoolProductionSlot >=. e
+        , PoolProductionSlot <. eplus1 ]
+        [Asc PoolProductionSlot]
 
 {-------------------------------------------------------------------------------
                               To / From SQLite
@@ -491,7 +502,7 @@ mkPoolProduction
     -> PoolProduction
 mkPoolProduction pool block = PoolProduction
     { poolProductionPoolId = pool
-    , poolProductionSlot = view #slotId block
+    , poolProductionSlot = view #slotNo block
     , poolProductionHeaderHash = BlockId (headerHash block)
     , poolProductionParentHash = BlockId (parentHeaderHash block)
     , poolProductionBlockHeight = getQuantity (blockHeight block)
@@ -503,7 +514,7 @@ fromPoolProduction
 fromPoolProduction (PoolProduction pool slot headerH parentH height) =
     ( pool
     , BlockHeader
-        { slotId = slot
+        { slotNo = slot
         , blockHeight = Quantity height
         , headerHash = getBlockId headerH
         , parentHeaderHash = getBlockId parentH

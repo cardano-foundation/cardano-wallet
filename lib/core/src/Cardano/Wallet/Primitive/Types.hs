@@ -20,6 +20,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+-- Needed for (Buildable SlotNo)
+-- TODO#1901: How do we want to deal with the orphan (Buildable SlotNo) instance?
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -101,6 +105,7 @@ module Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , FeePolicy (..)
     , SlotId (..)
+    , SlotNo (..)
     , SlotLength (..)
     , SlotInEpoch (..)
     , StartTime (..)
@@ -167,6 +172,8 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -755,8 +762,8 @@ instance Buildable (Block) where
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
 data BlockHeader = BlockHeader
-    { slotId
-        :: SlotId
+    { slotNo
+        :: SlotNo
     , blockHeight
         :: Quantity "block" Word32
     , headerHash
@@ -868,7 +875,7 @@ instance Buildable (TxIn, TxOut) where
 data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
-    , slotId :: !SlotId
+    , slotNo :: !SlotNo
     , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Show, Eq, Ord, Generic)
@@ -1453,6 +1460,9 @@ data SlotId = SlotId
   , slotNumber :: !SlotInEpoch
   } deriving stock (Show, Read, Eq, Ord, Generic)
 
+instance Buildable SlotNo where
+    build (SlotNo n) = build (show n)
+
 newtype SlotInEpoch = SlotInEpoch { unSlotInEpoch :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
@@ -1496,7 +1506,6 @@ instance NFData SlotId
 instance Buildable SlotId where
     build (SlotId (EpochNo e) (SlotInEpoch s)) =
         fromString (show e) <> "." <> fromString (show s)
-
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength { unSlotLength :: NominalDiffTime }
@@ -1636,8 +1645,8 @@ instance Buildable PoolRetirementCertificate where
 -- published at earlier times.
 --
 data CertificatePublicationTime = CertificatePublicationTime
-    { slotId
-        :: SlotId
+    { slotNo
+        :: SlotNo
     , slotInternalIndex
         :: Word64
         -- ^ Indicates the relative position of a publication within a slot.

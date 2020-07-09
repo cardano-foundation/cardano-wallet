@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -119,6 +120,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -232,7 +235,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let icarusTl = newTransactionLayer (getGenesisBlockHash gp)
             let jormungandrTl = newTransactionLayer (getGenesisBlockHash gp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
-            Pool.withDBLayer stakePoolDbTracer poolDBPath $ \db ->
+            Pool.withDBLayer stakePoolDbTracer poolDBPath (timeInterpreter nl) $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md ->
                 withIOManager $ \io ->
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
@@ -293,12 +296,14 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     minimumUTxOvalue (protocolParameters np)
                 }
             )
+            (timeInterpreter nl)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer (toWLBlock block0, np, sTolerance) nl' tl db
+            walletEngineTracer (toWLBlock el block0, np, sTolerance) nl' tl db
             Server.idleWorker
       where
-        nl' = toWLBlock <$> nl
+        nl' = toWLBlock el <$> nl
+        el = getEpochLength $ genesisParameters np
 
     stakePoolLayer
         :: (J.Block, GenesisParameters)
@@ -307,16 +312,17 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         -> FilePath
         -> IO (StakePoolLayer ErrListStakePools IO)
     stakePoolLayer (block0, gp) nl db metadataDir = do
-        void $ forkFinally (monitorStakePools tr (toSPBlock block0, k) nl' db) onExit
+        void $ forkFinally (monitorStakePools tr (toSPBlock el block0, k) nl' db) onExit
         getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
             J.rankingEpochConstants block0
         pure $ newStakePoolLayer tr block0H getEpCst db nl' metadataDir
       where
-        nl' = toSPBlock <$> nl
+        nl' = toSPBlock el <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
         k = getEpochStability gp
-        block0H = W.header $ toWLBlock block0
+        el = getEpochLength gp
+        block0H = W.header $ toWLBlock el block0
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode
     handleNetworkStartupError err = do
@@ -333,8 +339,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
 --------------------------------------------------------------------------------
 
 -- | Covert a raw block to one that the "Cardano.Pool.Jormungandr.Metrics" module accepts.
-toSPBlock :: J.Block -> Pool.Block
-toSPBlock b = Pool.Block
+toSPBlock :: W.EpochLength -> J.Block -> Pool.Block
+toSPBlock el b = Pool.Block
      (convertHeader header)
      -- FIXME
      -- Allow defining different types for block vs genesis block in the network
@@ -345,12 +351,12 @@ toSPBlock b = Pool.Block
      header = J.header b
      convertHeader :: J.BlockHeader -> BlockHeader
      convertHeader h = BlockHeader
-         (J.slot h)
+         (W.SlotNo (flatSlot el (J.slot h)))
          (Quantity $ fromIntegral $ J.chainLength h)
          (J.headerHash h)
          (J.parentHeaderHash h)
 
-toWLBlock :: J.Block -> Block
+toWLBlock :: W.EpochLength -> J.Block -> Block
 toWLBlock = J.convertBlock
 
 {-------------------------------------------------------------------------------

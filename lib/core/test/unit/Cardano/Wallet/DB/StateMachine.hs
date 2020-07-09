@@ -91,6 +91,8 @@ import Cardano.Wallet.DB.Model
     , mRemoveWallet
     , mRollbackTo
     )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
@@ -123,8 +125,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
+    , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate
     , TransactionInfo (..)
@@ -298,15 +299,15 @@ data Cmd s wid
     | ReadTxHistory wid
         (Maybe (Quantity "lovelace" Natural))
         SortOrder
-        (Range SlotId)
+        (Range SlotNo)
         (Maybe TxStatus)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | PutProtocolParameters wid ProtocolParameters
     | ReadProtocolParameters wid
-    | RollbackTo wid SlotId
+    | RollbackTo wid SlotNo
     | RemovePendingTx wid (Hash "Tx")
-    | PutDelegationCertificate wid DelegationCertificate SlotId
+    | PutDelegationCertificate wid DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid (Quantity "lovelace" Word64)
     | ReadDelegationRewardBalance wid
@@ -322,7 +323,7 @@ data Success s wid
     | PrivateKey (Maybe MPrivKey)
     | ProtocolParams (Maybe ProtocolParameters)
     | BlockHeaders [BlockHeader]
-    | Point SlotId
+    | Point SlotNo
     | DelegationRewardBalance (Quantity "lovelace" Word64)
     | StakeKeyStatus Bool
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -365,7 +366,7 @@ runMock = \case
     PutWalletMeta wid meta ->
         first (Resp . fmap Unit) . mPutWalletMeta wid meta
     ReadWalletMeta wid ->
-        first (Resp . fmap Metadata) . mReadWalletMeta wid
+        first (Resp . fmap Metadata) . mReadWalletMeta timeInterpreter wid
     PutDelegationCertificate wid cert sl ->
         first (Resp . fmap Unit) . mPutDelegationCertificate wid cert sl
     IsStakeKeyRegistered wid ->
@@ -373,7 +374,8 @@ runMock = \case
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
     ReadTxHistory wid minW order range status ->
-        first (Resp . fmap TxHistory) . mReadTxHistory wid minW order range status
+        first (Resp . fmap TxHistory)
+        . mReadTxHistory timeInterpreter wid minW order range status
     PutPrivateKey wid pk ->
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
@@ -385,11 +387,15 @@ runMock = \case
     PutDelegationRewardBalance wid amt ->
         first (Resp . fmap Unit) . mPutDelegationRewardBalance wid amt
     ReadDelegationRewardBalance wid ->
-        first (Resp . fmap DelegationRewardBalance) . mReadDelegationRewardBalance wid
+        first (Resp . fmap DelegationRewardBalance)
+        . mReadDelegationRewardBalance wid
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
         first (Resp . fmap Unit) . mRemovePendingTx wid tid
+  where
+    -- TODO#1901: This needs to match the actual DB Genesis params?
+    timeInterpreter = dummyTimeInterpreter
 
 {-------------------------------------------------------------------------------
   Interpreter: real I/O
@@ -613,7 +619,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     genSortOrder :: Gen SortOrder
     genSortOrder = arbitraryBoundedEnum
 
-    genRange :: Gen (Range SlotId)
+    genRange :: Gen (Range SlotNo)
     genRange = applyArbitrary2 Range
 
     genMinWithdrawal :: Gen (Maybe (Quantity "lovelace" Natural))
@@ -796,14 +802,11 @@ instance ToExpr b => ToExpr (Quantity a b) where
 instance ToExpr GenesisParameters where
     toExpr = defaultExprViaShow
 
-instance ToExpr SlotId where
+instance ToExpr SlotNo where
     toExpr = genericToExpr
 
 instance ToExpr EpochNo where
     toExpr = defaultExprViaShow
-
-instance ToExpr SlotInEpoch where
-    toExpr = genericToExpr
 
 instance ToExpr TxStatus where
     toExpr = genericToExpr

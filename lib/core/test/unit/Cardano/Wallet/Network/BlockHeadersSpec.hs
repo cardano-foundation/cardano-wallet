@@ -15,17 +15,12 @@ import Prelude
 
 import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders (..)
-    , dropStartingFromSlotId
+    , dropStartingFromSlotNo
     , greatestCommonBlockHeader
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , EpochNo (..)
-    , Hash (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
-    )
+    ( BlockHeader (..), Hash (..), SlotNo (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Writer
@@ -130,7 +125,7 @@ prop_unstableBlockHeaders TestCase{k, nodeChain, localChain} =
         [ "k = " ++ show k
         , "Local chain: " ++ showChain localChain
         , "Node chain:  " ++ showChain nodeChain
-        , "Intersects:  " ++ maybe "-" showSlot isect
+        , "Intersects:  " ++ maybe "-" show isect
         , "Expected:    " ++ showBlockHeaders expected
         , "Actual:      " ++ maybe "-" showBlockHeaders bs'
         ]
@@ -220,8 +215,8 @@ chainTip :: [BlockHeader] -> Maybe BlockHeader
 chainTip = lastMay
 
 -- | Slot index of the tip of a chain.
-chainEnd :: [BlockHeader] -> SlotId
-chainEnd = maybe (SlotId 0 0) slotId . chainTip
+chainEnd :: [BlockHeader] -> SlotNo
+chainEnd = maybe (SlotNo 0) slotNo . chainTip
 
 -- | Limit the sequence to a certain size by removing items from the beginning.
 limitChain :: Quantity "block" Word32 -> [BlockHeader] -> [BlockHeader]
@@ -230,9 +225,6 @@ limitChain (Quantity k) bs = drop (max 0 (length bs - fromIntegral k)) bs
 showChain :: [BlockHeader] -> String
 showChain [] = "<empty chain>"
 showChain bs = unwords (map (showHash . headerHash) bs)
-
-showSlot :: SlotId -> String
-showSlot (SlotId ep sl) = show ep ++ "." ++ show sl
 
 {-------------------------------------------------------------------------------
                      Test chain pure model of intersection
@@ -267,10 +259,10 @@ modelIntersection k localChain nodeChain =
 
 -- | Find the last slot index of the node chain which is the same as the local
 -- chain.
-intersectionPoint :: [BlockHeader] -> [BlockHeader] -> Maybe SlotId
+intersectionPoint :: [BlockHeader] -> [BlockHeader] -> Maybe SlotNo
 intersectionPoint localChain nodeChain = res >>= checkAfter
   where
-    res = slotId . fst <$> find (uncurry (==)) pairs
+    res = slotNo . fst <$> find (uncurry (==)) pairs
 
     pairs = zip localChain' nodeChain
     localChain' = spliceChains localChain nodeChain
@@ -280,27 +272,27 @@ intersectionPoint localChain nodeChain = res >>= checkAfter
     checkAfter sl | after localChain' == after nodeChain = Just sl
                   | otherwise = Nothing
       where
-        after xs = fmap snd $ find ((== sl) . slotId . fst) $ zip xs (drop 1 xs)
+        after xs = fmap snd $ find ((== sl) . slotNo . fst) $ zip xs (drop 1 xs)
 
 -- | Prepend a source chain before a local chain.
 spliceChains :: [BlockHeader] -> [BlockHeader] -> [BlockHeader]
 spliceChains localChain nodeChain = takeToSlot start chaff ++ localChain
   where
-    start = fromMaybe (SlotId 0 0) $ firstSlot localChain
+    start = fromMaybe (SlotNo 0) $ firstSlot localChain
     -- chaff is the same shape as the node chain, but with different hashes
     chaff = [bh { parentHeaderHash = Hash "x" } | bh <- nodeChain]
 
 -- | The slot index at which the local chain starts.
-firstSlot :: [BlockHeader] -> Maybe SlotId
+firstSlot :: [BlockHeader] -> Maybe SlotNo
 firstSlot bs
-    | hasTip bs = slotId <$> headMay bs
+    | hasTip bs = slotNo <$> headMay bs
     | otherwise = Nothing
 
-dropToSlot :: SlotId -> [BlockHeader] -> [BlockHeader]
-dropToSlot sl = dropWhile ((< sl) . slotId)
+dropToSlot :: SlotNo -> [BlockHeader] -> [BlockHeader]
+dropToSlot sl = dropWhile ((< sl) . slotNo)
 
-takeToSlot :: SlotId -> [BlockHeader] -> [BlockHeader]
-takeToSlot sl = takeWhile ((< sl) . slotId)
+takeToSlot :: SlotNo -> [BlockHeader] -> [BlockHeader]
+takeToSlot sl = takeWhile ((< sl) . slotNo)
 
 {-------------------------------------------------------------------------------
                          Intersection of BlockHeaders
@@ -317,8 +309,8 @@ prop_greatestCommonBlockHeader TestCase{nodeChain, localChain} =
                 nextBlock bh ubs === Nothing)
             .&&.
             -- All blocks up to and including the gcbh are the same.
-            (dropStartingFromSlotId (slotId bh) ubs
-                === dropStartingFromSlotId (slotId bh) lbs)
+            (dropStartingFromSlotNo (slotNo bh) ubs
+                === dropStartingFromSlotNo (slotNo bh) lbs)
         Nothing ->
             -- No common block means that the first blocks are different, or one
             -- chain is empty.
@@ -356,7 +348,7 @@ prop_generator TestCase{nodeChain, localChain} =
         and (zipWith (==) (map headerHash c) (map parentHeaderHash (drop 1 c)))
 
     slotsIncreasing c = counterexample ("Slots not increasing: " ++ showChain c) $
-        let sls = map slotId c
+        let sls = map slotNo c
         in and (zipWith (<) sls (drop 1 sls))
 
 -- | Generate an infinite test chain. Take a slice of the list and use 'tipId'
@@ -365,7 +357,7 @@ prop_generator TestCase{nodeChain, localChain} =
 chain :: String -> Hash "BlockHeader" -> [BlockHeader]
 chain p hash0 =
     [ BlockHeader
-        (SlotId 0 (fromIntegral n))
+        (SlotNo (fromIntegral n))
         (mockBlockHeight n)
         (hash n)
         (hash (n - 1))
@@ -412,7 +404,7 @@ genChain (Quantity k) prefix hash0 = do
 instance Arbitrary TestCase where
     arbitrary = do
         k <- arbitrary
-        let genesis = BlockHeader (SlotId 0 0) (Quantity 0) (Hash "genesis") (Hash "void")
+        let genesis = BlockHeader (SlotNo 0) (Quantity 0) (Hash "genesis") (Hash "void")
         base  <- genChain k "base" (headerHash genesis)
         let nextHash = maybe (headerHash genesis) headerHash (chainTip base)
         local <- genChain k "local" nextHash
@@ -424,9 +416,9 @@ instance Arbitrary TestCase where
             , localChain = [genesis] <> base <> startFrom baseTip local
             }
       where
-        startFrom (SlotId (EpochNo ep) (SlotInEpoch n)) xs =
-            [ BlockHeader (SlotId (EpochNo ep) (sl+fromIntegral n)) bh' hh prev
-            | BlockHeader (SlotId _ sl) (Quantity bh) hh prev <- xs
+        startFrom (SlotNo n) xs =
+            [ BlockHeader (SlotNo $ sl+fromIntegral n) bh' hh prev
+            | BlockHeader (SlotNo sl) (Quantity bh) hh prev <- xs
             , let bh' = Quantity (bh+fromIntegral n+1)
             ]
 

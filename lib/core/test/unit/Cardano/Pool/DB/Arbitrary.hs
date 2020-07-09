@@ -2,7 +2,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedLabels #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -13,16 +12,13 @@ module Cardano.Pool.DB.Arbitrary
 
 import Prelude
 
-import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyGenesisParameters )
 import Cardano.Wallet.Gen
-    ( genPercentage )
+    ( genPercentage, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters (..), slotSucc, unsafeEpochNo )
+    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
-    , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
     , PoolCertificate (..)
@@ -30,8 +26,9 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , SlotId (..)
     , SlotInEpoch (..)
+    , SlotNo (..)
+    , SlotNo (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -41,8 +38,6 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -57,7 +52,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , PrintableString (..)
-    , applyArbitrary2
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
@@ -83,7 +77,7 @@ import qualified Data.Text as T
 
 data StakePoolsFixture = StakePoolsFixture
     { poolSlots :: [(PoolId, BlockHeader)]
-    , rollbackSlots :: [SlotId] }
+    , rollbackSlots :: [SlotNo] }
     deriving stock (Eq, Show)
 
 genPrintableText :: Gen Text
@@ -97,10 +91,9 @@ instance Arbitrary CertificatePublicationTime where
     arbitrary = CertificatePublicationTime <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary SlotId where
-    shrink (SlotId ep sl) =
-        uncurry SlotId <$> shrink (ep, sl)
-    arbitrary = applyArbitrary2 SlotId
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo
 
 instance Arbitrary SlotInEpoch where
     shrink (SlotInEpoch x) = SlotInEpoch <$> shrink x
@@ -202,37 +195,27 @@ instance Arbitrary StakePoolsFixture where
             (L.sortOn Down . take rNum) <$> shuffle (map snd slotsGenerated)
         pure $ StakePoolsFixture (second mkBlockHeader <$> slotsGenerated) rSlots
       where
-        mkBlockHeader :: SlotId -> BlockHeader
+        mkBlockHeader :: SlotNo -> BlockHeader
         mkBlockHeader s = BlockHeader
-            { slotId = s
+            { slotNo = s
             , blockHeight = Quantity 0
             , headerHash = Hash "00000000000000000000000000000001"
             , parentHeaderHash = Hash "00000000000000000000000000000000"
             }
 
-        epochLength :: EpochLength
-        epochLength = dummyGenesisParameters ^. #getEpochLength
-
-        sp :: SlotParameters
-        sp = SlotParameters
-            epochLength
-            (dummyGenesisParameters ^. #getSlotLength)
-            (dummyGenesisParameters ^. #getGenesisBlockDate)
-            (dummyGenesisParameters ^. #getActiveSlotCoefficient)
-
-        generateNextSlots :: [SlotId] -> Int -> [SlotId]
+        generateNextSlots :: [SlotNo] -> Int -> [SlotNo]
         generateNextSlots slots@(s:_) num =
             if (num < 1) then
                 reverse slots
             else
-                generateNextSlots ((slotSucc sp s):slots) (num - 1)
+                generateNextSlots ((s + 1):slots) (num - 1)
         generateNextSlots [] _ = []
 
         appendPair
             :: [PoolId]
-            -> [(PoolId, SlotId)]
-            -> SlotId
-            -> Gen [(PoolId, SlotId)]
+            -> [(PoolId, SlotNo)]
+            -> SlotNo
+            -> Gen [(PoolId, SlotNo)]
         appendPair pools pairs slot = do
             pool <- elements pools
             return $ (pool,slot):pairs

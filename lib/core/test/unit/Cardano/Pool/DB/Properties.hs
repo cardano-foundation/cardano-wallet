@@ -30,8 +30,10 @@ import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Slotting
-    ( slotMinBound )
+    ( epochOf )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -41,7 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , SlotId (..)
+    , SlotNo (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -59,6 +61,8 @@ import Data.Function
     ( on, (&) )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( set, view )
 import Data.List.Extra
@@ -123,7 +127,9 @@ newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 newMemoryDBLayer' :: IO (TVar [DBLog], (SqliteContext, DBLayer IO))
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing
+    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing ti
+  where
+    ti = return . runIdentity . dummyTimeInterpreter
 
 properties :: SpecWith (DBLayer IO)
 properties = do
@@ -216,7 +222,7 @@ prop_putReadPoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
   where
     setup = liftIO $ do
         atomically cleanDB
-        db'@DBLayer{cleanDB=cleanDB',atomically=atomically'} <- MVar.newDBLayer
+        db'@DBLayer{cleanDB=cleanDB',atomically=atomically'} <- MVar.newDBLayer ti
         atomically' cleanDB'
         pure db'
     prop
@@ -235,6 +241,7 @@ prop_putReadPoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
         run . forM_ (uniqueEpochs pairs) $ \epoch -> do
             res' <- atomically' $ readPoolProduction' epoch
             atomically (readPoolProduction epoch) `shouldReturn` res'
+    ti = dummyTimeInterpreter
 
 prop_readTotalProduction
     :: DBLayer IO
@@ -275,7 +282,7 @@ prop_putSlotTwicePoolProduction DBLayer{..} (StakePoolsFixture pairs _) =
 prop_rollbackPools
     :: DBLayer IO
     -> StakePoolsFixture
-    -> SlotId
+    -> SlotNo
     -> Property
 prop_rollbackPools db@DBLayer{..} f@(StakePoolsFixture pairs _) sl =
     monadicIO prop
@@ -324,18 +331,21 @@ prop_readPoolNoEpochLeaks
 prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
     monadicIO (setup >> prop)
   where
-    slotPartition = L.groupBy ((==) `on` epochNumber)
-        $ L.sortOn epochNumber
-        $ map (view #slotId . snd) pairs
+    slotPartition = L.groupBy ((==) `on` epochOf')
+        $ L.sortOn epochOf'
+        $ map (view #slotNo . snd) pairs
     epochGroups = L.zip (uniqueEpochs pairs) slotPartition
     setup = liftIO $ atomically cleanDB
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction slot pool
         forM_ epochGroups $ \(epoch, slots) -> do
-            slots' <- Set.fromList . map (view #slotId) . concat . Map.elems
+            slots' <- Set.fromList . map (view #slotNo) . concat . Map.elems
                 <$> atomically (readPoolProduction epoch)
             slots' `shouldBe` (Set.fromList slots)
+    epochOf' :: SlotNo -> EpochNo
+    epochOf' = runIdentity . ti . epochOf
+    ti = dummyTimeInterpreter
 
 -- | Read pool production satisfies conditions after consecutive
 -- 1-slot-depth rollbacks
@@ -348,7 +358,7 @@ prop_readPoolCondAfterDeterministicRollbacks cond DBLayer{..} (StakePoolsFixture
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
-    slots = map (view #slotId . snd) pairs
+    slots = map (view #slotNo . snd) pairs
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, point) ->
             unsafeRunExceptT $ putPoolProduction point pool
@@ -526,9 +536,8 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) ii
-        | en <- [0 ..]
-        , sn <- [0 .. 3]
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. ]
         , ii <- [0 .. 3]
         ]
 
@@ -577,9 +586,8 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) ii
-        | en <- [0 ..]
-        , sn <- [0 .. 3]
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. ]
         , ii <- [0 .. 3]
         ]
 
@@ -646,9 +654,8 @@ prop_readPoolLifeCycleStatus
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) ii
-        | en <- [0 ..]
-        , sn <- [0 .. 3]
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
 
@@ -676,7 +683,7 @@ prop_readPoolLifeCycleStatus
 
 prop_rollbackRegistration
     :: DBLayer IO
-    -> SlotId
+    -> SlotNo
     -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
@@ -715,9 +722,9 @@ prop_rollbackRetirement
     -> Property
 prop_rollbackRetirement DBLayer{..} certificates =
     checkCoverage
-        $ cover 4 (rollbackPoint == slotMinBound)
+        $ cover 4 (rollbackPoint == SlotNo 0)
             "rollbackPoint = slotMinBound"
-        $ cover 4 (rollbackPoint > slotMinBound)
+        $ cover 4 (rollbackPoint > SlotNo 0)
             "rollbackPoint > slotMinBound"
         $ cover 4 (null expectedPublications)
             "length expectedPublications = 0"
@@ -756,15 +763,15 @@ prop_rollbackRetirement DBLayer{..} certificates =
     poolIds :: [PoolId]
     poolIds = view #poolId <$> certificates
 
-    rollbackPoint :: SlotId
+    rollbackPoint :: SlotNo
     rollbackPoint =
         -- Pick a slot that approximately corresponds to the midpoint of the
         -- certificate publication list.
         publicationTimes
             & drop (length certificates `div` 2)
-            & fmap (view #slotId)
+            & fmap (view #slotNo)
             & listToMaybe
-            & fromMaybe slotMinBound
+            & fromMaybe (SlotNo 0)
 
     allPublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
@@ -780,9 +787,8 @@ prop_rollbackRetirement DBLayer{..} certificates =
 
     publicationTimes :: [CertificatePublicationTime]
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) ii
-        | en <- [0 ..]
-        , sn <- [0 .. 3]
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
 
@@ -799,9 +805,11 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
+        -- TODO#1901: Is this change ok? Previously only (SlotInEpoch 0) were
+        -- generated.
         let entries' =
-                [ CertificatePublicationTime (SlotId ep 0) minBound
-                | ep <- [0 ..]
+                [ CertificatePublicationTime (SlotNo s) minBound
+                | s <- [0 ..]
                 ]
                 `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
@@ -823,8 +831,8 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
     setup = do
         run . atomically $ cleanDB
         let entries' =
-                [ CertificatePublicationTime (SlotId ep 0) minBound
-                | ep <- [0 ..]
+                [ CertificatePublicationTime (SlotNo s) minBound
+                | s <- [0 ..]
                 ]
                 `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
@@ -869,8 +877,8 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
     setup = do
         run . atomically $ cleanDB
         let entries' =
-                [ CertificatePublicationTime (SlotId ep 0) minBound
-                | ep <- [0 ..]
+                [ CertificatePublicationTime (SlotNo s) minBound
+                | s <- [0 ..]
                 ]
                 `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
@@ -996,14 +1004,17 @@ noEmptyPools pools = do
     pools' `shouldBe` pools
 
 uniqueEpochs :: [(PoolId, BlockHeader)] -> [EpochNo]
-uniqueEpochs = nubOrd . map (epochNumber . view #slotId . snd)
+uniqueEpochs = nubOrd . map (epochOf' . view #slotNo . snd)
+  where
+    epochOf' = runIdentity . ti . epochOf
+    ti = dummyTimeInterpreter
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
-allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
+allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotNo, PoolId)]
 allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
     rearrange <$> mapM readPoolProduction (uniqueEpochs pairs)
   where
     rearrange ms = concat
-        [ [ (view #slotId h, p) | h <- hs ]
+        [ [ (view #slotNo h, p) | h <- hs ]
         | (p, hs) <- concatMap Map.assocs ms
         ]

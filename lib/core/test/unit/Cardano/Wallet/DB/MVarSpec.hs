@@ -16,6 +16,8 @@ import Prelude
 
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
@@ -36,8 +38,10 @@ import Test.QuickCheck
 import qualified Cardano.Wallet.DB.MVar as MVar
 
 spec :: Spec
-spec = withDB @(SeqState 'Mainnet JormungandrKey) MVar.newDBLayer $
+spec = withDB @(SeqState 'Mainnet JormungandrKey) (MVar.newDBLayer ti) $
     describe "MVar" properties
+  where
+    ti = dummyTimeInterpreter
 
 newtype DummyStateMVar = DummyStateMVar Int
     deriving (Show, Eq)

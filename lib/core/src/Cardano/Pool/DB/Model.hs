@@ -54,6 +54,8 @@ module Cardano.Pool.DB.Model
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, epochOf )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
@@ -62,7 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , SlotId (..)
+    , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -71,6 +73,8 @@ import Data.Bifunctor
     ( first )
 import Data.Foldable
     ( fold )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Map.Strict
@@ -167,9 +171,10 @@ mPutPoolProduction point poolId db@PoolDatabase{pools} =
         , db { pools = Map.alter (alter point) poolId pools }
         )
 
-mReadPoolProduction :: EpochNo -> ModelPoolOp (Map PoolId [BlockHeader])
-mReadPoolProduction epoch db@PoolDatabase{pools} =
-    let updateSlots e = Map.map (filter (\x -> epochNumber (slotId x) == e))
+mReadPoolProduction :: TimeInterpreter Identity -> EpochNo -> ModelPoolOp (Map PoolId [BlockHeader])
+mReadPoolProduction timeInterpreter epoch db@PoolDatabase{pools} =
+    let epochOf' = runIdentity . timeInterpreter . epochOf
+        updateSlots e = Map.map (filter (\x -> epochOf' (slotNo x) == e))
         updatePools = Map.filter (not . L.null)
     in (Right (updatePools $ (updateSlots epoch) pools), db)
 
@@ -315,12 +320,12 @@ mReadSystemSeed db@PoolDatabase{seed} =
 mReadCursor :: Int -> ModelPoolOp [BlockHeader]
 mReadCursor k db@PoolDatabase{pools} =
     let allHeaders = fold pools
-        sortDesc = L.sortOn (Down . slotId)
+        sortDesc = L.sortOn (Down . slotNo)
         limit = take k
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
-mRollbackTo :: SlotId -> ModelPoolOp ()
-mRollbackTo point PoolDatabase { pools
+mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelPoolOp ()
+mRollbackTo timeInterpreter point PoolDatabase { pools
                                , distributions
                                , owners
                                , registrations
@@ -332,19 +337,19 @@ mRollbackTo point PoolDatabase { pools
     let
         registrations' =
             Map.mapMaybeWithKey
-                (discardBy id . view #slotId . fst) registrations
+                (discardBy id . view #slotNo . fst) registrations
         retirements' =
             Map.mapMaybeWithKey
-                (discardBy id . view #slotId . fst) retirements
+                (discardBy id . view #slotNo . fst) retirements
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys registrations'
+        epochOf' = runIdentity . timeInterpreter . epochOf
     in
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
-            , distributions =
-                Map.mapMaybeWithKey (discardBy epochNumber) distributions
+            , distributions = Map.mapMaybeWithKey (discardBy epochOf') distributions
             , owners = owners'
             , registrations = registrations'
             , retirements = retirements'
@@ -355,10 +360,10 @@ mRollbackTo point PoolDatabase { pools
         )
 
   where
-    updateSlots = Map.map (filter ((<= point) . slotId))
+    updateSlots = Map.map (filter ((<= point) . slotNo))
     updatePools = Map.filter (not . L.null)
 
-    discardBy :: Ord point => (SlotId -> point) -> point -> a -> Maybe a
+    discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy get point' v
         | point' <= get point = Just v
         | otherwise = Nothing

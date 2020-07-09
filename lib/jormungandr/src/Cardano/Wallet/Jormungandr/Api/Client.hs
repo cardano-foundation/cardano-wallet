@@ -79,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , Hash (..)
@@ -402,11 +403,12 @@ getBlocks j batchSize start = do
 -- | Get a block header corresponding to a header hash.
 getBlockHeader
     :: Monad m
-    => JormungandrClient m
+    => EpochLength
+    -> JormungandrClient m
     -> Hash "BlockHeader"
     -> ExceptT ErrGetBlock m BlockHeader
-getBlockHeader j t =
-    header . convertBlock <$> getBlock j t
+getBlockHeader el j t =
+    header . convertBlock el <$> getBlock j t
 
 {-------------------------------------------------------------------------------
                                 Errors

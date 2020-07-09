@@ -57,6 +57,8 @@ import Cardano.Wallet.DB.Model
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( Hash, SortOrder (..), TransactionInfo (..), WalletId, wholeRange )
 import Control.Concurrent.MVar
@@ -67,13 +69,16 @@ import Control.Exception
     ( Exception, throwIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Data.Functor.Identity
+    ( Identity (..) )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer
     :: forall s k. (NFData (k 'RootK XPrv), NFData s)
-    => IO (DBLayer IO s k)
-newDBLayer = do
+    => TimeInterpreter Identity
+    -> IO (DBLayer IO s k)
+newDBLayer timeInterpreter = do
     lock <- newMVar ()
     db <- newMVar (emptyDatabase :: Database (PrimaryKey WalletId) s (k 'RootK XPrv, Hash "encryption"))
     return $ DBLayer
@@ -113,7 +118,7 @@ newDBLayer = do
         , putWalletMeta = \pk meta -> ExceptT $ do
             meta `deepseq` alterDB errNoSuchWallet db (mPutWalletMeta pk meta)
 
-        , readWalletMeta = readDB db . mReadWalletMeta
+        , readWalletMeta = readDB db . mReadWalletMeta timeInterpreter
 
         , putDelegationCertificate = \pk cert sl -> ExceptT $ do
             cert `deepseq` sl `deepseq`
@@ -130,14 +135,27 @@ newDBLayer = do
             txh `deepseq` alterDB errNoSuchWallet db (mPutTxHistory pk txh)
 
         , readTxHistory = \pk minWithdrawal order range mstatus ->
-            readDB db (mReadTxHistory pk minWithdrawal order range mstatus)
+            readDB db $
+                mReadTxHistory
+                    timeInterpreter
+                    pk
+                    minWithdrawal
+                    order
+                    range
+                    mstatus
 
         , getTx = \pk tid -> ExceptT $
             alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do
                     txInfos <- readDB db
-                        (mReadTxHistory pk Nothing Descending wholeRange Nothing)
+                        $ mReadTxHistory
+                            timeInterpreter
+                            pk
+                            Nothing
+                            Descending
+                            wholeRange
+                            Nothing
                     let txPresent (TransactionInfo{..}) = txInfoId == tid
                     case filter txPresent txInfos of
                         [] -> pure $ Right Nothing

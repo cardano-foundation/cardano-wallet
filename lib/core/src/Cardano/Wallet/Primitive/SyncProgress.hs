@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE Rank2Types #-}
 
 -- | Functionality for calculating @SyncProgress@ of wallets.
 module Cardano.Wallet.Primitive.SyncProgress
@@ -13,21 +14,15 @@ module Cardano.Wallet.Primitive.SyncProgress
 
       -- * Implementations
     , syncProgress
-    , syncProgressRelativeToTime
     , )
     where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters (..), flatSlot, slotAt )
+    ( TimeInterpreter, startTime )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
-    , SlotId (..)
-    , SlotLength (..)
-    , distance
-    )
+    ( BlockHeader (..), SlotNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Quantity
@@ -37,7 +32,7 @@ import Data.Ratio
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime )
+    ( NominalDiffTime, UTCTime, diffUTCTime )
 import Fmt
     ( Buildable, build )
 import GHC.Generics
@@ -125,65 +120,37 @@ instance FromText SyncTolerance where
 -- `h` becomes bigger and `X` becomes smaller making the progress estimation
 -- better and better. At some point, `X` is null, and we have `p = h / h`
 syncProgress
-    :: SyncTolerance
+    :: Monad m
+    => SyncTolerance
         -- ^ A time tolerance inside which we consider ourselves synced
-    -> SlotParameters
+    -> TimeInterpreter m
         -- ^ Parameters for slot arithmetic which are assumed to be static.
         --
         -- NOTE: This is no longer the case with the Hard Fork Combinator and
         -- Byron-to-Shelley era transition.
     -> BlockHeader
         -- ^ Local tip
-    -> SlotId
-        -- ^ Last slot that could have been produced
-    -> SyncProgress
-syncProgress (SyncTolerance timeTolerance) sp tip slotNow =
-    let
-        bhTip = fromIntegral . getQuantity $ blockHeight tip
+    -> UTCTime
+        -- ^ Current Time
+    -> m SyncProgress
+syncProgress (SyncTolerance tolerance) ti tip now = do
+    tipTime <- ti $ startTime $ slotNo tip
+    let timeRemaining = now `diffUTCTime` tipTime
+    genesisDate <- ti $ startTime $ SlotNo 0
+    let timeCovered = tipTime `diffUTCTime` genesisDate
 
-        epochLength = getEpochLength sp
-        (SlotLength slotLength)  = getSlotLength sp
-
-        n0 = flatSlot epochLength (slotId tip)
-        n1 = flatSlot epochLength slotNow
-
-        tolerance = floor (timeTolerance / slotLength)
-
-        remainingSlots = fromIntegral $ n1 - n0
-
-        ActiveSlotCoefficient f = getActiveSlotCoefficient sp
-        remainingBlocks = round (remainingSlots * f)
-
-        -- Using (max 1) to avoid division by 0.
-        progress = bhTip % (max 1 (bhTip + remainingBlocks))
-    in if distance n1 n0 < tolerance || n0 >= n1 || progress >= 1 then
-        Ready
+    -- Using (max 1) to avoid division by 0.
+    let progress = (fromEnum timeCovered)
+            % (max 1 (fromEnum (timeCovered + timeRemaining)))
+    if timeRemaining < tolerance || timeRemaining < 0 || progress >= 1 then
+        return Ready
     else
-        Syncing
+        return
+        . Syncing
         . Quantity
         . either (const . error $ errMsg progress) id
         . mkPercentage
+        . toRational
         $ progress
   where
     errMsg x = "syncProgress: " ++ show x ++ " is out of bounds"
-
--- | Helper to compare the /local tip/ with the slot corresponding to a
--- @UTCTime@, and calculate progress based on that.
-syncProgressRelativeToTime
-    :: SyncTolerance
-        -- ^ A time tolerance inside which we consider ourselves synced
-    -> SlotParameters
-        -- ^ Parameters for slot arithmetic which are assumed to be static.
-        --
-        -- NOTE: This is no longer the case with the Hard Fork Combinator and
-        -- Byron-to-Shelley era transition.
-    -> BlockHeader
-    -- ^ Local tip
-    -> UTCTime
-    -- ^ Where we believe the network tip is (e.g. @getCurrentTime@).
-    -> SyncProgress
-syncProgressRelativeToTime tolerance sp tip time =
-    maybe
-        (Syncing minBound)
-        (syncProgress tolerance sp tip)
-        (slotAt sp time)

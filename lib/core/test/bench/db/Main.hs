@@ -73,19 +73,15 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
-import Cardano.Wallet.Primitive.Slotting
-    ( fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
-    , EpochLength (..)
     , Hash (..)
     , Range (..)
-    , SlotId (..)
-    , SlotInEpoch (unSlotInEpoch)
+    , SlotNo (..)
     , SortOrder (..)
     , TransactionInfo
     , Tx (..)
@@ -338,8 +334,10 @@ withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
 setupDB :: IO (FilePath, SqliteContext, DBLayerBench)
 setupDB = do
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f)
+    (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f) ti
     pure (f, ctx, db)
+  where
+    ti = error "timeInterpreter" -- EpochLength 500 was used here.
 
 defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
@@ -402,8 +400,8 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
     atomically $ readTxHistory testPk Nothing sortOrder range mstatus
   where
     range = Range
-        (fromFlatSlot epochLength <$> inf)
-        (fromFlatSlot epochLength <$> sup)
+        (SlotNo . fromIntegral <$> inf)
+        (SlotNo . fromIntegral <$> sup)
 
 mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
@@ -412,8 +410,8 @@ mkTxHistory numTx numInputs numOutputs range =
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)
             , direction = Incoming
-            , slotId = sl i
-            , blockHeight = Quantity $ fromIntegral $ unSlotInEpoch $ slotNumber $ sl i
+            , slotNo = sl i
+            , blockHeight = Quantity $ fromIntegral i
             , amount = Quantity (fromIntegral numOutputs)
             }
         )
@@ -422,7 +420,7 @@ mkTxHistory numTx numInputs numOutputs range =
     , let outs = (mkOutputs i numOutputs)
     ]
   where
-    sl i = fromFlatSlot epochLength (range !! (i `mod` length range))
+    sl i = SlotNo $ range !! (i `mod` length range)
 
 mkInputs :: Int -> Int -> [(TxIn, Coin)]
 mkInputs prefix n =
@@ -476,7 +474,7 @@ mkCheckpoints numCheckpoints utxoSize =
     cp i = unsafeInitWallet
         (UTxO (utxo i))
         (BlockHeader
-            (fromFlatSlot epochLength (fromIntegral i))
+            (SlotNo $ fromIntegral i)
             (Quantity $ fromIntegral i)
             (Hash $ label "parentHeaderHash" i)
             (Hash $ label "headerHash" i)
@@ -667,7 +665,3 @@ mkAddress i j =
     -- lead to a satisfactory entropy.
     seed = 1459*i + 1153*j
     unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
-
--- | Arbitrary epoch length for testing
-epochLength :: EpochLength
-epochLength = EpochLength 500

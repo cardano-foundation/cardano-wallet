@@ -34,15 +34,15 @@ module Cardano.Wallet.Network.BlockHeaders
     , blockHeadersBase
     , blockHeadersAtGenesis
     , appendBlockHeaders
-    , dropStartingFromSlotId
-    , dropAfterSlotId
+    , dropStartingFromSlotNo
+    , dropAfterSlotNo
     , greatestCommonBlockHeader
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( BlockHeader (..), Hash (..), SlotNo (..) )
 import Control.DeepSeq
     ( NFData, ($!!) )
 import Data.Quantity
@@ -170,14 +170,14 @@ updateUnstableBlocks (Quantity k) getTip getBlockHeader lbhs = do
         -- Push the remote block.
         let ac' = tipHeader:ac
          -- Pop off any overlap.
-        let ubs' = dropStartingFromSlotId (slotId tipHeader) ubs
+        let ubs' = dropStartingFromSlotNo (slotNo tipHeader) ubs
         -- If remote blocks have met local blocks, or if more than k have been
         -- fetched, or we are at the genesis, then stop.
         -- Otherwise, continue from the parent of the current tip.
         let intersected =
                 (headerHash <$> blockHeadersTip ubs') == Just (parentHeaderHash tipHeader)
         let bufferFull = len + 1 >= k
-        let atGenesis = slotId tipHeader == SlotId 0 0
+        let atGenesis = slotNo tipHeader == SlotNo 0
         if intersected || bufferFull || atGenesis
             then pure (ubs', ac')
             else fetchBackwards ubs' ac' (len + 1) (parentHeaderHash tipHeader)
@@ -195,7 +195,7 @@ blockHeadersBase (BlockHeaders (bh :<| _ubs)) = Just bh
 -- | Whether we are at genesis or not.
 blockHeadersAtGenesis :: BlockHeaders -> Bool
 blockHeadersAtGenesis =
-    (== (SlotId 0 0)) . maybe (SlotId 0 0) slotId . blockHeadersTip
+    (== (SlotNo 0)) . maybe (SlotNo 0) slotNo . blockHeadersTip
 
 -- | Add recently fetched block headers to the unstable blocks. This will drop
 -- the oldest block headers to ensure that there are at most /k/ items in the
@@ -218,24 +218,24 @@ appendBlockHeaders (Quantity k) (BlockHeaders ubs) bs =
 
 -- | Remove unstable blocks which have a slot greater than or equal to the given
 -- slot.
-dropStartingFromSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropStartingFromSlotId sl (BlockHeaders bs) =
+dropStartingFromSlotNo :: SlotNo -> BlockHeaders -> BlockHeaders
+dropStartingFromSlotNo sl (BlockHeaders bs) =
     BlockHeaders $ Seq.dropWhileR isAfter bs
   where
-    isAfter = (>= sl) . slotId
+    isAfter = (>= sl) . slotNo
 
 -- | Drop any headers that are (strictly) after the given slot id.
-dropAfterSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-dropAfterSlotId sl (BlockHeaders bs) =
+dropAfterSlotNo :: SlotNo -> BlockHeaders -> BlockHeaders
+dropAfterSlotNo sl (BlockHeaders bs) =
     BlockHeaders $ Seq.dropWhileR isAfter bs
   where
-    isAfter = (> sl) . slotId
+    isAfter = (> sl) . slotNo
 
-takeUntilSlotId :: SlotId -> BlockHeaders -> BlockHeaders
-takeUntilSlotId sl (BlockHeaders bs) =
+takeUntilSlotNo :: SlotNo -> BlockHeaders -> BlockHeaders
+takeUntilSlotNo sl (BlockHeaders bs) =
     BlockHeaders $ Seq.dropWhileL isBefore bs
   where
-    isBefore = (< sl) . slotId
+    isBefore = (< sl) . slotNo
 
 -- | If the two sequences overlap in terms of slots, return the block header of
 -- the last block that is common between the two. Otherwise return Nothing.
@@ -268,18 +268,18 @@ greatestCommonBlockHeader ubs lbs = case (minSlot, maxSlot) of
   where
     minSlot  = max (baseSlot ubs) (baseSlot lbs)
     maxSlot  = min (tipSlot ubs) (tipSlot lbs)
-    tipSlot  = fmap slotId . blockHeadersTip
-    baseSlot = fmap slotId . blockHeadersBase
+    tipSlot  = fmap slotNo . blockHeadersTip
+    baseSlot = fmap slotNo . blockHeadersBase
 
-    trimRange :: SlotId -> SlotId -> BlockHeaders -> BlockHeaders
+    trimRange :: SlotNo -> SlotNo -> BlockHeaders -> BlockHeaders
     trimRange start end =
-        takeUntilSlotId start . dropAfterSlotId end
+        takeUntilSlotNo start . dropAfterSlotNo end
 
     findIntersection :: Seq BlockHeader -> Seq BlockHeader -> Maybe BlockHeader
     findIntersection Empty   _   = Nothing
     findIntersection   _   Empty = Nothing
     findIntersection xs@(rearX :|> x) ys@(rearY :|> y)
-        | slotId x > slotId y          = findIntersection rearX    ys
-        | slotId x < slotId y          = findIntersection    xs rearY
+        | slotNo x > slotNo y          = findIntersection rearX    ys
+        | slotNo x < slotNo y          = findIntersection    xs rearY
         | headerHash x /= headerHash y = findIntersection rearX rearY
         | otherwise                    = Just x -- or Just y

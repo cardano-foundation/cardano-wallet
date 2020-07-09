@@ -67,7 +67,12 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, dummyProtocolParameters, mockHash )
+    ( block0
+    , dummyGenesisParameters
+    , dummyProtocolParameters
+    , dummyTimeInterpreter
+    , mockHash
+    )
 import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Logging
@@ -114,7 +119,7 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , ProtocolParameters
     , Range
-    , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , Tx (..)
     , TxIn (..)
@@ -274,9 +279,10 @@ testMigrationPassphraseScheme = do
     let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
     withSystemTempDirectory "migration-db" $ \dir -> do
         let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
         copyFile orig path
         (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues (Just path)
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
                 $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
                 $ do
                     Just a <- readWalletMeta $ PrimaryKey walNeedMigration
@@ -374,7 +380,9 @@ newMemoryDBLayer'
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
     (logVar, ) <$>
-        newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing
+        newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing ti
+  where
+   ti = dummyTimeInterpreter
 
 withLoggingDB
     ::  ( PersistState s
@@ -423,8 +431,9 @@ fileModeSpec =  do
                 destroyDBLayer ctx
 
     describe "DBFactory" $ do
+        let ti = dummyTimeInterpreter
         let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
-                dbf <- newDBFactory nullTracer defaultFieldValues (Just dir)
+                dbf <- newDBFactory nullTracer defaultFieldValues ti (Just dir)
                 action dir dbf
 
         let whileFileOpened delay f action = do
@@ -569,12 +578,12 @@ fileModeSpec =  do
 
                 let mockApply h mockTxs = do
                         Just cpA <- atomically $ readCheckpoint testPk
-                        let slotA = slotId $ currentTip cpA
+                        let slotA = slotNo $ currentTip cpA
                         let Quantity bhA = blockHeight $ currentTip cpA
                         let hashA = headerHash $ currentTip cpA
                         let fakeBlock = Block
                                 (BlockHeader
-                                { slotId = slotA { epochNumber = (epochNumber slotA) + 1}
+                                { slotNo = slotA + 100
                                 -- Increment blockHeight by steps greater than k
                                 -- Such that old checkpoints are always pruned.
                                 , blockHeight = Quantity $ bhA + 5000
@@ -600,7 +609,7 @@ fileModeSpec =  do
                 mockApplyBlock1
                 getAvailableBalance db `shouldReturn` 4
 
-                -- Slot 2 0
+                -- Slot 200
                 mockApply (dummyHash "block2a")
                             [ Tx
                                 (dummyHash "tx2a")
@@ -611,15 +620,15 @@ fileModeSpec =  do
                                 mempty
                             ]
 
-                -- Slot 3 0
+                -- Slot 300
                 mockApply (dummyHash "block3a") []
                 getAvailableBalance db `shouldReturn` 2
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testPk (SlotId 2 0)
+                    rollbackTo testPk (SlotNo 200)
                 Just cp <- atomically $ readCheckpoint testPk
-                slotId (currentTip cp) `shouldBe` (SlotId 0 0)
+                slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
 
@@ -714,8 +723,11 @@ withTestDBFile action expectations = do
             (trMessageText trace)
             defaultFieldValues
             (Just fp)
+            ti
             (action . snd)
         expectations fp
+  where
+    ti = dummyTimeInterpreter
 
 inMemoryDBLayer
     :: PersistState s
@@ -736,7 +748,9 @@ newDBLayer'
     :: PersistState s
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s JormungandrKey)
-newDBLayer' = newDBLayer nullTracer defaultFieldValues
+newDBLayer' fp = newDBLayer nullTracer defaultFieldValues fp ti
+  where
+    ti = dummyTimeInterpreter
 
 -- | Clean the database
 cleanDB'
@@ -770,7 +784,7 @@ readTxHistory'
     :: DBLayer m s k
     -> PrimaryKey WalletId
     -> SortOrder
-    -> Range SlotId
+    -> Range SlotNo
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
 readTxHistory' DBLayer{..} a0 a1 a2 =
@@ -841,7 +855,7 @@ testTxs =
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (Coin 1) ]
         mempty
-      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
+      , TxMeta InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144)
       )
     ]
 

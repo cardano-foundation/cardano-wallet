@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -504,7 +504,7 @@ goldenTestStdTx
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let cs = mempty { inputs = inps, outputs = outs }
     let rewardAcnt = error "unused"
-    let tx = mkStdTx tl rewardAcnt keystore (SlotId 0 0) cs
+    let tx = mkStdTx tl rewardAcnt keystore (SlotNo 0) cs
     let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
@@ -525,7 +525,7 @@ goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inputs outputs b
             pool
             (accountXPrv, pass)
             keystore
-            (SlotId 0 0)
+            (SlotNo 0)
             (mempty { inputs, outputs })
     let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` Right (unsafeFromHex bytes')
@@ -573,7 +573,7 @@ unknownInputTest
 unknownInputTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = mkStdTx tl rewardAcnt keyFrom (SlotId 0 0) cs
+    let res = mkStdTx tl rewardAcnt keyFrom (SlotNo 0) cs
           where
             tl = newTransactionLayer @JormungandrKey block0
             rewardAcnt = error "unused"

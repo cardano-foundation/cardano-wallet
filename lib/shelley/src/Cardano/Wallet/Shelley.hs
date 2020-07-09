@@ -96,6 +96,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, singleEraInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -136,6 +138,8 @@ import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -243,17 +247,19 @@ serveWallet
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
+
+    ti :: TimeInterpreter IO
+    ti = pure . runIdentity . singleEraInterpreter (genesisParameters np)
     serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let pm = fromNetworkMagic $ networkMagic $ fst vData
                 let gp = genesisParameters np
-                let el = getEpochLength gp
-                randomApi <- apiLayer (newTransactionLayer proxy pm el) nl
+                randomApi <- apiLayer (newTransactionLayer proxy pm) nl
                     Server.idleWorker
-                icarusApi  <- apiLayer (newTransactionLayer proxy pm el ) nl
+                icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
                     Server.idleWorker
-                shelleyApi <- apiLayer (newTransactionLayer proxy pm el) nl
+                shelleyApi <- apiLayer (newTransactionLayer proxy pm) nl
                     Server.manageRewardBalance
 
                 withPoolsMonitoring databaseDir gp nl $ \spl -> do
@@ -306,7 +312,7 @@ serveWallet
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
-        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) $ \db -> do
+        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) ti $ \db -> do
             let spl = newStakePoolLayer (genesisParameters np) nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
@@ -341,14 +347,12 @@ serveWallet
                     minimumUTxOvalue (protocolParameters np)
                 }
             )
+            ti
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
-        gp@GenesisParameters
-            { getGenesisBlockHash
-            , getEpochLength
-            } = genesisParameters np
-        nl' = fromShelleyBlock getGenesisBlockHash getEpochLength <$> nl
+        gp@GenesisParameters{getGenesisBlockHash} = genesisParameters np
+        nl' = fromShelleyBlock getGenesisBlockHash <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode

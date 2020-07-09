@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ProtocolMagic (..)
     , SealedTx (..)
-    , SlotId (..)
+    , SlotNo (..)
     , Tx (..)
     , TxOut (..)
     )
@@ -116,7 +116,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotId
+        -> SlotNo
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
@@ -231,8 +231,8 @@ genesisBlockFromTxOuts :: GenesisParameters -> [TxOut] -> Block
 genesisBlockFromTxOuts gp outs = Block
     { delegations  = []
     , header = BlockHeader
-        { slotId =
-            SlotId 0 0
+        { slotNo =
+            SlotNo 0
         , blockHeight =
             Quantity 0
         , headerHash =

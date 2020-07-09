@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -20,25 +22,22 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..), Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
-import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
-    , EpochLength (..)
     , EpochNo (..)
     , FeePolicy
     , Hash (..)
     , PoolId
     , PoolOwner (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
     , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -53,14 +52,7 @@ import Control.Arrow
 import Control.Monad
     ( (>=>) )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
-    , Value (..)
-    , defaultOptions
-    , genericParseJSON
-    , genericToJSON
-    , withText
-    )
+    ( FromJSON (..), ToJSON (..), Value (..), withText )
 import Data.Aeson.Types
     ( Parser )
 import Data.Bifunctor
@@ -282,37 +274,19 @@ instance PathPiece BlockId where
 ----------------------------------------------------------------------------
 -- SlotId
 
-instance PersistFieldSql SlotId where
-    sqlType _ = sqlType (Proxy @Word64)
+deriving via Word64 instance (PersistFieldSql SlotNo)
 
--- | As a short-to-medium term solution of persisting 'SlotId', we use
--- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
--- the blockchain/. This is just for the sake of storing the epoch number and
--- slot number inside a single 64-bit field.
-artificialEpochLength :: EpochLength
-artificialEpochLength = EpochLength maxBound
+deriving via Word64 instance (Read SlotNo)
 
-persistSlotId :: SlotId -> PersistValue
-persistSlotId = toPersistValue . flatSlot artificialEpochLength
+persistSlotNo :: SlotNo -> PersistValue
+persistSlotNo = toPersistValue . unSlotNo
 
-unPersistSlotId :: PersistValue -> Either Text SlotId
-unPersistSlotId = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
+unPersistSlotNo :: PersistValue -> Either Text SlotNo
+unPersistSlotNo = fmap SlotNo . fromPersistValue
 
-instance PersistField SlotId where
-    toPersistValue = persistSlotId
-    fromPersistValue = unPersistSlotId
-
-instance ToJSON SlotId where
-    toJSON = genericToJSON defaultOptions
-
-instance FromJSON SlotId where
-    parseJSON = genericParseJSON defaultOptions
-
-instance ToJSON SlotInEpoch where
-    toJSON (SlotInEpoch n) = toJSON n
-
-instance FromJSON SlotInEpoch where
-    parseJSON = fmap SlotInEpoch . parseJSON
+instance PersistField SlotNo where
+    toPersistValue = persistSlotNo
+    fromPersistValue = unPersistSlotNo
 
 instance ToJSON EpochNo where
     toJSON (EpochNo n) = toJSON (fromIntegral @Word31 @Word32 n)
@@ -320,11 +294,11 @@ instance ToJSON EpochNo where
 instance FromJSON EpochNo where
     parseJSON = fmap unsafeEpochNo . parseJSON
 
-instance ToHttpApiData SlotId where
+instance ToHttpApiData SlotNo where
     toUrlPiece = error "toUrlPiece stub needed for persistent"
-instance FromHttpApiData SlotId where
+instance FromHttpApiData SlotNo where
     parseUrlPiece = error "parseUrlPiece stub needed for persistent"
-instance PathPiece SlotId where
+instance PathPiece SlotNo where
     toPathPiece = error "toPathPiece stub needed for persistent"
     fromPathPiece = error "fromPathPiece stub needed for persistent"
 

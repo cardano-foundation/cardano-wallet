@@ -19,6 +19,8 @@ import Cardano.Pool.DB.Properties
     ( newMemoryDBLayer, properties, withDB )
 import Cardano.Pool.DB.Sqlite
     ( withDBLayer )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyTimeInterpreter )
 import System.Directory
     ( copyFile )
 import System.FilePath
@@ -48,9 +50,10 @@ test_migrationFromv20191216 =
         withSystemTempDirectory "stake-pools-db" $ \dir -> do
             let path = dir </> "stake-pools.sqlite"
             copyFile orig path
+            let ti = dummyTimeInterpreter
             (logs, _) <- captureLogging $ \tr -> do
-                withDBLayer tr (Just path) $ \_ -> pure ()
-                withDBLayer tr (Just path) $ \_ -> pure ()
+                withDBLayer tr (Just path) ti $ \_ -> pure ()
+                withDBLayer tr (Just path) ti $ \_ -> pure ()
 
             let databaseConnMsg  = filter isMsgConnStr logs
             let databaseResetMsg = filter (== MsgDatabaseReset) logs
