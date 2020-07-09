@@ -206,7 +206,11 @@ newDBLayer trace fp = do
         , putPoolRegistration = \cpt cert -> do
             let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
             let poolId = view #poolId cert
-            deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. slotId]
+            deleteWhere
+                [ PoolOwnerPoolId ==. poolId
+                , PoolOwnerSlot ==. slotId
+                , PoolOwnerSlotInternalIndex ==. slotInternalIndex
+                ]
             let poolRegistrationKey = PoolRegistrationKey
                     poolId slotId slotInternalIndex
             let poolRegistrationRow = PoolRegistration
