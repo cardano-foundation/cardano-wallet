@@ -16,7 +16,8 @@ module Test.Integration.Scenario.API.Shelley.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee
+    ( ApiByronWallet
+    , ApiFee
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
@@ -463,6 +464,62 @@ spec = do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransaction @'Shelley w) Default payload
             expectResponseCode @IO HTTP.status400 r
+
+    it "TRANS_CREATE_09 - Single Output Transaction with Byron witnesses" $ \ctx -> do
+        (wByron, wShelley) <- (,) <$> fixtureRandomWallet ctx <*> fixtureWallet ctx
+
+        eventually "wallet balance equals faucetAmt" $ do
+            request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron)
+                Default
+                Empty >>= flip verify
+                [ expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
+                ]
+
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 1
+                , nOutputs = 1
+                , nChanges = 1
+                }
+        let amt = (1 :: Natural)
+        r <- postTx ctx
+            (wByron, Link.createTransaction @'Shelley, fixturePassphrase)
+            wShelley
+            amt
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (feeMin + amt, feeMax + amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Byron wByron) Default Empty
+        verify ra
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (faucetAmt - feeMax - amt)
+                    , Quantity (faucetAmt - feeMin - amt)
+                    )
+            , expectField
+                    (#balance . #getApiT . #available)
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
+            ]
+
+        eventually "wa and wb balances are as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt + amt)) rb
+
+            ra2 <- request @ApiWallet ctx
+                (Link.getWallet @'Byron wByron) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra2
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
