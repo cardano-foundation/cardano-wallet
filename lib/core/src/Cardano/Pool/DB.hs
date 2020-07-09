@@ -197,6 +197,8 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 --   * the certificates must be from the same pool.
 --   * the publication times must be non-equal.
 --
+-- Violating either of the above pre-conditions is a programming error.
+--
 -- This function determines order of precedence according to the "pool
 -- inference rule", as described in "A Formal Specification of the Cardano
 -- Ledger":
@@ -215,8 +217,6 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
         PoolRegistered regCert
     (Just (regTime, regCert), Just (retTime, retCert))
         | regPoolId /= retPoolId ->
-            -- Comparing certificates from different pools is a programming
-            -- error.
             differentPoolsError
         | regTime > retTime ->
             -- A re-registration always /supercedes/ a prior retirement.
@@ -225,16 +225,14 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
             -- A retirement always /augments/ the latest known registration.
             PoolRegisteredAndRetired regCert retCert
         | otherwise ->
-            -- If a registration certificate and a retirement certificate
-            -- for the same pool appear to have been published at exactly
-            -- the same time, this indicates a programming error.
             timeCollisionError
       where
         regPoolId = view #poolId regCert
         retPoolId = view #poolId retCert
 
         differentPoolsError = error $ mconcat
-            [ "determinePoolRegistrationStatus:"
+            [ "programming error:"
+            , " determinePoolRegistrationStatus:"
             , " called with certificates for different pools:"
             , " pool id of registration certificate: "
             , show regPoolId
@@ -243,7 +241,8 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
             ]
 
         timeCollisionError = error $ mconcat
-            [ "determinePoolRegistrationStatus:"
+            [ "programming error:"
+            , " determinePoolRegistrationStatus:"
             , " called with identical certificate publication times:"
             , " pool id of registration certificate: "
             , show regPoolId
