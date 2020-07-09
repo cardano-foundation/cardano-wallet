@@ -256,18 +256,18 @@ let
     };
   } // optionalAttrs buildMacOS {
     # macOS binary and dependencies in tarball
-    cardano-wallet-jormungandr-macos64 = import ./nix/macos-release.nix {
-      inherit pkgs;
+    cardano-wallet-jormungandr-macos64 = hydraJob' (import ./nix/macos-release.nix {
+      inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.jormungandr;
-    };
-    cardano-wallet-byron-macos64 = import ./nix/macos-release.nix {
-      inherit pkgs;
+    });
+    cardano-wallet-byron-macos64 = hydraJob' (import ./nix/macos-release.nix {
+      inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.byron;
-    };
-    cardano-wallet-shelley-macos64 = import ./nix/macos-release.nix {
-      inherit pkgs;
+    });
+    cardano-wallet-shelley-macos64 = hydraJob' (import ./nix/macos-release.nix {
+      inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.shelley;
-    };
+    });
   };
 
   ############################################################################

@@ -24,7 +24,7 @@ in pkgs.stdenv.mkDerivation {
   checkInputs = [ pkgs.buildPackages.ruby ];
   doCheck = true;
   phases = [ "buildPhase" "checkPhase" ];
-  tarname = "${name}-linux64.tar.gz";
+  tarname = "${name}-macos64.tar.gz";
   buildPhase = ''
     mkdir $name
     cp -nR ${concatMapStringsSep " " (exe: "${exe}/bin/*") exes} $name
