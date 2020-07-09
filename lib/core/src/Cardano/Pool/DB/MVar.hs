@@ -17,7 +17,10 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolRegistrationStatus
+    )
 import Cardano.Pool.DB.Model
     ( ModelPoolOp
     , PoolDatabase
@@ -60,6 +63,10 @@ import Data.Tuple
 newDBLayer :: IO (DBLayer IO)
 newDBLayer = do
     db <- newMVar emptyPoolDatabase
+    let readPoolRegistration_ =
+            readPoolDB db . mReadPoolRegistration
+    let readPoolRetirement_ =
+            readPoolDB db . mReadPoolRetirement
     return $ DBLayer
 
         { putPoolProduction = \sl pool -> ExceptT $ do
@@ -85,15 +92,18 @@ newDBLayer = do
               $ alterPoolDB (const Nothing) db
               $ mPutPoolRegistration cpt cert
 
-        , readPoolRegistration =
-            readPoolDB db . mReadPoolRegistration
+        , readPoolRegistrationStatus = \poolId ->
+            determinePoolRegistrationStatus
+                <$> readPoolRegistration_ poolId
+                <*> readPoolRetirement_ poolId
+
+        , readPoolRegistration = readPoolRegistration_
 
         , putPoolRetirement = \cpt cert -> void
             $ alterPoolDB (const Nothing) db
             $ mPutPoolRetirement cpt cert
 
-        , readPoolRetirement =
-            readPoolDB db . mReadPoolRetirement
+        , readPoolRetirement = readPoolRetirement_
 
         , unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs

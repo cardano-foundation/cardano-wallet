@@ -42,7 +42,10 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolRegistrationStatus
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
@@ -203,6 +206,11 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
+        , readPoolRegistrationStatus = \poolId ->
+            determinePoolRegistrationStatus
+                <$> readPoolRegistration_ poolId
+                <*> readPoolRetirement_ poolId
+
         , putPoolRegistration = \cpt cert -> do
             let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
             let poolId = view #poolId cert
@@ -232,48 +240,7 @@ newDBLayer trace fp = do
                     (poolOwners cert)
                     [0..]
 
-        , readPoolRegistration = \poolId -> do
-            result <- selectFirst
-                [ PoolRegistrationPoolId ==. poolId ]
-                [ Desc PoolRegistrationSlot
-                , Desc PoolRegistrationSlotInternalIndex
-                ]
-            forM result $ \meta -> do
-                let PoolRegistration
-                        _poolId
-                        slotId
-                        slotInternalIndex
-                        marginNum
-                        marginDen
-                        poolCost_
-                        poolPledge_
-                        poolMetadataUrl
-                        poolMetadataHash = entityVal meta
-                let poolMargin = unsafeMkPercentage $
-                        toRational $ marginNum % marginDen
-                let poolCost = Quantity poolCost_
-                let poolPledge = Quantity poolPledge_
-                let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
-                poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
-                    selectList
-                        [ PoolOwnerPoolId
-                            ==. poolId
-                        , PoolOwnerSlot
-                            ==. slotId
-                        , PoolOwnerSlotInternalIndex
-                            ==. slotInternalIndex
-                        ]
-                        [ Asc PoolOwnerIndex ]
-                let cert = PoolRegistrationCertificate
-                        { poolId
-                        , poolOwners
-                        , poolMargin
-                        , poolCost
-                        , poolPledge
-                        , poolMetadata
-                        }
-                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
-                pure (cpt, cert)
+        , readPoolRegistration = readPoolRegistration_
 
         , putPoolRetirement = \cpt cert -> do
             let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
@@ -289,22 +256,7 @@ newDBLayer trace fp = do
                     slotInternalIndex
                     (fromIntegral retirementEpoch)
 
-        , readPoolRetirement = \poolId -> do
-            result <- selectFirst
-                [ PoolRetirementPoolId ==. poolId ]
-                [ Desc PoolRetirementSlot
-                , Desc PoolRetirementSlotInternalIndex
-                ]
-            forM result $ \meta -> do
-                let PoolRetirement
-                        _poolId
-                        slotId
-                        slotInternalIndex
-                        retirementEpoch = entityVal meta
-                let retiredIn = EpochNo (fromIntegral retirementEpoch)
-                let cert = PoolRetirementCertificate {poolId, retiredIn}
-                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
-                pure (cpt, cert)
+        , readPoolRetirement = readPoolRetirement_
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
@@ -413,6 +365,66 @@ newDBLayer trace fp = do
 
         , atomically = runQuery
         })
+    where
+        readPoolRegistration_ poolId = do
+            result <- selectFirst
+                [ PoolRegistrationPoolId ==. poolId ]
+                [ Desc PoolRegistrationSlot
+                , Desc PoolRegistrationSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRegistration
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        marginNum
+                        marginDen
+                        poolCost_
+                        poolPledge_
+                        poolMetadataUrl
+                        poolMetadataHash = entityVal meta
+                let poolMargin = unsafeMkPercentage $
+                        toRational $ marginNum % marginDen
+                let poolCost = Quantity poolCost_
+                let poolPledge = Quantity poolPledge_
+                let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
+                poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
+                    selectList
+                        [ PoolOwnerPoolId
+                            ==. poolId
+                        , PoolOwnerSlot
+                            ==. slotId
+                        , PoolOwnerSlotInternalIndex
+                            ==. slotInternalIndex
+                        ]
+                        [ Asc PoolOwnerIndex ]
+                let cert = PoolRegistrationCertificate
+                        { poolId
+                        , poolOwners
+                        , poolMargin
+                        , poolCost
+                        , poolPledge
+                        , poolMetadata
+                        }
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
+
+        readPoolRetirement_ poolId = do
+            result <- selectFirst
+                [ PoolRetirementPoolId ==. poolId ]
+                [ Desc PoolRetirementSlot
+                , Desc PoolRetirementSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRetirement
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        retirementEpoch = entityVal meta
+                let retiredIn = EpochNo (fromIntegral retirementEpoch)
+                let cert = PoolRetirementCertificate {poolId, retiredIn}
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
 
 -- | 'Temporary', catches migration error from previous versions and if any,
 -- _removes_ the database file completely before retrying to start the database.

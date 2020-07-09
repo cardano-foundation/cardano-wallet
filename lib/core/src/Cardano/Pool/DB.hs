@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -15,7 +14,6 @@ module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
     , determinePoolRegistrationStatus
-    , readPoolRegistrationStatus
 
       -- * Errors
     , ErrPointAlreadyExists (..)
@@ -107,6 +105,10 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
+
+    , readPoolRegistrationStatus
+        :: PoolId
+        -> stm PoolRegistrationStatus
 
     , putPoolRegistration
         :: CertificatePublicationTime
@@ -253,20 +255,6 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
             , " publication time of retirement certificate: "
             , show retTime
             ]
-
--- | Reads the current registration status of a pool.
---
--- See 'PoolRegistrationStatus' for more details.
---
-readPoolRegistrationStatus
-    :: DBLayer m
-    -> PoolId
-    -> m PoolRegistrationStatus
-readPoolRegistrationStatus
-    DBLayer {atomically, readPoolRegistration, readPoolRetirement} poolId =
-        atomically $ determinePoolRegistrationStatus
-            <$> readPoolRegistration poolId
-            <*> readPoolRetirement poolId
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists

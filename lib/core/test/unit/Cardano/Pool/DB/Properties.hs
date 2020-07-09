@@ -599,7 +599,7 @@ prop_readPoolRegistrationStatus
     -> [PoolCertificate]
     -> Property
 prop_readPoolRegistrationStatus
-    db@DBLayer {..} sharedPoolId certificatesManyPoolIds =
+    DBLayer {..} sharedPoolId certificatesManyPoolIds =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -609,9 +609,10 @@ prop_readPoolRegistrationStatus
         mFinalRetirement
 
     prop = do
-        run $ atomically $
-            mapM_ (uncurry putCertificate) certificatePublications
-        actualStatus <- run $ readPoolRegistrationStatus db sharedPoolId
+        actualStatus <-
+            run $ atomically $ do
+                mapM_ (uncurry putCertificate) certificatePublications
+                readPoolRegistrationStatus sharedPoolId
         monitor $ counterexample $ unlines
             [ "\nFinal registration: "
             , show mFinalRegistration

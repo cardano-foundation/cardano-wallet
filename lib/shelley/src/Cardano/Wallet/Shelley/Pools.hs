@@ -307,9 +307,9 @@ combineChainData =
 readDBPoolData
     :: DBLayer IO
     -> IO (Map PoolId PoolDbData)
-readDBPoolData db@DBLayer{..} = atomically $ do
+readDBPoolData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
-    registrationStatuses <- mapM (liftIO . readPoolRegistrationStatus db) pools
+    registrationStatuses <- mapM readPoolRegistrationStatus pools
     let certMap = Map.fromList
             [ (poolId, certs)
             | (poolId, Just certs) <- zip pools
