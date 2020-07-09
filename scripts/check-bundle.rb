@@ -28,19 +28,19 @@ $failed = 0
 def report(cmd, status)
   res = status == 0 ? "pass" : "FAIL"
   puts "#{cmd.ljust(40)}[#{res}]"
-  if status then
-    $failed = status
+  if status != 0 then
+    $failed = 1
   end
 end
 
 cmd = "#{wallet} version"
 ver, status = Open3.capture2("#{runner} #{cmd}")
-report(cmd, status)
+report(cmd, status.to_i)
 
 tests[wallet].each do |cmd|
   begin
     stdout_str, status = Open3.capture2("#{runner} #{cmd} --help")
-    report(cmd, 0)
+    report(cmd, status.to_i)
   rescue Errno::ENOENT
     report(cmd, 1)
   end
