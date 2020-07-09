@@ -375,7 +375,9 @@ newDBLayer trace fp = do
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
-                [ Desc PoolRegistrationSlot ]
+                [ Desc PoolRegistrationSlot
+                , Desc PoolRegistrationSlotInternalIndex
+                ]
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
