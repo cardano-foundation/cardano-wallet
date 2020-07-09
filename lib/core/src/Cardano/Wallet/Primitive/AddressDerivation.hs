@@ -472,7 +472,22 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -------------------------------------------------------------------------------}
 
 -- | Available network options.
-data NetworkDiscriminant = Mainnet | Testnet Nat deriving Typeable
+--
+-- - @Mainnet@: is a shortcut for quickly pointing to mainnet. On Byron and
+--              Shelley, it assumes no discrimination. It has a known magic and
+--              known genesis parameters.
+--
+-- - @Testnet@: can be used to identify any network that has a custom genesis
+--              and, that requires _explicit_ network discrimination in
+--              addresses. Genesis file needs to be passed explicitly when
+--              starting the application.
+--
+-- - @Staging@: very much like testnet, but like mainnet, assumes to no address
+--              discrimination. Genesis file needs to be passed explicitly when
+--              starting the application.
+--
+data NetworkDiscriminant = Mainnet | Testnet Nat | Staging Nat
+    deriving Typeable
 
 class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
     networkDiscriminantVal :: Text
@@ -484,6 +499,10 @@ instance NetworkDiscriminantVal 'Mainnet where
 instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
     networkDiscriminantVal =
         "testnet (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+
+instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
+    networkDiscriminantVal =
+        "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
