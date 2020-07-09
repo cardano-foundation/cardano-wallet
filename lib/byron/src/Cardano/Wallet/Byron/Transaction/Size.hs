@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -126,8 +128,14 @@ sizeOf = fromIntegral . BL.length . CBOR.toLazyByteString
 class MaxSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
     maxSizeOf :: Int
 
+instance forall t k pm. (MaxSizeOf t 'Mainnet k) => MaxSizeOf t ('Staging pm) k where
+    maxSizeOf = maxSizeOf @t @'Mainnet @k
+
 class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
     minSizeOf :: Int
+
+instance forall t k pm. (MinSizeOf t 'Mainnet k) => MinSizeOf t ('Staging pm) k where
+    minSizeOf = minSizeOf @t @'Mainnet @k
 
 -- ADDRESS (MainNet, Icarus)
 --     = CBOR-LIST-LEN (2)    --     1 byte

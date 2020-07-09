@@ -1405,10 +1405,16 @@ eitherToParser = either (fail . show) pure
 class EncodeAddress (n :: NetworkDiscriminant) where
     encodeAddress :: Address -> Text
 
+instance EncodeAddress 'Mainnet => EncodeAddress ('Staging pm) where
+    encodeAddress = encodeAddress @'Mainnet
+
 -- | An abstract class to allow decoding of addresses depending on the target
 -- backend used.
 class DecodeAddress (n :: NetworkDiscriminant) where
     decodeAddress :: Text -> Either TextDecodingError Address
+
+instance DecodeAddress 'Mainnet => DecodeAddress ('Staging pm) where
+    decodeAddress = decodeAddress @'Mainnet
 
 -- NOTE:
 -- The type families below are useful to allow building more flexible API

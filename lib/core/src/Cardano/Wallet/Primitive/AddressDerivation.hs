@@ -561,6 +561,10 @@ class MkKeyFingerprint key Address
             -- ^ Payment fingerprint
         -> Address
 
+instance PaymentAddress 'Mainnet k => PaymentAddress ('Staging pm) k where
+    paymentAddress = paymentAddress @'Mainnet
+    liftPaymentAddress = liftPaymentAddress @'Mainnet
+
 class PaymentAddress network key
     => DelegationAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
@@ -584,6 +588,10 @@ class PaymentAddress network key
         -> key 'AddressK XPub
             -- ^ Staking key / Reward account
         -> Address
+
+instance DelegationAddress 'Mainnet k => DelegationAddress ('Staging pm) k where
+    delegationAddress = delegationAddress @'Mainnet
+    liftDelegationAddress = liftDelegationAddress @'Mainnet
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
