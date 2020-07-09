@@ -110,8 +110,6 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-import qualified Debug.Trace as TR
-
 data TestCase a = TestCase
     { query :: T.Text
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
@@ -470,25 +468,30 @@ spec = do
     it "TRANS_CREATE_09 - Single Output Transaction with Byron witnesses" $ \ctx -> do
         (wByron, wShelley) <- (,) <$> fixtureRandomWallet ctx <*> fixtureWallet ctx
 
-        TR.trace ("################################################### 1") $ eventually "wallet balance equals faucetAmt" $ do
-            request @ApiByronWallet ctx
-                (Link.getWallet @'Byron wByron)
-                Default
-                Empty >>= flip verify
-                [ expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-                ]
-
-        let (feeMin, feeMax) = TR.trace ("################################################### 2") $  ctx ^. #_feeEstimator $ PaymentDescription
-                { nInputs = 1
-                , nOutputs = 1
-                , nChanges = 1
-                }
+        -- FIXME:
+        -- The context fee estimator is showing its limit. It has actually
+        -- become quite annoying to maintain two separate fee estimator.
+        --
+        -- We should stop using this fee estimator and rely on the API instead.
+        -- For now, I am manually adding margins necessary to account for Byron
+        -- witnesses that are more expensive. Min and Max depends on whether we
+        -- are making the transaction from an `Icarus` or `Random`.
+        --
+        -- Fortunately, the API estimates this correctly!
+        let byronFeeMargin = 7700
+        let (feeMin, feeMax) = fmap (+ byronFeeMargin)
+                $ ctx ^. #_feeEstimator
+                $ PaymentDescription
+                    { nInputs = 1
+                    , nOutputs = 1
+                    , nChanges = 1
+                    }
         let amt = (1 :: Natural)
         r <- postTx ctx
-            (wByron, Link.createTransaction @'Shelley, fixturePassphrase)
+            (wByron, Link.createTransaction @'Byron, fixturePassphrase)
             wShelley
             amt
-        TR.trace ("################################################### 3 r:"<> show r) $ verify r
+        verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
@@ -497,16 +500,16 @@ spec = do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        ra <- request @ApiWallet ctx (Link.getWallet @'Byron wByron) Default Empty
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wByron) Default Empty
         verify ra
             [ expectSuccess
-            , expectField (#balance . #getApiT . #total) $
+            , expectField (#balance . #total) $
                 between
                     ( Quantity (faucetAmt - feeMax - amt)
                     , Quantity (faucetAmt - feeMin - amt)
                     )
             , expectField
-                    (#balance . #getApiT . #available)
+                    (#balance . #available)
                     (.>= Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
@@ -517,10 +520,10 @@ spec = do
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt + amt)) rb
 
-            ra2 <- request @ApiWallet ctx
+            ra2 <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wByron) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra2
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
