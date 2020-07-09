@@ -48,7 +48,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , Depth (..)
     , NetworkDiscriminant (..)
-    , Passphrase
+    , Passphrase (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -583,14 +583,14 @@ mkByronWitness
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> SL.BootstrapWitness TPraosStandardCrypto
-mkByronWitness body protocolMagic addr (prv, pwd) =
-    let (SL.TxId txHash) = SL.txid body
-        --(Just signed) = xprvFromBytes (serialize' txHash `signWith` (prv, pwd))
-        signingKey = Crypto.SigningKey prv
-        addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-            (toHDPayloadAddress addr)
-            (toByronNetworkMagic protocolMagic)
-     in SL.makeBootstrapWitness txHash signingKey addrAttr
+mkByronWitness body protocolMagic addr (prv, Passphrase pwd) =
+    SL.makeBootstrapWitness txHash signingKey addrAttr
+  where
+    (SL.TxId txHash) = SL.txid body
+    signingKey = Crypto.SigningKey $ CC.xPrvChangePass pwd BS.empty prv
+    addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
+        (toHDPayloadAddress addr)
+        (toByronNetworkMagic protocolMagic)
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
