@@ -56,6 +56,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeCredential
     , toShelleyCoin
     , fromShelleyCoin
+    , toHDPayloadAddress
 
       -- ** Stake pools
     , fromPoolId
@@ -190,6 +191,7 @@ import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
+import qualified Codec.CBOR.Decoding as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
@@ -907,6 +909,19 @@ _decodeAddress serverNetwork text =
         toNetwork = \case
             Byron.NetworkMainOrStage -> SL.Mainnet
             Byron.NetworkTestnet{}   -> SL.Testnet
+
+toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
+toHDPayloadAddress (W.Address addr) = do
+    payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload addr
+    attributes <- CBOR.deserialiseCbor decodeAllAttributes' payload
+    case filter (\(tag,_) -> tag == 1) attributes of
+        [(1, bytes)] -> Just $ Byron.HDAddressPayload bytes
+        _ -> Nothing
+  where
+    decodeAllAttributes' = do
+        _ <- CBOR.decodeListLenCanonicalOf 3
+        _ <- CBOR.decodeBytes
+        CBOR.decodeAllAttributes
 
 {-------------------------------------------------------------------------------
                                     Logging

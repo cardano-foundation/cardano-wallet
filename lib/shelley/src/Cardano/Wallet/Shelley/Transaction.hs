@@ -37,7 +37,7 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
+    ( XPrv, XPub, toXPub, xprvFromBytes, xpubPublicKey )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -83,6 +83,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
+    , toHDPayloadAddress
     , toSealed
     , toSlotNo
     , toStakeKeyDeregCert
@@ -219,9 +220,9 @@ mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) key
         TxWitnessByronUTxO -> do
             bootstrapWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkByronWitness unsigned pm (getRawKey k, pwd)
+                pure $ mkByronWitness unsigned pm addr (getRawKey k, pwd)
             pure $ SL.WitnessSet mempty mempty bootstrapWits
-                <> mkExtraWits unsigned --- TO_DO - this is needed?
+                <> mkExtraWits unsigned
 
     let metadata = SL.SNothing
 
@@ -579,15 +580,16 @@ unsafeMkEd25519 =
 mkByronWitness
     :: SL.TxBody TPraosStandardCrypto
     -> ProtocolMagic
+    -> Address
     -> (XPrv, Passphrase "encryption")
     -> SL.BootstrapWitness TPraosStandardCrypto
-mkByronWitness body protocolMagic (prv, _pwd) =
-    let signingKey = Crypto.SigningKey prv
-        bytes = xprvToBytes prv
+mkByronWitness body protocolMagic addr (prv, pwd) =
+    let (SL.TxId txHash) = SL.txid body
+        (Just signed) = xprvFromBytes (serialize' txHash `signWith` (prv, pwd))
+        signingKey = Crypto.SigningKey signed
         addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-            (Just $ Byron.HDAddressPayload bytes)
+            (toHDPayloadAddress addr)
             (toByronNetworkMagic protocolMagic)
-        (SL.TxId txHash) = SL.txid body
      in SL.makeBootstrapWitness txHash signingKey addrAttr
 
 --------------------------------------------------------------------------------

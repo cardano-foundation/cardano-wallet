@@ -110,6 +110,8 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+import qualified Debug.Trace as TR
+
 data TestCase a = TestCase
     { query :: T.Text
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
@@ -468,7 +470,7 @@ spec = do
     it "TRANS_CREATE_09 - Single Output Transaction with Byron witnesses" $ \ctx -> do
         (wByron, wShelley) <- (,) <$> fixtureRandomWallet ctx <*> fixtureWallet ctx
 
-        eventually "wallet balance equals faucetAmt" $ do
+        TR.trace ("################################################### 1") $ eventually "wallet balance equals faucetAmt" $ do
             request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wByron)
                 Default
@@ -476,7 +478,7 @@ spec = do
                 [ expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
                 ]
 
-        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+        let (feeMin, feeMax) = TR.trace ("################################################### 2") $  ctx ^. #_feeEstimator $ PaymentDescription
                 { nInputs = 1
                 , nOutputs = 1
                 , nChanges = 1
@@ -486,7 +488,7 @@ spec = do
             (wByron, Link.createTransaction @'Shelley, fixturePassphrase)
             wShelley
             amt
-        verify r
+        TR.trace ("################################################### 3 r:"<> show r) $ verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
