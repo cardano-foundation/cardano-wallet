@@ -40,7 +40,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationStatus (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
-    , SlotInternalIndex (..)
     , slotMinBound
     )
 import Cardano.Wallet.Unsafe
@@ -526,7 +525,7 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) ii
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -577,7 +576,7 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) ii
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -645,7 +644,7 @@ prop_readPoolRegistrationStatus
         & listToMaybe
 
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) ii
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]
@@ -779,7 +778,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
 
     publicationTimes :: [CertificatePublicationTime]
     publicationTimes =
-        [ CertificatePublicationTime (SlotId en sn) (SlotInternalIndex ii)
+        [ CertificatePublicationTime (SlotId en sn) ii
         | en <- [0 ..]
         , sn <- [0 .. 3]
         , ii <- [0 .. 3]

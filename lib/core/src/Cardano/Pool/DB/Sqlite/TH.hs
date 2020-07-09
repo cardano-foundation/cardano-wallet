@@ -77,7 +77,7 @@ StakeDistribution sql=stake_distribution
 PoolOwner sql=pool_owner
     poolOwnerPoolId             W.PoolId            sql=pool_id
     poolOwnerSlot               W.SlotId            sql=slot
-    poolOwnerSlotInternalIndex  W.SlotInternalIndex sql=slot_internal_index
+    poolOwnerSlotInternalIndex  Word64              sql=slot_internal_index
     poolOwnerOwner              W.PoolOwner         sql=pool_owner
     poolOwnerIndex              Word8               sql=pool_owner_index
 
@@ -89,7 +89,7 @@ PoolOwner sql=pool_owner
 PoolRegistration sql=pool_registration
     poolRegistrationPoolId            W.PoolId                      sql=pool_id
     poolRegistrationSlot              W.SlotId                      sql=slot
-    poolRegistrationSlotInternalIndex W.SlotInternalIndex           sql=slot_internal_index
+    poolRegistrationSlotInternalIndex Word64                        sql=slot_internal_index
     poolRegistrationMarginNumerator   Word64                        sql=margin_numerator
     poolRegistrationMarginDenominator Word64                        sql=margin_denominator
     poolRegistrationCost              Word64                        sql=cost
@@ -104,7 +104,7 @@ PoolRegistration sql=pool_registration
 PoolRetirement sql=pool_retirement
     poolRetirementPoolId              W.PoolId            sql=pool_id
     poolRetirementSlot                W.SlotId            sql=slot
-    poolRetirementSlotInternalIndex   W.SlotInternalIndex sql=slot_internal_index
+    poolRetirementSlotInternalIndex   Word64              sql=slot_internal_index
     poolRetirementEpoch               Word64              sql=epoch
 
     Primary poolRetirementPoolId poolRetirementSlot poolRetirementSlotInternalIndex

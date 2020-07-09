@@ -98,7 +98,6 @@ module Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , FeePolicy (..)
     , SlotId (..)
-    , SlotInternalIndex (..)
     , SlotLength (..)
     , SlotNo (..)
     , StartTime (..)
@@ -1668,17 +1667,6 @@ newtype StartTime = StartTime UTCTime
 
 instance NFData StartTime
 
--- | Indicates the relative position of an event occurring within a slot.
---
--- If 'SlotInternalIndex' values @a@ and @b@ correspond to the same slot, then:
---
---   * @a > b@ indicates that @a@ occurs later than @b@.
---   * @a < b@ indicates that @b@ occurs later than @a@.
---   * @a = b@ indicates that @a@ and @b@ occur at the same point.
---
-newtype SlotInternalIndex = SlotInternalIndex { unSlotInternalIndex :: Word64 }
-    deriving (Bounded, Enum, Eq, Ord, Show, Read)
-
 {-------------------------------------------------------------------------------
                                 Protocol Magic
 -------------------------------------------------------------------------------}
@@ -1793,7 +1781,8 @@ data CertificatePublicationTime = CertificatePublicationTime
     { slotId
         :: SlotId
     , slotInternalIndex
-        :: SlotInternalIndex
+        :: Word64
+        -- ^ Indicates the relative position of a publication within a slot.
     }
     deriving (Eq, Generic, Ord, Show)
 
