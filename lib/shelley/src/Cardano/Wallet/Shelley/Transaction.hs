@@ -37,7 +37,7 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xprvFromBytes, xpubPublicKey )
+    ( XPrv, XPub, toXPub, xpubPublicKey )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -452,20 +452,19 @@ computeTxSize proxy witTag action cs =
         dummyWitness :: BL.ByteString -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
         dummyWitness chaff = SL.WitVKey key sig
           where
-            sig = SignedDSIGN
-                $ fromMaybe (error "error creating dummy witness sig")
-                $ rawDeserialiseSigDSIGN
-                $ bloatChaff sigLen
             key = SL.VKey
                 $ fromMaybe (error "error creating dummy witness ver key")
                 $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff keyLen
-            sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
+                $ bloatChaff keyLen chaff
+
+            sig = SignedDSIGN
+                $ fromMaybe (error "error creating dummy witness sig")
+                $ rawDeserialiseSigDSIGN
+                $ bloatChaff sigLen chaff
 
         dummyWitnessUniq :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
-        dummyWitnessUniq (TxIn (Hash txid) ix) = dummyWitness chaff
+        dummyWitnessUniq (TxIn (Hash txid) ix) =
+            dummyWitness chaff
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
@@ -473,22 +472,41 @@ computeTxSize proxy witTag action cs =
       where
         dummyWitness :: BL.ByteString -> Address -> SL.BootstrapWitness TPraosStandardCrypto
         dummyWitness chaff addr =
-            SL.makeBootstrapWitness credential signingKey addrAttr
+            SL.BootstrapWitness key sig cc padding
           where
-            credential = Hash.UnsafeHash $ L8.toStrict chaff
-            addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-                       (toHDPayloadAddress addr)
-                       (toByronNetworkMagic mainnetMagic)
-            (Just xprv) = xprvFromBytes (bloatChaff sigLen)
-            signingKey = Crypto.SigningKey xprv
-            sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
+            key = SL.VKey
+                $ fromMaybe (error "error creating dummy witness ver key")
+                $ rawDeserialiseVerKeyDSIGN
+                $ bloatChaff keyLen chaff
+
+            sig = SignedDSIGN
+                $ fromMaybe (error "error creating dummy witness sig")
+                $ rawDeserialiseSigDSIGN
+                $ bloatChaff sigLen chaff
+
+            cc = SL.ChainCode
+                $ bloatChaff ccLen "0"
+
+            padding = SL.byronVerKeyAddressPadding
+                $ Byron.mkAttributes
+                $ Byron.AddrAttributes
+                   (toHDPayloadAddress addr)
+                   (toByronNetworkMagic mainnetMagic)
 
         dummyWitnessUniq :: (TxIn, TxOut) -> SL.BootstrapWitness TPraosStandardCrypto
         dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
             dummyWitness chaff addr
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
+
+    sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+
+    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+
+    ccLen =  32
+
+    bloatChaff :: Word -> BL.ByteString -> ByteString
+    bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
 
     wits = case witTag of
         TxWitnessShelleyUTxO ->
