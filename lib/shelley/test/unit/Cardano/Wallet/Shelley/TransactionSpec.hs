@@ -193,7 +193,8 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    let byronWits = Set.fromList $ map (mkByronWitness unsigned magic) pairs
+    let byronWits =
+            Set.fromList $ zipWith (\((_, TxOut addr _)) pair -> mkByronWitness unsigned magic addr pair) inps pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet mempty mempty byronWits
     let ledgerTx = SL.Tx unsigned wits metadata

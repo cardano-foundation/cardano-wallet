@@ -469,24 +469,24 @@ computeTxSize proxy witTag action cs =
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    byronWits = Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs)
+    byronWits = Set.map dummyWitnessUniq $ Set.fromList (CS.inputs cs)
       where
-        dummyWitness :: BL.ByteString -> SL.BootstrapWitness TPraosStandardCrypto
-        dummyWitness chaff =
+        dummyWitness :: BL.ByteString -> Address -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitness chaff addr =
             SL.makeBootstrapWitness credential signingKey addrAttr
           where
             credential = Hash.UnsafeHash $ L8.toStrict chaff
             addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
-                       (Just $ Byron.HDAddressPayload (bloatChaff keyLen))
+                       (toHDPayloadAddress addr)
                        (toByronNetworkMagic mainnetMagic)
             (Just xprv) = xprvFromBytes (bloatChaff sigLen)
             signingKey = Crypto.SigningKey xprv
             sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
             bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
 
-        dummyWitnessUniq :: TxIn -> SL.BootstrapWitness TPraosStandardCrypto
-        dummyWitnessUniq (TxIn (Hash txid) ix) = dummyWitness chaff
+        dummyWitnessUniq :: (TxIn, TxOut) -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
+            dummyWitness chaff addr
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
@@ -585,8 +585,8 @@ mkByronWitness
     -> SL.BootstrapWitness TPraosStandardCrypto
 mkByronWitness body protocolMagic addr (prv, pwd) =
     let (SL.TxId txHash) = SL.txid body
-        (Just signed) = xprvFromBytes (serialize' txHash `signWith` (prv, pwd))
-        signingKey = Crypto.SigningKey signed
+        --(Just signed) = xprvFromBytes (serialize' txHash `signWith` (prv, pwd))
+        signingKey = Crypto.SigningKey prv
         addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
             (toHDPayloadAddress addr)
             (toByronNetworkMagic protocolMagic)
