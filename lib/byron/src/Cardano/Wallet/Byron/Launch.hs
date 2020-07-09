@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -80,7 +81,7 @@ import Data.Text
 import Data.Time.Clock.POSIX
     ( getPOSIXTime )
 import GHC.TypeLits
-    ( SomeNat (..), someNatVal )
+    ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
     ( Parser, flag', help, long, metavar )
 import Ouroboros.Network.Magic
@@ -112,6 +113,10 @@ data NetworkConfiguration where
         :: FilePath
         -> NetworkConfiguration
 
+    StagingConfig
+        :: FilePath
+        -> NetworkConfiguration
+
 -- | Hand-written as there's no Show instance for 'NodeVersionData'
 instance Show NetworkConfiguration where
     show = \case
@@ -119,6 +124,8 @@ instance Show NetworkConfiguration where
             "MainnetConfig"
         TestnetConfig genesisFile ->
             "TestnetConfig " <> show genesisFile
+        StagingConfig genesisFile ->
+            "StagingConfig " <> show genesisFile
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
@@ -130,35 +137,37 @@ nodeSocketOption = optionT $ mempty
 -- | --mainnet | (--testnet=FILE)
 networkConfigurationOption :: Parser NetworkConfiguration
 networkConfigurationOption =
-    mainnetFlag <|> (TestnetConfig <$> testnetOption)
+    mainnetFlag
+    <|>
+    (TestnetConfig <$> customNetworkOption "testnet")
+    <|>
+    (StagingConfig <$> customNetworkOption "staging")
   where
     -- --mainnet
     mainnetFlag = flag'
         (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
         (long "mainnet")
 
-    -- | --testnet=FILE
-    testnetOption
-        :: Parser FilePath
-    testnetOption = optionT $ mempty
-        <> long "testnet"
+    customNetworkOption
+        :: String
+        -> Parser FilePath
+    customNetworkOption network = optionT $ mempty
+        <> long network
         <> metavar "FILE"
         <> help "Path to the genesis .json file."
 
-someTestnetDiscriminant
-    :: ProtocolMagic
+someCustomDiscriminant
+    :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
+    -> ProtocolMagic
     -> (SomeNetworkDiscriminant, NodeVersionData)
-someTestnetDiscriminant pm@(ProtocolMagic n) =
+someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
     case someNatVal (fromIntegral n) of
         Just (SomeNat proxy) ->
-            ( SomeNetworkDiscriminant $ mapProxy proxy
+            ( mkSomeNetwork proxy
             , testnetVersionData pm
             )
         _ -> error "networkDiscriminantFlag: failed to convert \
             \ProtocolMagic to SomeNat."
-  where
-    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
-    mapProxy _proxy = Proxy @('Testnet a)
 
 parseGenesisData
     :: NetworkConfiguration
@@ -175,10 +184,38 @@ parseGenesisData = \case
         (genesisData, genesisHash) <-
             withExceptT show $ readGenesisData genesisFile
 
+        let mkSomeNetwork
+                :: forall (pm :: Nat). KnownNat pm
+                => Proxy pm
+                -> SomeNetworkDiscriminant
+            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
+
         let (discriminant, vData) = genesisData
                 & gdProtocolMagicId
                 & fromProtocolMagicId
-                & someTestnetDiscriminant
+                & someCustomDiscriminant mkSomeNetwork
+
+        let (np, outs) = fromGenesisData (genesisData, genesisHash)
+        pure
+            ( discriminant
+            , np
+            , vData
+            , genesisBlockFromTxOuts (genesisParameters np) outs
+            )
+    StagingConfig genesisFile -> do
+        (genesisData, genesisHash) <-
+            withExceptT show $ readGenesisData genesisFile
+
+        let mkSomeNetwork
+                :: forall (pm :: Nat). KnownNat pm
+                => Proxy pm
+                -> SomeNetworkDiscriminant
+            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Staging pm)
+
+        let (discriminant, vData) = genesisData
+                & gdProtocolMagicId
+                & fromProtocolMagicId
+                & someCustomDiscriminant mkSomeNetwork
 
         let (np, outs) = fromGenesisData (genesisData, genesisHash)
         pure

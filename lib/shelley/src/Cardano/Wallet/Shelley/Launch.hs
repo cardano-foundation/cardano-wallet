@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -114,9 +115,9 @@ import Data.Text.Class
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import GHC.TypeLits
-    ( SomeNat (..), someNatVal )
+    ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, help, long, metavar )
+    ( Parser, help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
 import Ouroboros.Consensus.Shelley.Protocol
@@ -162,11 +163,17 @@ data NetworkConfiguration where
         :: FilePath
         -> NetworkConfiguration
 
+    StagingConfig
+        :: FilePath
+        -> NetworkConfiguration
+
 -- | Hand-written as there's no Show instance for 'NodeVersionData'
 instance Show NetworkConfiguration where
     show = \case
         TestnetConfig genesisFile ->
             "TestnetConfig " <> show genesisFile
+        StagingConfig genesisFile ->
+            "StagingConfig " <> show genesisFile
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
@@ -178,30 +185,30 @@ nodeSocketOption = optionT $ mempty
 -- | --testnet=FILE
 networkConfigurationOption :: Parser NetworkConfiguration
 networkConfigurationOption =
-    TestnetConfig <$> testnetOption
+    (TestnetConfig <$> customNetworkOption "testnet")
+    <|>
+    (StagingConfig <$> customNetworkOption "staging")
   where
-    -- | --testnet=FILE
-    testnetOption
-        :: Parser FilePath
-    testnetOption = optionT $ mempty
-        <> long "testnet"
+    customNetworkOption
+        :: String
+        -> Parser FilePath
+    customNetworkOption network = optionT $ mempty
+        <> long network
         <> metavar "FILE"
         <> help "Path to the genesis .json file."
 
-someTestnetDiscriminant
-    :: ProtocolMagic
+someCustomDiscriminant
+    :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
+    -> ProtocolMagic
     -> (SomeNetworkDiscriminant, NodeVersionData)
-someTestnetDiscriminant pm@(ProtocolMagic n) =
+someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
     case someNatVal (fromIntegral n) of
         Just (SomeNat proxy) ->
-            ( SomeNetworkDiscriminant $ mapProxy proxy
+            ( mkSomeNetwork proxy
             , testnetVersionData pm
             )
         _ -> error "networkDiscriminantFlag: failed to convert \
             \ProtocolMagic to SomeNat."
-  where
-    mapProxy :: forall a. Proxy a -> Proxy ('Testnet a)
-    mapProxy _proxy = Proxy @('Testnet a)
 
 parseGenesisData
     :: NetworkConfiguration
@@ -211,9 +218,37 @@ parseGenesisData = \case
     TestnetConfig genesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
             <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+
+        let mkSomeNetwork
+                :: forall (pm :: Nat). KnownNat pm
+                => Proxy pm
+                -> SomeNetworkDiscriminant
+            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
+
         let nm = sgNetworkMagic genesis
-        let (discriminant, vData) =
-                someTestnetDiscriminant $ ProtocolMagic $ fromIntegral nm
+        let pm = ProtocolMagic $ fromIntegral nm
+        let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
+        let (np, block0) = fromGenesisData genesis (Map.toList $ sgInitialFunds genesis)
+        pure
+            ( discriminant
+            , np
+            , vData
+            , block0
+            )
+
+    StagingConfig genesisFile -> do
+        (genesis :: ShelleyGenesis TPraosStandardCrypto)
+            <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+
+        let mkSomeNetwork
+                :: forall (pm :: Nat). KnownNat pm
+                => Proxy pm
+                -> SomeNetworkDiscriminant
+            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Staging pm)
+
+        let nm = sgNetworkMagic genesis
+        let pm = ProtocolMagic $ fromIntegral nm
+        let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
         let (np, block0) = fromGenesisData genesis (Map.toList $ sgInitialFunds genesis)
         pure
             ( discriminant
