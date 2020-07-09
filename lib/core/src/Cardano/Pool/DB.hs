@@ -206,9 +206,9 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 -- https://hydra.iohk.io/build/3202141/download/1/ledger-spec.pdf
 --
 determinePoolRegistrationStatus
-    :: Ord certificatePublicationTime
-    => Maybe (certificatePublicationTime, PoolRegistrationCertificate)
-    -> Maybe (certificatePublicationTime, PoolRetirementCertificate)
+    :: (Ord publicationTime, Show publicationTime)
+    => Maybe (publicationTime, PoolRegistrationCertificate)
+    -> Maybe (publicationTime, PoolRetirementCertificate)
     -> PoolRegistrationStatus
 determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
     (Nothing, _) ->
@@ -249,9 +249,9 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
             , " pool id of retirement certificate: "
             , show retPoolId
             , " publication time of registration certificate: "
-            , show regPoolId
+            , show regTime
             , " publication time of retirement certificate: "
-            , show retPoolId
+            , show retTime
             ]
 
 -- | Reads the current registration status of a pool.
