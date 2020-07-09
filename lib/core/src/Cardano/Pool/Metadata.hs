@@ -43,12 +43,10 @@ import Control.Exception
     ( IOException, handle )
 import Control.Monad
     ( when )
-import Control.Monad.Catch
-    ( MonadThrow (..) )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Control.Tracer
     ( Tracer, traceWith )
 import Crypto.Hash.Utils
@@ -106,24 +104,22 @@ newManager = HTTPS.newTlsManagerWith
 
 -- | Simply return a pool metadata url, unchanged
 identityUrlBuilder
-    :: forall m. (MonadThrow m)
-    => StakePoolMetadataUrl
+    :: StakePoolMetadataUrl
     -> StakePoolMetadataHash
-    -> m URI
+    -> Either HttpException URI
 identityUrlBuilder (StakePoolMetadataUrl url) _ =
-    maybe (throwM e) pure $ parseURI (T.unpack url)
+    maybe (Left e) Right $ parseURI (T.unpack url)
   where
     e = InvalidUrlException (T.unpack url) "Invalid URL"
 
 -- | Build a URL from a metadata hash compatible with an aggregation registry
 registryUrlBuilder
-    :: forall m. (MonadThrow m)
-    => URI
+    :: URI
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
-    -> m URI
+    -> Either HttpException URI
 registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
-    pure $ baseUrl
+    Right $ baseUrl
         { uriPath = "/" <> intercalate "/" (pathSegments baseUrl ++ [hash])
         }
   where
@@ -131,7 +127,7 @@ registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
 
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog
-    -> [StakePoolMetadataUrl -> StakePoolMetadataHash -> ExceptT String IO URI]
+    -> [StakePoolMetadataUrl -> StakePoolMetadataHash -> Either HttpException URI]
     -> Manager
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
@@ -166,7 +162,7 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
     -- "ConnectionFailure" exception. Other exceptions mean that we could
     -- likely reach the server.
     fromFirst (builder:rest) = do
-        uri <- builder url hash
+        uri <- withExceptT show $ except $ builder url hash
         req <- requestFromURI uri
         liftIO $ traceWith tr $ MsgFetchPoolMetadata hash uri
         mChunk <- ExceptT
