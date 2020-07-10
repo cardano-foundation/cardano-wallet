@@ -218,6 +218,7 @@ exec c = do
     let networkDir = case c of
             MainnetConfig _ -> "mainnet"
             TestnetConfig _ -> "testnet"
+            StagingConfig _ -> "staging"
         topology = configs </> networkDir </> "topology.json"
         config = configs </> networkDir </> "configuration.json"
 
