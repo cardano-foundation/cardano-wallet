@@ -119,6 +119,8 @@ import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( (<|>) )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( when )
 import Crypto.Hash.Utils
@@ -130,7 +132,7 @@ import Data.Binary.Get
 import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.Bits
-    ( (.|.) )
+    ( (.&.), (.|.) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -862,6 +864,9 @@ instance DecodeStakeAddress ('Testnet pm) where
 stakeAddressPrefix :: Word8
 stakeAddressPrefix = 0xE0
 
+networkIdMask :: Word8
+networkIdMask = 0x0F
+
 toNetworkId :: SL.Network -> Word8
 toNetworkId = \case
     SL.Testnet -> 0
@@ -876,7 +881,7 @@ _encodeStakeAddress network (W.ChimericAccount acct) =
   where
     hrp = [Bech32.humanReadablePart|stake_addr|]
     bytes = BL.toStrict $ runPut $ do
-        putWord8 (toNetworkId network .|. stakeAddressPrefix)
+        putWord8 $ (networkIdMask .&. toNetworkId network) .|. stakeAddressPrefix
         putByteString acct
 
 _decodeStakeAddress
@@ -884,7 +889,9 @@ _decodeStakeAddress
     -> Text
     -> Either TextDecodingError W.ChimericAccount
 _decodeStakeAddress serverNetwork txt = do
-    rewardAcnt <- runGetOrFail' SL.getRewardAcnt (T.encodeUtf8 txt)
+    (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
+    bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
+    rewardAcnt <- runGetOrFail' SL.getRewardAcnt bytes
 
     guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
 
@@ -892,17 +899,20 @@ _decodeStakeAddress serverNetwork txt = do
   where
     runGetOrFail' decoder bytes =
         case runGetOrFail decoder (BL.fromStrict bytes) of
-            Left{} ->
-                Left msg
+            Left e ->
+                Left (TextDecodingError (show e))
 
             Right (remaining,_,_) | not (BL.null remaining) ->
-                Left msg
+                Left errDecode
 
             Right (_,_,a) ->
                 Right a
-      where
-        msg = TextDecodingError
-            "Unable to decode stake-address: not a well-formed address."
+
+    errDecode = TextDecodingError
+        "Unable to decode stake-address: not a well-formed address."
+
+    errBech32 = TextDecodingError
+        "Unable to decode stake-address: must be a valid bech32 string."
 
 instance EncodeAddress 'Mainnet where
     encodeAddress = _encodeAddress

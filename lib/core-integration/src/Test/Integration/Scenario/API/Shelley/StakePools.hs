@@ -18,7 +18,6 @@ import Cardano.Wallet.Api.Types
     ( ApiStakePool
     , ApiT (..)
     , ApiTransaction
-    , ApiTxId (..)
     , ApiWallet
     , ApiWithdrawRewards (..)
     , DecodeAddress
@@ -194,9 +193,8 @@ spec = do
             (Link.createTransaction @'Shelley w)
             Default (Json payload)
         expectResponseCode HTTP.status202 r1
-        let txId1 = getFromResponse #id r1
         eventually "Wallet has not consumed rewards" $ do
-          let linkSrc = Link.getTransaction @'Shelley w (ApiTxId txId1)
+          let linkSrc = Link.getTransaction @'Shelley w (getFromResponse Prelude.id r1)
           request @(ApiTransaction n) ctx linkSrc Default Empty  >>= flip verify
               [ expectField (#status . #getApiT) (`shouldBe` InLedger)
               ]
@@ -205,18 +203,28 @@ spec = do
               ]
 
         -- can use rewards with special transaction query param (ApiWithdrawRewards True)
-        request @(ApiTransaction n) ctx
+        rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
-            Default (Json payload) >>= flip verify
-                [ expectField #amount (.> (Quantity coin))
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                ]
+            Default (Json payload)
+        verify rTx
+            [ expectField #amount (.> (Quantity coin))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#balance . #getApiT . #reward) (`shouldBe` (Quantity 0))
                 , expectField (#balance . #getApiT . #available) (.> previousBalance)
+                ]
+
+        eventually "There's at least one transaction with a withdrawal" $ do
+            rWithdrawal <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley w (getFromResponse Prelude.id rTx))
+                Default Empty
+            verify rWithdrawal
+                [ expectResponseCode HTTP.status200
+                , expectField #withdrawals (`shouldSatisfy` (not . null))
                 ]
 
         -- Quit delegation altogether.

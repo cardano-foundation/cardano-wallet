@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -26,7 +27,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..) )
+    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -40,6 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , ChimericAccount (..)
     , DecentralizationLevel (..)
     , EpochLength (..)
     , Hash (..)
@@ -121,6 +123,17 @@ spec = do
             let fromTip' = fromTip gh epochLength
             let toPoint' = toPoint gh epochLength
             toPoint' (fromTip' tip) === (getTipPoint tip)
+
+    describe "Shelley StakeAddress" $ do
+        prop "roundtrip / Mainnet" $ \x ->
+            (decodeStakeAddress @'Mainnet . encodeStakeAddress @'Mainnet) x
+            ===
+            Right x
+
+        prop "roundtrip / Testnet" $ \x ->
+            (decodeStakeAddress @('Testnet 0) . encodeStakeAddress @('Testnet 0)) x
+            ===
+            Right x
 
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
@@ -213,6 +226,9 @@ instance Arbitrary (Hash "Genesis") where
 
 instance Arbitrary (Hash "BlockHeader") where
     arbitrary = Hash . BS.pack <$> vector 32
+
+instance Arbitrary ChimericAccount where
+    arbitrary = ChimericAccount . BS.pack <$> vector 28
 
 instance Arbitrary (Tip ShelleyBlock) where
     arbitrary = frequency
