@@ -511,7 +511,7 @@ filterTxHistory minWithdrawal order range =
     sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd)
     sortByTxId = sortOn (txId . fst)
     atLeast (Quantity inf) =
-        not . Map.null . Map.filter (> Coin (fromIntegral inf))
+        not . Map.null . Map.filter (>= Coin (fromIntegral inf))
     filterWithdrawals = maybe
         (const True)
         (\inf -> atLeast inf . withdrawals . fst)

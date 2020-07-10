@@ -202,6 +202,12 @@ spec = do
               [ expectField (#balance . #getApiT . #reward) (`shouldBe` walletRewards)
               ]
 
+        -- there's currently no withdrawals in the wallet
+        rw1 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shelley w (Just 1) Nothing Nothing Nothing)
+            Default Empty
+        verify rw1 [ expectListSize 0 ]
+
         -- can use rewards with special transaction query param (ApiWithdrawRewards True)
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
@@ -226,6 +232,10 @@ spec = do
                 [ expectResponseCode HTTP.status200
                 , expectField #withdrawals (`shouldSatisfy` (not . null))
                 ]
+            rw2 <- request @[ApiTransaction n] ctx
+                (Link.listTransactions' @'Shelley w (Just 1) Nothing Nothing Nothing)
+                Default Empty
+            verify rw2 [ expectListSize 1 ]
 
         -- Quit delegation altogether.
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
