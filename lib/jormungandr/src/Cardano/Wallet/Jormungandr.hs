@@ -288,6 +288,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     getActiveSlotCoefficient (genesisParameters np)
                 , defaultDesiredNumberOfPool =
                     desiredNumberOfStakePools (protocolParameters np)
+                , defaultMinimumUTxOValue =
+                    minimumUTxOvalue (protocolParameters np)
                 }
             )
             databaseDir

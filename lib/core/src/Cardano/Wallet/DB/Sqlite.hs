@@ -136,6 +136,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
 import Data.Typeable
@@ -330,6 +332,8 @@ migrateManually tr defaultFieldValues =
 
         addDesiredPoolNumberIfMissing conn
 
+        addMinimumUTxOValueIfMissing conn
+
         -- FIXME
         -- Temporary migration to fix Daedalus flight wallets. This should
         -- really be removed as soon as we have a fix for the cardano-sl:wallet
@@ -436,6 +440,15 @@ migrateManually tr defaultFieldValues =
       where
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
+    -- | Adds an 'minimum_utxo_value' column to the 'protocol_parameters'
+    -- table if it is missing.
+    --
+    addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
+    addMinimumUTxOValueIfMissing conn = do
+        addColumn conn (DBField ProtocolParametersMinimumUtxoValue) value
+      where
+        value = T.pack $ show $ defaultMinimumUTxOValue defaultFieldValues
+
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
@@ -490,6 +503,7 @@ migrateManually tr defaultFieldValues =
 data DefaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
     , defaultDesiredNumberOfPool :: Word16
+    , defaultMinimumUTxOValue :: W.Coin
     }
 
 -- | Sets up a connection to the SQLite database.

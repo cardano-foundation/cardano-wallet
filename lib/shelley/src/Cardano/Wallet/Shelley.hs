@@ -329,6 +329,8 @@ serveWallet
                     getActiveSlotCoefficient gp
                 , defaultDesiredNumberOfPool =
                     desiredNumberOfStakePools (protocolParameters np)
+                , defaultMinimumUTxOValue =
+                    minimumUTxOvalue (protocolParameters np)
                 }
             )
             databaseDir
