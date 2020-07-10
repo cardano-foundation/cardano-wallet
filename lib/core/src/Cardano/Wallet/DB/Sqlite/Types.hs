@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolOwner (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -307,11 +307,11 @@ instance ToJSON SlotId where
 instance FromJSON SlotId where
     parseJSON = genericParseJSON defaultOptions
 
-instance ToJSON SlotNo where
-    toJSON (SlotNo n) = toJSON n
+instance ToJSON SlotInEpoch where
+    toJSON (SlotInEpoch n) = toJSON n
 
-instance FromJSON SlotNo where
-    parseJSON = fmap SlotNo . parseJSON
+instance FromJSON SlotInEpoch where
+    parseJSON = fmap SlotInEpoch . parseJSON
 
 instance ToJSON EpochNo where
     toJSON (EpochNo n) = toJSON (fromIntegral @Word31 @Word32 n)

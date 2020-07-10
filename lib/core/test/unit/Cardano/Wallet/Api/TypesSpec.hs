@@ -123,7 +123,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , PoolOwner (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , SortOrder (..)
     , StakePoolMetadata (..)
     , StakePoolTicker
@@ -1185,9 +1185,9 @@ instance Arbitrary SlotId where
     arbitrary = applyArbitrary2 SlotId
     shrink = genericShrink
 
-instance Arbitrary SlotNo where
-    shrink (SlotNo x) = SlotNo <$> shrink x
-    arbitrary = SlotNo <$> arbitrary
+instance Arbitrary SlotInEpoch where
+    shrink (SlotInEpoch x) = SlotInEpoch <$> shrink x
+    arbitrary = SlotInEpoch <$> arbitrary
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x

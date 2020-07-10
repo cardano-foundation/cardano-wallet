@@ -99,7 +99,7 @@ module Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , SlotId (..)
     , SlotLength (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , StartTime (..)
     , slotParams
 
@@ -1465,10 +1465,10 @@ instance Buildable TxParameters where
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
   { epochNumber :: !EpochNo
-  , slotNumber :: !SlotNo
+  , slotNumber :: !SlotInEpoch
   } deriving stock (Show, Read, Eq, Ord, Generic)
 
-newtype SlotNo = SlotNo { unSlotNo :: Word32 }
+newtype SlotInEpoch = SlotInEpoch { unSlotInEpoch :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)
     deriving newtype (Num, Buildable, NFData, Enum)
 
@@ -1526,7 +1526,7 @@ epochSucc (EpochNo e)
 instance NFData SlotId
 
 instance Buildable SlotId where
-    build (SlotId (EpochNo e) (SlotNo s)) =
+    build (SlotId (EpochNo e) (SlotInEpoch s)) =
         fromString (show e) <> "." <> fromString (show s)
 
 -- | The essential parameters necessary for performing slot arithmetic.
@@ -1543,7 +1543,7 @@ data SlotParameters = SlotParameters
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
-flatSlot (EpochLength epochLength) (SlotId (EpochNo e) (SlotNo s)) =
+flatSlot (EpochLength epochLength) (SlotId (EpochNo e) (SlotInEpoch s)) =
     fromIntegral epochLength * fromIntegral e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
@@ -1569,7 +1569,7 @@ fromFlatSlot el@(EpochLength epochLength) n
     e = n `div` fromIntegral epochLength
     s = n `mod` fromIntegral epochLength
     maxFlatSlot =
-        flatSlot el (SlotId (EpochNo maxBound) (SlotNo $ epochLength - 1))
+        flatSlot el (SlotId (EpochNo maxBound) (SlotInEpoch $ epochLength - 1))
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
@@ -1586,12 +1586,12 @@ slotPred :: SlotParameters -> SlotId -> Maybe SlotId
 slotPred (SlotParameters (EpochLength el) _ _ _) (SlotId en sn)
     | en == 0 && sn == 0 = Nothing
     | sn > 0 = Just $ SlotId en (sn - 1)
-    | otherwise = Just $ SlotId (en - 1) (SlotNo $ el - 1)
+    | otherwise = Just $ SlotId (en - 1) (SlotInEpoch $ el - 1)
 
 -- | Return the slot immediately after the given slot.
 slotSucc :: SlotParameters -> SlotId -> SlotId
-slotSucc (SlotParameters (EpochLength el) _ _ _) (SlotId en (SlotNo sn))
-    | sn < el - 1 = SlotId en (SlotNo $ sn + 1)
+slotSucc (SlotParameters (EpochLength el) _ _ _) (SlotId en (SlotInEpoch sn))
+    | sn < el - 1 = SlotId en (SlotInEpoch $ sn + 1)
     | otherwise = SlotId (en + 1) 0
 
 -- | The time when a slot begins.
@@ -1632,7 +1632,7 @@ slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st) _) t
     epochNumber = EpochNo $
         floor (diff / epochLength)
 
-    slotNumber = SlotNo $
+    slotNumber = SlotInEpoch $
         floor ((diff - fromIntegral (unEpochNo epochNumber) * epochLength) / sl)
 
 -- | Transforms the given inclusive time range into an inclusive slot range.

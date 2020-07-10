@@ -123,7 +123,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , SortOrder (..)
     , StakeKeyCertificate
     , TransactionInfo (..)
@@ -784,7 +784,7 @@ instance ToExpr SlotId where
 instance ToExpr EpochNo where
     toExpr = defaultExprViaShow
 
-instance ToExpr SlotNo where
+instance ToExpr SlotInEpoch where
     toExpr = genericToExpr
 
 instance ToExpr TxStatus where

@@ -105,7 +105,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SealedTx (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -227,7 +227,7 @@ getBlockHeader = label "getBlockHeader" $ do
         version <- getWord16be
         contentSize <- getWord32be
         slotEpoch <- getEpochNo
-        slotNo <- SlotNo <$> getWord32be
+        slotNo <- SlotInEpoch <$> getWord32be
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32
         parentHeaderHash <- Hash <$> getByteString 32

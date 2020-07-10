@@ -89,7 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , ShowFmt (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , SlotParameters (..)
     , SortOrder (..)
     , Tx (..)
@@ -347,19 +347,19 @@ instance Arbitrary PassphraseScheme where
 
 instance Arbitrary BlockHeader where
     arbitrary = do
-        sid@(SlotId (EpochNo ep) (SlotNo sl)) <- arbitrary
+        sid@(SlotId (EpochNo ep) (SlotInEpoch sl)) <- arbitrary
         let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         blockH <- arbitrary
         pure $ BlockHeader sid (Quantity h) blockH (coerce blockH)
 
 instance Arbitrary SlotId where
-    shrink (SlotId (EpochNo ep) (SlotNo sl)) =
-        uncurry SlotId <$> shrink (EpochNo ep, SlotNo sl)
+    shrink (SlotId (EpochNo ep) (SlotInEpoch sl)) =
+        uncurry SlotId <$> shrink (EpochNo ep, SlotInEpoch sl)
     arbitrary = applyArbitrary2 SlotId
 
-instance Arbitrary SlotNo where
-    shrink (SlotNo x) = SlotNo <$> shrink x
-    arbitrary = SlotNo <$> choose (0, fromIntegral arbitraryChainLength)
+instance Arbitrary SlotInEpoch where
+    shrink (SlotInEpoch x) = SlotInEpoch <$> shrink x
+    arbitrary = SlotInEpoch <$> choose (0, fromIntegral arbitraryChainLength)
 
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x

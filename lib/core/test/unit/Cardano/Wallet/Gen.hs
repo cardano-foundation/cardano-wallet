@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ProtocolMagic (..)
     , SlotId (..)
-    , SlotNo (..)
+    , SlotInEpoch (..)
     , flatSlot
     , unsafeEpochNo
     )
@@ -104,7 +104,7 @@ genSlotId :: EpochLength -> Gen SlotId
 genSlotId (EpochLength el) | el > 0 = do
     ep <- choose (0, 10)
     sl <- choose (0, el - 1)
-    return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+    return (SlotId (unsafeEpochNo ep) (SlotInEpoch sl))
 genSlotId _ = error "genSlotId: epochLength must > 0"
 
 genBlockHeader :: SlotId -> Gen BlockHeader

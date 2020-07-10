@@ -45,8 +45,8 @@ import Cardano.Wallet.Primitive.Types
     , RangeBound (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SlotInEpoch (..)
     , SlotLength (..)
-    , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
     , Tx (..)
@@ -299,8 +299,8 @@ spec = do
             --
             -- For flat slot values that are higher than this maximum, we expect
             -- the 'fromFlatSlot' function to fail with an error.
-            let maxSlotNo = SlotNo $ unEpochLength slotsPerEpoch - 1
-            let maxSlotId = SlotId (EpochNo maxBound) maxSlotNo
+            let maxSlotInEpoch = SlotInEpoch $ unEpochLength slotsPerEpoch - 1
+            let maxSlotId = SlotId (EpochNo maxBound) maxSlotInEpoch
             let maxFlatSlot = flatSlot slotsPerEpoch maxSlotId
             let result = flatSlot slotsPerEpoch $ fromFlatSlot slotsPerEpoch n
             checkCoverage $
@@ -1220,7 +1220,7 @@ instance Arbitrary SlotId where
     arbitrary = do
         ep <- choose (0, 10)
         sl <- choose (0, 100)
-        return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+        return (SlotId (unsafeEpochNo ep) (SlotInEpoch sl))
 
 instance Arbitrary Block where
     shrink (Block h txs _) = Block h <$> shrink txs <*> pure []
@@ -1319,12 +1319,12 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
     shrink (a,b) =
         filter validSlotConfig $ zip (shrink a) (shrink b)
       where
-        validSlotConfig (EpochLength ep, SlotId _ (SlotNo sl)) = sl < ep
+        validSlotConfig (EpochLength ep, SlotId _ (SlotInEpoch sl)) = sl < ep
 
     arbitrary = do
         (EpochLength epochLength) <- arbitrary
         ep <- unsafeEpochNo <$> choose (0, 1000)
-        sl <- SlotNo <$> choose (0, fromIntegral epochLength - 1)
+        sl <- SlotInEpoch <$> choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
 
 instance Arbitrary Word31 where

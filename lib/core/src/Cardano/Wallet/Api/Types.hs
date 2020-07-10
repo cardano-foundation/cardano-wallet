@@ -160,8 +160,8 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PoolId (..)
     , ShowFmt (..)
+    , SlotInEpoch (..)
     , SlotLength (..)
-    , SlotNo (..)
     , StakePoolMetadata
     , StartTime (..)
     , TxIn (..)
@@ -556,13 +556,13 @@ data ApiTimeReference = ApiTimeReference
 
 data ApiBlockReference = ApiBlockReference
     { epochNumber :: !(ApiT EpochNo)
-    , slotNumber :: !(ApiT SlotNo)
+    , slotNumber :: !(ApiT SlotInEpoch)
     , height :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkTip = ApiNetworkTip
     { epochNumber :: !(ApiT EpochNo)
-    , slotNumber :: !(ApiT SlotNo)
+    , slotNumber :: !(ApiT SlotInEpoch)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkInformation = ApiNetworkInformation
@@ -1126,10 +1126,10 @@ instance FromJSON (ApiT EpochNo) where
 instance ToJSON (ApiT EpochNo) where
     toJSON (ApiT (EpochNo en)) = toJSON $ fromIntegral @Word31 @Word32 en
 
-instance FromJSON (ApiT SlotNo) where
-    parseJSON = fmap (ApiT . SlotNo) . parseJSON
-instance ToJSON (ApiT SlotNo) where
-    toJSON (ApiT (SlotNo sn)) = toJSON sn
+instance FromJSON (ApiT SlotInEpoch) where
+    parseJSON = fmap (ApiT . SlotInEpoch) . parseJSON
+instance ToJSON (ApiT SlotInEpoch) where
+    toJSON (ApiT (SlotInEpoch sn)) = toJSON sn
 
 instance FromJSON ApiNetworkTip where
     parseJSON = genericParseJSON defaultRecordTypeOptions

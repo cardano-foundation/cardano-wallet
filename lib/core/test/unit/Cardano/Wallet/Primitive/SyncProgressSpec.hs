@@ -20,8 +20,8 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , Hash (..)
     , SlotId (..)
+    , SlotInEpoch (..)
     , SlotLength (..)
-    , SlotNo (..)
     , SlotParameters (..)
     , StartTime (..)
     , unsafeEpochNo
@@ -192,7 +192,7 @@ instance Arbitrary SlotId where
     arbitrary = do
         ep <- choose (0, 10)
         sl <- choose (0, 100)
-        return (SlotId (unsafeEpochNo ep) (SlotNo sl))
+        return (SlotId (unsafeEpochNo ep) (SlotInEpoch sl))
 
 instance Arbitrary ActiveSlotCoefficient where
     shrink = shrinkActiveSlotCoefficient
