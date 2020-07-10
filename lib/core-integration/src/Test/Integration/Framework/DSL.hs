@@ -1275,6 +1275,7 @@ listTransactions ctx wallet mStart mEnd mOrder = do
     return txs
   where
     path = Link.listTransactions' @'Shelley wallet
+        Nothing
         (Iso8601Time <$> mStart)
         (Iso8601Time <$> mEnd)
         mOrder

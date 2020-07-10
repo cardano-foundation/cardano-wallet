@@ -398,7 +398,7 @@ benchReadTxHistory
     -> DBLayerBench
     -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
-    atomically $ readTxHistory testPk sortOrder range mstatus
+    atomically $ readTxHistory testPk Nothing sortOrder range mstatus
   where
     range = Range
         (fromFlatSlot epochLength <$> inf)

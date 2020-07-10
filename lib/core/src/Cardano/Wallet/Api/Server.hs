@@ -186,6 +186,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , KnownDiscovery (..)
+    , MinWithdrawal (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
@@ -1169,13 +1170,15 @@ listTransactions
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
     => ctx
     -> ApiT WalletId
+    -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction n]
-listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
+listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listTransactions wrk wid
+            (Quantity . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)

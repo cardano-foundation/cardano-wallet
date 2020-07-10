@@ -503,7 +503,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         (WalletLayerFixture DBLayer{..} wl _ slotIdTime) <- liftIO $ setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
-            W.listTransactions wl wid Nothing Nothing Descending
+            W.listTransactions wl wid Nothing Nothing Nothing Descending
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs

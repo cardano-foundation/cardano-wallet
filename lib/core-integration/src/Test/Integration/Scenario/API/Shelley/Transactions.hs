@@ -184,6 +184,7 @@ spec = do
             let link = Link.listTransactions' @'Shelley wSrc
                     Nothing
                     Nothing
+                    Nothing
                     (Just Descending)
             (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
             case filter ((== Pending) . view (#status . #getApiT)) txs of
@@ -1084,6 +1085,7 @@ spec = do
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
             let link = Link.listTransactions' @'Shelley w
+                    Nothing
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing

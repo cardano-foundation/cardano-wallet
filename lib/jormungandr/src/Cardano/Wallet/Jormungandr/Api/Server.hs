@@ -240,8 +240,8 @@ server byron icarus jormungandr spl ntp =
              (\_ _ -> throwError err501)
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron wid r0 r1 s)
-                (icarus, listTransactions icarus wid r0 r1 s)
+                (byron , listTransactions byron wid Nothing r0 r1 s)
+                (icarus, listTransactions icarus wid Nothing r0 r1 s)
              )
         :<|>
              (\_ _ -> throwError err501)

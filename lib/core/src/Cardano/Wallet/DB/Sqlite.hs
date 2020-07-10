@@ -178,6 +178,8 @@ import Database.Persist.Types
     ( PersistValue (PersistText), fromPersistValueText )
 import Fmt
     ( pretty )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
@@ -687,8 +689,8 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                     putTxs txins txouts txws
                     pure $ Right ()
 
-        , readTxHistory = \(PrimaryKey wid) order range status -> do
-            selectTxHistory wid order $ catMaybes
+        , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
+            selectTxHistory wid minWithdrawal order $ catMaybes
                 [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
@@ -717,7 +719,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    metas <- selectTxHistory wid W.Descending
+                    metas <- selectTxHistory wid Nothing W.Descending
                             [ TxMetaTxId ==. (TxId tid) ]
                     case metas of
                         [] -> pure (Right Nothing)
@@ -1299,15 +1301,30 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
 
 selectTxHistory
     :: W.WalletId
+    -> Maybe (Quantity "lovelace" Natural)
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory wid order conditions = do
+selectTxHistory wid minWithdrawal order conditions = do
     selectLatestCheckpoint wid >>= \case
         Nothing -> pure []
         Just cp -> do
+            minWithdrawalFilter <- case minWithdrawal of
+                Nothing  -> pure []
+                Just inf -> do
+                    let coin = W.Coin $ fromIntegral $ getQuantity inf
+                    wdrls <- fmap entityVal
+                        <$> selectList [ TxWithdrawalAmount >=. coin ] []
+                    pure [ TxMetaTxId <-. (txWithdrawalTxId <$> wdrls) ]
+
             metas <- fmap entityVal <$> selectList
-                ((TxMetaWalletId ==. wid) : conditions) sortOpt
+                ( mconcat
+                    [ [ TxMetaWalletId ==. wid ]
+                    , minWithdrawalFilter
+                    , conditions
+                    ]
+                ) sortOpt
+
             let txids = map txMetaTxId metas
             (ins, outs, ws) <- selectTxs txids
 

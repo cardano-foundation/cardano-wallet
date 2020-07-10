@@ -324,7 +324,7 @@ readTxHistoryF
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
-        <$> atomically (readTxHistory wid Descending wholeRange Nothing)
+        <$> atomically (readTxHistory wid Nothing Descending wholeRange Nothing)
 
 putTxHistoryF
     :: DBLayer m s JormungandrKey
@@ -360,7 +360,7 @@ sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
     sort' = GenTxHistory
-      . filterTxHistory Descending wholeRange
+      . filterTxHistory Nothing Descending wholeRange
       . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
@@ -820,7 +820,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     prop wid requestedPoint = do
         point <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid requestedPoint
         txs <- run $ atomically $ fmap toTxHistory
-            <$> readTxHistory wid Descending wholeRange Nothing
+            <$> readTxHistory wid Nothing Descending wholeRange Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)

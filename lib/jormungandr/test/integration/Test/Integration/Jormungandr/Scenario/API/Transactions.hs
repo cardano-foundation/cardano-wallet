@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     )
@@ -123,6 +124,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall n t.
     ( KnownNetwork n
     , DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
@@ -447,6 +449,7 @@ data ExternalTxFixture = ExternalTxFixture
 fixtureExternalTx
     :: forall n t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , DelegationAddress n JormungandrKey
         )
     => (Context t)

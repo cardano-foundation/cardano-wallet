@@ -1403,8 +1403,8 @@ x-parametersMinWithdrawal: &parametersMinWithdrawal
   in: query
   name: minWithdrawal
   description: |
-    Returns only transactions that have withdrawals above the given amount. This is particularly useful to list
-    all transactions with non-empty withdrawals.
+    Returns only transactions that have at least one withdrawal above the given amount.
+    This is particularly useful when set to `1` in order to list the withdrawal history of a wallet.
   schema:
     type: integer
     minimum: 0

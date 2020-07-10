@@ -72,6 +72,7 @@ module Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiNetworkTip (..)
     , Iso8601Time (..)
+    , MinWithdrawal (..)
     , ApiNetworkParameters (..)
     , toApiNetworkParameters
     , ApiWalletDelegation (..)
@@ -685,6 +686,16 @@ instance FromHttpApiData Iso8601Time where
 
 instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
+
+newtype MinWithdrawal = MinWithdrawal
+    { getMinWithdrawal :: Natural
+    } deriving (Show)
+
+instance FromHttpApiData MinWithdrawal where
+    parseUrlPiece = bimap (T.pack . getTextDecodingError) MinWithdrawal . fromText
+
+instance ToHttpApiData MinWithdrawal where
+    toUrlPiece = toText . getMinWithdrawal
 
 instance ToText NtpSyncingStatus where
     toText NtpSyncingStatusUnavailable = "unavailable"

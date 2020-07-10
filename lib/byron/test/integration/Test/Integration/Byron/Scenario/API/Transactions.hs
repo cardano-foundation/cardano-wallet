@@ -713,12 +713,12 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
 
     -- ACTION
     rTxsFromDate <- request @[ApiTransaction n] ctx
-        (Link.listTransactions' @'Byron wSrc (Just start) Nothing Nothing)
+        (Link.listTransactions' @'Byron wSrc Nothing (Just start) Nothing Nothing)
         Default
         Empty
 
     rTxsAll <- request @[ApiTransaction n] ctx
-        (Link.listTransactions' @'Byron wSrc Nothing Nothing Nothing)
+        (Link.listTransactions' @'Byron wSrc Nothing Nothing Nothing Nothing)
         Default
         Empty
 

@@ -251,7 +251,7 @@ instance Arbitrary GenTxHistory where
         -- checkpoint's pending transactions of the same wallet.
         filter (not . isPending . snd) <$> arbitrary
       where
-        sortTxHistory = filterTxHistory Descending wholeRange
+        sortTxHistory = filterTxHistory Nothing Descending wholeRange
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
