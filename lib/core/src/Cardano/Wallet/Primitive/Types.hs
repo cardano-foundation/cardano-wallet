@@ -1399,6 +1399,9 @@ data ProtocolParameters = ProtocolParameters
         :: Word16
         -- ^ The current desired number of stakepools in the network.
         -- Also known as k parameter.
+    , minimumUTxOvalue
+        :: Coin
+        -- ^ The minimu UTxO value.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -1408,6 +1411,7 @@ instance Buildable ProtocolParameters where
         [ "Decentralization level: " <> build (pp ^. #decentralizationLevel)
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
+        , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
         ]
 
 -- | Indicates the current level of decentralization in the network.

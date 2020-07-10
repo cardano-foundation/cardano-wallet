@@ -152,6 +152,7 @@ ProtocolParameters
     protocolParametersTxMaxSize             Word16          sql=tx_max_size
     protocolParametersDecentralizationLevel Percentage      sql=decentralization_level
     protocolParametersDesiredNumberOfPools  Word16          sql=desired_pool_number
+    protocolParametersMinimumUtxoValue      W.Coin          sql=minimum_utxo_value
     Primary protocolParametersWalletId
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic

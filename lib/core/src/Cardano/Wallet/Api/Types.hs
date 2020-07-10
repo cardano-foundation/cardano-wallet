@@ -505,6 +505,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
+    , minimumUtxoValue :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
@@ -520,6 +521,7 @@ toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
         $ getActiveSlotCoefficient gp)
     (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
     (view #desiredNumberOfStakePools pp)
+    (Quantity $ fromIntegral $ getCoin $ view #minimumUTxOvalue pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
