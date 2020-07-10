@@ -818,6 +818,7 @@ components:
         - active_slot_coefficient
         - decentralization_level
         - desired_pool_number
+        - minimum_utxo_value
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -827,6 +828,7 @@ components:
         active_slot_coefficient: *percentage
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber
+        minimum_utxo_value: *amount
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object
