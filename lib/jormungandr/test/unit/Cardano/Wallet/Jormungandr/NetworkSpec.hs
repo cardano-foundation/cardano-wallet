@@ -29,6 +29,7 @@ import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders, emptyBlockHeaders, greatestCommonBlockHeader )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , Coin (..)
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
@@ -423,6 +424,7 @@ mockJormungandrClient logLine = JormungandrClient
                     , getTxMaxSize = error "mock gp"
                     }
                 , desiredNumberOfStakePools = 10
+                , minimumUTxOvalue = Coin 0
                 }
             })
 
