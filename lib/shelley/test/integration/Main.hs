@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxParameters (..)
+    , mainnetMagic
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
@@ -269,7 +270,8 @@ mkFeeEstimator policy = \case
             mempty { inputs = inps, change = outs }
 
     computeFee selection action =
-        fromIntegral $ getFee $ _minimumFee @_ @ShelleyKey (Proxy @'Mainnet) policy action selection
+        fromIntegral $ getFee $
+        _minimumFee @_ @ShelleyKey (Proxy @'Mainnet) mainnetMagic policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging

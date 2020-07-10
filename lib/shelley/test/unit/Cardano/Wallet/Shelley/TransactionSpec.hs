@@ -119,14 +119,15 @@ spec = do
 
     describe "estimateMaxNumberOfInputs" $ do
         let proxy = Proxy @'Mainnet
+        let pm = mainnetMagic
         it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity 4096) 1 `shouldBe` 27
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 1 `shouldBe` 27
         it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity 4096) 10 `shouldBe` 19
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 10 `shouldBe` 19
         it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity 4096) 20 `shouldBe` 10
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 20 `shouldBe` 10
         it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity 4096) 30 `shouldBe` 1
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 30 `shouldBe` 1
 
         prop "more outputs ==> less inputs" prop_moreOutputsMeansLessInputs
         prop "less outputs ==> more inputs" prop_lessOutputsMeansMoreInputs
@@ -209,11 +210,12 @@ prop_moreOutputsMeansLessInputs
     -> Property
 prop_moreOutputsMeansLessInputs size nOuts = withMaxSuccess 1000 $
     nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy size nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
         >=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy size (nOuts + 1)
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts + 1)
   where
     proxy = Proxy @'Mainnet
+    pm = mainnetMagic
 
 -- | REducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
@@ -222,11 +224,12 @@ prop_lessOutputsMeansMoreInputs
     -> Property
 prop_lessOutputsMeansMoreInputs size nOuts = withMaxSuccess 1000 $
     nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy size (nOuts - 1)
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy size nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
   where
     proxy = Proxy @'Mainnet
+    pm = mainnetMagic
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
@@ -235,11 +238,12 @@ prop_biggerMaxSizeMeansMoreInputs
     -> Property
 prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts = withMaxSuccess 1000 $
     size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity size) nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity size) nOuts
         <=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy (Quantity (size * 2)) nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity (size * 2)) nOuts
   where
     proxy = Proxy @'Mainnet
+    pm = mainnetMagic
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)

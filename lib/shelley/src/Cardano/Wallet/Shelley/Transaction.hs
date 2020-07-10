@@ -73,7 +73,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , mainnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -246,8 +245,8 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , minimumFee = _minimumFee @_ @k proxy
-    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @_ @k proxy
+    , minimumFee = _minimumFee @_ @k proxy protocolMagic
+    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @_ @k proxy protocolMagic
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
     }
@@ -326,12 +325,13 @@ _estimateMaxNumberOfInputs
        , TxWitnessTagFor k
        )
     => Proxy n
+    -> ProtocolMagic
     -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
+_estimateMaxNumberOfInputs proxy pm (Quantity maxSize) nOuts =
       fromIntegral $ bisect (lowerBound, upperBound)
   where
     bisect (!inf, !sup)
@@ -352,7 +352,7 @@ _estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize proxy (txWitnessTagFor @k) Nothing sel
+        size = computeTxSize proxy pm (txWitnessTagFor @k) Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -382,12 +382,13 @@ _minimumFee
        , TxWitnessTagFor k
        )
     => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
     -> FeePolicy
     -> Maybe DelegationAction
     -> CoinSelection
     -> Fee
-_minimumFee proxy policy action cs =
-    computeFee $ computeTxSize proxy (txWitnessTagFor @k) action cs
+_minimumFee proxy pm policy action cs =
+    computeFee $ computeTxSize proxy pm (txWitnessTagFor @k) action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -398,11 +399,12 @@ _minimumFee proxy policy action cs =
 computeTxSize
     :: forall (n :: NetworkDiscriminant). Typeable n
     => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
     -> TxWitnessTag
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize proxy witTag action cs =
+computeTxSize proxy pm witTag action cs =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
@@ -491,7 +493,7 @@ computeTxSize proxy witTag action cs =
                 $ Byron.mkAttributes
                 $ Byron.AddrAttributes
                    (toHDPayloadAddress addr)
-                   (toByronNetworkMagic mainnetMagic)
+                   (toByronNetworkMagic pm)
 
         dummyWitnessUniq :: (TxIn, TxOut) -> SL.BootstrapWitness TPraosStandardCrypto
         dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
