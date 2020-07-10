@@ -32,7 +32,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolRegistrationStatus )
+    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -51,8 +51,8 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , PoolCertificate (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
-    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters
     , SlotId
@@ -309,7 +309,7 @@ readDBPoolData
     -> IO (Map PoolId PoolDbData)
 readDBPoolData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
-    registrationStatuses <- mapM readPoolRegistrationStatus pools
+    registrationStatuses <- mapM readPoolLifeCycleStatus pools
     let certMap = Map.fromList
             [ (poolId, certs)
             | (poolId, Just certs) <- zip pools
@@ -320,7 +320,7 @@ readDBPoolData DBLayer {..} = atomically $ do
     return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
   where
     certificatesFromRegistrationStatus
-        :: PoolRegistrationStatus
+        :: PoolLifeCycleStatus
         -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
     certificatesFromRegistrationStatus = \case
         PoolNotRegistered ->
@@ -401,7 +401,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             -- We record /all/ certificates within the database, together with
             -- the order in which they appeared.
             --
-            -- Precedence is determined by the 'readPoolRegistrationStatus'
+            -- Precedence is determined by the 'readPoolLifeCycleStatus'
             -- function.
             --
             let publicationTimes =

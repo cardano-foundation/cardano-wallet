@@ -17,10 +17,7 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , determinePoolRegistrationStatus
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Model
     ( ModelPoolOp
     , PoolDatabase
@@ -92,8 +89,8 @@ newDBLayer = do
               $ alterPoolDB (const Nothing) db
               $ mPutPoolRegistration cpt cert
 
-        , readPoolRegistrationStatus = \poolId ->
-            determinePoolRegistrationStatus
+        , readPoolLifeCycleStatus = \poolId ->
+            determinePoolLifeCycleStatus
                 <$> readPoolRegistration_ poolId
                 <*> readPoolRetirement_ poolId
 

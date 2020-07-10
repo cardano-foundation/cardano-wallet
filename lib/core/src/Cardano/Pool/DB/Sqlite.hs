@@ -42,10 +42,7 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Pool.DB
-    ( DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , determinePoolRegistrationStatus
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
@@ -206,8 +203,8 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , readPoolRegistrationStatus = \poolId ->
-            determinePoolRegistrationStatus
+        , readPoolLifeCycleStatus = \poolId ->
+            determinePoolLifeCycleStatus
                 <$> readPoolRegistration_ poolId
                 <*> readPoolRetirement_ poolId
 

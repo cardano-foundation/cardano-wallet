@@ -62,7 +62,7 @@ module Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
-    , PoolRegistrationStatus (..)
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , PoolCertificate (..)
@@ -1786,12 +1786,9 @@ data CertificatePublicationTime = CertificatePublicationTime
     }
     deriving (Eq, Generic, Ord, Show)
 
--- | Indicates the current registration status of a pool.
+-- | Indicates the current life cycle status of a pool.
 --
--- Use the 'readPoolRegistrationStatus' function to query the registration
--- status for a particular pool and database backend.
---
-data PoolRegistrationStatus
+data PoolLifeCycleStatus
     = PoolNotRegistered
         -- ^ Indicates that a pool is not registered.
     | PoolRegistered

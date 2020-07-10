@@ -13,7 +13,9 @@
 module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
-    , determinePoolRegistrationStatus
+
+      -- * Utilities
+    , determinePoolLifeCycleStatus
 
       -- * Errors
     , ErrPointAlreadyExists (..)
@@ -26,8 +28,8 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
-    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate
     , SlotId (..)
     , StakePoolMetadata
@@ -106,9 +108,10 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
-    , readPoolRegistrationStatus
+    , readPoolLifeCycleStatus
         :: PoolId
-        -> stm PoolRegistrationStatus
+        -> stm PoolLifeCycleStatus
+        -- ^ Read the current life cycle status of the given pool.
 
     , putPoolRegistration
         :: CertificatePublicationTime
@@ -122,7 +125,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         :: PoolId
         -> stm (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
         -- ^ Find the /latest/ registration certificate for the given pool,
-        -- along with the point in time that the certificate was added.
+        -- together with the point in time that the certificate was added.
+        --
+        -- Note that a pool may also have other certificates associated with it
+        -- that affect its current lifecycle status.
+        --
+        -- See 'readPoolLifeCycleStatus'.
 
     , putPoolRetirement
         :: CertificatePublicationTime
@@ -134,7 +142,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         :: PoolId
         -> stm (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
         -- ^ Find the /latest/ retirement certificate for the given pool,
-        -- along with the point in time that the certificate was added.
+        -- together with the point in time that the certificate was added.
+        --
+        -- Note that a pool may also have other certificates associated with it
+        -- that affect its current lifecycle status.
+        --
+        -- See 'readPoolLifeCycleStatus'.
 
     , unfetchedPoolMetadataRefs
         :: Int
@@ -191,7 +204,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
     }
 
 -- | Given the /latest/ registration and retirement certificates for a pool,
---   determine the pool's current registration status based on the relative
+--   determine the pool's current life cycle status, based on the relative
 --   order in which the certificates were published.
 --
 -- If two certificates are supplied, then:
@@ -207,12 +220,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 --
 -- https://hydra.iohk.io/build/3202141/download/1/ledger-spec.pdf
 --
-determinePoolRegistrationStatus
+determinePoolLifeCycleStatus
     :: (Ord publicationTime, Show publicationTime)
     => Maybe (publicationTime, PoolRegistrationCertificate)
     -> Maybe (publicationTime, PoolRetirementCertificate)
-    -> PoolRegistrationStatus
-determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
+    -> PoolLifeCycleStatus
+determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
     (Nothing, _) ->
         PoolNotRegistered
     (Just (_, regCert), Nothing) ->
@@ -234,7 +247,7 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
 
         differentPoolsError = error $ mconcat
             [ "programming error:"
-            , " determinePoolRegistrationStatus:"
+            , " determinePoolLifeCycleStatus:"
             , " called with certificates for different pools:"
             , " pool id of registration certificate: "
             , show regPoolId
@@ -244,7 +257,7 @@ determinePoolRegistrationStatus mReg mRet = case (mReg, mRet) of
 
         timeCollisionError = error $ mconcat
             [ "programming error:"
-            , " determinePoolRegistrationStatus:"
+            , " determinePoolLifeCycleStatus:"
             , " called with identical certificate publication times:"
             , " pool id of registration certificate: "
             , show regPoolId

@@ -23,8 +23,8 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
-    , determinePoolRegistrationStatus
-    , readPoolRegistrationStatus
+    , determinePoolLifeCycleStatus
+    , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
@@ -36,8 +36,8 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , PoolCertificate (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
-    , PoolRegistrationStatus (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
     , slotMinBound
@@ -166,8 +166,8 @@ properties = do
         it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
             (property .
                 prop_multiple_putPoolRetirement_single_readPoolRetirement)
-        it "readPoolRegistrationStatus should respect registration order"
-            (property . prop_readPoolRegistrationStatus)
+        it "readPoolLifeCycleStatus should respect registration order"
+            (property . prop_readPoolLifeCycleStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
         it "rollback of PoolRetirement"
@@ -184,15 +184,15 @@ properties = do
             (property . prop_unfetchedPoolMetadataRefs)
         it "unfetchedPoolMetadataRefsIgnoring"
             (property . prop_unfetchedPoolMetadataRefsIgnoring)
-        it "prop_determinePoolRegistrationStatus_orderCorrect"
+        it "prop_determinePoolLifeCycleStatus_orderCorrect"
             (property . const
-                prop_determinePoolRegistrationStatus_orderCorrect)
-        it "prop_determinePoolRegistrationStatus_neverRegistered"
+                prop_determinePoolLifeCycleStatus_orderCorrect)
+        it "prop_determinePoolLifeCycleStatus_neverRegistered"
             (property . const
-                prop_determinePoolRegistrationStatus_neverRegistered)
-        it "prop_determinePoolRegistrationStatus_differentPools"
+                prop_determinePoolLifeCycleStatus_neverRegistered)
+        it "prop_determinePoolLifeCycleStatus_differentPools"
             (property . const
-                prop_determinePoolRegistrationStatus_differentPools)
+                prop_determinePoolLifeCycleStatus_differentPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -586,25 +586,25 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
 
 -- After writing an /arbitrary/ sequence of interleaved registration and
 -- retirement certificates for the same pool to the database, verify that
--- reading the current registration status returns a result that reflects
+-- reading the current lifecycle status returns a result that reflects
 -- the correct order of precedence for these certificates.
 --
 -- Note that this property /assumes/ the correctness of the pure function
--- 'determinePoolRegistrationStatus', which is tested /elsewhere/ with
--- the @prop_determinePoolRegistrationStatus@ series of properties.
+-- 'determinePoolLifeCycleStatus', which is tested /elsewhere/ with
+-- the @prop_determinePoolLifeCycleStatus@ series of properties.
 --
-prop_readPoolRegistrationStatus
+prop_readPoolLifeCycleStatus
     :: DBLayer IO
     -> PoolId
     -> [PoolCertificate]
     -> Property
-prop_readPoolRegistrationStatus
+prop_readPoolLifeCycleStatus
     DBLayer {..} sharedPoolId certificatesManyPoolIds =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
-    expectedStatus = determinePoolRegistrationStatus
+    expectedStatus = determinePoolLifeCycleStatus
         mFinalRegistration
         mFinalRetirement
 
@@ -612,7 +612,7 @@ prop_readPoolRegistrationStatus
         actualStatus <-
             run $ atomically $ do
                 mapM_ (uncurry putCertificate) certificatePublications
-                readPoolRegistrationStatus sharedPoolId
+                readPoolLifeCycleStatus sharedPoolId
         monitor $ counterexample $ unlines
             [ "\nFinal registration: "
             , show mFinalRegistration
@@ -900,12 +900,12 @@ prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
         monitor $ counterexample $ show $ filter (/= firstS) seeds
         assert (all (== firstS) seeds)
 
-prop_determinePoolRegistrationStatus_orderCorrect
+prop_determinePoolLifeCycleStatus_orderCorrect
     :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
     => (certificatePublicationTime, PoolRegistrationCertificate)
     -> (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
-prop_determinePoolRegistrationStatus_orderCorrect regData retData =
+prop_determinePoolLifeCycleStatus_orderCorrect regData retData =
     checkCoverage
         $ cover 10 (regTime > retTime)
             "registration cert time > retirement cert time"
@@ -936,7 +936,7 @@ prop_determinePoolRegistrationStatus_orderCorrect regData retData =
     regCert = set #poolId sharedPoolId regCertAnyPool
     retCert = set #poolId sharedPoolId retCertAnyPool
 
-    result = determinePoolRegistrationStatus
+    result = determinePoolLifeCycleStatus
         (pure (regTime, regCert))
         (pure (retTime, retCert))
 
@@ -944,11 +944,11 @@ prop_determinePoolRegistrationStatus_orderCorrect regData retData =
 -- indicate that the pool was /not registered/, /regardless/ of whether or not
 -- we've seen a retirement certificate for that pool.
 --
-prop_determinePoolRegistrationStatus_neverRegistered
+prop_determinePoolLifeCycleStatus_neverRegistered
     :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
     => Maybe (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
-prop_determinePoolRegistrationStatus_neverRegistered maybeRetData =
+prop_determinePoolLifeCycleStatus_neverRegistered maybeRetData =
     checkCoverage
         $ cover 10 (isJust maybeRetData)
             "with retirement data"
@@ -957,17 +957,17 @@ prop_determinePoolRegistrationStatus_neverRegistered maybeRetData =
         $ property
         $ result `shouldBe` PoolNotRegistered
   where
-    result = determinePoolRegistrationStatus Nothing maybeRetData
+    result = determinePoolLifeCycleStatus Nothing maybeRetData
 
--- Calling 'determinePoolRegistrationStatus' with certificates from different
+-- Calling 'determinePoolLifeCycleStatus' with certificates from different
 -- pools is a programming error, and should result in an exception.
 --
-prop_determinePoolRegistrationStatus_differentPools
+prop_determinePoolLifeCycleStatus_differentPools
     :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
     => (certificatePublicationTime, PoolRegistrationCertificate)
     -> (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
-prop_determinePoolRegistrationStatus_differentPools regData retData =
+prop_determinePoolLifeCycleStatus_differentPools regData retData =
     property $ (regPoolId /= retPoolId) ==> prop
   where
     prop = evaluate result `shouldThrow` anyException
@@ -978,7 +978,7 @@ prop_determinePoolRegistrationStatus_differentPools regData retData =
     (regTime, regCert) = regData
     (retTime, retCert) = retData
 
-    result = determinePoolRegistrationStatus
+    result = determinePoolLifeCycleStatus
         (pure (regTime, regCert))
         (pure (retTime, retCert))
 
