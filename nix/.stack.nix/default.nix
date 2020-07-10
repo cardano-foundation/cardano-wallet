@@ -2,8 +2,6 @@
   extras = hackage:
     {
       packages = {
-        "bech32" = (((hackage.bech32)."1.0.2").revisions).default;
-        "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "wai-extra" = (((hackage.wai-extra)."3.0.29.1").revisions).default;
@@ -73,6 +71,9 @@
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
         cardano-addresses = ./cardano-addresses.nix;
+        bech32 = ./bech32.nix;
+        bech32-th = ./bech32-th.nix;
+        cardano-transactions = ./cardano-transactions.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;

@@ -781,6 +781,8 @@ spec = do
                         decentralizationLevel (x :: ApiNetworkParameters)
                     , desiredPoolNumber =
                         desiredPoolNumber (x :: ApiNetworkParameters)
+                    , minimumUtxoValue =
+                        minimumUtxoValue (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x

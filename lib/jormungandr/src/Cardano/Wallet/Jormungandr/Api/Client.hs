@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , Coin (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , Hash (..)
@@ -327,6 +328,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                                 , getTxMaxSize = softTxMaxSize
                                 }
                             , desiredNumberOfStakePools = fromIntegral poolcapping
+                            , minimumUTxOvalue = Coin 0
                             }
                         }
                     )

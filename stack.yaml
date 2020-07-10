@@ -13,13 +13,9 @@ packages:
 
 extra-deps:
 # Miscellaneous
-- bech32-1.0.2
-- bech32-th-1.0.2
 - OddWord-1.0.2.0
 - command-0.1.1
 - wai-extra-3.0.29.1
-
-
 
 # Needed because network > 3.1 is needed for cardano-wallet-byron
 - servant-0.17
@@ -43,6 +39,18 @@ extra-deps:
 
 - git: https://github.com/input-output-hk/cardano-addresses
   commit: 197015670a0c6df4eaae63d66ae7b3e48007abc0
+
+# Unreleased version - provides bech32 cli util
+- git: https://github.com/input-output-hk/bech32
+  commit: dd3fc9488595af23ce80740e2df133bee4c1c1a5
+  subdirs:
+    - bech32
+    - bech32-th
+
+# Not strictly a dependency at present, but building it here to get
+# access to the cardano-tx cli.
+- git: https://github.com/input-output-hk/cardano-transactions
+  commit: a68107c1682c3fd119c7e83f5adcbba2c37e1744
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

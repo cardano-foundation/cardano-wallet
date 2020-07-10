@@ -198,6 +198,7 @@ mainnetNetworkParameters = W.NetworkParameters
                 Quantity 4096
             }
         , desiredNumberOfStakePools = 0
+        , minimumUTxOvalue = W.Coin 0
         }
     }
 
@@ -446,6 +447,7 @@ protocolParametersFromPP pp = W.ProtocolParameters
         , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
         }
     , desiredNumberOfStakePools = 0
+    , minimumUTxOvalue = W.Coin 0
     }
 
 -- | Extract the protocol parameters relevant to the wallet out of the

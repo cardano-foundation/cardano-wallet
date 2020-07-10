@@ -136,6 +136,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
 import Data.Typeable
@@ -330,6 +332,8 @@ migrateManually tr defaultFieldValues =
 
         addDesiredPoolNumberIfMissing conn
 
+        addMinimumUTxOValueIfMissing conn
+
         -- FIXME
         -- Temporary migration to fix Daedalus flight wallets. This should
         -- really be removed as soon as we have a fix for the cardano-sl:wallet
@@ -420,25 +424,9 @@ migrateManually tr defaultFieldValues =
     --   it is missing.
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
-    addActiveSlotCoefficientIfMissing conn = do
-        isFieldPresent conn activeSlotCoeff >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded activeSlotCoeff value
-                addColumn <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName activeSlotCoeff
-                    , "ADD COLUMN", fieldName activeSlotCoeff
-                    , fieldType activeSlotCoeff, "NOT NULL", "DEFAULT", value
-                    , ";"
-                    ]
-                _ <- Sqlite.step addColumn
-                Sqlite.finalize addColumn
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded activeSlotCoeff
-
+    addActiveSlotCoefficientIfMissing conn =
+        addColumn conn (DBField CheckpointActiveSlotCoeff) value
       where
-        activeSlotCoeff = DBField CheckpointActiveSlotCoeff
         value = toText
             $ W.unActiveSlotCoefficient
             $ defaultActiveSlotCoefficient defaultFieldValues
@@ -448,24 +436,18 @@ migrateManually tr defaultFieldValues =
     --
     addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
     addDesiredPoolNumberIfMissing conn = do
-        isFieldPresent conn desiredPoolNumber >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded desiredPoolNumber
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded desiredPoolNumber value
-                addColumn <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName desiredPoolNumber
-                    , "ADD COLUMN", fieldName desiredPoolNumber
-                    , fieldType desiredPoolNumber, "NOT NULL", "DEFAULT", value
-                    , ";"
-                    ]
-                _ <- Sqlite.step addColumn
-                Sqlite.finalize addColumn
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded desiredPoolNumber
+        addColumn conn (DBField ProtocolParametersDesiredNumberOfPools) value
       where
-        desiredPoolNumber = DBField ProtocolParametersDesiredNumberOfPools
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
+
+    -- | Adds an 'minimum_utxo_value' column to the 'protocol_parameters'
+    -- table if it is missing.
+    --
+    addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
+    addMinimumUTxOValueIfMissing conn = do
+        addColumn conn (DBField ProtocolParametersMinimumUtxoValue) value
+      where
+        value = T.pack $ show $ defaultMinimumUTxOValue defaultFieldValues
 
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
@@ -491,12 +473,37 @@ migrateManually tr defaultFieldValues =
                 | otherwise                       -> ColumnMissing
             _ -> TableMissing
 
+    -- | A migration for adding a non-existing column to a table. Factor out as
+    -- it's a common use-case.
+    addColumn
+        :: Sqlite.Connection
+        -> DBField
+        -> Text
+        -> IO ()
+    addColumn conn field value = do
+        isFieldPresent conn field >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded field
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded field value
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName field
+                    , "ADD COLUMN", fieldName field
+                    , fieldType field, "NOT NULL", "DEFAULT", value
+                    , ";"
+                    ]
+                _ <- Sqlite.step query
+                Sqlite.finalize query
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded field
+
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
 --
 data DefaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
     , defaultDesiredNumberOfPool :: Word16
+    , defaultMinimumUTxOValue :: W.Coin
     }
 
 -- | Sets up a connection to the SQLite database.
@@ -1061,22 +1068,24 @@ mkProtocolParametersEntity
     -> W.ProtocolParameters
     -> ProtocolParameters
 mkProtocolParametersEntity wid pp =
-    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum
+    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum minUTxO
   where
     (W.ProtocolParameters
         (W.DecentralizationLevel dl)
         (W.TxParameters fp mx)
         desiredPoolNum
+        minUTxO
         ) = pp
 
 protocolParametersFromEntity
     :: ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum) =
+protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO) =
     W.ProtocolParameters
         (W.DecentralizationLevel dl)
         (W.TxParameters fp (Quantity mx))
         poolNum
+        minUTxO
 
 {-------------------------------------------------------------------------------
                                    DB Queries

@@ -67,23 +67,29 @@ let
     filter = removeSocketFilesFilter;
   };
 
-  haskellPackages = import ./nix/haskell.nix {
+  buildHaskellPackages = args: import ./nix/haskell.nix ({
     inherit config lib stdenv pkgs buildPackages;
     inherit (pkgs) haskell-nix;
     inherit src pr;
-  };
+  } // args);
+  haskellPackages = buildHaskellPackages {};
+  profiledHaskellPackages = buildHaskellPackages { profiling = true; };
 
-  filterCardanoPackages = lib.filterAttrs (_: package: isCardanoWallet package);
   getPackageChecks = mapAttrs (_: package: package.checks);
 
   self = {
-    inherit pkgs commonLib src haskellPackages stackNixRegenerate;
+    inherit pkgs commonLib src haskellPackages profiledHaskellPackages;
+    # Jormungandr
     inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
     inherit (pkgs) cardano-node cardano-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
     # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
     inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
+    # adrestia tool belt
+    inherit (haskellPackages.bech32.components.exes) bech32;
+    inherit (haskellPackages.cardano-addresses.components.exes) cardano-address;
+    inherit (haskellPackages.cardano-transactions.components.exes) cardano-tx;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
       inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
@@ -107,11 +113,11 @@ let
     };
 
     # `tests` are the test suites which have been built.
-    tests = collectComponents "tests" isCardanoWallet haskellPackages;
+    tests = collectComponents "tests" isProjectPackage haskellPackages;
     # `checks` are the result of executing the tests.
-    checks = pkgs.recurseIntoAttrs (getPackageChecks (filterCardanoPackages haskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages haskellPackages));
     # `benchmarks` are only built, not run.
-    benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+    benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
 
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
@@ -123,42 +129,54 @@ let
 
     shell = haskellPackages.shellFor {
       name = "cardano-wallet-shell";
-      packages = ps: with ps; [
-        cardano-wallet-cli
-        cardano-wallet-core
-        cardano-wallet-core-integration
-        cardano-wallet-byron
-        cardano-wallet-shelley
-        cardano-wallet-jormungandr
-        cardano-wallet-launcher
-        cardano-wallet-test-utils
-        text-class
-      ];
-      buildInputs = (with pkgs.haskell-nix.haskellPackages; [
-          weeder.components.exes.weeder
-          hlint.components.exes.hlint
-        ])
-        ++ (with self; [
+      packages = ps: attrValues (selectProjectPackages ps);
+      buildInputs = (with self; [
           jormungandr
           jormungandr-cli
           cardano-node
           cardano-cli
+          cardano-address
+          cardano-tx
+          bech32
         ]) ++ (with pkgs; [
-          stack
-          cabal-install
           niv
           pkgconfig
-          sqlite-interactive
           python3Packages.openapi-spec-validator
+          ruby
+          sqlite-interactive
           yq
         ]);
-      tools.stylish-haskell = "0.11.0.0";
+      tools = {
+        cabal = "3.2.0.0";
+        ghcid = "0.8.7";
+        ghcide = "0.2.0";
+        hlint = "3.1.6";
+        stylish-haskell = "0.11.0.0";
+        weeder = "1.0.9";
+      };
       CARDANO_NODE_CONFIGS = cardano-node.deployments;
       meta.platforms = lib.platforms.unix;
+      shellHook = ''
+        setup_completion() {
+          local p
+          for p in $buildInputs; do
+            if [ -d "$p/share/bash-completion" ]; then
+              addToSearchPath XDG_DATA_DIRS "$p/share"
+            fi
+          done
+        }
+        setup_completion
+      '';
     };
     stackShell = import ./nix/stack-shell.nix {
       walletPackages = self;
     };
+    # This is the ./nix/regenerate.sh script. Put it here so that it's
+    # built and cached on CI.
+    inherit stackNixRegenerate;
+    # This attribute ensures that every single derivation required for
+    # evaluation of the haskell package set is built and cached on CI.
+    inherit (pkgs.haskell-nix) haskellNixRoots;
   };
 
 in

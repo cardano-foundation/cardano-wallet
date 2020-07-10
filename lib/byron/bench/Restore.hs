@@ -103,6 +103,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount
+    , Coin (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotId (..)
@@ -425,6 +426,7 @@ withBenchDBLayer tr action =
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
         , Sqlite.defaultDesiredNumberOfPool = 0
+        , Sqlite.defaultMinimumUTxOValue = Coin 0
         }
 
     -- This tweaks the DB support the AnyAddressState.
