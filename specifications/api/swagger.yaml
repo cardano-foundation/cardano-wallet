@@ -1399,6 +1399,16 @@ x-parametersWithdrawal: &parametersWithdrawal
   schema:
     type: boolean
 
+x-parametersMinWithdrawal: &parametersMinWithdrawal
+  in: query
+  name: minWithdrawal
+  description: |
+    Returns only transactions that have withdrawals above the given amount. This is particularly useful to list
+    all transactions with non-empty withdrawals.
+  schema:
+    type: integer
+    minimum: 0
+
 #############################################################################
 #                                                                           #
 #                                RESPONSES                                  #
@@ -2000,6 +2010,7 @@ paths:
         - *parametersStartDate
         - *parametersEndDate
         - *parametersSortOrder
+        - *parametersMinWithdrawal
       responses: *responsesListTransactions
 
   /wallets/{walletId}/transactions/{transactionId}:
