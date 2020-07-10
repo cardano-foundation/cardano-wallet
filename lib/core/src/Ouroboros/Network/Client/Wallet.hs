@@ -37,10 +37,18 @@ module Ouroboros.Network.Client.Wallet
 
       -- * Helpers
     , send
+
+      -- * Logs
+    , ChainSyncLog (..)
+    , mapChainSyncLog
     ) where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
@@ -59,10 +67,14 @@ import Control.Monad.Class.MonadSTM
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Functor
     ( (<&>) )
 import Data.Maybe
     ( isNothing )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Void
     ( Void )
 import Network.TypedProtocol.Pipelined
@@ -251,7 +263,8 @@ type RequestNextStrategy m n block
 --
 chainSyncWithBlocks
     :: forall m block. (Monad m, MonadSTM m, HasHeader block)
-    => (Tip block -> W.BlockHeader)
+    => Tracer m (ChainSyncLog block (Point block))
+    -> (Tip block -> W.BlockHeader)
         -- ^ Convert an abstract tip to a concrete 'BlockHeader'
         --
         -- TODO: We probably need a better type for representing Tip as well!
@@ -269,7 +282,7 @@ chainSyncWithBlocks
         -- an exchange with the node.
 
     -> ChainSyncClientPipelined block (Tip block) m Void
-chainSyncWithBlocks fromTip queue responseBuffer =
+chainSyncWithBlocks tr fromTip queue responseBuffer =
     ChainSyncClientPipelined $ clientStIdle oneByOne
   where
     -- Return the _number of slots between two tips.
@@ -350,6 +363,7 @@ chainSyncWithBlocks fromTip queue responseBuffer =
         -> P.ClientStNext n block (Tip block) m Void
     collectResponses respond blocks Zero = P.ClientStNext
         { P.recvMsgRollForward = \block tip -> do
+            traceWith tr $ MsgChainRollForward block
             let cursor' = blockPoint block
             let blocks' = reverse (block:blocks)
             let tip'    = fromTip tip
@@ -370,13 +384,15 @@ chainSyncWithBlocks fromTip queue responseBuffer =
         -- b) We are asked to rollback even further and discard all the blocks
         -- we just collected. In which case, we simply discard all blocks and
         -- rollback to that point as if nothing happened.
-        , P.recvMsgRollBackward = \point tip ->
+        , P.recvMsgRollBackward = \point tip -> do
             case rollback point blocks of
                 [] -> do -- b)
+                    traceWith tr $ MsgChainRollBackward point 0
                     respond (RollBackward point)
                     clientStIdle oneByOne
 
                 xs -> do -- a)
+                    traceWith tr $ MsgChainRollBackward point (length xs)
                     let cursor' = blockPoint $ head xs
                     let blocks' = reverse xs
                     let tip'    = fromTip tip
@@ -385,8 +401,8 @@ chainSyncWithBlocks fromTip queue responseBuffer =
         }
 
     collectResponses respond blocks (Succ n) = P.ClientStNext
-        { P.recvMsgRollForward = \block _tip -> pure $
-            P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
+        { P.recvMsgRollForward = \block _tip ->
+        pure $ P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
 
         -- This scenario is slightly more complicated than for the 'Zero' case.
         -- Again, there are two possibilities:
@@ -580,3 +596,39 @@ send queue cmd = do
     tvar <- newEmptyTMVarM
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
+
+-- Tracing
+
+data ChainSyncLog block point
+    = MsgChainRollForward block
+    | MsgChainRollBackward point Int
+
+mapChainSyncLog
+    :: (b1 -> b2)
+    -> (p1 -> p2)
+    -> ChainSyncLog b1 p1
+    -> ChainSyncLog b2 p2
+mapChainSyncLog f g = \case
+    MsgChainRollForward block  -> MsgChainRollForward (f block)
+    MsgChainRollBackward point n -> MsgChainRollBackward (g point) n
+
+instance (ToText block, ToText point)
+    => ToText (ChainSyncLog block point) where
+    toText = \case
+        MsgChainRollForward b ->
+            "ChainSync roll forward: " <> toText b
+        MsgChainRollBackward b 0 ->
+            "ChainSync roll backward: " <> toText b
+        MsgChainRollBackward b bufferSize -> mconcat
+            [ "ChainSync roll backward: "
+            , toText b
+            , ", handled inside buffer with remaining length "
+            , toText bufferSize
+            ]
+
+instance HasPrivacyAnnotation (ChainSyncLog block point)
+
+instance HasSeverityAnnotation (ChainSyncLog block point) where
+    getSeverityAnnotation = \case
+        MsgChainRollForward{} -> Debug
+        MsgChainRollBackward{} -> Debug

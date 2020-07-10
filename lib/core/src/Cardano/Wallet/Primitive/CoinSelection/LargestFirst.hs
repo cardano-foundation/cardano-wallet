@@ -72,9 +72,6 @@ largestFirst opt outs withdrawal utxo = do
             let total = totalBalance withdrawal utxoList
             let nUtxo = fromIntegral $ Map.size $ getUTxO utxo
 
-            when (null utxoList)
-                $ throwE ErrInputsDepleted
-
             when (total < moneyRequested)
                 $ throwE $ ErrNotEnoughMoney total moneyRequested
 

@@ -337,7 +337,7 @@ mkWalletClient gp chainSyncQ = do
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPipelinedPeer nullTracer codec channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks fromTip' chainSyncQ responsesBuffer
+                $ chainSyncWithBlocks csTr fromTip' chainSyncQ responsesBuffer
 
         , localTxSubmissionProtocol =
             doNothingProtocol
@@ -354,6 +354,12 @@ mkWalletClient gp chainSyncQ = do
 
     codecs :: MonadST m => ClientCodecs ByronBlock m
     codecs = clientCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
+
+    -- A low-level DEBUG chain sync tracer.
+    --
+    -- TODO: Exists for shelley, but not here. Might be suitable to add when we
+    -- merge the two code-bases.
+    csTr = nullTracer
 
 -- | Construct a network client with the given communication channel, for the
 -- purpose of:

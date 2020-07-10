@@ -283,9 +283,8 @@ errMsg403NotAByronWallet =
 
 errMsg403NotEnoughMoney_ :: String
 errMsg403NotEnoughMoney_ =
-    "I cannot select enough UTxO from your wallet to construct an adequate \
-    \transaction. Try sending a smaller amount or increasing the number of \
-    \available UTxO."
+    "I can't process this payment because there's not enough UTxO available in \
+    \the wallet."
 
 errMsg403NotEnoughMoney :: Int -> Int -> String
 errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
