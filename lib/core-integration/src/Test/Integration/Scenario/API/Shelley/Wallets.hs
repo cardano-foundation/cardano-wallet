@@ -70,7 +70,9 @@ import Data.Text.Class
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -124,7 +126,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-
 
 spec :: forall n t.
     ( DecodeAddress n

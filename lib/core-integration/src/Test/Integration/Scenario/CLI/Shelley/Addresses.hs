@@ -32,9 +32,11 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand

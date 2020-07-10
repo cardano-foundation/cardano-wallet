@@ -62,7 +62,9 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

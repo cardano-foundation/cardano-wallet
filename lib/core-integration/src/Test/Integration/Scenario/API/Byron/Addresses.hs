@@ -40,7 +40,9 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Product.Positions
     ( position )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe )
+    ( SpecWith, describe, shouldBe )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)

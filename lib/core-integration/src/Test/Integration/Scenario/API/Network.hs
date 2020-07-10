@@ -26,7 +26,9 @@ import Control.Monad.IO.Class
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( SpecWith, it, pendingWith, shouldBe )
+    ( SpecWith, pendingWith, shouldBe )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
