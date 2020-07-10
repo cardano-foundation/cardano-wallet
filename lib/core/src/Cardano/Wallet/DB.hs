@@ -60,6 +60,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32, Word64 )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.List as L
 
@@ -219,6 +221,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readTxHistory
         :: PrimaryKey WalletId
+        -> Maybe (Quantity "lovelace" Natural)
         -> SortOrder
         -> Range SlotId
         -> Maybe TxStatus

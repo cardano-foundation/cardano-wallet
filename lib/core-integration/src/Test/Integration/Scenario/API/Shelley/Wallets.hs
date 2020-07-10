@@ -36,6 +36,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
     )
@@ -129,6 +130,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey

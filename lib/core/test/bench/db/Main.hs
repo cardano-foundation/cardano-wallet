@@ -398,7 +398,7 @@ benchReadTxHistory
     -> DBLayerBench
     -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
-    atomically $ readTxHistory testPk sortOrder range mstatus
+    atomically $ readTxHistory testPk Nothing sortOrder range mstatus
   where
     range = Range
         (fromFlatSlot epochLength <$> inf)
@@ -407,7 +407,7 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
 mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
     [ force
-        ( (Tx (mkTxId inps outs) inps outs)
+        ( (Tx (mkTxId inps outs mempty) inps outs mempty)
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)
             , direction = Incoming

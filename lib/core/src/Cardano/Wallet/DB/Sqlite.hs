@@ -81,6 +81,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxWithdrawal (..)
     , UTxO (..)
     , Wallet (..)
     , migrateAll
@@ -100,8 +101,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     )
-import Control.Arrow
-    ( (***) )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -126,6 +125,8 @@ import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.List
+    ( unzip3 )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
@@ -177,6 +178,8 @@ import Database.Persist.Types
     ( PersistValue (PersistText), fromPersistValueText )
 import Fmt
     ( pretty )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
@@ -547,9 +550,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                 insert_ (mkWalletEntity wid meta)
             when (isRight res) $ do
                 insertCheckpoint wid cp
-                let (metas, txins, txouts) = mkTxHistory wid txs
+                let (metas, txins, txouts, txws) = mkTxHistory wid txs
                 putTxMetas metas
-                putTxs txins txouts
+                putTxs txins txouts txws
                 insert_ (mkProtocolParametersEntity wid pp)
             pure res
 
@@ -681,13 +684,13 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    let (metas, txins, txouts) = mkTxHistory wid txs
+                    let (metas, txins, txouts, txws) = mkTxHistory wid txs
                     putTxMetas metas
-                    putTxs txins txouts
+                    putTxs txins txouts txws
                     pure $ Right ()
 
-        , readTxHistory = \(PrimaryKey wid) order range status -> do
-            selectTxHistory wid order $ catMaybes
+        , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
+            selectTxHistory wid minWithdrawal order $ catMaybes
                 [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
@@ -704,7 +707,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                 Nothing -> pure errNoSuchWallet
                 Just _  -> do
                     metas <- selectPendingTxs wid (TxId tid)
-                    let isPending (TxMeta _ _ st _ _ _ _) = st == W.Pending
+                    let isPending meta = txMetaStatus meta == W.Pending
                     case metas of
                         [] -> pure errNoSuchTransaction
                         txs | any isPending txs -> do
@@ -716,7 +719,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    metas <- selectTxHistory wid W.Descending
+                    metas <- selectTxHistory wid Nothing W.Descending
                             [ TxMetaTxId ==. (TxId tid) ]
                     case metas of
                         [] -> pure (Right Nothing)
@@ -959,20 +962,25 @@ checkpointFromEntity cp utxo s =
 mkTxHistory
     :: W.WalletId
     -> [(W.Tx, W.TxMeta)]
-    -> ([TxMeta], [TxIn], [TxOut])
+    -> ([TxMeta], [TxIn], [TxOut], [TxWithdrawal])
 mkTxHistory wid txs = flatTxHistory
-    [ (mkTxMetaEntity wid txid meta, mkTxInputsOutputs (txid, tx))
+    [ ( mkTxMetaEntity wid txid meta
+      , mkTxInputsOutputs (txid, tx)
+      , mkTxWithdrawals (txid, tx)
+      )
     | (tx, meta) <- txs
     , let txid = W.txId tx
     ]
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
     flatTxHistory
-        :: [(TxMeta, ([TxIn], [TxOut]))] -> ([TxMeta], [TxIn], [TxOut])
+        :: [(TxMeta, ([TxIn], [TxOut]), [TxWithdrawal])]
+        -> ([TxMeta], [TxIn], [TxOut], [TxWithdrawal])
     flatTxHistory entities =
-        ( map fst entities
-        , concatMap (fst . snd) entities
-        , concatMap (snd . snd) entities
+        ( map (\(a,_,_) -> a) entities
+        , concatMap (fst . (\(_,b,_) -> b)) entities
+        , concatMap (snd . (\(_,b,_) -> b)) entities
+        , concatMap (\(_,_,c) -> c) entities
         )
 
 mkTxInputsOutputs
@@ -1002,6 +1010,20 @@ mkTxInputsOutputs tx =
     dist :: (a -> b -> c) -> (a, [b]) -> [c]
     dist f (a, bs) = [f a b | b <- bs]
 
+mkTxWithdrawals
+    :: (W.Hash "Tx", W.Tx)
+    -> [TxWithdrawal]
+mkTxWithdrawals (txid, tx) =
+    mkTxWithdrawal <$> Map.toList (tx ^. #withdrawals)
+  where
+    txWithdrawalTxId = TxId txid
+    mkTxWithdrawal (txWithdrawalAccount, txWithdrawalAmount) =
+        TxWithdrawal
+            { txWithdrawalTxId
+            , txWithdrawalAccount
+            , txWithdrawalAmount
+            }
+
 mkTxMetaEntity :: W.WalletId -> W.Hash "Tx" -> W.TxMeta -> TxMeta
 mkTxMetaEntity wid txid meta = TxMeta
     { txMetaTxId = TxId txid
@@ -1021,8 +1043,9 @@ txHistoryFromEntity
     -> [TxMeta]
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
+    -> [TxWithdrawal]
     -> [W.TransactionInfo]
-txHistoryFromEntity sp tip metas ins outs =
+txHistoryFromEntity sp tip metas ins outs ws =
     map mkItem metas
   where
     mkItem m = mkTxWith (txMetaTxId m) (mkTxMeta m)
@@ -1033,6 +1056,8 @@ txHistoryFromEntity sp tip metas ins outs =
             map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
         , W.txInfoOutputs =
             map mkTxOut $ filter ((== txid) . txOutputTxId) outs
+        , W.txInfoWithdrawals =
+            Map.fromList $ map mkTxWithdrawal $ filter ((== txid) . txWithdrawalTxId) ws
         , W.txInfoMeta =
             meta
         , W.txInfoDepth =
@@ -1055,6 +1080,10 @@ txHistoryFromEntity sp tip metas ins outs =
         { W.address = txOutputAddress tx
         , W.coin = txOutputAmount tx
         }
+    mkTxWithdrawal w =
+        ( txWithdrawalAccount w
+        , txWithdrawalAmount w
+        )
     mkTxMeta m = W.TxMeta
         { W.status = txMetaStatus m
         , W.direction = txMetaDirection m
@@ -1158,23 +1187,27 @@ putTxMetas metas = dbChunked repsertMany
     [(TxMetaKey txMetaTxId txMetaWalletId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: [TxIn] -> [TxOut] -> SqlPersistT IO ()
-putTxs txins txouts = do
+putTxs :: [TxIn] -> [TxOut] -> [TxWithdrawal] -> SqlPersistT IO ()
+putTxs txins txouts txws = do
     dbChunked repsertMany
         [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
         | i@TxIn{..} <- txins ]
     dbChunked repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
+    dbChunked repsertMany
+        [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
+        | w@TxWithdrawal{..} <- txws ]
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
 deleteLooseTransactions :: SqlPersistT IO ()
 deleteLooseTransactions = do
     deleteLoose "tx_in"
     deleteLoose "tx_out"
+    deleteLoose "tx_withdrawal"
   where
-    -- Deletes all TxIn/TxOuts returned by the sub-select.
-    -- The sub-select outer joins TxMeta with TxIn/TxOut.
+    -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
+    -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
     -- All rows of the join table TxMeta as NULL are loose (unreferenced)
     -- transactions.
     deleteLoose t = flip rawExecute [] $
@@ -1219,7 +1252,7 @@ selectUTxO cp = fmap entityVal <$>
 -- See also: issue #573.
 selectTxs
     :: [TxId]
-    -> SqlPersistT IO ([(TxIn, Maybe TxOut)], [TxOut])
+    -> SqlPersistT IO ([(TxIn, Maybe TxOut)], [TxOut], [TxWithdrawal])
 selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
   where
     select txids = do
@@ -1236,9 +1269,14 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [TxOutputTxId <-. txids]
             [Asc TxOutputTxId, Asc TxOutputIndex]
 
+        withdrawals <- fmap entityVal <$> selectList
+            [TxWithdrawalTxId <-. txids]
+            []
+
         pure
             ( inputs `resolveWith` resolvedInputs
             , outputs
+            , withdrawals
             )
 
     toOutputMap :: [TxOut] -> Map (TxId, Word32) TxOut
@@ -1252,8 +1290,8 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
         , let key = (txInputSourceTxId i, txInputSourceIndex i)
         ]
 
-    concatUnzip :: [([a], [b])] -> ([a], [b])
-    concatUnzip = (concat *** concat) . unzip
+    concatUnzip :: [([a], [b], [c])] -> ([a], [b], [c])
+    concatUnzip = (\(a, b, c) -> (concat a, concat b, concat c)) . unzip3
 
     -- Split a query's input values into chunks, run multiple smaller queries,
     -- and then concatenate the results afterwards. Used to avoid "too many SQL
@@ -1263,23 +1301,38 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
 
 selectTxHistory
     :: W.WalletId
+    -> Maybe (Quantity "lovelace" Natural)
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory wid order conditions = do
+selectTxHistory wid minWithdrawal order conditions = do
     selectLatestCheckpoint wid >>= \case
         Nothing -> pure []
         Just cp -> do
+            minWithdrawalFilter <- case minWithdrawal of
+                Nothing  -> pure []
+                Just inf -> do
+                    let coin = W.Coin $ fromIntegral $ getQuantity inf
+                    wdrls <- fmap entityVal
+                        <$> selectList [ TxWithdrawalAmount >=. coin ] []
+                    pure [ TxMetaTxId <-. (txWithdrawalTxId <$> wdrls) ]
+
             metas <- fmap entityVal <$> selectList
-                ((TxMetaWalletId ==. wid) : conditions) sortOpt
+                ( mconcat
+                    [ [ TxMetaWalletId ==. wid ]
+                    , minWithdrawalFilter
+                    , conditions
+                    ]
+                ) sortOpt
+
             let txids = map txMetaTxId metas
-            (ins, outs) <- selectTxs txids
+            (ins, outs, ws) <- selectTxs txids
 
             let wal = checkpointFromEntity cp [] ()
             let tip = W.currentTip wal
             let slp = W.slotParams $ W.blockchainParameters wal
 
-            return $ txHistoryFromEntity slp tip metas ins outs
+            return $ txHistoryFromEntity slp tip metas ins outs ws
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable

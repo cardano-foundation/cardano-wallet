@@ -22,6 +22,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     )
@@ -109,6 +110,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Port "node", FeePolicy, Context t)
 spec = do
@@ -835,6 +837,7 @@ dummyPool = PoolId mempty
 joinStakePoolWithWalletBalance
     :: forall n t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         )
     => (Context t)
@@ -856,7 +859,10 @@ joinStakePoolWithWalletBalance ctx balance = do
     return (w, p)
 
 joinStakePoolWithFixtureWallet
-    :: forall n t. (DecodeAddress n)
+    :: forall n t.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        )
     => (Context t)
     -> IO (ApiWallet, ApiStakePool)
 joinStakePoolWithFixtureWallet ctx = do

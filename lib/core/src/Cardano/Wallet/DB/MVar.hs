@@ -129,14 +129,15 @@ newDBLayer = do
         , putTxHistory = \pk txh -> ExceptT $ do
             txh `deepseq` alterDB errNoSuchWallet db (mPutTxHistory pk txh)
 
-        , readTxHistory = \pk order range mstatus ->
-            readDB db (mReadTxHistory pk order range mstatus)
+        , readTxHistory = \pk minWithdrawal order range mstatus ->
+            readDB db (mReadTxHistory pk minWithdrawal order range mstatus)
 
         , getTx = \pk tid -> ExceptT $
             alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
                 Left err -> pure $ Left err
                 Right _ -> do
-                    txInfos <- readDB db (mReadTxHistory pk Descending wholeRange Nothing)
+                    txInfos <- readDB db
+                        (mReadTxHistory pk Nothing Descending wholeRange Nothing)
                     let txPresent (TransactionInfo{..}) = txInfoId == tid
                     case filter txPresent txInfos of
                         [] -> pure $ Right Nothing

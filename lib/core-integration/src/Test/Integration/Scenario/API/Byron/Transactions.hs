@@ -16,7 +16,12 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiTransaction, DecodeAddress, WalletStyle (..) )
+    ( ApiByronWallet
+    , ApiTransaction
+    , DecodeAddress
+    , DecodeStakeAddress
+    , WalletStyle (..)
+    )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -65,6 +70,7 @@ data TestCase a = TestCase
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     ) => SpecWith (Context t)
 spec = do
 
@@ -217,6 +223,7 @@ spec = do
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
             let link = Link.listTransactions' @'Byron w
+                    Nothing
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing

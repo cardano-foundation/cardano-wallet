@@ -153,7 +153,7 @@ server byron icarus ntp =
     transactions :: Server (Transactions n)
     transactions =
              (\_ _ _ -> throwError err501)
-        :<|> (\_ _ _ _ -> throwError err501)
+        :<|> (\_ _ _ _ _ -> throwError err501)
         :<|> (\_ _ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
@@ -246,8 +246,8 @@ server byron icarus ntp =
              )
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron wid r0 r1 s)
-                (icarus, listTransactions icarus wid r0 r1 s)
+                (byron , listTransactions byron wid Nothing r0 r1 s)
+                (icarus, listTransactions icarus wid Nothing r0 r1 s)
              )
         :<|>
             (\wid tx -> withLegacyLayer wid

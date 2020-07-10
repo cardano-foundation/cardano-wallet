@@ -30,6 +30,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
     )
@@ -102,6 +103,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)

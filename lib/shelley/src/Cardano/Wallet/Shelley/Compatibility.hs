@@ -101,7 +101,11 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+    ( DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -115,12 +119,20 @@ import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( (<|>) )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( when )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Bifunctor
     ( bimap )
+import Data.Binary.Get
+    ( runGetOrFail )
+import Data.Binary.Put
+    ( putByteString, putWord8, runPut )
+import Data.Bits
+    ( (.&.), (.|.) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -146,9 +158,9 @@ import Data.Text.Class
 import Data.Type.Equality
     ( testEquality )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Fmt
-    ( Buildable (..), hexF )
+    ( Buildable (..) )
 import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
@@ -582,6 +594,7 @@ fromGenesisData g initialFunds =
             pseudoHash
             []
             [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
+            mempty
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
                 SL.initialFundsPseudoTxIn @TPraosStandardCrypto addr
@@ -670,14 +683,19 @@ fromShelleyTx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
        )
-fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs _ _ _ _ _) _ _) =
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ _) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
+        (fromShelleyWdrl wdrls)
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
+
+fromShelleyWdrl :: SL.Wdrl TPraosStandardCrypto -> Map W.ChimericAccount W.Coin
+fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
+    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin <$> Map.toList wdrl
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
@@ -833,6 +851,69 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
+instance EncodeStakeAddress 'Mainnet where
+    encodeStakeAddress = _encodeStakeAddress SL.Mainnet
+instance EncodeStakeAddress ('Testnet pm) where
+    encodeStakeAddress = _encodeStakeAddress SL.Testnet
+
+instance DecodeStakeAddress 'Mainnet where
+    decodeStakeAddress = _decodeStakeAddress SL.Mainnet
+instance DecodeStakeAddress ('Testnet pm) where
+    decodeStakeAddress = _decodeStakeAddress SL.Testnet
+
+stakeAddressPrefix :: Word8
+stakeAddressPrefix = 0xE0
+
+networkIdMask :: Word8
+networkIdMask = 0x0F
+
+toNetworkId :: SL.Network -> Word8
+toNetworkId = \case
+    SL.Testnet -> 0
+    SL.Mainnet -> 1
+
+_encodeStakeAddress
+    :: SL.Network
+    -> W.ChimericAccount
+    -> Text
+_encodeStakeAddress network (W.ChimericAccount acct) =
+    Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+  where
+    hrp = [Bech32.humanReadablePart|stake_addr|]
+    bytes = BL.toStrict $ runPut $ do
+        putWord8 $ (networkIdMask .&. toNetworkId network) .|. stakeAddressPrefix
+        putByteString acct
+
+_decodeStakeAddress
+    :: SL.Network
+    -> Text
+    -> Either TextDecodingError W.ChimericAccount
+_decodeStakeAddress serverNetwork txt = do
+    (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
+    bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
+    rewardAcnt <- runGetOrFail' SL.getRewardAcnt bytes
+
+    guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
+
+    pure $ fromStakeCredential $ SL.getRwdCred rewardAcnt
+  where
+    runGetOrFail' decoder bytes =
+        case runGetOrFail decoder (BL.fromStrict bytes) of
+            Left e ->
+                Left (TextDecodingError (show e))
+
+            Right (remaining,_,_) | not (BL.null remaining) ->
+                Left errDecode
+
+            Right (_,_,a) ->
+                Right a
+
+    errDecode = TextDecodingError
+        "Unable to decode stake-address: not a well-formed address."
+
+    errBech32 = TextDecodingError
+        "Unable to decode stake-address: must be a valid bech32 string."
+
 instance EncodeAddress 'Mainnet where
     encodeAddress = _encodeAddress
 
@@ -891,27 +972,17 @@ _decodeAddress serverNetwork text =
     decodeShelleyAddress bytes = do
         case SL.deserialiseAddr @TPraosStandardCrypto bytes of
             Just (SL.Addr addrNetwork _ _) -> do
-                guardNetwork addrNetwork
+                guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)
 
             Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
-                guardNetwork (toNetwork (Byron.addrNetworkMagic addr))
+                guardNetwork (toNetwork (Byron.addrNetworkMagic addr)) serverNetwork
                 pure (W.Address bytes)
 
             Nothing -> Left $ TextDecodingError
                 "Unable to decode address: not a well-formed Shelley nor Byron address."
 
       where
-        guardNetwork :: SL.Network -> Either TextDecodingError ()
-        guardNetwork addrNetwork =
-            when (addrNetwork /= serverNetwork) $
-                Left $ TextDecodingError $
-                    "Invalid network discrimination on address. Expecting "
-                    <> show serverNetwork
-                    <> " but got "
-                    <> show addrNetwork
-                    <> "."
-
         toNetwork :: Byron.NetworkMagic -> SL.Network
         toNetwork = \case
             Byron.NetworkMainOrStage -> SL.Mainnet
@@ -932,6 +1003,16 @@ toHDPayloadAddress (W.Address addr) = do
         _ <- CBOR.decodeBytes
         CBOR.decodeAllAttributes
 
+guardNetwork :: SL.Network -> SL.Network -> Either TextDecodingError ()
+guardNetwork addrNetwork serverNetwork =
+    when (addrNetwork /= serverNetwork) $
+        Left $ TextDecodingError $
+            "Invalid network discrimination on address. Expecting "
+            <> show serverNetwork
+            <> " but got "
+            <> show addrNetwork
+            <> "."
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
@@ -942,9 +1023,6 @@ instance Buildable addr => Buildable (ConnectionId addr) where
 
 instance Buildable LocalAddress where
     build (LocalAddress p) = build p
-
-instance Buildable W.ChimericAccount where
-    build (W.ChimericAccount addr) = hexF addr
 
 {-------------------------------------------------------------------------------
                                  Utilities

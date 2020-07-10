@@ -123,6 +123,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase
     , ByronWalletPutPassphraseData
     , Iso8601Time
+    , MinWithdrawal
     , PostExternalTransactionData
     , PostTransactionDataT
     , PostTransactionFeeDataT
@@ -316,6 +317,7 @@ type CreateTransaction n = "wallets"
 type ListTransactions n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
+    :> QueryParam "minWithdrawal" MinWithdrawal
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)

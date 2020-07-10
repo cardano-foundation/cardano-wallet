@@ -271,7 +271,7 @@ transactionClient =
             = client (Proxy @("v2" :> Proxy_))
     in
         TransactionClient
-            { listTransactions = _listTransactions
+            { listTransactions = (`_listTransactions` Nothing)
             , postTransaction = \wid -> _postTransaction wid . coerce
             , postTransactionFee = \wid -> _postTransactionFee wid . coerce
             , postExternalTransaction = _postExternalTransaction

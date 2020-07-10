@@ -324,7 +324,7 @@ readTxHistoryF
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
-        <$> atomically (readTxHistory wid Descending wholeRange Nothing)
+        <$> atomically (readTxHistory wid Nothing Descending wholeRange Nothing)
 
 putTxHistoryF
     :: DBLayer m s JormungandrKey
@@ -360,7 +360,7 @@ sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
     sort' = GenTxHistory
-      . filterTxHistory Descending wholeRange
+      . filterTxHistory Nothing Descending wholeRange
       . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
@@ -515,8 +515,8 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
     prop = do
         let txs = unGenTxHistory txGen
         run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
-        forM_ txs $ \((Tx txId _ _), txMeta) -> do
-            (Just (TransactionInfo txId' _ _ txMeta' _ _)) <-
+        forM_ txs $ \((Tx txId _ _ _), txMeta) -> do
+            (Just (TransactionInfo txId' _ _ _ txMeta' _ _)) <-
                 run $ atomically $ unsafeRunExceptT $ getTx wid txId
 
             monitor $ counterexample $
@@ -567,7 +567,7 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(Pri
     prop = liftIO $ do
         let txs = unGenTxHistory txGen
         atomically (runExceptT $ putTxHistory key txs) `shouldReturn` Right ()
-        forM_ txs $ \((Tx txId _ _), _) -> do
+        forM_ txs $ \((Tx txId _ _ _), _) -> do
             let err = ErrNoSuchWallet wid'
             atomically (runExceptT $ getTx key' txId) `shouldReturn` Left err
 
@@ -820,7 +820,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     prop wid requestedPoint = do
         point <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid requestedPoint
         txs <- run $ atomically $ fmap toTxHistory
-            <$> readTxHistory wid Descending wholeRange Nothing
+            <$> readTxHistory wid Nothing Descending wholeRange Nothing
 
         monitor $ counterexample $ "\n" <> "Actual Rollback Point:\n" <> (pretty point)
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)

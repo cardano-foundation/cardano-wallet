@@ -21,6 +21,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , ChimericAccount (..)
     , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
@@ -42,6 +43,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Map.Strict
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.POSIX
@@ -103,12 +106,12 @@ dummyProtocolParameters = ProtocolParameters
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
-mkTx :: [(TxIn, Coin)] -> [TxOut] -> Tx
-mkTx ins outs = Tx (mkTxId ins outs) ins outs
+mkTx :: [(TxIn, Coin)] -> [TxOut] -> Map ChimericAccount Coin -> Tx
+mkTx ins outs wdrls = Tx (mkTxId ins outs wdrls) ins outs wdrls
 
 -- | txId calculation for testing purposes.
-mkTxId :: [(TxIn, Coin)] -> [TxOut] -> Hash "Tx"
-mkTxId = curry mockHash
+mkTxId :: [(TxIn, Coin)] -> [TxOut] -> Map ChimericAccount Coin -> Hash "Tx"
+mkTxId ins outs wdrls = mockHash (ins, outs, wdrls)
 
 -- | Construct a good-enough hash for testing
 mockHash :: Show a => a -> Hash whatever

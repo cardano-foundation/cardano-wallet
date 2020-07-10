@@ -616,7 +616,7 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     let pk = PrimaryKey wid
     cp <- withNoSuchWallet wid $ readCheckpoint pk
     meta <- withNoSuchWallet wid $ readWalletMeta pk
-    pending <- lift $ readTxHistory pk Descending wholeRange (Just Pending)
+    pending <- lift $ readTxHistory pk Nothing Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
     db = ctx ^. dbLayer @s @k
@@ -1012,7 +1012,7 @@ listAddresses
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     (s, txs) <- mapExceptT atomically $ (,)
         <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
-        <*> lift (readTxHistory primaryKey Descending wholeRange Nothing)
+        <*> lift (readTxHistory primaryKey Nothing Descending wholeRange Nothing)
     let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
             then normalize s a
             else Nothing
@@ -1640,13 +1640,15 @@ listTransactions
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
     -> WalletId
+    -> Maybe (Quantity "lovelace" Natural)
+        -- Inclusive minimum value of at least one withdrawal in each transaction
     -> Maybe UTCTime
         -- Inclusive minimum time bound.
     -> Maybe UTCTime
         -- Inclusive maximum time bound.
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
-listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
+listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
     mapExceptT atomically $ do
         cp <- withExceptT ErrListTransactionsNoSuchWallet $
@@ -1656,7 +1658,7 @@ listTransactions ctx wid mStart mEnd order = db & \DBLayer{..} -> do
 
         mapExceptT liftIO (getSlotRange sp) >>= maybe
             (pure [])
-            (\r -> lift (readTxHistory pk order r Nothing))
+            (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
     db = ctx ^. dbLayer @s @k
 

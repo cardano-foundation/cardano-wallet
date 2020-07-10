@@ -128,7 +128,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
         witnesses <- forM (CS.inputs cs) $ \(_, TxOut addr _) ->
             mkWitness protocolMagic sigData <$> lookupPrivateKey addr
         pure
-            ( Tx (Hash sigData) (second coin <$> CS.inputs cs) (CS.outputs cs)
+            ( Tx (Hash sigData) (second coin <$> CS.inputs cs) (CS.outputs cs) mempty
             , SealedTx $ CBOR.toStrictByteString $ CBOR.encodeSignedTx tx witnesses
             )
       where
@@ -190,6 +190,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
                     -- FIXME Do not require Tx to have resolvedInputs
                     , resolvedInputs = (,Coin 0) <$> inps
                     , outputs = outs
+                    , withdrawals = mempty
                     }
                 , SealedTx bytes
                 )
@@ -243,7 +244,7 @@ genesisBlockFromTxOuts gp outs = Block
     }
   where
     mkTx out@(TxOut (Address bytes) _) =
-        Tx (Hash $ blake2b256 bytes) [] [out]
+        Tx (Hash $ blake2b256 bytes) [] [out] mempty
 
 dummyAddress
     :: forall (n :: NetworkDiscriminant). (MaxSizeOf Address n ByronKey)

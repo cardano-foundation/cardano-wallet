@@ -125,6 +125,18 @@ TxOut
     Primary txOutputTxId txOutputIndex
     deriving Show Generic
 
+-- | A transaction withdrawal associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txOutputTxId is referred to by TxMeta
+TxWithdrawal
+    txWithdrawalTxId    TxId                sql=tx_id
+    txWithdrawalAmount  W.Coin              sql=amount
+    txWithdrawalAccount W.ChimericAccount   sql=account
+
+    Primary txWithdrawalTxId txWithdrawalAccount
+    deriving Show Generic
+
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint

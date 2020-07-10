@@ -180,11 +180,13 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWithdrawal (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , KnownDiscovery (..)
+    , MinWithdrawal (..)
     , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
@@ -309,6 +311,8 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Proxy
@@ -1147,6 +1151,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
         (tx ^. #outputs)
+        (tx ^. #withdrawals)
         (meta, time)
         #pendingSince
 
@@ -1165,13 +1170,15 @@ listTransactions
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
     => ctx
     -> ApiT WalletId
+    -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction n]
-listTransactions ctx (ApiT wid) mStart mEnd mOrder = do
+listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listTransactions wrk wid
+            (Quantity . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
@@ -1194,13 +1201,13 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
 mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction n
-mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+mkApiTransactionFromInfo (TransactionInfo txid ins outs ws meta depth txtime) =
     case meta ^. #status of
         Pending  -> apiTx
         InLedger -> apiTx { depth = Just depth  }
   where
       drop2nd (a,_,c) = (a,c)
-      apiTx = mkApiTransaction txid (drop2nd <$> ins) outs (meta, txtime) $
+      apiTx = mkApiTransaction txid (drop2nd <$> ins) outs ws (meta, txtime) $
           case meta ^. #status of
               Pending  -> #pendingSince
               InLedger -> #insertedAt
@@ -1262,6 +1269,7 @@ joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
         (txId tx)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
+        (tx ^. #withdrawals)
         (txMeta, txTime)
         #pendingSince
 
@@ -1301,6 +1309,7 @@ quitStakePool ctx (ApiT wid) body = do
         (txId tx)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
+        (tx ^. #withdrawals)
         (txMeta, txTime)
         #pendingSince
 
@@ -1362,6 +1371,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
             (NE.toList (W.unsignedOutputs cs))
+            (tx ^. #withdrawals)
             (meta, time)
             #pendingSince
   where
@@ -1567,10 +1577,11 @@ mkApiTransaction
        Hash "Tx"
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
+    -> Map ChimericAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Lens' (ApiTransaction n) (Maybe ApiTimeReference)
     -> ApiTransaction n
-mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
+mkApiTransaction txid ins outs ws (meta, timestamp) setTimeReference =
     tx & setTimeReference .~ Just timeReference
   where
     tx :: ApiTransaction n
@@ -1583,6 +1594,7 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         , direction = ApiT (meta ^. #direction)
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
         , outputs = toAddressAmount <$> outs
+        , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
         }
 
@@ -1597,8 +1609,20 @@ mkApiTransaction txid ins outs (meta, timestamp) setTimeReference =
         }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr (Coin c)) =
-        AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
+    toAddressAmount (TxOut addr c) =
+        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin c)
+
+mkApiCoin
+    :: Coin
+    -> Quantity "lovelace" Natural
+mkApiCoin (Coin c) = Quantity $ fromIntegral c
+
+mkApiWithdrawal
+    :: forall (n :: NetworkDiscriminant). ()
+    => (ChimericAccount, Coin)
+    -> ApiWithdrawal n
+mkApiWithdrawal (acct, c) =
+    ApiWithdrawal (ApiT acct, Proxy @n) (mkApiCoin c)
 
 coerceCoin :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n) -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =

@@ -94,6 +94,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (ApiTxId)
     , ApiWithdrawRewards (..)
     , Iso8601Time
+    , MinWithdrawal (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -114,6 +115,8 @@ import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Types.Method
     ( Method )
+import Numeric.Natural
+    ( Natural )
 import Servant.API
     ( (:>)
     , Capture
@@ -344,7 +347,7 @@ listTransactions
     => w
     -> (Method, Text)
 listTransactions w =
-    listTransactions' @style w Nothing Nothing Nothing
+    listTransactions' @style w Nothing Nothing Nothing Nothing
 
 listTransactions'
     :: forall (style :: WalletStyle) w.
@@ -352,16 +355,18 @@ listTransactions'
         , HasType (ApiT WalletId) w
         )
     => w
+    -> Maybe Natural
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe SortOrder
     -> (Method, Text)
-listTransactions' w inf sup order = discriminate @style
-    (endpoint @(Api.ListTransactions Net) mkURL)
-    (endpoint @(Api.ListByronTransactions Net) mkURL)
+listTransactions' w minWithdrawal inf sup order = discriminate @style
+    (endpoint @(Api.ListTransactions Net)
+        (\mk -> mk wid (MinWithdrawal <$> minWithdrawal) inf sup (ApiT <$> order)))
+    (endpoint @(Api.ListByronTransactions Net)
+        (\mk -> mk wid inf sup (ApiT <$> order)))
   where
     wid = w ^. typed @(ApiT WalletId)
-    mkURL mk = mk wid inf sup (ApiT <$> order)
 
 getTransactionFee
     :: forall style w.

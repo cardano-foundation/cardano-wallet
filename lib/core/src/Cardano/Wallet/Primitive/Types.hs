@@ -822,16 +822,21 @@ data Tx = Tx
         -- ^ NOTE: Order of outputs matters in the transaction representations. Outputs
         -- are used as inputs for next transactions which refer to them using
         -- their indexes. It matters also for serialization.
+    , withdrawals
+        :: !(Map ChimericAccount Coin)
+        -- ^ Withdrawals (of funds from a registered reward account) embedded in
+        -- a transaction. The order does not matter.
     } deriving (Show, Generic, Ord, Eq)
 
 
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx tid ins outs) = mempty
+    build (Tx tid ins outs ws) = mempty
         <> build tid
-        <> blockListF' "~>" build (fst <$> ins)
-        <> blockListF' "<~" build outs
+        <> blockListF' "inputs" build (fst <$> ins)
+        <> blockListF' "outputs" build outs
+        <> blockListF' "withdrawals" tupleF (Map.toList ws)
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -958,6 +963,8 @@ data TransactionInfo = TransactionInfo
     -- source. Source information can only be provided for outgoing payments.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
+    , txInfoWithdrawals :: !(Map ChimericAccount Coin)
+    -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta
     -- ^ Other information calculated from the transaction.
     , txInfoDepth :: Quantity "block" Natural
@@ -974,6 +981,7 @@ fromTransactionInfo info = Tx
     { txId = txInfoId info
     , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
     , outputs = txInfoOutputs info
+    , withdrawals = txInfoWithdrawals info
     }
 
 -- | Drop time-specific information
@@ -1704,6 +1712,15 @@ newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
 
 instance NFData ChimericAccount
 
+instance Buildable ChimericAccount where
+    build = build . Hash @"ChimericAccount" . unChimericAccount
+
+instance ToText ChimericAccount where
+    toText = toText . Hash @"ChimericAccount" . unChimericAccount
+
+instance FromText ChimericAccount where
+    fromText = fmap (ChimericAccount . getHash @"ChimericAccount") . fromText
+
 -- | Represent a delegation certificate.
 data DelegationCertificate
     = CertDelegateNone ChimericAccount
@@ -1834,11 +1851,12 @@ instance Buildable (Hash tag) where
 instance ToText (Hash tag) where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
-instance FromText (Hash "Tx")           where fromText = hashFromText 32
-instance FromText (Hash "Account")      where fromText = hashFromText 32
-instance FromText (Hash "Genesis")      where fromText = hashFromText 32
-instance FromText (Hash "Block")        where fromText = hashFromText 32
-instance FromText (Hash "BlockHeader")  where fromText = hashFromText 32
+instance FromText (Hash "Tx")              where fromText = hashFromText 32
+instance FromText (Hash "Account")         where fromText = hashFromText 32
+instance FromText (Hash "Genesis")         where fromText = hashFromText 32
+instance FromText (Hash "Block")           where fromText = hashFromText 32
+instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
+instance FromText (Hash "ChimericAccount") where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)

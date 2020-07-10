@@ -74,12 +74,15 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWithdrawal (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
     , DecodeAddress (..)
+    , DecodeStakeAddress (..)
     , EncodeAddress (..)
+    , EncodeStakeAddress (..)
     , Iso8601Time (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
@@ -115,6 +118,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
@@ -710,6 +714,7 @@ spec = do
                     , inputs = inputs (x :: ApiTransaction ('Testnet 0))
                     , outputs = outputs (x :: ApiTransaction ('Testnet 0))
                     , status = status (x :: ApiTransaction ('Testnet 0))
+                    , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -798,6 +803,15 @@ instance EncodeAddress ('Testnet 0) where
 instance DecodeAddress ('Testnet 0) where
     decodeAddress "<addr>" = Right $ Address "<addr>"
     decodeAddress _ = Left $ TextDecodingError "invalid address"
+
+-- Dummy instances
+instance EncodeStakeAddress ('Testnet 0) where
+    encodeStakeAddress = const "<stake-addr>"
+
+instance DecodeStakeAddress ('Testnet 0) where
+    decodeStakeAddress "<stake-addr>" = Right $ ChimericAccount "<stake-addr>"
+    decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
+
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
@@ -1236,7 +1250,16 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> Test.QuickCheck.scale (`mod` 3) arbitrary
             <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
             <*> pure txStatus
+
+instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
+    arbitrary = ApiWithdrawal
+        <$> fmap (, Proxy @t) arbitrary
+        <*> arbitrary
+
+instance Arbitrary ChimericAccount where
+    arbitrary = ChimericAccount . BS.pack <$> vector 28
 
 instance Arbitrary Coin where
     -- No Shrinking

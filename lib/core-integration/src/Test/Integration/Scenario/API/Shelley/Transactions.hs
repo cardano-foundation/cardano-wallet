@@ -23,6 +23,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , DecodeAddress
+    , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     , insertedAt
@@ -120,6 +121,7 @@ data TestCase a = TestCase
 
 spec :: forall n t.
     ( DecodeAddress n
+    , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
 spec = do
@@ -180,6 +182,7 @@ spec = do
 
             -- Verify Tx
             let link = Link.listTransactions' @'Shelley wSrc
+                    Nothing
                     Nothing
                     Nothing
                     (Just Descending)
@@ -1082,6 +1085,7 @@ spec = do
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
             let link = Link.listTransactions' @'Shelley w
+                    Nothing
                     (either (const Nothing) Just $ fromText $ T.pack startTime)
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing

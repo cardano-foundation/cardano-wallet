@@ -164,6 +164,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , DecodeAddress (..)
+    , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
     , WalletStyle (..)
@@ -521,7 +522,7 @@ unsafeGetTransactionTime txs =
         _ -> error "Expected at least one transaction with a time."
 
 waitAllTxsInLedger
-    :: forall n t. (DecodeAddress n)
+    :: forall n t. (DecodeAddress n, DecodeStakeAddress n)
     => Context t
     -> ApiWallet
     -> IO ()
@@ -852,6 +853,7 @@ fixtureRandomWalletWith
     :: forall (n :: NetworkDiscriminant) t.
         ( EncodeAddress n
         , DecodeAddress n
+        , DecodeStakeAddress n
         , PaymentAddress n ByronKey
         )
     => Context t
@@ -903,6 +905,7 @@ fixtureIcarusWalletWith
     :: forall (n :: NetworkDiscriminant) t.
         ( EncodeAddress n
         , DecodeAddress n
+        , DecodeStakeAddress n
         , PaymentAddress n IcarusKey
         )
     => Context t
@@ -958,7 +961,11 @@ fixtureLegacyWallet ctx style mnemonics = do
 -- This function makes no attempt at ensuring the request is valid, so be
 -- careful.
 fixtureWalletWith
-    :: forall n t. (EncodeAddress n, DecodeAddress n)
+    :: forall n t.
+        ( EncodeAddress n
+        , DecodeAddress n
+        , DecodeStakeAddress n
+        )
     => Context t
     -> [Natural]
     -> IO ApiWallet
@@ -1019,6 +1026,7 @@ moveByronCoins
     :: forall (n :: NetworkDiscriminant) t.
         ( EncodeAddress n
         , DecodeAddress n
+        , DecodeStakeAddress n
         )
     => Context t
         -- ^ Api context
@@ -1098,6 +1106,7 @@ joinStakePool
     :: forall n t w.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
+        , DecodeStakeAddress n
         )
     => Context t
     -> ApiT PoolId
@@ -1114,6 +1123,7 @@ quitStakePool
     :: forall n t w.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
+        , DecodeStakeAddress n
         )
     => Context t
     -> (w, Text)
@@ -1237,7 +1247,11 @@ listAddresses ctx w = do
     return addrs
 
 listAllTransactions
-    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
+    :: forall n t w.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , HasType (ApiT WalletId) w
+        )
     => Context t
     -> w
     -> IO [ApiTransaction n]
@@ -1245,7 +1259,11 @@ listAllTransactions ctx w =
     listTransactions ctx w Nothing Nothing (Just Descending)
 
 listTransactions
-    :: forall n t w. (DecodeAddress n, HasType (ApiT WalletId) w)
+    :: forall n t w.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , HasType (ApiT WalletId) w
+        )
     => Context t
     -> w
     -> Maybe UTCTime
@@ -1257,6 +1275,7 @@ listTransactions ctx wallet mStart mEnd mOrder = do
     return txs
   where
     path = Link.listTransactions' @'Shelley wallet
+        Nothing
         (Iso8601Time <$> mStart)
         (Iso8601Time <$> mEnd)
         mOrder

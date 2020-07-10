@@ -461,7 +461,7 @@ getGenericTransaction tid = label "getGenericTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     _wits <- replicateM witnessCount getWitness
-    return $ Tx tid ins outs
+    return $ Tx tid ins outs mempty
   where
     getWitness :: Get ByteString
     getWitness = do
@@ -509,7 +509,7 @@ getLegacyTransaction tid = do
     -- Legacy transactions only show up in the genesis block and are treated as
     -- coinbase transactions with no inputs.
     let inps = mempty
-    pure $ Tx tid inps outs
+    pure $ Tx tid inps outs mempty
 
 data MkFragment
     = MkFragmentSimpleTransaction

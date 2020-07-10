@@ -30,7 +30,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), EncodeAddress (..) )
+    ( DecodeAddress (..), EncodeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Jormungandr
     ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -171,6 +171,7 @@ specWithServer
         ( NetworkDiscriminantVal n
         , DecodeAddress n
         , EncodeAddress n
+        , EncodeStakeAddress n
         , DelegationAddress n JormungandrKey
         )
     => Trace IO Text

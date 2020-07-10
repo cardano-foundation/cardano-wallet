@@ -65,11 +65,11 @@ module Cardano.Wallet.DB.Model
 
 import Prelude
 
-
 import Cardano.Wallet.Primitive.Model
     ( Wallet, blockchainParameters, currentTip, utxo )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotId)
+    , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , EpochNo (..)
@@ -114,6 +114,8 @@ import Data.Word
     ( Word32, Word64 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Map.Strict as Map
 
@@ -398,11 +400,13 @@ mPutTxHistory wid txList db@Database{wallets,txs} =
 mReadTxHistory
     :: forall wid s xprv. Ord wid
     => wid
+    -> Maybe (Quantity "lovelace" Natural)
     -> SortOrder
     -> Range SlotId
     -> Maybe TxStatus
     -> ModelOp wid s xprv [TransactionInfo]
-mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, db)
+mReadTxHistory wid minWithdrawal order range mstatus db@(Database wallets txs) =
+    (Right res, db)
   where
     res = fromMaybe mempty $ do
         wal <- Map.lookup wid wallets
@@ -411,7 +415,7 @@ mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, d
 
     getTxs cp history
             = fmap (mkTransactionInfo cp)
-            $ filterTxHistory order range
+            $ filterTxHistory minWithdrawal order range
             $ catMaybes
             [ fmap (, meta) (Map.lookup tid txs)
             | (tid, meta) <- Map.toList history
@@ -428,6 +432,8 @@ mReadTxHistory wid order range mstatus db@(Database wallets txs) = (Right res, d
                 <$> resolvedInputs tx
         , txInfoOutputs =
             outputs tx
+        , txInfoWithdrawals =
+            withdrawals tx
         , txInfoMeta =
             meta
         , txInfoDepth =
@@ -488,12 +494,14 @@ alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
 -- | Apply optional filters on slotId and sort using the default sort order
 -- (first time/slotId, then by TxId) to a 'TxHistory'.
 filterTxHistory
-    :: SortOrder
+    :: Maybe (Quantity "lovelace" Natural)
+    -> SortOrder
     -> Range SlotId
     -> TxHistory
     -> TxHistory
-filterTxHistory order range =
-    filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd)
+filterTxHistory minWithdrawal order range =
+    filter (filterWithdrawals minWithdrawal)
+    . filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)
@@ -502,6 +510,12 @@ filterTxHistory order range =
   where
     sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd)
     sortByTxId = sortOn (txId . fst)
+    atLeast (Quantity inf) =
+        not . Map.null . Map.filter (>= Coin (fromIntegral inf))
+    filterWithdrawals = maybe
+        (const True)
+        (\inf -> atLeast inf . withdrawals . fst)
+
 
 tip :: Wallet s -> SlotId
 tip = (slotId :: BlockHeader -> SlotId) . currentTip

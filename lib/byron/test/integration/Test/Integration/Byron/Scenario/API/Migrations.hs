@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiWalletMigrationInfo
     , DecodeAddress (..)
+    , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , WalletStyle (..)
     )
@@ -68,6 +69,7 @@ spec
         , PaymentAddress n ByronKey
         , EncodeAddress n
         , DecodeAddress n
+        , DecodeStakeAddress n
         )
     => SpecWith (Context t)
 spec = do
@@ -87,6 +89,7 @@ spec = do
 scenario_MIGRATE_01
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )
@@ -107,6 +110,7 @@ scenario_MIGRATE_01 fixtureSource = it title $ \ctx -> do
 scenario_MIGRATE_02
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )

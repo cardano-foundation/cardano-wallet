@@ -110,6 +110,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Address
     , BlockHeader
+    , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel
     , DelegationCertificate
@@ -170,6 +171,8 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import System.Random
     ( getStdRandom, randomR )
 import Test.QuickCheck
@@ -292,7 +295,11 @@ data Cmd s wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid TxHistory
-    | ReadTxHistory wid SortOrder (Range SlotId) (Maybe TxStatus)
+    | ReadTxHistory wid
+        (Maybe (Quantity "lovelace" Natural))
+        SortOrder
+        (Range SlotId)
+        (Maybe TxStatus)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | PutProtocolParameters wid ProtocolParameters
@@ -365,8 +372,8 @@ runMock = \case
         first (Resp . fmap StakeKeyStatus) . mIsStakeKeyRegistered wid
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
-    ReadTxHistory wid order range status ->
-        first (Resp . fmap TxHistory) . mReadTxHistory wid order range status
+    ReadTxHistory wid minW order range status ->
+        first (Resp . fmap TxHistory) . mReadTxHistory wid minW order range status
     PutPrivateKey wid pk ->
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
@@ -429,8 +436,8 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ isStakeKeyRegistered (PrimaryKey wid)
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
-        ReadTxHistory wid order range status -> Right . TxHistory <$>
-            atomically (readTxHistory (PrimaryKey wid) order range status)
+        ReadTxHistory wid minWith order range status -> Right . TxHistory <$>
+            atomically (readTxHistory (PrimaryKey wid) minWith order range status)
         RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
             mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
@@ -582,7 +589,12 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, PutDelegationCertificate <$> genId' <*> arbitrary <*> arbitrary)
         , (1, IsStakeKeyRegistered <$> genId')
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange <*> arbitrary)
+        , (5, ReadTxHistory
+            <$> genId'
+            <*> genMinWithdrawal
+            <*> genSortOrder
+            <*> genRange
+            <*> arbitrary)
         , (4, RemovePendingTx <$> genId' <*> arbitrary)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
@@ -603,6 +615,12 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
 
     genRange :: Gen (Range SlotId)
     genRange = applyArbitrary2 Range
+
+    genMinWithdrawal :: Gen (Maybe (Quantity "lovelace" Natural))
+    genMinWithdrawal = frequency
+        [ (10, pure Nothing)
+        , (1, (Just . Quantity . fromIntegral . getCoin) <$> arbitrary)
+        ]
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
@@ -631,8 +649,8 @@ shrinker (Model _ _) (At cmd) = case cmd of
         [ At $ RollbackTo wid sid'
         | sid' <- shrink sid
         ]
-    ReadTxHistory wid so range status ->
-        [ At $ ReadTxHistory wid so range' status
+    ReadTxHistory wid minW so range status ->
+        [ At $ ReadTxHistory wid minW so range' status
         | range' <- shrink range
         ]
     _ -> []
@@ -857,6 +875,9 @@ instance ToExpr MWid where
 instance ToExpr StakeKeyCertificate where
     toExpr = genericToExpr
 
+instance ToExpr ChimericAccount where
+    toExpr = genericToExpr
+
 {-------------------------------------------------------------------------------
   Tagging
 -------------------------------------------------------------------------------}
@@ -946,7 +967,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadTxHistory :: Event s Symbolic -> Maybe MWid
     isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid _ _ _), Resp (Right (TxHistory _)), Model _ wids)
+        (At (ReadTxHistory wid _ _ _ _), Resp (Right (TxHistory _)), Model _ wids)
             -> Just (wids ! wid)
         _otherwise
             -> Nothing

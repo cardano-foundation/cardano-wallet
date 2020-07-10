@@ -251,7 +251,7 @@ instance Arbitrary GenTxHistory where
         -- checkpoint's pending transactions of the same wallet.
         filter (not . isPending . snd) <$> arbitrary
       where
-        sortTxHistory = filterTxHistory Descending wholeRange
+        sortTxHistory = filterTxHistory Nothing Descending wholeRange
 
 instance Arbitrary MockChain where
     shrink (MockChain chain) =
@@ -376,9 +376,19 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid ins outs) =
-        [mkTx ins' outs | ins' <- shrinkList' ins ] ++
-        [mkTx ins outs' | outs' <- shrinkList' outs ]
+    shrink (Tx _tid ins outs wdrls) = mconcat
+        [ [ mkTx ins' outs  wdrls
+          | ins' <- shrinkList' ins
+          ]
+
+        , [ mkTx ins  outs' wdrls
+          | outs' <- shrinkList' outs
+          ]
+
+        , [ mkTx ins  outs  (Map.fromList wdrls')
+          | wdrls' <- shrinkList' (Map.toList wdrls)
+          ]
+        ]
       where
         shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
@@ -386,7 +396,8 @@ instance Arbitrary Tx where
     arbitrary = do
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
-        return $ mkTx ins outs
+        wdrls <- fmap (Map.fromList . L.take 5) arbitrary
+        return $ mkTx ins outs wdrls
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
@@ -611,6 +622,10 @@ instance Arbitrary Percentage where
 
 instance Arbitrary DecentralizationLevel where
     arbitrary = DecentralizationLevel <$> arbitrary
+
+instance Arbitrary ChimericAccount where
+    arbitrary =
+        ChimericAccount . BS.pack <$> vector 28
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do

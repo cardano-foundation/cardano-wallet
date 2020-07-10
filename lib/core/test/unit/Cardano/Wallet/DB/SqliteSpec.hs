@@ -582,7 +582,7 @@ fileModeSpec =  do
                                 , parentHeaderHash = hashA
                                 })
                                 mockTxs
-                                []
+                                mempty
                         let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
                         atomically $ do
                             unsafeRunExceptT $ putCheckpoint testPk cpB
@@ -592,8 +592,8 @@ fileModeSpec =  do
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
                             [ Tx (dummyHash "tx1")
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                                [ TxOut (head ourAddrs) (Coin 4)
-                                ]
+                                [ TxOut (head ourAddrs) (Coin 4) ]
+                                mempty
                             ]
 
                 -- Slot 1 0
@@ -604,11 +604,11 @@ fileModeSpec =  do
                 mockApply (dummyHash "block2a")
                             [ Tx
                                 (dummyHash "tx2a")
-                                [ (TxIn (dummyHash "tx1") 0, Coin 4)
-                                ]
+                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
                                 [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
                                 , TxOut (ourAddrs !! 1) (Coin 2)
                                 ]
+                                mempty
                             ]
 
                 -- Slot 3 0
@@ -774,7 +774,7 @@ readTxHistory'
     -> Maybe TxStatus
     -> m [(Tx, TxMeta)]
 readTxHistory' DBLayer{..} a0 a1 a2 =
-    atomically . fmap (fmap toTxHistory) . readTxHistory a0 a1 a2
+    atomically . fmap (fmap toTxHistory) . readTxHistory a0 Nothing a1 a2
 
 readPrivateKey'
     :: DBLayer m s k
@@ -840,6 +840,7 @@ testTxs =
     [ ( Tx (mockHash @String "tx2")
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (Coin 1) ]
+        mempty
       , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 0) (Quantity 1337144)
       )
     ]
@@ -855,13 +856,13 @@ getAvailableBalance :: DBLayer IO s k -> IO Word
 getAvailableBalance DBLayer{..} = do
     cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
     pend <- atomically $ fmap toTxHistory
-        <$> readTxHistory testPk Descending wholeRange (Just Pending)
+        <$> readTxHistory testPk Nothing Descending wholeRange (Just Pending)
     return $ fromIntegral $ availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTxHistory testPk Descending wholeRange (Just InLedger)
+        <$> readTxHistory testPk Nothing Descending wholeRange (Just InLedger)
     return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
 
 {-------------------------------------------------------------------------------

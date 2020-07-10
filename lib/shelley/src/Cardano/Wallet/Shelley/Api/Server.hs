@@ -271,8 +271,8 @@ server byron icarus shelley spl ntp =
              )
         :<|>
              (\wid r0 r1 s -> withLegacyLayer wid
-                (byron , listTransactions byron wid r0 r1 s)
-                (icarus, listTransactions icarus wid r0 r1 s)
+                (byron , listTransactions byron wid Nothing r0 r1 s)
+                (icarus, listTransactions icarus wid Nothing r0 r1 s)
              )
         :<|>
             (\wid tx -> withLegacyLayer wid
