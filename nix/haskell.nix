@@ -13,13 +13,13 @@
 , src
 # GitHub PR number (when building on Hydra)
 , pr ? null
+# Git revision of sources
+, gitrev ? null
 }:
 
 let
   haskell = pkgs.haskell-nix;
   jmPkgs = pkgs.jmPkgs;
-  # commonLib = (import ./default.nix {}).commonLib;  # option a - shorter
-  inherit (import ./default.nix {}) commonLib; # option b - even shorter
 
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
@@ -100,8 +100,15 @@ let
           integration.preCheck = lib.optionalString stdenv.isDarwin ''
               export TMPDIR=/tmp
             '' + ''
-              export CARDANO_WALLET_TRACING_MIN_SEVERITY=debug
-              export CARDANO_NODE_TRACING_MIN_SEVERITY=info
+              # Variables picked up by integration tests
+              export CARDANO_WALLET_TRACING_MIN_SEVERITY=info
+              export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
+
+              # Causes integration tests to be re-run whenever the git revision
+              # changes, even if everything else is identical.
+              # Since these tests tend to fail a lot, we don't want
+              # to cache false failures.
+              echo "Git revision is ${toString gitrev}"
             '';
 
           # provide cardano-node & cardano-cli to tests
