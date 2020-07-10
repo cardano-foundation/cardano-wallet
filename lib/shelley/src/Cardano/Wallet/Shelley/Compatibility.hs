@@ -463,6 +463,8 @@ fromPParams pp = W.ProtocolParameters
         txParametersFromPParams pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
+    , minimumUTxOvalue =
+        minimumUTxOvalueFromPParams pp
     }
 
 -- | Extract the current network decentralization level from the given set of
@@ -512,6 +514,11 @@ desiredNumberOfStakePoolsFromPParams
     :: SL.PParams
     -> Word16
 desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
+
+minimumUTxOvalueFromPParams
+    :: SL.PParams
+    -> W.Coin
+minimumUTxOvalueFromPParams pp = W.Coin . fromIntegral $ SL._minUTxOValue pp
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
