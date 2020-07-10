@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -47,12 +48,15 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , mainnetMagic
+    , testnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, toSealed )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkUnsignedTx
-    , mkWitness
+    ( mkByronWitness
+    , mkShelleyWitness
+    , mkUnsignedTx
     , newTransactionLayer
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
@@ -74,7 +78,7 @@ import Data.Word
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, it, shouldBe )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -85,6 +89,7 @@ import Test.QuickCheck
     , choose
     , classify
     , counterexample
+    , oneof
     , property
     , scale
     , vectorOf
@@ -92,6 +97,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
@@ -109,23 +116,12 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 
 spec :: Spec
 spec = do
-    describe "decodeSignedTx testing" $
-        prop "roundtrip" prop_decodeSignedTxRoundtrip
+    describe "decodeSignedTx testing" $ do
+        prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
+        prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
-    describe "estimateMaxNumberOfInputs" $ do
-        let proxy = Proxy @'Mainnet
-        it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs proxy (Quantity 4096) 1 `shouldBe` 27
-        it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs proxy (Quantity 4096) 10 `shouldBe` 19
-        it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs proxy (Quantity 4096) 20 `shouldBe` 10
-        it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs proxy (Quantity 4096) 30 `shouldBe` 1
-
-        prop "more outputs ==> less inputs" prop_moreOutputsMeansLessInputs
-        prop "less outputs ==> more inputs" prop_lessOutputsMeansMoreInputs
-        prop "bigger size  ==> more inputs" prop_biggerMaxSizeMeansMoreInputs
+    estimateMaxInputsTests (Proxy @'Mainnet) mainnetMagic
+    estimateMaxInputsTests (Proxy @('Testnet 0)) (testnetMagic @0)
 
     describe "cost of withdrawal" $ do
         it "one can measure the cost of withdrawal" $ property $ \withdrawal ->
@@ -166,14 +162,35 @@ spec = do
 
         res `shouldBe` Right (FeeEstimation 165281 165281)
 
-prop_decodeSignedTxRoundtrip
-    :: DecodeSetup
+estimateMaxInputsTests
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
+    -> SpecWith ()
+estimateMaxInputsTests proxy pm@(ProtocolMagic pm') =
+    describe ("estimateMaxNumberOfInputs for protocolMagic="<> show pm') $ do
+
+        it "order of magnitude, nOuts = 1" $
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 1 `shouldBe` 27
+        it "order of magnitude, nOuts = 10" $
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 10 `shouldBe` 19
+        it "order of magnitude, nOuts = 20" $
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 20 `shouldBe` 10
+        it "order of magnitude, nOuts = 30" $
+            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 30 `shouldBe` 1
+
+        prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs proxy pm)
+        prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs proxy pm)
+        prop "bigger size  ==> more inputs" (prop_biggerMaxSizeMeansMoreInputs proxy pm)
+
+prop_decodeSignedShelleyTxRoundtrip
+    :: DecodeShelleySetup
     -> Property
-prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
+prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    let addrWits = Set.fromList $ map (mkWitness unsigned) pairs
+    let addrWits = Set.fromList $ map (mkShelleyWitness unsigned) pairs
     let metadata = SL.SNothing
     let wits = SL.WitnessSet addrWits mempty mempty
     let ledgerTx = SL.Tx unsigned wits metadata
@@ -181,44 +198,63 @@ prop_decodeSignedTxRoundtrip (DecodeSetup utxo outs slotNo pairs) = do
     _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
         === Right (toSealed ledgerTx)
 
+prop_decodeSignedByronTxRoundtrip
+    :: DecodeByronSetup
+    -> Property
+prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs) = do
+    let inps = Map.toList $ getUTxO utxo
+    let cs = mempty { CS.inputs = inps, CS.outputs = outs }
+    let unsigned = mkUnsignedTx slotNo cs mempty []
+    let byronWits =
+            Set.fromList $ zipWith (\((_, TxOut addr _)) pair -> mkByronWitness unsigned magic addr pair) inps pairs
+    let metadata = SL.SNothing
+    let wits = SL.WitnessSet mempty mempty byronWits
+    let ledgerTx = SL.Tx unsigned wits metadata
+
+    _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
+        === Right (toSealed ledgerTx)
+
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
-    :: Quantity "byte" Word16
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
+    -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_moreOutputsMeansLessInputs size nOuts = withMaxSuccess 1000 $
+prop_moreOutputsMeansLessInputs proxy pm size nOuts = withMaxSuccess 1000 $
     nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs proxy size nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
         >=
-        _estimateMaxNumberOfInputs proxy size (nOuts + 1)
-  where
-    proxy = Proxy @'Mainnet
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts + 1)
 
 -- | REducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
-    :: Quantity "byte" Word16
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
+    -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_lessOutputsMeansMoreInputs size nOuts = withMaxSuccess 1000 $
+prop_lessOutputsMeansMoreInputs proxy pm size nOuts = withMaxSuccess 1000 $
     nOuts > minBound ==>
-        _estimateMaxNumberOfInputs proxy size (nOuts - 1)
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs proxy size nOuts
-  where
-    proxy = Proxy @'Mainnet
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
-    :: Quantity "byte" Word16
+    :: forall (n :: NetworkDiscriminant). Typeable n
+    => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
+    -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts = withMaxSuccess 1000 $
+prop_biggerMaxSizeMeansMoreInputs proxy pm (Quantity size) nOuts = withMaxSuccess 1000 $
     size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs proxy (Quantity size) nOuts
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity size) nOuts
         <=
-        _estimateMaxNumberOfInputs proxy (Quantity (size * 2)) nOuts
-  where
-    proxy = Proxy @'Mainnet
+        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity (size * 2)) nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
@@ -234,14 +270,22 @@ testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm epLength
     pm        = ProtocolMagic 1
     epLength  = EpochLength 42 -- irrelevant here
 
-data DecodeSetup = DecodeSetup
+data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO
     , outputs :: [TxOut]
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
 
-instance Arbitrary DecodeSetup where
+data DecodeByronSetup = DecodeByronSetup
+    { inputs :: UTxO
+    , outputs :: [TxOut]
+    , ttl :: SlotNo
+    , protocolMagic :: ProtocolMagic
+    , keyPasswd :: [(XPrv, Passphrase "encryption")]
+    } deriving Show
+
+instance Arbitrary DecodeShelleySetup where
     arbitrary = do
         utxo <- arbitrary
         n <- choose (1,10)
@@ -249,7 +293,19 @@ instance Arbitrary DecodeSetup where
         slot <- arbitrary
         let numInps = Map.size $ getUTxO utxo
         pairs <- vectorOf numInps arbitrary
-        pure $ DecodeSetup utxo outs slot pairs
+        pure $ DecodeShelleySetup utxo outs slot pairs
+
+instance Arbitrary DecodeByronSetup where
+    arbitrary = do
+        utxo <- arbitrary
+        n <- choose (1,10)
+        outs <- vectorOf n arbitrary
+        let pmTestnet = ProtocolMagic <$> arbitrary
+        pm <- oneof [pure mainnetMagic, pmTestnet]
+        let numInps = Map.size $ getUTxO utxo
+        slot <- arbitrary
+        pairs <- vectorOf numInps arbitrary
+        pure $ DecodeByronSetup utxo outs slot pm pairs
 
 instance Arbitrary SlotNo where
     arbitrary = SlotNo <$> choose (1, 1000)

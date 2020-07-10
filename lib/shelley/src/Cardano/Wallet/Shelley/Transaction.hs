@@ -27,7 +27,8 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
-    , mkWitness
+    , mkShelleyWitness
+    , mkByronWitness
     , mkTx
     , TxPayload (..)
     , emptyTxPayload
@@ -47,11 +48,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , Depth (..)
     , NetworkDiscriminant (..)
-    , Passphrase
+    , Passphrase (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( toChimericAccountRaw )
+    ( ShelleyKey, toChimericAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
@@ -73,9 +78,11 @@ import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
     , fromNetworkDiscriminant
+    , toByronNetworkMagic
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
+    , toHDPayloadAddress
     , toSealed
     , toSlotNo
     , toStakeKeyDeregCert
@@ -114,6 +121,8 @@ import Type.Reflection
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Typed as CardanoTyped
+import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Crypto as Crypto
 import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
@@ -124,6 +133,7 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
@@ -153,9 +163,29 @@ data TxPayload c = TxPayload
 emptyTxPayload :: Crypto c => TxPayload c
 emptyTxPayload = TxPayload mempty mempty
 
+data TxWitnessTag
+    = TxWitnessByronUTxO
+    | TxWitnessShelleyUTxO
+    deriving (Show, Eq)
+
+-- | Provide a transaction witness for a given private key. The type of witness
+-- is different between types of keys and, with backward-compatible support, we
+-- need to support many types for one backend target.
+class TxWitnessTagFor (k :: Depth -> * -> *) where
+    txWitnessTagFor :: TxWitnessTag
+
+instance TxWitnessTagFor ShelleyKey  where txWitnessTagFor = TxWitnessShelleyUTxO
+instance TxWitnessTagFor IcarusKey   where txWitnessTagFor = TxWitnessByronUTxO
+instance TxWitnessTagFor ByronKey    where txWitnessTagFor = TxWitnessByronUTxO
+
 mkTx
-    :: forall (n :: NetworkDiscriminant) k. (Typeable n, WalletKey k)
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       , WalletKey k
+       )
     => Proxy n
+    -> ProtocolMagic
     -> TxPayload TPraosStandardCrypto
     -> SlotNo
     -- ^ Time to Live
@@ -164,7 +194,7 @@ mkTx
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
+mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
     let withdrawals = mkWithdrawals
             proxy
             (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
@@ -172,17 +202,26 @@ mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFro
 
     let unsigned = mkUnsignedTx timeToLive cs withdrawals certs
 
-    addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
-        (k, pwd) <- lookupPrivateKey keyFrom addr
-        pure $ mkWitness unsigned (getRawKey k, pwd)
+    wits <- case (txWitnessTagFor @k) of
+        TxWitnessShelleyUTxO -> do
+            addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+                (k, pwd) <- lookupPrivateKey keyFrom addr
+                pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
-    let withdrawalsWits
-            | Map.null withdrawals = Set.empty
-            | otherwise = Set.singleton $
-                mkWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
+            let withdrawalsWits
+                    | Map.null withdrawals = Set.empty
+                    | otherwise = Set.singleton $
+                      mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
 
-    let wits = (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
-            <> mkExtraWits unsigned
+            pure $ (SL.WitnessSet (addrWits <> withdrawalsWits) mempty mempty)
+                <> mkExtraWits unsigned
+
+        TxWitnessByronUTxO -> do
+            bootstrapWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+                (k, pwd) <- lookupPrivateKey keyFrom addr
+                pure $ mkByronWitness unsigned pm addr (getRawKey k, pwd)
+            pure $ SL.WitnessSet mempty mempty bootstrapWits
+                <> mkExtraWits unsigned
 
     let metadata = SL.SNothing
 
@@ -191,6 +230,7 @@ mkTx proxy (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFro
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
         ( t ~ IO Shelley
+        , TxWitnessTagFor k
         , WalletKey k
         , Typeable n
         )
@@ -198,15 +238,15 @@ newTransactionLayer
     -> ProtocolMagic
     -> EpochLength
     -> TransactionLayer t k
-newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
+newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
     { mkStdTx = \acc ks tip ->
-        mkTx proxy emptyTxPayload (defaultTTL epochLength tip) acc ks
+        mkTx proxy protocolMagic emptyTxPayload (defaultTTL epochLength tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , minimumFee = _minimumFee proxy
-    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs proxy
+    , minimumFee = _minimumFee @_ @k proxy protocolMagic
+    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @_ @k proxy protocolMagic
     , validateSelection = const $ return ()
     , allowUnbalancedTx = True
     }
@@ -248,13 +288,13 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
                     [ toStakePoolDlgCert accXPub poolId ]
 
         let mkWits unsigned = SL.WitnessSet
-                (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
                 mempty
                 mempty
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx proxy payload ttl acc keyFrom cs
+        mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (k 'AddressK XPrv, Passphrase "encryption")
@@ -271,23 +311,27 @@ newTransactionLayer proxy _protocolMagic epochLength = TransactionLayer
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
         let mkWits unsigned = SL.WitnessSet
-                (Set.singleton (mkWitness unsigned (getRawKey accXPrv, pwd')))
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
                 mempty
                 mempty
 
         let payload = TxPayload certs mkWits
         let ttl = defaultTTL epochLength tip
-        mkTx proxy payload ttl acc keyFrom cs
+        mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
-    :: forall (n :: NetworkDiscriminant). Typeable n
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       )
     => Proxy n
+    -> ProtocolMagic
     -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
+_estimateMaxNumberOfInputs proxy pm (Quantity maxSize) nOuts =
       fromIntegral $ bisect (lowerBound, upperBound)
   where
     bisect (!inf, !sup)
@@ -308,7 +352,7 @@ _estimateMaxNumberOfInputs proxy (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize proxy Nothing sel
+        size = computeTxSize proxy pm (txWitnessTagFor @k) Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -333,14 +377,18 @@ _decodeSignedTx bytes = do
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
 _minimumFee
-    :: forall (n :: NetworkDiscriminant). Typeable n
+    :: forall (n :: NetworkDiscriminant) k.
+       ( Typeable n
+       , TxWitnessTagFor k
+       )
     => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
     -> FeePolicy
     -> Maybe DelegationAction
     -> CoinSelection
     -> Fee
-_minimumFee proxy policy action cs =
-    computeFee $ computeTxSize proxy action cs
+_minimumFee proxy pm policy action cs =
+    computeFee $ computeTxSize proxy pm (txWitnessTagFor @k) action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -351,10 +399,12 @@ _minimumFee proxy policy action cs =
 computeTxSize
     :: forall (n :: NetworkDiscriminant). Typeable n
     => Proxy (n :: NetworkDiscriminant)
+    -> ProtocolMagic
+    -> TxWitnessTag
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize proxy action cs =
+computeTxSize proxy pm witTag action cs =
     SL.txsize $ SL.Tx unsigned wits metadata
  where
     metadata = SL.SNothing
@@ -404,24 +454,67 @@ computeTxSize proxy action cs =
         dummyWitness :: BL.ByteString -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
         dummyWitness chaff = SL.WitVKey key sig
           where
-            sig = SignedDSIGN
-                $ fromMaybe (error "error creating dummy witness sig")
-                $ rawDeserialiseSigDSIGN
-                $ bloatChaff sigLen
             key = SL.VKey
                 $ fromMaybe (error "error creating dummy witness ver key")
                 $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff keyLen
-            sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-            bloatChaff n = BL.toStrict $ BL.take (fromIntegral n) $ BL.cycle chaff
+                $ bloatChaff keyLen chaff
+
+            sig = SignedDSIGN
+                $ fromMaybe (error "error creating dummy witness sig")
+                $ rawDeserialiseSigDSIGN
+                $ bloatChaff sigLen chaff
 
         dummyWitnessUniq :: TxIn -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
-        dummyWitnessUniq (TxIn (Hash txid) ix) = dummyWitness chaff
+        dummyWitnessUniq (TxIn (Hash txid) ix) =
+            dummyWitness chaff
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    wits = SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+    byronWits = Set.map dummyWitnessUniq $ Set.fromList (CS.inputs cs)
+      where
+        dummyWitness :: BL.ByteString -> Address -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitness chaff addr =
+            SL.BootstrapWitness key sig cc padding
+          where
+            key = SL.VKey
+                $ fromMaybe (error "error creating dummy witness ver key")
+                $ rawDeserialiseVerKeyDSIGN
+                $ bloatChaff keyLen chaff
+
+            sig = SignedDSIGN
+                $ fromMaybe (error "error creating dummy witness sig")
+                $ rawDeserialiseSigDSIGN
+                $ bloatChaff sigLen chaff
+
+            cc = SL.ChainCode
+                $ bloatChaff ccLen "0"
+
+            padding = SL.byronVerKeyAddressPadding
+                $ Byron.mkAttributes
+                $ Byron.AddrAttributes
+                   (toHDPayloadAddress addr)
+                   (toByronNetworkMagic pm)
+
+        dummyWitnessUniq :: (TxIn, TxOut) -> SL.BootstrapWitness TPraosStandardCrypto
+        dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
+            dummyWitness chaff addr
+          where
+            chaff = L8.pack (show ix) <> BL.fromStrict txid
+
+    sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+
+    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+
+    ccLen =  32
+
+    bloatChaff :: Word -> BL.ByteString -> ByteString
+    bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
+
+    wits = case witTag of
+        TxWitnessShelleyUTxO ->
+            SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+        TxWitnessByronUTxO ->
+           SL.WitnessSet mempty mempty byronWits
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -476,11 +569,11 @@ defaultTTL :: EpochLength -> SlotId -> SlotNo
 defaultTTL epochLength slot =
     (toSlotNo epochLength slot) + 7200
 
-mkWitness
+mkShelleyWitness
     :: SL.TxBody TPraosStandardCrypto
     -> (XPrv, Passphrase "encryption")
     -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
-mkWitness body (prv, pwd) =
+mkShelleyWitness body (prv, pwd) =
     SL.WitVKey key sig
   where
     sig = SignedDSIGN
@@ -503,6 +596,21 @@ signWith msg (prv, pass) =
 unsafeMkEd25519 :: XPub -> Ed25519.PublicKey
 unsafeMkEd25519 =
     throwCryptoError . Ed25519.publicKey . xpubPublicKey
+
+mkByronWitness
+    :: SL.TxBody TPraosStandardCrypto
+    -> ProtocolMagic
+    -> Address
+    -> (XPrv, Passphrase "encryption")
+    -> SL.BootstrapWitness TPraosStandardCrypto
+mkByronWitness body protocolMagic addr (prv, Passphrase pwd) =
+    SL.makeBootstrapWitness txHash signingKey addrAttr
+  where
+    (SL.TxId txHash) = SL.txid body
+    signingKey = Crypto.SigningKey $ CC.xPrvChangePass pwd BS.empty prv
+    addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
+        (toHDPayloadAddress addr)
+        (toByronNetworkMagic protocolMagic)
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
