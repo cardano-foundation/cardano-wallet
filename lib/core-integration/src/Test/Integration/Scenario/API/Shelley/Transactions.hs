@@ -74,6 +74,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , faucetAmt
     , faucetUtxoAmt
+    , fixtureIcarusWallet
     , fixturePassphrase
     , fixtureRandomWallet
     , fixtureWallet
@@ -465,8 +466,11 @@ spec = do
                 (Link.createTransaction @'Shelley w) Default payload
             expectResponseCode @IO HTTP.status400 r
 
-    it "TRANS_CREATE_09 - Single Output Transaction with Byron witnesses" $ \ctx -> do
-        (wByron, wShelley) <- (,) <$> fixtureRandomWallet ctx <*> fixtureWallet ctx
+    describe "TRANS_CREATE_09 - Single Output Transaction with non-Shelley witnesses" $
+        forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
+        \(srcFixture,name) -> it name $ \ctx -> do
+
+        (wByron, wShelley) <- (,) <$> srcFixture ctx <*> fixtureWallet ctx
         addrs <- listAddresses @n ctx wShelley
 
         let amt = 1
