@@ -60,7 +60,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool, DecodeAddress, EncodeAddress )
+    ( ApiStakePool, DecodeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.Byron.Api.Server
     ( server )
 import Cardano.Wallet.Byron.Compatibility
@@ -157,6 +157,7 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n ByronKey
             , DecodeAddress n
             , EncodeAddress n
+            , EncodeStakeAddress n
             , MaxSizeOf Address n IcarusKey
             , MaxSizeOf Address n ByronKey
             )
@@ -242,6 +243,7 @@ serveWallet
             , PaymentAddress n ByronKey
             , DecodeAddress n
             , EncodeAddress n
+            , EncodeStakeAddress n
             )
         => Proxy n
         -> Socket

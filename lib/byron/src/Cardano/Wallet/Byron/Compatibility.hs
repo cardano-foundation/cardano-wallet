@@ -504,11 +504,11 @@ fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
-instance EncodeStakeAddress n where
+instance {-# OVERLAPS #-} EncodeStakeAddress n where
     encodeStakeAddress = error
         "encodeStakeAddress: there's no such thing as stake address in Byron"
 
-instance DecodeStakeAddress n where
+instance {-# OVERLAPS #-} DecodeStakeAddress n where
     decodeStakeAddress = error
         "decodeStakeAddress: there's no such thing as stake address in Byron"
 

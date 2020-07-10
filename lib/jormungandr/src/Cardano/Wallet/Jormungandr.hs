@@ -76,7 +76,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), ListenError (..) )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress, EncodeAddress )
+    ( DecodeAddress, EncodeAddress, EncodeStakeAddress )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Jormungandr.Api.Server
@@ -196,6 +196,7 @@ serveWallet
         ( t ~ Jormungandr
         , NetworkDiscriminantVal n
         , DecodeAddress n
+        , EncodeStakeAddress n
         , EncodeAddress n
         , DelegationAddress n JormungandrKey
         )
