@@ -467,26 +467,29 @@ spec = do
 
     it "TRANS_CREATE_09 - Single Output Transaction with Byron witnesses" $ \ctx -> do
         (wByron, wShelley) <- (,) <$> fixtureRandomWallet ctx <*> fixtureWallet ctx
+        addrs <- listAddresses @n ctx wShelley
 
-        -- FIXME:
-        -- The context fee estimator is showing its limit. It has actually
-        -- become quite annoying to maintain two separate fee estimator.
-        --
-        -- We should stop using this fee estimator and rely on the API instead.
-        -- For now, I am manually adding margins necessary to account for Byron
-        -- witnesses that are more expensive. Min and Max depends on whether we
-        -- are making the transaction from an `Icarus` or `Random`.
-        --
-        -- Fortunately, the API estimates this correctly!
-        let byronFeeMargin = 7700
-        let (feeMin, feeMax) = fmap (+ byronFeeMargin)
-                $ ctx ^. #_feeEstimator
-                $ PaymentDescription
-                    { nInputs = 1
-                    , nOutputs = 1
-                    , nChanges = 1
+        let amt = 1
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
                     }
-        let amt = (1 :: Natural)
+                }]
+            }|]
+
+        rFeeEst <- request @ApiFee ctx
+            (Link.getTransactionFee @'Byron wByron) Default payload
+        verify rFeeEst
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+
         r <- postTx ctx
             (wByron, Link.createTransaction @'Byron, fixturePassphrase)
             wShelley
@@ -495,7 +498,7 @@ spec = do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
-                between (feeMin + amt, feeMax + amt)
+                between (feeEstMin + amt, feeEstMax + amt)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
@@ -505,8 +508,8 @@ spec = do
             [ expectSuccess
             , expectField (#balance . #total) $
                 between
-                    ( Quantity (faucetAmt - feeMax - amt)
-                    , Quantity (faucetAmt - feeMin - amt)
+                    ( Quantity (faucetAmt - feeEstMax - amt)
+                    , Quantity (faucetAmt - feeEstMin - amt)
                     )
             , expectField
                     (#balance . #available)
@@ -524,7 +527,7 @@ spec = do
                 (Link.getWallet @'Byron wByron) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra2
+                (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
