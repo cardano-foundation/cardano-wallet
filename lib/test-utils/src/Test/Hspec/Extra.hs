@@ -12,6 +12,7 @@
 
 module Test.Hspec.Extra
     ( aroundAll
+    , it
     ) where
 
 import Prelude
@@ -21,7 +22,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( throwIO )
+    ( SomeException, catch, throwIO )
 import Test.Hspec
     ( ActionWith
     , HasCallStack
@@ -30,6 +31,7 @@ import Test.Hspec
     , afterAll
     , beforeAll
     , beforeWith
+    , specify
     )
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
@@ -99,6 +101,12 @@ aroundAll acquire =
                 unlock release
                 await done
 
+-- | A drop-in replacement for 'it' that'll automatically retry a scenario once
+-- if it fails, to cope with potentially flaky tests.
+it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
+it title action =
+    specify title $ \ctx ->
+        action ctx `catch` (\(_ :: SomeException) -> action ctx)
 
 -- | Some helper to help readability on the thread synchronization above.
 await :: MVar () -> IO ()

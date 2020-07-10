@@ -53,9 +53,11 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)

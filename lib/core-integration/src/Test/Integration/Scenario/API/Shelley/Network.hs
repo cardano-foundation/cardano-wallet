@@ -16,7 +16,9 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( SpecWith, it, shouldBe )
+    ( SpecWith, shouldBe )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)

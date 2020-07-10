@@ -27,9 +27,11 @@ import System.IO
 import System.Process
     ( waitForProcess, withCreateProcess )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Framework.DSL
     ( KnownCommand (..)
     , cardanoWalletCLI

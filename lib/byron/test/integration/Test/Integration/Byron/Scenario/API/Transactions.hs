@@ -50,7 +50,9 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( it )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.DSL
