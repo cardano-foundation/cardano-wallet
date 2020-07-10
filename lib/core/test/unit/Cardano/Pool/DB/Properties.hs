@@ -1,7 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Pool.DB.Properties
     ( properties
@@ -16,22 +21,33 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog (..), SqliteContext )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , determinePoolLifeCycleStatus
+    , readPoolLifeCycleStatus
+    )
 import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo
+    , PoolCertificate (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
+    , slotMinBound
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
+import Control.Exception
+    ( evaluate )
 import Control.Monad
     ( forM_, replicateM, unless )
 import Control.Monad.IO.Class
@@ -39,15 +55,17 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Function
-    ( on )
+    ( on, (&) )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( set, view )
 import Data.List.Extra
     ( nubOrd )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -62,15 +80,25 @@ import Test.Hspec
     ( Expectation
     , Spec
     , SpecWith
+    , anyException
     , beforeAll
     , beforeWith
     , describe
     , it
     , shouldBe
     , shouldReturn
+    , shouldThrow
     )
 import Test.QuickCheck
-    ( Positive (..), Property, classify, counterexample, property, (==>) )
+    ( Positive (..)
+    , Property
+    , checkCoverage
+    , classify
+    , counterexample
+    , cover
+    , property
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 
@@ -130,8 +158,20 @@ properties = do
             (property . prop_putStakeReadStake)
         it "putPoolRegistration then readPoolRegistration yields expected result"
             (property . prop_poolRegistration)
+        it "putPoolRetirement then readPoolRetirement yields expected result"
+            (property . prop_poolRetirement)
+        it "prop_multiple_putPoolRegistration_single_readPoolRegistration"
+            (property .
+                prop_multiple_putPoolRegistration_single_readPoolRegistration)
+        it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
+            (property .
+                prop_multiple_putPoolRetirement_single_readPoolRetirement)
+        it "readPoolLifeCycleStatus should respect registration order"
+            (property . prop_readPoolLifeCycleStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
+        it "rollback of PoolRetirement"
+            (property . prop_rollbackRetirement)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -144,6 +184,15 @@ properties = do
             (property . prop_unfetchedPoolMetadataRefs)
         it "unfetchedPoolMetadataRefsIgnoring"
             (property . prop_unfetchedPoolMetadataRefsIgnoring)
+        it "prop_determinePoolLifeCycleStatus_orderCorrect"
+            (property . const
+                prop_determinePoolLifeCycleStatus_orderCorrect)
+        it "prop_determinePoolLifeCycleStatus_neverRegistered"
+            (property . const
+                prop_determinePoolLifeCycleStatus_neverRegistered)
+        it "prop_determinePoolLifeCycleStatus_differentPools"
+            (property . const
+                prop_determinePoolLifeCycleStatus_differentPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -276,15 +325,15 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
   where
     slotPartition = L.groupBy ((==) `on` epochNumber)
         $ L.sortOn epochNumber
-        $ map (slotId . snd) pairs
+        $ map (view #slotId . snd) pairs
     epochGroups = L.zip (uniqueEpochs pairs) slotPartition
     setup = liftIO $ atomically cleanDB
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction slot pool
         forM_ epochGroups $ \(epoch, slots) -> do
-            slots' <- (Set.fromList . map slotId . concat . Map.elems) <$>
-                atomically (readPoolProduction epoch)
+            slots' <- Set.fromList . map (view #slotId) . concat . Map.elems
+                <$> atomically (readPoolProduction epoch)
             slots' `shouldBe` (Set.fromList slots)
 
 -- | Read pool production satisfies conditions after consecutive
@@ -298,7 +347,7 @@ prop_readPoolCondAfterDeterministicRollbacks cond DBLayer{..} (StakePoolsFixture
     monadicIO (setup >> prop)
   where
     setup = liftIO $ atomically cleanDB
-    slots = map (slotId . snd) pairs
+    slots = map (view #slotId . snd) pairs
     prop = run $ do
         atomically $ forM_ pairs $ \(pool, point) ->
             unsafeRunExceptT $ putPoolProduction point pool
@@ -387,30 +436,247 @@ prop_putStakePutStake DBLayer {..} epoch a b =
         monitor $ classify (null a && null b) "a & b are empty"
         assert (L.sort res == L.sort b)
 
--- | Heavily relies on the fact that PoolId have a entropy that is sufficient
+-- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRegistration
     :: DBLayer IO
-    -> [PoolRegistrationCertificate]
+    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
 prop_poolRegistration DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
-    expected = L.sort entries
+    entriesIn = L.sort entries
     prop = do
-        run . atomically $ mapM_ (putPoolRegistration (SlotId 0 0)) entries
-        pools <- run . atomically $ L.sort . catMaybes
-            <$> mapM (readPoolRegistration . poolId) entries
+        run $ atomically $
+            mapM_ (uncurry putPoolRegistration) entriesIn
+        entriesOut <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . view #poolId . snd) entries
         monitor $ counterexample $ unlines
-            [ "Read from DB: " <> show pools
-            , "Expected    : " <> show expected
+            [ "Written into DB: "
+            , show entriesIn
+            , "Read from DB: "
+            , show entriesOut
             ]
-        assert (pools == expected)
+        assert (entriesIn == entriesOut)
+
+-- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
+prop_poolRetirement
+    :: DBLayer IO
+    -> [(CertificatePublicationTime, PoolRetirementCertificate)]
+    -> Property
+prop_poolRetirement DBLayer {..} entries =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    entriesIn = L.sort entries
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) entriesIn
+        entriesOut <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRetirement . view #poolId . snd) entries
+        monitor $ counterexample $ unlines
+            [ "Written into DB: "
+            , show entriesIn
+            , "Read from DB: "
+            , show entriesOut
+            ]
+        assert (entriesIn == entriesOut)
+
+-- For the same pool, write /multiple/ pool registration certificates to the
+-- database and then read back the current registration certificate, verifying
+-- that the certificate returned is the last one to have been written.
+--
+prop_multiple_putPoolRegistration_single_readPoolRegistration
+    :: DBLayer IO
+    -> PoolId
+    -> [PoolRegistrationCertificate]
+    -> Property
+prop_multiple_putPoolRegistration_single_readPoolRegistration
+    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRegistration) certificatePublications
+        mRetrievedCertificatePublication <-
+            run $ atomically $ readPoolRegistration sharedPoolId
+        monitor $ counterexample $ unlines
+            [ "\nExpected certificate publication: "
+            , show mExpectedCertificatePublication
+            , "\nRetrieved certificate publication: "
+            , show mRetrievedCertificatePublication
+            , "\nNumber of certificate publications: "
+            , show (length certificatePublications)
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> certificatePublications)
+            ]
+        assert $ (==)
+            mRetrievedCertificatePublication
+            mExpectedCertificatePublication
+
+    certificatePublications
+        :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    mExpectedCertificatePublication = certificatePublications
+        & reverse
+        & listToMaybe
+
+    publicationTimes =
+        [ CertificatePublicationTime (SlotId en sn) ii
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
+
+-- For the same pool, write /multiple/ pool retirement certificates to the
+-- database and then read back the current retirement certificate, verifying
+-- that the certificate returned is the last one to have been written.
+--
+prop_multiple_putPoolRetirement_single_readPoolRetirement
+    :: DBLayer IO
+    -> PoolId
+    -> [PoolRetirementCertificate]
+    -> Property
+prop_multiple_putPoolRetirement_single_readPoolRetirement
+    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) certificatePublications
+        mRetrievedCertificatePublication <-
+            run $ atomically $ readPoolRetirement sharedPoolId
+        monitor $ counterexample $ unlines
+            [ "\nExpected certificate publication: "
+            , show mExpectedCertificatePublication
+            , "\nRetrieved certificate publication: "
+            , show mRetrievedCertificatePublication
+            , "\nNumber of certificate publications: "
+            , show (length certificatePublications)
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> certificatePublications)
+            ]
+        assert $ (==)
+            mRetrievedCertificatePublication
+            mExpectedCertificatePublication
+
+    certificatePublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    mExpectedCertificatePublication = certificatePublications
+        & reverse
+        & listToMaybe
+
+    publicationTimes =
+        [ CertificatePublicationTime (SlotId en sn) ii
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
+
+-- After writing an /arbitrary/ sequence of interleaved registration and
+-- retirement certificates for the same pool to the database, verify that
+-- reading the current lifecycle status returns a result that reflects
+-- the correct order of precedence for these certificates.
+--
+-- Note that this property /assumes/ the correctness of the pure function
+-- 'determinePoolLifeCycleStatus', which is tested /elsewhere/ with
+-- the @prop_determinePoolLifeCycleStatus@ series of properties.
+--
+prop_readPoolLifeCycleStatus
+    :: DBLayer IO
+    -> PoolId
+    -> [PoolCertificate]
+    -> Property
+prop_readPoolLifeCycleStatus
+    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    expectedStatus = determinePoolLifeCycleStatus
+        mFinalRegistration
+        mFinalRetirement
+
+    prop = do
+        actualStatus <-
+            run $ atomically $ do
+                mapM_ (uncurry putCertificate) certificatePublications
+                readPoolLifeCycleStatus sharedPoolId
+        monitor $ counterexample $ unlines
+            [ "\nFinal registration: "
+            , show mFinalRegistration
+            , "\nFinal retirement: "
+            , show mFinalRetirement
+            , "\nExpected status: "
+            , show expectedStatus
+            , "\nActual status: "
+            , show actualStatus
+            , "\nNumber of certificate publications: "
+            , show (length certificatePublications)
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> certificatePublications)
+            ]
+        assert (actualStatus == expectedStatus)
+
+    certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    mFinalRegistration = certificatePublications
+        & reverse
+        & fmap (traverse toRegistrationCertificate)
+        & catMaybes
+        & listToMaybe
+
+    mFinalRetirement = certificatePublications
+        & reverse
+        & fmap (traverse toRetirementCertificate)
+        & catMaybes
+        & listToMaybe
+
+    publicationTimes =
+        [ CertificatePublicationTime (SlotId en sn) ii
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    certificates = setPoolId sharedPoolId <$> certificatesManyPoolIds
+
+    toRegistrationCertificate = \case
+        Registration cert -> Just cert
+        Retirement _ -> Nothing
+
+    toRetirementCertificate = \case
+        Retirement cert -> Just cert
+        Registration _ -> Nothing
+
+    putCertificate cpt = \case
+        Registration cert ->
+            putPoolRegistration cpt cert
+        Retirement cert ->
+            putPoolRetirement cpt cert
+
+    setPoolId newPoolId = \case
+        Registration cert -> Registration
+            $ set #poolId newPoolId cert
+        Retirement cert -> Retirement
+            $ set #poolId newPoolId cert
 
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotId
-    -> [(SlotId, PoolRegistrationCertificate)]
+    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
 prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     monadicIO (setup >> prop)
@@ -418,10 +684,10 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     setup = run $ atomically cleanDB
 
     beforeRollback pool = do
-        case L.find (on (==) poolId pool . snd) entries of
+        case L.find (on (==) (view #poolId) pool . snd) entries of
             Nothing ->
                 error "unknown pool?"
-            Just (sl, pool') ->
+            Just (CertificatePublicationTime sl _, pool') ->
                 (sl <= rollbackPoint) && (pool == pool')
 
     ownerHasManyPools =
@@ -431,14 +697,93 @@ prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
     prop = do
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries
         run . atomically $ rollbackTo rollbackPoint
-        pools <- run . atomically $ L.sort . catMaybes
-            <$> mapM (readPoolRegistration . poolId . snd) entries
+        pools <- run . atomically $ L.sort . fmap snd . catMaybes
+            <$> mapM (readPoolRegistration . (view #poolId) . snd) entries
         monitor $ classify (length pools < length entries) "rolled back some"
         monitor $ classify ownerHasManyPools "owner has many pools"
         monitor $ counterexample $ unlines
             [ "Read from DB:   " <> show pools
             ]
         assert (all beforeRollback pools)
+
+-- Verify that retirement certificates are correctly rolled back.
+--
+prop_rollbackRetirement
+    :: DBLayer IO
+    -> [PoolRetirementCertificate]
+    -> Property
+prop_rollbackRetirement DBLayer{..} certificates =
+    checkCoverage
+        $ cover 4 (rollbackPoint == slotMinBound)
+            "rollbackPoint = slotMinBound"
+        $ cover 4 (rollbackPoint > slotMinBound)
+            "rollbackPoint > slotMinBound"
+        $ cover 4 (null expectedPublications)
+            "length expectedPublications = 0"
+        $ cover 4 (not (null expectedPublications))
+            "length expectedPublications > 0"
+        $ cover 4
+            ( (&&)
+                (not (null expectedPublications))
+                (length expectedPublications < length allPublications)
+            )
+            "0 < length expectedPublications < length allPublications"
+        $ monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRetirement) allPublications
+        run $ atomically $ rollbackTo rollbackPoint
+        retrievedPublications <- catMaybes <$>
+            run (atomically $ mapM readPoolRetirement poolIds)
+        monitor $ counterexample $ unlines
+            [ "\nRollback point: "
+            , show rollbackPoint
+            , "\nAll certificate publications: "
+            , unlines (("\n" <>) . show <$> allPublications)
+            , "\nExpected certificate publications: "
+            , unlines (("\n" <>) . show <$> expectedPublications)
+            , "\nRetrieved certificate publications: "
+            , unlines (("\n" <>) . show <$> retrievedPublications)
+            ]
+        assert $ (==)
+            retrievedPublications
+            expectedPublications
+
+    poolIds :: [PoolId]
+    poolIds = view #poolId <$> certificates
+
+    rollbackPoint :: SlotId
+    rollbackPoint =
+        -- Pick a slot that approximately corresponds to the midpoint of the
+        -- certificate publication list.
+        publicationTimes
+            & drop (length certificates `div` 2)
+            & fmap (view #slotId)
+            & listToMaybe
+            & fromMaybe slotMinBound
+
+    allPublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
+    allPublications = publicationTimes `zip` certificates
+
+    expectedPublications
+        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
+    expectedPublications =
+        filter
+            (\(CertificatePublicationTime slotId _, _) ->
+                slotId <= rollbackPoint)
+            allPublications
+
+    publicationTimes :: [CertificatePublicationTime]
+    publicationTimes =
+        [ CertificatePublicationTime (SlotId en sn) ii
+        | en <- [0 ..]
+        , sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
 
 prop_listRegisteredPools
     :: DBLayer IO
@@ -453,7 +798,11 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         pools <- run . atomically $ listRegisteredPools
         monitor $ classify (any hasDuplicateOwners entries)
@@ -461,7 +810,7 @@ prop_listRegisteredPools DBLayer {..} entries =
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             ]
-        assert (pools == (poolId <$> reverse entries))
+        assert (pools == (view #poolId <$> reverse entries))
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
@@ -472,7 +821,11 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
   where
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
         monitor $ classify (length entries > 10) "10+ entries"
         monitor $ classify (length entries > 50) "50+ entries"
@@ -514,7 +867,11 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
 
     setup = do
         run . atomically $ cleanDB
-        let entries' = (zip [SlotId ep 0 | ep <- [0..]] entries)
+        let entries' =
+                [ CertificatePublicationTime (SlotId ep 0) minBound
+                | ep <- [0 ..]
+                ]
+                `zip` entries
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
 
     propIgnoredMetadataRefs = do
@@ -543,6 +900,88 @@ prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
         monitor $ counterexample $ show $ filter (/= firstS) seeds
         assert (all (== firstS) seeds)
 
+prop_determinePoolLifeCycleStatus_orderCorrect
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => (certificatePublicationTime, PoolRegistrationCertificate)
+    -> (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolLifeCycleStatus_orderCorrect regData retData =
+    checkCoverage
+        $ cover 10 (regTime > retTime)
+            "registration cert time > retirement cert time"
+        $ cover 10 (regTime < retTime)
+            "registration cert time < retirement cert time"
+        $ cover 2 (regTime == retTime)
+            "registration cert time = retirement cert time"
+        $ property prop
+  where
+    prop
+        | regTime > retTime =
+            -- A re-registration always /supercedes/ a prior retirement.
+            result `shouldBe` PoolRegistered regCert
+        | regTime < retTime =
+            -- A retirement always /augments/ the latest registration.
+            result `shouldBe` PoolRegisteredAndRetired regCert retCert
+        | otherwise =
+            -- If a registration certificate and a retirement certificate
+            -- for the same pool appear to have been published at exactly
+            -- the same time, this represents a programming error.
+            evaluate result `shouldThrow` anyException
+
+    sharedPoolId = view #poolId regCertAnyPool
+
+    (regTime, regCertAnyPool) = regData
+    (retTime, retCertAnyPool) = retData
+
+    regCert = set #poolId sharedPoolId regCertAnyPool
+    retCert = set #poolId sharedPoolId retCertAnyPool
+
+    result = determinePoolLifeCycleStatus
+        (pure (regTime, regCert))
+        (pure (retTime, retCert))
+
+-- If we've never seen a registration certificate for a given pool, we /always/
+-- indicate that the pool was /not registered/, /regardless/ of whether or not
+-- we've seen a retirement certificate for that pool.
+--
+prop_determinePoolLifeCycleStatus_neverRegistered
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => Maybe (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolLifeCycleStatus_neverRegistered maybeRetData =
+    checkCoverage
+        $ cover 10 (isJust maybeRetData)
+            "with retirement data"
+        $ cover 10 (isNothing maybeRetData)
+            "without retirement data"
+        $ property
+        $ result `shouldBe` PoolNotRegistered
+  where
+    result = determinePoolLifeCycleStatus Nothing maybeRetData
+
+-- Calling 'determinePoolLifeCycleStatus' with certificates from different
+-- pools is a programming error, and should result in an exception.
+--
+prop_determinePoolLifeCycleStatus_differentPools
+    :: forall certificatePublicationTime . (certificatePublicationTime ~ Int)
+    => (certificatePublicationTime, PoolRegistrationCertificate)
+    -> (certificatePublicationTime, PoolRetirementCertificate)
+    -> Property
+prop_determinePoolLifeCycleStatus_differentPools regData retData =
+    property $ (regPoolId /= retPoolId) ==> prop
+  where
+    prop = evaluate result `shouldThrow` anyException
+
+    regPoolId = view #poolId regCert
+    retPoolId = view #poolId retCert
+
+    (regTime, regCert) = regData
+    (retTime, retCert) = retData
+
+    result = determinePoolLifeCycleStatus
+        (pure (regTime, regCert))
+        (pure (retTime, retCert))
+
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
@@ -556,7 +995,7 @@ noEmptyPools pools = do
     pools' `shouldBe` pools
 
 uniqueEpochs :: [(PoolId, BlockHeader)] -> [EpochNo]
-uniqueEpochs = nubOrd . map (epochNumber . slotId . snd)
+uniqueEpochs = nubOrd . map (epochNumber . view #slotId . snd)
 
 -- | Concatenate stake pool production for all epochs in the test fixture.
 allPoolProduction :: DBLayer IO -> StakePoolsFixture -> IO [(SlotId, PoolId)]
@@ -564,4 +1003,6 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
     rearrange <$> mapM readPoolProduction (uniqueEpochs pairs)
   where
     rearrange ms = concat
-        [ [ (slotId h, p) | h <- hs ] | (p, hs) <- concatMap Map.assocs ms ]
+        [ [ (view #slotId h, p) | h <- hs ]
+        | (p, hs) <- concatMap Map.assocs ms
+        ]

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -13,6 +14,9 @@ module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
 
+      -- * Utilities
+    , determinePoolLifeCycleStatus
+
       -- * Errors
     , ErrPointAlreadyExists (..)
     ) where
@@ -21,9 +25,12 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
+    , PoolRetirementCertificate
     , SlotId (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -35,6 +42,8 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -99,8 +108,13 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
 
+    , readPoolLifeCycleStatus
+        :: PoolId
+        -> stm PoolLifeCycleStatus
+        -- ^ Read the current life cycle status of the given pool.
+
     , putPoolRegistration
-        :: SlotId
+        :: CertificatePublicationTime
         -> PoolRegistrationCertificate
         -> stm ()
         -- ^ Add a mapping between stake pools and their corresponding
@@ -109,8 +123,31 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , readPoolRegistration
         :: PoolId
-        -> stm (Maybe PoolRegistrationCertificate)
-        -- ^ Find a registration certificate associated to a given pool
+        -> stm (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
+        -- ^ Find the /latest/ registration certificate for the given pool,
+        -- together with the point in time that the certificate was added.
+        --
+        -- Note that a pool may also have other certificates associated with it
+        -- that affect its current lifecycle status.
+        --
+        -- See 'readPoolLifeCycleStatus'.
+
+    , putPoolRetirement
+        :: CertificatePublicationTime
+        -> PoolRetirementCertificate
+        -> stm ()
+        -- ^ Add a retirement certificate for a particular pool.
+
+    , readPoolRetirement
+        :: PoolId
+        -> stm (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
+        -- ^ Find the /latest/ retirement certificate for the given pool,
+        -- together with the point in time that the certificate was added.
+        --
+        -- Note that a pool may also have other certificates associated with it
+        -- that affect its current lifecycle status.
+        --
+        -- See 'readPoolLifeCycleStatus'.
 
     , unfetchedPoolMetadataRefs
         :: Int
@@ -165,6 +202,72 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- For a Sqlite DB, this would be "run a query inside a transaction".
     }
+
+-- | Given the /latest/ registration and retirement certificates for a pool,
+--   determine the pool's current life cycle status, based on the relative
+--   order in which the certificates were published.
+--
+-- If two certificates are supplied, then:
+--
+--   * the certificates must be from the same pool.
+--   * the publication times must be non-equal.
+--
+-- Violating either of the above pre-conditions is a programming error.
+--
+-- This function determines order of precedence according to the "pool
+-- inference rule", as described in "A Formal Specification of the Cardano
+-- Ledger":
+--
+-- https://hydra.iohk.io/build/3202141/download/1/ledger-spec.pdf
+--
+determinePoolLifeCycleStatus
+    :: (Ord publicationTime, Show publicationTime)
+    => Maybe (publicationTime, PoolRegistrationCertificate)
+    -> Maybe (publicationTime, PoolRetirementCertificate)
+    -> PoolLifeCycleStatus
+determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
+    (Nothing, _) ->
+        PoolNotRegistered
+    (Just (_, regCert), Nothing) ->
+        PoolRegistered regCert
+    (Just (regTime, regCert), Just (retTime, retCert))
+        | regPoolId /= retPoolId ->
+            differentPoolsError
+        | regTime > retTime ->
+            -- A re-registration always /supercedes/ a prior retirement.
+            PoolRegistered regCert
+        | regTime < retTime ->
+            -- A retirement always /augments/ the latest known registration.
+            PoolRegisteredAndRetired regCert retCert
+        | otherwise ->
+            timeCollisionError
+      where
+        regPoolId = view #poolId regCert
+        retPoolId = view #poolId retCert
+
+        differentPoolsError = error $ mconcat
+            [ "programming error:"
+            , " determinePoolLifeCycleStatus:"
+            , " called with certificates for different pools:"
+            , " pool id of registration certificate: "
+            , show regPoolId
+            , " pool id of retirement certificate: "
+            , show retPoolId
+            ]
+
+        timeCollisionError = error $ mconcat
+            [ "programming error:"
+            , " determinePoolLifeCycleStatus:"
+            , " called with identical certificate publication times:"
+            , " pool id of registration certificate: "
+            , show regPoolId
+            , " pool id of retirement certificate: "
+            , show retPoolId
+            , " publication time of registration certificate: "
+            , show regTime
+            , " publication time of retirement certificate: "
+            , show retTime
+            ]
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists

@@ -76,6 +76,7 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
     , PoolOwner (..)
@@ -198,8 +199,10 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
                 readPoolRegistration poolId >>= \case
-                    Nothing -> putPoolRegistration sl0 r
-                    Just{}  -> pure ()
+                    Nothing -> do
+                        let cpt = CertificatePublicationTime sl0 minBound
+                        putPoolRegistration cpt r
+                    Just {} -> pure ()
             readPoolProductionCursor (max 100 (fromIntegral k))
 
     forward
@@ -222,7 +225,10 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
                 lift $ putStakeDistribution ep (Map.toList dist)
             forM_ blocks $ \b -> do
                 forM_ (poolRegistrations b) $ \pool -> do
-                    lift $ putPoolRegistration (b ^. #header . #slotId) pool
+                    let cpt = CertificatePublicationTime
+                            (b ^. #header . #slotId)
+                            minBound
+                    lift $ putPoolRegistration cpt pool
                     liftIO $ traceWith tr $ MsgStakePoolRegistration pool
                 withExceptT ErrMonitorStakePoolsPoolAlreadyExists $
                     putPoolProduction (header b) (producer b)
@@ -356,7 +362,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         epConstants = mkEpCst totalStake
 
         mergeRegistration poolId (stake, production, performance) =
-            fmap mkStakePool <$> readPoolRegistration poolId
+            fmap (mkStakePool . snd) <$> readPoolRegistration poolId
           where
             mkStakePool PoolRegistrationCertificate{poolCost,poolMargin,poolOwners} =
                 ( StakePool

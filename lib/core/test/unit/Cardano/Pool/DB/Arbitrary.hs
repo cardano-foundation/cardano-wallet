@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 
@@ -18,12 +19,15 @@ import Cardano.Wallet.Gen
     ( genPercentage )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
+    , PoolCertificate (..)
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , SlotNo (..)
     , SlotParameters (..)
@@ -58,6 +62,7 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , genericShrink
     , listOf
     , oneof
     , scale
@@ -88,6 +93,10 @@ genPrintableText = T.pack . getPrintableString <$> arbitrary
 {-------------------------------------------------------------------------------
                                  Stake Pools
 -------------------------------------------------------------------------------}
+
+instance Arbitrary CertificatePublicationTime where
+    arbitrary = CertificatePublicationTime <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary SlotId where
     shrink (SlotId ep sl) =
@@ -149,6 +158,21 @@ instance Arbitrary PoolRegistrationCertificate where
             sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
             extP <- elements [ ".io", ".dev", ".com", ".eu" ]
             pure $ protocol <> "://" <> fstP <> "-" <> sndP <> extP
+
+instance Arbitrary PoolRetirementCertificate where
+    arbitrary = PoolRetirementCertificate
+        <$> arbitrary
+        <*> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary PoolCertificate where
+    arbitrary = oneof
+        [ Registration
+            <$> arbitrary
+        , Retirement
+            <$> arbitrary
+        ]
+    shrink = const []
 
 instance Arbitrary StakePoolMetadataHash where
     arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)

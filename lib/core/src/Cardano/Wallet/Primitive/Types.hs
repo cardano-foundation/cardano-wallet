@@ -57,10 +57,12 @@ module Cardano.Wallet.Primitive.Types
     , AddressState (..)
 
     -- * Delegation and stake pools
+    , CertificatePublicationTime (..)
     , ChimericAccount (..)
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , PoolCertificate (..)
@@ -1726,7 +1728,6 @@ dlgCertPoolId = \case
     CertDelegateFull _ poolId -> Just poolId
     CertRegisterKey _ -> Nothing
 
-
 -- | Sum-type of pool registration- and retirement- certificates. Mirrors the
 --  @PoolCert@ type in cardano-ledger-specs.
 data PoolCertificate
@@ -1771,6 +1772,35 @@ instance Buildable PoolRetirementCertificate where
         <> " retiring at "
         <> build e
 
+-- | Represents an abstract notion of a certificate publication time.
+--
+-- Certificates published at later times take precedence over certificates
+-- published at earlier times.
+--
+data CertificatePublicationTime = CertificatePublicationTime
+    { slotId
+        :: SlotId
+    , slotInternalIndex
+        :: Word64
+        -- ^ Indicates the relative position of a publication within a slot.
+    }
+    deriving (Eq, Generic, Ord, Show)
+
+-- | Indicates the current life cycle status of a pool.
+--
+data PoolLifeCycleStatus
+    = PoolNotRegistered
+        -- ^ Indicates that a pool is not registered.
+    | PoolRegistered
+        PoolRegistrationCertificate
+        -- ^ Indicates that a pool is registered BUT NOT marked for retirement.
+        -- Records the latest registration certificate.
+    | PoolRegisteredAndRetired
+        PoolRegistrationCertificate
+        PoolRetirementCertificate
+        -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
+        -- Records the latest registration and retirement certificates.
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

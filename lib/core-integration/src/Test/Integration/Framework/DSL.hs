@@ -610,10 +610,10 @@ eventuallyUsingDelay
     -> IO a
     -> IO a
 eventuallyUsingDelay delay desc io = do
-    winner <- race (threadDelay $ 180 * oneSecond) trial
+    winner <- race (threadDelay $ 300 * oneSecond) trial
     case winner of
         Left _ -> fail
-            ("waited more than 3min for action to eventually resolve.\
+            ("Waited longer than 5 minutes for action to resolve.\
             \ Action: " ++ show desc)
         Right a ->
             return a

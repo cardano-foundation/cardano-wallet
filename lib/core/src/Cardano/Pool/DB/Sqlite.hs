@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -41,14 +42,16 @@ import Cardano.DB.Sqlite
     , tableName
     )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
@@ -57,6 +60,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Exception
     ( bracket, throwIO )
+import Control.Monad
+    ( forM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -65,6 +70,8 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either
     ( rights )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( foldl' )
 import Data.Map.Strict
@@ -196,62 +203,57 @@ newDBLayer trace fp = do
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , putPoolRegistration = \point PoolRegistrationCertificate
-            { poolId
-            , poolOwners
-            , poolMargin
-            , poolCost
-            , poolPledge
-            , poolMetadata
-            } -> do
-            let poolMarginN = fromIntegral $ numerator $ getPercentage poolMargin
-            let poolMarginD = fromIntegral $ denominator $ getPercentage poolMargin
-            let poolCost_ = getQuantity poolCost
-            let poolPledge_ = getQuantity poolPledge
-            let poolMetadataUrl = fst <$> poolMetadata
-            let poolMetadataHash = snd <$> poolMetadata
-            deleteWhere [PoolOwnerPoolId ==. poolId, PoolOwnerSlot ==. point]
-            _ <- repsert (PoolRegistrationKey poolId point) $ PoolRegistration
-                    poolId
-                    point
-                    poolMarginN
-                    poolMarginD
-                    poolCost_
-                    poolPledge_
-                    poolMetadataUrl
-                    poolMetadataHash
-            insertMany_ $ zipWith (PoolOwner poolId point) poolOwners [0..]
+        , readPoolLifeCycleStatus = \poolId ->
+            determinePoolLifeCycleStatus
+                <$> readPoolRegistration_ poolId
+                <*> readPoolRetirement_ poolId
 
-        , readPoolRegistration = \poolId -> do
-            let filterBy = [ PoolRegistrationPoolId ==. poolId ]
-            let orderBy  = [ Desc PoolRegistrationSlot ]
-            selectFirst filterBy orderBy >>= \case
-                Nothing -> pure Nothing
-                Just meta -> do
-                    let PoolRegistration
-                            _poolId
-                            _point
-                            marginNum
-                            marginDen
-                            poolCost_
-                            poolPledge_
-                            poolMetadataUrl
-                            poolMetadataHash = entityVal meta
-                    let poolMargin = unsafeMkPercentage $ toRational $ marginNum % marginDen
-                    let poolCost = Quantity poolCost_
-                    let poolPledge = Quantity poolPledge_
-                    let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
-                    poolOwners <- fmap (poolOwnerOwner . entityVal) <$> selectList
-                        [ PoolOwnerPoolId ==. poolId ]
-                        [ Desc PoolOwnerSlot, Asc PoolOwnerIndex ]
-                    pure $ Just $ PoolRegistrationCertificate
-                        { poolId
-                        , poolOwners
-                        , poolMargin
-                        , poolCost
-                        , poolPledge
-                        , poolMetadata
-                        }
+        , putPoolRegistration = \cpt cert -> do
+            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
+            let poolId = view #poolId cert
+            deleteWhere
+                [ PoolOwnerPoolId ==. poolId
+                , PoolOwnerSlot ==. slotId
+                , PoolOwnerSlotInternalIndex ==. slotInternalIndex
+                ]
+            let poolRegistrationKey = PoolRegistrationKey
+                    poolId slotId slotInternalIndex
+            let poolRegistrationRow = PoolRegistration
+                    (poolId)
+                    (slotId)
+                    (slotInternalIndex)
+                    (fromIntegral $ numerator
+                        $ getPercentage $ poolMargin cert)
+                    (fromIntegral $ denominator
+                        $ getPercentage $ poolMargin cert)
+                    (getQuantity $ poolCost cert)
+                    (getQuantity $ poolPledge cert)
+                    (fst <$> poolMetadata cert)
+                    (snd <$> poolMetadata cert)
+            _ <- repsert poolRegistrationKey poolRegistrationRow
+            insertMany_ $
+                zipWith
+                    (PoolOwner poolId slotId slotInternalIndex)
+                    (poolOwners cert)
+                    [0..]
+
+        , readPoolRegistration = readPoolRegistration_
+
+        , putPoolRetirement = \cpt cert -> do
+            let CertificatePublicationTime {slotId, slotInternalIndex} = cpt
+            let PoolRetirementCertificate
+                    { poolId
+                    , retiredIn
+                    } = cert
+            let EpochNo retirementEpoch = retiredIn
+            repsert (PoolRetirementKey poolId slotId slotInternalIndex) $
+                PoolRetirement
+                    poolId
+                    slotId
+                    slotInternalIndex
+                    (fromIntegral retirementEpoch)
+
+        , readPoolRetirement = readPoolRetirement_
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
@@ -322,13 +324,16 @@ newDBLayer trace fp = do
 
         , listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
-                [ Desc PoolRegistrationSlot ]
+                [ Desc PoolRegistrationSlot
+                , Desc PoolRegistrationSlotInternalIndex
+                ]
 
         , rollbackTo = \point -> do
             let (EpochNo epoch) = epochNumber point
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
             deleteWhere [ PoolRegistrationSlot >. point ]
+            deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
         , readPoolProductionCursor = \k -> do
@@ -350,12 +355,73 @@ newDBLayer trace fp = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
+            deleteWhere ([] :: [Filter PoolRetirement])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
 
         , atomically = runQuery
         })
+    where
+        readPoolRegistration_ poolId = do
+            result <- selectFirst
+                [ PoolRegistrationPoolId ==. poolId ]
+                [ Desc PoolRegistrationSlot
+                , Desc PoolRegistrationSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRegistration
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        marginNum
+                        marginDen
+                        poolCost_
+                        poolPledge_
+                        poolMetadataUrl
+                        poolMetadataHash = entityVal meta
+                let poolMargin = unsafeMkPercentage $
+                        toRational $ marginNum % marginDen
+                let poolCost = Quantity poolCost_
+                let poolPledge = Quantity poolPledge_
+                let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
+                poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
+                    selectList
+                        [ PoolOwnerPoolId
+                            ==. poolId
+                        , PoolOwnerSlot
+                            ==. slotId
+                        , PoolOwnerSlotInternalIndex
+                            ==. slotInternalIndex
+                        ]
+                        [ Asc PoolOwnerIndex ]
+                let cert = PoolRegistrationCertificate
+                        { poolId
+                        , poolOwners
+                        , poolMargin
+                        , poolCost
+                        , poolPledge
+                        , poolMetadata
+                        }
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
+
+        readPoolRetirement_ poolId = do
+            result <- selectFirst
+                [ PoolRetirementPoolId ==. poolId ]
+                [ Desc PoolRetirementSlot
+                , Desc PoolRetirementSlotInternalIndex
+                ]
+            forM result $ \meta -> do
+                let PoolRetirement
+                        _poolId
+                        slotId
+                        slotInternalIndex
+                        retirementEpoch = entityVal meta
+                let retiredIn = EpochNo (fromIntegral retirementEpoch)
+                let cert = PoolRetirementCertificate {poolId, retiredIn}
+                let cpt = CertificatePublicationTime {slotId, slotInternalIndex}
+                pure (cpt, cert)
 
 -- | 'Temporary', catches migration error from previous versions and if any,
 -- _removes_ the database file completely before retrying to start the database.
@@ -425,7 +491,7 @@ mkPoolProduction
     -> PoolProduction
 mkPoolProduction pool block = PoolProduction
     { poolProductionPoolId = pool
-    , poolProductionSlot = slotId block
+    , poolProductionSlot = view #slotId block
     , poolProductionHeaderHash = BlockId (headerHash block)
     , poolProductionParentHash = BlockId (parentHeaderHash block)
     , poolProductionBlockHeight = getQuantity (blockHeight block)

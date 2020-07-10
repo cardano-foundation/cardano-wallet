@@ -32,7 +32,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -46,18 +46,23 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
+    , CertificatePublicationTime (..)
     , Coin (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters
     , SlotId
     , SlotLength (..)
+    , SlotParameters
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , epochStartTime
+    , slotParams
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -159,7 +164,7 @@ newStakePoolLayer gp nl db = StakePoolLayer
               . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
               . map snd
               . Map.toList
-              $ combineDbAndLsqData lsqData chainData
+              $ combineDbAndLsqData (slotParams gp) lsqData chainData
 
     -- Note: We shouldn't have to do this conversion.
     el = getEpochLength gp
@@ -171,27 +176,29 @@ newStakePoolLayer gp nl db = StakePoolLayer
 --
 --
 
--- | Stake Pool data fields that we can fetch from the node over Local State
--- Query.
-data PoolLsqMetrics = PoolLsqMetrics
+-- | Stake pool-related data that has been read from the node using a local
+--   state query.
+data PoolLsqData = PoolLsqData
     { nonMyopicMemberRewards :: Quantity "lovelace" Word64
     , relativeStake :: Percentage
     , saturation :: Double
     } deriving (Eq, Show, Generic)
 
--- | Stake Pool data fields that we read from the DB.
-data PoolDBMetrics = PoolDBMetrics
-    { regCert :: PoolRegistrationCertificate
+-- | Stake pool-related data that has been read from the database.
+data PoolDbData = PoolDbData
+    { registrationCert :: PoolRegistrationCertificate
+    , retirementCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
     , metadata :: Maybe StakePoolMetadata
     }
 
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
-    :: Map PoolId PoolLsqMetrics
-    -> Map PoolId PoolDBMetrics
+    :: SlotParameters
+    -> Map PoolId PoolLsqData
+    -> Map PoolId PoolDbData
     -> Map PoolId Api.ApiStakePool
-combineDbAndLsqData =
+combineDbAndLsqData sp =
     Map.merge lsqButNoChain chainButNoLsq bothPresent
   where
     lsqButNoChain = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
@@ -204,12 +211,12 @@ combineDbAndLsqData =
 
     mkApiPool
         :: PoolId
-        -> PoolLsqMetrics
-        -> Maybe PoolDBMetrics
+        -> PoolLsqData
+        -> Maybe PoolDbData
         -> Api.ApiStakePool
     mkApiPool
         pid
-        (PoolLsqMetrics prew pstk psat)
+        (PoolLsqData prew pstk psat)
         dbData
         = Api.ApiStakePool
         { Api.id = (ApiT pid)
@@ -220,15 +227,20 @@ combineDbAndLsqData =
             , Api.producedBlocks = maybe (Quantity 0)
                     (fmap fromIntegral . nProducedBlocks) dbData
             }
-        , Api.metadata = dbData >>= metadata >>= (return . ApiT)
-        , Api.cost = fmap fromIntegral . poolCost . regCert <$> dbData
-        , Api.pledge = fmap fromIntegral . poolPledge . regCert <$> dbData
-        , Api.margin = Quantity . poolMargin . regCert <$> dbData
-          -- TODO: Report the actual retirement status of a pool.
-          -- For the moment, we always report that a pool will never retire.
-          -- See https://github.com/input-output-hk/cardano-wallet/milestone/89
-        , Api.retirement = Nothing
+        , Api.metadata =
+            dbData >>= metadata >>= (return . ApiT)
+        , Api.cost =
+            fmap fromIntegral . poolCost . registrationCert <$> dbData
+        , Api.pledge =
+            fmap fromIntegral . poolPledge . registrationCert <$> dbData
+        , Api.margin =
+            Quantity . poolMargin . registrationCert <$> dbData
+        , Api.retirement =
+            toApiEpochInfo . retiredIn <$> (retirementCert =<< dbData)
         }
+
+    toApiEpochInfo ep =
+        Api.ApiEpochInfo (ApiT ep) (epochStartTime sp ep)
 
 -- | Combines all the LSQ data into a single map.
 --
@@ -239,7 +251,7 @@ combineDbAndLsqData =
 -- would be completely impractical.
 combineLsqData
     :: NodePoolLsqData
-    -> Map PoolId PoolLsqMetrics
+    -> Map PoolId PoolLsqData
 combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
@@ -249,7 +261,7 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards
     -- to 0 here:
-    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqMetrics
+    stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqData
         { nonMyopicMemberRewards = Quantity 0
         , relativeStake = s
         , saturation = (sat s)
@@ -259,7 +271,7 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     -- should we treat it?
     --
     -- The pool with rewards but not stake didn't seem to be retiring.
-    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqMetrics
+    rewardsButNoStake = traverseMissing $ \_k r -> pure $ PoolLsqData
         { nonMyopicMemberRewards = r
         , relativeStake = noStake
         , saturation = sat noStake
@@ -267,15 +279,17 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
       where
         noStake = unsafeMkPercentage 0
 
-    bothPresent       = zipWithMatched  $ \_k s r -> PoolLsqMetrics r s (sat s)
+    bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
 -- (doesn't include metadata)
 combineChainData
-    :: Map PoolId PoolRegistrationCertificate
+    :: Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId
-        (PoolRegistrationCertificate, Quantity "block" Word64)
+        ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+        , Quantity "block" Word64
+        )
 combineChainData =
     Map.merge registeredNoProductions notRegisteredButProducing bothPresent
   where
@@ -292,26 +306,42 @@ combineChainData =
 -- hand-written Sqlite query.
 readDBPoolData
     :: DBLayer IO
-    -> IO (Map PoolId PoolDBMetrics)
-readDBPoolData DBLayer{..} = atomically $ do
+    -> IO (Map PoolId PoolDbData)
+readDBPoolData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
-    registrations <- mapM readPoolRegistration pools
+    registrationStatuses <- mapM readPoolLifeCycleStatus pools
     let certMap = Map.fromList
-            [(poolId, cert) | (poolId, Just cert) <- zip pools registrations]
+            [ (poolId, certs)
+            | (poolId, Just certs) <- zip pools
+                (certificatesFromRegistrationStatus <$> registrationStatuses)
+            ]
     prodMap <- readTotalProduction
     metaMap <- readPoolMetadata
     return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
   where
+    certificatesFromRegistrationStatus
+        :: PoolLifeCycleStatus
+        -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+    certificatesFromRegistrationStatus = \case
+        PoolNotRegistered ->
+            Nothing
+        PoolRegistered regCert ->
+            Just (regCert, Nothing)
+        PoolRegisteredAndRetired regCert retCert ->
+            Just (regCert, Just retCert)
+
     lookupMetaIn
         :: Map StakePoolMetadataHash StakePoolMetadata
-        -> (PoolRegistrationCertificate, Quantity "block" Word64)
-        -> PoolDBMetrics
-    lookupMetaIn m (cert, n) =
+        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+            , Quantity "block" Word64
+            )
+        -> PoolDbData
+    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
         let
-            metaHash = snd <$> poolMetadata cert
+            metaHash = snd <$> poolMetadata registrationCert
             meta = flip Map.lookup m =<< metaHash
         in
-            PoolDBMetrics cert n meta
+            PoolDbData registrationCert mRetirementCert n meta
 
 --
 -- Monitoring stake pool
@@ -353,22 +383,44 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         -> IO (FollowAction ())
     forward blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \blk -> do
-            let (slot, registrations) = fromShelleyBlock' getEpochLength blk
-            runExceptT (putPoolProduction (getHeader blk) (getProducer blk)) >>= \case
-                Left e   -> liftIO $ traceWith tr $ MsgErrProduction e
-                Right () -> pure ()
-            forM_ registrations $ \case
-                Registration pool -> do
-                    liftIO $ traceWith tr $ MsgStakePoolRegistration pool
-                    putPoolRegistration slot pool
-                Retirement cert -> do
+            let (slot, certificates) = fromShelleyBlock' getEpochLength blk
+            runExceptT (putPoolProduction (getHeader blk) (getProducer blk))
+                >>= \case
+                    Left e ->
+                        liftIO $ traceWith tr $ MsgErrProduction e
+                    Right () ->
+                        pure ()
+
+            -- A single block can contain multiple certificates relating to the
+            -- same pool.
+            --
+            -- The /order/ in which certificates appear is /significant/:
+            -- certificates that appear later in a block /generally/ take
+            -- precedence over certificates that appear earlier on.
+            --
+            -- We record /all/ certificates within the database, together with
+            -- the order in which they appeared.
+            --
+            -- Precedence is determined by the 'readPoolLifeCycleStatus'
+            -- function.
+            --
+            let publicationTimes =
+                    CertificatePublicationTime slot <$> [minBound ..]
+            forM_ (publicationTimes `zip` certificates) $ \case
+                (publicationTime, Registration cert) -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRegistration cert
+                    putPoolRegistration publicationTime cert
+                (publicationTime, Retirement cert) -> do
                     liftIO $ traceWith tr $ MsgStakePoolRetirement cert
+                    putPoolRetirement publicationTime cert
         pure Continue
 
 monitorMetadata
     :: Tracer IO StakePoolLog
     -> GenesisParameters
-    -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Either String StakePoolMetadata))
+    -> (StakePoolMetadataUrl
+        -> StakePoolMetadataHash
+        -> IO (Either String StakePoolMetadata))
     -> DBLayer IO
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
@@ -441,12 +493,14 @@ instance ToText StakePoolLog where
             ]
         MsgHaltMonitoring ->
             "Stopping stake pool monitoring as requested."
-        MsgCrashMonitoring ->
-            "Chain follower exited with error. Worker will no longer monitor stake pools."
+        MsgCrashMonitoring -> mconcat
+            [ "Chain follower exited with error. "
+            , "Worker will no longer monitor stake pools."
+            ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
-        MsgStakePoolRegistration pool ->
-            "Discovered stake pool registration: " <> pretty pool
+        MsgStakePoolRegistration cert ->
+            "Discovered stake pool registration: " <> pretty cert
         MsgStakePoolRetirement cert ->
             "Discovered stake pool retirement: " <> pretty cert
         MsgErrProduction (ErrPointAlreadyExists blk) -> mconcat
@@ -464,6 +518,7 @@ instance ToText StakePoolLog where
             [ "Failed to fetch metadata from ", toText url, ": ", T.pack msg
             ]
         MsgFetchTakeBreak delay -> mconcat
-            [ "Taking a little break from fetching metadata, back to it in about "
+            [ "Taking a little break from fetching metadata, "
+            , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]

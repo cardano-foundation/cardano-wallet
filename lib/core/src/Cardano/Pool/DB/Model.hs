@@ -8,6 +8,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -40,6 +41,8 @@ module Cardano.Pool.DB.Model
     , mReadPoolMetadata
     , mPutPoolRegistration
     , mReadPoolRegistration
+    , mPutPoolRetirement
+    , mReadPoolRetirement
     , mUnfetchedPoolMetadataRefs
     , mPutFetchAttempt
     , mPutPoolMetadata
@@ -53,17 +56,23 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , CertificatePublicationTime
     , EpochNo (..)
     , PoolId
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotId (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
+import Data.Bifunctor
+    ( first )
 import Data.Foldable
     ( fold )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -95,8 +104,13 @@ data PoolDatabase = PoolDatabase
     , owners :: !(Map PoolId [PoolOwner])
     -- ^ Mapping between pool ids and owners
 
-    , registrations :: !(Map (SlotId, PoolId) PoolRegistrationCertificate)
+    , registrations ::
+        !(Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate)
     -- ^ On-chain registrations associated with pools
+
+    , retirements ::
+        !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
+    -- ^ On-chain retirements associated with pools
 
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
@@ -122,7 +136,7 @@ instance Eq SystemSeed where
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
-    PoolDatabase mempty mempty mempty mempty mempty mempty NotSeededYet
+    PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -180,22 +194,61 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     , db
     )
 
-mPutPoolRegistration :: SlotId -> PoolRegistrationCertificate -> ModelPoolOp ()
-mPutPoolRegistration sl registration db@PoolDatabase{owners,registrations} =
+mPutPoolRegistration
+    :: CertificatePublicationTime
+    -> PoolRegistrationCertificate
+    -> ModelPoolOp ()
+mPutPoolRegistration cpt cert db =
     ( Right ()
-    , db { owners = Map.insert poolId poolOwners owners
-         , registrations = Map.insert (sl, poolId) registration registrations
-         }
+    , db
+        { owners = Map.insert poolId poolOwners owners
+        , registrations = Map.insert (cpt, poolId) cert registrations
+        }
     )
   where
-    PoolRegistrationCertificate { poolId , poolOwners } = registration
+    PoolDatabase {owners, registrations} = db
+    PoolRegistrationCertificate {poolId, poolOwners} = cert
 
-mReadPoolRegistration :: PoolId -> ModelPoolOp (Maybe PoolRegistrationCertificate)
-mReadPoolRegistration poolId db@PoolDatabase{registrations} =
-    ( Right $ fmap snd $ Map.lookupMax $ Map.filterWithKey (only poolId) registrations
+mReadPoolRegistration
+    :: PoolId
+    -> ModelPoolOp
+        (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
+mReadPoolRegistration poolId db =
+    ( Right
+        $ fmap (first fst)
+        $ Map.lookupMax
+        $ Map.filterWithKey (only poolId) registrations
     , db
     )
   where
+    PoolDatabase {registrations} = db
+    only k (_, k') _ = k == k'
+
+mPutPoolRetirement
+    :: CertificatePublicationTime
+    -> PoolRetirementCertificate
+    -> ModelPoolOp ()
+mPutPoolRetirement cpt cert db =
+    ( Right ()
+    , db {retirements = Map.insert (cpt, poolId) cert retirements}
+    )
+  where
+    PoolDatabase {retirements} = db
+    PoolRetirementCertificate poolId _retiredIn = cert
+
+mReadPoolRetirement
+    :: PoolId
+    -> ModelPoolOp
+        (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
+mReadPoolRetirement poolId db =
+    ( Right
+        $ fmap (first fst)
+        $ Map.lookupMax
+        $ Map.filterWithKey (only poolId) retirements
+    , db
+    )
+  where
+    PoolDatabase {retirements} = db
     only k (_, k') _ = k == k'
 
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
@@ -210,7 +263,8 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     , db
     )
   where
-    unfetched :: Map (SlotId, PoolId) PoolRegistrationCertificate
+    unfetched
+        :: Map (CertificatePublicationTime, PoolId) PoolRegistrationCertificate
     unfetched = flip Map.filter registrations $ \r ->
         case poolMetadata r of
             Nothing -> False
@@ -270,12 +324,18 @@ mRollbackTo point PoolDatabase { pools
                                , distributions
                                , owners
                                , registrations
+                               , retirements
                                , metadata
                                , seed
                                , fetchAttempts
                                } =
     let
-        registrations' = Map.mapMaybeWithKey (discardBy id . fst) registrations
+        registrations' =
+            Map.mapMaybeWithKey
+                (discardBy id . view #slotId . fst) registrations
+        retirements' =
+            Map.mapMaybeWithKey
+                (discardBy id . view #slotId . fst) retirements
         owners' = Map.restrictKeys owners
             $ Set.fromList
             $ snd <$> Map.keys registrations'
@@ -283,9 +343,11 @@ mRollbackTo point PoolDatabase { pools
         ( Right ()
         , PoolDatabase
             { pools = updatePools $ updateSlots pools
-            , distributions = Map.mapMaybeWithKey (discardBy epochNumber) distributions
+            , distributions =
+                Map.mapMaybeWithKey (discardBy epochNumber) distributions
             , owners = owners'
             , registrations = registrations'
+            , retirements = retirements'
             , metadata
             , fetchAttempts
             , seed

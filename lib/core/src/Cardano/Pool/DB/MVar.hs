@@ -17,7 +17,7 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..) )
+    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Model
     ( ModelPoolOp
     , PoolDatabase
@@ -29,11 +29,13 @@ import Cardano.Pool.DB.Model
     , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
+    , mPutPoolRetirement
     , mPutStakeDistribution
     , mReadCursor
     , mReadPoolMetadata
     , mReadPoolProduction
     , mReadPoolRegistration
+    , mReadPoolRetirement
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
@@ -58,6 +60,10 @@ import Data.Tuple
 newDBLayer :: IO (DBLayer IO)
 newDBLayer = do
     db <- newMVar emptyPoolDatabase
+    let readPoolRegistration_ =
+            readPoolDB db . mReadPoolRegistration
+    let readPoolRetirement_ =
+            readPoolDB db . mReadPoolRetirement
     return $ DBLayer
 
         { putPoolProduction = \sl pool -> ExceptT $ do
@@ -79,11 +85,22 @@ newDBLayer = do
         , readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        , putPoolRegistration = \a0 a1 ->
-            void $ alterPoolDB (const Nothing) db $ mPutPoolRegistration a0 a1
+        , putPoolRegistration = \cpt cert -> void
+              $ alterPoolDB (const Nothing) db
+              $ mPutPoolRegistration cpt cert
 
-        , readPoolRegistration =
-            readPoolDB db . mReadPoolRegistration
+        , readPoolLifeCycleStatus = \poolId ->
+            determinePoolLifeCycleStatus
+                <$> readPoolRegistration_ poolId
+                <*> readPoolRetirement_ poolId
+
+        , readPoolRegistration = readPoolRegistration_
+
+        , putPoolRetirement = \cpt cert -> void
+            $ alterPoolDB (const Nothing) db
+            $ mPutPoolRetirement cpt cert
+
+        , readPoolRetirement = readPoolRetirement_
 
         , unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs
