@@ -34,3 +34,8 @@ As a workaround for this issue, devops added a `hydra-eval-errors` [Buildkite jo
 ## Binary cache
 
 See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md) for information on configuring the Hydra binary cache on your system.
+
+
+## Restarting builds
+
+Sign in with the [adrestia](https://hydra.iohk.io/dashboard/adrestia) user to restart build jobs.
