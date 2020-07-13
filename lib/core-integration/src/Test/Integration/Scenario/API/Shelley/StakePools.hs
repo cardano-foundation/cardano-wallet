@@ -572,32 +572,26 @@ spec = do
             (Link.listStakePools stake) Default Empty
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
-        -- TODO: Add a /short/ eventually (not currently possible) as this test
-        -- fails when run in isolation.
-        --
-        -- When run immediately after the stake-pool are setup, the chain-sync
-        -- tip hasn't caught up with the epoch when they first exist.
-        --
-        -- A simple threadDelay could be added either here, in the test setup
-        -- also.
-        it "immediately has non-zero saturation & stake" $ \ctx -> do
-            r <- listPools ctx arbitraryStake
-            expectResponseCode HTTP.status200 r
-            verify r
-                [ expectListSize 3
-                -- At the time of setup, the pools have 1/3 stake each, but
-                -- this could potentially be changed by other tests. Hence,
-                -- we try to be forgiving here.
-                , expectListField 0
-                    (#metrics . #relativeStake)
-                        (.> Quantity (unsafeMkPercentage 0))
-                , expectListField 1
-                    (#metrics . #relativeStake)
-                        (.> Quantity (unsafeMkPercentage 0))
-                , expectListField 2
-                    (#metrics . #relativeStake)
-                        (.> Quantity (unsafeMkPercentage 0))
-                ]
+
+        it "has non-zero saturation & stake" $ \ctx -> do
+            eventually "list pools returns non-empty list" $ do
+                r <- listPools ctx arbitraryStake
+                expectResponseCode HTTP.status200 r
+                verify r
+                    [ expectListSize 3
+                    -- At the time of setup, the pools have 1/3 stake each, but
+                    -- this could potentially be changed by other tests. Hence,
+                    -- we try to be forgiving here.
+                    , expectListField 0
+                        (#metrics . #relativeStake)
+                            (.> Quantity (unsafeMkPercentage 0))
+                    , expectListField 1
+                        (#metrics . #relativeStake)
+                            (.> Quantity (unsafeMkPercentage 0))
+                    , expectListField 2
+                        (#metrics . #relativeStake)
+                            (.> Quantity (unsafeMkPercentage 0))
+                    ]
 
         it "eventually has correct margin, cost and pledge" $ \ctx -> do
             eventually "pool worker finds the certificate" $ do
