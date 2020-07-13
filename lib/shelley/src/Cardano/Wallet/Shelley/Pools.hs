@@ -320,8 +320,8 @@ combineChainData registrationMap retirementMap prodMap metaMap =
             Map.lookup (view #poolId registrationCert) retirementMap
 
 -- NOTE: If performance becomes a problem, we could try replacing all
--- the individual DB queries, and combbination functions with a single
--- hand-written Sqlite query.
+-- the individual database queries and combining functions with a single
+-- hand-written database query.
 readPoolDbData
     :: DBLayer IO
     -> IO (Map PoolId PoolDbData)
