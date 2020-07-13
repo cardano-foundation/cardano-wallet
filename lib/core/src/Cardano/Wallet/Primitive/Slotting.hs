@@ -11,8 +11,13 @@
 -- @UTCTime@.
 
 module Cardano.Wallet.Primitive.Slotting
-    ( -- * Legacy functions
-      unsafeEpochNo
+    ( -- * New api using ouroboros-concensus
+      epochOf
+    , singleEraInterpreter
+    , runQuery
+
+      -- * Old functions
+    , unsafeEpochNo
     , epochStartTime
     , epochPred
     , epochSucc
@@ -62,6 +67,7 @@ import Numeric.Natural
 import Ouroboros.Consensus.HardFork.History.EraParams
     ( EraParams (..), noLowerBoundSafeZone )
 import Ouroboros.Consensus.HardFork.History.Qry
+    ( Qry, runQuery, slotToEpoch )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Summary (..), neverForksSummary )
 
@@ -69,8 +75,42 @@ import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
 
 -- -----------------------------------------------------------------------------
+-- New Api using ouroboros-consensus. With the right interpreter, the
+-- calculations don't break on hard-forks.
+
+epochOf :: Cardano.SlotNo -> Qry EpochNo
+epochOf slot = do
+    (e, _, _) <- slotToEpoch slot
+    return $ EpochNo $ fromIntegral $ Cardano.unEpochNo e
+
+-- | An 'Interpreter' for a single era, where the slotting from
+-- @GenesisParameters@ cannot change.
+--
+-- TODO: The type should be changed to @Interpreter@ when we bump
+-- ouroboros-consensus.
+singleEraInterpreter :: GenesisParameters -> Summary '[x]
+singleEraInterpreter gp = neverForksSummary $
+    EraParams
+        { eraEpochSize =
+            Cardano.EpochSize
+            . fromIntegral
+            . unEpochLength
+            $ gp ^. #getEpochLength
+
+        , eraSlotLength =
+            Cardano.mkSlotLength
+            . unSlotLength
+            $ gp ^. #getSlotLength
+
+        , eraSafeZone =
+            noLowerBoundSafeZone (k * 2)
+        }
+  where
+    k = fromIntegral $ getQuantity $ getEpochStability gp
+
+-- -----------------------------------------------------------------------------
 -- Legacy functions
--- These only work for a single era. We need to stop using them.
+-- These only work for a single era. We need to stop using them
 
 -- | The essential parameters necessary for performing slot arithmetic.
 data SlotParameters = SlotParameters

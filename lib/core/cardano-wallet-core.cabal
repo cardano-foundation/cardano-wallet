@@ -289,6 +289,7 @@ test-suite unit
       Cardano.Wallet.Primitive.CoinSelectionSpec
       Cardano.Wallet.Primitive.FeeSpec
       Cardano.Wallet.Primitive.ModelSpec
+      Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec
