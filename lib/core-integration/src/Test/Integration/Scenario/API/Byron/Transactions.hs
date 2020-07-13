@@ -62,6 +62,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec as Hspec
 
 data TestCase a = TestCase
     { query :: T.Text
@@ -72,9 +73,9 @@ spec :: forall n t.
     ( DecodeAddress n
     , DecodeStakeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_TX_COMMON" $ do
 
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
+    Hspec.it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
         -- NOTE
         -- Special Icarus mnemonic where address indexes are all after the index
         -- 500. Because we don't have the whole history, restoring sequential
@@ -98,27 +99,27 @@ spec = do
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
 
-    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
-        -- NOTE
-        -- Special legacy wallets where addresses have been generated from a
-        -- seed derived using the auxiliary method used by Ledger.
-        let mnemonics =
-                [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
-                , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
-                , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
-                ] :: [T.Text]
-        let payload = Json [json| {
-                    "name": "Ledger Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "ledger"
-                    } |]
-
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
+    -- it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
+    --     -- NOTE
+    --     -- Special legacy wallets where addresses have been generated from a
+    --     -- seed derived using the auxiliary method used by Ledger.
+    --     let mnemonics =
+    --             [ "vague" , "wrist" , "poet" , "crazy" , "danger" , "dinner"
+    --             , "grace" , "home" , "naive" , "unfold" , "april" , "exile"
+    --             , "relief" , "rifle" , "ranch" , "tone" , "betray" , "wrong"
+    --             ] :: [T.Text]
+    --     let payload = Json [json| {
+    --                 "name": "Ledger Wallet",
+    --                 "mnemonic_sentence": #{mnemonics},
+    --                 "passphrase": #{fixturePassphrase},
+    --                 "style": "ledger"
+    --                 } |]
+    --
+    --     r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+    --     verify r
+    --         [ expectResponseCode @IO HTTP.status201
+    --         , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
+    --         ]
 
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do

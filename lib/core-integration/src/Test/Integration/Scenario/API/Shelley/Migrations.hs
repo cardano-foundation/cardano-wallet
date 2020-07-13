@@ -87,6 +87,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec as Hspec
 
 spec :: forall n t.
     ( DecodeAddress n
@@ -120,7 +121,7 @@ spec = do
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
-    it "SHELLEY_CALCULATE_02 - \
+    Hspec.it "SHELLEY_CALCULATE_02 - \
         \Cannot calculate fee for wallet with dust, that cannot be migrated."
         $ \ctx -> do
             -- NOTE
@@ -167,7 +168,7 @@ spec = do
               testAddressCycling 3
               testAddressCycling 10
 
-    it "SHELLEY_MIGRATE_01_big_wallet - \
+    Hspec.it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
 
         -- NOTE
@@ -273,7 +274,7 @@ spec = do
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
-    it "SHELLEY_MIGRATE_02 - \
+    Hspec.it "SHELLEY_MIGRATE_02 - \
         \migrating wallet with dust should fail."
         $ \ctx -> do
             -- NOTE

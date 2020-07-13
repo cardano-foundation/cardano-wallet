@@ -100,7 +100,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_HWWALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureIcarusWallet ctx
         -- create wallet
