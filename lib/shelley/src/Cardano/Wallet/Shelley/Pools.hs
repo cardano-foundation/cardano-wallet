@@ -159,7 +159,7 @@ newStakePoolLayer gp nl db = StakePoolLayer
     _listPools userStake = do
         tip <- liftIO getTip
         lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
-        chainData <- liftIO $ readDBPoolData db
+        chainData <- liftIO $ readPoolDbData db
         return
             . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
             . map snd
@@ -304,10 +304,10 @@ combineChainData =
 -- NOTE: If performance becomes a problem, we could try replacing all
 -- the individual DB queries, and combbination functions with a single
 -- hand-written Sqlite query.
-readDBPoolData
+readPoolDbData
     :: DBLayer IO
     -> IO (Map PoolId PoolDbData)
-readDBPoolData DBLayer {..} = atomically $ do
+readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
     registrationStatuses <- mapM readPoolLifeCycleStatus pools
     let certMap = Map.fromList
