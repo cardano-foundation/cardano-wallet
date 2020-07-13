@@ -157,23 +157,23 @@ newStakePoolLayer gp nl db = StakePoolLayer
         :: Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools userStake = do
-            tip <- liftIO getTip
-            lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
-            chainData <- liftIO $ readDBPoolData db
-            return
-              . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
-              . map snd
-              . Map.toList
-              $ combineDbAndLsqData (slotParams gp) lsqData chainData
+        tip <- liftIO getTip
+        lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
+        chainData <- liftIO $ readDBPoolData db
+        return
+            . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
+            . map snd
+            . Map.toList
+            $ combineDbAndLsqData (slotParams gp) lsqData chainData
 
     -- Note: We shouldn't have to do this conversion.
     el = getEpochLength gp
     gh = getGenesisBlockHash gp
-    getTip = fmap (toPoint gh el) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
+    getTip = fmap (toPoint gh el) . liftIO $
+        unsafeRunExceptT $ currentNodeTip nl
 
 --
 -- Data Combination functions
---
 --
 
 -- | Stake pool-related data that has been read from the node using a local
@@ -293,7 +293,7 @@ combineChainData
 combineChainData =
     Map.merge registeredNoProductions notRegisteredButProducing bothPresent
   where
-    registeredNoProductions  = traverseMissing $ \_k cert ->
+    registeredNoProductions = traverseMissing $ \_k cert ->
         pure (cert, Quantity 0)
 
     -- Ignore blocks produced by BFT nodes.
