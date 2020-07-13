@@ -322,9 +322,7 @@ combineChainData registrationMap retirementMap prodMap metaMap =
 -- NOTE: If performance becomes a problem, we could try replacing all
 -- the individual database queries and combining functions with a single
 -- hand-written database query.
-readPoolDbData
-    :: DBLayer IO
-    -> IO (Map PoolId PoolDbData)
+readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
     registrationStatuses <- mapM readPoolLifeCycleStatus pools
