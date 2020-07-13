@@ -159,12 +159,12 @@ newStakePoolLayer gp nl db = StakePoolLayer
     _listPools userStake = do
         tip <- liftIO getTip
         lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
-        chainData <- liftIO $ readPoolDbData db
+        dbData <- liftIO $ readPoolDbData db
         return
             . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
             . map snd
             . Map.toList
-            $ combineDbAndLsqData (slotParams gp) lsqData chainData
+            $ combineDbAndLsqData (slotParams gp) lsqData dbData
 
     -- Note: We shouldn't have to do this conversion.
     el = getEpochLength gp
