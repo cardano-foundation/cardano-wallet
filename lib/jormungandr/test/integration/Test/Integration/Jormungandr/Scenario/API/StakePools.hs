@@ -470,7 +470,7 @@ spec = do
         let poolId = toText $ getApiT $ p ^. #id
         expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \(_,_,ctx) -> do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
         r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
