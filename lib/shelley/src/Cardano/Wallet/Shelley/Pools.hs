@@ -337,11 +337,10 @@ readPoolDbData DBLayer {..} = atomically $ do
             )
         -> PoolDbData
     lookupMetaIn m ((registrationCert, mRetirementCert), n) =
-        let
-            metaHash = snd <$> poolMetadata registrationCert
-            meta = flip Map.lookup m =<< metaHash
-        in
-            PoolDbData registrationCert mRetirementCert n meta
+        PoolDbData registrationCert mRetirementCert n meta
+      where
+        metaHash = snd <$> poolMetadata registrationCert
+        meta = flip Map.lookup m =<< metaHash
 
 --
 -- Monitoring stake pool
