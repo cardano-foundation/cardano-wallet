@@ -250,8 +250,10 @@ spec = do
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Can join A, when active = A, next = [B]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
-            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
-            W.guardJoin knownPools dlg pidA `shouldBe` Right ()
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1]}
+            W.guardJoin knownPools dlg pidA
+                `shouldBe` Right ()
         it "Cannot join A, when active = A, next = [B, A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) (Delegating pidA)
@@ -265,17 +267,21 @@ spec = do
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [not_delegating]" $ do
             let next1 = next (EpochNo 1) NotDelegating
-            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1]}
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [B, not_delegating]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Can quit when active: not_delegating, next = [A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation
@@ -288,7 +294,6 @@ spec = do
          knownPools = [pidA, pidB]
          next epoch dlgStatus =
              WalletDelegationNext {changesAt = epoch, status = dlgStatus}
-
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -303,7 +308,7 @@ prop_guardJoinQuit knownPools dlg pid =
     case W.guardJoin knownPools dlg pid of
         Right () ->
             label "I can join" $ property True
-        Left W.ErrNoSuchPool{}  ->
+        Left W.ErrNoSuchPool{} ->
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"

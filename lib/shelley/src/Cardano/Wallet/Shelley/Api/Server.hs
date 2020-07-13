@@ -186,7 +186,8 @@ server byron icarus shelley spl ntp =
     stakePools =
         (\case
             Just (ApiT stake) -> liftHandler $ listStakePools spl stake
-            Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $ mconcat
+            Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
+                mconcat
                 [ "The stake intended to delegate must be provided as a query "
                 , "parameter as it affects the rewards and ranking."
                 ]

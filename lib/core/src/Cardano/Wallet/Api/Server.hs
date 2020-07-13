@@ -1331,8 +1331,10 @@ joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
 
     pools <- liftIO knownPools
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
+    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
+        \wrk -> liftHandler $
+            W.joinStakePool
+                @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti
@@ -2239,8 +2241,8 @@ instance LiftHandler ErrJoinStakePool where
                 apiError err403 PoolAlreadyJoined $ mconcat
                     [ "I couldn't join a stake pool with the given id: "
                     , toText pid
-                    , ". I have already joined this pool; joining again would incur"
-                    , " an unnecessary fee!"
+                    , ". I have already joined this pool;"
+                    , " joining again would incur an unnecessary fee!"
                     ]
             ErrNoSuchPool pid ->
                 apiError err404 NoSuchPool $ mconcat

@@ -1762,8 +1762,10 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
     selection <- withExceptT ErrJoinStakePoolSelectCoin $
         selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
-    (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection action
+    (tx, txMeta, txTime, sealedTx) <-
+        withExceptT ErrJoinStakePoolSignDelegation $
+            signDelegation
+                @ctx @s @t @k ctx wid argGenChange pwd selection action
 
     withExceptT ErrJoinStakePoolSubmitTx $
         submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
