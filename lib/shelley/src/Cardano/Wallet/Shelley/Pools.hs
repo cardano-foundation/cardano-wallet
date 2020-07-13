@@ -325,11 +325,11 @@ combineChainData registrationMap retirementMap prodMap metaMap =
 readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
-    registrationStatuses <- mapM readPoolLifeCycleStatus pools
+    lifeCycleStatuses <- mapM readPoolLifeCycleStatus pools
     let mkCertificateMap
             :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
         mkCertificateMap f = Map.fromList
-            [(p, c) | (p, Just c) <- zip pools (f <$> registrationStatuses)]
+            [(p, c) | (p, Just c) <- zip pools (f <$> lifeCycleStatuses)]
     combineChainData
         (mkCertificateMap getPoolRegistrationCertificate)
         (mkCertificateMap getPoolRetirementCertificate)
