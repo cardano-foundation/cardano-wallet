@@ -66,6 +66,8 @@ module Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , PoolCertificate (..)
+    , getPoolRegistrationCertificate
+    , getPoolRetirementCertificate
 
     -- * Coin
     , Coin (..)
@@ -1822,6 +1824,20 @@ data PoolLifeCycleStatus
         -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
         -- Records the latest registration and retirement certificates.
     deriving (Eq, Show)
+
+getPoolRegistrationCertificate
+    :: PoolLifeCycleStatus -> Maybe PoolRegistrationCertificate
+getPoolRegistrationCertificate = \case
+    PoolNotRegistered            -> Nothing
+    PoolRegistered           c   -> Just c
+    PoolRegisteredAndRetired c _ -> Just c
+
+getPoolRetirementCertificate
+    :: PoolLifeCycleStatus -> Maybe PoolRetirementCertificate
+getPoolRetirementCertificate = \case
+    PoolNotRegistered            -> Nothing
+    PoolRegistered           _   -> Nothing
+    PoolRegisteredAndRetired _ c -> Just c
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

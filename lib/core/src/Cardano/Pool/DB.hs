@@ -130,7 +130,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- Note that a pool may also have other certificates associated with it
         -- that affect its current lifecycle status.
         --
-        -- See 'readPoolLifeCycleStatus'.
+        -- See 'readPoolLifeCycleStatus' for a complete picture.
 
     , putPoolRetirement
         :: CertificatePublicationTime
@@ -147,7 +147,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- Note that a pool may also have other certificates associated with it
         -- that affect its current lifecycle status.
         --
-        -- See 'readPoolLifeCycleStatus'.
+        -- See 'readPoolLifeCycleStatus' for a complete picture.
 
     , unfetchedPoolMetadataRefs
         :: Int

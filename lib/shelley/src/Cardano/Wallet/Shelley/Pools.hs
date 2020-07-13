@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -62,6 +63,8 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     , epochStartTime
+    , getPoolRegistrationCertificate
+    , getPoolRetirementCertificate
     , slotParams
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -157,23 +160,23 @@ newStakePoolLayer gp nl db = StakePoolLayer
         :: Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools userStake = do
-            tip <- liftIO getTip
-            lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
-            chainData <- liftIO $ readDBPoolData db
-            return
-              . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
-              . map snd
-              . Map.toList
-              $ combineDbAndLsqData (slotParams gp) lsqData chainData
+        tip <- liftIO getTip
+        lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
+        dbData <- liftIO $ readPoolDbData db
+        return
+            . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
+            . map snd
+            . Map.toList
+            $ combineDbAndLsqData (slotParams gp) lsqData dbData
 
     -- Note: We shouldn't have to do this conversion.
     el = getEpochLength gp
     gh = getGenesisBlockHash gp
-    getTip = fmap (toPoint gh el) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
+    getTip = fmap (toPoint gh el) . liftIO $
+        unsafeRunExceptT $ currentNodeTip nl
 
 --
 -- Data Combination functions
---
 --
 
 -- | Stake pool-related data that has been read from the node using a local
@@ -282,18 +285,22 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
--- (doesn't include metadata)
 combineChainData
-    :: Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+    :: Map PoolId PoolRegistrationCertificate
+    -> Map PoolId PoolRetirementCertificate
     -> Map PoolId (Quantity "block" Word64)
-    -> Map PoolId
-        ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-        , Quantity "block" Word64
-        )
-combineChainData =
-    Map.merge registeredNoProductions notRegisteredButProducing bothPresent
+    -> Map StakePoolMetadataHash StakePoolMetadata
+    -> Map PoolId PoolDbData
+combineChainData registrationMap retirementMap prodMap metaMap =
+    Map.map mkPoolDbData $
+        Map.merge
+            registeredNoProductions
+            notRegisteredButProducing
+            bothPresent
+            registrationMap
+            prodMap
   where
-    registeredNoProductions  = traverseMissing $ \_k cert ->
+    registeredNoProductions = traverseMissing $ \_k cert ->
         pure (cert, Quantity 0)
 
     -- Ignore blocks produced by BFT nodes.
@@ -301,47 +308,33 @@ combineChainData =
 
     bothPresent = zipWithMatched $ const (,)
 
--- NOTE: If performance becomes a problem, we could try replacing all
--- the individual DB queries, and combbination functions with a single
--- hand-written Sqlite query.
-readDBPoolData
-    :: DBLayer IO
-    -> IO (Map PoolId PoolDbData)
-readDBPoolData DBLayer {..} = atomically $ do
-    pools <- listRegisteredPools
-    registrationStatuses <- mapM readPoolLifeCycleStatus pools
-    let certMap = Map.fromList
-            [ (poolId, certs)
-            | (poolId, Just certs) <- zip pools
-                (certificatesFromRegistrationStatus <$> registrationStatuses)
-            ]
-    prodMap <- readTotalProduction
-    metaMap <- readPoolMetadata
-    return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
-  where
-    certificatesFromRegistrationStatus
-        :: PoolLifeCycleStatus
-        -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-    certificatesFromRegistrationStatus = \case
-        PoolNotRegistered ->
-            Nothing
-        PoolRegistered regCert ->
-            Just (regCert, Nothing)
-        PoolRegisteredAndRetired regCert retCert ->
-            Just (regCert, Just retCert)
-
-    lookupMetaIn
-        :: Map StakePoolMetadataHash StakePoolMetadata
-        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-            , Quantity "block" Word64
-            )
+    mkPoolDbData
+        :: (PoolRegistrationCertificate, Quantity "block" Word64)
         -> PoolDbData
-    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
-        let
-            metaHash = snd <$> poolMetadata registrationCert
-            meta = flip Map.lookup m =<< metaHash
-        in
-            PoolDbData registrationCert mRetirementCert n meta
+    mkPoolDbData (registrationCert, n) =
+        PoolDbData registrationCert mRetirementCert n meta
+      where
+        metaHash = snd <$> poolMetadata registrationCert
+        meta = flip Map.lookup metaMap =<< metaHash
+        mRetirementCert =
+            Map.lookup (view #poolId registrationCert) retirementMap
+
+-- NOTE: If performance becomes a problem, we could try replacing all
+-- the individual database queries and combining functions with a single
+-- hand-written database query.
+readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
+readPoolDbData DBLayer {..} = atomically $ do
+    pools <- listRegisteredPools
+    lifeCycleStatuses <- mapM readPoolLifeCycleStatus pools
+    let mkCertificateMap
+            :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
+        mkCertificateMap f = Map.fromList
+            [(p, c) | (p, Just c) <- zip pools (f <$> lifeCycleStatuses)]
+    combineChainData
+        (mkCertificateMap getPoolRegistrationCertificate)
+        (mkCertificateMap getPoolRetirementCertificate)
+        <$> readTotalProduction
+        <*> readPoolMetadata
 
 --
 -- Monitoring stake pool
