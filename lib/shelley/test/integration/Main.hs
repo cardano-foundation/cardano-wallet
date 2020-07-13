@@ -106,10 +106,12 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
+
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
-import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
+import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactionsCommon
+import qualified Test.Integration.Scenario.API.Byron.TransactionsShelley as ByronTransactionsShelley
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
@@ -150,8 +152,9 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 Network.spec
                 Network_.spec
                 StakePools.spec @n
-                ByronTransactions.spec @n
                 ByronHWWallets.spec @n
+                ByronTransactionsShelley.spec @n
+                ByronTransactionsCommon.spec @n
             describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
