@@ -119,7 +119,7 @@ spec :: forall n t.
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant wallet" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> do
         w <- emptyWallet ctx
         let wid = w ^. walletId
         _ <- request @ApiWallet ctx
@@ -129,7 +129,7 @@ spec = do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existant stakepool" $ \ctx -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \ctx -> do
         w <- fixtureWallet ctx
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
         r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, fixturePassphrase)
@@ -137,7 +137,7 @@ spec = do
         expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_JOIN_01 - \
-        \Cannot join existant stakepool with wrong password" $ \ctx -> do
+        \Cannot join existent stakepool with wrong password" $ \ctx -> do
         w <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
