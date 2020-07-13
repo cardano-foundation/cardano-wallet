@@ -282,16 +282,19 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
     bothPresent = zipWithMatched  $ \_k s r -> PoolLsqData r s (sat s)
 
 -- | Combines all the chain-following data into a single map
--- (doesn't include metadata)
 combineChainData
-    :: Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+    :: Map StakePoolMetadataHash StakePoolMetadata
+    -> Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
     -> Map PoolId (Quantity "block" Word64)
-    -> Map PoolId
-        ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-        , Quantity "block" Word64
-        )
-combineChainData =
-    Map.merge registeredNoProductions notRegisteredButProducing bothPresent
+    -> Map PoolId PoolDbData
+combineChainData metaMap certMap prodMap =
+    Map.map (lookupMetaIn metaMap) $
+        Map.merge
+            registeredNoProductions
+            notRegisteredButProducing
+            bothPresent
+            certMap
+            prodMap
   where
     registeredNoProductions = traverseMissing $ \_k cert ->
         pure (cert, Quantity 0)
@@ -300,6 +303,18 @@ combineChainData =
     notRegisteredButProducing = dropMissing
 
     bothPresent = zipWithMatched $ const (,)
+
+    lookupMetaIn
+        :: Map StakePoolMetadataHash StakePoolMetadata
+        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+            , Quantity "block" Word64
+            )
+        -> PoolDbData
+    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
+        PoolDbData registrationCert mRetirementCert n meta
+      where
+        metaHash = snd <$> poolMetadata registrationCert
+        meta = flip Map.lookup m =<< metaHash
 
 -- NOTE: If performance becomes a problem, we could try replacing all
 -- the individual DB queries, and combbination functions with a single
@@ -317,7 +332,7 @@ readPoolDbData DBLayer {..} = atomically $ do
             ]
     prodMap <- readTotalProduction
     metaMap <- readPoolMetadata
-    return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
+    return $ combineChainData metaMap certMap prodMap
   where
     certificatesFromLifeCycleStatus
         :: PoolLifeCycleStatus
@@ -329,18 +344,6 @@ readPoolDbData DBLayer {..} = atomically $ do
             Just (regCert, Nothing)
         PoolRegisteredAndRetired regCert retCert ->
             Just (regCert, Just retCert)
-
-    lookupMetaIn
-        :: Map StakePoolMetadataHash StakePoolMetadata
-        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-            , Quantity "block" Word64
-            )
-        -> PoolDbData
-    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
-        PoolDbData registrationCert mRetirementCert n meta
-      where
-        metaHash = snd <$> poolMetadata registrationCert
-        meta = flip Map.lookup m =<< metaHash
 
 --
 -- Monitoring stake pool
