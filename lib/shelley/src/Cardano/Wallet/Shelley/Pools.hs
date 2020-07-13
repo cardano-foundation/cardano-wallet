@@ -313,16 +313,16 @@ readPoolDbData DBLayer {..} = atomically $ do
     let certMap = Map.fromList
             [ (poolId, certs)
             | (poolId, Just certs) <- zip pools
-                (certificatesFromRegistrationStatus <$> registrationStatuses)
+                (certificatesFromLifeCycleStatus <$> registrationStatuses)
             ]
     prodMap <- readTotalProduction
     metaMap <- readPoolMetadata
     return $ Map.map (lookupMetaIn metaMap) (combineChainData certMap prodMap)
   where
-    certificatesFromRegistrationStatus
+    certificatesFromLifeCycleStatus
         :: PoolLifeCycleStatus
         -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-    certificatesFromRegistrationStatus = \case
+    certificatesFromLifeCycleStatus = \case
         PoolNotRegistered ->
             Nothing
         PoolRegistered regCert ->
