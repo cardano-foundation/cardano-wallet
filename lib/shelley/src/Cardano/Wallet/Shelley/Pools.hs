@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -62,6 +63,8 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     , epochStartTime
+    , getPoolRegistrationCertificate
+    , getPoolRetirementCertificate
     , slotParams
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -284,16 +287,17 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
 -- | Combines all the chain-following data into a single map
 combineChainData
     :: Map StakePoolMetadataHash StakePoolMetadata
-    -> Map PoolId (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
+    -> Map PoolId PoolRegistrationCertificate
+    -> Map PoolId PoolRetirementCertificate
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId PoolDbData
-combineChainData metaMap certMap prodMap =
+combineChainData metaMap registrationMap retirementMap prodMap =
     Map.map (lookupMetaIn metaMap) $
         Map.merge
             registeredNoProductions
             notRegisteredButProducing
             bothPresent
-            certMap
+            registrationMap
             prodMap
   where
     registeredNoProductions = traverseMissing $ \_k cert ->
@@ -306,15 +310,15 @@ combineChainData metaMap certMap prodMap =
 
     lookupMetaIn
         :: Map StakePoolMetadataHash StakePoolMetadata
-        ->  ( (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-            , Quantity "block" Word64
-            )
+        -> (PoolRegistrationCertificate, Quantity "block" Word64)
         -> PoolDbData
-    lookupMetaIn m ((registrationCert, mRetirementCert), n) =
+    lookupMetaIn m (registrationCert, n) =
         PoolDbData registrationCert mRetirementCert n meta
       where
         metaHash = snd <$> poolMetadata registrationCert
         meta = flip Map.lookup m =<< metaHash
+        mRetirementCert =
+            Map.lookup (view #poolId registrationCert) retirementMap
 
 -- NOTE: If performance becomes a problem, we could try replacing all
 -- the individual DB queries, and combbination functions with a single
@@ -325,25 +329,15 @@ readPoolDbData
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
     registrationStatuses <- mapM readPoolLifeCycleStatus pools
-    let certMap = Map.fromList
-            [ (poolId, certs)
-            | (poolId, Just certs) <- zip pools
-                (certificatesFromLifeCycleStatus <$> registrationStatuses)
-            ]
+    let mkCertificateMap
+            :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
+        mkCertificateMap f = Map.fromList
+            [(p, c) | (p, Just c) <- zip pools (f <$> registrationStatuses)]
+    let registrationMap = mkCertificateMap getPoolRegistrationCertificate
+    let retirementMap = mkCertificateMap getPoolRetirementCertificate
     prodMap <- readTotalProduction
     metaMap <- readPoolMetadata
-    return $ combineChainData metaMap certMap prodMap
-  where
-    certificatesFromLifeCycleStatus
-        :: PoolLifeCycleStatus
-        -> Maybe (PoolRegistrationCertificate, Maybe PoolRetirementCertificate)
-    certificatesFromLifeCycleStatus = \case
-        PoolNotRegistered ->
-            Nothing
-        PoolRegistered regCert ->
-            Just (regCert, Nothing)
-        PoolRegisteredAndRetired regCert retCert ->
-            Just (regCert, Just retCert)
+    return $ combineChainData metaMap registrationMap retirementMap prodMap
 
 --
 -- Monitoring stake pool
