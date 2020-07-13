@@ -2249,6 +2249,14 @@ instance LiftHandler ErrJoinStakePool where
                     [ "I couldn't find any stake pool with the given id: "
                     , toText pid
                     ]
+            ErrPoolAlreadyRetired pid epoch ->
+                apiError err403 PoolAlreadyRetired $ mconcat
+                    [ "I couldn't join stake pool with id "
+                    , toText pid
+                    , " as it retired in epoch "
+                    , toText epoch
+                    , " . Please specify a stake pool that has not yet retired."
+                    ]
 
 instance LiftHandler ErrFetchRewards where
     handler = \case

@@ -313,6 +313,8 @@ prop_guardJoinQuit knownPools dlg pid =
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"
                 (W.guardQuit dlg (Quantity 0) === Right ())
+        Left W.ErrPoolAlreadyRetired{} ->
+            label "ErrAlreadyRetired" $ property True
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId

@@ -2117,6 +2117,7 @@ instance Exception ErrCheckWalletIntegrity
 data ErrCannotJoin
     = ErrAlreadyDelegating PoolId
     | ErrNoSuchPool PoolId
+    | ErrPoolAlreadyRetired PoolId W.EpochNo
     deriving (Generic, Eq, Show)
 
 data ErrCannotQuit
