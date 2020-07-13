@@ -286,12 +286,12 @@ combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
 
 -- | Combines all the chain-following data into a single map
 combineChainData
-    :: Map StakePoolMetadataHash StakePoolMetadata
-    -> Map PoolId PoolRegistrationCertificate
+    :: Map PoolId PoolRegistrationCertificate
     -> Map PoolId PoolRetirementCertificate
     -> Map PoolId (Quantity "block" Word64)
+    -> Map StakePoolMetadataHash StakePoolMetadata
     -> Map PoolId PoolDbData
-combineChainData metaMap registrationMap retirementMap prodMap =
+combineChainData registrationMap retirementMap prodMap metaMap =
     Map.map mkPoolDbData $
         Map.merge
             registeredNoProductions
@@ -332,11 +332,11 @@ readPoolDbData DBLayer {..} = atomically $ do
             :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
         mkCertificateMap f = Map.fromList
             [(p, c) | (p, Just c) <- zip pools (f <$> registrationStatuses)]
-    let registrationMap = mkCertificateMap getPoolRegistrationCertificate
-    let retirementMap = mkCertificateMap getPoolRetirementCertificate
-    prodMap <- readTotalProduction
-    metaMap <- readPoolMetadata
-    return $ combineChainData metaMap registrationMap retirementMap prodMap
+    combineChainData
+        (mkCertificateMap getPoolRegistrationCertificate)
+        (mkCertificateMap getPoolRetirementCertificate)
+        <$> readTotalProduction
+        <*> readPoolMetadata
 
 --
 -- Monitoring stake pool
