@@ -292,7 +292,7 @@ combineChainData
     -> Map PoolId (Quantity "block" Word64)
     -> Map PoolId PoolDbData
 combineChainData metaMap registrationMap retirementMap prodMap =
-    Map.map (lookupMetaIn metaMap) $
+    Map.map lookupMetaIn $
         Map.merge
             registeredNoProductions
             notRegisteredButProducing
@@ -309,14 +309,13 @@ combineChainData metaMap registrationMap retirementMap prodMap =
     bothPresent = zipWithMatched $ const (,)
 
     lookupMetaIn
-        :: Map StakePoolMetadataHash StakePoolMetadata
-        -> (PoolRegistrationCertificate, Quantity "block" Word64)
+        :: (PoolRegistrationCertificate, Quantity "block" Word64)
         -> PoolDbData
-    lookupMetaIn m (registrationCert, n) =
+    lookupMetaIn (registrationCert, n) =
         PoolDbData registrationCert mRetirementCert n meta
       where
         metaHash = snd <$> poolMetadata registrationCert
-        meta = flip Map.lookup m =<< metaHash
+        meta = flip Map.lookup metaMap =<< metaHash
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
 
