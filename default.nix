@@ -176,7 +176,7 @@ let
     inherit stackNixRegenerate;
     # This attribute ensures that every single derivation required for
     # evaluation of the haskell package set is built and cached on CI.
-    inherit (pkgs.haskell-nix) haskellNixRoots;
+    # haskellNixRoots = haskellPackages._roots;
   };
 
 in

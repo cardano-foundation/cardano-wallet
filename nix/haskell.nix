@@ -320,4 +320,7 @@ let
     };
 
 in
-  pkgSet.config.hsPkgs // { _config = pkgSet.config; }
+  pkgSet.config.hsPkgs // {
+    _config = pkgSet.config;
+    _roots = haskell.roots pkgSet.config.ghc;
+  }
