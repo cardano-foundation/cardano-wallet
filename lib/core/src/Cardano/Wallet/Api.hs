@@ -64,6 +64,7 @@ module Cardano.Wallet.Api
 
     , ByronAddresses
         , PostByronAddress
+        , ImportByronAddresses
         , ListByronAddresses
 
     , ByronCoinSelections
@@ -167,6 +168,7 @@ import Servant.API
     , (:>)
     , Capture
     , JSON
+    , NoContent
     , OctetStream
     , QueryFlag
     , QueryParam
@@ -470,6 +472,7 @@ type PutByronWalletPassphrase = "byron-wallets"
 
 type ByronAddresses n =
     PostByronAddress n
+    :<|> ImportByronAddresses n
     :<|> PutByronAddress n
     :<|> ListByronAddresses n
 
@@ -479,6 +482,13 @@ type PostByronAddress n = "byron-wallets"
     :> "addresses"
     :> ReqBody '[JSON] ApiPostRandomAddressData
     :> PostCreated '[JSON] (ApiAddressT n)
+
+type ImportByronAddresses n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> "bulk-import"
+    :> ReqBody '[JSON] [ApiAddressT n]
+    :> PostCreated '[JSON] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/restoreAddress
 type PutByronAddress n = "byron-wallets"

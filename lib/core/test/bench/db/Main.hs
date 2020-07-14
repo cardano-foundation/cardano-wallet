@@ -229,6 +229,26 @@ bgroupSeqState db = bgroup "SeqState"
         where lbl = n|+" CP x "+|a|+" addr"
 
 ----------------------------------------------------------------------------
+-- Wallet State (random HD scheme) Benchmarks
+--
+bgroupRndState :: DBLayerBench -> Benchmark
+bgroupRndState db = bgroup "RndState"
+    --      #Checkpoints  #Addresses
+    [ bRndState       10          10
+    , bRndState       10         100
+    , bRndState       10        1000
+    , bRndState       10       10000
+    , bRndState      100          10
+    , bRndState      100         100
+    , bRndState      100        1000
+    , bRndState      100       10000
+    ]
+  where
+    bRndState n a = bench lbl $ withCleanDB db $ benchPutRndState n a
+        where lbl = n|+" CP x "+|a|+" addr"
+
+
+----------------------------------------------------------------------------
 -- Tx history Benchmarks
 --
 -- These benchmarks evaluate the time taken to insert many transactions in an
@@ -528,6 +548,32 @@ mkPool
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j) | j <- [1..numAddrs] ]
+
+----------------------------------------------------------------------------
+-- RndState Address Discovery
+
+benchPutRndState :: Int -> Int -> DBLayerBench -> IO ()
+benchPutRndState numCheckpoints numAddrs DBLayer{..} =
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk)
+        [ snd $ initWallet block0 dummyGenesisParameters $
+            RndState
+              { hdPassphrase = payloadPassphrase key
+              , accountIndex = minBound
+              , addresses = mempty
+              , pendingAddresses = mempty
+              , gen = mkStdGen 0
+              }
+        | i <- [1..numCheckpoints]
+        ]
+
+{-# NOINLINE initDummyRndState #-}
+initDummyRndState :: RndState 'Mainnet ByronKey
+initDummyRndState = mkRndState xprv 0
+  where
+    mnemonic = unsafePerformIO
+        $ SomeMnemonic . entropyToMnemonic @15
+        <$> genEntropy @(EntropySize 15)
+    xprv = generateKeyFromSeed (mnemonic, Nothing) mempty
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests

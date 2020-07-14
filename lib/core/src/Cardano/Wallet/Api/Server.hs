@@ -58,6 +58,7 @@ module Cardano.Wallet.Api.Server
     , postIcarusWallet
     , postLedgerWallet
     , postRandomAddress
+    , importRandomAddresses
     , postRandomWallet
     , postRandomWalletFromXPrv
     , postTransaction
@@ -1084,8 +1085,25 @@ putRandomAddress
     -> Handler NoContent
 putRandomAddress ctx (ApiT wid) (ApiT addr, _proxy)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddress @_ @s @k wrk wid addr
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid [addr]
     pure NoContent
+
+importRandomAddresses
+    :: forall ctx s t k n.
+        ( s ~ RndState n
+        , k ~ ByronKey
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> [ApiAddress n]
+    -> Handler NoContent
+importRandomAddresses ctx (ApiT wid) addrs  = do
+    withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
+    pure NoContent
+  where
+    addrs' = map (getApiT . fst . view #id) addrs
 
 listAddresses
     :: forall ctx s t k n.

@@ -174,6 +174,10 @@ data AddressClient = AddressClient
         :: ApiT WalletId
         -> ApiPostRandomAddressData
         -> ClientM (ApiAddressT Aeson.Value)
+    , importRandomAddresses
+        :: ApiT WalletId
+        -> [ApiAddressT Aeson.Value]
+        -> ClientM NoContent
     , putRandomAddress
         :: ApiT WalletId
         -> ApiAddressIdT Aeson.Value
@@ -314,6 +318,7 @@ addressClient =
         AddressClient
             { listAddresses = _listAddresses
             , postRandomAddress = \_ _ -> fail "feature unavailable."
+            , importRandomAddresses = \_ _ -> fail "feature unavailable."
             , putRandomAddress  = \_ _ -> fail "feature unavailable."
             }
 
@@ -324,6 +329,7 @@ byronAddressClient
 byronAddressClient =
     let
         _postRandomAddress
+            :<|> _importRandomAddresses
             :<|> _putRandomAddress
             :<|> _listAddresses
             = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
@@ -331,6 +337,7 @@ byronAddressClient =
         AddressClient
             { listAddresses = _listAddresses
             , postRandomAddress = _postRandomAddress
+            , importRandomAddresses = _importRandomAddresses
             , putRandomAddress = _putRandomAddress
             }
 

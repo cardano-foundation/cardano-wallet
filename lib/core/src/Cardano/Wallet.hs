@@ -88,7 +88,7 @@ module Cardano.Wallet
 
     -- ** Address
     , createRandomAddress
-    , importRandomAddress
+    , importRandomAddresses
     , listAddresses
     , normalizeDelegationAddress
     , ErrCreateRandomAddress(..)
@@ -348,6 +348,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.List
+    ( scanl' )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -1067,7 +1069,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     isKnownIndex accIx addrIx s =
         (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
-importRandomAddress
+importRandomAddresses
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
         , s ~ RndState n
@@ -1075,15 +1077,17 @@ importRandomAddress
         )
     => ctx
     -> WalletId
-    -> Address
+    -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
-importRandomAddress ctx wid addr = db & \DBLayer{..} -> mapExceptT atomically $ do
+importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrImportAddrNoSuchWallet
         $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
-    case isOurs addr (getState cp) of
-        (False, _) -> throwE ErrImportAddrDoesNotBelong
-        (True, s') -> do
-            withExceptT ErrImportAddrNoSuchWallet $
+    let s = getState cp
+        ours = scanl' (\(_, t) addr -> isOurs addr t) (True, s) addrs
+        s' = snd (last ours)
+    if all (not . fst) ours
+        then throwE ErrImportAddrDoesNotBelong
+        else withExceptT ErrImportAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
     db = ctx ^. dbLayer @s @k

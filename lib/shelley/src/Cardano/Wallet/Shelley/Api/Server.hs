@@ -56,6 +56,7 @@ import Cardano.Wallet.Api.Server
     , getUTxOsStatistics
     , getWallet
     , idleWorker
+    , importRandomAddresses
     , joinStakePool
     , liftHandler
     , listAddresses
@@ -240,6 +241,10 @@ server byron icarus shelley spl ntp =
     byronAddresses =
              (\wid s -> withLegacyLayer wid
                 (byron, postRandomAddress byron wid s)
+                (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
+             )
+        :<|> (\wid s -> withLegacyLayer wid
+                (byron, importRandomAddresses byron wid s)
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
         :<|> (\wid addr -> withLegacyLayer wid
