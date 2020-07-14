@@ -46,8 +46,10 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), SyncTolerance (..) )
+    ( Coin (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
