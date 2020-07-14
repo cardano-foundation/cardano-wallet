@@ -130,7 +130,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( fromMaybe, isJust, isNothing )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -154,8 +154,10 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
+    , checkCoverage
     , choose
     , counterexample
+    , cover
     , elements
     , label
     , oneof
@@ -306,14 +308,17 @@ prop_guardJoinQuit
     -> PoolId
     -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPools dlg pid mRetirementInfo =
-    -- TODO: Add case analysis to this property:
-    case W.guardJoin knownPools dlg pid mRetirementInfo of
+prop_guardJoinQuit knownPools dlg pid mRetirementInfo = checkCoverage
+    $ cover 10 retirementNotPlanned
+        "retirementNotPlanned"
+    $ cover 10 retirementPlanned
+        "retirementPlanned"
+    $ cover 10 alreadyRetired
+        "alreadyRetired"
+    $ case W.guardJoin knownPools dlg pid mRetirementInfo of
         Right () ->
             label "I can join" $ property $
-                forM_ mRetirementInfo $ \info ->
-                    W.currentEpoch info
-                        `shouldSatisfy` (< W.retirementEpoch info)
+                alreadyRetired `shouldBe` False
         Left W.ErrNoSuchPool{} ->
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
@@ -326,8 +331,16 @@ prop_guardJoinQuit knownPools dlg pid mRetirementInfo =
                     `shouldBe` pid
                 errRetirementEpoch
                     `shouldBe` W.retirementEpoch info
-                W.currentEpoch info
-                    `shouldSatisfy` (>= W.retirementEpoch info)
+                alreadyRetired `shouldBe` True
+  where
+    retirementNotPlanned =
+        isNothing mRetirementInfo
+    retirementPlanned = fromMaybe False $ do
+        info <- mRetirementInfo
+        pure $ W.currentEpoch info < W.retirementEpoch info
+    alreadyRetired = fromMaybe False $ do
+        info <- mRetirementInfo
+        pure $ W.currentEpoch info >= W.retirementEpoch info
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId
