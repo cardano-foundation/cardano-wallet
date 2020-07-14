@@ -316,9 +316,15 @@ prop_guardJoinQuit knownPools dlg pid mRetirementInfo =
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"
                 (W.guardQuit dlg (Quantity 0) === Right ())
-        Left W.ErrPoolAlreadyRetired{} ->
-            -- TODO: Adjust this property to test for something useful:
-            label "ErrAlreadyRetired" $ property True
+        Left (W.ErrPoolAlreadyRetired errPid errRetirementEpoch) ->
+            label "ErrAlreadyRetired" $ property $ do
+                let Just info = mRetirementInfo
+                errPid
+                    `shouldBe` pid
+                errRetirementEpoch
+                    `shouldBe` W.retirementEpoch info
+                W.currentEpoch info
+                    `shouldSatisfy` (>= W.retirementEpoch info)
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId
