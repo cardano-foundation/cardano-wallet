@@ -114,6 +114,7 @@ module Cardano.Wallet
     , ErrSelectForMigration (..)
 
     -- ** Delegation
+    , PoolRetirementEpochInfo (..)
     , joinStakePool
     , quitStakePool
     , selectCoinsForDelegation
@@ -2158,6 +2159,16 @@ withNoSuchWallet
     -> ExceptT ErrNoSuchWallet m a
 withNoSuchWallet wid =
     maybeToExceptT (ErrNoSuchWallet wid) . MaybeT
+
+data PoolRetirementEpochInfo = PoolRetirementEpochInfo
+    { retirementEpoch
+        :: W.EpochNo
+        -- ^ The retirement epoch of a pool.
+    , currentEpoch
+        :: W.EpochNo
+        -- ^ The current epoch.
+    }
+    deriving (Eq, Generic, Show)
 
 guardJoin
     :: [PoolId]
