@@ -619,6 +619,10 @@ instance Arbitrary WalletDelegationNext where
 instance Arbitrary PoolId where
     arbitrary = pure $ PoolId "a"
 
+instance Arbitrary W.PoolRetirementEpochInfo where
+    arbitrary = W.PoolRetirementEpochInfo <$> arbitrary <*> arbitrary
+    shrink = genericShrink
+
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
