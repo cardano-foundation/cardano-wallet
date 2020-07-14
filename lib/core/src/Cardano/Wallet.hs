@@ -1754,8 +1754,10 @@ joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
         $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
               <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
+    -- TODO: Replace this with actual retirement information:
+    let retirementInfo = Nothing
     withExceptT ErrJoinStakePoolCannotJoin $ except $
-        guardJoin pools (walMeta ^. #delegation) pid
+        guardJoin pools (walMeta ^. #delegation) pid retirementInfo
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
@@ -2174,16 +2176,23 @@ guardJoin
     :: [PoolId]
     -> WalletDelegation
     -> PoolId
+    -> Maybe PoolRetirementEpochInfo
     -> Either ErrCannotJoin ()
-guardJoin knownPools WalletDelegation{active,next} pid = do
+guardJoin knownPools delegation pid mRetirementEpochInfo = do
     when (pid `notElem` knownPools) $
         Left (ErrNoSuchPool pid)
+
+    forM_ mRetirementEpochInfo $ \info ->
+        when (currentEpoch info >= retirementEpoch info) $
+            Left (ErrPoolAlreadyRetired pid (retirementEpoch info))
 
     when ((null next) && isDelegatingTo (== pid) active) $
         Left (ErrAlreadyDelegating pid)
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $
         Left (ErrAlreadyDelegating pid)
+  where
+    WalletDelegation {active, next} = delegation
 
 guardQuit
     :: WalletDelegation
