@@ -46,6 +46,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , NextBlocksResult (..)
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot, fromFlatSlot, slotParams, slotSucc )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -63,11 +65,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , StartTime (..)
     , TxParameters (..)
-    , flatSlot
-    , flatSlot
-    , fromFlatSlot
-    , slotParams
-    , slotSucc
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkPercentage, unsafeRunExceptT )

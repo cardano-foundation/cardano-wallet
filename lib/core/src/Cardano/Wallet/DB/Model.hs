@@ -67,6 +67,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Model
     ( Wallet, blockchainParameters, currentTip, utxo )
+import Cardano.Wallet.Primitive.Slotting
+    ( slotParams, slotStartTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotId)
     , Coin (..)
@@ -91,8 +93,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , dlgCertPoolId
     , isWithinRange
-    , slotParams
-    , slotStartTime
     )
 import Control.Monad
     ( when )

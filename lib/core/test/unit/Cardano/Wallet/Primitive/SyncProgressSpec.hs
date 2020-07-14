@@ -12,6 +12,8 @@ import Cardano.Wallet.Gen
     , genSlotId
     , shrinkActiveSlotCoefficient
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotParameters (..), unsafeEpochNo )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
@@ -22,9 +24,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
-    , SlotParameters (..)
     , StartTime (..)
-    , unsafeEpochNo
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )

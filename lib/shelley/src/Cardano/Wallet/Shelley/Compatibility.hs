@@ -108,6 +108,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( PoolCertificate (..)
     , PoolRegistrationCertificate (..)
@@ -343,7 +345,7 @@ toPoint genesisH epLength (W.BlockHeader sid _ h _)
 
 toSlotNo :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotNo epLength =
-    SlotNo . W.flatSlot epLength
+    SlotNo . flatSlot epLength
 
 toBlockHeader
     :: W.Hash "Genesis"
@@ -423,7 +425,7 @@ fromChainHash genesisHash = \case
 
 fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
 fromSlotNo epLength (SlotNo sl) =
-    W.fromFlatSlot epLength sl
+    fromFlatSlot epLength sl
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32

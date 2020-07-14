@@ -39,6 +39,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
@@ -46,7 +48,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , Hash (..)
     , SlotId (..)
-    , fromFlatSlot
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( ShelleyBlock

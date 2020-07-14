@@ -96,6 +96,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.ByteString
@@ -306,7 +308,7 @@ toPoint genesisH epLength (W.BlockHeader sid _ h _)
 
 toSlotInEpoch :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotInEpoch epLength =
-    SlotNo . W.flatSlot epLength
+    SlotNo . flatSlot epLength
 
 -- | SealedTx are the result of rightfully constructed byron transactions so, it
 -- is relatively safe to unserialize them from CBOR.
@@ -388,7 +390,7 @@ fromChainHash genesisHash = \case
 
 fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
 fromSlotNo epLength (SlotNo sl) =
-    W.fromFlatSlot epLength sl
+    fromFlatSlot epLength sl
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32

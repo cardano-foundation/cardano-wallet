@@ -30,6 +30,8 @@ import Cardano.Pool.DB.Arbitrary
     ( StakePoolsFixture (..), genStakePoolMetadata )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
+import Cardano.Wallet.Primitive.Slotting
+    ( slotMinBound )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -40,7 +42,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotId (..)
-    , slotMinBound
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
