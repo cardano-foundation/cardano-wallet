@@ -310,7 +310,10 @@ prop_guardJoinQuit knownPools dlg pid mRetirementInfo =
     -- TODO: Add case analysis to this property:
     case W.guardJoin knownPools dlg pid mRetirementInfo of
         Right () ->
-            label "I can join" $ property True
+            label "I can join" $ property $
+                forM_ mRetirementInfo $ \info ->
+                    W.currentEpoch info
+                        `shouldSatisfy` (< W.retirementEpoch info)
         Left W.ErrNoSuchPool{} ->
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
