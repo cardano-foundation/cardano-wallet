@@ -38,7 +38,7 @@ extra-deps:
     - persistent-template
 
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 197015670a0c6df4eaae63d66ae7b3e48007abc0
+  commit: dc729b0ba5ba112ee2bfe471c4df947ea7c76f28
 
 # Unreleased version - provides bech32 cli util
 - git: https://github.com/input-output-hk/bech32
