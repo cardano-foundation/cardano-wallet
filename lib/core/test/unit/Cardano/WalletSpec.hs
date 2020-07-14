@@ -304,10 +304,11 @@ prop_guardJoinQuit
     :: [PoolId]
     -> WalletDelegation
     -> PoolId
+    -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPools dlg pid =
-    let noRetirementPlanned = Nothing in
-    case W.guardJoin knownPools dlg pid noRetirementPlanned of
+prop_guardJoinQuit knownPools dlg pid mRetirementInfo =
+    -- TODO: Add case analysis to this property:
+    case W.guardJoin knownPools dlg pid mRetirementInfo of
         Right () ->
             label "I can join" $ property True
         Left W.ErrNoSuchPool{} ->
@@ -316,6 +317,7 @@ prop_guardJoinQuit knownPools dlg pid =
             label "ErrAlreadyDelegating"
                 (W.guardQuit dlg (Quantity 0) === Right ())
         Left W.ErrPoolAlreadyRetired{} ->
+            -- TODO: Adjust this property to test for something useful:
             label "ErrAlreadyRetired" $ property True
 
 prop_guardQuitJoin
