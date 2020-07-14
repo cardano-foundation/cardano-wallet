@@ -6,6 +6,8 @@ packages:
 - base16-0.1.2.1
 - base58-bytestring-0.1.0
 - base64-0.4.1
+- bech32-1.1.0
+- bech32-th-1.0.2
 - bimap-0.4.0
 - binary-0.8.7.0
 - brick-0.47

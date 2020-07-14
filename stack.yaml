@@ -40,13 +40,6 @@ extra-deps:
 - git: https://github.com/input-output-hk/cardano-addresses
   commit: 197015670a0c6df4eaae63d66ae7b3e48007abc0
 
-# Unreleased version - provides bech32 cli util
-- git: https://github.com/input-output-hk/bech32
-  commit: dd3fc9488595af23ce80740e2df133bee4c1c1a5
-  subdirs:
-    - bech32
-    - bech32-th
-
 # Not strictly a dependency at present, but building it here to get
 # access to the cardano-tx cli.
 - git: https://github.com/input-output-hk/cardano-transactions
