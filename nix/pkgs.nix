@@ -16,12 +16,16 @@ in pkgs: super: with pkgs; {
     deployments = let
       environments = {
         inherit (pkgs.commonLib.cardanoLib.environments)
-          ff mainnet shelley_qa shelley_testnet testnet;
+          mainnet mainnet_candidate shelley_qa shelley_testnet testnet;
       };
-      updateConfig = cfg: cfg // {
-        GenesisFile = "genesis.json";
+      updateConfig = env: env.nodeConfig // {
         minSeverity = "Notice";
-      };
+      } // (if (env.consensusProtocol == "Cardano") then {
+        ByronGenesisFile = "genesis-byron.json";
+        ShelleyGenesisFile = "genesis-shelley.json";
+      } else {
+        GenesisFile = "genesis.json";
+      });
       mkTopology = env: pkgs.commonLib.cardanoLib.mkEdgeTopology {
         edgeNodes = [ env.relaysNew ];
         valency = 2;
@@ -33,10 +37,14 @@ in pkgs: super: with pkgs; {
     } (mapAttrsToString (name: env: ''
       cfg=$out/${name}
       mkdir -p $cfg
-      jq . < ${__toFile "${name}-config.json" (__toJSON (updateConfig env.nodeConfig))} > $cfg/configuration.json
-      jq . < ${env.genesisFile} > $cfg/genesis.json
       jq . < ${mkTopology env} > $cfg/topology.json
-    '') environments);
+      jq . < ${__toFile "${name}-config.json" (__toJSON (updateConfig env))} > $cfg/configuration.json
+    '' + (if env.consensusProtocol == "Cardano" then ''
+      jq . < ${env.genesisFile} > $cfg/genesis-byron.json
+      jq . < ${env.genesisFileHfc} > $cfg/genesis-shelley.json
+    '' else ''
+      jq . < ${env.genesisFile} > $cfg/genesis.json
+    '')) environments);
 
     # Provide configuration directory as a convenience
     configs = pkgs.runCommand "cardano-node-configs" {} ''
