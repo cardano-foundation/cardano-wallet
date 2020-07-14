@@ -199,9 +199,6 @@
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
-          build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet-byron or (pkgs.buildPackages.cardano-wallet-byron or (errorHandler.buildToolDepError "cardano-wallet-byron")))
-            ];
           buildable = true;
           };
         };

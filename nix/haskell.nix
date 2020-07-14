@@ -132,26 +132,9 @@ let
         };
 
         # Add jormungandr to the PATH of the latency benchmark
-        packages.cardano-wallet-jormungandr.components.benchmarks.latency =
-          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper ];
-            postInstall = ''
-              wrapProgram $out/bin/latency \
-                --run "cd $src" \
-                --prefix PATH : ${jmPkgs.jormungandr}/bin
-            '';
-          };
-
+        packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench jmPkgs.jormungandr;
         # Add cardano-node to the PATH of the byron latency benchmark
-        packages.cardano-wallet-byron.components.benchmarks.latency =
-          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper ];
-            postInstall = ''
-              wrapProgram $out/bin/latency \
-                --run "cd $src" \
-                --prefix PATH : ${pkgs.cardano-node}/bin
-            '';
-          };
+        packages.cardano-wallet-byron.components.benchmarks.latency = wrapBench pkgs.cardano-node;
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
@@ -322,6 +305,19 @@ let
     "$out/bin/$exeName" --zsh-completion-script "$out/bin/$exeName" >"$zshCompDir/_$exeName"
     "$out/bin/$exeName" --fish-completion-script "$out/bin/$exeName" >"$fishCompDir/$exeName.fish"
   '';
+
+  # Add component options to wrap a benchmark exe, so that it has the
+  # backend executable on its path, and the source tree as its working
+  # directory.
+  wrapBench = backend:
+    lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
+      build-tools = [ pkgs.makeWrapper ];
+      postInstall = ''
+        wrapProgram $out/bin/* \
+          --run "cd $src" \
+          --prefix PATH : ${backend}/bin
+      '';
+    };
 
 in
   pkgSet.config.hsPkgs // { _config = pkgSet.config; }

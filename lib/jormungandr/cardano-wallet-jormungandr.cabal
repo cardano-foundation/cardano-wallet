@@ -312,8 +312,6 @@ benchmark latency
     , stm
     , temporary
     , text
-  build-tools:
-      cardano-wallet-jormungandr
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

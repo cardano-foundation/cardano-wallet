@@ -3,12 +3,12 @@
 
 set -euo pipefail
 
-bench_name_jormungandr=bench-latency-jormungandr
-bench_name_byron=bench-latency-byron
+cd `dirname $0`/..
 
 echo "--- Build"
-nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o $bench_name_jormungandr
-nix-build -A benchmarks.cardano-wallet-byron.latency -o $bench_name_byron
+nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o bench-latency-jormungandr
+nix-build -A benchmarks.cardano-wallet-byron.latency -o bench-latency-byron
+nix-build -A benchmarks.cardano-wallet-shelley.latency -o bench-latency-shelley
 
 # Note: the tracing will not work if program output is piped
 # to another process (e.g. "tee").
@@ -16,8 +16,12 @@ nix-build -A benchmarks.cardano-wallet-byron.latency -o $bench_name_byron
 
 echo "+++ Run benchmark - byron"
 
-./$bench_name_byron/bin/latency
+( cd lib/byron && ../../bench-latency-byron/bin/latency )
+
+echo "+++ Run benchmark - shelley"
+
+( cd lib/shelley && ../../bench-latency-shelley/bin/latency )
 
 echo "+++ Run benchmark - jormungandr"
 
-./$bench_name_jormungandr/bin/latency
+( cd lib/jormungandr && ../../bench-latency-jormungandr/bin/latency )
