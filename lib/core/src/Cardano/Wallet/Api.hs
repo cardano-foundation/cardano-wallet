@@ -64,6 +64,7 @@ module Cardano.Wallet.Api
 
     , ByronAddresses
         , PostByronAddress
+        , PutByronAddress
         , PutByronAddresses
         , ListByronAddresses
 
