@@ -5,7 +5,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -38,6 +40,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Byron.Compatibility
+    ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
@@ -50,24 +54,21 @@ import Cardano.Wallet.Network
     , mapCursor
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( singleEraInterpreter )
+    ( TimeInterpreter, interpreterFromGenesis, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Delegations
-    , RewardAccounts
-    , Shelley
-    , ShelleyBlock
+    ( Shelley
     , TPraosStandardCrypto
+    , fromCardanoHash
     , fromChainHash
     , fromNonMyopicMemberRewards
-    , fromPParams
     , fromPoolDistr
-    , fromShelleyHash
+    , fromShelleyPParams
     , fromTip
     , fromTip'
     , optimumNumberOfPools
-    , toGenTx
     , toPoint
     , toShelleyCoin
+    , toShelleyGenTx
     , toStakeCredential
     )
 import Control.Concurrent
@@ -89,6 +90,7 @@ import Control.Monad.Class.MonadST
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
+    , TVar
     , atomically
     , newTMVarM
     , newTQueue
@@ -114,16 +116,20 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Function
     ( (&) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.Map
     ( Map )
+import Data.Map
+    ( (!) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Text
@@ -140,12 +146,32 @@ import GHC.Stack
     ( HasCallStack )
 import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
+import Ouroboros.Consensus.Cardano
+    ( CardanoBlock )
+import Ouroboros.Consensus.Cardano.Block
+    ( CardanoApplyTxErr
+    , CardanoEras
+    , CardanoGenTx
+    , CodecConfig (..)
+    , GenTx (..)
+    , Query (..)
+    )
+import Ouroboros.Consensus.HardFork.Combinator
+    ( QueryHardFork (..) )
+import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
+    ( MismatchEraInfo )
+import Ouroboros.Consensus.HardFork.History.Qry
+    ( Interpreter )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
+import Ouroboros.Consensus.Node.NetworkProtocolVersion
+    ( HasNetworkProtocolVersion (..), SupportedNetworkProtocolVersion (..) )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( GenTx, Query (..), ShelleyNodeToClientVersion (..) )
+    ( Crypto )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..) )
+import Ouroboros.Consensus.Shelley.Protocol
+    ( TPraosCrypto )
 import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
@@ -218,10 +244,13 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Consensus.Shelley.Ledger as OC
+import qualified Ouroboros.Consensus.Byron.Ledger as Byron
+import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Coin as SL
-import qualified Shelley.Spec.Ledger.PParams as SL
+import qualified Shelley.Spec.Ledger.Credential as SL
+import qualified Shelley.Spec.Ledger.Keys as SL
+import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 {- HLINT ignore "Use readTVarIO" -}
 
@@ -229,12 +258,13 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Shelley) = Cursor
     (Async ())
-    (Point ShelleyBlock)
-    (TQueue m (ChainSyncCmd ShelleyBlock m))
+    (Point (CardanoBlock TPraosStandardCrypto))
+    (TQueue m (ChainSyncCmd (CardanoBlock TPraosStandardCrypto) m))
 
 -- | Create an instance of the network layer
 withNetworkLayer
-    :: Tracer IO NetworkLayerLog
+    :: forall sc a. (sc ~ TPraosStandardCrypto)
+    => Tracer IO (NetworkLayerLog sc)
         -- ^ Logging of network layer startup
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
@@ -242,7 +272,7 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO Shelley) ShelleyBlock -> IO a)
+    -> (NetworkLayer IO (IO Shelley) (CardanoBlock sc) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo versionData action = do
@@ -254,12 +284,12 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
 
-    (nodeTipChan, protocolParamsVar, localTxSubmissionQ) <-
+    (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    nodeTipVar <- atomically $ newTVar TipGenesis
+    nodeTipVar <- atomically $ newTVar TipGenesis :: IO (TVar IO (Tip (CardanoBlock sc)))
     let updateNodeTip = readChan nodeTipChan >>= (atomically . writeTVar nodeTipVar)
     link =<< async (forever updateNodeTip)
 
@@ -271,30 +301,34 @@ withNetworkLayer tr np addrInfo versionData action = do
             , destroyCursor = _destroyCursor
             , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
-            , postTx = _postTx localTxSubmissionQ
+            , postTx = _postSealedTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution queryRewardQ
             , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
-            , timeInterpreter = pure . runIdentity . singleEraInterpreter gp
+            , timeInterpreter = _timeInterpreterQuery interpreterVar
             }
   where
     gp@W.GenesisParameters
         { getGenesisBlockHash
+        , getGenesisBlockDate
         } = W.genesisParameters np
+    cfg = codecConfig gp
 
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
+        interpreterVar <- atomically $ newTVar Nothing
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
             (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
+            (atomically . writeTVar interpreterVar . Just)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
-        pure (nodeTipChan, protocolParamsVar, localTxSubmissionQ)
+        pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
-        let cl = mkDelegationRewardsClient tr cmdQ
+        let cl = mkDelegationRewardsClient tr cfg cmdQ
         link =<< async (connectClient tr handlers cl versionData addrInfo)
         pure cmdQ
 
@@ -338,15 +372,16 @@ withNetworkLayer tr np addrInfo versionData action = do
         let bh = fromTip' gp tip
         liftIO $ traceWith tr $ MsgGetRewardAccountBalance bh acct
         let cred = toStakeCredential acct
-        let q = OC.GetFilteredDelegationsAndRewardAccounts (Set.singleton cred)
+        let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts (Set.singleton cred))
         let cmd = CmdQueryLocalState (getTipPoint tip) q
         liftIO (queryRewardQ `send` cmd) >>= \case
-            Right (deleg, rewardAccounts) -> do
+            Right (Right (deleg, rewardAccounts)) -> do
                 liftIO $ traceWith tr $
                     MsgAccountDelegationAndRewards acct deleg rewardAccounts
                 case Map.elems rewardAccounts of
                     [SL.Coin amt] -> pure (Quantity (fromIntegral amt))
                     _ -> throwE $ ErrGetAccountBalanceAccountNotFound acct
+            Right (Left _) -> pure minBound -- wrong era
             Left acqFail -> do
                 -- NOTE: this could possibly happen in rare circumstances when
                 -- the chain is switched and the local state query is made
@@ -363,38 +398,48 @@ withNetworkLayer tr np addrInfo versionData action = do
             atomically (readTVar nodeTipVar)
 
     _postTx localTxSubmissionQ tx = do
-        liftIO $ traceWith tr $ MsgPostSealedTx tx
-        result <- liftIO $ localTxSubmissionQ `send` CmdSubmitTx (toGenTx tx)
+        liftIO $ traceWith tr $ MsgPostTx tx
+        result <- liftIO $ localTxSubmissionQ `send` CmdSubmitTx tx
         case result of
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-    handleQueryFailure = withExceptT
-        (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected" ++ show e) . ExceptT
+    -- fixme: only shelley transactions can be submitted like this, because they
+    -- are deserialised as shelley transactions before submitting.
+    _postSealedTx localTxSubmissionQ tx = do
+        liftIO $ traceWith tr $ MsgPostSealedTx tx
+        _postTx localTxSubmissionQ (toShelleyGenTx tx)
+
+    handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
+    handleQueryFailure =
+        withExceptT (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e) . ExceptT
 
     _stakeDistribution queue pt coin = do
-        stakeMap <- fromPoolDistr <$> handleQueryFailure
-            (queue `send` CmdQueryLocalState pt OC.GetStakeDistribution)
+        stakeMap <- handleQueryFailure
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution))
         let toStake = Set.singleton $ Left $ toShelleyCoin coin
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
-        rewardsPerAccount <- fromNonMyopicMemberRewards <$> handleQueryFailure
-            (queue `send` CmdQueryLocalState pt (OC.GetNonMyopicMemberRewards toStake))
+        rewardsPerAccount <- handleQueryFailure
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley (Shelley.GetNonMyopicMemberRewards toStake)))
         pparams <- handleQueryFailure
-            (queue `send` CmdQueryLocalState pt OC.GetCurrentPParams)
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
 
-        let rewardMap = fromMaybe
-                (error "stakeDistribution: requested rewards not included in response")
-                (Map.lookup (Left coin) rewardsPerAccount)
+        let fromJustRewards = fromMaybe (error "stakeDistribution: requested rewards not included in response")
+        let getRewardMap = fromJustRewards . Map.lookup (Left coin) . fromNonMyopicMemberRewards
 
-        let res = NodePoolLsqData
-                (optimumNumberOfPools pparams)
-                rewardMap
-                stakeMap
-        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqDataSummary
-            (Map.size stakeMap)
-            (Map.size rewardMap)
-        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData res
-        return res
+        -- The result will be Nothing if query occurs during the byron era
+        let mres = eitherToMaybe $ NodePoolLsqData
+                <$> fmap optimumNumberOfPools pparams
+                <*> fmap getRewardMap rewardsPerAccount
+                <*> fmap fromPoolDistr stakeMap
+        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData mres
+        case mres of
+            Just res -> do
+                liftIO $ traceWith tr $ MsgFetchedNodePoolLsqDataSummary
+                    (Map.size $ stake res)
+                    (Map.size $ rewards res)
+                return res
+            Nothing -> pure $ NodePoolLsqData 0 mempty mempty
 
     _watchNodeTip nodeTipChan cb = do
         chan <- dupChan nodeTipChan
@@ -404,8 +449,13 @@ withNetworkLayer tr np addrInfo versionData action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-type instance GetStakeDistribution (IO Shelley) m
-    = (Point ShelleyBlock
+    _timeInterpreterQuery :: TVar IO (Maybe (CardanoInterpreter sc)) -> TimeInterpreter IO
+    _timeInterpreterQuery var q = atomically (readTVar var) >>= \case
+        Just i -> mkTimeInterpreter getGenesisBlockDate i q
+        Nothing -> interpreterFromGenesis gp q
+
+type instance GetStakeDistribution (IO Shelley) (CardanoBlock sc) m
+    = (Point (CardanoBlock sc)
    -> W.Coin
    -> ExceptT ErrNetworkUnavailable m NodePoolLsqData)
 
@@ -446,11 +496,11 @@ type NetworkClient m = OuroborosApplication
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
-    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
+    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m, Crypto sc, TPraosCrypto sc)
     => Tracer m (ChainSyncLog Text Text)
     -> W.GenesisParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (ChainSyncCmd ShelleyBlock m)
+    -> TQueue m (ChainSyncCmd (CardanoBlock sc) m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
 mkWalletClient tr gp chainSyncQ = do
@@ -458,7 +508,7 @@ mkWalletClient tr gp chainSyncQ = do
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                runPipelinedPeer nullTracer (cChainSyncCodec codecs) channel
+                runPipelinedPeer nullTracer (cChainSyncCodec $ codecs cfg) channel
                 $ chainSyncClientPeerPipelined
                 $ chainSyncWithBlocks tr' (fromTip' gp) chainSyncQ stash
 
@@ -468,7 +518,7 @@ mkWalletClient tr gp chainSyncQ = do
         , localStateQueryProtocol =
             doNothingProtocol
         })
-        NodeToClientV_2
+        NodeToClientV_3
   where
     tr' = contramap (mapChainSyncLog showB showP) tr
     showB = showP . blockPoint
@@ -478,20 +528,22 @@ mkWalletClient tr gp chainSyncQ = do
             [ "(slotNo "
             , T.pack $ show $ unSlotNo $ Point.blockPointSlot blk
             , ", "
-            , pretty $ fromShelleyHash $ Point.blockPointHash blk
+            , pretty $ fromCardanoHash $ Point.blockPointHash blk
             , ")"
             ]
+    cfg = codecConfig gp
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
 mkDelegationRewardsClient
-    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
-    => Tracer m NetworkLayerLog
+    :: forall sc m. (MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
+    => Tracer m (NetworkLayerLog sc)
         -- ^ Base trace for underlying protocols
-    -> TQueue m (LocalStateQueryCmd ShelleyBlock m)
+    -> CodecConfig (CardanoBlock sc)
+    -> TQueue m (LocalStateQueryCmd (CardanoBlock sc) m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
-mkDelegationRewardsClient tr queryRewardQ =
+mkDelegationRewardsClient tr cfg queryRewardQ =
     nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             doNothingProtocol
@@ -505,16 +557,46 @@ mkDelegationRewardsClient tr queryRewardQ =
                 $ localStateQueryClientPeer
                 $ localStateQuery queryRewardQ
         })
-        NodeToClientV_2
+        NodeToClientV_3
   where
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
-    codec = cStateQueryCodec serialisedCodecs
+    codec = cStateQueryCodec (serialisedCodecs cfg)
 
-codecs :: MonadST m => ClientCodecs ShelleyBlock m
-codecs = clientCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
+{-------------------------------------------------------------------------------
+                                     Codecs
+-------------------------------------------------------------------------------}
 
-serialisedCodecs :: MonadST m => DefaultCodecs ShelleyBlock m
-serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
+-- | The protocol client version. Distinct from the codecs version.
+nodeToClientVersion :: NodeToClientVersion
+nodeToClientVersion = NodeToClientV_3
+
+codecVersion :: forall sc. TPraosCrypto sc => BlockNodeToClientVersion (CardanoBlock sc)
+codecVersion = verMap ! nodeToClientVersion
+    where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock sc))
+
+codecConfig :: W.GenesisParameters -> CodecConfig (CardanoBlock sc)
+codecConfig gp = CardanoCodecConfig (byronCodecConfig gp) ShelleyCodecConfig
+
+-- | A group of codecs which will deserialise block data.
+codecs
+    :: forall m sc. (MonadST m, TPraosCrypto sc)
+    => CodecConfig (CardanoBlock sc)
+    -> ClientCodecs (CardanoBlock sc) m
+codecs cfg = clientCodecs cfg codecVersion
+
+-- | A group of codecs which won't deserialise block data. Often only the block
+-- headers are needed. It's more efficient and easier not to deserialise.
+serialisedCodecs
+    :: forall m sc. (MonadST m, TPraosCrypto sc)
+    => CodecConfig (CardanoBlock sc)
+    -> DefaultCodecs (CardanoBlock sc) m
+serialisedCodecs cfg = defaultCodecs cfg codecVersion
+
+{-------------------------------------------------------------------------------
+                                     Tip sync
+-------------------------------------------------------------------------------}
+
+type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 
 -- | Construct a network client with the given communication channel, for the
 -- purpose of:
@@ -522,24 +604,27 @@ serialisedCodecs = defaultCodecs ShelleyCodecConfig ShelleyNodeToClientVersion1
 --  * Submitting transactions
 --  * Tracking the node tip
 --  * Tracking the latest protocol parameters state.
+--  * Querying the history interpreter as necessary.
 mkTipSyncClient
-    :: forall m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m)
-    => Tracer m NetworkLayerLog
+    :: forall sc m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
+    => Tracer m (NetworkLayerLog sc)
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> TQueue m
         (LocalTxSubmissionCmd
-            (GenTx ShelleyBlock)
-            (OC.ApplyTxError TPraosStandardCrypto)
-            (m))
+            (GenTx (CardanoBlock sc))
+            (CardanoApplyTxErr sc)
+            m)
         -- ^ Communication channel with the LocalTxSubmission client
-    -> (Tip ShelleyBlock -> m ())
+    -> (Tip (CardanoBlock sc) -> m ())
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
+    -> (CardanoInterpreter sc -> m ())
+        -- ^ Notifier callback for when time interpreter is updates
     -> m (NetworkClient m)
-mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
+mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpreterUpdate = do
     localStateQueryQ <- atomically newTQueue
 
     (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
@@ -549,37 +634,60 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
 
     let
         queryLocalState
-            :: Point ShelleyBlock
+            :: Point (CardanoBlock sc)
             -> m ()
         queryLocalState pt = do
-            st <- localStateQueryQ `send`
-                CmdQueryLocalState pt OC.GetCurrentPParams
-            handleLocalState st
+            pp <- localStateQueryQ `send`
+                CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
+            handleParamsUpdate fromShelleyPParams pp
 
-        handleLocalState
-            :: Either AcquireFailure SL.PParams
+            st <- localStateQueryQ `send`
+                CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
+            handleParamsUpdate protocolParametersFromUpdateState st
+
+        handleParamsUpdate
+            :: (p -> W.ProtocolParameters)
+            -> Either AcquireFailure (Either (MismatchEraInfo (CardanoEras sc)) p)
             -> m ()
-        handleLocalState = \case
+        handleParamsUpdate convert = \case
             Left (e :: AcquireFailure) ->
                 traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
-            Right ls ->
-                onPParamsUpdate' $ fromPParams ls
+            Right (Right ls) ->
+                    onPParamsUpdate' $ convert ls
+            Right (Left mismatch) ->
+                traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
-        W.GenesisParameters
+        queryInterpreter
+            :: Point (CardanoBlock sc)
+            -> m ()
+        queryInterpreter pt = do
+            res <- localStateQueryQ `send` CmdQueryLocalState pt (QueryHardFork GetInterpreter)
+            case res of
+                Left (e :: AcquireFailure) ->
+                    traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
+                Right interpreter -> do
+                    traceWith tr $ MsgInterpreter interpreter
+                    onInterpreterUpdate interpreter
+
+        gp@W.GenesisParameters
              { getGenesisBlockHash
              } = W.genesisParameters np
+        cfg = codecConfig gp
 
-    onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
+    onTipUpdate' <- debounce @(Tip (CardanoBlock sc)) @m $ \tip' -> do
         let tip = castTip tip'
         traceWith tr $ MsgNodeTip $
             fromTip getGenesisBlockHash tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
+        -- NOTE: interpeter is updated every block. This is far more often than
+        -- necessary.
+        queryInterpreter (getTipPoint tip)
 
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                codec = cChainSyncCodec $ serialisedCodecs @m
+                codec = cChainSyncCodec $ serialisedCodecs @m cfg
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer nullTracer codec channel
@@ -589,7 +697,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
         , localTxSubmissionProtocol =
             let
                 tr' = contramap MsgTxSubmission tr
-                codec = cTxSubmissionCodec serialisedCodecs
+                codec = cTxSubmissionCodec $ serialisedCodecs cfg
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
@@ -599,14 +707,14 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
         , localStateQueryProtocol =
             let
                 tr' = contramap (MsgLocalStateQuery TipSyncClient) tr
-                codec = cStateQueryCodec serialisedCodecs
+                codec = cStateQueryCodec $ serialisedCodecs cfg
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
                 $ localStateQueryClientPeer
                 $ localStateQuery localStateQueryQ
         })
-        NodeToClientV_2
+        NodeToClientV_3
 
 
 -- | Return a function to run an action only if its single parameter has changed
@@ -631,7 +739,7 @@ doNothingProtocol =
 --
 -- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
 connectClient
-    :: Tracer IO NetworkLayerLog
+    :: Tracer IO (NetworkLayerLog sc)
     -> [RetryStatus -> Handler IO Bool]
     -> NetworkClient IO
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
@@ -639,7 +747,7 @@ connectClient
     -> IO ()
 connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp -> do
     let vDict = DictVersion vCodec
-    let versions = simpleSingletonVersions NodeToClientV_2 vData vDict client
+    let versions = simpleSingletonVersions nodeToClientVersion vData vDict client
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
@@ -655,7 +763,7 @@ connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp ->
 
 -- | Handlers that are retrying on every connection lost.
 retryOnConnectionLost
-    :: Tracer IO NetworkLayerLog
+    :: Tracer IO (NetworkLayerLog sc)
     -> [RetryStatus -> Handler IO Bool]
 retryOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' True
@@ -666,7 +774,7 @@ retryOnConnectionLost tr =
 
 -- | Handlers that are failing if the connection is lost
 failOnConnectionLost
-    :: Tracer IO NetworkLayerLog
+    :: Tracer IO (NetworkLayerLog sc)
     -> [RetryStatus -> Handler IO Bool]
 failOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' False
@@ -722,37 +830,44 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
                                     Logging
 -------------------------------------------------------------------------------}
 
-data NetworkLayerLog
-    = MsgCouldntConnect Int
-    | MsgConnectionLost (Maybe IOException)
-    | MsgTxSubmission
-        (TraceSendRecv
-            (LocalTxSubmission
-                (GenTx ShelleyBlock)
-                (OC.ApplyTxError TPraosStandardCrypto)))
-    | MsgLocalStateQuery QueryClientName
-        (TraceSendRecv
-            (LocalStateQuery ShelleyBlock (Query ShelleyBlock)))
-    | MsgHandshakeTracer
-        (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace)
-    | MsgFindIntersection [W.BlockHeader]
-    | MsgIntersectionFound (W.Hash "BlockHeader")
-    | MsgFindIntersectionTimeout
-    | MsgPostSealedTx W.SealedTx
-    | MsgNodeTip W.BlockHeader
-    | MsgProtocolParameters W.ProtocolParameters
-    | MsgLocalStateQueryError QueryClientName String
-    | MsgGetRewardAccountBalance W.BlockHeader W.ChimericAccount
-    | MsgAccountDelegationAndRewards W.ChimericAccount
-        Delegations RewardAccounts
-    | MsgDestroyCursor ThreadId
-    | MsgWillQueryRewardsForStake W.Coin
-    | MsgFetchedNodePoolLsqData NodePoolLsqData
-    | MsgFetchedNodePoolLsqDataSummary Int Int
-        -- ^ Number of pools in stake distribution, and rewards map,
-        -- respectively.
-    | MsgWatcherUpdate W.BlockHeader BracketLog
-    | MsgChainSyncCmd (ChainSyncLog Text Text)
+data NetworkLayerLog sc where
+    MsgCouldntConnect :: Int -> NetworkLayerLog sc
+    MsgConnectionLost :: Maybe IOException -> NetworkLayerLog sc
+    MsgTxSubmission
+        :: (TraceSendRecv
+            (LocalTxSubmission (GenTx (CardanoBlock sc)) (CardanoApplyTxErr sc)))
+        -> NetworkLayerLog sc
+    MsgLocalStateQuery
+        :: QueryClientName
+        -> (TraceSendRecv
+            (LocalStateQuery (CardanoBlock sc) (Query (CardanoBlock sc))))
+        -> NetworkLayerLog sc
+    MsgHandshakeTracer ::
+      (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> NetworkLayerLog sc
+    MsgFindIntersection :: [W.BlockHeader] -> NetworkLayerLog sc
+    MsgIntersectionFound :: (W.Hash "BlockHeader") -> NetworkLayerLog sc
+    MsgFindIntersectionTimeout :: NetworkLayerLog sc
+    MsgPostTx :: CardanoGenTx sc -> NetworkLayerLog sc
+    MsgPostSealedTx :: W.SealedTx -> NetworkLayerLog sc
+    MsgNodeTip :: W.BlockHeader -> NetworkLayerLog sc
+    MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog sc
+    MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog sc
+    MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras sc) -> NetworkLayerLog sc
+    MsgGetRewardAccountBalance :: W.BlockHeader -> W.ChimericAccount -> NetworkLayerLog sc
+    MsgAccountDelegationAndRewards
+        :: W.ChimericAccount
+        -> (Map (SL.Credential 'SL.Staking sc) (SL.KeyHash 'SL.StakePool sc))
+        -> SL.RewardAccounts sc
+        -> NetworkLayerLog sc
+    MsgDestroyCursor :: ThreadId -> NetworkLayerLog sc
+    MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog sc
+    MsgFetchedNodePoolLsqData :: Maybe NodePoolLsqData -> NetworkLayerLog sc
+    MsgFetchedNodePoolLsqDataSummary :: Int -> Int -> NetworkLayerLog sc
+      -- ^ Number of pools in stake distribution, and rewards map,
+      -- respectively.
+    MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog sc
+    MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog sc
+    MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
 
 data QueryClientName
     = TipSyncClient
@@ -761,7 +876,7 @@ data QueryClientName
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
-instance ToText NetworkLayerLog where
+instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
     toText = \case
         MsgCouldntConnect n -> T.unwords
             [ "Couldn't connect to node (x" <> toText (n + 1) <> ")."
@@ -770,7 +885,7 @@ instance ToText NetworkLayerLog where
         MsgConnectionLost Nothing  ->
             "Connection lost with the node."
         MsgConnectionLost (Just e) -> T.unwords
-            [ toText (MsgConnectionLost Nothing)
+            [ toText @(NetworkLayerLog sc) (MsgConnectionLost Nothing)
             , T.pack (show e)
             ]
         MsgTxSubmission msg ->
@@ -789,6 +904,10 @@ instance ToText NetworkLayerLog where
             [ "Posting transaction, serialized as:"
             , T.decodeUtf8 $ convertToBase Base16 bytes
             ]
+        MsgPostTx genTx -> T.unwords
+            [ "Posting transaction:"
+            , T.pack $ show genTx
+            ]
         MsgLocalStateQuery client msg ->
             T.pack (show client <> " " <> show msg)
         MsgNodeTip bh -> T.unwords
@@ -805,6 +924,8 @@ instance ToText NetworkLayerLog where
             , ": "
             , e
             ]
+        MsgLocalStateQueryEraMismatch _mismatch ->
+            "Local state query for the wrong era - this is fine."
         MsgGetRewardAccountBalance bh acct -> T.unwords
             [ "Querying the reward account balance for"
             , pretty acct
@@ -835,9 +956,11 @@ instance ToText NetworkLayerLog where
             "Update watcher with tip: " <> pretty tip <>
             ". Callback " <> toText b <> "."
         MsgChainSyncCmd a -> toText a
+        MsgInterpreter interpreter ->
+            "Updated the history interpreter: " <> T.pack (show interpreter)
 
-instance HasPrivacyAnnotation NetworkLayerLog
-instance HasSeverityAnnotation NetworkLayerLog where
+instance HasPrivacyAnnotation (NetworkLayerLog b)
+instance HasSeverityAnnotation (NetworkLayerLog b) where
     getSeverityAnnotation = \case
         MsgCouldntConnect 0                -> Debug
         MsgCouldntConnect 1                -> Notice
@@ -849,10 +972,12 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgFindIntersection{}              -> Info
         MsgIntersectionFound{}             -> Info
         MsgPostSealedTx{}                  -> Debug
+        MsgPostTx{}                        -> Debug
         MsgLocalStateQuery{}               -> Debug
         MsgNodeTip{}                       -> Debug
         MsgProtocolParameters{}            -> Info
         MsgLocalStateQueryError{}          -> Error
+        MsgLocalStateQueryEraMismatch{}    -> Debug
         MsgGetRewardAccountBalance{}       -> Info
         MsgAccountDelegationAndRewards{}   -> Info
         MsgDestroyCursor{}                 -> Notice
@@ -860,4 +985,5 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgFetchedNodePoolLsqData{}        -> Debug
         MsgFetchedNodePoolLsqDataSummary{} -> Info
         MsgWatcherUpdate{}                 -> Debug
-        MsgChainSyncCmd cmd              -> getSeverityAnnotation cmd
+        MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
+        MsgInterpreter{}                   -> Debug

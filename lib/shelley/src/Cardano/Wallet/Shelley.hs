@@ -45,6 +45,8 @@ module Cardano.Wallet.Shelley
 
 import Prelude
 
+import Cardano.Api.Typed
+    ( Shelley )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -114,7 +116,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, ShelleyBlock, fromNetworkMagic, fromShelleyBlock )
+    ( CardanoBlock, TPraosStandardCrypto, fromCardanoBlock, fromNetworkMagic )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -308,7 +310,7 @@ serveWallet
     withPoolsMonitoring
         :: Maybe FilePath
         -> GenesisParameters
-        -> NetworkLayer IO t ShelleyBlock
+        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
@@ -331,7 +333,7 @@ serveWallet
             , WalletKey k
             )
         => TransactionLayer t k
-        -> NetworkLayer IO t ShelleyBlock
+        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
         -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
         -> IO (ApiLayer s t k)
     apiLayer tl nl coworker = do
@@ -351,8 +353,8 @@ serveWallet
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
-        gp@GenesisParameters{getGenesisBlockHash} = genesisParameters np
-        nl' = fromShelleyBlock getGenesisBlockHash <$> nl
+        gp = genesisParameters np
+        nl' = fromCardanoBlock gp <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode
@@ -426,7 +428,7 @@ data Tracers' f = Tracers
     , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
     , poolsDbTracer      :: f DBLog
     , ntpClientTracer    :: f NtpTrace
-    , networkTracer      :: f NetworkLayerLog
+    , networkTracer      :: f (NetworkLayerLog TPraosStandardCrypto)
     }
 
 -- | All of the Shelley 'Tracer's.
