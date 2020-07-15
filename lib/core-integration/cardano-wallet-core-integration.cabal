@@ -65,6 +65,7 @@ library
     , text-class
     , time
     , timeit
+    , vector
   hs-source-dirs:
       src
   exposed-modules:

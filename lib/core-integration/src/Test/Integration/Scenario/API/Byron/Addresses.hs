@@ -75,6 +75,9 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.Vector as Vector
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -111,7 +114,7 @@ spec = do
         --scenario_ADDRESS_IMPORT_05 @n 400 emptyRandomWalletMws
         --scenario_ADDRESS_IMPORT_05 @n 800 emptyRandomWalletMws
         --scenario_ADDRESS_IMPORT_05 @n 1600 emptyRandomWalletMws
-        scenario_ADDRESS_IMPORT_05 @n 3200 emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_05 @n 100 emptyRandomWalletMws
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -410,12 +413,22 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
     (w, mw) <- fixture ctx
 
     -- Get unused addrNum addresses
-    let addrs = map (\num -> randomAddresses @n mw !! num) [1..addrNum]
+    let addrs = map (\num -> randomAddresses @n mw !! num) [1 .. addrNum]
+    -- TODO: Write a `putRandomAddresses` binding in `Link`:
     let (_, base) = Link.postRandomAddress w
 
-    timeIt $ forM_ addrs $ \addr -> do
-        let link = base <> "/" <> encodeAddress @n addr
-        r0 <- request @() ctx ("PUT", link) Default Empty
+    timeIt $ do
+        let link = base <> "/bulk-import"
+        let payload = Aeson.Array
+                $ Vector.fromList
+                $ Aeson.String . encodeAddress @n <$> addrs
+
+        -- TODO: Remove these debugging statements:
+        putStrLn "\n*******************************"
+        B8.putStrLn $ Aeson.encode payload
+        putStrLn "\n*******************************"
+
+        r0 <- request @() ctx ("PUT", link) Default (Json payload)
         verify r0
             [ expectResponseCode @IO HTTP.status204
             ]
