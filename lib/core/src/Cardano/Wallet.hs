@@ -1085,7 +1085,7 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
     let s = getState cp
         ours = scanl' (\(_, t) addr -> isOurs addr t) (True, s) addrs
         s' = snd (last ours)
-    if all (not . fst) ours
+    if (not . any fst) ours
         then throwE ErrImportAddrDoesNotBelong
         else withExceptT ErrImportAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
