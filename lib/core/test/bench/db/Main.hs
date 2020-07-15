@@ -59,10 +59,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
     , NetworkDiscriminant (..)
+    , Passphrase (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -129,6 +134,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
 import Data.Typeable
@@ -150,8 +157,12 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
+
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 
 main :: IO ()
 main = withUtf8Encoding $ do
@@ -553,27 +564,42 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
 -- RndState Address Discovery
 
 benchPutRndState :: Int -> Int -> DBLayerBench -> IO ()
-benchPutRndState numCheckpoints numAddrs DBLayer{..} =
+benchPutRndState numCheckpoints numAddrs DBLayer{..} = undefined {-
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk)
         [ snd $ initWallet block0 dummyGenesisParameters $
             RndState
-              { hdPassphrase = payloadPassphrase key
+              { hdPassphrase = payloadPassphrase undefined -- key
               , accountIndex = minBound
               , addresses = mempty
               , pendingAddresses = mempty
               , gen = mkStdGen 0
               }
         | i <- [1..numCheckpoints]
-        ]
+        ]-}
 
 {-# NOINLINE initDummyRndState #-}
-initDummyRndState :: RndState 'Mainnet ByronKey
+initDummyRndState :: RndState 'Mainnet
 initDummyRndState = mkRndState xprv 0
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15
         <$> genEntropy @(EntropySize 15)
-    xprv = generateKeyFromSeed (mnemonic, Nothing) mempty
+    xprv = Byron.generateKeyFromSeed
+        dummyByronMnemonic
+        dummyByronEncryptionPassphrase
+
+dummyByronEncryptionPassphrase :: Passphrase "encryption"
+dummyByronEncryptionPassphrase =
+    Passphrase $ BA.convert $ BS.pack $ const 0 <$> [0 .. 63]
+
+dummyByronMnemonic :: SomeMnemonic
+dummyByronMnemonic =
+    someDummyMnemonic $ Proxy @12
+
+defaultMnemonic :: [Text]
+defaultMnemonic =
+    [ "squirrel", "material", "silly", "twice", "direct", "slush"
+    , "pistol", "razor", "become", "junk", "kingdom", "flee" ]
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests

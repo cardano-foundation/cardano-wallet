@@ -333,6 +333,7 @@ benchmark db
     , persistent-sqlite
     , random
     , temporary
+    , text
     , time
     , transformers
   type:
