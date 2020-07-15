@@ -612,8 +612,8 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 
-data ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
-    { addresses :: ![(ApiT Address, Proxy n)]
+newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
+    { addresses :: [(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 
 newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
