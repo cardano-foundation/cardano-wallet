@@ -49,6 +49,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Chain.Genesis
+    ( GenesisData (..), readGenesisData )
 import Cardano.CLI
     ( optionT )
 import Cardano.Launcher
@@ -59,6 +61,8 @@ import Cardano.Launcher.Node
     , NodePort (..)
     , withCardanoNode
     )
+import Cardano.Wallet.Byron.Compatibility
+    ( mainnetVersionData )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -89,9 +93,11 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void, (>=>) )
+    ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.Trans.Except
+    ( ExceptT, withExceptT )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Retry
@@ -125,7 +131,7 @@ import Data.Time.Clock
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, help, long, metavar, (<|>) )
+    ( Parser, flag', help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
 import Ouroboros.Consensus.Shelley.Protocol
@@ -153,6 +159,7 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 
+import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -166,22 +173,42 @@ import qualified Data.Yaml as Yaml
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 
+-- | Shelley hard fork network configuration has two genesis datas.
+-- As a special case for mainnet, we hardcode the byron genesis data.
 data NetworkConfiguration where
-    TestnetConfig
-        :: FilePath
+    -- | Mainnet does not have network discrimination.
+    MainnetConfig
+        :: (SomeNetworkDiscriminant, NodeVersionData)
+        -- ^ Byron mainnet configuration
+        -> FilePath
+        -- ^ Genesis data in JSON format, for shelley era.
         -> NetworkConfiguration
 
+    -- | Testnet has network magic.
+    TestnetConfig
+        :: FilePath
+        -- ^ Genesis data in JSON format, for byron era.
+        -> FilePath
+        -- ^ Genesis data in JSON format, for shelley era.
+        -> NetworkConfiguration
+
+    -- | Staging does not have network discrimination.
     StagingConfig
         :: FilePath
+        -- ^ Genesis data in JSON format, for byron era.
+        -> FilePath
+        -- ^ Genesis data in JSON format, for shelley era.
         -> NetworkConfiguration
 
 -- | Hand-written as there's no Show instance for 'NodeVersionData'
 instance Show NetworkConfiguration where
     show = \case
-        TestnetConfig genesisFile ->
-            "TestnetConfig " <> show genesisFile
-        StagingConfig genesisFile ->
-            "StagingConfig " <> show genesisFile
+        MainnetConfig _ shelleyGenesisFile ->
+            "MainnetConfig " <> show shelleyGenesisFile
+        TestnetConfig byronGenesisFile shelleyGenesisFile ->
+            "TestnetConfig " <> show (byronGenesisFile, shelleyGenesisFile)
+        StagingConfig byronGenesisFile shelleyGenesisFile ->
+            "StagingConfig " <> show (byronGenesisFile, shelleyGenesisFile)
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
@@ -190,20 +217,27 @@ nodeSocketOption = optionT $ mempty
     <> metavar "FILE"
     <> help "Path to the node's domain socket."
 
--- | --testnet=FILE
+-- | --mainnet --shelley-genesis=FILE
+-- --testnet --byron-genesis=FILE --shelley-genesis=FILE
+-- --staging --byron-genesis=FILE --shelley-genesis=FILE
 networkConfigurationOption :: Parser NetworkConfiguration
-networkConfigurationOption =
-    (TestnetConfig <$> customNetworkOption "testnet")
-    <|>
-    (StagingConfig <$> customNetworkOption "staging")
+networkConfigurationOption = mainnet <|> testnet <|> staging
   where
-    customNetworkOption
-        :: String
-        -> Parser FilePath
-    customNetworkOption network = optionT $ mempty
-        <> long network
+    mainnet = mainnetFlag <*> genesisFileOption "shelley"
+    testnet = testnetFlag <*> genesisFileOption "byron" <*> genesisFileOption "shelley"
+    staging = stagingFlag <*> genesisFileOption "byron" <*> genesisFileOption "shelley"
+
+    mainnetFlag = flag'
+        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
+        (long "mainnet")
+    testnetFlag = flag' TestnetConfig (long "testnet")
+    stagingFlag = flag' StagingConfig (long "staging")
+
+    genesisFileOption :: String -> Parser FilePath
+    genesisFileOption era = optionT $ mempty
+        <> long (era ++ "-genesis")
         <> metavar "FILE"
-        <> help "Path to the genesis .json file."
+        <> help ("Path to the " <> era <> " genesis data in JSON format.")
 
 someCustomDiscriminant
     :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
@@ -223,19 +257,10 @@ parseGenesisData
     -> ExceptT String IO
         (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
-    TestnetConfig genesisFile -> do
+    MainnetConfig (discriminant, vData) shelleyGenesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
-            <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+            <- ExceptT $ eitherDecode <$> BL.readFile shelleyGenesisFile
 
-        let mkSomeNetwork
-                :: forall (pm :: Nat). KnownNat pm
-                => Proxy pm
-                -> SomeNetworkDiscriminant
-            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
-
-        let nm = sgNetworkMagic genesis
-        let pm = ProtocolMagic $ fromIntegral nm
-        let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
         let (np, block0) = fromGenesisData genesis (Map.toList $ sgInitialFunds genesis)
         pure
             ( discriminant
@@ -244,9 +269,41 @@ parseGenesisData = \case
             , block0
             )
 
-    StagingConfig genesisFile -> do
+    TestnetConfig byronGenesisFile shelleyGenesisFile -> do
+        (genesisData, genesisHash) <-
+            withExceptT show $ readGenesisData byronGenesisFile
+        (shelleyGenesis :: ShelleyGenesis TPraosStandardCrypto)
+            <- ExceptT $ eitherDecode <$> BL.readFile shelleyGenesisFile
+
+        let mkSomeNetwork
+                :: forall (pm :: Nat). KnownNat pm
+                => Proxy pm
+                -> SomeNetworkDiscriminant
+            mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
+
+        let nm = sgNetworkMagic shelleyGenesis
+        let pm = ProtocolMagic $ fromIntegral nm
+        let (shelleyDiscriminant, shelleyVData) = someCustomDiscriminant mkSomeNetwork pm
+        let (np, block0) = fromGenesisData shelleyGenesis (Map.toList $ sgInitialFunds shelleyGenesis)
+
+        let byronPm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
+        let (_byronDiscriminant, _byronVData) = someCustomDiscriminant mkSomeNetwork byronPm
+        let (bnp, bouts) = Byron.fromGenesisData (genesisData, genesisHash)
+        let _bblock0 = Byron.genesisBlockFromTxOuts (genesisParameters bnp) bouts
+
+        when (byronPm /= pm) $
+            fail "Network discriminants in genesis files to not match."
+
+        pure
+            ( shelleyDiscriminant
+            , np
+            , shelleyVData
+            , block0
+            )
+
+    StagingConfig byronGenesisFile _shelleyGenesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
-            <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+            <- ExceptT $ eitherDecode <$> BL.readFile byronGenesisFile
 
         let mkSomeNetwork
                 :: forall (pm :: Nat). KnownNat pm

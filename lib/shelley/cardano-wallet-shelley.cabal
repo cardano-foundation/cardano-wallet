@@ -36,6 +36,7 @@ library
     , bech32
     , bech32-th
     , binary
+    , byron-spec-ledger
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -55,6 +56,7 @@ library
     , cryptonite
     , directory
     , exceptions
+    , extra
     , filepath
     , fmt
     , generic-lens
@@ -65,6 +67,8 @@ library
     , network-mux
     , optparse-applicative
     , ouroboros-consensus
+    , ouroboros-consensus-byron
+    , ouroboros-consensus-cardano
     , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-framework
@@ -85,6 +89,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Wallet.Byron.Compatibility
       Cardano.Wallet.Shelley
       Cardano.Wallet.Shelley.Api.Server
       Cardano.Wallet.Shelley.Compatibility

@@ -82,7 +82,7 @@ import Network.TypedProtocol.Pipelined
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Ledger.Abstract
-    ( Query (..) )
+    ( Query )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , HasHeader (..)
