@@ -50,7 +50,8 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkTip
+    ( ApiAddress
+    , ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiSelectCoinsData
@@ -170,6 +171,11 @@ instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
 --
 -- Class instances (BodyParam)
 --
+
+instance Malformed (BodyParam [ApiAddress ('Testnet 0)]) where
+    -- TODO: Actually provide a useful instance.
+    malformed = []
+
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
