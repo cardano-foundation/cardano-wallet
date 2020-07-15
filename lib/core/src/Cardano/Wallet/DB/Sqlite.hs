@@ -452,7 +452,7 @@ migrateManually tr defaultFieldValues =
     addMinimumUTxOValueIfMissing conn = do
         addColumn conn (DBField ProtocolParametersMinimumUtxoValue) value
       where
-        value = T.pack $ show $ defaultMinimumUTxOValue defaultFieldValues
+        value = T.pack $ show $ W.getCoin $ defaultMinimumUTxOValue defaultFieldValues
 
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
