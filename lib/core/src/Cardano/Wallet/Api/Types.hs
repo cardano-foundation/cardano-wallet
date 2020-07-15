@@ -1197,6 +1197,12 @@ instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => Fr
 instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance (DecodeAddress n) => FromJSON (ApiPutAddressesData n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiPutAddressesData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance DecodeAddress n => FromJSON (ApiTxInput n) where
     parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
 
