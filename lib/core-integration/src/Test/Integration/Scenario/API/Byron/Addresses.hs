@@ -20,6 +20,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
+    , ApiPutAddressesData
     , ApiT (..)
     , DecodeAddress
     , DecodeStakeAddress
@@ -40,8 +41,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Positions
     ( position )
-import System.TimeIt
-    ( timeIt )
 import Test.Hspec
     ( SpecWith, describe, shouldBe )
 import Test.Hspec.Extra
@@ -75,9 +74,6 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy.Char8 as B8
-import qualified Data.Vector as Vector
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -109,12 +105,7 @@ spec = do
         scenario_ADDRESS_IMPORT_02 @n emptyIcarusWalletMws
         scenario_ADDRESS_IMPORT_03 @n emptyRandomWalletMws
         scenario_ADDRESS_IMPORT_04 @n fixtureRandomWallet
-        --scenario_ADDRESS_IMPORT_05 @n 100 emptyRandomWalletMws
-        --scenario_ADDRESS_IMPORT_05 @n 200 emptyRandomWalletMws
-        --scenario_ADDRESS_IMPORT_05 @n 400 emptyRandomWalletMws
-        --scenario_ADDRESS_IMPORT_05 @n 800 emptyRandomWalletMws
-        --scenario_ADDRESS_IMPORT_05 @n 1600 emptyRandomWalletMws
-        scenario_ADDRESS_IMPORT_05 @n 100 emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_05 @n 15000 emptyRandomWalletMws
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -415,17 +406,16 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
     -- Get unused addrNum addresses
     let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
                 [1 .. addrNum]
-    let (_, base) = Link.putRandomAddresses w
+    let ep = Link.putRandomAddresses w
+    let payload =
+            Json [json|
+                { addresses: #{addrs}
+                }|]
 
-    timeIt $ do
-        let link = base <> "/"
-        let payload = Aeson.Array
-                $ Vector.fromList
-                $ Aeson.String <$> addrs
-        r0 <- request @() ctx ("PUT", link) Default (Json payload)
-        verify r0
-            [ expectResponseCode @IO HTTP.status204
-            ]
+    r0 <- request @(ApiPutAddressesData n) ctx ep Default payload
+    verify r0
+        [ expectResponseCode @IO HTTP.status204
+        ]
 
     r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r1
