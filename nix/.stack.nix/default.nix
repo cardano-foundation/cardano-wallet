@@ -87,6 +87,7 @@
         byron-spec-chain = ./byron-spec-chain.nix;
         byron-spec-ledger = ./byron-spec-ledger.nix;
         small-steps = ./small-steps.nix;
+        small-steps-test = ./small-steps-test.nix;
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
@@ -96,7 +97,6 @@
         cardano-node = ./cardano-node.nix;
         cardano-prelude = ./cardano-prelude.nix;
         cardano-prelude-test = ./cardano-prelude-test.nix;
-        cardano-shell = ./cardano-shell.nix;
         cardano-sl-x509 = ./cardano-sl-x509.nix;
         goblins = ./goblins.nix;
         contra-tracer = ./contra-tracer.nix;

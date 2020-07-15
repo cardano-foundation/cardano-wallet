@@ -52,8 +52,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "1361bb92814c65e5964732777fc7f8ec9ebdccfe";
-      sha256 = "1znl9zzw5hswcd09zcvmgq50ppp46nbzjmw67wm4wpnw5lhnlwfy";
+      rev = "1c8924b856baf809f193798ff686cdb2c0ed25d2";
+      sha256 = "1ird981gi7wbj21g8d65jqv4q4iwch2akky4r8pf8r2w3b3767pv";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-byronspec; echo source root reset to \$sourceRoot";
     }
