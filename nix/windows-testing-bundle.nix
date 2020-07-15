@@ -13,6 +13,7 @@
 , cardano-wallet-byron
 , cardano-wallet-shelley
 , cardano-node
+, cardano-cli
 , tests ? []
 , benchmarks ? []
 }:
@@ -44,7 +45,7 @@ in pkgs.runCommand name {
   cd jm
 
   # Copy in wallet and node EXEs and DLLs.
-  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-byron} ${cardano-wallet-shelley}; do
+  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-byron} ${cardano-wallet-shelley} ${cardano-cli}; do
     cp -vf $pkg/bin/* .
   done
 

@@ -237,6 +237,7 @@ let
       cardano-wallet-byron = winJobs.cardano-wallet-byron.x86_64-linux;
       cardano-wallet-shelley = winJobs.cardano-wallet-shelley.x86_64-linux;
       cardano-node = winJobs.cardano-node.x86_64-linux;
+      cardano-cli = winJobs.cardano-cli.x86_64-linux;
       tests = collectTests winJobs.tests;
       benchmarks = collectTests winJobs.benchmarks;
     };
