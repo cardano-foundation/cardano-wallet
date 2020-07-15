@@ -495,7 +495,6 @@ type PutByronAddress n = "byron-wallets"
 type PutByronAddresses n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
-    :> "bulk-import"
     :> ReqBody '[JSON] (ApiPutAddressesDataT n)
     :> PutNoContent
 

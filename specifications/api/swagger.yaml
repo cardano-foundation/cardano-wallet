@@ -2374,23 +2374,6 @@ paths:
           - *parametersAddressState
         responses: *responsesListAddresses
 
-  /byron-wallets/{walletId}/addresses/{addressId}:
-      put:
-        operationId: importAddress
-        tags: ["Byron Addresses"]
-        summary: Import Address
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressId
-        responses: *responsesPutRandomAddress
-
-  /byron-wallets/{walletId}/addresses/bulk-import:
       put:
         operationId: importAddresses
         tags: ["Byron Addresses"]
@@ -2409,6 +2392,22 @@ paths:
             application/json:
               schema: *ApiPutAddressesData
         responses: *responsesPutRandomAddresses
+
+  /byron-wallets/{walletId}/addresses/{addressId}:
+      put:
+        operationId: importAddress
+        tags: ["Byron Addresses"]
+        summary: Import Address
+        description: |
+          <p align="right">status: <strong>stable</strong></p>
+
+          ⚠️  This endpoint is available for `random` wallets only. Any
+          attempt to call this endpoint on another type of wallet will result in
+          a `403 Forbidden` error from the server.
+        parameters:
+          - *parametersWalletId
+          - *parametersAddressId
+        responses: *responsesPutRandomAddress
 
   /byron-wallets/{walletId}/payment-fees:
     post:
