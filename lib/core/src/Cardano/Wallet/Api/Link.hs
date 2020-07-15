@@ -50,6 +50,7 @@ module Cardano.Wallet.Api.Link
 
       -- * Addresses
     , postRandomAddress
+    , putRandomAddresses
     , listAddresses
     , listAddresses'
 
@@ -263,6 +264,17 @@ postRandomAddress
     -> (Method, Text)
 postRandomAddress w =
     endpoint @(Api.PostByronAddress Net) (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+putRandomAddresses
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+putRandomAddresses w =
+    endpoint @(Api.PutByronAddresses Net) (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

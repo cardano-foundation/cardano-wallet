@@ -231,6 +231,7 @@ server byron icarus jormungandr spl ntp =
              (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
 
     byronCoinSelections :: Server (CoinSelections n)
     byronCoinSelections _ _ = throwError err501

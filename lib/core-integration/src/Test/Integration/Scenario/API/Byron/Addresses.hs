@@ -414,8 +414,7 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
 
     -- Get unused addrNum addresses
     let addrs = map (\num -> randomAddresses @n mw !! num) [1 .. addrNum]
-    -- TODO: Write a `putRandomAddresses` binding in `Link`:
-    let (_, base) = Link.postRandomAddress w
+    let (_, base) = Link.putRandomAddresses w
 
     timeIt $ do
         let link = base <> "/bulk-import"
