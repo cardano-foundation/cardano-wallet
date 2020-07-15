@@ -114,6 +114,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostRandomAddressData
+    , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
     , ApiT
     , ApiTransactionT
@@ -494,7 +495,7 @@ type PutByronAddresses n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> "bulk-import"
-    :> ReqBody '[JSON] [ApiAddressT n]
+    :> ReqBody '[JSON] (ApiPutAddressesDataT n)
     :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAddresses

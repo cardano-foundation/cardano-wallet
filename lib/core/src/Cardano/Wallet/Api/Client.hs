@@ -67,6 +67,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostRandomAddressData
+    , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
     , ApiT (..)
     , ApiTransactionT
@@ -180,7 +181,7 @@ data AddressClient = AddressClient
         -> ClientM NoContent
     , putRandomAddresses
         :: ApiT WalletId
-        -> [ApiAddressT Aeson.Value]
+        -> ApiPutAddressesDataT Aeson.Value
         -> ClientM NoContent
     }
 
@@ -385,3 +386,4 @@ type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
 type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance PostTransactionDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
+type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value

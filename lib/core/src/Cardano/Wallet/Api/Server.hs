@@ -166,6 +166,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkTip (..)
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
+    , ApiPutAddressesData (..)
     , ApiSelectCoinsData (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -1096,14 +1097,14 @@ putRandomAddresses
         )
     => ctx
     -> ApiT WalletId
-    -> [ApiAddress n]
+    -> ApiPutAddressesData n
     -> Handler NoContent
-putRandomAddresses ctx (ApiT wid) addrs  = do
+putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
     withWorkerCtx ctx wid liftE liftE
         $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
     pure NoContent
   where
-    addrs' = map (getApiT . fst . view #id) addrs
+    addrs' = map (getApiT . fst) addrs
 
 listAddresses
     :: forall ctx s t k n.

@@ -413,20 +413,15 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
     (w, mw) <- fixture ctx
 
     -- Get unused addrNum addresses
-    let addrs = map (\num -> randomAddresses @n mw !! num) [1 .. addrNum]
+    let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
+                [1 .. addrNum]
     let (_, base) = Link.putRandomAddresses w
 
     timeIt $ do
-        let link = base <> "/bulk-import"
+        let link = base <> "/"
         let payload = Aeson.Array
                 $ Vector.fromList
-                $ Aeson.String . encodeAddress @n <$> addrs
-
-        -- TODO: Remove these debugging statements:
-        putStrLn "\n*******************************"
-        B8.putStrLn $ Aeson.encode payload
-        putStrLn "\n*******************************"
-
+                $ Aeson.String <$> addrs
         r0 <- request @() ctx ("PUT", link) Default (Json payload)
         verify r0
             [ expectResponseCode @IO HTTP.status204

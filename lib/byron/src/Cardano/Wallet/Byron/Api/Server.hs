@@ -222,8 +222,8 @@ server byron icarus ntp =
                 (byron, putRandomAddress byron wid addr)
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
-        :<|> (\wid s -> withLegacyLayer wid
-                (byron, putRandomAddresses byron wid s)
+        :<|> (\wid addrs -> withLegacyLayer wid
+                (byron, putRandomAddresses byron wid addrs)
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
         :<|> (\wid s -> withLegacyLayer wid

@@ -94,6 +94,7 @@ module Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiWalletDiscovery (..)
     , KnownDiscovery(..)
+    , ApiPutAddressesData (..)
 
     -- * API Types (Hardware)
     , AccountPostData (..)
@@ -112,6 +113,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Type families
     , ApiAddressT
+    , ApiPutAddressesDataT
     , ApiAddressIdT
     , ApiCoinSelectionT
     , ApiSelectCoinsDataT
@@ -608,6 +610,10 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
     , addresses :: ![(ApiT Address, Proxy n)]
+    } deriving (Eq, Generic, Show)
+
+data ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
+    { addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 
 newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
@@ -1498,9 +1504,13 @@ type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: *
+type family ApiPutAddressesDataT (n :: k) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
+
+type instance ApiPutAddressesDataT (n :: NetworkDiscriminant) =
+    ApiPutAddressesData n
 
 type instance ApiAddressIdT (n :: NetworkDiscriminant) =
     (ApiT Address, Proxy n)
