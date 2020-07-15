@@ -491,6 +491,7 @@ type PutByronAddress n = "byron-wallets"
     :> Capture "addressId" (ApiAddressIdT n)
     :> PutNoContent
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/importAddresses
 type PutByronAddresses n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"

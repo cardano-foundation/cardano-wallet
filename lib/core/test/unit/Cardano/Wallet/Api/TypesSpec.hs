@@ -56,6 +56,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkTip (..)
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
+    , ApiPutAddressesData (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -299,6 +300,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
@@ -715,6 +717,13 @@ spec = do
                     , outputs = outputs (x :: ApiTransaction ('Testnet 0))
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiPutAddressesData" $ property $ \x ->
+            let
+                x' = ApiPutAddressesData
+                    { addresses = addresses (x :: ApiPutAddressesData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1219,6 +1228,12 @@ instance Arbitrary (PostTransactionData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary (ApiPutAddressesData t) where
+    arbitrary = do
+        n <- choose (1,255)
+        addrs <- vector n
+        pure $ ApiPutAddressesData ((, Proxy @t) <$> addrs)
+
 instance Arbitrary (PostTransactionFeeData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1378,6 +1393,9 @@ specification =
 
 instance ToSchema (ApiAddress t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+
+instance ToSchema (ApiPutAddressesData t) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
 instance ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
