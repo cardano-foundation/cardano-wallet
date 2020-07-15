@@ -53,6 +53,7 @@ import Cardano.Wallet.Api.Types
     ( ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
+    , ApiPutAddressesData
     , ApiSelectCoinsData
     , ApiT (..)
     , ApiTxId
@@ -170,6 +171,7 @@ instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
 --
 -- Class instances (BodyParam)
 --
+
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
@@ -919,6 +921,17 @@ instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "raw")) 
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
+instance Malformed (BodyParam (ApiPutAddressesData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> putAddressesDataCases
+
 instance Malformed (BodyParam ApiNetworkTip) where
     malformed = jsonValid ++ jsonInvalid
      where
@@ -1352,5 +1365,25 @@ migrateDataCases =
         , "addresses": [ #{addrPlaceholder} ]
         }|]
       , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+      )
+    ]
+
+putAddressesDataCases :: [(Aeson.Value, ExpectedError)]
+putAddressesDataCases =
+    [
+      ( [aesonQQ|
+        { "addresses": "not_a_array"
+        }|]
+      , "Error in $.addresses: parsing [] failed, expected Array, but encountered String"
+      )
+    , ( [aesonQQ|
+        { "addresses": 1
+        }|]
+      , "Error in $.addresses: parsing [] failed, expected Array, but encountered Number"
+      )
+    , ( [aesonQQ|
+        {
+        }|]
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, key 'addresses' not found"
       )
     ]

@@ -20,6 +20,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
+    , ApiPutAddressesData
     , ApiT (..)
     , DecodeAddress
     , DecodeStakeAddress
@@ -104,6 +105,7 @@ spec = do
         scenario_ADDRESS_IMPORT_02 @n emptyIcarusWalletMws
         scenario_ADDRESS_IMPORT_03 @n emptyRandomWalletMws
         scenario_ADDRESS_IMPORT_04 @n fixtureRandomWallet
+        scenario_ADDRESS_IMPORT_05 @n 15000 emptyRandomWalletMws
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -388,3 +390,36 @@ scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> do
     verify r2 [ expectListField 0 id (`shouldBe` addr) ]
   where
     title = "ADDRESS_IMPORT_04 - I can import a used address (idempotence)"
+
+scenario_ADDRESS_IMPORT_05
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => Int
+    -> (Context t -> IO (ApiByronWallet, Mnemonic 12))
+    -> SpecWith (Context t)
+scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
+    (w, mw) <- fixture ctx
+
+    -- Get unused addrNum addresses
+    let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
+                [1 .. addrNum]
+    let ep = Link.putRandomAddresses w
+    let payload =
+            Json [json|
+                { addresses: #{addrs}
+                }|]
+
+    r0 <- request @(ApiPutAddressesData n) ctx ep Default payload
+    verify r0
+        [ expectResponseCode @IO HTTP.status204
+        ]
+
+    r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    verify r1
+        [ expectListSize addrNum
+        ]
+  where
+    title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <>" of addresses"

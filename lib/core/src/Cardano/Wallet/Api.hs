@@ -64,6 +64,8 @@ module Cardano.Wallet.Api
 
     , ByronAddresses
         , PostByronAddress
+        , PutByronAddress
+        , PutByronAddresses
         , ListByronAddresses
 
     , ByronCoinSelections
@@ -112,6 +114,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostRandomAddressData
+    , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
     , ApiT
     , ApiTransactionT
@@ -471,6 +474,7 @@ type PutByronWalletPassphrase = "byron-wallets"
 type ByronAddresses n =
     PostByronAddress n
     :<|> PutByronAddress n
+    :<|> PutByronAddresses n
     :<|> ListByronAddresses n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createAddress
@@ -485,6 +489,13 @@ type PutByronAddress n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> Capture "addressId" (ApiAddressIdT n)
+    :> PutNoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/importAddresses
+type PutByronAddresses n = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
+    :> ReqBody '[JSON] (ApiPutAddressesDataT n)
     :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAddresses

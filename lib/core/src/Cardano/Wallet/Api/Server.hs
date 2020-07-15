@@ -68,6 +68,7 @@ module Cardano.Wallet.Api.Server
     , postAccountWallet
     , putByronWalletPassphrase
     , putRandomAddress
+    , putRandomAddresses
     , putWallet
     , putWalletPassphrase
     , quitStakePool
@@ -165,6 +166,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkTip (..)
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
+    , ApiPutAddressesData (..)
     , ApiSelectCoinsData (..)
     , ApiT (..)
     , ApiTimeReference (..)
@@ -1084,8 +1086,25 @@ putRandomAddress
     -> Handler NoContent
 putRandomAddress ctx (ApiT wid) (ApiT addr, _proxy)  = do
     withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.importRandomAddress @_ @s @k wrk wid addr
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid [addr]
     pure NoContent
+
+putRandomAddresses
+    :: forall ctx s t k n.
+        ( s ~ RndState n
+        , k ~ ByronKey
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiPutAddressesData n
+    -> Handler NoContent
+putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
+    withWorkerCtx ctx wid liftE liftE
+        $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
+    pure NoContent
+  where
+    addrs' = map (getApiT . fst) addrs
 
 listAddresses
     :: forall ctx s t k n.

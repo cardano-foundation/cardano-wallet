@@ -67,6 +67,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostRandomAddressData
+    , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
     , ApiT (..)
     , ApiTransactionT
@@ -177,6 +178,10 @@ data AddressClient = AddressClient
     , putRandomAddress
         :: ApiT WalletId
         -> ApiAddressIdT Aeson.Value
+        -> ClientM NoContent
+    , putRandomAddresses
+        :: ApiT WalletId
+        -> ApiPutAddressesDataT Aeson.Value
         -> ClientM NoContent
     }
 
@@ -315,6 +320,7 @@ addressClient =
             { listAddresses = _listAddresses
             , postRandomAddress = \_ _ -> fail "feature unavailable."
             , putRandomAddress  = \_ _ -> fail "feature unavailable."
+            , putRandomAddresses = \_ _ -> fail "feature unavailable."
             }
 
 
@@ -325,6 +331,7 @@ byronAddressClient =
     let
         _postRandomAddress
             :<|> _putRandomAddress
+            :<|> _putRandomAddresses
             :<|> _listAddresses
             = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
     in
@@ -332,6 +339,7 @@ byronAddressClient =
             { listAddresses = _listAddresses
             , postRandomAddress = _postRandomAddress
             , putRandomAddress = _putRandomAddress
+            , putRandomAddresses = _putRandomAddresses
             }
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API
@@ -378,3 +386,4 @@ type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
 type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance PostTransactionDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
+type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
