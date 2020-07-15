@@ -32,27 +32,24 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
+          (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
-          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-          (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
-          (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          ] ++ (pkgs.lib).optionals (system.isWindows) [
-          (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-          (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
-          ];
+          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
         buildable = true;
         };
       exes = {
@@ -63,14 +60,14 @@
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
             (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
             (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
             ] ++ (pkgs.lib).optionals (system.isWindows) [
@@ -85,26 +82,26 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
-            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
-            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
-            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
             (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
             ] ++ (pkgs.lib).optionals (system.isWindows) [
             (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
             (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
@@ -116,8 +113,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "1361bb92814c65e5964732777fc7f8ec9ebdccfe";
-      sha256 = "1znl9zzw5hswcd09zcvmgq50ppp46nbzjmw67wm4wpnw5lhnlwfy";
+      rev = "1c8924b856baf809f193798ff686cdb2c0ed25d2";
+      sha256 = "1ird981gi7wbj21g8d65jqv4q4iwch2akky4r8pf8r2w3b3767pv";
       });
     postUnpack = "sourceRoot+=/ouroboros-network-framework; echo source root reset to \$sourceRoot";
     }

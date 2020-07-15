@@ -11,7 +11,7 @@
     flags = { unexpected_thunks = false; systemd = true; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-node"; version = "1.15.0"; };
+      identifier = { name = "cardano-node"; version = "1.16.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -33,10 +33,10 @@
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
+          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-shell" or (errorHandler.buildDepError "cardano-shell"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
@@ -112,7 +112,6 @@
             (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
             (hsPkgs."cardano-node" or (errorHandler.buildDepError "cardano-node"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-            (hsPkgs."cardano-shell" or (errorHandler.buildDepError "cardano-shell"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ] ++ (if system.isWindows
@@ -128,6 +127,7 @@
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
+            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
@@ -181,8 +181,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "97b3e95c67940608f5acda929cf861e8ebfeddd1";
-      sha256 = "1b50lv1lmc3qb5i4x9jry1nq88hqwavk857c1wp7v9666pq4nb9a";
+      rev = "e28c1d37832af9c4ec50bb5c64aa83c37dc4aa89";
+      sha256 = "0pyfbc8iwyanj9s74b9iqh4h23if94akg4rx7g6ndzsq35jwk2n5";
       });
     postUnpack = "sourceRoot+=/cardano-node; echo source root reset to \$sourceRoot";
     }

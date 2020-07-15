@@ -39,9 +39,11 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."fgl" or (errorHandler.buildDepError "fgl"))
+          (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
           (hsPkgs."graphviz" or (errorHandler.buildDepError "graphviz"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
@@ -51,12 +53,15 @@
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+          (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
           (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
           (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+          (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."tree-diff" or (errorHandler.buildDepError "tree-diff"))
+          (hsPkgs."utf8-string" or (errorHandler.buildDepError "utf8-string"))
           (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
           (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
           (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
@@ -83,8 +88,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "1361bb92814c65e5964732777fc7f8ec9ebdccfe";
-      sha256 = "1znl9zzw5hswcd09zcvmgq50ppp46nbzjmw67wm4wpnw5lhnlwfy";
+      rev = "1c8924b856baf809f193798ff686cdb2c0ed25d2";
+      sha256 = "1ird981gi7wbj21g8d65jqv4q4iwch2akky4r8pf8r2w3b3767pv";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus/ouroboros-consensus-test-infra; echo source root reset to \$sourceRoot";
     }

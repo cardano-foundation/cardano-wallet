@@ -39,7 +39,6 @@
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-shell" or (errorHandler.buildDepError "cardano-shell"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -82,8 +81,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "97b3e95c67940608f5acda929cf861e8ebfeddd1";
-      sha256 = "1b50lv1lmc3qb5i4x9jry1nq88hqwavk857c1wp7v9666pq4nb9a";
+      rev = "e28c1d37832af9c4ec50bb5c64aa83c37dc4aa89";
+      sha256 = "0pyfbc8iwyanj9s74b9iqh4h23if94akg4rx7g6ndzsq35jwk2n5";
       });
     postUnpack = "sourceRoot+=/cardano-config; echo source root reset to \$sourceRoot";
     }

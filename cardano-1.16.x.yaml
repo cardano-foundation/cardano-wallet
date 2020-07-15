@@ -54,7 +54,7 @@ packages:
 - word-wrap-0.4.1
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 5e0b8bc8c7862be12da6989440f8644ba7c1e1cf
+  commit: 7d795c3040ea7785812efa1c97864bbb41b15d3e
   subdirs:
   - binary
   - binary/test
@@ -66,7 +66,7 @@ packages:
   commit: 2547ad1e80aeabca2899951601079408becbc92c
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: 12b13f390d64df6af6054b0d33bb3767756da041
+  commit: 550a70b9ff83c9e9ddbcb7f7b49ee93161bb29ed
   subdirs:
   - byron/ledger/impl
   - byron/crypto
@@ -75,12 +75,13 @@ packages:
   - byron/chain/executable-spec
   - byron/ledger/executable-spec
   - semantics/executable-spec
+  - semantics/small-steps-test
   - shelley/chain-and-ledger/dependencies/non-integer
   - shelley/chain-and-ledger/executable-spec
   - shelley/chain-and-ledger/executable-spec/test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 97b3e95c67940608f5acda929cf861e8ebfeddd1
+  commit: e28c1d37832af9c4ec50bb5c64aa83c37dc4aa89
   subdirs:
   - cardano-api
   - cardano-cli
@@ -92,11 +93,6 @@ packages:
   subdirs:
   - .
   - test
-
-- git: https://github.com/input-output-hk/cardano-shell
-  commit: 5257fc818ef7df60986834310432e197aac90711
-  subdirs:
-  - cardano-shell
 
 - git: https://github.com/input-output-hk/cardano-sl-x509
   commit: 43a036c5bbe68ca2e9cbe611eab7982e2348fe49
@@ -117,7 +113,7 @@ packages:
   - plugins/backend-trace-forwarder
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: 1361bb92814c65e5964732777fc7f8ec9ebdccfe
+  commit: 1c8924b856baf809f193798ff686cdb2c0ed25d2
   subdirs:
   - io-sim
   - io-sim-classes

@@ -56,6 +56,7 @@
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
+          (hsPkgs."small-steps-test" or (errorHandler.buildDepError "small-steps-test"))
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
           (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
@@ -70,8 +71,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "12b13f390d64df6af6054b0d33bb3767756da041";
-      sha256 = "0v9zj73sz984xpg0azckfpibkllribbzksg18isx2m7w58bya77m";
+      rev = "550a70b9ff83c9e9ddbcb7f7b49ee93161bb29ed";
+      sha256 = "0qxlgknnys2iv8yxfyxbd32i6fbj3fp12a6smpypwqn662n5ybx5";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec/test; echo source root reset to \$sourceRoot";
     }
