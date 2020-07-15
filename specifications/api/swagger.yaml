@@ -908,6 +908,16 @@ components:
         estimated_min: *transactionAmount
         estimated_max: *transactionAmount
 
+    ApiPutAddressesData: &ApiPutAddressesData
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          type: array
+          minItems: 1
+          items: *ApiAddress
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -1818,6 +1828,13 @@ x-responsesPutRandomAddress: &responsesPutRandomAddress
   204:
     description: No Content
 
+x-responsesPutRandomAddresses: &responsesPutRandomAddresses
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  204:
+    description: No Content
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -2373,6 +2390,27 @@ paths:
           - *parametersWalletId
           - *parametersAddressId
         responses: *responsesPutRandomAddress
+
+  /byron-wallets/{walletId}/addresses/bulk-import:
+    put:
+      operationId: importAddresses
+      tags: ["Byron Addresses"]
+      summary: Import Addresses
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        ⚠️  This endpoint is available for `random` wallets only. Any
+        attempt to call this endpoint on another type of wallet will result in
+        a `403 Forbidden` error from the server.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPutAddressesData
+      responses: *responsesPutRandomAddresses
+
 
   /byron-wallets/{walletId}/payment-fees:
     post:
