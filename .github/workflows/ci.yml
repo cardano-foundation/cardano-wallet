@@ -26,9 +26,8 @@ jobs:
         run: '.\\cardano-wallet-core-test-unit.exe --color'
       - name: 'cardano-wallet-byron:unit'
         run: '.\\cardano-wallet-byron-test-unit.exe --color'
-      - name: 'cardano-wallet-byron:integration'
-        run: '.\\cardano-wallet-byron-test-integration.exe --color'
-        timeout-minutes: 60
+      - name: 'cardano-wallet-shelley:unit'
+        run: '.\\cardano-wallet-shelley-test-unit.exe --color'
       - name: 'cardano-wallet-cli:unit'
         run: '.\\cardano-wallet-cli-test-unit.exe --color'
       - name: 'text-class:unit'
@@ -36,6 +35,12 @@ jobs:
       - name: 'cardano-wallet-launcher:unit'
         run: '.\\cardano-wallet-launcher-test-unit.exe --color'
         continue-on-error: true
+      - name: 'cardano-wallet-shelley:integration'
+        run: '.\\cardano-wallet-shelley-test-integration.exe --color'
+        timeout-minutes: 60
+      - name: 'cardano-wallet-byron:integration'
+        run: '.\\cardano-wallet-byron-test-integration.exe --color'
+        timeout-minutes: 60
       - name: 'cardano-wallet-jormungandr:unit'
         run: '.\\cardano-wallet-jormungandr-test-unit.exe --color'
       - name: 'cardano-wallet-jormungandr:integration'
