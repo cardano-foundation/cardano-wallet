@@ -253,9 +253,11 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochStartTime
     , epochSucc
+    , firstSlotInEpoch
     , slotAt'
     , slotMinBound
     , slotParams
+    , startTime
     , toSlotId
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -629,6 +631,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         -- never fails - returns zero if balance not found
         liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
 
+
+    apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
     tip' <- liftIO $ getWalletTip ti cp
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
@@ -637,7 +641,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ reward + totalBalance pending cp
             , reward = Quantity reward
             }
-        , delegation = toApiWalletDelegation (meta ^. #delegation)
+        , delegation = apiDelegation
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
         , passphrase = ApiWalletPassphraseInfo
@@ -648,32 +652,33 @@ mkShelleyWallet ctx wid cp meta pending progress = do
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
-    (_, NetworkParameters gp _, _) = ctx ^. genesisData
-    sp = slotParams gp
 
-    toApiWalletDelegation W.WalletDelegation{active,next} =
-        ApiWalletDelegation
+    toApiWalletDelegation W.WalletDelegation{active,next} = do
+        apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
+            info <- toApiEpochInfo changesAt
+            return $ toApiWalletDelegationNext (Just info) status
+
+        return $ ApiWalletDelegation
             { active = toApiWalletDelegationNext Nothing active
-            , next = flip map next $ \W.WalletDelegationNext{status,changesAt} ->
-                toApiWalletDelegationNext (Just changesAt) status
+            , next = apiNext
             }
 
-    toApiWalletDelegationNext mepoch = \case
+    toApiWalletDelegationNext mepochInfo = \case
         W.Delegating pid -> ApiWalletDelegationNext
             { status = Delegating
             , target = Just (ApiT pid)
-            , changesAt = toApiEpochInfo <$> mepoch
+            , changesAt = mepochInfo
             }
 
         W.NotDelegating -> ApiWalletDelegationNext
             { status = NotDelegating
             , target = Nothing
-            , changesAt = toApiEpochInfo <$> mepoch
+            , changesAt = mepochInfo
             }
 
-    toApiEpochInfo ep =
-        -- TODO(ADP-356): We need to stop using this function.
-        ApiEpochInfo (ApiT ep) (epochStartTime sp ep)
+    toApiEpochInfo ep = do
+        time <- ti (firstSlotInEpoch ep >>= startTime)
+        return $ ApiEpochInfo (ApiT ep) time
 
 --------------------- Legacy
 
