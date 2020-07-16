@@ -550,8 +550,7 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
             (isNothing res)
 
 prop_getTxAfterPutInvalidWalletId
-    :: GenState s
-    => DBLayer IO s JormungandrKey
+    :: DBLayer IO s JormungandrKey
     -> ( PrimaryKey WalletId
        , Wallet s
        , WalletMetadata
