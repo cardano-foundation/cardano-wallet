@@ -1158,6 +1158,10 @@ selectCoinsForPayment
 selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
+
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardSelect minUtxo recipients
+
     selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
@@ -2169,6 +2173,17 @@ guardQuit WalletDelegation{active,next} rewards = do
         Left $ ErrNonNullRewards rewards
   where
     anyone = const True
+
+guardSelect
+    :: Coin
+    -> NonEmpty TxOut
+    -> Either ErrTxOutTooSmall ()
+guardSelect minUtxoValue txouts = do
+    let invalidTxOuts =
+            filter (\(TxOut _ out) -> out < minUtxoValue) $ NE.toList txouts
+    let getVals = map (\(TxOut _ (Coin c)) -> c)
+    unless (L.null invalidTxOuts) $
+        Left (ErrTxOutTooSmall (getCoin minUtxoValue) (getVals invalidTxOuts) )
 
 {-------------------------------------------------------------------------------
                                     Logging

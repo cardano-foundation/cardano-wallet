@@ -2023,8 +2023,8 @@ instance LiftHandler ErrTxOutTooSmall where
         ErrTxOutTooSmall minUtxoValue invalidOutputs ->
             apiError err403 OutputsTooSmall $ mconcat
                 [ "I'm unable to construct the given transaction as "
-                , "outputs are too small! In order to do so, try selecting "
-                , "outputs not less than ", showT minUtxoValue, " Lovelace."
+                , "output(s) are too small! In order to do so, try selecting "
+                , "output(s) not less than ", showT minUtxoValue, " Lovelace."
                 , "In the current transaction the following outputs are not "
                 , "satisfying this condition : ", showT invalidOutputs, " ."
                 ]
