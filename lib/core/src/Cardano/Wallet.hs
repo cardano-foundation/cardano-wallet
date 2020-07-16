@@ -2169,12 +2169,12 @@ withNoSuchWallet wid =
     maybeToExceptT (ErrNoSuchWallet wid) . MaybeT
 
 data PoolRetirementEpochInfo = PoolRetirementEpochInfo
-    { retirementEpoch
-        :: W.EpochNo
-        -- ^ The retirement epoch of a pool.
-    , currentEpoch
+    { currentEpoch
         :: W.EpochNo
         -- ^ The current epoch.
+    , retirementEpoch
+        :: W.EpochNo
+        -- ^ The retirement epoch of a pool.
     }
     deriving (Eq, Generic, Show)
 
