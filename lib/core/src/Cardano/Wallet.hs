@@ -1158,11 +1158,10 @@ selectCoinsForPayment
 selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-
+    cs <- selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
-        guardSelect minUtxo recipients
-
-    selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+        guardCoinSelection minUtxo cs
+    pure cs
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1332,12 +1331,13 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
-        guardSelect minUtxo recipients
-
-    let selectCoins =
+    selectCoins <-
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
-    estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
+
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardCoinSelection minUtxo selectCoins
+
+    estimateFeeForCoinSelection $ (Fee . feeBalance <$> pure selectCoins)
         `catchE` handleCannotCover utxo recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
@@ -2178,13 +2178,13 @@ guardQuit WalletDelegation{active,next} rewards = do
   where
     anyone = const True
 
-guardSelect
+guardCoinSelection
     :: Coin
-    -> NonEmpty TxOut
+    -> CoinSelection
     -> Either ErrTxOutTooSmall ()
-guardSelect minUtxoValue txouts = do
+guardCoinSelection minUtxoValue CoinSelection{outputs} = do
     let invalidTxOuts =
-            filter (\(TxOut _ out) -> out < minUtxoValue) $ NE.toList txouts
+            filter (\(TxOut _ out) -> out < minUtxoValue) outputs
     let getVals = map (\(TxOut _ (Coin c)) -> c)
     unless (L.null invalidTxOuts) $
         Left (ErrTxOutTooSmall (getCoin minUtxoValue) (getVals invalidTxOuts) )
