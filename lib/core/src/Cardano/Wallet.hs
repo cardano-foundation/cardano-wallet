@@ -2182,12 +2182,12 @@ guardCoinSelection
     :: Coin
     -> CoinSelection
     -> Either ErrTxOutTooSmall ()
-guardCoinSelection minUtxoValue CoinSelection{outputs} = do
+guardCoinSelection minUtxoValue CoinSelection{outputs, change} = do
+    let outputCoins = map (\(TxOut _ c) -> c) outputs
     let invalidTxOuts =
-            filter (\(TxOut _ out) -> out < minUtxoValue) outputs
-    let getVals = map (\(TxOut _ (Coin c)) -> c)
+            filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
-        Left (ErrTxOutTooSmall (getCoin minUtxoValue) (getVals invalidTxOuts) )
+        Left (ErrTxOutTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts) )
 
 {-------------------------------------------------------------------------------
                                     Logging
