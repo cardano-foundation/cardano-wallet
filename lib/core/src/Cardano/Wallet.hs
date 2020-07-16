@@ -1331,6 +1331,10 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
+
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardSelect minUtxo recipients
+
     let selectCoins =
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
