@@ -1743,12 +1743,13 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         )
     => ctx
+    -> [PoolId]
+    -> PoolId
     -> WalletId
-    -> (PoolId, [PoolId])
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
+joinStakePool ctx pools pid wid argGenChange pwd = db & \DBLayer{..} -> do
     (isKeyReg, walMeta) <- mapExceptT atomically
         $ withExceptT ErrJoinStakePoolNoSuchWallet
         $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)

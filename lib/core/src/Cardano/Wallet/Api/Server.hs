@@ -1334,7 +1334,7 @@ joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
         \wrk -> liftHandler $
             W.joinStakePool
-                @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
+                @_ @s @t @k wrk pools pid wid (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti
