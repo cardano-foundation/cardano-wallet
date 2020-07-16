@@ -1324,19 +1324,22 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx knownPools _getPoolStatus apiPoolId (ApiT wid) body = do
+joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     pid <- case apiPoolId of
         ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
 
+    poolStatus <- liftIO (getPoolStatus pid)
+
     pools <- liftIO knownPools
 
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
         \wrk -> liftHandler $
             W.joinStakePool
-                @_ @s @t @k wrk pools pid wid (delegationAddress @n) pwd
+                @_ @s @t @k wrk
+                pools pid poolStatus wid (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti

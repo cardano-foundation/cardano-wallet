@@ -278,6 +278,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId (..)
+    , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
     , SealedTx
@@ -1745,36 +1746,39 @@ joinStakePool
     => ctx
     -> [PoolId]
     -> PoolId
+    -> PoolLifeCycleStatus
     -> WalletId
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx knownPools pid wid argGenChange pwd = db & \DBLayer{..} -> do
-    (isKeyReg, walMeta) <- mapExceptT atomically
-        $ withExceptT ErrJoinStakePoolNoSuchWallet
-        $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
-              <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
+joinStakePool ctx knownPools pid _poolStatus wid argGenChange pwd =
+    db & \DBLayer{..} -> do
 
-    -- TODO: Replace this with actual retirement information:
-    let retirementInfo = Nothing
-    withExceptT ErrJoinStakePoolCannotJoin $ except $
-        guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
+        (isKeyReg, walMeta) <- mapExceptT atomically
+            $ withExceptT ErrJoinStakePoolNoSuchWallet
+            $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
+                  <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
-    let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
-    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+        -- TODO: Replace this with actual retirement information:
+        let retirementInfo = Nothing
+        withExceptT ErrJoinStakePoolCannotJoin $ except $
+            guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
 
-    selection <- withExceptT ErrJoinStakePoolSelectCoin $
-        selectCoinsForDelegation @ctx @s @t @k ctx wid action
+        let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
+        liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
-    (tx, txMeta, txTime, sealedTx) <-
-        withExceptT ErrJoinStakePoolSignDelegation $
-            signDelegation
-                @ctx @s @t @k ctx wid argGenChange pwd selection action
+        selection <- withExceptT ErrJoinStakePoolSelectCoin $
+            selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
-    withExceptT ErrJoinStakePoolSubmitTx $
-        submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+        (tx, txMeta, txTime, sealedTx) <-
+            withExceptT ErrJoinStakePoolSignDelegation $
+                signDelegation
+                    @ctx @s @t @k ctx wid argGenChange pwd selection action
 
-    pure (tx, txMeta, txTime)
+        withExceptT ErrJoinStakePoolSubmitTx $
+            submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+
+        pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
