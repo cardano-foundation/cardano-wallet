@@ -2135,7 +2135,7 @@ instance Exception ErrCheckWalletIntegrity
 data ErrCannotJoin
     = ErrAlreadyDelegating PoolId
     | ErrNoSuchPool PoolId
-    | ErrPoolAlreadyRetired PoolId W.EpochNo
+    | ErrPoolAlreadyRetired PoolId PoolRetirementEpochInfo
     deriving (Generic, Eq, Show)
 
 data ErrCannotQuit
@@ -2199,7 +2199,7 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 
     forM_ mRetirementEpochInfo $ \info ->
         when (currentEpoch info >= retirementEpoch info) $
-            Left (ErrPoolAlreadyRetired pid (retirementEpoch info))
+            Left (ErrPoolAlreadyRetired pid info)
 
     when ((null next) && isDelegatingTo (== pid) active) $
         Left (ErrAlreadyDelegating pid)
