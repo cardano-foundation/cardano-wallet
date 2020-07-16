@@ -182,11 +182,13 @@ server byron icarus jormungandr spl ntp =
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools = (listPools spl)
         :<|>
-            joinStakePool jormungandr
+            joinStakePool jormungandr np
                 (knownStakePools spl)
                 (getPoolLifeCycleStatus spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
+      where
+        (_, np, _) = jormungandr ^. genesisData
 
     byronWallets :: Server ByronWallets
     byronWallets =

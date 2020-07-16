@@ -1744,6 +1744,7 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         )
     => ctx
+    -> NetworkParameters
     -> [PoolId]
     -> PoolId
     -> PoolLifeCycleStatus
@@ -1751,7 +1752,7 @@ joinStakePool
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx knownPools pid _poolStatus wid argGenChange pwd =
+joinStakePool ctx _np knownPools pid _poolStatus wid argGenChange pwd =
     db & \DBLayer{..} -> do
 
         (isKeyReg, walMeta) <- mapExceptT atomically
