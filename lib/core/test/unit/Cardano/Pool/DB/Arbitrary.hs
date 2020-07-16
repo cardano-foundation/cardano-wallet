@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -38,6 +39,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -183,10 +186,24 @@ genStakePoolTicker = (StakePoolTicker . T.pack) <$>
     (choose (3,5) >>= \n -> vectorOf n (elements ['A','B'..'Z']))
 
 instance Arbitrary StakePoolsFixture where
+    -- Shrink the second element
+    shrink (StakePoolsFixture (p0:(p, bh):ps) r) = map reconstruct $ shrink (bh ^. #slotNo)
+      where
+        reconstruct s = StakePoolsFixture
+            (p0:(p, bh {slotNo = s} :: BlockHeader):ps)
+            (map (\x -> if x == bh ^. #slotNo then s else x) r)
+    -- Shrink the first element
+    shrink (StakePoolsFixture ((p, bh):ps) r) = map reconstruct $ shrink (bh ^. #slotNo)
+      where
+        reconstruct s = StakePoolsFixture
+            ((p, bh {slotNo = s} :: BlockHeader):ps)
+            (map (\x -> if x == bh ^. #slotNo then s else x) r)
+    shrink _ = []
+
     arbitrary = do
-        poolsNumber <- choose (1, 100)
+        poolsNumber <- choose (1, 5)
         pools <- vector poolsNumber
-        slotsNumber <- choose (0, 200)
+        slotsNumber <- choose (0, 2)
         firstSlot <- arbitrary
         slotsGenerated <-
             foldM (appendPair pools) [] (generateNextSlots [firstSlot] slotsNumber)

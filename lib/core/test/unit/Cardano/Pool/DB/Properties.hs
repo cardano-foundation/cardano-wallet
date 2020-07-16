@@ -102,6 +102,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , property
+    , withMaxSuccess
     , (==>)
     )
 import Test.QuickCheck.Monadic
@@ -329,20 +330,22 @@ prop_readPoolNoEpochLeaks
     -> StakePoolsFixture
     -> Property
 prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
-    monadicIO (setup >> prop)
+    withMaxSuccess 10000 $ monadicIO (setup >> prop)
   where
     slotPartition = L.groupBy ((==) `on` epochOf')
         $ L.sortOn epochOf'
         $ map (view #slotNo . snd) pairs
-    epochGroups = L.zip (uniqueEpochs pairs) slotPartition
+    epochGroups = map (\sls -> (epochOf' $ head sls, sls)) slotPartition
     setup = liftIO $ atomically cleanDB
-    prop = run $ do
-        atomically $ forM_ pairs $ \(pool, slot) ->
-            unsafeRunExceptT $ putPoolProduction slot pool
-        forM_ epochGroups $ \(epoch, slots) -> do
-            slots' <- Set.fromList . map (view #slotNo) . concat . Map.elems
-                <$> atomically (readPoolProduction epoch)
-            slots' `shouldBe` (Set.fromList slots)
+    prop = do
+        run $ do
+            atomically $ forM_ pairs $ \(pool, slot) ->
+                unsafeRunExceptT $ putPoolProduction slot pool
+            forM_ epochGroups $ \(epoch, slots) -> do
+                slots' <- Set.fromList . map (view #slotNo) . concat . Map.elems
+                    <$> atomically (readPoolProduction epoch)
+                slots' `shouldBe` (Set.fromList slots)
+
     epochOf' :: SlotNo -> EpochNo
     epochOf' = runIdentity . ti . epochOf
     ti = dummyTimeInterpreter
