@@ -130,7 +130,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing )
+    ( isJust, isNothing )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -335,12 +335,14 @@ prop_guardJoinQuit knownPools dlg pid mRetirementInfo = checkCoverage
   where
     retirementNotPlanned =
         isNothing mRetirementInfo
-    retirementPlanned = fromMaybe False $ do
-        info <- mRetirementInfo
-        pure $ W.currentEpoch info < W.retirementEpoch info
-    alreadyRetired = fromMaybe False $ do
-        info <- mRetirementInfo
-        pure $ W.currentEpoch info >= W.retirementEpoch info
+    retirementPlanned =
+        (Just True ==) $ do
+            info <- mRetirementInfo
+            pure $ W.currentEpoch info < W.retirementEpoch info
+    alreadyRetired =
+        (Just True ==) $ do
+            info <- mRetirementInfo
+            pure $ W.currentEpoch info >= W.retirementEpoch info
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId
