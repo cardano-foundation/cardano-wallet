@@ -92,7 +92,7 @@ TxMeta
     txMetaWalletId     W.WalletId   sql=wallet_id
     txMetaStatus       W.TxStatus   sql=status
     txMetaDirection    W.Direction  sql=direction
-    txMetaSlot         SlotNo       sql=slot
+    txMetaSlot         SlotNo       sql=slot_no
     txMetaBlockHeight  Word32       sql=block_height
     txMetaAmount       Natural      sql=amount
 
@@ -143,7 +143,7 @@ TxWithdrawal
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint
     checkpointWalletId          W.WalletId   sql=wallet_id
-    checkpointSlot              SlotNo       sql=slot
+    checkpointSlot              SlotNo       sql=slot_no
     checkpointHeaderHash        BlockId      sql=header_hash
     checkpointParentHash        BlockId      sql=parent_header_hash
     checkpointBlockHeight       Word32       sql=block_height
@@ -174,7 +174,7 @@ ProtocolParameters
 -- Track whether the wallet's stake key is registered or not.
 StakeKeyCertificate
     stakeKeyCertWalletId             W.WalletId            sql=wallet_id
-    stakeKeyCertSlot                 SlotNo                sql=slot
+    stakeKeyCertSlot                 SlotNo                sql=slot_no
     stakeKeyCertType                 W.StakeKeyCertificate sql=type
 
     Primary stakeKeyCertWalletId stakeKeyCertSlot
@@ -184,7 +184,7 @@ StakeKeyCertificate
 -- Store known delegation certificates for a particular wallet
 DelegationCertificate
     certWalletId             W.WalletId     sql=wallet_id
-    certSlot                 SlotNo         sql=slot
+    certSlot                 SlotNo         sql=slot_no
     certPoolId               W.PoolId Maybe sql=delegation
 
     Primary certWalletId certSlot
@@ -208,7 +208,7 @@ UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
     utxoWalletId        W.WalletId  sql=wallet_id
-    utxoSlot            SlotNo      sql=slot
+    utxoSlot            SlotNo      sql=slot_no
 
     -- TxIn
     utxoInputId         TxId        sql=input_tx_id
@@ -239,7 +239,7 @@ SeqState
 -- when they were discovered.
 SeqStateAddress
     seqStateAddressWalletId         W.WalletId     sql=wallet_id
-    seqStateAddressSlot             SlotNo         sql=slot
+    seqStateAddressSlot             SlotNo         sql=slot_no
     seqStateAddressAddress          W.Address      sql=address
     seqStateAddressIndex            Word32         sql=address_ix
     seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
@@ -277,7 +277,7 @@ RndState
 -- The set of discovered addresses.
 RndStateAddress
     rndStateAddressWalletId      W.WalletId        sql=wallet_id
-    rndStateAddressSlot          SlotNo            sql=slot
+    rndStateAddressSlot          SlotNo            sql=slot_no
     rndStateAddressAccountIndex  Word32            sql=account_ix
     rndStateAddressIndex         Word32            sql=address_ix
     rndStateAddressAddress       W.Address         sql=address
