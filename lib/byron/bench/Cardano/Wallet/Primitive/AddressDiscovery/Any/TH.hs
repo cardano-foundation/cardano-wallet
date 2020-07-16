@@ -37,6 +37,6 @@ share
     [persistLowerCase|
 AnyAddressState
     anyAddressStateWalletId        W.WalletId  sql=wallet_id
-    anyAddressStateCheckpointSlot  W.SlotNo    sql=slot_no
+    anyAddressStateCheckpointSlot  W.SlotNo    sql=slot
     anyAddressStateProportion      Double      sql=proportion
 |]
