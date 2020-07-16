@@ -125,7 +125,7 @@ import Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
-    , ErrTxOutTooSmall (..)
+    , ErrUTxOTooSmall (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
     , ErrWalletAlreadyExists (..)
@@ -2018,15 +2018,15 @@ instance LiftHandler ErrAdjustForFee where
                 , showT missing, " Lovelace."
                 ]
 
-instance LiftHandler ErrTxOutTooSmall where
+instance LiftHandler ErrUTxOTooSmall where
     handler = \case
-        ErrTxOutTooSmall minUtxoValue invalidOutputs ->
-            apiError err403 OutputsTooSmall $ mconcat
-                [ "I'm unable to construct the given transaction as "
-                , "output(s) are too small! In order to do so, try selecting "
-                , "output(s) not less than ", showT minUtxoValue, " Lovelace."
-                , "In the current transaction the following outputs are not "
-                , "satisfying this condition : ", showT invalidOutputs, " ."
+        ErrUTxOTooSmall minUtxoValue invalidUTxO ->
+            apiError err403 UTxOTooSmall $ mconcat
+                [ "I'm unable to construct the given transaction as some "
+                , "outputs or changes are too small! Each output and change is "
+                , "expected to be >= ", showT minUtxoValue, " Lovelace."
+                , "In the current transaction the following pieces are not "
+                , "satisfying this condition : ", showT invalidUTxO, " ."
                 ]
 
 instance Buildable e => LiftHandler (ErrSelectForPayment e) where

@@ -106,7 +106,7 @@ module Cardano.Wallet
     , ErrAdjustForFee (..)
     , ErrValidateSelection
     , ErrNotASequentialWallet (..)
-    , ErrTxOutTooSmall (..)
+    , ErrUTxOTooSmall (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -1977,11 +1977,11 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
                                    Errors
 -------------------------------------------------------------------------------}
 
-data ErrTxOutTooSmall
-    = ErrTxOutTooSmall Word64 [Word64]
-    -- ^ TxOuts are too small to make valid transaction
-    -- We record what minimum UTxO value and all outputs less than this value
-
+data ErrUTxOTooSmall
+    = ErrUTxOTooSmall Word64 [Word64]
+    -- ^ UTxO(s) participating in transaction are too small to make transaction
+    -- that will be accepted by node.
+    -- We record what minimum UTxO value and all outputs/change less than this value
     deriving (Show, Eq)
 
 -- | Errors that can occur when creating an unsigned transaction.
@@ -1989,7 +1989,7 @@ data ErrSelectForPayment e
     = ErrSelectForPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
     | ErrSelectForPaymentFee ErrAdjustForFee
-    | ErrSelectForPaymentMinimumUTxOValue ErrTxOutTooSmall
+    | ErrSelectForPaymentMinimumUTxOValue ErrUTxOTooSmall
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
@@ -2181,13 +2181,13 @@ guardQuit WalletDelegation{active,next} rewards = do
 guardCoinSelection
     :: Coin
     -> CoinSelection
-    -> Either ErrTxOutTooSmall ()
+    -> Either ErrUTxOTooSmall ()
 guardCoinSelection minUtxoValue CoinSelection{outputs, change} = do
     let outputCoins = map (\(TxOut _ c) -> c) outputs
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
-        Left (ErrTxOutTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts) )
+        Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts) )
 
 {-------------------------------------------------------------------------------
                                     Logging
