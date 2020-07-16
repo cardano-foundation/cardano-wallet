@@ -1749,7 +1749,7 @@ joinStakePool
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx pools pid wid argGenChange pwd = db & \DBLayer{..} -> do
+joinStakePool ctx knownPools pid wid argGenChange pwd = db & \DBLayer{..} -> do
     (isKeyReg, walMeta) <- mapExceptT atomically
         $ withExceptT ErrJoinStakePoolNoSuchWallet
         $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
@@ -1758,7 +1758,7 @@ joinStakePool ctx pools pid wid argGenChange pwd = db & \DBLayer{..} -> do
     -- TODO: Replace this with actual retirement information:
     let retirementInfo = Nothing
     withExceptT ErrJoinStakePoolCannotJoin $ except $
-        guardJoin pools (walMeta ^. #delegation) pid retirementInfo
+        guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
