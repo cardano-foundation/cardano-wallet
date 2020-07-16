@@ -106,6 +106,7 @@ module Cardano.Wallet
     , ErrAdjustForFee (..)
     , ErrValidateSelection
     , ErrNotASequentialWallet (..)
+    , ErrTxOutTooSmall (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -1968,11 +1969,19 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
                                    Errors
 -------------------------------------------------------------------------------}
 
+data ErrTxOutTooSmall
+    = ErrTxOutTooSmall Word64 [Word64]
+    -- ^ TxOuts are too small to make valid transaction
+    -- We record what minimum UTxO value and all outputs less than this value
+
+    deriving (Show, Eq)
+
 -- | Errors that can occur when creating an unsigned transaction.
 data ErrSelectForPayment e
     = ErrSelectForPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
     | ErrSelectForPaymentFee ErrAdjustForFee
+    | ErrSelectForPaymentMinimumUTxOValue ErrTxOutTooSmall
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
