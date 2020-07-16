@@ -193,7 +193,7 @@ server byron icarus shelley spl ntp =
                 ]
 
         )
-        :<|> joinStakePool shelley (knownPools spl)
+        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
 

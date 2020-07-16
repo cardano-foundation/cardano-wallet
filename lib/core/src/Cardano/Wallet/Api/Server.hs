@@ -276,6 +276,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -1318,11 +1319,12 @@ joinStakePool
     -> IO [PoolId]
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
+    -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
+joinStakePool ctx knownPools _getPoolStatus apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     pid <- case apiPoolId of
