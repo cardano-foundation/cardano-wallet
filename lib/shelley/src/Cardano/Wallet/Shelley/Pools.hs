@@ -123,7 +123,11 @@ import qualified Data.Text as T
 --
 
 data StakePoolLayer = StakePoolLayer
-    { knownPools
+    { getPoolLifeCycleStatus
+        :: PoolId
+        -> IO PoolLifeCycleStatus
+
+    , knownPools
         :: IO [PoolId]
 
     -- | List pools based given the the amount of stake the user intends to
@@ -139,11 +143,17 @@ newStakePoolLayer
     -> NetworkLayer IO (IO Shelley) b
     -> DBLayer IO
     -> StakePoolLayer
-newStakePoolLayer gp nl db = StakePoolLayer
-    { knownPools = _knownPools
+newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
+    { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+    , knownPools = _knownPools
     , listStakePools = _listPools
     }
   where
+    _getPoolLifeCycleStatus
+        :: PoolId -> IO PoolLifeCycleStatus
+    _getPoolLifeCycleStatus pid =
+        liftIO $ atomically $ readPoolLifeCycleStatus pid
+
     _knownPools
         :: IO [PoolId]
     _knownPools = do
