@@ -90,6 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
+    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
@@ -224,6 +225,8 @@ spec = do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
+        it "Coin selection guard is sound"
+            (property prop_guardCoinSelection)
 
     describe "Tx fee estimation" $
         it "Fee estimates are sound"
@@ -321,6 +324,17 @@ prop_guardQuitJoin (NonEmpty knownPools) dlg rewards =
         Left W.ErrNonNullRewards{} ->
             label "ErrNonNullRewards"
                 (property $ rewards /= 0)
+
+prop_guardCoinSelection
+    :: CoinSelectionGuard
+    -> Property
+prop_guardCoinSelection (CoinSelectionGuard minVal cs) =
+    case W.guardCoinSelection minVal cs of
+        Right () ->
+            label "Each outputs and change coin selection >= minUTxOvalue"
+            $ property True
+        Left W.ErrUTxOTooSmall{}  ->
+            label "ErrUTxOTooSmall" $ property True
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -512,6 +526,10 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
                 (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
         times `shouldBe` expTimes
 
+data CoinSelectionGuard = CoinSelectionGuard
+    { minimumUTxOvalue :: Coin
+    , coinSelection :: CS.CoinSelection
+    } deriving Show
 
 {-------------------------------------------------------------------------------
                         Properties of tx fee estimation
@@ -593,6 +611,26 @@ instance Arbitrary WalletDelegationNext where
 
 instance Arbitrary PoolId where
     arbitrary = pure $ PoolId "a"
+
+instance Arbitrary UTxO where
+    shrink (UTxO utxo) = UTxO <$> shrink utxo
+    arbitrary = do
+        n <- choose (1, 100)
+        utxo <- zip
+            <$> vector n
+            <*> vector n
+        return $ UTxO $ Map.fromList utxo
+
+instance Arbitrary CoinSelectionGuard where
+    arbitrary = do
+        minVal <- Coin <$> choose (0, 100)
+        txIntxOuts <- Map.toList . getUTxO <$> arbitrary
+        let chgs = map (\(_, TxOut _ c) -> c) txIntxOuts
+        let cs = mempty
+                { CS.inputs = txIntxOuts
+                , CS.change = chgs
+                }
+        pure $ CoinSelectionGuard minVal cs
 
 data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState JormungandrKey

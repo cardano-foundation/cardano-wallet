@@ -99,6 +99,7 @@ module Cardano.Wallet
     , selectCoinsForPayment
     , estimateFeeForPayment
     , signPayment
+    , guardCoinSelection
     , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
     , ErrSignPayment (..)
@@ -1337,7 +1338,7 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo selectCoins
 
-    estimateFeeForCoinSelection $ (Fee . feeBalance <$> pure selectCoins)
+    estimateFeeForCoinSelection $ pure ((Fee . feeBalance) selectCoins)
         `catchE` handleCannotCover utxo recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
