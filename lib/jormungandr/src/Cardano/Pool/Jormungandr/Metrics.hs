@@ -285,8 +285,8 @@ newStakePoolLayer
     -- it does not exist.
     -> StakePoolLayer ErrListStakePools IO
 newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
-    { getPoolLifeCycleStatus = \pid ->
-        liftIO $ atomically $ readPoolLifeCycleStatus pid
+    { getPoolLifeCycleStatus =
+        liftIO . atomically . readPoolLifeCycleStatus
     , listStakePools = do
         lift $ traceWith tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
