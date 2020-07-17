@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), PoolId, SealedTx (..), SlotId (..), Tx (..) )
+    ( Address (..), PoolId, SealedTx (..), SlotNo (..), Tx (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -52,7 +52,7 @@ data TransactionLayer t k = TransactionLayer
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotId
+        -> SlotNo
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
@@ -73,7 +73,7 @@ data TransactionLayer t k = TransactionLayer
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotId
+        -> SlotNo
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
@@ -91,7 +91,7 @@ data TransactionLayer t k = TransactionLayer
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotId
+        -> SlotNo
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been

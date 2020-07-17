@@ -60,15 +60,13 @@ import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( slotMinBound )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
     , Hash (..)
     , PoolId (..)
     , SealedTx (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -153,9 +151,9 @@ spec = do
         it "get network tip" $ \(nw, _) -> do
             resp <- runExceptT $ currentNodeTip nw
             resp `shouldSatisfy` isRight
-            let (Right slot) = slotId <$> resp
+            let (Right slot) = slotNo <$> resp
             let (Right height) = blockHeight <$> resp
-            slot `shouldSatisfy` (>= slotMinBound)
+            slot `shouldSatisfy` (>= SlotNo 0)
             height `shouldSatisfy` (>= Quantity 0)
 
         it "get some blocks from the genesis" $ \(nw, _) -> do
@@ -184,13 +182,13 @@ spec = do
                 -- for what it's worth, I didn't bother retrying.
                 bytes <- BS.pack <$> generate (vector 32)
                 let block = BlockHeader
-                        { slotId = SlotId 42 14 -- Anything
+                        { slotNo = SlotNo 4214 -- Anything
                         , blockHeight = Quantity 0 -- Anything
                         , headerHash = Hash bytes
                         , parentHeaderHash = Hash bytes
                         }
                 resp <- (runExceptT . nextBlocks nw) =<< initCursor nw [block]
-                fmap (isRollBackwardTo nw (SlotId 0 0)) resp
+                fmap (isRollBackwardTo nw (SlotNo 0)) resp
                     `shouldBe` Right True
 
     describe "Error paths" $ do
@@ -498,11 +496,11 @@ isRollForward = maybe False (not . null) . getRollForward
 
 isRollBackwardTo
     :: NetworkLayer m t block
-    -> SlotId
+    -> SlotNo
     -> NextBlocksResult (Cursor t) block
     -> Bool
 isRollBackwardTo nl sl = \case
-    RollBackward cursor -> cursorSlotId nl cursor == sl
+    RollBackward cursor -> cursorSlotNo nl cursor == sl
     _ -> False
 
 {-------------------------------------------------------------------------------

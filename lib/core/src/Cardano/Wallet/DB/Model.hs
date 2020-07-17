@@ -9,6 +9,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -66,11 +67,11 @@ module Cardano.Wallet.DB.Model
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, blockchainParameters, currentTip, utxo )
+    ( Wallet, currentTip, utxo )
 import Cardano.Wallet.Primitive.Slotting
-    ( slotParams, slotStartTime )
+    ( TimeInterpreter, epochOf, startTime )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (blockHeight, slotId)
+    ( BlockHeader (blockHeight, slotNo)
     , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
@@ -79,7 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , ProtocolParameters (..)
     , Range (..)
-    , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate (..)
     , TransactionInfo (..)
@@ -100,6 +101,10 @@ import Data.Bifunctor
     ( first )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.List
     ( sort, sortOn )
 import Data.Map.Strict
@@ -141,9 +146,9 @@ deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 
 -- | Model database record for a single wallet.
 data WalletDatabase s xprv = WalletDatabase
-    { checkpoints :: !(Map SlotId (Wallet s))
-    , certificates :: !(Map SlotId (Maybe PoolId))
-    , stakeKeys :: !(Map SlotId StakeKeyCertificate)
+    { checkpoints :: !(Map SlotNo (Wallet s))
+    , certificates :: !(Map SlotNo (Maybe PoolId))
+    , stakeKeys :: !(Map SlotNo StakeKeyCertificate)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
@@ -270,7 +275,7 @@ mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets
         updateWallets = Map.adjust changeTxMeta wid wallets
         changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
 
-mRollbackTo :: Ord wid => wid -> SlotId -> ModelOp wid s xprv SlotId
+mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv SlotNo
 mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
@@ -294,20 +299,20 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
   where
     -- | Removes 'Incoming' transaction beyond the rollback point, and
     -- reschedule as 'Pending' the 'Outgoing' one beyond the rollback point.
-    rescheduleOrForget :: SlotId -> TxMeta -> Maybe TxMeta
+    rescheduleOrForget :: SlotNo -> TxMeta -> Maybe TxMeta
     rescheduleOrForget point meta = do
-        let isAfter = (slotId :: TxMeta -> SlotId) meta > point
+        let isAfter = (slotNo :: TxMeta -> SlotNo) meta > point
         let isIncoming = direction meta == Incoming
         when (isIncoming && isAfter) Nothing
         pure $ if isAfter
-            then meta { slotId = point , status = Pending }
+            then meta { slotNo = point , status = Pending }
             else meta
 
     -- | Find nearest checkpoint's slot before or equal to 'requested'.
-    findNearestPoint :: [Wallet s] -> Maybe SlotId
+    findNearestPoint :: [Wallet s] -> Maybe SlotNo
     findNearestPoint = safeHead . sortOn Down . mapMaybe fn
       where
-        fn :: Wallet s -> Maybe SlotId
+        fn :: Wallet s -> Maybe SlotNo
         fn cp = if (tip cp <= requested) then Just (tip cp) else Nothing
 
     safeHead :: [a] -> Maybe a
@@ -318,31 +323,37 @@ mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
     ((), wal { metadata = meta })
 
-mReadWalletMeta :: Ord wid => wid -> ModelOp wid s xprv (Maybe WalletMetadata)
-mReadWalletMeta wid db@(Database wallets _) =
+mReadWalletMeta
+    :: Ord wid
+    => TimeInterpreter Identity
+    -> wid
+    -> ModelOp wid s xprv (Maybe WalletMetadata)
+mReadWalletMeta interpretTime wid db@(Database wallets _) =
     (Right (mkMetadata =<< Map.lookup wid wallets), db)
   where
+    epochOf' = runIdentity . interpretTime . epochOf
     mkMetadata :: WalletDatabase s xprv -> Maybe WalletMetadata
     mkMetadata WalletDatabase{checkpoints,certificates,metadata} = do
-        (SlotId currentEpoch _, _)<- Map.lookupMax checkpoints
+        (slot, _) <- Map.lookupMax checkpoints
+        let currentEpoch = epochOf' slot
         pure $ metadata { delegation = readWalletDelegation certificates currentEpoch }
 
-    readWalletDelegation :: Map SlotId (Maybe PoolId) -> EpochNo -> WalletDelegation
+    readWalletDelegation :: Map SlotNo (Maybe PoolId) -> EpochNo -> WalletDelegation
     readWalletDelegation certificates currentEpoch
         | currentEpoch == 0 = WalletDelegation NotDelegating []
         | otherwise =
             let active = certificates
-                    & Map.filterWithKey (\(SlotId ep _) _ -> ep < currentEpoch - 1)
+                    & Map.filterWithKey (\sl _ -> (epochOf' sl) < currentEpoch - 1)
                     & Map.lookupMax
                     & (snd =<<)
                     & maybe NotDelegating Delegating
                 next1 = certificates
-                    & Map.filterWithKey (\(SlotId ep _) _ ->
+                    & Map.filterWithKey (\sl _ -> let ep = epochOf' sl in
                         ep >= currentEpoch - 1 && ep < currentEpoch)
                     & Map.lookupMax
                     & maybe [] (mkDelegationNext (currentEpoch + 1) . snd)
                 next2 = certificates
-                    & Map.filterWithKey (\(SlotId ep _) _ -> ep >= currentEpoch)
+                    & Map.filterWithKey (\sl _ -> epochOf' sl >= currentEpoch)
                     & Map.lookupMax
                     & maybe [] (mkDelegationNext (currentEpoch + 2) . snd)
             in
@@ -357,7 +368,7 @@ mPutDelegationCertificate
     :: Ord wid
     => wid
     -> DelegationCertificate
-    -> SlotId
+    -> SlotNo
     -> ModelOp wid s xprv ()
 mPutDelegationCertificate wid cert slot = alterModel wid
     $ \wal@WalletDatabase{certificates,stakeKeys} ->
@@ -399,15 +410,17 @@ mPutTxHistory wid txList db@Database{wallets,txs} =
 
 mReadTxHistory
     :: forall wid s xprv. Ord wid
-    => wid
+    => TimeInterpreter Identity
+    -> wid
     -> Maybe (Quantity "lovelace" Natural)
     -> SortOrder
-    -> Range SlotId
+    -> Range SlotNo
     -> Maybe TxStatus
     -> ModelOp wid s xprv [TransactionInfo]
-mReadTxHistory wid minWithdrawal order range mstatus db@(Database wallets txs) =
+mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs) =
     (Right res, db)
   where
+    slotStartTime' = runIdentity . ti . startTime
     res = fromMaybe mempty $ do
         wal <- Map.lookup wid wallets
         (_, cp) <- Map.lookupMax (checkpoints wal)
@@ -439,10 +452,9 @@ mReadTxHistory wid minWithdrawal order range mstatus db@(Database wallets txs) =
         , txInfoDepth =
             Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
         , txInfoTime =
-            slotStartTime sp ((slotId :: TxMeta -> SlotId) meta)
+            slotStartTime' (meta ^. #slotNo)
         }
       where
-        sp  = slotParams $ blockchainParameters cp
         txH  = getQuantity
              $ (blockHeight :: TxMeta -> Quantity "block" Word32)
              meta
@@ -491,24 +503,24 @@ alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
     Just (a, wal) -> (Right a, Database (Map.insert wid wal wallets) txs)
     Nothing -> (Left (NoSuchWallet wid), db)
 
--- | Apply optional filters on slotId and sort using the default sort order
--- (first time/slotId, then by TxId) to a 'TxHistory'.
+-- | Apply optional filters on slotNo and sort using the default sort order
+-- (first time/slotNo, then by TxId) to a 'TxHistory'.
 filterTxHistory
     :: Maybe (Quantity "lovelace" Natural)
     -> SortOrder
-    -> Range SlotId
+    -> Range SlotNo
     -> TxHistory
     -> TxHistory
 filterTxHistory minWithdrawal order range =
     filter (filterWithdrawals minWithdrawal)
-    . filter ((`isWithinRange` range) . (slotId :: TxMeta -> SlotId) . snd)
+    . filter ((`isWithinRange` range) . (slotNo :: TxMeta -> SlotNo) . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)
     . sortBySlot
     . sortByTxId
   where
-    sortBySlot = sortOn (Down . (slotId :: TxMeta -> SlotId) . snd)
+    sortBySlot = sortOn (Down . (slotNo :: TxMeta -> SlotNo) . snd)
     sortByTxId = sortOn (txId . fst)
     atLeast (Quantity inf) =
         not . Map.null . Map.filter (>= Coin (fromIntegral inf))
@@ -517,5 +529,5 @@ filterTxHistory minWithdrawal order range =
         (\inf -> atLeast inf . withdrawals . fst)
 
 
-tip :: Wallet s -> SlotId
-tip = (slotId :: BlockHeader -> SlotId) . currentTip
+tip :: Wallet s -> SlotNo
+tip = (slotNo :: BlockHeader -> SlotNo) . currentTip

@@ -49,6 +49,8 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     , mapCursor
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( singleEraInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Delegations
     , RewardAccounts
@@ -60,7 +62,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromPParams
     , fromPoolDistr
     , fromShelleyHash
-    , fromSlotNo
     , fromTip
     , fromTip'
     , optimumNumberOfPools
@@ -115,6 +116,8 @@ import Data.ByteString.Lazy
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.Map
@@ -266,16 +269,16 @@ withNetworkLayer tr np addrInfo versionData action = do
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , destroyCursor = _destroyCursor
-            , cursorSlotId = _cursorSlotId
+            , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution queryRewardQ
             , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
+            , timeInterpreter = pure . runIdentity . singleEraInterpreter gp
             }
   where
     gp@W.GenesisParameters
         { getGenesisBlockHash
-        , getEpochLength
         } = W.genesisParameters np
 
     connectNodeTipClient handlers = do
@@ -302,7 +305,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         thread <- async (connectClient tr handlers client versionData addrInfo)
         link thread
         let points = reverse $ genesisPoint :
-                (toPoint getGenesisBlockHash getEpochLength <$> headers)
+                (toPoint getGenesisBlockHash <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
         res <- findIt
@@ -327,8 +330,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         let toCursor point = Cursor thread point chainSyncQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor _ point _) = do
-        fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
+    _cursorSlotNo (Cursor _ point _) = do
+        fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance nodeTipVar queryRewardQ acct = do
         tip <- liftIO . atomically $ readTVar nodeTipVar
@@ -356,7 +359,7 @@ withNetworkLayer tr np addrInfo versionData action = do
                     T.pack $ "Unexpected " ++ show acqFail
 
     _currentNodeTip nodeTipVar =
-        fromTip getGenesisBlockHash getEpochLength <$>
+        fromTip getGenesisBlockHash <$>
             atomically (readTVar nodeTipVar)
 
     _postTx localTxSubmissionQ tx = do
@@ -395,7 +398,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _watchNodeTip nodeTipChan cb = do
         chan <- dupChan nodeTipChan
-        let toBlockHeader = fromTip getGenesisBlockHash getEpochLength
+        let toBlockHeader = fromTip getGenesisBlockHash
         forever $ do
             header <- toBlockHeader <$> readChan chan
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
@@ -564,13 +567,12 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate = do
 
         W.GenesisParameters
              { getGenesisBlockHash
-             , getEpochLength
              } = W.genesisParameters np
 
     onTipUpdate' <- debounce @(Tip ShelleyBlock) @m $ \tip' -> do
         let tip = castTip tip'
         traceWith tr $ MsgNodeTip $
-            fromTip getGenesisBlockHash getEpochLength tip
+            fromTip getGenesisBlockHash tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 

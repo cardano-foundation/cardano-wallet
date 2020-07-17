@@ -27,15 +27,19 @@ import Cardano.Wallet.Network
     ( Cursor, ErrGetBlock (..), NetworkLayer (..), NextBlocksResult (..) )
 import Cardano.Wallet.Network.BlockHeaders
     ( BlockHeaders, emptyBlockHeaders, greatestCommonBlockHeader )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotId (..)
-    , SlotInEpoch (unSlotInEpoch)
+    , SlotInEpoch (..)
+    , SlotNo (..)
     , TxParameters (..)
     )
 import Control.Concurrent.MVar.Lifted
@@ -199,7 +203,7 @@ prop_sync s0 = monadicIO $ do
     recoveredFromGenesis s =
         line `elem` logs s
       where
-        line = "[CONSUMER] RollBackward SlotId {epochNumber = 0, slotNumber = 0}"
+        line = "[CONSUMER] RollBackward SlotNo {epochNumber = 0, slotNumber = 0}"
 
     startedFromScratch :: [BlockHeader] -> Bool
     startedFromScratch = (== 1) . length
@@ -223,10 +227,7 @@ showChain chain = unwords . map showSlot . addGaps mockBlockSlot $ chain
 
 showBlock :: MockBlock -> String
 showBlock (MockBlock ownId parentId sl) = mconcat $
-    [ show $ epochNumber sl
-    , "."
-    , show $ slotNumber sl
-    , " "
+    [ show sl
     , B8.unpack (getHash ownId)
     ]
     ++
@@ -239,26 +240,31 @@ showBlock (MockBlock ownId parentId sl) = mconcat $
 
 showCheckpoints :: [BlockHeader] -> String
 showCheckpoints [] = "∅"
-showCheckpoints chain = unwords . map showHeader . addGaps slotId $ chain
+showCheckpoints chain = unwords . map showHeader . addGaps slotNo $ chain
   where
     showHeader = maybe "_" (showHash . headerHash)
 
-addGaps :: (a -> SlotId) -> [a] -> [Maybe a]
+addGaps :: (a -> SlotNo) -> [a] -> [Maybe a]
 addGaps _ []  = []
 addGaps _ [b] = [Just b]
 addGaps getSlot (b1:b2:bs) =
     [Just b1] ++ replicate gap Nothing ++ addGaps getSlot (b2:bs)
   where
     gap = slotNum b2 - slotNum b1 - 1
-    slotNum = fromIntegral . unSlotInEpoch . slotNumber . getSlot
+    slotNum = fromIntegral
+        . unSlotInEpoch
+        . slotNumber
+        . fromFlatSlot epochLength
+        . unSlotNo
+        . getSlot
 
 -- | Test Genesis block
 block0 :: J.Block
-block0 = toJBlock $ MockBlock genesisHash parentGenesisHash (SlotId 0 0)
+block0 = toJBlock $ MockBlock genesisHash parentGenesisHash (SlotNo 0)
 
 -- | Test Genesis block
 block0H :: BlockHeader
-block0H = BlockHeader (SlotId 0 0) (Quantity 0) genesisHash parentGenesisHash
+block0H = BlockHeader (SlotNo 0) (Quantity 0) genesisHash parentGenesisHash
 
 genesisHash :: Hash a
 genesisHash = Hash "genesis"
@@ -311,7 +317,7 @@ consumerRestoreStep logLine nXw@(nw, findIntersection) (C bs cur hit total) mLim
             Nothing -> if null ops
                 then Just (2 + length (nodeChainIds n) `div` fromIntegral k)
                 else Nothing
-    logLine $ "nextBlocks " <> show (cursorSlotId nw cur)
+    logLine $ "nextBlocks " <> show (cursorSlotNo nw cur)
     hit' <- lift (findIntersection cur) <&> \case
         Nothing -> hit
         Just _  -> hit + 1
@@ -327,8 +333,8 @@ consumerRestoreStep logLine nXw@(nw, findIntersection) (C bs cur hit total) mLim
             logLine $ "RollForward " <> unwords (showBlock <$> bs')
             consumerRestoreStep logLine nXw (C (bs ++ bs') cur' hit' total') limit
         Right (RollBackward cur') -> do
-            logLine $ "RollBackward " <> show (cursorSlotId nw cur')
-            let sl = cursorSlotId nw cur'
+            logLine $ "RollBackward " <> show (cursorSlotNo nw cur')
+            let sl = cursorSlotNo nw cur'
             let bs' = takeWhile (\b -> mockBlockSlot b <= sl) bs
             consumerRestoreStep logLine nXw (C bs' cur' hit' total') limit
 
@@ -413,7 +419,7 @@ mockJormungandrClient logLine = JormungandrClient
                 { getGenesisBlockHash = blockId
                 , getGenesisBlockDate = error "mock gp"
                 , getSlotLength = error "mock gp"
-                , getEpochLength = error "mock gp"
+                , getEpochLength = epochLength
                 , getEpochStability = Quantity (fromIntegral k)
                 , getActiveSlotCoefficient = error "mock gp"
                 }
@@ -562,18 +568,23 @@ shiftOp n = (\op -> (applyNodeOp op n, op)) . \case
 data MockBlock = MockBlock
     { mockBlockId :: Hash "BlockHeader"
     , mockBlockPrev :: Hash "BlockHeader"
-    , mockBlockSlot :: SlotId
+    , mockBlockSlot :: SlotNo
     } deriving (Show, Eq)
 
 -- | Stuffs a mock block into a real block.
 toJBlock :: MockBlock -> J.Block
 toJBlock (MockBlock bid prev sl) = J.Block hdr []
-    where hdr = J.BlockHeader 0 0 sl 0 (Hash "") (coerce bid) prev Nothing
+  where
+    hdr = J.BlockHeader 0 0 (fromFlat sl) 0 (Hash "") (coerce bid) prev Nothing
+    fromFlat = fromFlatSlot epochLength . unSlotNo
+
 
 -- | Extract a mock block out of a real block.
 fromJBlock :: J.Block -> MockBlock
 fromJBlock (J.Block (J.BlockHeader _ _ sl _ _ bid prev _) _) =
-    MockBlock (coerce bid) prev sl
+    MockBlock (coerce bid) prev (toFlat sl)
+  where
+    toFlat = SlotNo . flatSlot epochLength
 
 ----------------------------------------------------------------------------
 -- Checks that generated mock node test cases are valid
@@ -695,10 +706,10 @@ genBlocksWith n empty count =
         tip = getNodeTip n
         tipSlot = maybe
             (-1)
-            (fromIntegral . unSlotInEpoch . slotNumber . mockBlockSlot)
+            (fromIntegral . unSlotNo . mockBlockSlot)
             tip
         slots =
-            [ SlotId 0 (fromIntegral $ tipSlot + i)
+            [ SlotNo (fromIntegral $ tipSlot + i)
             | (i, gap) <- zip [1..count] empty, tipSlot + i == 0 || not gap
             ]
         bids = map mockBlockHash [nodeNextBlockId n..]
@@ -757,3 +768,6 @@ mockBlockHash num = Hash $ fmt $ padLeftF 4 '0' $ hexF num
 
 showHash :: Hash a -> String
 showHash (Hash h) = B8.unpack h
+
+epochLength :: EpochLength
+epochLength = EpochLength 100

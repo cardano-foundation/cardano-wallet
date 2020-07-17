@@ -101,6 +101,7 @@ module Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , FeePolicy (..)
     , SlotId (..)
+    , SlotNo (..)
     , SlotLength (..)
     , SlotInEpoch (..)
     , StartTime (..)
@@ -167,6 +168,10 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
+import Cardano.Wallet.Orphans
+    ()
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -755,8 +760,8 @@ instance Buildable (Block) where
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
 data BlockHeader = BlockHeader
-    { slotId
-        :: SlotId
+    { slotNo
+        :: SlotNo
     , blockHeight
         :: Quantity "block" Word32
     , headerHash
@@ -868,7 +873,7 @@ instance Buildable (TxIn, TxOut) where
 data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
-    , slotId :: !SlotId
+    , slotNo :: !SlotNo
     , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Show, Eq, Ord, Generic)
@@ -1497,7 +1502,6 @@ instance Buildable SlotId where
     build (SlotId (EpochNo e) (SlotInEpoch s)) =
         fromString (show e) <> "." <> fromString (show s)
 
-
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength { unSlotLength :: NominalDiffTime }
     deriving (Show, Eq, Generic)
@@ -1636,8 +1640,8 @@ instance Buildable PoolRetirementCertificate where
 -- published at earlier times.
 --
 data CertificatePublicationTime = CertificatePublicationTime
-    { slotId
-        :: SlotId
+    { slotNo
+        :: SlotNo
     , slotInternalIndex
         :: Word64
         -- ^ Indicates the relative position of a publication within a slot.

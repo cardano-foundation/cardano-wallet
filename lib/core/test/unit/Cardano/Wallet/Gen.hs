@@ -13,9 +13,10 @@ module Cardano.Wallet.Gen
     , shrinkPercentage
     , genLegacyAddress
     , genBlockHeader
-    , genSlotId
     , genActiveSlotCoefficient
     , shrinkActiveSlotCoefficient
+    , genSlotNo
+    , shrinkSlotNo
     ) where
 
 import Prelude
@@ -24,17 +25,13 @@ import Cardano.Address.Derivation
     ( xpubFromBytes )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
-import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
     , BlockHeader (..)
-    , EpochLength (..)
     , Hash (..)
     , ProtocolMagic (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
+    , SlotNo (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
@@ -100,19 +97,19 @@ genLegacyAddress pm = do
 --
 
 
-genSlotId :: EpochLength -> Gen SlotId
-genSlotId (EpochLength el) | el > 0 = do
-    ep <- choose (0, 10)
-    sl <- choose (0, el - 1)
-    return (SlotId (unsafeEpochNo ep) (SlotInEpoch sl))
-genSlotId _ = error "genSlotId: epochLength must > 0"
+-- | Don't generate /too/ large slots
+genSlotNo :: Gen SlotNo
+genSlotNo = SlotNo . fromIntegral <$> (arbitrary @Word32)
 
-genBlockHeader :: SlotId -> Gen BlockHeader
+shrinkSlotNo :: SlotNo -> [SlotNo]
+shrinkSlotNo (SlotNo x) = map SlotNo $ shrink x
+
+genBlockHeader :: SlotNo -> Gen BlockHeader
 genBlockHeader sl = do
         BlockHeader sl (mockBlockHeight sl) <$> genHash <*> genHash
       where
-        mockBlockHeight :: SlotId -> Quantity "block" Word32
-        mockBlockHeight = Quantity . fromIntegral . flatSlot (EpochLength 200)
+        mockBlockHeight :: SlotNo -> Quantity "block" Word32
+        mockBlockHeight = Quantity . fromIntegral . unSlotNo
 
         genHash = elements
             [ Hash "BLOCK01"

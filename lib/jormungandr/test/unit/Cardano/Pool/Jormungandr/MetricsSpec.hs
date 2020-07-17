@@ -47,7 +47,7 @@ import Cardano.Wallet.Network
     , NextBlocksResult (..)
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, fromFlatSlot, slotParams, slotSucc )
+    ( TimeInterpreter, singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -61,8 +61,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , ProtocolParameters (..)
-    , SlotId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , StartTime (..)
     , TxParameters (..)
     )
@@ -82,6 +82,8 @@ import Control.Monad.Trans.State.Strict
     ( StateT, evalStateT, get, modify' )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -201,7 +203,7 @@ prop_trackRegistrations test = monadicIO $ do
     (logs, registrations) <- run $ captureLogging $ \tr -> do
         done <- newEmptyMVar
         nl <- newMockNetworkLayer done test
-        db@DBLayer{..} <- newDBLayer
+        db@DBLayer{..} <- newDBLayer (timeInterpreter mockNetworkLayer)
         race_ (takeMVar done) (monitorStakePools tr (block0, Quantity 10) nl db)
 
         let pids = poolId <$> expected
@@ -276,7 +278,7 @@ type instance GetStakeDistribution RegistrationsTest m =
 test_emptyDatabaseNotSynced :: IO ()
 test_emptyDatabaseNotSynced = do
     setEnv envVarMetadataRegistry "-"
-    db@DBLayer{..} <- newDBLayer
+    db@DBLayer{..} <- newDBLayer testTimeInterpreter
     -- NOTE The directory below isn't use, the test should fail much before
     let spl = newStakePoolLayer nullTracer header0 getEpConsts db nl "/dev/null"
     res <- runExceptT $ listStakePools spl
@@ -293,7 +295,7 @@ test_emptyDatabaseNotSynced = do
 test_notSyncedProgress :: IO ()
 test_notSyncedProgress = do
     setEnv envVarMetadataRegistry "-"
-    db@DBLayer{..} <- newDBLayer
+    db@DBLayer{..} <- newDBLayer testTimeInterpreter
     atomically $ unsafeRunExceptT $
         putPoolProduction prodTip (PoolId "Pool & The Gang")
     -- NOTE The directory below isn't use, the test should fail much before
@@ -317,7 +319,7 @@ test_notSyncedProgress = do
 
 -- A mock network layer placeholder that can be re-used across tests. Functions
 -- required by a particular test can be stubbed out or mocked as necessary.
-mockNetworkLayer :: NetworkLayer m t b
+mockNetworkLayer :: Monad m => NetworkLayer m t b
 mockNetworkLayer = NetworkLayer
     { nextBlocks =
         \_ -> error "mockNetworkLayer: nextBlocks"
@@ -325,8 +327,8 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: initCursor"
     , destroyCursor =
         \_ -> error "mockNetworkLayer: destroyCursor"
-    , cursorSlotId =
-        \_ -> error "mockNetworkLayer: cursorSlotId"
+    , cursorSlotNo =
+        \_ -> error "mockNetworkLayer: cursorSlotNo"
     , currentNodeTip =
         error "mockNetworkLayer: currentNodeTip"
     , getProtocolParameters =
@@ -339,11 +341,13 @@ mockNetworkLayer = NetworkLayer
         \_ -> error "mockNetworkLayer: getAccountBalance"
     , watchNodeTip =
         \_ -> error "mockNetworkLayer: watchNodeTip"
+    , timeInterpreter = testTimeInterpreter
+
     }
 
 header0 :: BlockHeader
 header0 = BlockHeader
-    (SlotId 0 0)
+    (SlotNo 0)
     (Quantity 0)
     (Hash $ B8.replicate 32 '0')
     (Hash $ B8.replicate 32 '0')
@@ -366,13 +370,9 @@ instance Arbitrary BlockHeader where
     arbitrary = applyArbitrary4 BlockHeader
     shrink = genericShrink
 
-instance Arbitrary SlotId where
-    arbitrary = fromFlatSlot epochLength <$> arbitrary
-    shrink sl = fromFlatSlot epochLength <$> shrink (flatSlot epochLength sl)
-
--- | Epoch length used to generate arbitrary @SlotId@
-epochLength :: EpochLength
-epochLength = EpochLength 50
+instance Arbitrary SlotNo where
+    arbitrary = SlotNo . fromIntegral <$> (arbitrary @Word32)
+    shrink (SlotNo x) = map SlotNo $ shrink x
 
 instance Arbitrary (Hash tag) where
     shrink _  = []
@@ -447,35 +447,31 @@ instance Arbitrary RegistrationsTest where
         chunks <- arbitraryChunks =<< evalStateT (replicateM n genBlock) state0
         pure $ RegistrationsTest chunks
       where
-        state0 :: (Hash "BlockHeader", SlotId)
-        state0 = (headerHash header0, slotId header0)
+        state0 :: (Hash "BlockHeader", SlotNo)
+        state0 = (headerHash header0, slotNo header0)
 
-        genBlock :: StateT (Hash "BlockHeader", SlotId) Gen Block
+        genBlock :: StateT (Hash "BlockHeader", SlotNo) Gen Block
         genBlock = Block
             <$> genBlockHeader
             <*> lift arbitrary
             <*> lift arbitrary
 
-        genBlockHeader :: StateT (Hash "BlockHeader", SlotId) Gen BlockHeader
+        genBlockHeader :: StateT (Hash "BlockHeader", SlotNo) Gen BlockHeader
         genBlockHeader = do
             (parentHeaderHash, _) <- get
-            (headerHash, slotId) <- nextState
-            let blockHeight = Quantity $ fromIntegral $ flatSlot ep slotId
+            (headerHash, slotNo) <- nextState
+            let blockHeight = Quantity $ fromIntegral $ unSlotNo slotNo
             pure BlockHeader
-                { slotId
+                { slotNo
                 , blockHeight
                 , headerHash
                 , parentHeaderHash
                 }
-          where
-            ep = getEpochLength genesisParameters
 
-        nextState :: (s ~ (Hash "BlockHeader", SlotId)) => StateT s Gen s
+        nextState :: (s ~ (Hash "BlockHeader", SlotNo)) => StateT s Gen s
         nextState = do
             nextHeaderHash <- lift arbitrary
-            modify' (\(_, sl) -> (nextHeaderHash, slotSucc sp sl)) >> get
-          where
-            sp = slotParams genesisParameters
+            modify' (\(_, sl) -> (nextHeaderHash, sl + 1)) >> get
 
 arbitraryChunks :: [a] -> Gen [[a]]
 arbitraryChunks [] = pure []
@@ -490,15 +486,18 @@ genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
     genDouble :: Gen Double
     genDouble = choose (0, 1)
 
-genesisParameters :: GenesisParameters
-genesisParameters = GenesisParameters
-    { getGenesisBlockHash = genesisHash
-    , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    , getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21600
-    , getEpochStability = Quantity 2160
-    , getActiveSlotCoefficient = ActiveSlotCoefficient 1
-    }
+testTimeInterpreter :: Monad m => TimeInterpreter m
+testTimeInterpreter = pure . runIdentity . singleEraInterpreter gp
+  where
+    gp :: GenesisParameters
+    gp = GenesisParameters
+        { getGenesisBlockHash = genesisHash
+        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+        , getSlotLength = SlotLength 1
+        , getEpochLength = EpochLength 50
+        , getEpochStability = Quantity 5
+        , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+        }
 
 genesisProtocolParameters :: ProtocolParameters
 genesisProtocolParameters = ProtocolParameters

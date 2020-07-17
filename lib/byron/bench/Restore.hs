@@ -5,6 +5,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -97,9 +98,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.Model
     ( currentTip, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( slotAt, slotParams )
+    ( TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), mkSyncTolerance, syncProgressRelativeToTime )
+    ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
@@ -108,7 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
-    , SlotId (..)
+    , SlotNo (..)
     , WalletId (..)
     , WalletName (..)
     , computeUtxoStatistics
@@ -132,8 +133,6 @@ import Control.Tracer
     ( Tracer (..), traceWith )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -369,7 +368,7 @@ bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname,
         let gp = genesisParameters np
         let convert = fromByronBlock gp
         let nw = convert <$> nw'
-        withBenchDBLayer @s @k tracer $ \db -> do
+        withBenchDBLayer @s @k tracer (timeInterpreter nw) $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
             sayErr . fmt $ networkText ||+ " tip is at " +|| sl ||+ ""
 
@@ -413,11 +412,12 @@ withBenchDBLayer
         , PersistPrivateKey (k 'RootK)
         )
     => Trace IO Text
+    -> TimeInterpreter IO
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withBenchDBLayer tr action =
+withBenchDBLayer tr ti action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile)
+        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
         let after = destroyDBLayer . fst
         bracket before after $ \(ctx, db) -> do
             migrateDB ctx
@@ -433,7 +433,7 @@ withBenchDBLayer tr action =
     migrateDB ctx = unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
 
 
-logChunk :: SlotId -> IO ()
+logChunk :: SlotNo -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
 prepareNode
@@ -449,7 +449,7 @@ prepareNode _ socketPath np vData = do
         let gp = genesisParameters np
         let convert = fromByronBlock gp
         let nw = convert <$> nw'
-        waitForNodeSync nw logQuiet gp
+        waitForNodeSync nw logQuiet
     sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
@@ -463,12 +463,12 @@ waitForWalletSync
     -> IO ()
 waitForWalletSync walletLayer wid gp vData = do
     (w, _, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
-    let tol = mkSyncTolerance 3600
-    prog <- syncProgressRelativeToTime
-                tol
-                (slotParams gp)
+    let tolerance = mkSyncTolerance 3600
+    prog <- syncProgress
+                tolerance
+                (timeInterpreter nl)
                 (currentTip w)
-                <$> getCurrentTime
+                =<< getCurrentTime
     case prog of
         Ready -> return ()
         NotResponding -> do
@@ -478,41 +478,37 @@ waitForWalletSync walletLayer wid gp vData = do
             sayErr . fmt $ "[INFO] restoring: "+|p|+""
             threadDelay 1000000
             waitForWalletSync walletLayer wid gp vData
+  where
+    WalletLayer _ _ nl _ _ = walletLayer
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
     :: NetworkLayer IO (IO Byron) Block
-    -> (SlotId -> SlotId -> IO ())
-    -> GenesisParameters
-    -> IO SlotId
-waitForNodeSync nw logSlot gp = loop 10
+    -> (SlotNo -> SlotNo -> IO ())
+    -> IO SlotNo
+waitForNodeSync nw _logSlot = loop 10
   where
-    loop :: Int -> IO SlotId
+    loop :: Int -> IO SlotNo
     loop retries = runExceptT (currentNodeTip nw) >>= \case
-        Right (BlockHeader tipBlockSlot _ _ _) -> do
-            currentSlot <- getCurrentSlot
-            logSlot tipBlockSlot currentSlot
-            if tipBlockSlot < currentSlot
-                then do
+        Right nodeTip -> do
+            let tolerance = mkSyncTolerance 60
+            prog <- syncProgress
+                        tolerance
+                        (timeInterpreter nw)
+                        nodeTip
+                        =<< getCurrentTime
+            if prog == Ready
+                then pure (slotNo nodeTip)
+                else do
                     -- 2 seconds poll interval
                     threadDelay 2000000
                     loop retries
-                else
-                    pure tipBlockSlot
         Left e | retries > 0 -> do
                      sayErr "Fetching tip failed, retrying shortly..."
                      threadDelay 15000000
                      loop (retries - 1)
                | otherwise -> throwIO e
 
-    getCurrentSlot :: IO SlotId
-    getCurrentSlot = do
-        let sp = slotParams gp
-        fromMaybe (error errMsg) . slotAt sp <$> getCurrentTime
-      where
-        errMsg = "getCurrentSlot: is the current time earlier than the\
-                 \start time of the blockchain"
-
-logQuiet :: SlotId -> SlotId -> IO ()
+logQuiet :: SlotNo -> SlotNo -> IO ()
 logQuiet _ _ = pure ()

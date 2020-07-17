@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
     , PoolRetirementCertificate
-    , SlotId (..)
+    , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
@@ -188,7 +188,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- results across requests.
 
     , rollbackTo
-        :: SlotId
+        :: SlotNo
         -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 

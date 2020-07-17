@@ -20,6 +20,8 @@ module Cardano.Pool.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
 import Data.Text
@@ -56,7 +58,7 @@ ArbitrarySeed sql=arbitrary_seed
 -- The set of stake pools that produced a given block
 PoolProduction sql=pool_production
     poolProductionPoolId         W.PoolId     sql=pool_id
-    poolProductionSlot           W.SlotId     sql=slot
+    poolProductionSlot           SlotNo       sql=slot
     poolProductionHeaderHash     W.BlockId    sql=header_hash
     poolProductionParentHash     W.BlockId    sql=parent_header_hash
     poolProductionBlockHeight    Word32       sql=block_height
@@ -76,7 +78,7 @@ StakeDistribution sql=stake_distribution
 -- Mapping from pool id to owner.
 PoolOwner sql=pool_owner
     poolOwnerPoolId             W.PoolId            sql=pool_id
-    poolOwnerSlot               W.SlotId            sql=slot
+    poolOwnerSlot               W.SlotNo            sql=slot
     poolOwnerSlotInternalIndex  Word64              sql=slot_internal_index
     poolOwnerOwner              W.PoolOwner         sql=pool_owner
     poolOwnerIndex              Word8               sql=pool_owner_index
@@ -88,7 +90,7 @@ PoolOwner sql=pool_owner
 -- Mapping of registration certificate to pool
 PoolRegistration sql=pool_registration
     poolRegistrationPoolId            W.PoolId                      sql=pool_id
-    poolRegistrationSlot              W.SlotId                      sql=slot
+    poolRegistrationSlot              W.SlotNo                      sql=slot
     poolRegistrationSlotInternalIndex Word64                        sql=slot_internal_index
     poolRegistrationMarginNumerator   Word64                        sql=margin_numerator
     poolRegistrationMarginDenominator Word64                        sql=margin_denominator
@@ -103,7 +105,7 @@ PoolRegistration sql=pool_registration
 -- Mapping of retirement certificates to pools
 PoolRetirement sql=pool_retirement
     poolRetirementPoolId              W.PoolId            sql=pool_id
-    poolRetirementSlot                W.SlotId            sql=slot
+    poolRetirementSlot                W.SlotNo            sql=slot
     poolRetirementSlotInternalIndex   Word64              sql=slot_internal_index
     poolRetirementEpoch               Word64              sql=epoch
 

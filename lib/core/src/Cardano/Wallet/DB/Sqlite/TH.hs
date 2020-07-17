@@ -24,6 +24,8 @@ module Cardano.Wallet.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
 import Data.Quantity
@@ -90,7 +92,7 @@ TxMeta
     txMetaWalletId     W.WalletId   sql=wallet_id
     txMetaStatus       W.TxStatus   sql=status
     txMetaDirection    W.Direction  sql=direction
-    txMetaSlot         W.SlotId     sql=slot
+    txMetaSlot         SlotNo       sql=slot
     txMetaBlockHeight  Word32       sql=block_height
     txMetaAmount       Natural      sql=amount
 
@@ -141,7 +143,7 @@ TxWithdrawal
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint
     checkpointWalletId          W.WalletId   sql=wallet_id
-    checkpointSlot              W.SlotId     sql=slot
+    checkpointSlot              SlotNo       sql=slot
     checkpointHeaderHash        BlockId      sql=header_hash
     checkpointParentHash        BlockId      sql=parent_header_hash
     checkpointBlockHeight       Word32       sql=block_height
@@ -172,7 +174,7 @@ ProtocolParameters
 -- Track whether the wallet's stake key is registered or not.
 StakeKeyCertificate
     stakeKeyCertWalletId             W.WalletId            sql=wallet_id
-    stakeKeyCertSlot                 W.SlotId              sql=slot
+    stakeKeyCertSlot                 SlotNo                sql=slot
     stakeKeyCertType                 W.StakeKeyCertificate sql=type
 
     Primary stakeKeyCertWalletId stakeKeyCertSlot
@@ -182,7 +184,7 @@ StakeKeyCertificate
 -- Store known delegation certificates for a particular wallet
 DelegationCertificate
     certWalletId             W.WalletId     sql=wallet_id
-    certSlot                 W.SlotId       sql=slot
+    certSlot                 SlotNo         sql=slot
     certPoolId               W.PoolId Maybe sql=delegation
 
     Primary certWalletId certSlot
@@ -206,7 +208,7 @@ UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
     utxoWalletId        W.WalletId  sql=wallet_id
-    utxoSlot            W.SlotId    sql=slot
+    utxoSlot            SlotNo      sql=slot
 
     -- TxIn
     utxoInputId         TxId        sql=input_tx_id
@@ -237,7 +239,7 @@ SeqState
 -- when they were discovered.
 SeqStateAddress
     seqStateAddressWalletId         W.WalletId     sql=wallet_id
-    seqStateAddressSlot             W.SlotId       sql=slot
+    seqStateAddressSlot             SlotNo         sql=slot
     seqStateAddressAddress          W.Address      sql=address
     seqStateAddressIndex            Word32         sql=address_ix
     seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
@@ -275,7 +277,7 @@ RndState
 -- The set of discovered addresses.
 RndStateAddress
     rndStateAddressWalletId      W.WalletId        sql=wallet_id
-    rndStateAddressSlot          W.SlotId          sql=slot
+    rndStateAddressSlot          SlotNo            sql=slot
     rndStateAddressAccountIndex  Word32            sql=account_ix
     rndStateAddressIndex         Word32            sql=address_ix
     rndStateAddressAddress       W.Address         sql=address

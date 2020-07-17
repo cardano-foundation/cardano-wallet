@@ -363,7 +363,7 @@ prefilterBlock b u0 = runState $ do
     mkTxMeta amt dir = TxMeta
         { status = InLedger
         , direction = dir
-        , slotId = b ^. #header . #slotId
+        , slotNo = b ^. #header . #slotNo
         , blockHeight = b ^. #header . #blockHeight
         , amount = Quantity amt
         }

@@ -283,6 +283,7 @@ serveWallet
                     minimumUTxOvalue (protocolParameters np)
                 }
             )
+            (timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
             Server.idleWorker

@@ -41,7 +41,6 @@ import Cardano.Wallet.Byron.Compatibility
     ( Byron
     , byronCodecConfig
     , fromChainHash
-    , fromSlotNo
     , fromTip
     , protocolParametersFromUpdateState
     , toGenTx
@@ -49,6 +48,8 @@ import Cardano.Wallet.Byron.Compatibility
     )
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
+import Cardano.Wallet.Primitive.Slotting
+    ( singleEraInterpreter )
 import Control.Concurrent
     ( ThreadId )
 import Control.Concurrent.Async
@@ -93,6 +94,8 @@ import Data.ByteString.Lazy
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.Quantity
@@ -232,17 +235,17 @@ withNetworkLayer tr np addrInfo versionData action = do
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
             , destroyCursor = _destroyCursor
-            , cursorSlotId = _cursorSlotId
+            , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution
             , getAccountBalance = _getAccountBalance
+            , timeInterpreter = pure . runIdentity . singleEraInterpreter gp
             , watchNodeTip = _watchNodeTip
             }
   where
     gp@W.GenesisParameters
         { getGenesisBlockHash
-        , getEpochLength
         } = W.genesisParameters np
 
     _initCursor headers = do
@@ -252,7 +255,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         thread <- async (connectClient tr handlers client versionData addrInfo)
         link thread
         let points = reverse $ genesisPoint :
-                (toPoint getGenesisBlockHash getEpochLength <$> headers)
+                (toPoint getGenesisBlockHash <$> headers)
         let findIt = chainSyncQ `send` CmdFindIntersection points
         traceWith tr $ MsgFindIntersection headers
         res <- findIt
@@ -277,14 +280,14 @@ withNetworkLayer tr np addrInfo versionData action = do
         let toCursor point = Cursor thread point chainSyncQ
         liftIO $ mapCursor toCursor <$> chainSyncQ `send` CmdNextBlocks
 
-    _cursorSlotId (Cursor _ point _) = do
-        fromSlotNo getEpochLength $ fromWithOrigin (SlotNo 0) $ pointSlot point
+    _cursorSlotNo (Cursor _ point _) = do
+        fromWithOrigin (SlotNo 0) $ pointSlot point
 
     _getAccountBalance _ =
         pure (Quantity 0)
 
     _currentNodeTip nodeTipVar =
-        fromTip getGenesisBlockHash getEpochLength <$> atomically (readTVar nodeTipVar)
+        fromTip getGenesisBlockHash <$> atomically (readTVar nodeTipVar)
 
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
@@ -330,8 +333,7 @@ mkWalletClient gp chainSyncQ = do
     pure $ nodeToClientProtocols (const $ pure $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                fromTip' =
-                    fromTip getGenesisBlockHash getEpochLength
+                fromTip' = fromTip getGenesisBlockHash
                 codec = cChainSyncCodec codecs
             in
             InitiatorProtocolOnly $ MuxPeerRaw
@@ -348,8 +350,7 @@ mkWalletClient gp chainSyncQ = do
         NodeToClientV_2
   where
     W.GenesisParameters
-        { getEpochLength
-        , getGenesisBlockHash
+        { getGenesisBlockHash
         } = gp
 
     codecs :: MonadST m => ClientCodecs ByronBlock m
@@ -402,7 +403,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
 
     onTipUpdate' <- debounce $ \tip -> do
         traceWith tr $
-            MsgNodeTip $ fromTip getGenesisBlockHash getEpochLength tip
+            MsgNodeTip $ fromTip getGenesisBlockHash tip
         onTipUpdate tip
         queryLocalState (getTipPoint tip)
 
@@ -440,7 +441,6 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
   where
     gp@W.GenesisParameters
         { getGenesisBlockHash
-        , getEpochLength
         } = W.genesisParameters np
 
     codecs :: MonadST m => DefaultCodecs ByronBlock m

@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , ShowFmt (..)
     , SlotId (..)
+    , SlotNo (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -549,8 +550,7 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
             (isNothing res)
 
 prop_getTxAfterPutInvalidWalletId
-    :: GenState s
-    => DBLayer IO s JormungandrKey
+    :: DBLayer IO s JormungandrKey
     -> ( PrimaryKey WalletId
        , Wallet s
        , WalletMetadata
@@ -780,12 +780,12 @@ prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
     prop wid point = do
         let tip = currentTip point
         point' <- run $ atomically $ unsafeRunExceptT $
-            rollbackTo wid (tip ^. #slotId)
+            rollbackTo wid (tip ^. #slotNo)
         cp <- run $ atomically $ readCheckpoint wid
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
-        assert (ShowFmt point' == ShowFmt (tip ^. #slotId))
+        assert (ShowFmt point' == ShowFmt (tip ^. #slotNo))
 
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
@@ -839,22 +839,22 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
             . map (\(tx, meta) -> unwords
                 [ "- "
                 , pretty (txId tx)
-                , pretty (meta ^. #slotId)
+                , pretty (meta ^. #slotNo)
                 , pretty (meta ^. #status)
                 , pretty (meta ^. #direction)
                 , show $ getQuantity ((meta ^. #amount))
                 ])
 
-    isBefore :: SlotId -> TxMeta -> Bool
+    isBefore :: SlotNo -> TxMeta -> Bool
     isBefore point meta =
-        (slotId :: TxMeta -> SlotId) meta <= point
+        (slotNo :: TxMeta -> SlotNo) meta <= point
 
-    rescheduled :: SlotId -> [Hash "Tx"]
+    rescheduled :: SlotNo -> [Hash "Tx"]
     rescheduled point =
-        let addedAfter meta = direction meta == Outgoing && meta ^. #slotId > point
+        let addedAfter meta = direction meta == Outgoing && meta ^. #slotNo > point
         in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
 
-    knownAfterRollback :: SlotId -> [Hash "Tx"]
+    knownAfterRollback :: SlotNo -> [Hash "Tx"]
     knownAfterRollback point =
         rescheduled point ++ filterTxs (isBefore point) txs0
 

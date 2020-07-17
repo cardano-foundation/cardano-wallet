@@ -95,10 +95,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( flatSlot )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
+    , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
     , PoolId (PoolId)
@@ -1017,9 +1020,9 @@ withRaw get = do
 -------------------------------------------------------------------------------}
 
 -- | Convert the Jörmungandr binary format block into a simpler Wallet block.
-convertBlock :: Block -> W.Block
-convertBlock (Block h msgs) =
-    W.Block (convertBlockHeader h) transactions delegations
+convertBlock :: EpochLength -> Block -> W.Block
+convertBlock el (Block h msgs) =
+    W.Block (convertBlockHeader el h) transactions delegations
   where
     delegations :: [W.DelegationCertificate]
     delegations = catMaybes $ msgs >>= \case
@@ -1048,12 +1051,13 @@ convertDlgType accountId = \case
     _ -> Nothing
 
 -- | Convert the Jörmungandr binary format header into a simpler Wallet header.
-convertBlockHeader :: BlockHeader -> W.BlockHeader
-convertBlockHeader h = (W.BlockHeader (slot h) (bh h) (Hash "") (Hash ""))
+convertBlockHeader :: EpochLength -> BlockHeader -> W.BlockHeader
+convertBlockHeader el h = (W.BlockHeader slotNo (bh h) (Hash "") (Hash ""))
     { W.headerHash = headerHash h
     , W.parentHeaderHash = parentHeaderHash h
     }
   where
+    slotNo = W.SlotNo $ flatSlot el (slot h)
     bh = Quantity . fromIntegral . chainLength
 
 

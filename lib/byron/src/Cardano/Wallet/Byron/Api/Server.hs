@@ -180,7 +180,8 @@ server byron icarus ntp =
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
             SomeAccount x ->
-                postAccountWallet icarus mkLegacyWallet IcarusKey idleWorker x
+                postAccountWallet icarus
+                    (mkLegacyWallet @_ @_ @_ @t) IcarusKey idleWorker x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -188,20 +189,20 @@ server byron icarus ntp =
              )
         :<|> (\wid -> withLegacyLayer' wid
                 ( byron
-                , fst <$> getWallet byron  mkLegacyWallet wid
-                , const (fst <$> getWallet byron  mkLegacyWallet wid)
+                , fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid
+                , const (fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid)
                 )
                 ( icarus
-                , fst <$> getWallet icarus mkLegacyWallet wid
-                , const (fst <$> getWallet icarus mkLegacyWallet wid)
+                , fst <$> getWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid
+                , const (fst <$> getWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid)
                 )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  mkLegacyWallet)
-            (listWallets icarus mkLegacyWallet)
+            (listWallets byron (mkLegacyWallet @_ @_ @_ @t))
+            (listWallets icarus (mkLegacyWallet @_ @_ @_ @t))
         :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWallet byron mkLegacyWallet wid name)
-                (icarus, putWallet icarus mkLegacyWallet wid name)
+                (byron , putWallet byron (mkLegacyWallet @_ @_ @_ @t) wid name)
+                (icarus, putWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid name)
              )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getUTxOsStatistics byron wid)

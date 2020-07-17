@@ -171,6 +171,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Slotting.Slot
+    ( SlotNo (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -254,9 +256,9 @@ import Cardano.Wallet.Primitive.Model
     , updateState
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters (..), slotParams, slotRangeFromTimeRange, slotStartTime )
+    ( TimeInterpreter, slotRangeFromTimeRange, startTime )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress, SyncTolerance (..), syncProgressRelativeToTime )
+    ( SyncProgress, SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -276,7 +278,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , SealedTx
-    , SlotId (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
@@ -634,18 +635,21 @@ readWalletProtocolParameters ctx wid = db & \DBLayer{..} ->
     db = ctx ^. dbLayer @s @k
 
 walletSyncProgress
-    :: forall ctx s.
+    :: forall ctx s t.
         ( HasGenesisData ctx
+        , HasNetworkLayer t ctx
         )
     => ctx
     -> Wallet s
     -> IO SyncProgress
 walletSyncProgress ctx w = do
-    let gp = blockchainParameters w
-    let h = currentTip w
-    syncProgressRelativeToTime st (slotParams gp) h <$> getCurrentTime
+    let tip = currentTip w
+    syncProgress st ti tip =<< getCurrentTime
   where
-    (_, _, st) = ctx ^. genesisData
+    (_,_,st) = ctx ^. genesisData
+
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -717,7 +721,7 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs (h, ps) = run $ do
-            restoreBlocks @ctx @s @k ctx wid bs h
+            restoreBlocks @ctx @s @k @t ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowInterrupted -> pure ()
@@ -743,7 +747,7 @@ rollbackBlocks
         )
     => ctx
     -> WalletId
-    -> SlotId
+    -> SlotNo
     -> ExceptT ErrNoSuchWallet IO ()
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
     lift $ traceWith tr $ MsgTryingRollback point
@@ -756,12 +760,13 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
 restoreBlocks
-    :: forall ctx s k.
+    :: forall ctx s k t.
         ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s ChimericAccount
+        , HasNetworkLayer t ctx
         )
     => ctx
     -> WalletId
@@ -782,10 +787,10 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
 
     let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp
     let slotPoolDelegations =
-            [ (slotId, cert)
-            | let slots = view #slotId . view #header <$> blocks
+            [ (slotNo, cert)
+            | let slots = view #slotNo . view #header <$> blocks
             , let delegations = view #delegations <$> filteredBlocks
-            , (slotId, certs) <- NE.toList $ NE.zip slots delegations
+            , (slotNo, certs) <- NE.toList $ NE.zip slots delegations
             , cert <- certs
             ]
     let txs = fold $ view #transactions <$> filteredBlocks
@@ -793,9 +798,9 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     let localTip = currentTip $ NE.last cps
 
     putTxHistory (PrimaryKey wid) txs
-    forM_ slotPoolDelegations $ \delegation@(slotId, cert) -> do
+    forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
         liftIO $ logDelegation delegation
-        putDelegationCertificate (PrimaryKey wid) cert slotId
+        putDelegationCertificate (PrimaryKey wid) cert slotNo
 
     let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
 
@@ -811,7 +816,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     prune (PrimaryKey wid)
 
     liftIO $ do
-        progress <- walletSyncProgress @ctx ctx (NE.last cps)
+        progress <- walletSyncProgress @ctx @s @t ctx (NE.last cps)
         traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgSyncProgress progress
         traceWith tr $ MsgDiscoveredTxs txs
@@ -825,8 +830,8 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
-    logDelegation :: (SlotId, DelegationCertificate) -> IO ()
-    logDelegation (slotId, cert) = traceWith tr $ MsgDelegation slotId cert
+    logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
+    logDelegation (slotNo, cert) = traceWith tr $ MsgDelegation slotNo cert
 
     isParentOf :: Wallet s -> Block -> Bool
     isParentOf cp = (== parent) . parentHeaderHash . header
@@ -1396,12 +1401,13 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotId) cs'
+                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs'
 
-            let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' cs'
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' cs'
             return (tx, meta, time, sealedTx)
   where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1433,12 +1439,13 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotId) cs
+                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
 
-            let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) (getState cp) cs
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) cs
             return (tx, meta, time, sealedTx)
   where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1527,27 +1534,29 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                         mkDelegationJoinTx tl poolId
                             (rewardAcnt, pwdP)
                             keyFrom
-                            (nodeTip ^. #slotId)
+                            (nodeTip ^. #slotNo)
                             coinSel'
 
                     Join poolId ->
                         mkDelegationJoinTx tl poolId
                             (rewardAcnt, pwdP)
                             keyFrom
-                            (nodeTip ^. #slotId)
+                            (nodeTip ^. #slotNo)
                             coinSel'
 
                     Quit ->
                         mkDelegationQuitTx tl
                             (rewardAcnt, pwdP)
                             keyFrom
-                            (nodeTip ^. #slotId)
+                            (nodeTip ^. #slotNo)
                             coinSel'
 
-            let gp = blockchainParameters cp
-            let (time, meta) = mkTxMeta gp (currentTip cp) s' coinSel'
+            (time, meta) <- liftIO $
+                mkTxMeta ti (currentTip cp) s' coinSel'
             return (tx, meta, time, sealedTx)
   where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1555,13 +1564,13 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
 mkTxMeta
-    :: IsOurs s Address
-    => GenesisParameters
+    :: (IsOurs s Address, Monad m)
+    => TimeInterpreter m
     -> BlockHeader
     -> s
     -> CoinSelection
-    -> (UTCTime, TxMeta)
-mkTxMeta gp blockHeader wState cs =
+    -> m (UTCTime, TxMeta)
+mkTxMeta interpretTime blockHeader wState cs =
     let
         amtOuts =
             sum (mapMaybe ourCoins (outputs cs))
@@ -1570,17 +1579,20 @@ mkTxMeta gp blockHeader wState cs =
             sum (getCoin . coin . snd <$> (inputs cs))
             + withdrawal cs
             + reclaim cs
-    in
-        ( slotStartTime (slotParams gp) (blockHeader ^. #slotId)
-        , TxMeta
-            { status = Pending
-            , direction = Outgoing
-            , slotId = blockHeader ^. #slotId
-            , blockHeight = blockHeader ^. #blockHeight
-            , amount = Quantity (amtInps - amtOuts)
-            }
-        )
+    in do
+        t <- slotStartTime' (blockHeader ^. #slotNo)
+        return
+            ( t
+            , TxMeta
+                { status = Pending
+                , direction = Outgoing
+                , slotNo = blockHeader ^. #slotNo
+                , blockHeight = blockHeader ^. #blockHeight
+                , amount = Quantity (amtInps - amtOuts)
+                }
+            )
   where
+    slotStartTime' = interpretTime . startTime
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr (Coin val)) =
         if fst (isOurs addr wState)
@@ -1639,7 +1651,10 @@ forgetPendingTx ctx wid tid = db & \DBLayer{..} -> do
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k t.
+        ( HasDBLayer s k ctx
+        , HasNetworkLayer t ctx
+        )
     => ctx
     -> WalletId
     -> Maybe (Quantity "lovelace" Natural)
@@ -1653,29 +1668,25 @@ listTransactions
 listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
     mapExceptT atomically $ do
-        cp <- withExceptT ErrListTransactionsNoSuchWallet $
-            withNoSuchWallet wid $ readCheckpoint pk
-
-        let sp = slotParams (blockchainParameters cp)
-
-        mapExceptT liftIO (getSlotRange sp) >>= maybe
+        mapExceptT liftIO getSlotRange >>= maybe
             (pure [])
             (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
+    ti = timeInterpreter $ ctx ^. networkLayer @t
+
     db = ctx ^. dbLayer @s @k
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
     -- returns 'Nothing'.
     getSlotRange
-        :: SlotParameters
-        -> ExceptT ErrListTransactions IO (Maybe (Range SlotId))
-    getSlotRange sp = case (mStart, mEnd) of
+        :: ExceptT ErrListTransactions IO (Maybe (Range SlotNo))
+    getSlotRange = case (mStart, mEnd) of
         (Just start, Just end) | start > end -> do
             let err = ErrStartTimeLaterThanEndTime start end
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
-        _ ->
-            pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
+        _ -> do
+            liftIO $ ti $ slotRangeFromTimeRange $ Range mStart mEnd
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
@@ -2155,10 +2166,10 @@ guardQuit WalletDelegation{active,next} rewards = do
 -------------------------------------------------------------------------------}
 
 data WalletLog
-    = MsgTryingRollback SlotId
-    | MsgRolledBack SlotId
+    = MsgTryingRollback SlotNo
+    | MsgRolledBack SlotNo
     | MsgFollow FollowLog
-    | MsgDelegation SlotId DelegationCertificate
+    | MsgDelegation SlotNo DelegationCertificate
     | MsgCheckpoint BlockHeader
     | MsgWalletMetadata WalletMetadata
     | MsgSyncProgress SyncProgress
@@ -2185,21 +2196,21 @@ instance ToText WalletLog where
             "Rolled back to " <> pretty point
         MsgFollow msg ->
             toText msg
-        MsgDelegation slotId cert -> case cert of
+        MsgDelegation slotNo cert -> case cert of
             CertDelegateNone{} -> mconcat
                 [ "Discovered end of delegation within slot "
-                , pretty slotId
+                , pretty slotNo
                 ]
             CertDelegateFull{} -> mconcat
                 [ "Discovered delegation to pool "
                 , pretty (dlgCertPoolId cert)
                 , " within slot "
-                , pretty slotId
+                , pretty slotNo
                 ]
             CertRegisterKey {} -> mconcat
                 [ "Discovered stake key registration "
                 , " within slot "
-                , pretty slotId
+                , pretty slotNo
                 ]
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip

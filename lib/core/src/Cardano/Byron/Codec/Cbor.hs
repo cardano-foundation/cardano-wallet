@@ -28,7 +28,6 @@ module Cardano.Byron.Codec.Cbor
       decodeAddressDerivationPath
     , decodeAddressPayload
     , decodeAllAttributes
-    , decodeBlockHeader
     , decodeDerivationPathAttr
     , decodeSignedTx
     , decodeTx
@@ -61,19 +60,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , BlockHeader (..)
     , Coin (..)
-    , EpochNo (..)
     , Hash (..)
     , ProtocolMagic (..)
-    , SlotId (..)
-    , SlotInEpoch (..)
     , TxIn (..)
     , TxOut (..)
-    , unsafeEpochNo
     )
 import Control.Monad
-    ( replicateM, void, when )
+    ( replicateM, when )
 import Control.Monad.Fail
     ( MonadFail )
 import Crypto.Error
@@ -90,14 +84,10 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.List
     ( find )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word8 )
 import Debug.Trace
     ( traceShow )
-import GHC.Stack
-    ( HasCallStack )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -273,207 +263,8 @@ decodeDerivationPath = do
                 , show ixs
                 ]
 
-decodeBlockHeader :: CBOR.Decoder s BlockHeader
-decodeBlockHeader = do
-    CBOR.decodeListLenCanonicalOf 2
-    t <- CBOR.decodeWordCanonical
-    case t of
-        0 -> decodeGenesisBlockHeader
-        1 -> decodeMainBlockHeader
-        _ ->
-            fail $ "decodeBlockHeader: unknown block header constructor: " <>
-                show t
-
-decodeBlockVersion :: CBOR.Decoder s ()
-decodeBlockVersion = do
-    _ <- CBOR.decodeListLenCanonicalOf 3
-    _ <- CBOR.decodeWord16 -- Major
-    _ <- CBOR.decodeWord16 -- Minor
-    _ <- CBOR.decodeWord8  -- Patch
-    return ()
-
-decodeDataProof :: CBOR.Decoder s ()
-decodeDataProof = do
-    _ <- CBOR.decodeBytes -- Proof Hash
-    return ()
-
-decodeCertificatesProof :: CBOR.Decoder s ()
-decodeCertificatesProof = do
-    _ <- CBOR.decodeBytes -- Vss Certificates Hash
-    return ()
-
-decodeCommitmentsProof :: CBOR.Decoder s ()
-decodeCommitmentsProof = do
-    _ <- CBOR.decodeBytes -- Commitments Hash
-    _ <- CBOR.decodeBytes -- Vss Certificates Hash
-    return ()
-
-decodeDifficulty :: CBOR.Decoder s Word64
-decodeDifficulty = do
-    _ <- CBOR.decodeListLenCanonicalOf 1
-    CBOR.decodeWord64
-
-decodeEpochNo :: HasCallStack => CBOR.Decoder s EpochNo
-decodeEpochNo =
-    unsafeEpochNo . fromIntegral @Word64 @Word32 <$> CBOR.decodeWord64
-
-decodeSlotInEpoch :: CBOR.Decoder s SlotInEpoch
-decodeSlotInEpoch = SlotInEpoch . fromIntegral <$> CBOR.decodeWord16
-
-decodeGenesisBlockHeader :: CBOR.Decoder s BlockHeader
-decodeGenesisBlockHeader = do
-    _ <- CBOR.decodeListLenCanonicalOf 5
-    _ <- decodeProtocolMagic
-    previous <- decodePreviousBlockHeader
-    _ <- decodeGenesisProof
-    (epoch, difficulty) <- decodeGenesisConsensusData
-    _ <- decodeGenesisExtraData
-    -- NOTE
-    -- Careful here, we do return a slot number of 0, which means that if we
-    -- naively parse all blocks from an epoch, two of them will have a slot
-    -- number of `0`. In practices, when parsing a full epoch, we can discard
-    -- the genesis block entirely and we won't bother about modelling this
-    -- extra complexity at the type-level. That's a bit dodgy though.
-    return $ BlockHeader
-        { slotId = SlotId epoch 0
-        , blockHeight = Quantity $ fromIntegral difficulty
-        , headerHash = Hash "http-bridge"
-        , parentHeaderHash = previous
-        }
-
-decodeGenesisConsensusData :: CBOR.Decoder s (EpochNo, Word64)
-decodeGenesisConsensusData = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    epoch <- decodeEpochNo
-    height <- decodeDifficulty
-    return (epoch, height)
-
-decodeGenesisExtraData :: CBOR.Decoder s ()
-decodeGenesisExtraData = do
-    _ <- CBOR.decodeListLenCanonicalOf 1
-    _ <- decodeEmptyAttributes
-    return ()
-
-decodeGenesisProof :: CBOR.Decoder s ()
-decodeGenesisProof = do
-    _ <- CBOR.decodeBytes -- Slot Leaders Hash
-    return ()
-
-decodeHeavyIndex :: CBOR.Decoder s ()
-decodeHeavyIndex = do
-    _ <- CBOR.decodeWord64 -- Epoch Index
-    return ()
-
-decodeLeaderKey :: CBOR.Decoder s ()
-decodeLeaderKey = do
-    _ <- CBOR.decodeBytes
-    return ()
-
-decodeLightIndex :: CBOR.Decoder s ()
-decodeLightIndex = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    _ <- CBOR.decodeWord64 -- Epoch Index #1
-    _ <- CBOR.decodeWord64 -- Epoch Index #2
-    return ()
-
-decodeMainBlockHeader :: CBOR.Decoder s BlockHeader
-decodeMainBlockHeader = do
-    _ <- CBOR.decodeListLenCanonicalOf 5
-    _ <- decodeProtocolMagic
-    previous <- decodePreviousBlockHeader
-    _ <- decodeMainProof
-    (slot, difficulty) <- decodeMainConsensusData
-    _ <- decodeMainExtraData
-    let bh = Quantity $ fromIntegral difficulty
-    return $ BlockHeader
-        { slotId = slot
-        , blockHeight = bh
-        , headerHash = Hash "http-bridge"
-        , parentHeaderHash = previous
-        }
-
-decodeMainConsensusData :: CBOR.Decoder s (SlotId, Word64)
-decodeMainConsensusData = do
-    _ <- CBOR.decodeListLenCanonicalOf 4
-    slot <- decodeSlotId
-    _ <- decodeLeaderKey
-    d <- decodeDifficulty
-    _ <- decodeSignature
-    return (slot, d)
-
-decodeMainExtraData :: CBOR.Decoder s ()
-decodeMainExtraData = do
-    _ <- CBOR.decodeListLenCanonicalOf 4
-    _ <- decodeBlockVersion
-    _ <- decodeSoftwareVersion
-    _ <- decodeEmptyAttributes
-    _ <- decodeDataProof
-    return ()
-
-decodeMainProof :: CBOR.Decoder s ()
-decodeMainProof = do
-    CBOR.decodeListLenCanonicalOf 4
-    decodeTxProof
-    decodeMpcProof
-    decodeProxySKsProof
-    decodeUpdateProof
-
--- Multi-party computation proof
-decodeMpcProof :: CBOR.Decoder s ()
-decodeMpcProof = do
-    _ <- CBOR.decodeListLenCanonical
-    t <- CBOR.decodeWord8
-    case t of
-      0 -> decodeCommitmentsProof
-      1 -> decodeOpeningsProof
-      2 -> decodeSharesProof
-      3 -> decodeCertificatesProof
-      _ -> fail $ "decodeMpcProof: unknown proof constructor: " <> show t
-
-decodeOpeningsProof :: CBOR.Decoder s ()
-decodeOpeningsProof = do
-    _ <- CBOR.decodeBytes -- Openings Hash
-    _ <- CBOR.decodeBytes -- Vss Certificates Hash
-    return ()
-
-decodePreviousBlockHeader :: CBOR.Decoder s (Hash "BlockHeader")
-decodePreviousBlockHeader = Hash <$> CBOR.decodeBytes
-
 decodeProtocolMagic :: CBOR.Decoder s ProtocolMagic
 decodeProtocolMagic = ProtocolMagic <$> CBOR.decodeInt32
-
-decodeProxySignature
-    :: (forall x. CBOR.Decoder x ())
-    -> CBOR.Decoder s ()
-decodeProxySignature decodeIndex = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    _ <- decodeProxySecretKey
-    _ <- CBOR.decodeBytes -- Proxy Signature
-    return ()
-  where
-    decodeProxySecretKey :: CBOR.Decoder s ()
-    decodeProxySecretKey = do
-        _ <- CBOR.decodeListLenCanonicalOf 4
-        _ <- decodeIndex
-        _ <- CBOR.decodeBytes -- Issuer Public Key
-        _ <- CBOR.decodeBytes -- Delegate Public Key
-        _ <- CBOR.decodeBytes -- Proxy Certificate Key
-        return ()
-
-decodeProxySKsProof :: CBOR.Decoder s ()
-decodeProxySKsProof = do
-    _ <- CBOR.decodeBytes -- Dlg Payload Hash
-    return ()
-
-decodeSignature :: CBOR.Decoder s ()
-decodeSignature = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    t <- CBOR.decodeWord8
-    case t of
-        0 -> void CBOR.decodeBytes
-        1 -> decodeProxySignature decodeLightIndex
-        2 -> decodeProxySignature decodeHeavyIndex
-        _ -> fail $ "decodeSignature: unknown signature constructor: " <> show t
 
 decodeSignedTx :: CBOR.Decoder s (([TxIn], [TxOut]), [ByteString])
 decodeSignedTx = do
@@ -481,25 +272,6 @@ decodeSignedTx = do
     tx <- decodeTx
     witnesses <- decodeList decodeTxWitness
     return (tx, witnesses)
-
-decodeSharesProof :: CBOR.Decoder s ()
-decodeSharesProof = do
-    _ <- CBOR.decodeBytes -- Shares Hash
-    _ <- CBOR.decodeBytes -- Vss Certificates Hash
-    return ()
-
-decodeSlotId :: CBOR.Decoder s SlotId
-decodeSlotId = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    epoch <- decodeEpochNo
-    SlotId epoch <$> decodeSlotInEpoch
-
-decodeSoftwareVersion :: CBOR.Decoder s ()
-decodeSoftwareVersion = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    _ <- CBOR.decodeString -- Application Name
-    _ <- CBOR.decodeWord32 -- Software Version
-    return ()
 
 decodeTx :: CBOR.Decoder s ([TxIn], [TxOut])
 decodeTx = do
@@ -536,14 +308,6 @@ decodeTxOut = do
     addr <- decodeAddress
     TxOut addr . Coin <$> CBOR.decodeWord64
 
-decodeTxProof :: CBOR.Decoder s ()
-decodeTxProof = do
-    CBOR.decodeListLenCanonicalOf 3
-    _ <- CBOR.decodeWord32 -- Number
-    _ <- CBOR.decodeBytes  -- Merkle Root Hash
-    _ <- CBOR.decodeBytes  -- Witnesses Hash
-    return ()
-
 decodeTxWitness :: CBOR.Decoder s ByteString
 decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
@@ -555,11 +319,6 @@ decodeTxWitness = do
         2 -> CBOR.decodeBytes
         _ -> fail
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
-
-decodeUpdateProof :: CBOR.Decoder s ()
-decodeUpdateProof = do
-    _ <- CBOR.decodeBytes -- Update Hash
-    return ()
 
 -- * Encoding
 

@@ -102,7 +102,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters, slotParams, slotStartTime )
+    ( TimeInterpreter, epochOf, firstSlotInEpoch, startTime )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -213,13 +213,14 @@ withDBLayer
        -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
+    -> TimeInterpreter IO
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace defaultFieldValues mDatabaseDir =
+withDBLayer trace defaultFieldValues mDatabaseDir timeInterpreter =
     bracket before after
   where
-    before = newDBLayer trace defaultFieldValues mDatabaseDir
+    before = newDBLayer trace defaultFieldValues mDatabaseDir timeInterpreter
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -233,10 +234,12 @@ newDBFactory
        -- ^ Logging object
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
+    -> TimeInterpreter IO
+
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr defaultFieldValues = \case
+newDBFactory tr defaultFieldValues timeInterpreter = \case
     Nothing -> do
         -- NOTE
         -- For the in-memory database, we do actually preserve the database
@@ -251,7 +254,7 @@ newDBFactory tr defaultFieldValues = \case
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
                         (ctx, db) <-
-                            newDBLayer tr defaultFieldValues Nothing
+                            newDBLayer tr defaultFieldValues Nothing timeInterpreter
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -269,6 +272,7 @@ newDBFactory tr defaultFieldValues = \case
                 tr
                 defaultFieldValues
                 (Just $ databaseFile wid)
+                timeInterpreter
                 (action . snd)
             , removeDatabase = \wid -> do
                 let widp = pretty wid
@@ -532,8 +536,9 @@ newDBLayer
        -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
+    -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace defaultFieldValues mDatabaseFile = do
+newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
         startSqliteBackend
@@ -643,8 +648,10 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectLatestCheckpoint wid >>= \case
                 Nothing -> pure Nothing
                 Just cp -> do
-                    let (W.SlotId currentEpoch _) = checkpointSlot cp
-                    readWalletDelegation wid currentEpoch >>= readWalletMetadata wid
+                    currentEpoch <- liftIO $
+                        timeInterpreter (epochOf $ cp ^. #checkpointSlot)
+                    readWalletDelegation timeInterpreter wid currentEpoch
+                        >>= readWalletMetadata wid
 
         , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
             selectWallet wid >>= \case
@@ -692,7 +699,8 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
                     pure $ Right ()
 
         , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
-            selectTxHistory wid minWithdrawal order $ catMaybes
+            selectTxHistory
+                timeInterpreter wid minWithdrawal order $ catMaybes
                 [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
                 , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
                 , (TxMetaStatus ==.) <$> status
@@ -721,7 +729,8 @@ newDBLayer trace defaultFieldValues mDatabaseFile = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    metas <- selectTxHistory wid Nothing W.Descending
+                    metas <- selectTxHistory
+                        timeInterpreter wid Nothing W.Descending
                             [ TxMetaTxId ==. (TxId tid) ]
                     case metas of
                         [] -> pure (Right Nothing)
@@ -788,26 +797,29 @@ readWalletMetadata wid walDel =
         <$> selectFirst [WalId ==. wid] []
 
 readWalletDelegation
-    :: W.WalletId
+    :: TimeInterpreter IO
+    -> W.WalletId
     -> W.EpochNo
     -> SqlPersistT IO W.WalletDelegation
-readWalletDelegation wid epoch
+readWalletDelegation ti wid epoch
     | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
-    | otherwise  = do
+    | otherwise = do
+        eMinus1 <- liftIO $ ti $ firstSlotInEpoch (epoch - 1)
+        e <- liftIO $ ti $ firstSlotInEpoch epoch
         active <- maybe W.NotDelegating toWalletDelegationStatus
             <$> readDelegationCertificate wid
-                [ CertSlot <. W.SlotId (epoch - 1) 0
+                [ CertSlot <. eMinus1
                 ]
 
         next <- catMaybes <$> sequence
             [ fmap (W.WalletDelegationNext (epoch + 1) . toWalletDelegationStatus)
                 <$> readDelegationCertificate wid
-                    [ CertSlot >=. W.SlotId (epoch - 1) 0
-                    , CertSlot <. W.SlotId epoch 0
+                    [ CertSlot >=. eMinus1
+                    , CertSlot <. e
                     ]
             , fmap (W.WalletDelegationNext (epoch + 2) . toWalletDelegationStatus)
                 <$> readDelegationCertificate wid
-                    [ CertSlot >=. W.SlotId epoch 0
+                    [ CertSlot >=. e
                     ]
             ]
 
@@ -850,7 +862,7 @@ mkWalletMetadataUpdate meta =
 
 blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
 blockHeaderFromEntity cp = W.BlockHeader
-    { slotId = checkpointSlot cp
+    { slotNo = checkpointSlot cp
     , blockHeight = Quantity (checkpointBlockHeight cp)
     , headerHash = getBlockId (checkpointHeaderHash cp)
     , parentHeaderHash = getBlockId (checkpointParentHash cp)
@@ -894,7 +906,7 @@ mkCheckpointEntity wid wal =
     (cp, utxo)
   where
     header = W.currentTip wal
-    sl = header ^. #slotId
+    sl = header ^. #slotNo
     (Quantity bh) = header ^. #blockHeight
     gp = W.blockchainParameters wal
     cp = Checkpoint
@@ -1032,7 +1044,7 @@ mkTxMetaEntity wid txid meta = TxMeta
     , txMetaWalletId = wid
     , txMetaStatus = meta ^. #status
     , txMetaDirection = meta ^. #direction
-    , txMetaSlot = meta ^. #slotId
+    , txMetaSlot = meta ^. #slotNo
     , txMetaBlockHeight = getQuantity (meta ^. #blockHeight)
     , txMetaAmount = getQuantity (meta ^. #amount)
     }
@@ -1040,33 +1052,36 @@ mkTxMetaEntity wid txid meta = TxMeta
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity
-    :: SlotParameters
+    :: Monad m
+    => TimeInterpreter m
     -> W.BlockHeader
     -> [TxMeta]
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> [TxWithdrawal]
-    -> [W.TransactionInfo]
-txHistoryFromEntity sp tip metas ins outs ws =
-    map mkItem metas
+    -> m [W.TransactionInfo]
+txHistoryFromEntity ti tip metas ins outs ws =
+    mapM mkItem metas
   where
+    startTime' = ti . startTime
     mkItem m = mkTxWith (txMetaTxId m) (mkTxMeta m)
-    mkTxWith txid meta = W.TransactionInfo
-        { W.txInfoId =
-            getTxId txid
-        , W.txInfoInputs =
-            map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
-        , W.txInfoOutputs =
-            map mkTxOut $ filter ((== txid) . txOutputTxId) outs
-        , W.txInfoWithdrawals =
-            Map.fromList $ map mkTxWithdrawal $ filter ((== txid) . txWithdrawalTxId) ws
-        , W.txInfoMeta =
-            meta
-        , W.txInfoDepth =
-            Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
-        , W.txInfoTime =
-            slotStartTime sp (meta ^. #slotId)
-        }
+    mkTxWith txid meta = do
+        t <- startTime' (meta ^. #slotNo)
+        return $ W.TransactionInfo
+            { W.txInfoId =
+                getTxId txid
+            , W.txInfoInputs =
+                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+            , W.txInfoOutputs =
+                map mkTxOut $ filter ((== txid) . txOutputTxId) outs
+            , W.txInfoWithdrawals =
+                Map.fromList $ map mkTxWithdrawal $ filter ((== txid) . txWithdrawalTxId) ws
+            , W.txInfoMeta =
+                meta
+            , W.txInfoDepth =
+                Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
+            , W.txInfoTime = t
+            }
       where
         txH  = getQuantity (meta ^. #blockHeight)
         tipH = getQuantity (tip ^. #blockHeight)
@@ -1089,7 +1104,7 @@ txHistoryFromEntity sp tip metas ins outs ws =
     mkTxMeta m = W.TxMeta
         { W.status = txMetaStatus m
         , W.direction = txMetaDirection m
-        , W.slotId = txMetaSlot m
+        , W.slotNo = txMetaSlot m
         , W.blockHeight = Quantity (txMetaBlockHeight m)
         , W.amount = Quantity (txMetaAmount m)
         }
@@ -1133,7 +1148,7 @@ insertCheckpoint
     -> SqlPersistT IO ()
 insertCheckpoint wid wallet = do
     let (cp, utxo) = mkCheckpointEntity wid wallet
-    let sl = (W.currentTip wallet) ^. #slotId
+    let sl = (W.currentTip wallet) ^. #slotNo
     deleteCheckpoints wid [CheckpointSlot ==. sl]
     insert_ cp
     dbChunked insertMany_ utxo
@@ -1302,12 +1317,13 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
     combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 
 selectTxHistory
-    :: W.WalletId
+    :: TimeInterpreter IO
+    -> W.WalletId
     -> Maybe (Quantity "lovelace" Natural)
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory wid minWithdrawal order conditions = do
+selectTxHistory ti wid minWithdrawal order conditions = do
     selectLatestCheckpoint wid >>= \case
         Nothing -> pure []
         Just cp -> do
@@ -1332,9 +1348,8 @@ selectTxHistory wid minWithdrawal order conditions = do
 
             let wal = checkpointFromEntity cp [] ()
             let tip = W.currentTip wal
-            let slp = slotParams $ W.blockchainParameters wal
 
-            return $ txHistoryFromEntity slp tip metas ins outs ws
+            liftIO $ txHistoryFromEntity ti tip metas ins outs ws
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
@@ -1377,8 +1392,8 @@ selectProtocolParameters wid = do
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint
     :: W.WalletId
-    -> W.SlotId
-    -> SqlPersistT IO (Maybe W.SlotId)
+    -> W.SlotNo
+    -> SqlPersistT IO (Maybe W.SlotNo)
 findNearestPoint wid sl =
     fmap (checkpointSlot . entityVal) <$> selectFirst
         [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
@@ -1391,25 +1406,25 @@ findNearestPoint wid sl =
 --
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotId deriving (Show)
+data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotNo deriving (Show)
 instance Exception ErrRollbackTo
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state
 -------------------------------------------------------------------------------}
 
--- | Get a @(WalletId, SlotId)@ pair from the checkpoint table, for use with
+-- | Get a @(WalletId, SlotNo)@ pair from the checkpoint table, for use with
 -- 'insertState' and 'selectState'.
-checkpointId :: Checkpoint -> (W.WalletId, W.SlotId)
+checkpointId :: Checkpoint -> (W.WalletId, W.SlotNo)
 checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
 
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
 class PersistState s where
     -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
+    insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
+    selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
 
 {-------------------------------------------------------------------------------
                           Sequential address discovery
@@ -1458,7 +1473,7 @@ instance
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
     => W.WalletId
-    -> W.SlotId
+    -> W.SlotNo
     -> Seq.AddressPool c k
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
@@ -1475,7 +1490,7 @@ selectAddressPool
         , MkKeyFingerprint k W.Address
         )
     => W.WalletId
-    -> W.SlotId
+    -> W.SlotNo
     -> Seq.AddressPoolGap
     -> k 'AccountK XPub
     -> SqlPersistT IO (Seq.AddressPool c k)
@@ -1559,7 +1574,7 @@ instance PersistState (Rnd.RndState t) where
 
 insertRndStateAddresses
     :: W.WalletId
-    -> W.SlotId
+    -> W.SlotNo
     -> RndStateAddresses
     -> SqlPersistT IO ()
 insertRndStateAddresses wid sl addresses = do
@@ -1581,7 +1596,7 @@ insertRndStatePending wid addresses = do
 
 selectRndStateAddresses
     :: W.WalletId
-    -> W.SlotId
+    -> W.SlotNo
     -> SqlPersistT IO RndStateAddresses
 selectRndStateAddresses wid sl = do
     addrs <- fmap entityVal <$> selectList

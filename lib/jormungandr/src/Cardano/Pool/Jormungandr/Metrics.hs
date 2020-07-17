@@ -73,7 +73,10 @@ import Cardano.Wallet.Network
     , GetStakeDistribution
     , NetworkLayer (currentNodeTip, stakeDistribution)
     , follow
+    , timeInterpreter
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( epochOf )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -82,7 +85,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , ProtocolParameters
-    , SlotId
+    , SlotNo
     , StakePool (..)
     )
 import Cardano.Wallet.Unsafe
@@ -194,7 +197,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
   where
     initCursor :: IO [BlockHeader]
     initCursor = do
-        let sl0 = block0 ^. #header . #slotId
+        let sl0 = block0 ^. #header . #slotNo
         atomically $ do
             forM_ (poolRegistrations block0)
                 $ \r@PoolRegistrationCertificate{poolId} -> do
@@ -210,7 +213,9 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
         -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ErrMonitorStakePools)
     forward blocks (nodeTip, _params) = handler $ do
-        let epochs = NE.nub $ view (#header . #slotId . #epochNumber) <$> blocks
+        let epochOf' = liftIO . timeInterpreter nl . epochOf
+        epochs <- NE.nub <$> mapM (epochOf' . (view (#header . #slotNo))) blocks
+
         distributions <- forM epochs $ \ep -> do
             liftIO $ traceWith tr $ MsgStakeDistribution ep
             withExceptT ErrMonitorStakePoolsNetworkUnavailable $
@@ -226,7 +231,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
             forM_ blocks $ \b -> do
                 forM_ (poolRegistrations b) $ \pool -> do
                     let cpt = CertificatePublicationTime
-                            (b ^. #header . #slotId)
+                            (b ^. #header . #slotNo)
                             minBound
                     lift $ putPoolRegistration cpt pool
                     liftIO $ traceWith tr $ MsgStakePoolRegistration pool
@@ -284,12 +289,13 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         atomically listRegisteredPools
     }
   where
+    epochOf' = liftIO . timeInterpreter nl . epochOf
     sortKnownPools :: ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
     sortKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsCurrentNodeTip
             $ currentNodeTip nl
-        let nodeEpoch = nodeTip ^. #slotId . #epochNumber
-        let genesisEpoch = block0H ^. #slotId . #epochNumber
+        nodeEpoch <- epochOf' $ nodeTip ^. #slotNo
+        genesisEpoch <- epochOf' $ block0H ^. #slotNo
 
         (distr, prod, prodTip) <- liftIO . atomically $ (,,)
             <$> (Map.fromList <$> readStakeDistribution nodeEpoch)
@@ -307,7 +313,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
             combineWith (sortArbitrarily seed) epCst distr prod mempty
 
         else do
-            let currentEpoch = prodTip ^. #slotId . #epochNumber
+            currentEpoch <- epochOf' $ prodTip ^. #slotNo
             perfs <- liftIO $ readPoolsPerformances db currentEpoch
             let epCst = getEpCst currentEpoch
             combineWith (pure . sortByDesirability) epCst distr prod perfs
@@ -526,7 +532,7 @@ data StakePoolLog
     | MsgFollow FollowLog
     | MsgStakeDistribution EpochNo
     | MsgStakePoolRegistration PoolRegistrationCertificate
-    | MsgRollingBackTo SlotId
+    | MsgRollingBackTo SlotNo
     | MsgApplyError ErrMonitorStakePools
     | MsgUsingRankingEpochConstants EpochConstants
     | MsgUsingTotalStakeForRanking (Quantity "lovelace" Word64)

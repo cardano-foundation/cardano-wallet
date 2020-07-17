@@ -13,8 +13,10 @@ import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
     ()
+import Cardano.Wallet.Gen
+    ( genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo (..), SlotId (..), SlotInEpoch (..) )
+    ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Typeable
@@ -27,7 +29,6 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , applyArbitrary2
     , arbitrarySizedBoundedIntegral
     , property
     , shrinkIntegral
@@ -37,7 +38,7 @@ import Test.QuickCheck
 spec :: Spec
 spec = do
     describe "Values can be persisted and unpersisted successfully" $ do
-        persistRoundtrip $ Proxy @SlotId
+        persistRoundtrip $ Proxy @SlotNo
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
@@ -56,9 +57,9 @@ persistRoundtrip proxy = it
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary SlotId where
-    arbitrary = applyArbitrary2 SlotId
-    shrink (SlotId en sn) = uncurry SlotId <$> shrink (en, sn)
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo
 
 instance Arbitrary EpochNo where
     arbitrary = EpochNo <$> arbitrary

@@ -9,6 +9,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkParameters
     , dummyGenesisParameters
     , dummyProtocolParameters
+    , dummyTimeInterpreter
     , genesisHash
     , mockHash
     , mkTxId
@@ -18,7 +19,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.Slotting
-    ( slotMinBound )
+    ( TimeInterpreter, singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -32,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotLength (..)
+    , SlotNo (..)
     , StartTime (..)
     , Tx (..)
     , TxIn (..)
@@ -44,6 +46,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -67,9 +71,9 @@ genesisHash = Hash (B8.replicate 32 '0')
 block0 :: Block
 block0 = Block
     { header = BlockHeader
-        { slotId = slotMinBound
+        { slotNo = SlotNo 0
         , blockHeight = Quantity 0
-        , headerHash = mockHash slotMinBound
+        , headerHash = mockHash $ SlotNo 0
         , parentHeaderHash = coerce genesisHash
         }
     , transactions = []
@@ -85,6 +89,11 @@ dummyGenesisParameters = GenesisParameters
     , getEpochStability = Quantity 2160
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
+
+dummyTimeInterpreter :: Monad m => TimeInterpreter m
+dummyTimeInterpreter = pure
+    . runIdentity
+    . singleEraInterpreter dummyGenesisParameters
 
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters

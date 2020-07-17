@@ -18,7 +18,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.Gen
-    ( genActiveSlotCoefficient, genBlockHeader, shrinkActiveSlotCoefficient )
+    ( genActiveSlotCoefficient
+    , genBlockHeader
+    , genSlotNo
+    , shrinkActiveSlotCoefficient
+    , shrinkSlotNo
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
@@ -32,13 +37,13 @@ import Cardano.Wallet.Primitive.Slotting
     , epochSucc
     , flatSlot
     , fromFlatSlot
-    , slotAt
+    , slotAt'
     , slotCeiling
     , slotDifference
     , slotFloor
     , slotMinBound
     , slotPred
-    , slotRangeFromTimeRange
+    , slotRangeFromTimeRange'
     , slotStartTime
     , slotSucc
     )
@@ -67,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
+    , SlotNo (..)
     , StartTime (..)
     , Tx (..)
     , TxIn (..)
@@ -231,20 +237,20 @@ spec = do
             let txMeta = TxMeta
                     { status = Pending
                     , direction = Outgoing
-                    , slotId = SlotId 14 42
+                    , slotNo = SlotNo 1442
                     , blockHeight = Quantity 37
                     , amount = Quantity 1337
                     }
-            "-0.001337 pending since 14.42#37" === pretty @_ @Text txMeta
+            "-0.001337 pending since 1442#37" === pretty @_ @Text txMeta
         it "TxMeta (2)" $ do
             let txMeta = TxMeta
                     { status = InLedger
                     , direction = Incoming
-                    , slotId = SlotId 14 0
+                    , slotNo = SlotNo 140
                     , blockHeight = Quantity 1
                     , amount = Quantity 13371442
                     }
-            "+13.371442 in ledger since 14.0#1" === pretty @_ @Text txMeta
+            "+13.371442 in ledger since 140#1" === pretty @_ @Text txMeta
 
         it "UTxOStatistics" $ do
             let txin h = TxIn (Hash h) 0
@@ -556,7 +562,7 @@ spec = do
             withMaxSuccess 1000 $ property $ \sps r -> do
                 let r' = getUniformTime <$> r
                 slotStartTime sps slotMinBound `isAfterRange` r' ==>
-                    isNothing (slotRangeFromTimeRange sps r')
+                    isNothing (slotRangeFromTimeRange' sps r')
 
         it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $
@@ -618,10 +624,10 @@ spec = do
                     Quantity 0 ===
                         slotDifference sps slot (applyN n (slotSucc sps) slot)
 
-        it "slotAt . slotStartTime == id" $
+        it "slotAt' . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
-                    let f = slotAt sps . slotStartTime sps
+                    let f = slotAt' sps . slotStartTime sps
                     Just slot === f slot
 
         it "slotCeiling . slotStartTime == id" $
@@ -662,7 +668,7 @@ spec = do
                     timeRange = getUniformTime <$> uniformTimeRange
 
                     maybeSlotRange :: Maybe (Range SlotId)
-                    maybeSlotRange = slotRangeFromTimeRange sps timeRange
+                    maybeSlotRange = slotRangeFromTimeRange' sps timeRange
 
                     startsWithin :: Range SlotId -> Range UTCTime -> Bool
                     startsWithin sr tr =
@@ -714,7 +720,7 @@ spec = do
             withMaxSuccess 1000 $ property $
                 \sps timeRange -> do
                     let f = fmap (fmap (slotStartTime sps))
-                            . slotRangeFromTimeRange sps
+                            . slotRangeFromTimeRange' sps
                     let r = getUniformTime <$> timeRange
                     checkCoverage $
                         cover 20 (isJust $ f r)
@@ -1230,6 +1236,10 @@ instance Arbitrary EpochNo where
         closeToMinBound =                getSmall <$> arbitrary
         closeToMaxBound = (maxBound -) . getSmall <$> arbitrary
     shrink = genericShrink
+
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkSlotNo
 
 instance Arbitrary SlotId where
     shrink _ = []

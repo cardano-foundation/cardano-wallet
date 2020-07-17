@@ -118,23 +118,26 @@ import Cardano.Wallet.Network.BlockHeaders
     , blockHeadersAtGenesis
     , blockHeadersBase
     , blockHeadersTip
-    , dropAfterSlotId
+    , dropAfterSlotNo
     , emptyBlockHeaders
     , greatestCommonBlockHeader
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Network.Ports
     ( PortNumber, getRandomPort, waitForPort )
+import Cardano.Wallet.Primitive.Slotting
+    ( singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChimericAccount (..)
+    , EpochLength (..)
     , EpochNo
     , GenesisParameters (..)
     , Hash (..)
     , NetworkParameters (..)
     , PoolId
     , ProtocolParameters (..)
-    , SlotId (..)
+    , SlotNo (..)
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
@@ -160,6 +163,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Coerce
     ( coerce )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
 import Data.Map.Strict
@@ -320,8 +325,8 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
     , destroyCursor =
         const (pure ())
 
-    , cursorSlotId =
-        _cursorSlotId
+    , cursorSlotNo =
+        _cursorSlotNo
 
     , postTx =
         postMessage j
@@ -331,6 +336,9 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
 
     , getAccountBalance =
         _getAccountBalance
+
+    , timeInterpreter =
+        pure . runIdentity . singleEraInterpreter (genesisParameters np)
 
     , watchNodeTip =
         _watchNodeTip
@@ -350,10 +358,12 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
     genesis :: Hash "Genesis"
     genesis = getGenesisBlockHash $ genesisParameters np
 
+    el :: EpochLength = getEpochLength $ genesisParameters np
+
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do
         let tip = withExceptT liftE $ getTipId j
-        bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader j) bs
+        bs' <- withExceptT liftE $ updateUnstableBlocks k tip (getBlockHeader el j) bs
         ExceptT $ case blockHeadersTip bs' of
             Just t -> do
                 liftIO $ notifyWatchers t
@@ -367,9 +377,9 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
     _initCursor bhs =
         pure $ Cursor $ appendBlockHeaders k emptyBlockHeaders bhs
 
-    _cursorSlotId :: Cursor t -> SlotId
-    _cursorSlotId (Cursor unstable) =
-        maybe (SlotId 0 0) slotId (blockHeadersTip unstable)
+    _cursorSlotNo :: Cursor t -> SlotNo
+    _cursorSlotNo (Cursor unstable) =
+        maybe (SlotNo 0) slotNo (blockHeadersTip unstable)
 
     _stakeDistribution
         :: EpochNo
@@ -446,11 +456,11 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
                 -- If the blocks we are about to apply are a continuation of our
                 -- local chain, then it's good, we can continue
                 | Just (J.parentHeaderHash $ J.header b) == (headerHash <$> blockHeadersTip localChain) ->
-                    RollForward (cursorForward k next cursor) tip next
+                    RollForward (cursorForward k el next cursor) tip next
 
                 -- If we are at genesis, we apply them anyway
                 | blockHeadersAtGenesis localChain ->
-                    RollForward (cursorForward k next cursor) tip next
+                    RollForward (cursorForward k el next cursor) tip next
 
                 -- We need to rollback somewhere, but we don't know where, so we
                 -- try rolling back to the oldest header we know.
@@ -538,7 +548,7 @@ direction (Cursor local) node = case greatestCommonBlockHeader node local of
         | blockHeadersAtGenesis local -> Forward
 
         -- Local tip is before the node's unstable area, we need to catch up
-        | (slotId <$> blockHeadersTip local) < (slotId <$> blockHeadersBase node) -> Forward
+        | (slotNo <$> blockHeadersTip local) < (slotNo <$> blockHeadersBase node) -> Forward
 
         -- We are beyond the node tip, just resync from genesis
         | otherwise -> Restart
@@ -548,13 +558,14 @@ cursorForward
     :: forall t block. (t ~ Jormungandr, block ~ J.Block)
     => Quantity "block" Word32
     -- ^ Epoch Stability, a.k.a 'k'
+    -> EpochLength
     -> [block]
     -- ^ New blocks received
     -> Cursor t
     -- ^ Current cursor / local state
     -> Cursor t
-cursorForward k bs (Cursor cursor) =
-    Cursor $ appendBlockHeaders k cursor $ J.convertBlockHeader . J.header <$> bs
+cursorForward k el bs (Cursor cursor) =
+    Cursor $ appendBlockHeaders k cursor $ J.convertBlockHeader el . J.header <$> bs
 
 -- | Clears local state after the rollback point.
 cursorBackward
@@ -563,7 +574,7 @@ cursorBackward
     -> Cursor t
     -> Cursor t
 cursorBackward point (Cursor cursor) =
-    Cursor (dropAfterSlotId (slotId point) cursor)
+    Cursor (dropAfterSlotNo (slotNo point) cursor)
 
 {-------------------------------------------------------------------------------
                                 Backend launcher

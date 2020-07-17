@@ -222,8 +222,8 @@ emptyGenesis gp = W.Block
     { transactions = []
     , delegations  = []
     , header = W.BlockHeader
-        { slotId =
-            W.SlotId 0 0
+        { slotNo =
+            W.SlotNo 0
         , blockHeight =
             Quantity 0
         , headerHash =
@@ -299,12 +299,11 @@ hashOfNoParent = W.Hash . BS.pack $ replicate 0 32
 
 toPoint
     :: W.Hash "Genesis"
-    -> W.EpochLength
     -> W.BlockHeader
     -> Point ByronBlock
-toPoint genesisH epLength (W.BlockHeader sid _ h _)
+toPoint genesisH (W.BlockHeader sl _ h _)
   | h == (coerce genesisH) = O.GenesisPoint
-  | otherwise = O.Point $ Point.block (toSlotInEpoch epLength sid) (toByronHash h)
+  | otherwise = O.Point $ Point.block sl (toByronHash h)
 
 toSlotInEpoch :: W.EpochLength -> W.SlotId -> SlotNo
 toSlotInEpoch epLength =
@@ -334,18 +333,19 @@ fromByronBlock gp byronBlk = case byronBlockRaw byronBlk of
   ABOBBoundary _ ->
     mkBlock []
   where
-    W.GenesisParameters genesisHash _ _ epLength _ _ = gp
+    W.GenesisParameters { getGenesisBlockHash } = gp
     mkBlock :: [W.Tx] -> W.Block
     mkBlock txs = W.Block
         { header = W.BlockHeader
-            { slotId =
-                fromSlotNo epLength $ blockSlot byronBlk
+            { slotNo =
+                blockSlot byronBlk
             , blockHeight =
                 fromBlockNo $ blockNo byronBlk
             , headerHash =
                 fromByronHash $ blockHash byronBlk
             , parentHeaderHash =
-                fromChainHash genesisHash $ headerPrevHash (byronCodecConfig gp) (getHeader byronBlk)
+                fromChainHash getGenesisBlockHash
+                    $ headerPrevHash (byronCodecConfig gp) (getHeader byronBlk)
             }
         , transactions = txs
         , delegations  = []
@@ -397,16 +397,16 @@ fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
     Quantity (fromIntegral h)
 
-fromTip :: W.Hash "Genesis" -> W.EpochLength -> Tip ByronBlock -> W.BlockHeader
-fromTip genesisHash epLength tip = case getPoint (getTipPoint tip) of
+fromTip :: W.Hash "Genesis" -> Tip ByronBlock -> W.BlockHeader
+fromTip genesisHash tip = case getPoint (getTipPoint tip) of
     Origin -> W.BlockHeader
-        { slotId = W.SlotId 0 0
+        { slotNo = W.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
         , parentHeaderHash = hashOfNoParent
         }
     At blk -> W.BlockHeader
-        { slotId = fromSlotNo epLength $ Point.blockPointSlot blk
+        { slotNo = Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromByronHash $ Point.blockPointHash blk
         -- TODO

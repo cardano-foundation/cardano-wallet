@@ -64,12 +64,10 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , EpochLength (..)
     , Hash (..)
     , PoolId (..)
     , ProtocolMagic (..)
     , SealedTx (..)
-    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -84,7 +82,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toHDPayloadAddress
     , toSealed
-    , toSlotNo
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -236,11 +233,10 @@ newTransactionLayer
         )
     => Proxy n
     -> ProtocolMagic
-    -> EpochLength
     -> TransactionLayer t k
-newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
+newTransactionLayer proxy protocolMagic = TransactionLayer
     { mkStdTx = \acc ks tip ->
-        mkTx proxy protocolMagic emptyTxPayload (defaultTTL epochLength tip) acc ks
+        mkTx proxy protocolMagic emptyTxPayload (defaultTTL tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -271,7 +267,7 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
             -- ^ Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- ^ Key store
-        -> SlotId
+        -> SlotNo
             -- ^ Tip of the chain, for TTL
         -> CoinSelection
             -- ^ A balanced coin selection where all change addresses have been
@@ -293,7 +289,7 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
                 mempty
 
         let payload = TxPayload certs mkWits
-        let ttl = defaultTTL epochLength tip
+        let ttl = defaultTTL tip
         mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
@@ -301,7 +297,7 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
             -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotId
+        -> SlotNo
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
@@ -316,7 +312,7 @@ newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
                 mempty
 
         let payload = TxPayload certs mkWits
-        let ttl = defaultTTL epochLength tip
+        let ttl = defaultTTL tip
         mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
@@ -559,15 +555,11 @@ mkWithdrawals proxy (ChimericAccount keyHash) amount
   where
     keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
 
--- TODO: The SlotId-SlotNo conversion based on epoch length would not
--- work if the epoch length changed in a hard fork.
-
 -- NOTE: The (+7200) was selected arbitrarily when we were trying to get
 -- this working on the FF testnet. Perhaps a better motivated and/or
 -- configurable value would be better.
-defaultTTL :: EpochLength -> SlotId -> SlotNo
-defaultTTL epochLength slot =
-    (toSlotNo epochLength slot) + 7200
+defaultTTL ::  SlotNo -> SlotNo
+defaultTTL slot = slot + 7200
 
 mkShelleyWitness
     :: SL.TxBody TPraosStandardCrypto

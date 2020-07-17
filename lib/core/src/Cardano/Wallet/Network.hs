@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -41,13 +42,15 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChimericAccount (..)
     , Hash (..)
     , ProtocolParameters
     , SealedTx
-    , SlotId
+    , SlotNo
     )
 import Control.Concurrent
     ( threadDelay )
@@ -115,8 +118,8 @@ data NetworkLayer m target block = NetworkLayer
         :: Cursor target -> m ()
         -- ^ Cleanup network connection once we're done with them.
 
-    , cursorSlotId
-        :: Cursor target -> SlotId
+    , cursorSlotNo
+        :: Cursor target -> SlotNo
         -- ^ Get the slot corresponding to a cursor.
 
     , currentNodeTip
@@ -143,6 +146,8 @@ data NetworkLayer m target block = NetworkLayer
     , getAccountBalance
         :: ChimericAccount
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
+    , timeInterpreter
+        :: TimeInterpreter m
     }
 
 instance Functor m => Functor (NetworkLayer m target) where
@@ -302,7 +307,7 @@ data FollowAction err
 -- can decide what to do.
 data FollowExit
     = FollowInterrupted
-    | FollowRollback SlotId
+    | FollowRollback SlotNo
     | FollowFailure
     deriving (Eq, Show)
 
@@ -400,7 +405,7 @@ follow nl tr cps yield header =
             --
             -- So this becomes a bit intricate:
 
-            case (cursorSlotId nl cursor', cps, hasRolledForward) of
+            case (cursorSlotNo nl cursor', cps, hasRolledForward) of
                 (sl, [], False) -> do
                     -- The following started from @Origin@.
                     -- This is the initial rollback.
@@ -409,15 +414,15 @@ follow nl tr cps yield header =
                     traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
                         \cps=[]"
                     step delay0 hasRolledForward cursor'
-                (sl, _:_, False) | sl == slotId (last cps) -> do
+                (sl, _:_, False) | sl == slotNo (last cps) -> do
                     traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
-                        \rollback point equals the last checkpoing"
+                        \rollback point equals the last checkpoint"
                     step delay0 hasRolledForward cursor'
                 (sl, _, _) -> do
                     traceWith tr $ MsgWillRollback sl
                     destroyCursor nl cursor' $> FollowRollback sl
             -- Some alternative solutions would be to:
-            -- 1. Make sure we have a @BlockHeader@/@SlotId@ for @Origin@
+            -- 1. Make sure we have a @BlockHeader@/@SlotNo@ for @Origin@
             -- 2. Stop forcing @follow@ to quit on rollback
       where
         continueWith
@@ -445,8 +450,8 @@ data FollowLog
     | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
     | MsgApplyBlocks (NonEmpty BlockHeader)
-    | MsgWillRollback SlotId
-    | MsgWillIgnoreRollback SlotId Text -- Reason
+    | MsgWillRollback SlotNo
+    | MsgWillIgnoreRollback SlotNo Text -- Reason
     deriving (Show, Eq)
 
 instance ToText FollowLog where
@@ -462,8 +467,8 @@ instance ToText FollowLog where
             "In sync with the node."
         MsgApplyBlocks hdrs ->
             let (slFst, slLst) =
-                    ( slotId $ NE.head hdrs
-                    , slotId $ NE.last hdrs
+                    ( slotNo $ NE.head hdrs
+                    , slotNo $ NE.last hdrs
                     )
             in mconcat
                 [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]

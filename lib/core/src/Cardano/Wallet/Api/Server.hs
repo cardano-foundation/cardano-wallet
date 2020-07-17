@@ -133,9 +133,11 @@ import Cardano.Wallet
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasLogger
+    , HasNetworkLayer
     , WalletLog
     , genesisData
     , manageRewardBalance
+    , networkLayer
     )
 import Cardano.Wallet.Api
     ( ApiLayer (..)
@@ -156,12 +158,12 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiEpochInfo (..)
+    , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
-    , ApiNetworkInformation (..)
+    , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiNetworkTip (..)
     , ApiPoolId (..)
@@ -203,7 +205,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..), ErrNetworkUnavailable (..), NetworkLayer )
+    ( ErrCurrentNodeTip (..)
+    , ErrNetworkUnavailable (..)
+    , NetworkLayer
+    , timeInterpreter
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , DelegationAddress (..)
@@ -245,12 +251,24 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, inputBalance )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter
+    , epochStartTime
+    , epochSucc
+    , firstSlotInEpoch
+    , slotAt'
+    , slotMinBound
+    , slotParams
+    , startTime
+    , toSlotId
+    )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), SyncTolerance, syncProgressRelativeToTime )
+    ( SyncProgress (..), SyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
     ( Address
     , AddressState (..)
     , Block
+    , BlockHeader (..)
     , Coin (..)
     , Hash (..)
     , HistogramBar (..)
@@ -382,10 +400,10 @@ import System.Random
     ( getStdRandom, random )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -614,6 +632,10 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     Quantity reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
         liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
+
+
+    apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+    tip' <- liftIO $ getWalletTip ti cp
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -621,40 +643,47 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ reward + totalBalance pending cp
             , reward = Quantity reward
             }
-        , delegation = toApiWalletDelegation (meta ^. #delegation)
+        , delegation = apiDelegation
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
         , passphrase = ApiWalletPassphraseInfo
             <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
-        , tip = getWalletTip cp
+        , tip = tip'
         }
   where
-    (_, NetworkParameters gp _, _) = ctx ^. genesisData
-    sp = W.slotParams gp
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
-    toApiWalletDelegation W.WalletDelegation{active,next} =
-        ApiWalletDelegation
+    toApiWalletDelegation W.WalletDelegation{active,next} = do
+        apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
+            info <- toApiEpochInfo changesAt
+            return $ toApiWalletDelegationNext (Just info) status
+
+        return $ ApiWalletDelegation
             { active = toApiWalletDelegationNext Nothing active
-            , next = flip map next $ \W.WalletDelegationNext{status,changesAt} ->
-                toApiWalletDelegationNext (Just changesAt) status
+            , next = apiNext
             }
 
-    toApiWalletDelegationNext mepoch = \case
+    toApiWalletDelegationNext mepochInfo = \case
         W.Delegating pid -> ApiWalletDelegationNext
             { status = Delegating
             , target = Just (ApiT pid)
-            , changesAt = toApiEpochInfo <$> mepoch
+            , changesAt = mepochInfo
             }
 
         W.NotDelegating -> ApiWalletDelegationNext
             { status = NotDelegating
             , target = Nothing
-            , changesAt = toApiEpochInfo <$> mepoch
+            , changesAt = mepochInfo
             }
 
-    toApiEpochInfo ep =
-        ApiEpochInfo (ApiT ep) (W.epochStartTime sp ep)
+    -- TODO(ADP-356): This may fail when we are running Byron-Shelley.
+    -- According to Edsko we can know the start time of the next epoch,
+    -- but nothing beyond that.
+    toApiEpochInfo ep = do
+        time <- ti (firstSlotInEpoch ep >>= startTime)
+        return $ ApiEpochInfo (ApiT ep) time
 
 --------------------- Legacy
 
@@ -664,6 +693,7 @@ postLegacyWallet
         , KnownDiscovery s
         , IsOurs s ChimericAccount
         , IsOurs s Address
+        , HasNetworkLayer t ctx
         , WalletKey k
         )
     => ctx
@@ -682,15 +712,16 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
-    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
+    fst <$> getWallet ctx (mkLegacyWallet @_ @_ @_ @t) (ApiT wid)
   where
     wid = WalletId $ digest $ publicKey rootXPrv
 
 mkLegacyWallet
-    :: forall ctx s k.
+    :: forall ctx s k t.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
         , KnownDiscovery s
+        , HasNetworkLayer t ctx
         , IsOurs s Address
         )
     => ctx
@@ -720,6 +751,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
                     Right{} -> pure Nothing
                     Left{} -> pure $ Just $ ApiWalletPassphraseInfo time
 
+    tip' <- liftIO $ getWalletTip ti cp
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
             { available = Quantity $ availableBalance pending cp
@@ -729,10 +761,12 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         , name = ApiT $ meta ^. #name
         , passphrase = pwdInfo
         , state = ApiT progress
-        , tip = getWalletTip cp
+        , tip = tip'
         , discovery = knownDiscovery @s
         }
   where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
     matchEmptyPassphrase
         :: WorkerCtx ctx
         -> Handler (Either ErrWithRootKey ())
@@ -763,6 +797,7 @@ postRandomWalletFromXPrv
         ( ctx ~ ApiLayer s t k
         , s ~ RndState n
         , k ~ ByronKey
+        , HasNetworkLayer t ctx
         )
     => ctx
     -> ByronWalletFromXPrvPostData
@@ -775,7 +810,7 @@ postRandomWalletFromXPrv ctx body = do
         (`idleWorker` wid)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
-    fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
+    fst <$> getWallet ctx (mkLegacyWallet @_ @_ @_ @t) (ApiT wid)
   where
     wName = getApiT (body ^. #name)
     pwd   = getApiT (body ^. #passphraseHash)
@@ -935,7 +970,7 @@ getWallet ctx mkApiWallet (ApiT wid) = do
 
     whenAlive wrk = do
         (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        progress <- liftIO $ W.walletSyncProgress ctx cp
+        progress <- liftIO $ W.walletSyncProgress @_ @_ @t ctx cp
         (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending progress
 
     whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
@@ -1138,6 +1173,7 @@ postTransaction
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
         , GenChange s
+        , HasNetworkLayer t ctx
         , IsOwned s k
         , ctx ~ ApiLayer s t k
         , HardDerivation k
@@ -1165,13 +1201,17 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
 
-    pure $ mkApiTransaction
+    liftIO $ mkApiTransaction
+        ti
         (txId tx)
         (fmap Just <$> selection ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (meta, time)
         #pendingSince
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
@@ -1195,15 +1235,18 @@ listTransactions
     -> Handler [ApiTransaction n]
 listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listTransactions wrk wid
+        W.listTransactions @_ @_ @_ @t wrk wid
             (Quantity . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
-    return $ map mkApiTransactionFromInfo txs
+    liftIO $ mapM (mkApiTransactionFromInfo ti) txs
   where
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
+
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getTransaction
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
@@ -1214,21 +1257,28 @@ getTransaction
 getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     tx <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.getTransaction wrk wid tid
-    return $ mkApiTransactionFromInfo tx
+    liftIO $ mkApiTransactionFromInfo ti tx
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
-mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction n
-mkApiTransactionFromInfo (TransactionInfo txid ins outs ws meta depth txtime) =
-    case meta ^. #status of
+mkApiTransactionFromInfo
+    :: Monad m
+    => TimeInterpreter m
+    -> TransactionInfo
+    -> m (ApiTransaction n)
+mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime) = do
+    apiTx <- mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) $
+        case meta ^. #status of
+            Pending  -> #pendingSince
+            InLedger -> #insertedAt
+    return $ case meta ^. #status of
         Pending  -> apiTx
         InLedger -> apiTx { depth = Just depth  }
   where
       drop2nd (a,_,c) = (a,c)
-      apiTx = mkApiTransaction txid (drop2nd <$> ins) outs ws (meta, txtime) $
-          case meta ^. #status of
-              Pending  -> #pendingSince
-              InLedger -> #insertedAt
 
 apiFee :: FeeEstimation -> ApiFee
 apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
@@ -1283,13 +1333,17 @@ joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
 
-    pure $ mkApiTransaction
+    liftIO $ mkApiTransaction
+        ti
         (txId tx)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
         #pendingSince
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 delegationFee
     :: forall ctx s t n k.
@@ -1309,6 +1363,7 @@ quitStakePool
         , s ~ SeqState n k
         , IsOwned s k
         , GenChange s
+        , HasNetworkLayer t ctx
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
@@ -1323,13 +1378,17 @@ quitStakePool ctx (ApiT wid) body = do
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.quitStakePool @_ @s @t @k wrk wid (delegationAddress @n) pwd
 
-    pure $ mkApiTransaction
+    liftIO $ mkApiTransaction
+        ti
         (txId tx)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
         #pendingSince
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 {-------------------------------------------------------------------------------
                                 Migrations
@@ -1385,7 +1444,8 @@ migrateWallet ctx (ApiT wid) migrateData = do
             $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd cs
         withWorkerCtx ctx wid liftE liftE
             $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk wid (tx, meta, wit)
-        pure $ mkApiTransaction
+        liftIO $ mkApiTransaction
+            ti
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
             (NE.toList (W.unsignedOutputs cs))
@@ -1395,6 +1455,9 @@ migrateWallet ctx (ApiT wid) migrateData = do
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
     addrs = getApiT . fst <$> migrateData ^. #addresses
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
+
 
 -- | Transform the given set of migration coin selections (for a source wallet)
 --   into a set of coin selections that will migrate funds to the specified
@@ -1435,36 +1498,37 @@ getNetworkInformation
     -> Handler ApiNetworkInformation
 getNetworkInformation (_block0, np, st) nl = do
     now <- liftIO getCurrentTime
-    nodeTip <- liftHandler (NW.currentNodeTip nl)
-    let ntrkTip = fromMaybe W.slotMinBound (W.slotAt sp now)
+    nodeTip <-  liftHandler (NW.currentNodeTip nl)
+    apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
+    let ntrkTip = fromMaybe slotMinBound (slotAt' sp now)
+    -- TODO(ADP-356): We need to retrieve the network tip using a different API,
+    -- AND it may not be availible.
+    --
+    -- We should mark it optional.
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
-    pure $ ApiNetworkInformation
-        { syncProgress =
-            ApiT $ syncProgressRelativeToTime st sp nodeTip now
-        , nextEpoch =
+    progress <- liftIO $ syncProgress st ti nodeTip now
+    pure $ Api.ApiNetworkInformation
+        { Api.syncProgress = ApiT progress
+        , Api.nextEpoch =
             ApiEpochInfo
-                { epochNumber = ApiT nextEpochNo
-                , epochStartTime = W.epochStartTime sp nextEpochNo
-                }
-        , nodeTip =
-            ApiBlockReference
-                { epochNumber = ApiT $ nodeTip ^. (#slotId . #epochNumber)
-                , slotNumber  = ApiT $ nodeTip ^. (#slotId . #slotNumber)
-                , height = natural (nodeTip ^. #blockHeight)
-                }
-        , networkTip =
+                (ApiT nextEpochNo)
+                (epochStartTime sp nextEpochNo)
+        , Api.nodeTip = apiNodeTip
+        , Api.networkTip =
             ApiNetworkTip
                 { epochNumber = ApiT $ ntrkTip ^. #epochNumber
                 , slotNumber  = ApiT $ ntrkTip ^. #slotNumber
                 }
         }
   where
-    sp = W.slotParams (np ^. #genesisParameters)
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter nl
+    sp = slotParams (np ^. #genesisParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
     unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
-    unsafeEpochSucc = fromMaybe bomb . W.epochSucc
+    unsafeEpochSucc = fromMaybe bomb . epochSucc
       where bomb = error "reached final epoch of the Blockchain!?"
 
 getNetworkParameters
@@ -1591,16 +1655,18 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
             }
 
 mkApiTransaction
-    :: forall n.
-       Hash "Tx"
+    :: forall n m. Monad m
+    => TimeInterpreter m
+    -> Hash "Tx"
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map ChimericAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Lens' (ApiTransaction n) (Maybe ApiTimeReference)
-    -> ApiTransaction n
-mkApiTransaction txid ins outs ws (meta, timestamp) setTimeReference =
-    tx & setTimeReference .~ Just timeReference
+    -> m (ApiTransaction n)
+mkApiTransaction ti txid ins outs ws (meta, timestamp) setTimeReference = do
+    timeRef <- timeReference
+    return $ tx & setTimeReference .~ Just timeRef
   where
     tx :: ApiTransaction n
     tx = ApiTransaction
@@ -1616,15 +1682,22 @@ mkApiTransaction txid ins outs ws (meta, timestamp) setTimeReference =
         , status = ApiT (meta ^. #status)
         }
 
-    timeReference :: ApiTimeReference
-    timeReference = ApiTimeReference
-        { time = timestamp
-        , block = ApiBlockReference
-            { slotNumber = ApiT $ meta ^. (#slotId . #slotNumber )
-            , epochNumber = ApiT $ meta ^. (#slotId . #epochNumber)
-            , height = natural (meta ^. #blockHeight)
-            }
-        }
+    timeReference :: m ApiTimeReference
+    timeReference = do
+        slotId <- ti (toSlotId $ meta ^. #slotNo)
+        -- TODO: We get passed the timestamp, but still have to do additional
+        -- time-conversions here. We should probably do both
+        --  SlotNo -> SlotId
+        --  SlotNo -> UTCTime
+        -- conversions in the same place.
+        return $
+            ApiTimeReference
+                timestamp
+                ApiBlockReference
+                    { epochNumber = ApiT $ slotId ^. #epochNumber
+                    , slotNumber = ApiT $ slotId ^. #slotNumber
+                    , height = natural (meta ^. #blockHeight)
+                    }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr c) =
@@ -1649,12 +1722,25 @@ coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
 
-getWalletTip :: Wallet s -> ApiBlockReference
-getWalletTip wallet = ApiBlockReference
-    { epochNumber = ApiT $ (currentTip wallet) ^. #slotId . #epochNumber
-    , slotNumber = ApiT $ (currentTip wallet) ^. #slotId . #slotNumber
-    , height = natural $ (currentTip wallet) ^. #blockHeight
-    }
+mkApiBlockReference
+    :: Monad m
+    => TimeInterpreter m
+    -> BlockHeader
+    -> m ApiBlockReference
+mkApiBlockReference ti tip = do
+    slotId <- ti (toSlotId $ slotNo tip)
+    return $ ApiBlockReference
+        { epochNumber = ApiT $ slotId ^. #epochNumber
+        , slotNumber = ApiT $ slotId ^. #slotNumber
+        , height = natural $ tip ^. #blockHeight
+        }
+
+getWalletTip
+    :: Monad m
+    => TimeInterpreter m
+    -> Wallet s
+    -> m ApiBlockReference
+getWalletTip ti wallet = mkApiBlockReference ti (currentTip wallet)
 
 {-------------------------------------------------------------------------------
                                 Api Layer
