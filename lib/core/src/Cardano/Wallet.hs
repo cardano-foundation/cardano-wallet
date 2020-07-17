@@ -1332,13 +1332,10 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    selectCoins <-
+    let selectCoins =
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
 
-    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
-        guardCoinSelection minUtxo selectCoins
-
-    estimateFeeForCoinSelection $ pure ((Fee . feeBalance) selectCoins)
+    estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
         `catchE` handleCannotCover utxo recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
@@ -2183,12 +2180,12 @@ guardCoinSelection
     :: Coin
     -> CoinSelection
     -> Either ErrUTxOTooSmall ()
-guardCoinSelection minUtxoValue CoinSelection{outputs, change} = do
+guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     let outputCoins = map (\(TxOut _ c) -> c) outputs
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
-        Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts) )
+        Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
 
 {-------------------------------------------------------------------------------
                                     Logging
