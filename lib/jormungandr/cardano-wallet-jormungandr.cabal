@@ -109,6 +109,7 @@ executable cardano-wallet-jormungandr
     ghc-options: -O2 -Werror
   build-depends:
       base
+    , cardano-addresses
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-jormungandr
