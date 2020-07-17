@@ -208,10 +208,12 @@ data Interpreter xs = Interpreter
 
 -- | An 'Interpreter' for a single era, where the slotting from
 -- @GenesisParameters@ cannot change.
+--
+-- Queries can never fail with @singleEraInterpreter@.
 singleEraInterpreter :: GenesisParameters -> TimeInterpreter Identity
 singleEraInterpreter gp q = either bomb return $ runQuery q int
   where
-    bomb x = error $ "singleEraInterpreter: " <> show x
+    bomb x = error $ "singleEraIntepreter: the impossible happened: " <> show x
     int = flip Interpreter (gp ^. #getGenesisBlockDate)
         $ neverForksSummary
         $ EraParams
