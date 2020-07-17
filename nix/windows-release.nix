@@ -72,10 +72,6 @@ in pkgs.stdenv.mkDerivation {
     export WINEDEBUG=warn-all,fixme-all,-menubuilder,-mscoree,-ole,-secur32,-winediag
 
     echo " - running checks"
-
-    echo "\n*** pending https://github.com/input-output-hk/cardano-addresses/issues/41\n"
-    set +e
-
     ruby ${../scripts/check-bundle.rb} ${getName exe.name} wine64
   '';
 } // optionalAttrs (pkgs.stdenv.buildPlatform.libc == "glibc") {

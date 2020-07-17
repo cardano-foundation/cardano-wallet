@@ -38,6 +38,7 @@
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."code-page" or (errorHandler.buildDepError "code-page"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
@@ -79,6 +80,10 @@
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
+          build-tools = [
+            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
+            (hsPkgs.buildPackages.cardano-address or (pkgs.buildPackages.cardano-address or (errorHandler.buildToolDepError "cardano-address")))
+            ];
           buildable = true;
           };
         };
@@ -86,7 +91,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "197015670a0c6df4eaae63d66ae7b3e48007abc0";
-      sha256 = "1fn85576ynbdpqf5qqz0gzs4kh9fcfg769h1rxxgz2ifsphmj9n2";
+      rev = "dc729b0ba5ba112ee2bfe471c4df947ea7c76f28";
+      sha256 = "1ax92cm6hy446qp5nwyshs1rydz1syrxjr032r4hcqs9v15a5i26";
       });
     }) // { cabal-generator = "hpack"; }
