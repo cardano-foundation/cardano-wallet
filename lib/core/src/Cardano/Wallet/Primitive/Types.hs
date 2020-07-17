@@ -170,6 +170,8 @@ import Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
+import Cardano.Wallet.Orphans
+    ()
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -200,7 +202,6 @@ import Data.Int
     ( Int32 )
 import Data.List
     ( intercalate )
-import Cardano.Wallet.Orphans ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict

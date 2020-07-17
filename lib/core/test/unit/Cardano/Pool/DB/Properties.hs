@@ -808,8 +808,6 @@ prop_listRegisteredPools DBLayer {..} entries =
         L.nub poolOwners /= poolOwners
 
     prop = do
-        -- TODO#1901: Is this change ok? Previously only (SlotInEpoch 0) were
-        -- generated.
         let entries' =
                 [ CertificatePublicationTime (SlotNo s) minBound
                 | s <- [0 ..]

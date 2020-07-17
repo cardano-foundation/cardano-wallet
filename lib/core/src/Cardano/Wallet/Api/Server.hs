@@ -676,6 +676,9 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
+    -- TODO(ADP-356): This may fail when we are running Byron-Shelley.
+    -- According to Edsko we can know the start time of the next epoch,
+    -- but nothing beyond that.
     toApiEpochInfo ep = do
         time <- ti (firstSlotInEpoch ep >>= startTime)
         return $ ApiEpochInfo (ApiT ep) time
@@ -1479,8 +1482,10 @@ getNetworkInformation (_block0, np, st) nl = do
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
     let ntrkTip = fromMaybe slotMinBound (slotAt' sp now)
-    -- TODO: ADP-356: We need to retrieve the network tip using a different API,
+    -- TODO(ADP-356): We need to retrieve the network tip using a different API,
     -- AND it may not be availible.
+    --
+    -- We should mark it optional.
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
     progress <- liftIO $ syncProgress st ti nodeTip now
     pure $ Api.ApiNetworkInformation

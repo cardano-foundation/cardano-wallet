@@ -333,7 +333,9 @@ newDBLayer trace fp timeInterpreter = do
                 ]
 
         , rollbackTo = \point -> do
-            -- TODO#1901: What if the time conversion blocks or fails?
+            -- TODO(ADP-356): What if the conversion blocks or fails?
+            --
+            -- Missing a rollback would be bad.
             EpochNo epoch <- liftIO $ timeInterpreter (epochOf point)
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
 
@@ -484,7 +486,6 @@ selectPoolProduction
     -> EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction timeInterpreter epoch = do
-    -- TODO#1901: Perhaps we should split the IO and pure parts of @TimeInterpreter@?
     e <- liftIO $ timeInterpreter $ firstSlotInEpoch epoch
     eplus1 <- liftIO $ timeInterpreter $ firstSlotInEpoch (epoch + 1)
     fmap entityVal <$> selectList

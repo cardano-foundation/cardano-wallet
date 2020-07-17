@@ -394,7 +394,6 @@ runMock = \case
     RemovePendingTx wid tid ->
         first (Resp . fmap Unit) . mRemovePendingTx wid tid
   where
-    -- TODO#1901: This needs to match the actual DB Genesis params?
     timeInterpreter = dummyTimeInterpreter
 
 {-------------------------------------------------------------------------------
