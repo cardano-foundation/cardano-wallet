@@ -1335,6 +1335,10 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
     let selectCoins =
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
 
+    cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardCoinSelection minUtxo cs
+
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
         `catchE` handleCannotCover utxo recipients
 
@@ -1354,6 +1358,13 @@ handleCannotCover utxo outs = \case
         pure $ Fee $ available + missing
     e ->
         throwE e
+
+handleNotSuccessfulCoinSelection
+    :: Monad m
+    => ErrSelectForPayment e
+    -> ExceptT (ErrSelectForPayment e) m CoinSelection
+handleNotSuccessfulCoinSelection _ =
+    pure (mempty :: CoinSelection)
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
@@ -2181,6 +2192,8 @@ guardCoinSelection
     -> CoinSelection
     -> Either ErrUTxOTooSmall ()
 guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
+    when (cs == mempty) $
+        Right ()
     let outputCoins = map (\(TxOut _ c) -> c) outputs
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
