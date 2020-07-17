@@ -20,10 +20,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
--- Needed for (Buildable SlotNo)
--- TODO#1901: How do we want to deal with the orphan (Buildable SlotNo) instance?
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -204,6 +200,7 @@ import Data.Int
     ( Int32 )
 import Data.List
     ( intercalate )
+import Cardano.Wallet.Orphans ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1459,9 +1456,6 @@ data SlotId = SlotId
   { epochNumber :: !EpochNo
   , slotNumber :: !SlotInEpoch
   } deriving stock (Show, Read, Eq, Ord, Generic)
-
-instance Buildable SlotNo where
-    build (SlotNo n) = build (show n)
 
 newtype SlotInEpoch = SlotInEpoch { unSlotInEpoch :: Word32 }
     deriving stock (Show, Read, Eq, Ord, Generic)

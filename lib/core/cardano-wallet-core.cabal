@@ -134,6 +134,7 @@ library
       Cardano.Wallet.Network
       Cardano.Wallet.Network.BlockHeaders
       Cardano.Wallet.Network.Ports
+      Cardano.Wallet.Orphans
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
