@@ -74,6 +74,7 @@ module Test.Integration.Framework.TestData
     , errMsg400NumberOfWords
     , errMsgNotInDictionary
     , errMsg403RejectedTip
+    , errMsg400MinWithdrawalWrong
     ) where
 
 import Prelude
@@ -328,6 +329,10 @@ _errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
 errMsg403WrongPass :: String
 errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
     \ I use to encrypt the root private key of the given wallet"
+
+errMsg400MinWithdrawalWrong :: String
+errMsg400MinWithdrawalWrong = "The minimum withdrawal value must be at least \
+    \1 Lovelace."
 
 errMsg403NothingToMigrate :: Text -> String
 errMsg403NothingToMigrate wid =

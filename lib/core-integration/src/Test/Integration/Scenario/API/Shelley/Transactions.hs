@@ -98,7 +98,8 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
+    ( errMsg400MinWithdrawalWrong
+    , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403NoPendingAnymore
     , errMsg403NotEnoughMoney
@@ -1093,6 +1094,19 @@ spec = do
             expectResponseCode @IO HTTP.status400 r
             expectErrorMessage
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            pure ()
+
+    it "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0" $
+        \ctx -> do
+            w <- emptyWallet ctx
+            let link = Link.listTransactions' @'Shelley w
+                    (Just 0)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode @IO HTTP.status400 r
+            expectErrorMessage errMsg400MinWithdrawalWrong r
             pure ()
 
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
