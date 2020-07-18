@@ -1680,6 +1680,8 @@ listTransactions
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
 listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
+    when (Just True == ( (<(Quantity 1)) <$> mMinWithdrawal )) $
+        throwE ErrListTransactionsMinWithdrawalWrong
     let pk = PrimaryKey wid
     mapExceptT atomically $ do
         mapExceptT liftIO getSlotRange >>= maybe
@@ -2040,6 +2042,7 @@ data ErrWithRootKey
 data ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
     | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
+    | ErrListTransactionsMinWithdrawalWrong
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to get transaction.
