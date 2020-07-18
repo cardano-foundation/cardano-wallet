@@ -259,7 +259,7 @@ testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts testTxLayer Nothing feePolicy (Coin 0)
+testFeeOpts = feeOpts testTxLayer Nothing feePolicy
   where
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
