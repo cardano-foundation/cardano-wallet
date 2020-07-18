@@ -99,6 +99,7 @@ module Cardano.Wallet
     , selectCoinsForPayment
     , estimateFeeForPayment
     , signPayment
+    , guardCoinSelection
     , ErrSelectCoinsExternal (..)
     , ErrSelectForPayment (..)
     , ErrSignPayment (..)
@@ -106,6 +107,7 @@ module Cardano.Wallet
     , ErrAdjustForFee (..)
     , ErrValidateSelection
     , ErrNotASequentialWallet (..)
+    , ErrUTxOTooSmall (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -1157,7 +1159,10 @@ selectCoinsForPayment
 selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+    cs <- selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardCoinSelection minUtxo cs
+    pure cs
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1326,8 +1331,14 @@ estimateFeeForPayment
 estimateFeeForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
+
     let selectCoins =
             selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+
+    cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
+    withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
+        guardCoinSelection minUtxo cs
+
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
         `catchE` handleCannotCover utxo recipients
 
@@ -1347,6 +1358,13 @@ handleCannotCover utxo outs = \case
         pure $ Fee $ available + missing
     e ->
         throwE e
+
+handleNotSuccessfulCoinSelection
+    :: Monad m
+    => ErrSelectForPayment e
+    -> ExceptT (ErrSelectForPayment e) m CoinSelection
+handleNotSuccessfulCoinSelection _ =
+    pure (mempty :: CoinSelection)
 
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
@@ -1968,11 +1986,19 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
                                    Errors
 -------------------------------------------------------------------------------}
 
+data ErrUTxOTooSmall
+    = ErrUTxOTooSmall Word64 [Word64]
+    -- ^ UTxO(s) participating in transaction are too small to make transaction
+    -- that will be accepted by node.
+    -- We record what minimum UTxO value and all outputs/change less than this value
+    deriving (Show, Eq)
+
 -- | Errors that can occur when creating an unsigned transaction.
 data ErrSelectForPayment e
     = ErrSelectForPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
     | ErrSelectForPaymentFee ErrAdjustForFee
+    | ErrSelectForPaymentMinimumUTxOValue ErrUTxOTooSmall
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
@@ -2160,6 +2186,19 @@ guardQuit WalletDelegation{active,next} rewards = do
         Left $ ErrNonNullRewards rewards
   where
     anyone = const True
+
+guardCoinSelection
+    :: Coin
+    -> CoinSelection
+    -> Either ErrUTxOTooSmall ()
+guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
+    when (cs == mempty) $
+        Right ()
+    let outputCoins = map (\(TxOut _ c) -> c) outputs
+    let invalidTxOuts =
+            filter (< minUtxoValue) (outputCoins ++ change)
+    unless (L.null invalidTxOuts) $
+        Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
 
 {-------------------------------------------------------------------------------
                                     Logging
