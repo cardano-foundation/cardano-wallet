@@ -942,7 +942,7 @@ faucets :: MVar [(String, Aeson.Value)]
 faucets = unsafePerformIO $ newMVar
     [ ( "cea1b041dd5465be636b5b88805571f83537bd503bc4db447f088d942673736c#0"
       , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
+          [ "type" .= Aeson.String "GenesisUTxOSigningKey_"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
               "5820db101b5f4cc53ca1d61f7505b23c05b1b58de0b9f509c4dfede4348549dbaa9d"
@@ -950,7 +950,7 @@ faucets = unsafePerformIO $ newMVar
       )
     , ( "fa271c369d4d9a6b78e18f9d554730ef9978847ecb187c064cb9c8d56c2092cd#0"
       , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
+          [ "type" .= Aeson.String "GenesisUTxOSigningKey_"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
               "582061e08f3e8ac1afbf0434fca2bb4aa6484270d8dd3e251c049006aab368a74a7e"
@@ -958,7 +958,7 @@ faucets = unsafePerformIO $ newMVar
       )
     , ( "672d7558074f02c662b11a4ff761ec3a24c94a18b319033af5f9f22a03b8891b#0"
       , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
+          [ "type" .= Aeson.String "GenesisUTxOSigningKey_"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
               "58204054ff827451cad61241450a09ea80c9d0658398f588ff976393ae8eacb859fe"
@@ -966,7 +966,7 @@ faucets = unsafePerformIO $ newMVar
       )
     , ( "ca97dc6662a21f1b7ea0790c380d13dad84386cbb7f731c7ba3982a8d105267b#0"
       , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
+          [ "type" .= Aeson.String "GenesisUTxOSigningKey_"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
               "58204a7a8e7a1ba0d33c407dc3ceda225c605287cfb0e3b51d9eba3822abd6aa75ca"
@@ -974,7 +974,7 @@ faucets = unsafePerformIO $ newMVar
       )
     , ( "cfc08d97636877d94cd19a246e72d191bc3905712bbab8cdbb1aa240fc09be3c#0"
       , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
+          [ "type" .= Aeson.String "GenesisUTxOSigningKey_"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
               "5820e96f612fbff3df3d8eef4ea3a07e3dc98769020545ced0167998a85a4cc50aa7"
@@ -988,13 +988,13 @@ operators = unsafePerformIO $ newMVar
     [ ( PoolId $ unsafeFromHex
           "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
@@ -1015,13 +1015,13 @@ operators = unsafePerformIO $ newMVar
     , ( PoolId $ unsafeFromHex
           "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
@@ -1042,13 +1042,13 @@ operators = unsafePerformIO $ newMVar
     , ( PoolId $ unsafeFromHex
           "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
@@ -1079,7 +1079,7 @@ operators = unsafePerformIO $ newMVar
 preRegisteredStakeKey
     :: Aeson.Value
 preRegisteredStakeKey = Aeson.object
-    [ "type" .= Aeson.String "StakingVerificationKeyShelley"
+    [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
     , "description" .= Aeson.String "Free form text"
     , "cborHex" .= Aeson.String
         "5820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
