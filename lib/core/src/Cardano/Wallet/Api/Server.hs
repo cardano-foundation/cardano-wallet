@@ -2021,7 +2021,7 @@ instance LiftHandler ErrAdjustForFee where
 instance LiftHandler ErrUTxOTooSmall where
     handler = \case
         ErrUTxOTooSmall minUtxoValue invalidUTxO ->
-            apiError err403 UTxOTooSmall $ mconcat
+            apiError err403 UtxoTooSmall $ mconcat
                 [ "I'm unable to construct the given transaction as some "
                 , "outputs or changes are too small! Each output and change is "
                 , "expected to be >= ", showT minUtxoValue, " Lovelace."
