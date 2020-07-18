@@ -940,44 +940,44 @@ takeFaucet dir = takeMVar faucets >>= \case
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
 faucets :: MVar [(String, Aeson.Value)]
 faucets = unsafePerformIO $ newMVar
-    [ ( "cea1b041dd5465be636b5b88805571f83537bd503bc4db447f088d942673736c#0"
+    [ ( "58d43bf3c30fe33bfac9e66c1f32acb41269d33194c4e926083d4008198c7f5e#0"
       , Aeson.object
           [ "type" .= Aeson.String "GenesisUTxOSigningKey_ed25519"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
-              "5820db101b5f4cc53ca1d61f7505b23c05b1b58de0b9f509c4dfede4348549dbaa9d"
+              "5820b63dcef93c9309a264c2942d774cf8a752e4abcef36776b28dbcd57dd2a6c2b6"
           ]
       )
-    , ( "fa271c369d4d9a6b78e18f9d554730ef9978847ecb187c064cb9c8d56c2092cd#0"
+    , ( "d021a0b60be98fce5214488f1cd0590b542d6ac7d3aa2d8bdd3a33531fd18cec#0"
       , Aeson.object
           [ "type" .= Aeson.String "GenesisUTxOSigningKey_ed25519"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
-              "582061e08f3e8ac1afbf0434fca2bb4aa6484270d8dd3e251c049006aab368a74a7e"
+              "58202dc882a6ebf9c8beb9f30f595c597f4a9d4856b11eed576bd5ab2e1779f40cd5"
           ]
       )
-    , ( "672d7558074f02c662b11a4ff761ec3a24c94a18b319033af5f9f22a03b8891b#0"
+    , ( "28dd1a860627fe2577eb5f0a994ccd0292cc27add634bf8a7b4e7222bbce0af8#0"
       , Aeson.object
           [ "type" .= Aeson.String "GenesisUTxOSigningKey_ed25519"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
-              "58204054ff827451cad61241450a09ea80c9d0658398f588ff976393ae8eacb859fe"
+              "582003b5b3158de3a20886cbedbbbc566006d0d411d23c373a43fe817634e9390478"
           ]
       )
-    , ( "ca97dc6662a21f1b7ea0790c380d13dad84386cbb7f731c7ba3982a8d105267b#0"
+    , ( "306c27331900ae1c3d0dc31bba1c37365f594b9e1017048c6ccac054ec1b12b2#0"
       , Aeson.object
           [ "type" .= Aeson.String "GenesisUTxOSigningKey_ed25519"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
-              "58204a7a8e7a1ba0d33c407dc3ceda225c605287cfb0e3b51d9eba3822abd6aa75ca"
+              "582022be977fea1ff0843059d7a202cc9d84678d8c7ea2f295844d6acc4312c29882"
           ]
       )
-    , ( "cfc08d97636877d94cd19a246e72d191bc3905712bbab8cdbb1aa240fc09be3c#0"
+    , ( "d8db9002194b5974607361958cac10a7e75d0aee65186db22bbe76a389e9fb4b#0"
       , Aeson.object
           [ "type" .= Aeson.String "GenesisUTxOSigningKey_ed25519"
           , "description" .= Aeson.String "Genesis initial UTxO key"
           , "cborHex" .= Aeson.String
-              "5820e96f612fbff3df3d8eef4ea3a07e3dc98769020545ced0167998a85a4cc50aa7"
+              "5820200137ab31e7a081481f926ca5a31b52f4cca4388c3b9c1c52fdb75c2d9fb5be"
           ]
       )
     ]
@@ -1000,7 +1000,7 @@ operators = unsafePerformIO $ newMVar
               "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
@@ -1027,7 +1027,7 @@ operators = unsafePerformIO $ newMVar
               "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
@@ -1054,7 +1054,7 @@ operators = unsafePerformIO $ newMVar
               "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
