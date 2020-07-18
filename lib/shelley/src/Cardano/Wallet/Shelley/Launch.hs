@@ -23,11 +23,16 @@
 module Cardano.Wallet.Shelley.Launch
     ( -- * Integration Launcher
       withCluster
+    , dev
+    , dev2
     , withBFTNode
     , withStakePool
     , NodeParams (..)
     , PoolConfig (..)
     , singleNodeParams
+    , HardFork (..)
+    , RunningNode (..)
+    , CardanoMode (..)
 
     -- * Utils
     , NetworkConfiguration (..)
@@ -62,11 +67,11 @@ import Cardano.Launcher.Node
     , withCardanoNode
     )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer )
+    ( BracketLog, bracketTracer, stdoutTextTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochNo (..)
@@ -91,7 +96,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void, (>=>) )
+    ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -108,6 +113,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
     ( isLeft, isRight )
 import Data.Functor
@@ -124,6 +131,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
@@ -137,7 +146,12 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile, createDirectory )
+    ( copyFile
+    , createDirectory
+    , createDirectoryIfMissing
+    , doesDirectoryExist
+    , removeDirectoryRecursive
+    )
 import System.Environment
     ( lookupEnv, setEnv )
 import System.Exit
@@ -159,6 +173,8 @@ import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.HashMap.Strict as HM
@@ -169,6 +185,48 @@ import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
+
+-- | Example byron;shelley using manual HardForkOnTrigger
+dev :: IO ()
+dev = do
+    let dir = "/tmp/fork"
+    exists <- doesDirectoryExist dir
+    when exists $
+        removeDirectoryRecursive dir
+    createDirectory dir
+    systemStart <- addUTCTime 1 <$> getCurrentTime
+    [port1] <- randomUnusedTCPPorts 1
+    let mode = RunByronShelley HardForkOnTrigger
+    let bftCfg1 = NodeParams Notice systemStart mode (port1, [])
+    withBFTNode stdoutTextTracer dir 0 bftCfg1 $ \socket _ _ -> do
+        putStrLn "BFT Node is up"
+        putStrLn "Submitting update proposal..."
+        updateVersion stdoutTextTracer dir socket
+        putStrLn "Has submitted update proposal"
+        threadDelay (300*1000*1000)
+  where
+    _action _fp _b0 (_np, _vData) _triggerHardFork = do
+        putStrLn "hi"
+
+-- | Example byron;shelley using HardForkAtEpoch 1, and withCluster, which
+-- tries to register stake pools.
+dev2 :: IO ()
+dev2 = do
+    let dir = "/tmp/fork"
+    exists <- doesDirectoryExist dir
+    when exists $
+        removeDirectoryRecursive dir
+    createDirectory dir
+
+    let pools = replicate 3 $ PoolConfig Nothing
+    withCluster stdoutTextTracer Notice pools dir onByron afterFork onClusterStart
+  where
+    onByron = \_ -> do
+        putStrLn "### Byron has started!"
+    afterFork = \_ -> do
+        putStrLn "### Fork has occured!"
+    onClusterStart = \_ -> do
+        putStrLn "### Cluster has started"
 
 -- | Shelley hard fork network configuration has two genesis datas.
 -- As a special case for mainnet, we hardcode the byron genesis data.
@@ -362,6 +420,13 @@ newtype PoolConfig = PoolConfig
     }
     deriving (Eq, Show)
 
+data RunningNode = RunningNode
+    FilePath
+    -- ^ Socket path
+    Block
+    -- ^ Genesis block
+    (NetworkParameters, NodeVersionData)
+
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
 -- test data.
@@ -369,6 +434,8 @@ newtype PoolConfig = PoolConfig
 -- This BFT node is essential in order to bootstrap the chain and allow
 -- registering pools. Passing `0` as a number of pool will simply start a single
 -- BFT node.
+--
+-- The callback actions are not guaranteed to use the same node.
 withCluster
     :: Tracer IO ClusterLog
     -- ^ Trace for subprocess control logging
@@ -378,16 +445,30 @@ withCluster
     -- ^ The configurations of pools to spawn.
     -> FilePath
     -- ^ Parent state directory for cluster
-    -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
-    -- ^ Action to run with the cluster up
+    -> (RunningNode -> IO ())
+    -- ^ Action to run when Byron is up
+    -> (RunningNode -> IO ())
+    -- ^ Action to run when we have transitioned to shelley.
+    --
+    -- Can be used to transfer byron faucet funds to shelley faucets.
+    -> (RunningNode -> IO a)
+    -- ^ Action to run when stake pools are running
     -> IO a
-withCluster tr severity poolConfigs dir action =
+withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     bracketTracer' tr "withCluster" $ do
         let poolCount = length poolConfigs
+        let mode = RunByronShelley HardForkOnTrigger
         systemStart <- addUTCTime 1 <$> getCurrentTime
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
-        let bftCfg = NodeParams severity systemStart (head $ rotate ports)
-        withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
+        let bftCfg = NodeParams severity systemStart mode (head $ rotate ports)
+        withBFTNode tr dir 0 bftCfg $ \bftSocket block0 params -> do
+            let runningBftNode = RunningNode bftSocket block0 params
+            onByron runningBftNode
+            updateVersion tr dir bftSocket
+            -- TODO: Maybe poll and detect when the fork occurs
+            waitForHardFork bftSocket 2
+            onFork runningBftNode
+            setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             waitForSocket tr bftSocket
             waitGroup <- newChan
             doneGroup <- newChan
@@ -412,7 +493,7 @@ withCluster tr severity poolConfigs dir action =
                 \(idx, poolConfig, (port, peers)) -> do
                     link =<< async (handle onException $ do
                         let spCfg =
-                                NodeParams severity systemStart (port, peers)
+                                NodeParams severity systemStart mode (port, peers)
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
@@ -427,9 +508,10 @@ withCluster tr severity poolConfigs dir action =
                         <> show (filter isLeft group))
                     (ExitFailure 1)
             else do
-                let cfg = NodeParams severity systemStart (port0, ports)
+                let cfg = NodeParams severity systemStart mode (port0, ports)
                 withRelayNode tr dir cfg $ \socket -> do
-                    action socket block0 params `finally` cancelAll
+                    let runningRelay = RunningNode socket block0 params
+                    onClusterStart runningRelay `finally` cancelAll
   where
     -- | Get permutations of the size (n-1) for a list of n elements, alongside
     -- with the element left aside. `[a]` is really expected to be `Set a`.
@@ -439,10 +521,18 @@ withCluster tr severity poolConfigs dir action =
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
+waitForHardFork :: FilePath -> Int -> IO ()
+waitForHardFork _socket epoch = threadDelay (slotDur * k * 10 * epoch + fuzz)
+  where
+    slotDur = 250_000
+    k = 10
+    fuzz = 2_000_000
+
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams
     { minSeverity :: Severity -- ^ Minimum logging severity
     , systemStart :: UTCTime -- ^ Genesis block start time
+    , nodeMode :: CardanoMode -- ^ When/how to hard fork
     , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
     } deriving (Show)
 
@@ -452,49 +542,76 @@ withBFTNode
     -> FilePath
     -- ^ Parent state directory. Node data will be created in a subdirectory of
     -- this.
+    -> Int
+    -- ^ Which node (assumes key files are indexed by this number)
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr baseDir (NodeParams severity systemStart (port, peers)) action =
+withBFTNode
+    tr
+    baseDir
+    i
+    (NodeParams severity systemStart mode (port, peers))
+    action =
     bracketTracer' tr "withBFTNode" $ do
-        createDirectory dir
+        createDirectoryIfMissing False dir
 
+        [bftKey, bftDelegCert] <- forM
+            ["delegate-keys.00" <> show i <> ".key", "delegation-cert.00" <> show i <> ".json"]
+            (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
+
+        -- TODO: Doesn't support indexing by i
         [vrfPrv, kesPrv, opCert] <- forM
-            ["bft-leader.vrf.skey", "bft-leader.kes.skey", "bft-leader.opcert"]
+            [ "bft-leader" <> ".vrf.skey"
+            , "bft-leader" <> ".kes.skey"
+            , "bft-leader" <> ".opcert"
+            ]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
         (config, block0, networkParams, versionData)
-            <- genConfig dir severity systemStart
+            <- genConfig dir severity systemStart mode
         topology <- genTopology dir peers
 
-        let cfg = CardanoNodeConfig
+
+        let byronKeys x =
+                    x { nodeDlgCertFile = Just bftDelegCert
+                      , nodeSignKeyFile = Just bftKey
+                      }
+        let shelleyKeys x =
+                    x { nodeOpCertFile = Just opCert
+                      , nodeKesKeyFile = Just kesPrv
+                      , nodeVrfKeyFile = Just vrfPrv
+                      }
+
+        let makeModeSpecific x = case mode of
+                 RunByronShelley _ -> byronKeys . shelleyKeys $ x
+                 RunByron -> byronKeys x
+                 RunShelley -> shelleyKeys x
+
+        let cfg = makeModeSpecific $ CardanoNodeConfig
                 { nodeDir = dir
                 , nodeConfigFile = config
                 , nodeTopologyFile = topology
                 , nodeDatabaseDir = "db"
                 , nodeDlgCertFile = Nothing
                 , nodeSignKeyFile = Nothing
-                , nodeOpCertFile = Just opCert
-                , nodeKesKeyFile = Just kesPrv
-                , nodeVrfKeyFile = Just vrfPrv
+                , nodeOpCertFile = Nothing
+                , nodeKesKeyFile = Nothing
+                , nodeVrfKeyFile = Nothing
                 , nodePort = Just (NodePort port)
                 , nodeLoggingHostname = Just name
                 }
 
         withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) -> do
-            setEnv "CARDANO_NODE_SOCKET_PATH" socket
-            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
-            tx <- signTx tr dir rawTx [faucetPrv]
-            submitTx tr "pre-registered stake key" tx
             action socket block0 (networkParams, versionData)
   where
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
 
     name = "bft"
-    dir = baseDir </> name
+    dir = baseDir </> (name <> show i)
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -510,11 +627,11 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
+withRelayNode tr baseDir (NodeParams severity systemStart hardFork (port, peers)) act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
-        (config, _, _, _) <- genConfig dir severity systemStart
+        (config, _, _, _) <- genConfig dir severity systemStart hardFork
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -540,7 +657,7 @@ withRelayNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
 singleNodeParams :: Severity -> IO NodeParams
 singleNodeParams severity = do
     systemStart <- getCurrentTime
-    pure $ NodeParams severity systemStart (0, [])
+    pure $ NodeParams severity systemStart RunShelley (0, [])
 
 -- | Populates the configuration directory of a stake pool @cardano-node@.
 --
@@ -565,7 +682,7 @@ setupStakePoolData
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
 setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
-    let NodeParams severity systemStart (port, peers) = params
+    let NodeParams severity systemStart mode (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
@@ -580,7 +697,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
-    (config, _, _, _) <- genConfig dir severity systemStart
+    (config, _, _, _) <- genConfig dir severity systemStart mode
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -654,6 +771,49 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
     dir = baseDir </> name
     name = "pool-" ++ show idx
 
+
+updateVersion :: Tracer IO ClusterLog -> FilePath -> FilePath -> IO ()
+updateVersion tr tmpDir socket = do
+    waitForSocket tr socket
+    let updatePath = tmpDir </> "update-proposal"
+    let votePath = tmpDir </> "update-vote"
+    let network = "--mainnet"
+    void $ cli tr
+        [ "byron", "create-update-proposal"
+        , "--filepath", updatePath
+        , network
+        , "--signing-key", source </> "delegate-keys.000.key"
+        , "--protocol-version-major", "1"
+        , "--protocol-version-minor", "0"
+        , "--protocol-version-alt", "0"
+        , "--application-name", "cardano-sl"
+        , "--software-version-num", "1"
+        , "--system-tag", "linux"
+        , "--installer-hash", "0"
+        ]
+    void $ cli tr
+        [ "byron", "create-proposal-vote"
+        , "--proposal-filepath", updatePath
+        , network
+        , "--signing-key", source </> "delegate-keys.000.key"
+        , "--vote-yes"
+        , "--output-filepath", votePath
+        ]
+
+    void $ cli tr
+        [ "byron", "submit-update-proposal"
+        , network
+        , "--filepath", updatePath
+        ]
+    void $ cli tr
+        [ "byron", "submit-proposal-vote"
+        , network
+        , "--filepath", votePath
+        ]
+  where
+    source :: FilePath
+    source = $(getTestData) </> "cardano-node-shelley"
+
 withCardanoNodeProcess
     :: Tracer IO ClusterLog
     -> String
@@ -665,6 +825,17 @@ withCardanoNodeProcess tr name cfg = withCardanoNode tr' cfg >=> throwErrs
     tr' = contramap (MsgLauncher name) tr
     throwErrs = either throwIO pure
 
+data CardanoMode
+     = RunByron
+     | RunByronShelley HardFork
+     | RunShelley
+     deriving Show
+
+data HardFork
+    = HardForkAtEpoch Int
+    | HardForkOnTrigger
+    deriving (Show, Eq)
+
 genConfig
     :: FilePath
     -- ^ A top-level directory where to put the configuration.
@@ -672,22 +843,56 @@ genConfig
     -- ^ Minimum severity level for logging
     -> UTCTime
     -- ^ Genesis block start time
+    -> CardanoMode
+    -- ^ When/how to hard fork
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity systemStart = do
+genConfig dir severity systemStart mode = do
     -- we need to specify genesis file location every run in tmp
+    let withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
+
+    let withHardFork = case mode of
+            RunByronShelley (HardForkAtEpoch n) ->
+                withAddedKey "TestShelleyHardForkAtEpoch" n
+            RunByronShelley HardForkOnTrigger ->
+                withAddedKey "TestShelleyHardForkAtVersion" (1::Int)
+            _ -> pure
+
+    let addGenesis = case mode of
+             RunByron ->
+                 withAddedKey "ByronGenesisFile" byronGenesisFile
+             RunShelley ->
+                 withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
+             RunByronShelley _ ->
+                 (withAddedKey "ShelleyGenesisFile" shelleyGenesisFile)
+                 >=> (withAddedKey "ByronGenesisFile" byronGenesisFile)
+
+    let (protocol :: String) = case mode of
+             RunByron -> "RealPBFT"
+             RunShelley -> "TPraos"
+             RunByronShelley _ -> "Cardano"
+
     Yaml.decodeFileThrow (source </> "node.config")
-        >>= withObject (pure . addGenesisFilePath (T.pack nodeGenesisFile))
+        >>= addGenesis
+        >>= withAddedKey "Protocol" protocol
+        >>= withHardFork
         >>= withObject (addMinSeverityStdout severity)
-        >>= withObject (pure . addMinSeverity Debug)
+        >>= withAddedKey "minSeverity" Debug
         >>= Yaml.encodeFile (dir </> "node.config")
 
-    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "genesis.yaml")
-        >>= withObject (pure . updateSystemStart systemStart)
+    let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
+    let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
+    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "shelley-genesis.yaml")
+        >>= withObject (pure . updateSystemStart systemStart')
         >>= withObject transformInitialFunds
-        >>= Aeson.encodeFile nodeGenesisFile
+        >>= Aeson.encodeFile shelleyGenesisFile
+
+    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "byron-genesis.yaml")
+        >>= withAddedKey "startTime" startTime
+        >>= withObject transformInitialFunds
+        >>= Aeson.encodeFile byronGenesisFile
 
     PreserveInitialFundsOrdering (genesis, initialFunds) <-
-        Yaml.decodeFileThrow (source </> "genesis.yaml")
+        Yaml.decodeFileThrow (source </> "shelley-genesis.yaml")
         >>= withObject (pure . updateSystemStart systemStart)
         >>= either fail pure . Aeson.parseEither parseJSON
 
@@ -708,8 +913,11 @@ genConfig dir severity systemStart = do
     source :: FilePath
     source = $(getTestData) </> "cardano-node-shelley"
 
-    nodeGenesisFile :: FilePath
-    nodeGenesisFile = dir </> "genesis.json"
+    shelleyGenesisFile :: FilePath
+    shelleyGenesisFile = dir </> "shelley-genesis.json"
+
+    byronGenesisFile :: FilePath
+    byronGenesisFile = dir </> "byron-genesis.json"
 
 -- | Generate a topology file from a list of peers.
 genTopology :: FilePath -> [Int] -> IO FilePath
@@ -890,12 +1098,12 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--mainnet"
         ]
 
-    (faucetInput, faucetPrv) <- takeFaucet dir
+    (faucetInput, faucetPrv) <- takeFaucet
     void $ cli tr $
         [ "shelley", "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", init addr <> "+" <> show pledgeAmt
-        , "--ttl", "100"
+        , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
@@ -914,7 +1122,7 @@ prepareKeyRegistration tr dir = do
     let stakePub = dir </> "pre-registered-stake.pub"
     Aeson.encodeFile stakePub preRegisteredStakeKey
 
-    (faucetInput, faucetPrv) <- takeFaucet dir
+    (faucetInput, faucetPrv) <- takeFaucet
 
     cert <- issueStakeCert tr dir stakePub
 
@@ -935,7 +1143,7 @@ prepareKeyRegistration tr dir = do
         [ "shelley", "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", init addr <> "+" <> "1"
-        , "--ttl", "100"
+        , "--ttl", "400"
         , "--fee", show (faucetAmt - depositAmt - 1)
         , "--certificate-file", cert
         , "--out-file", file
@@ -965,7 +1173,7 @@ submitTx tr name signedTx = do
     void $ cliRetry tr ("Submitting transaction for " ++ name)
         [ "shelley", "transaction", "submit"
         , "--tx-file", signedTx
-        , "--mainnet"
+        , "--mainnet", "--cardano-mode"
         ]
 
 -- | Wait for a command which depends on connecting to the given socket path to
@@ -982,7 +1190,11 @@ waitForSocket tr socketPath = do
     let msg = "Checking for usable socket file " <> socketPath
     -- TODO: check whether querying the tip works just as well.
     void $ cliRetry tr msg
-        ["shelley", "query", "stake-distribution", "--mainnet"]
+        ["shelley", "query", "tip"
+        , "--mainnet"
+        --, "--testnet-magic", "764824073"
+        , "--cardano-mode"
+        ]
     traceWith tr $ MsgSocketIsReady socketPath
 
 -- | Wait until a stake pool shows as registered on-chain.
@@ -995,89 +1207,57 @@ waitUntilRegistered tr name opPub = do
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "shelley", "query", "stake-distribution"
         , "--mainnet"
+        , "--cardano-mode"
         ] mempty
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
         waitUntilRegistered tr name opPub
 
+
 -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
 -- fund some initial transaction for the cluster. Faucet have plenty of money to
 -- pay for certificates and are intended for a one-time usage in a single
 -- transaction.
-takeFaucet :: FilePath -> IO (String, FilePath)
-takeFaucet dir = takeMVar faucets >>= \case
-    []    -> fail "takeFaucet: Awe crap! No more faucet available!"
-    ((input,prv):q) -> do
-        putMVar faucets q
-        let file = dir </> "faucet.prv"
-        Aeson.encodeFile file prv
-        pure (input, file)
+takeFaucet :: IO (String, String)
+takeFaucet = do
+    i <- takeMVar faucetIndex
+    putMVar faucetIndex (i + 1)
+
+    base58Addr <- BS.readFile $
+        source </> ("faucet-addrs/faucet" <> show i <> ".addr")
+    putStrLn $ "about to read faucet: " <> B8.unpack base58Addr
+    let Just addr = decodeBase58 bitcoinAlphabet $ BS.init base58Addr
+    let txin = (B8.unpack $ hex $ blake2b256 addr) <> "#0"
+    let signingKey = source </> ("faucet-addrs/faucet" <> show i <> ".shelley.key")
+    pure (txin, signingKey)
+  where
+    source :: FilePath
+    source = $(getTestData) </> "cardano-node-shelley"
 
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
-faucets :: MVar [(String, Aeson.Value)]
-faucets = unsafePerformIO $ newMVar
-    [ ( "cea1b041dd5465be636b5b88805571f83537bd503bc4db447f088d942673736c#0"
-      , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
-          , "description" .= Aeson.String "Genesis initial UTxO key"
-          , "cborHex" .= Aeson.String
-              "5820db101b5f4cc53ca1d61f7505b23c05b1b58de0b9f509c4dfede4348549dbaa9d"
-          ]
-      )
-    , ( "fa271c369d4d9a6b78e18f9d554730ef9978847ecb187c064cb9c8d56c2092cd#0"
-      , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
-          , "description" .= Aeson.String "Genesis initial UTxO key"
-          , "cborHex" .= Aeson.String
-              "582061e08f3e8ac1afbf0434fca2bb4aa6484270d8dd3e251c049006aab368a74a7e"
-          ]
-      )
-    , ( "672d7558074f02c662b11a4ff761ec3a24c94a18b319033af5f9f22a03b8891b#0"
-      , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
-          , "description" .= Aeson.String "Genesis initial UTxO key"
-          , "cborHex" .= Aeson.String
-              "58204054ff827451cad61241450a09ea80c9d0658398f588ff976393ae8eacb859fe"
-          ]
-      )
-    , ( "ca97dc6662a21f1b7ea0790c380d13dad84386cbb7f731c7ba3982a8d105267b#0"
-      , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
-          , "description" .= Aeson.String "Genesis initial UTxO key"
-          , "cborHex" .= Aeson.String
-              "58204a7a8e7a1ba0d33c407dc3ceda225c605287cfb0e3b51d9eba3822abd6aa75ca"
-          ]
-      )
-    , ( "cfc08d97636877d94cd19a246e72d191bc3905712bbab8cdbb1aa240fc09be3c#0"
-      , Aeson.object
-          [ "type" .= Aeson.String "Genesis UTxO signing key"
-          , "description" .= Aeson.String "Genesis initial UTxO key"
-          , "cborHex" .= Aeson.String
-              "5820e96f612fbff3df3d8eef4ea3a07e3dc98769020545ced0167998a85a4cc50aa7"
-          ]
-      )
-    ]
-{-# NOINLINE faucets #-}
+faucetIndex :: MVar Int
+faucetIndex = unsafePerformIO $ newMVar 1
+{-# NOINLINE faucetIndex #-}
 
 operators :: MVar [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
 operators = unsafePerformIO $ newMVar
     [ ( PoolId $ unsafeFromHex
           "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
@@ -1092,19 +1272,19 @@ operators = unsafePerformIO $ newMVar
     , ( PoolId $ unsafeFromHex
           "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
@@ -1119,19 +1299,19 @@ operators = unsafePerformIO $ newMVar
     , ( PoolId $ unsafeFromHex
           "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator verification key"
+          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operator signing key"
+          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
           , "cborHex" .= Aeson.String
               "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
           ]
       , Aeson.object
-          [ "type" .= Aeson.String "Node operational certificate issue counter"
+          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
           , "description" .= Aeson.String "Next certificate issue number: 0"
           , "cborHex" .= Aeson.String
               "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
@@ -1156,7 +1336,7 @@ operators = unsafePerformIO $ newMVar
 preRegisteredStakeKey
     :: Aeson.Value
 preRegisteredStakeKey = Aeson.object
-    [ "type" .= Aeson.String "StakingVerificationKeyShelley"
+    [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
     , "description" .= Aeson.String "Free form text"
     , "cborHex" .= Aeson.String
         "5820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
@@ -1168,7 +1348,7 @@ depositAmt = 100000
 
 -- | Initial amount in each of these special cluster faucet
 faucetAmt :: Integer
-faucetAmt = 10 * oneMillionAda
+faucetAmt = 1000 * oneMillionAda
 
 -- | Just one million Ada, in Lovelace.
 oneMillionAda :: Integer
@@ -1189,7 +1369,7 @@ addGenesisFilePath
     :: Text
     -> Aeson.Object
     -> Aeson.Object
-addGenesisFilePath path = HM.insert "GenesisFile" (toJSON path)
+addGenesisFilePath path = HM.insert "ShelleyGenesisFile" (toJSON path)
 
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.
@@ -1210,13 +1390,6 @@ addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
             = Aeson.Object (HM.insert "scMinSev" sev scribe)
         | otherwise = Aeson.Object scribe
     setMinSev a = a
-
--- | Add a global "minSeverity" field in a given config object.
-addMinSeverity
-    :: Severity
-    -> Aeson.Object
-    -> Aeson.Object
-addMinSeverity severity = HM.insert "minSeverity" (toJSON $ show severity)
 
 -- | Transform initial funds back to a big object instead of a list of
 -- singletons.

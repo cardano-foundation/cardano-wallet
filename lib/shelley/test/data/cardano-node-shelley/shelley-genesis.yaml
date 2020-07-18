@@ -15,6 +15,7 @@
 
 ---
 activeSlotsCoeff: 0.5
+TestShelleyHardForkAtEpoch: 2
 protocolParams:
   poolDeposit: 0
   protocolVersion:
@@ -43,9 +44,9 @@ protocolParams:
   tau: 0.0
   a0: 0.1
 genDelegs:
-  d4986e098ba851648d4399b15e818e3b33191b714eb9d3b33d4d2f70:
-    delegate: 2e47c73dee204605f8a1e76c6bb31b7930db8e469c2e64e20cc07faa
-    vrf: 8a41571fbe7d6899ce39d403dbdb40d5b71d92b404b7a1f7790a3b09080d1e2c
+  8ae01cab15f6235958b1147e979987bbdb90788f7c4e185f1632427a:
+    delegate: b7bf59bb963aa785afe220f5b0d3deb826fd0bcaeeee58cb81ab443d
+    vrf: 4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e
 updateQuorum: 5
 maxMajorPV: 25446
 maxLovelaceSupply: 45000000000000000
@@ -68,35 +69,35 @@ initialFunds:
   # $ cardano-cli shelley genesis initial-addr --mainnet --verification-key-file utxo.pub
   # $ cardano-cli shelley genesis initial-txin --mainnet --verification-key-file utxo.pub
 
-  # txin: cea1b041dd5465be636b5b88805571f83537bd503bc4db447f088d942673736c#0
+  # txin: ca19b0e82b51213761a4ce234e84b02bcb35b4e0cc6c09207e6f9a0f45f9533d#0
   # type: Genesis UTxO signing key
   # title: Genesis Initial UTxO Signing Key
   # cbor-hex:
-  #  5820db101b5f4cc53ca1d61f7505b23c05b1b58de0b9f509c4dfede4348549dbaa9d
-- 614c85a0172b371b12b9c25c10f95f520097a04746a98ecd1eb3581793: 10000000000000
+  #  58203ec965762b14406a605f0761222ce06e3632c3f3eea70a2762c8a43ea1403666
+- 61126ad4b7c56f6db2a6a83f40def1e071adc65734318fc68d05364f05: 10000000000000
 
-  # txin: fa271c369d4d9a6b78e18f9d554730ef9978847ecb187c064cb9c8d56c2092cd#0
-  # type: Genesis UTxO signing key
+  # txin: d021a0b60be98fce5214488f1cd0590b542d6ac7d3aa2d8bdd3a33531fd18cec#0
+  # type: GenesisUTxOSigningKey_ed25519
   # title: Genesis Initial UTxO Signing Key
   # cbor-hex:
-  #  582061e08f3e8ac1afbf0434fca2bb4aa6484270d8dd3e251c049006aab368a74a7e
-- 615d67f3cced240a022d6fbb69e9a4dd0f63d4679b7392da7e0ba7503f: 10000000000000
+  #  58202dc882a6ebf9c8beb9f30f595c597f4a9d4856b11eed576bd5ab2e1779f40cd5
+- 61e9de932d79f3ff9e041c793be1d4eb1205e10d97723fd8e737a21d96: 10000000000000
 
-  # txin: 672d7558074f02c662b11a4ff761ec3a24c94a18b319033af5f9f22a03b8891b#0
+  # txin: 28dd1a860627fe2577eb5f0a994ccd0292cc27add634bf8a7b4e7222bbce0af8#0
   # xprv:
   #  type: Genesis UTxO signing key
   #  title: Genesis initial UTxO key
   #  cbor-hex:
-  #    58204054ff827451cad61241450a09ea80c9d0658398f588ff976393ae8eacb859fe
-- 61c68ea9804b0162e68ee2e9a5e71f3d10494be643327ab6274aaf0b3f: 10000000000000
+  #    582003b5b3158de3a20886cbedbbbc566006d0d411d23c373a43fe817634e9390478
+- 61ca722c7639c12551e9e4b9352ee3fbc049c1b692d5a8ab8d9d1f74f5: 10000000000000
 
-  # txin: ca97dc6662a21f1b7ea0790c380d13dad84386cbb7f731c7ba3982a8d105267b#0
+  # txin: 306c27331900ae1c3d0dc31bba1c37365f594b9e1017048c6ccac054ec1b12b2#0
   # xprv:
   #  type: Genesis UTxO signing key
   #  title: Genesis initial UTxO key
   #  cbor-hex:
-  #    58204a7a8e7a1ba0d33c407dc3ceda225c605287cfb0e3b51d9eba3822abd6aa75ca
-- 614d105f72fe03107047a9f72e93688ea34c45a5cf73af3e02bc8d5d4c: 10000000000000
+  #    582022be977fea1ff0843059d7a202cc9d84678d8c7ea2f295844d6acc4312c29882
+- 61e5fbbb9b972b05ce0af48d9b410b850febdf36376c50aaa20ad3a026: 10000000000000
 
   # txin: cfc08d97636877d94cd19a246e72d191bc3905712bbab8cdbb1aa240fc09be3c#0
   # xprv:
@@ -104,7 +105,7 @@ initialFunds:
   #  title: Genesis initial UTxO key
   #  cbor-hex:
   #    5820e96f612fbff3df3d8eef4ea3a07e3dc98769020545ced0167998a85a4cc50aa7
-- 6103c32076728a07982916b61bc95b7ffd4ca7f69c8097f3c0ffcdc4c5: 10000000000000
+- 614f03403749d2825ccb14376a1ccf60e1cc0f9e930d3aa9220880f2b6: 10000000000000
 
 #
 # Byron wallets

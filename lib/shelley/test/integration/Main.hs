@@ -69,6 +69,7 @@ import Cardano.Wallet.Shelley.Faucet
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
+    , RunningNode (..)
     , withCluster
     , withSystemTempDir
     , withTempDir
@@ -220,25 +221,37 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         race (takeMVar ctx >>= action') (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer onStart = bracketTracer' tr "withServer" $ do
+    withServer action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
-        let tr' = contramap MsgCluster tr
         withSystemTempDir tr' "test" $ \dir ->
-            withCluster tr' minSev testPoolConfigs dir $
-                \socketPath block0 (gp, vData) ->
-                    withTempDir tr' dir "wallets" $ \db -> do
-                        serveWallet @(IO Shelley)
-                            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                            tracers
-                            (SyncTolerance 10)
-                            (Just db)
-                            "127.0.0.1"
-                            ListenOnRandomPort
-                            Nothing
-                            socketPath
-                            block0
-                            (gp, vData)
-                            (onStart gp)
+            withCluster
+                tr'
+                minSev
+                testPoolConfigs
+                dir
+                onByron
+                afterFork
+                (onClusterStart action dir)
+
+    tr' = contramap MsgCluster tr
+    onByron _ = pure ()
+    afterFork _ = pure ()
+    onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
+        -- NOTE: We may want to keep a wallet running across the fork, but
+        -- having three callbacks like this might not work well for that.
+        withTempDir tr' dir "wallets" $ \db -> do
+            serveWallet @(IO Shelley)
+                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                tracers
+                (SyncTolerance 10)
+                (Just db)
+                "127.0.0.1"
+                ListenOnRandomPort
+                Nothing
+                socketPath
+                block0
+                (gp, vData)
+                (action gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
