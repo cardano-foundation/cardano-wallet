@@ -19,6 +19,7 @@ module Cardano.Wallet.Network
     , FollowAction (..)
     , FollowExit (..)
     , GetStakeDistribution
+    , PostTx
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -139,8 +140,13 @@ data NetworkLayer m target block = NetworkLayer
         :: m ProtocolParameters
 
     , postTx
+        :: PostTx target block -> ExceptT ErrPostTx m ()
+        -- ^ Submit a transaction to the node backend, to be broadcast to its
+        -- peers.
+
+    , postSealedTx
         :: SealedTx -> ExceptT ErrPostTx m ()
-        -- ^ Broadcast a transaction to the chain producer
+        -- ^ Submit a serialised transaction to the node backend.
 
     , stakeDistribution
         :: GetStakeDistribution target block m
@@ -156,7 +162,8 @@ data NetworkLayer m target block = NetworkLayer
 instance Functor m => Functor (NetworkLayer m target) where
     fmap f nl = nl
         { nextBlocks = fmap (fmap f) . nextBlocks nl
-        , stakeDistribution = error "fixme: functor instance"
+        , stakeDistribution = error "fixme: functor instance stakeDistribution"
+        , postTx = error "fixme: functor instance postTx"
         }
 
 {-------------------------------------------------------------------------------
@@ -247,6 +254,14 @@ defaultRetryPolicy =
 -------------------------------------------------------------------------------}
 
 type family GetStakeDistribution target block (m :: * -> *) :: *
+
+{-------------------------------------------------------------------------------
+                             Transaction submission
+-------------------------------------------------------------------------------}
+
+-- | Different backends submit different types for transactions. Some submit
+-- serialized transactions for example.
+type family PostTx target block
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

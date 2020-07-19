@@ -51,6 +51,7 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , GetStakeDistribution
     , NetworkLayer (..)
+    , PostTx
     , mapCursor
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -307,7 +308,8 @@ withNetworkLayer tr np addrInfo versionData action = do
             , destroyCursor = _destroyCursor
             , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
-            , postTx = _postSealedTx localTxSubmissionQ
+            , postSealedTx = _postSealedTx localTxSubmissionQ
+            , postTx = _postTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution queryRewardQ
             , getAccountBalance = _getAccountBalance nodeTipVar queryRewardQ
             , timeInterpreter = _timeInterpreterQuery interpreterVar
@@ -464,6 +466,8 @@ withNetworkLayer tr np addrInfo versionData action = do
             Left e -> do
                 traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
                 throwIO e
+
+type instance PostTx (IO Shelley) block = GenTx block
 
 type instance GetStakeDistribution (IO Shelley) (CardanoBlock sc) m
     = (Point (CardanoBlock sc)
