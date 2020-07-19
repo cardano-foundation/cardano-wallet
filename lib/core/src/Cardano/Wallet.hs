@@ -1629,7 +1629,7 @@ submitTx
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ postTx nw binary
+    withExceptT ErrSubmitTxNetwork $ postSealedTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
@@ -1648,7 +1648,7 @@ submitExternalTx
 submitExternalTx ctx bytes = do
     (tx,binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl bytes
-    withExceptT ErrSubmitExternalTxNetwork $ postTx nw binary
+    withExceptT ErrSubmitExternalTxNetwork $ postSealedTx nw binary
     return tx
   where
     nw = ctx ^. networkLayer @t
