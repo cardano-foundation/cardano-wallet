@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -119,7 +118,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , TPraosStandardCrypto
     , fromCardanoBlock
-    , fromNetworkMagic
     , toCardanoNetworkId
     )
 import Cardano.Wallet.Shelley.Network
