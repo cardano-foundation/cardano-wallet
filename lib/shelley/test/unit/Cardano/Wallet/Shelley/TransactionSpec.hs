@@ -48,10 +48,9 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     , mainnetMagic
-    , testnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, toSealed )
+    ( Shelley, toCardanoNetworkId, toSealed )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkShelleyWitness
@@ -96,8 +95,6 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
@@ -119,8 +116,8 @@ spec = do
         prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
-    estimateMaxInputsTests (Proxy @'Mainnet) mainnetMagic
-    estimateMaxInputsTests (Proxy @('Testnet 0)) (testnetMagic @0)
+    estimateMaxInputsTests Cardano.Mainnet
+    estimateMaxInputsTests (Cardano.Testnet (Cardano.NetworkMagic 0))
 
     describe "cost of withdrawal" $ do
         it "one can measure the cost of withdrawal" $ property $ \withdrawal ->
@@ -162,25 +159,23 @@ spec = do
         res `shouldBe` Right (FeeEstimation 165281 165281)
 
 estimateMaxInputsTests
-    :: forall (n :: NetworkDiscriminant). Typeable n
-    => Proxy (n :: NetworkDiscriminant)
-    -> ProtocolMagic
+    :: Cardano.NetworkId
     -> SpecWith ()
-estimateMaxInputsTests proxy pm@(ProtocolMagic pm') =
-    describe ("estimateMaxNumberOfInputs for protocolMagic="<> show pm') $ do
+estimateMaxInputsTests net =
+    describe ("estimateMaxNumberOfInputs for networkId="<> show net) $ do
 
         it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 1 `shouldBe` 27
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 27
         it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 10 `shouldBe` 19
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 10 `shouldBe` 19
         it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 20 `shouldBe` 10
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 10
         it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity 4096) 30 `shouldBe` 1
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 30 `shouldBe` 1
 
-        prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs proxy pm)
-        prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs proxy pm)
-        prop "bigger size  ==> more inputs" (prop_biggerMaxSizeMeansMoreInputs proxy pm)
+        prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs net)
+        prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs net)
+        prop "bigger size  ==> more inputs" (prop_biggerMaxSizeMeansMoreInputs net)
 
 prop_decodeSignedShelleyTxRoundtrip
     :: DecodeShelleySetup
@@ -215,45 +210,39 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
-    :: forall (n :: NetworkDiscriminant). Typeable n
-    => Proxy (n :: NetworkDiscriminant)
-    -> ProtocolMagic
+    :: Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_moreOutputsMeansLessInputs proxy pm size nOuts = withMaxSuccess 1000 $
+prop_moreOutputsMeansLessInputs net size nOuts = withMaxSuccess 1000 $
     nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net size nOuts
         >=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts + 1)
+        _estimateMaxNumberOfInputs @ShelleyKey net size (nOuts + 1)
 
--- | REducing the number of outputs increases the number of inputs.
+-- | Reducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
-    :: forall (n :: NetworkDiscriminant). Typeable n
-    => Proxy (n :: NetworkDiscriminant)
-    -> ProtocolMagic
+    :: Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_lessOutputsMeansMoreInputs proxy pm size nOuts = withMaxSuccess 1000 $
+prop_lessOutputsMeansMoreInputs net size nOuts = withMaxSuccess 1000 $
     nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size (nOuts - 1)
+        _estimateMaxNumberOfInputs @ShelleyKey net size (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm size nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net size nOuts
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
-    :: forall (n :: NetworkDiscriminant). Typeable n
-    => Proxy (n :: NetworkDiscriminant)
-    -> ProtocolMagic
+    :: Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_biggerMaxSizeMeansMoreInputs proxy pm (Quantity size) nOuts = withMaxSuccess 1000 $
+prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts = withMaxSuccess 1000 $
     size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity size) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey Cardano.Mainnet (Quantity size) nOuts
         <=
-        _estimateMaxNumberOfInputs @_ @ShelleyKey proxy pm (Quantity (size * 2)) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey Cardano.Mainnet (Quantity (size * 2)) nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
@@ -264,9 +253,7 @@ testFeeOpts = feeOpts testTxLayer Nothing feePolicy
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
 testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
-testTxLayer = newTransactionLayer @_ @ShelleyKey (Proxy @'Mainnet) pm
-  where
-    pm        = ProtocolMagic 1
+testTxLayer = newTransactionLayer @ShelleyKey (toCardanoNetworkId (Proxy @'Mainnet))
 
 data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO
