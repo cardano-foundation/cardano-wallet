@@ -122,6 +122,7 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     )
 
+import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -285,7 +286,7 @@ mkFeeEstimator policy = \case
 
     computeFee selection action =
         fromIntegral $ getFee $
-        _minimumFee @_ @ShelleyKey (Proxy @'Mainnet) mainnetMagic policy action selection
+        _minimumFee @ShelleyKey Cardano.Mainnet policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging

@@ -279,7 +279,7 @@ parseGenesisData = \case
         let nm = sgNetworkMagic shelleyGenesis
         let pm = ProtocolMagic $ fromIntegral nm
         let (shelleyDiscriminant, shelleyVData) = someCustomDiscriminant mkSomeNetwork pm
-        let (snp, sblock0) = Shelley.fromGenesisData shelleyGenesis (Map.toList $ sgInitialFunds shelleyGenesis)
+        let (_snp, _sblock0) = Shelley.fromGenesisData shelleyGenesis (Map.toList $ sgInitialFunds shelleyGenesis)
 
         let byronPm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
         let (_byronDiscriminant, _byronVData) = someCustomDiscriminant mkSomeNetwork byronPm
