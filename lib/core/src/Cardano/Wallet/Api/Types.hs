@@ -259,6 +259,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.Slotting as Slotting
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -514,6 +515,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
+    , hardforkEpochInfo :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
@@ -530,6 +532,12 @@ toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
     (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
     (view #desiredNumberOfStakePools pp)
     (Quantity $ fromIntegral $ getCoin $ view #minimumUTxOvalue pp)
+    (toApiEpochNo <$> view #hardforkEpochNo pp)
+  where
+    toApiEpochNo epochN =
+        ApiEpochInfo
+        (ApiT epochN)
+        (Slotting.epochStartTime (Slotting.slotParams gp) epochN)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

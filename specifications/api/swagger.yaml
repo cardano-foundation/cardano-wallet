@@ -848,6 +848,7 @@ components:
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber
         minimum_utxo_value: *amount
+        hardfork_epoch_info: *epochInfo
 
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object

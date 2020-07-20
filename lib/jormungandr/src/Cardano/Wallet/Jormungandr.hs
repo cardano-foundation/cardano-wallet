@@ -296,6 +296,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     desiredNumberOfStakePools (protocolParameters np)
                 , defaultMinimumUTxOValue =
                     minimumUTxOvalue (protocolParameters np)
+                , defaultHardforkEpoch =
+                    hardforkEpochNo (protocolParameters np)
                 }
             )
             (timeInterpreter nl)

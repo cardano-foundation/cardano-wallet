@@ -330,6 +330,7 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                                 }
                             , desiredNumberOfStakePools = fromIntegral poolcapping
                             , minimumUTxOvalue = Coin 0
+                            , hardforkEpochNo = Nothing
                             }
                         }
                     )

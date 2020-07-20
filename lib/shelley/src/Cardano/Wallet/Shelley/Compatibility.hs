@@ -481,6 +481,7 @@ fromShelleyPParams pp = W.ProtocolParameters
         desiredNumberOfStakePoolsFromPParams pp
     , minimumUTxOvalue =
         minimumUTxOvalueFromPParams pp
+    , hardforkEpochNo = Nothing
     }
 
 -- | Extract the current network decentralization level from the given set of

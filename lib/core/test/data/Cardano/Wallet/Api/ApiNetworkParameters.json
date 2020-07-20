@@ -1,293 +1,317 @@
 {
-    "seed": -1802592071269241418,
+    "seed": -6584892376564618214,
     "samples": [
         {
             "slot_length": {
-                "quantity": 1457,
+                "quantity": 3600,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 31.07,
+                "quantity": 64.63,
                 "unit": "percent"
             },
             "epoch_stability": {
-                "quantity": 2906,
+                "quantity": 20601,
                 "unit": "block"
             },
-            "genesis_block_hash": "710412c35e162e5a0a3140129b38492504e600004f4b402a5508516d131c032e",
-            "blockchain_start_time": "1879-02-23T17:28:54.017963646932Z",
-            "desired_pool_number": 3369,
+            "genesis_block_hash": "2b4ef7632409705e456353a0521c002063477259147f462c602d6e47619bcabd",
+            "blockchain_start_time": "1859-08-17T07:55:15.550508923494Z",
+            "desired_pool_number": 18507,
             "epoch_length": {
-                "quantity": 32352,
+                "quantity": 29612,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 51.43218368270883,
+                "quantity": 48.13648673149804,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 168,
+                "quantity": 9,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 3541,
+                "quantity": 2503,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 72.16,
+                "quantity": 39.71,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1886-12-05T10:39:43Z",
+                "epoch_number": 23195
+            },
             "epoch_stability": {
-                "quantity": 28887,
+                "quantity": 7069,
                 "unit": "block"
             },
-            "genesis_block_hash": "640126365806772277e13e100f306e5a2c1d1a4dcc645f10703f42857c5e6e07",
-            "blockchain_start_time": "1882-07-16T22:00:00Z",
-            "desired_pool_number": 27172,
+            "genesis_block_hash": "a044352b0b28172d5018058205a2187849151361a02f6f398c0e0e74636b6e37",
+            "blockchain_start_time": "1875-03-08T12:18:25Z",
+            "desired_pool_number": 1175,
             "epoch_length": {
-                "quantity": 20034,
+                "quantity": 4109,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 56.27366141373169,
+                "quantity": 99.42285782562415,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 224,
+                "quantity": 248,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 1105,
+                "quantity": 1531,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 87.22,
+                "quantity": 50.57,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1859-01-05T13:36:46.166603752435Z",
+                "epoch_number": 5554
+            },
             "epoch_stability": {
-                "quantity": 9941,
+                "quantity": 8891,
                 "unit": "block"
             },
-            "genesis_block_hash": "55275e2d2975335b137124455c52100e7c04566056702141d66d4b5d680eec87",
-            "blockchain_start_time": "1863-05-17T19:33:06.87009001763Z",
-            "desired_pool_number": 9204,
+            "genesis_block_hash": "515f47d158391b380948016eb7356bb89b3873425b122a1e677d2e0708192219",
+            "blockchain_start_time": "1866-03-07T23:19:14.376069594181Z",
+            "desired_pool_number": 15527,
             "epoch_length": {
-                "quantity": 9306,
+                "quantity": 23023,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 49.59216226142475,
+                "quantity": 79.48003965152333,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 15,
+                "quantity": 1,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 5183,
+                "quantity": 9537,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 5.3,
+                "quantity": 41.01,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1873-07-22T23:00:00Z",
+                "epoch_number": 18565
+            },
             "epoch_stability": {
-                "quantity": 17873,
+                "quantity": 16129,
                 "unit": "block"
             },
-            "genesis_block_hash": "333c254df207df7e713c2d57720a2e4d3a485b53696e378c284a2a5b1e797e52",
-            "blockchain_start_time": "1872-05-20T22:03:07Z",
-            "desired_pool_number": 15474,
+            "genesis_block_hash": "2e0a105c0653ee5957e7507c757c80c830405cb1c07b5e37074c35ad280f3100",
+            "blockchain_start_time": "1858-12-18T15:00:00Z",
+            "desired_pool_number": 3545,
             "epoch_length": {
-                "quantity": 4047,
+                "quantity": 17910,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 4.244555796460114,
+                "quantity": 12.65725886790433,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 201,
+                "quantity": 42,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 1812,
+                "quantity": 1166,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 85.35,
+                "quantity": 4.2,
                 "unit": "percent"
             },
             "epoch_stability": {
-                "quantity": 27399,
+                "quantity": 31778,
                 "unit": "block"
             },
-            "genesis_block_hash": "26785e107e4305341a19036e464c5455071c625e6151526e08575316612c1e7f",
-            "blockchain_start_time": "1872-03-25T09:55:13Z",
-            "desired_pool_number": 1961,
+            "genesis_block_hash": "38541d145a0f1d4bcf1e8b0043378b161f681c6200675957762b036857473c6e",
+            "blockchain_start_time": "1862-02-06T06:00:00Z",
+            "desired_pool_number": 9507,
             "epoch_length": {
-                "quantity": 8695,
+                "quantity": 18018,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 41.719805322193,
+                "quantity": 58.93080930441079,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 184,
+                "quantity": 11,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 2247,
+                "quantity": 8957,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 10.24,
+                "quantity": 70.37,
                 "unit": "percent"
             },
             "epoch_stability": {
-                "quantity": 23848,
+                "quantity": 15963,
                 "unit": "block"
             },
-            "genesis_block_hash": "414c7b5b51692b764a0b6f3e375e2403622075472768507d52602d4143256263",
-            "blockchain_start_time": "1861-04-19T22:15:51.537303729012Z",
-            "desired_pool_number": 12888,
+            "genesis_block_hash": "261a66857ee9555b28a9680e64051ba8fb460536eb6802415c5d70101876581c",
+            "blockchain_start_time": "1908-10-05T23:17:17Z",
+            "desired_pool_number": 14694,
             "epoch_length": {
-                "quantity": 4669,
+                "quantity": 6922,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 23.230933166018875,
+                "quantity": 27.58028755339621,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 115,
+                "quantity": 18,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 3265,
+                "quantity": 6924,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 56.86,
+                "quantity": 27,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1905-11-06T01:04:34.575412185733Z",
+                "epoch_number": 1318
+            },
             "epoch_stability": {
-                "quantity": 19930,
+                "quantity": 20481,
                 "unit": "block"
             },
-            "genesis_block_hash": "97817765614d461e3875541e5c232444002412236d807b72333d7167244acd7f",
-            "blockchain_start_time": "1901-07-30T12:16:33Z",
-            "desired_pool_number": 8459,
+            "genesis_block_hash": "1649215d485a2c2e55632a45473815bd67652eba2d101bfc530542614b225b0e",
+            "blockchain_start_time": "1873-05-08T22:00:00Z",
+            "desired_pool_number": 16859,
             "epoch_length": {
-                "quantity": 2418,
+                "quantity": 5404,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 46.933747834177595,
+                "quantity": 11.091867622452668,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 203,
+                "quantity": 13,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 5577,
+                "quantity": 9497,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 40.84,
+                "quantity": 60.12,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1876-01-07T11:07:04Z",
+                "epoch_number": 29869
+            },
             "epoch_stability": {
-                "quantity": 28400,
+                "quantity": 8851,
                 "unit": "block"
             },
-            "genesis_block_hash": "130e487b3001364f0da83d3e3e3d6d35d63b254b0b6c4e40f1595d4b3d787f05",
-            "blockchain_start_time": "1877-03-22T20:00:00Z",
-            "desired_pool_number": 21071,
+            "genesis_block_hash": "28463a21694e6d3b483b7ca3f56e63301eb38f51697e3604010822097349f09c",
+            "blockchain_start_time": "1903-11-30T03:20:08Z",
+            "desired_pool_number": 27640,
             "epoch_length": {
-                "quantity": 29499,
+                "quantity": 15298,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 26.184108066972435,
+                "quantity": 42.574416684318194,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 145,
+                "quantity": 228,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 4478,
+                "quantity": 7671,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 52.52,
+                "quantity": 30.68,
                 "unit": "percent"
             },
+            "hardfork_epoch_info": {
+                "epoch_start_time": "1880-11-04T08:00:00Z",
+                "epoch_number": 19131
+            },
             "epoch_stability": {
-                "quantity": 16171,
+                "quantity": 11024,
                 "unit": "block"
             },
-            "genesis_block_hash": "3d7f551e196e3e7f5014143c2f3166281b242048503b0239f954084f30066040",
-            "blockchain_start_time": "1907-12-20T10:00:00Z",
-            "desired_pool_number": 6901,
+            "genesis_block_hash": "7b4b645f546f2e097202322738597a05237f783131098a3e383853323b387911",
+            "blockchain_start_time": "1895-04-28T07:00:00Z",
+            "desired_pool_number": 22732,
             "epoch_length": {
-                "quantity": 18865,
+                "quantity": 11358,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 30.103625697966574,
+                "quantity": 70.9819741807968,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 184,
+                "quantity": 55,
                 "unit": "lovelace"
             }
         },
         {
             "slot_length": {
-                "quantity": 4136,
+                "quantity": 4622,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 74.5,
+                "quantity": 15.96,
                 "unit": "percent"
             },
             "epoch_stability": {
-                "quantity": 14924,
+                "quantity": 4117,
                 "unit": "block"
             },
-            "genesis_block_hash": "6637227c6737317f5e0a36092da83d295e992b4c3e0c5b5f46024a14161b1826",
-            "blockchain_start_time": "1890-05-25T19:00:00Z",
-            "desired_pool_number": 5091,
+            "genesis_block_hash": "2f000006367f55332b386414650c67177e54dc1aa0d6212f56f210975c66582c",
+            "blockchain_start_time": "1899-01-31T11:23:56.69567301228Z",
+            "desired_pool_number": 7330,
             "epoch_length": {
-                "quantity": 1368,
+                "quantity": 18014,
                 "unit": "slot"
             },
             "active_slot_coefficient": {
-                "quantity": 39.368603800409204,
+                "quantity": 3.0083002843048545,
                 "unit": "percent"
             },
             "minimum_utxo_value": {
-                "quantity": 86,
+                "quantity": 186,
                 "unit": "lovelace"
             }
         }

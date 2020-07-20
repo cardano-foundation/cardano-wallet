@@ -799,6 +799,8 @@ spec = do
                         desiredPoolNumber (x :: ApiNetworkParameters)
                     , minimumUtxoValue =
                         minimumUtxoValue (x :: ApiNetworkParameters)
+                    , hardforkEpochInfo =
+                        hardforkEpochInfo (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x

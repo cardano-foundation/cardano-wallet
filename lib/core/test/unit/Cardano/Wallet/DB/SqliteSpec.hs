@@ -742,6 +742,7 @@ defaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
     , defaultDesiredNumberOfPool = 0
     , defaultMinimumUTxOValue = Coin 0
+    , defaultHardforkEpoch = Nothing
     }
 
 newDBLayer'
