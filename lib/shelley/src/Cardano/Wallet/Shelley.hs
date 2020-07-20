@@ -46,6 +46,8 @@ import Prelude
 
 import Cardano.Api.Typed
     ( Shelley )
+import Cardano.Api.Typed
+    ( NetworkId )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -115,11 +117,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , TPraosStandardCrypto
-    , fromCardanoBlock
-    , toCardanoNetworkId
-    )
+    ( CardanoBlock, TPraosStandardCrypto, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -153,6 +151,8 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownNat, natVal )
 import Network.Ntp
     ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
 import Network.Socket
@@ -172,6 +172,7 @@ import System.IOManager
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -188,6 +189,7 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
             , DelegationAddress n ShelleyKey
+            , HasNetworkId n
             , DecodeAddress n
             , EncodeAddress n
             , DecodeStakeAddress n
@@ -196,6 +198,24 @@ data SomeNetworkDiscriminant where
             )
         => Proxy n
         -> SomeNetworkDiscriminant
+
+
+-- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
+class HasNetworkId (n :: NetworkDiscriminant) where
+    networkIdVal :: Proxy n -> NetworkId
+
+instance HasNetworkId 'Mainnet where
+    networkIdVal _ = Cardano.Mainnet
+
+instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
+    networkIdVal _ = Cardano.Testnet networkMagic
+      where
+        networkMagic = Cardano.NetworkMagic
+            . fromIntegral
+            $ natVal (Proxy @protocolMagic)
+
+instance HasNetworkId ('Staging protocolMagic) where
+    networkIdVal _ = Cardano.Mainnet
 
 deriving instance Show SomeNetworkDiscriminant
 
@@ -259,7 +279,7 @@ serveWallet
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let gp = genesisParameters np
-                let net = toCardanoNetworkId proxy
+                let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
                 icarusApi  <- apiLayer (newTransactionLayer net) nl
