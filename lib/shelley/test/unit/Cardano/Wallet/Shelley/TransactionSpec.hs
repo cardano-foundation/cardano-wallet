@@ -50,7 +50,7 @@ import Cardano.Wallet.Primitive.Types
     , mainnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, toCardanoNetworkId, toSealed )
+    ( Shelley, TPraosStandardCrypto, toCardanoNetworkId, toSealed )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkShelleyWitness
@@ -184,10 +184,11 @@ prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) 
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    let addrWits = Set.fromList $ map (mkShelleyWitness unsigned) pairs
-    let metadata = SL.SNothing
-    let wits = SL.WitnessSet addrWits mempty mempty
-    let ledgerTx = SL.Tx unsigned wits metadata
+    let addrWits = map (mkShelleyWitness unsigned) pairs
+    let metadata = Nothing
+    let wits = addrWits
+    -- let ledgerTx = SL.Tx unsigned wits metadata
+    let ledgerTx = error "fixme" :: SL.Tx TPraosStandardCrypto
 
     _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
         === Right (toSealed ledgerTx)
@@ -199,11 +200,11 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    let byronWits =
-            Set.fromList $ zipWith (\((_, TxOut addr _)) pair -> mkByronWitness unsigned magic addr pair) inps pairs
+    -- let byronWits = zipWith (\((_, TxOut addr _)) pair -> mkByronWitness unsigned magic addr pair) inps pairs
+    let byronWits = error "fixme"
     let metadata = SL.SNothing
-    let wits = SL.WitnessSet mempty mempty byronWits
-    let ledgerTx = SL.Tx unsigned wits metadata
+    -- let ledgerTx = SL.Tx unsigned byronWits metadata
+    let ledgerTx = error "fixme" :: SL.Tx TPraosStandardCrypto
 
     _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
         === Right (toSealed ledgerTx)
