@@ -593,6 +593,20 @@ spec = do
                             (.> Quantity (unsafeMkPercentage 0))
                     ]
 
+        it "pools have the correct retirement information" $ \ctx -> do
+            eventually "pools have the correct retirement information" $ do
+                r <- listPools ctx arbitraryStake
+                expectResponseCode HTTP.status200 r
+                verify r
+                    [ expectListSize 3
+                    -- At the time of setup, the pools have 1/3 stake each, but
+                    -- this could potentially be changed by other tests. Hence,
+                    -- we try to be forgiving here.
+                    , expectListField 0 #retirement (`shouldBe` Nothing)
+                    , expectListField 1 #retirement (`shouldBe` Nothing)
+                    , expectListField 2 #retirement (`shouldBe` Nothing)
+                    ]
+
         it "eventually has correct margin, cost and pledge" $ \ctx -> do
             eventually "pool worker finds the certificate" $ do
                 r <- listPools ctx arbitraryStake
