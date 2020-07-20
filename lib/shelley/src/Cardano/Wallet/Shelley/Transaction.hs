@@ -38,8 +38,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, toXPub, xpubPublicKey )
-import Cardano.Api.Typed
-    ( Shelley )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -66,16 +64,19 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , EpochLength (..)
     , Hash (..)
     , PoolId (..)
     , ProtocolMagic (..)
     , SealedTx (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( TPraosStandardCrypto
+    ( Shelley
+    , TPraosStandardCrypto
     , fromNetworkDiscriminant
     , toByronNetworkMagic
     , toCardanoLovelace
@@ -83,6 +84,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxOut
     , toHDPayloadAddress
     , toSealed
+    , toSlotNo
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -100,8 +102,6 @@ import Crypto.Error
     ( throwCryptoError )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Short
-    ( toShort )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -113,17 +113,14 @@ import Data.Quantity
 import Data.Word
     ( Word16, Word64, Word8 )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
-    ( TPraosStandardCrypto )
-import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
 import Type.Reflection
     ( Typeable )
 
-import qualified Byron.Spec.Ledger.Core as Byron
-import qualified Byron.Spec.Ledger.UTxO as Byron
-import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Typed as CardanoTyped
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as Crypto
 import qualified Cardano.Crypto.Hash.Class as Hash
@@ -146,23 +143,24 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
+
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
 -- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
 -- include certificates or not.
-data TxPayload era = TxPayload
+data TxPayload c = TxPayload
     { _certificates :: [Cardano.Certificate]
       -- ^ Certificates to be included in the transactions.
 
-    , _extraWitnesses :: Cardano.TxBody era -> [Cardano.Witness era]
+    , _extraWitnesses :: SL.TxBody c -> SL.WitnessSet c
       -- ^ Create payload-specific witesses given the unsigned transaction body.
       --
       -- Caller has the freedom and responsibility to provide the correct
       -- witnesses for what they're trying to do.
     }
 
-emptyTxPayload :: TxPayload era
+emptyTxPayload :: Crypto c => TxPayload c
 emptyTxPayload = TxPayload mempty mempty
 
 data TxWitnessTag
@@ -188,7 +186,7 @@ mkTx
        )
     => Proxy n
     -> ProtocolMagic
-    -> TxPayload Shelley
+    -> TxPayload TPraosStandardCrypto
     -> SlotNo
     -- ^ Time to Live
     -> (k 'AddressK XPrv, Passphrase "encryption")
@@ -197,7 +195,6 @@ mkTx
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
 mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
-    {-
     let wdrls = mkWithdrawals
             proxy
             (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
@@ -205,22 +202,16 @@ mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) key
 
     let unsigned = mkUnsignedTx timeToLive cs wdrls certs
 
-    sealed <- case (txWitnessTagFor @k) of
+    wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
-            let paymentKey = _ (getRawKey k, pwd)
-            let stakeKey
-                     | null wdrls = []
-                     | otherwise = [_ (getRawKey rewardAcnt, pwdAcnt)]
-
-            tx <- signShelleyTransaction unsigned (paymentKey:stakeKey)
             addrWits <- fmap Set.fromList $ forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkShelleyWitness unsigned
+                pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
             let wdrlsWits
-                    | null wdrls = Set.empty
+                    | Map.null wdrls = Set.empty
                     | otherwise = Set.singleton $
-                      mkShelleyWitness unsigned
+                      mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)
 
             pure $ (SL.WitnessSet (addrWits <> wdrlsWits) mempty mempty)
                 <> mkExtraWits unsigned
@@ -234,9 +225,7 @@ mkTx proxy pm (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) key
 
     let metadata = SL.SNothing
 
-    pure $ (SL.Tx unsigned wits metadata, SealedTx sealed)
-    -}
-    error "fixme: mkTx"
+    pure $ toSealed $ SL.Tx unsigned wits metadata
 
 newTransactionLayer
     :: forall (n :: NetworkDiscriminant) k t.
@@ -247,10 +236,11 @@ newTransactionLayer
         )
     => Proxy n
     -> ProtocolMagic
+    -> EpochLength
     -> TransactionLayer t k
-newTransactionLayer proxy protocolMagic = TransactionLayer
+newTransactionLayer proxy protocolMagic epochLength = TransactionLayer
     { mkStdTx = \acc ks tip ->
-        mkTx proxy protocolMagic emptyTxPayload (defaultTTL tip) acc ks
+        mkTx proxy protocolMagic emptyTxPayload (defaultTTL epochLength tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -281,7 +271,7 @@ newTransactionLayer proxy protocolMagic = TransactionLayer
             -- ^ Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- ^ Key store
-        -> SlotNo
+        -> SlotId
             -- ^ Tip of the chain, for TTL
         -> CoinSelection
             -- ^ A balanced coin selection where all change addresses have been
@@ -297,10 +287,13 @@ newTransactionLayer proxy protocolMagic = TransactionLayer
                 else
                     [ toStakePoolDlgCert accXPub poolId ]
 
-        let mkWits unsigned = [mkShelleyWitness unsigned (getRawKey accXPrv, pwd')]
+        let mkWits unsigned = SL.WitnessSet
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
+                mempty
+                mempty
 
         let payload = TxPayload certs mkWits
-        let ttl = defaultTTL tip
+        let ttl = defaultTTL epochLength tip
         mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
@@ -308,7 +301,7 @@ newTransactionLayer proxy protocolMagic = TransactionLayer
             -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotNo
+        -> SlotId
             -- Tip of the chain, for TTL
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
@@ -317,9 +310,13 @@ newTransactionLayer proxy protocolMagic = TransactionLayer
     _mkDelegationQuitTx acc@(accXPrv, pwd') keyFrom tip cs = do
         let accXPub = toXPub $ getRawKey accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
-        let mkWits unsigned = [mkShelleyWitness unsigned (getRawKey accXPrv, pwd')]
+        let mkWits unsigned = SL.WitnessSet
+                (Set.singleton (mkShelleyWitness unsigned (getRawKey accXPrv, pwd')))
+                mempty
+                mempty
+
         let payload = TxPayload certs mkWits
-        let ttl = defaultTTL tip
+        let ttl = defaultTTL epochLength tip
         mkTx proxy protocolMagic payload ttl acc keyFrom cs
 
 _estimateMaxNumberOfInputs
@@ -373,8 +370,8 @@ _decodeSignedTx
     :: ByteString
     -> Either ErrDecodeSignedTx (Tx, SealedTx)
 _decodeSignedTx bytes = do
-    case Cardano.deserialiseFromCBOR Cardano.AsShelleyTx bytes of
-        Right (Cardano.ShelleyTx txValid) ->
+    case CardanoTyped.deserialiseFromCBOR CardanoTyped.AsShelleyTx bytes of
+        Right (CardanoTyped.ShelleyTx txValid) ->
             pure $ toSealed txValid
         Left decodeErr ->
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
@@ -408,9 +405,11 @@ computeTxSize
     -> CoinSelection
     -> Integer
 computeTxSize proxy pm witTag action cs =
-    SL.txsize $ SL.Tx unsigned wits (SL.maybeToStrictMaybe metadata)
+    SL.txsize $ SL.Tx unsigned wits metadata
  where
-    Cardano.ShelleyTxBody unsigned metadata = mkUnsignedTx maxBound cs' wdrls certs
+    metadata = SL.SNothing
+
+    unsigned = mkUnsignedTx maxBound cs' wdrls certs
       where
         cs' :: CoinSelection
         cs' = cs
@@ -421,21 +420,19 @@ computeTxSize proxy pm witTag action cs =
         dummyOutput :: Coin -> TxOut
         dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
 
-        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash . toShort $ dummyKeyHashRaw
-        dummyStakeCredential = Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash dummyKeyHash
-        dummyPoolId = Cardano.StakePoolKeyHash dummyKeyHash
+        dummyKeyHash = SL.KeyHash . Hash.UnsafeHash $ dummyKeyHashRaw
 
         certs = case action of
             Nothing -> []
             Just RegisterKeyAndJoin{} ->
-                [ Cardano.makeStakeAddressRegistrationCertificate dummyStakeCredential
-                , Cardano.makeStakeAddressDelegationCertificate dummyStakeCredential dummyPoolId
+                [ Cardano.shelleyRegisterStakingAddress dummyKeyHash
+                , Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
                 ]
             Just Join{} ->
-                [ Cardano.makeStakeAddressDelegationCertificate dummyStakeCredential dummyPoolId
+                [ Cardano.shelleyDelegateStake dummyKeyHash dummyKeyHash
                 ]
             Just Quit ->
-                [ Cardano.makeStakeAddressDeregistrationCertificate dummyStakeCredential
+                [ Cardano.shelleyDeregisterStakingAddress dummyKeyHash
                 ]
 
     dummyKeyHashRaw = BS.pack (replicate 28 0)
@@ -448,7 +445,7 @@ computeTxSize proxy pm witTag action cs =
     (addrWits, certWits) =
         ( Set.union
             (Set.map dummyWitnessUniq $ Set.fromList (fst <$> CS.inputs cs))
-            (if null wdrls then Set.empty else Set.singleton (dummyWitness "0"))
+            (if Map.null wdrls then Set.empty else Set.singleton (dummyWitness "0"))
         , case action of
             Nothing -> Set.empty
             Just{}  -> Set.singleton (dummyWitness "a")
@@ -460,7 +457,7 @@ computeTxSize proxy pm witTag action cs =
             key = SL.VKey
                 $ fromMaybe (error "error creating dummy witness ver key")
                 $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff vkeyLen chaff
+                $ bloatChaff keyLen chaff
 
             sig = SignedDSIGN
                 $ fromMaybe (error "error creating dummy witness sig")
@@ -473,16 +470,16 @@ computeTxSize proxy pm witTag action cs =
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    byronWits = map dummyWitnessUniq $ CS.inputs cs
+    byronWits = Set.map dummyWitnessUniq $ Set.fromList (CS.inputs cs)
       where
-        dummyWitness :: BL.ByteString -> Address -> Cardano.Witness Shelley
+        dummyWitness :: BL.ByteString -> Address -> SL.BootstrapWitness TPraosStandardCrypto
         dummyWitness chaff addr =
-            Cardano.ShelleyBootstrapWitness $ SL.BootstrapWitness vkey sig cc attrs
+            SL.BootstrapWitness key sig cc padding
           where
-            vkey = SL.VKey
+            key = SL.VKey
                 $ fromMaybe (error "error creating dummy witness ver key")
                 $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff vkeyLen chaff
+                $ bloatChaff keyLen chaff
 
             sig = SignedDSIGN
                 $ fromMaybe (error "error creating dummy witness sig")
@@ -492,10 +489,13 @@ computeTxSize proxy pm witTag action cs =
             cc = SL.ChainCode
                 $ bloatChaff ccLen "0"
 
-            -- attrs = serialize' $ Byron.addrAttributes addr
-            attrs = error "fixme: attributes of byron address"
+            padding = SL.byronVerKeyAddressPadding
+                $ Byron.mkAttributes
+                $ Byron.AddrAttributes
+                   (toHDPayloadAddress addr)
+                   (toByronNetworkMagic pm)
 
-        dummyWitnessUniq :: (TxIn, TxOut) -> Cardano.Witness Shelley
+        dummyWitnessUniq :: (TxIn, TxOut) -> SL.BootstrapWitness TPraosStandardCrypto
         dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
             dummyWitness chaff addr
           where
@@ -503,19 +503,18 @@ computeTxSize proxy pm witTag action cs =
 
     sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
 
-    vkeyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
 
     ccLen =  32
 
     bloatChaff :: Word -> BL.ByteString -> ByteString
     bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
 
-    wits = error "fixme: txSize wits"
-    -- wits = case witTag of
-    --     TxWitnessShelleyUTxO ->
-    --         SL.WitnessSet (Set.union addrWits certWits) mempty mempty
-    --     TxWitnessByronUTxO ->
-    --        SL.WitnessSet mempty mempty byronWits
+    wits = case witTag of
+        TxWitnessShelleyUTxO ->
+            SL.WitnessSet (Set.union addrWits certWits) mempty mempty
+        TxWitnessByronUTxO ->
+           SL.WitnessSet mempty mempty byronWits
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -527,44 +526,41 @@ lookupPrivateKey keyFrom addr =
 mkUnsignedTx
     :: Cardano.SlotNo
     -> CoinSelection
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
     -> [Cardano.Certificate]
-    -> Cardano.TxBody Cardano.Shelley
+    -> Cardano.ShelleyTxBody
 mkUnsignedTx ttl cs wdrls certs =
-    Cardano.makeShelleyTransaction
-            extra
+    let
+        Cardano.TxUnsignedShelley unsigned = Cardano.buildShelleyTransaction
+            (toCardanoTxIn . fst <$> CS.inputs cs)
+            (map toCardanoTxOut $ CS.outputs cs)
             ttl
             (toCardanoLovelace $ Coin $ feeBalance cs)
-            (toCardanoTxIn . fst <$> CS.inputs cs)
-            (map mkOut $ CS.outputs cs)
-  where
-    extra = Cardano.TxExtraContent
-            { Cardano.txMetadata = Nothing
-            , Cardano.txWithdrawals = wdrls
-            , Cardano.txCertificates = certs
-            , Cardano.txUpdateProposal = Nothing
-            }
-    mkOut = toCardanoTxOut net cred stake
-    net = error "fixme: mkUnsignedAddress net"
-    cred = error "fixme: mkUnsignedAddress cred"
-    stake = error "fixme: mkUnsignedAddress stake"
-
+            certs
+            (Cardano.WithdrawalsShelley $ SL.Wdrl wdrls)
+            Nothing -- Update
+            Nothing -- Metadata hash
+    in
+        unsigned
 
 mkWithdrawals
     :: forall (n :: NetworkDiscriminant). (Typeable n)
     => Proxy n
     -> ChimericAccount
     -> Word64
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> Map (SL.RewardAcnt TPraosStandardCrypto) SL.Coin
 mkWithdrawals proxy (ChimericAccount keyHash) amount
     | amount == 0 = mempty
-    | otherwise =
-        [ ( Cardano.StakeAddress (fromNetworkDiscriminant proxy) keyHashObj
-          , Cardano.Lovelace $ fromIntegral amount
+    | otherwise = Map.fromList
+        [ ( SL.RewardAcnt (fromNetworkDiscriminant proxy) keyHashObj
+          , SL.Coin $ fromIntegral amount
           )
         ]
   where
-    keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash $ toShort keyHash
+    keyHashObj = SL.KeyHashObj $ SL.KeyHash $ Hash.UnsafeHash keyHash
+
+-- TODO: The SlotId-SlotNo conversion based on epoch length would not
+-- work if the epoch length changed in a hard fork.
 
 -- NOTE: The (+7200) was selected arbitrarily when we were trying to get
 -- this working on the FF testnet. Perhaps a better motivated and/or
@@ -573,17 +569,21 @@ defaultTTL :: SlotNo -> SlotNo
 defaultTTL = (+ 7200)
 
 mkShelleyWitness
-    :: Cardano.TxBody Shelley
+    :: SL.TxBody TPraosStandardCrypto
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness Shelley
+    -> SL.WitVKey TPraosStandardCrypto 'SL.Witness
 mkShelleyWitness body (prv, pwd) =
-   Cardano.makeShelleyKeyWitness body (Cardano.WitnessPaymentKey $ key)
+    SL.WitVKey key sig
   where
-    key = error "fixme: SigningKey PaymentKey"
-    -- vk = SL.VKey
-    --     $ VerKeyEd25519DSIGN
-    --     $ unsafeMkEd25519
-    --     $ toXPub prv
+    sig = SignedDSIGN
+        $ fromMaybe (error "error converting signatures")
+        $ rawDeserialiseSigDSIGN
+        $ serialize' (SL.hashTxBody body) `signWith` (prv, pwd)
+
+    key = SL.VKey
+        $ VerKeyEd25519DSIGN
+        $ unsafeMkEd25519
+        $ toXPub prv
 
 signWith
     :: ByteString
@@ -603,7 +603,6 @@ mkByronWitness
     -> (XPrv, Passphrase "encryption")
     -> SL.BootstrapWitness TPraosStandardCrypto
 mkByronWitness body protocolMagic addr (prv, Passphrase pwd) =
-    -- fixme: use makeShelleyBootstrapWitness
     SL.makeBootstrapWitness txHash signingKey addrAttr
   where
     (SL.TxId txHash) = SL.txid body
