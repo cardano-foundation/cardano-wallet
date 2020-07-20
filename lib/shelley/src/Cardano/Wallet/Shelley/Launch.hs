@@ -528,7 +528,8 @@ setupStakePoolData tr dir name params url pledgeAmt = do
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
 
     stakeCert <- issueStakeCert tr dir stakePub
-    poolCert <- issuePoolCert tr dir opPub vrfPub stakePub url metadata pledgeAmt
+    poolRegistrationCert <- issuePoolRegistrationCert
+        tr dir opPub vrfPub stakePub url metadata pledgeAmt
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
@@ -545,8 +546,8 @@ setupStakePoolData tr dir name params url pledgeAmt = do
     -- in the transaction used to registered the stake key and the pool
     -- itself.  Thus, in a single transaction, we end up with a
     -- registered pool with some stake!
-    (rawTx, faucetPrv) <-
-        preparePoolRegistration tr dir stakePub [stakeCert, poolCert, dlgCert] pledgeAmt
+    (rawTx, faucetPrv) <- preparePoolRegistration
+        tr dir stakePub [stakeCert, poolRegistrationCert, dlgCert] pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -749,7 +750,7 @@ issueStakeCert tr dir stakePub = do
     pure file
 
 -- | Create a stake pool registration certificate
-issuePoolCert
+issuePoolRegistrationCert
     :: Tracer IO ClusterLog
     -> FilePath
     -> FilePath
@@ -759,25 +760,26 @@ issuePoolCert
     -> Aeson.Value
     -> Integer
     -> IO FilePath
-issuePoolCert tr dir opPub vrfPub stakePub baseURL metadata pledgeAmt = do
-    let file  = dir </> "pool.cert"
-    let bytes = Aeson.encode metadata
-    BL8.writeFile (dir </> "metadata.json") bytes
-    void $ cli tr
-        [ "shelley", "stake-pool", "registration-certificate"
-        , "--cold-verification-key-file", opPub
-        , "--vrf-verification-key-file", vrfPub
-        , "--pool-pledge", show pledgeAmt
-        , "--pool-cost", "0"
-        , "--pool-margin", "0.1"
-        , "--pool-reward-account-verification-key-file", stakePub
-        , "--pool-owner-stake-verification-key-file", stakePub
-        , "--metadata-url", baseURL </> "metadata.json"
-        , "--metadata-hash", blake2b256S (BL.toStrict bytes)
-        , "--mainnet"
-        , "--out-file", file
-        ]
-    pure file
+issuePoolRegistrationCert
+    tr dir opPub vrfPub stakePub baseURL metadata pledgeAmt = do
+        let file  = dir </> "pool.cert"
+        let bytes = Aeson.encode metadata
+        BL8.writeFile (dir </> "metadata.json") bytes
+        void $ cli tr
+            [ "shelley", "stake-pool", "registration-certificate"
+            , "--cold-verification-key-file", opPub
+            , "--vrf-verification-key-file", vrfPub
+            , "--pool-pledge", show pledgeAmt
+            , "--pool-cost", "0"
+            , "--pool-margin", "0.1"
+            , "--pool-reward-account-verification-key-file", stakePub
+            , "--pool-owner-stake-verification-key-file", stakePub
+            , "--metadata-url", baseURL </> "metadata.json"
+            , "--metadata-hash", blake2b256S (BL.toStrict bytes)
+            , "--mainnet"
+            , "--out-file", file
+            ]
+        pure file
 
 -- | Create a stake address delegation certificate.
 issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
