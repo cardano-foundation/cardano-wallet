@@ -89,6 +89,8 @@ import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
     ( throwIO )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -148,7 +150,7 @@ data NetworkLayer m target block = NetworkLayer
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
 
     , timeInterpreter
-        :: TimeInterpreter m
+        :: HasCallStack => TimeInterpreter m
     }
 
 instance Functor m => Functor (NetworkLayer m target) where

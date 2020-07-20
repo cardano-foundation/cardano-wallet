@@ -375,6 +375,8 @@ import Fmt
     ( blockListF, pretty, (+|), (|+) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -642,6 +644,7 @@ walletSyncProgress
     :: forall ctx s t.
         ( HasGenesisData ctx
         , HasNetworkLayer t ctx
+        , HasCallStack
         )
     => ctx
     -> Wallet s

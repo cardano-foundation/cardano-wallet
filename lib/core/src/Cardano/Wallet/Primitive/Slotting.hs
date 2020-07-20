@@ -69,7 +69,6 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , wholeRange
     )
-import Control.Exception (throwIO)
 import Control.Monad
     ( ap, liftM, (<=<) )
 import Control.Monad.IO.Class
@@ -98,7 +97,8 @@ import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter, mkInterpreter )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( neverForksSummary )
-import Ouroboros.Consensus.Util.CallStack (HasCallStack)
+import GHC.Stack (HasCallStack)
+import Fmt (Buildable(..), (+|), (|+), (||+), (+||))
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
@@ -243,7 +243,7 @@ mkTimeInterpreterI gp int q = neverFails $ runQuery (MyInterpreter start int) q
     neverFails = either bomb pure
     bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
 
-interpreterFromGenesis :: GenesisParameters -> TimeInterpreter IO
+interpreterFromGenesis :: HasCallStack => GenesisParameters -> (forall a. Qry a -> Either HF.PastHorizonException a)
 interpreterFromGenesis gp = mkTimeInterpreter start (mkInterpreter summary)
   where
     summary = neverForksSummary sz len
@@ -251,10 +251,8 @@ interpreterFromGenesis gp = mkTimeInterpreter start (mkInterpreter summary)
     len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
     start = gp ^. #getGenesisBlockDate
 
-mkTimeInterpreter :: StartTime -> Interpreter xs -> TimeInterpreter IO
-mkTimeInterpreter start int = either throwIO pure . runQuery mine
-  where
-    mine = MyInterpreter (coerce start) int
+mkTimeInterpreter :: HasCallStack => StartTime -> Interpreter xs -> (forall a. Qry a -> Either HF.PastHorizonException a)
+mkTimeInterpreter start = runQuery . MyInterpreter (coerce start)
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones
@@ -275,6 +273,31 @@ instance Applicative Qry where
 instance Monad Qry where
   return = pure
   (>>=)  = QBind
+
+instance Buildable (Qry a) where
+    build = \case
+        HardForkQry qry -> build qry
+        RelToUTCTime t -> "RelToUTCTime "+||t||+""
+        UTCTimeToRel t -> "UTCTimeToRel "+||t||+""
+        QPure _ -> "qPure"
+        QBind q _ -> "qBind " <> build q
+
+instance Buildable (HF.Qry a) where
+    build = \case
+        HF.QPure _ -> "QPure"
+        HF.QBind q _ -> "QBind "+|q|+""
+        HF.QAbsToRelTime t -> "QAbsToRelTime "+||t||+""
+        HF.QAbsToRelSlot sl -> "QAbsToRelSlot "+||sl||+""
+        HF.QAbsToRelEpoch ep -> "QAbsToRelEpoch "+||ep||+""
+        HF.QRelToAbsTime t -> "QRelToAbsTime " -- +||t||+""
+        HF.QRelToAbsSlot slt -> "QRelToAbsSlot " -- +||slt||+""
+        HF.QRelToAbsEpoch epe -> "QRelToAbsEpoch "-- +||epe||+""
+        HF.QRelTimeToSlot t -> "QRelTimeToSlot "-- +||t||+""
+        HF.QRelSlotToTime sl -> "QRelSlotToTime "-- +||sl||+""
+        HF.QRelSlotToEpoch sl -> "QRelSlotToEpoch "-- +||sl||+""
+        HF.QRelEpochToSlot ep -> "QRelEpochToSlot "-- +||ep||+""
+        HF.QSlotLength sl -> "QSlotLength "+||sl||+""
+        HF.QEpochSize ep -> "QEpochSize "+||ep||+""
 
 runQuery :: HasCallStack => MyInterpreter xs -> Qry a -> Either HF.PastHorizonException a
 runQuery (MyInterpreter systemStart int) = go
