@@ -522,9 +522,11 @@ setupStakePoolData
     -> String
     -- ^ Base URL of metadata server.
     -> Integer
-    -- ^ Pledge (and stake) amount
+    -- ^ Pledge (and stake) amount.
+    -> Maybe EpochNo
+    -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr dir name params url pledgeAmt = do
+setupStakePoolData tr dir name params url pledgeAmt _mRetirementEpoch = do
     let NodeParams severity systemStart (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
@@ -592,8 +594,9 @@ withStakePool tr baseDir idx params pledgeAmt action =
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
-            (cfg, opPub, tx) <-
-                setupStakePoolData tr dir name params url pledgeAmt
+            let retirementEpoch = Nothing
+            (cfg, opPub, tx) <- setupStakePoolData
+                tr dir name params url pledgeAmt retirementEpoch
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
                 timeout 120
