@@ -65,7 +65,12 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), NetworkParameters (..), PoolId (..), ProtocolMagic (..) )
+    ( Block (..)
+    , EpochNo (..)
+    , NetworkParameters (..)
+    , PoolId (..)
+    , ProtocolMagic (..)
+    )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -780,6 +785,22 @@ issuePoolRegistrationCert
             , "--out-file", file
             ]
         pure file
+
+issuePoolRetirementCert
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> FilePath
+    -> EpochNo
+    -> IO FilePath
+issuePoolRetirementCert tr dir opPub retirementEpoch = do
+    let file  = dir </> "pool-retirement.cert"
+    void $ cli tr
+        [ "shelley", "stake-pool", "deregistration-certificate"
+        , "--cold-verification-key-file", opPub
+        , "--epoch", show (unEpochNo retirementEpoch)
+        , "--out-file", file
+        ]
+    pure file
 
 -- | Create a stake address delegation certificate.
 issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
