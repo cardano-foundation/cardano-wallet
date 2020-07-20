@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -179,7 +180,10 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
 
 testPoolConfigs :: [PoolConfig]
 testPoolConfigs =
-    replicate 3 (PoolConfig {retirementEpoch = Nothing})
+    [ PoolConfig {retirementEpoch = Nothing}
+    , PoolConfig {retirementEpoch = Just 10}
+    , PoolConfig {retirementEpoch = Just 1_000_000}
+    ]
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
