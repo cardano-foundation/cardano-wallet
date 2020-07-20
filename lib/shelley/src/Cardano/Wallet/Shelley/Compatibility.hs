@@ -194,8 +194,6 @@ import Ouroboros.Network.Block
     , getTipPoint
     , legacyTip
     )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
