@@ -380,15 +380,16 @@ withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
         if length (filter isRight group) /= n then do
             cancelAll
             throwIO $ ProcessHasExited
-                ("cluster didn't start correctly: " <> show (filter isLeft group))
+                ("cluster didn't start correctly: "
+                    <> show (filter isLeft group))
                 (ExitFailure 1)
         else do
             let cfg = NodeParams severity systemStart (port0, ports)
             withRelayNode tr dir cfg $ \socket -> do
                 action socket block0 params `finally` cancelAll
   where
-    -- | Get permutations of the size (n-1) for a list of n elements, alongside with
-    -- the element left aside. `[a]` is really expected to be `Set a`.
+    -- | Get permutations of the size (n-1) for a list of n elements, alongside
+    -- with the element left aside. `[a]` is really expected to be `Set a`.
     --
     -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
@@ -585,10 +586,12 @@ withStakePool tr baseDir idx params pledgeAmt action =
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
-            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url pledgeAmt
+            (cfg, opPub, tx) <-
+                setupStakePoolData tr dir name params url pledgeAmt
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
-                timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                timeout 120
+                    ("pool registration", waitUntilRegistered tr name opPub)
                 action
   where
     dir = baseDir </> name
