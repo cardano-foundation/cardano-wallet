@@ -936,8 +936,9 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
             , ": "
             , e
             ]
-        MsgLocalStateQueryEraMismatch _mismatch ->
-            "Local state query for the wrong era - this is fine."
+        MsgLocalStateQueryEraMismatch mismatch ->
+            "Local state query for the wrong era - this is fine. " <>
+            T.pack (show mismatch)
         MsgGetRewardAccountBalance bh acct -> T.unwords
             [ "Querying the reward account balance for"
             , pretty acct
