@@ -82,6 +82,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromTip'
     , fromShelleyPParams
     , fromNetworkDiscriminant
+    , toCardanoNetworkId
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -802,6 +803,21 @@ fromUnitInterval x =
         , "encountered invalid parameter value: "
         , show x
         ]
+
+toCardanoNetworkId
+    :: forall (n :: NetworkDiscriminant). (Typeable n)
+    => Proxy n
+    -> Cardano.NetworkId
+toCardanoNetworkId _ =
+    if isMainnet
+    then Cardano.Mainnet
+    else Cardano.Testnet networkMagic
+  where
+    -- TODO: How do we check if we are on staging?
+    isMainnet = case testEquality (typeRep @n) (typeRep @'Mainnet) of
+        Just{} -> True
+        Nothing -> False
+    networkMagic = error "toCardanoNetwork: networkMagic should be unneeded"
 
 fromNetworkDiscriminant
     :: forall (n :: NetworkDiscriminant). (Typeable n)
