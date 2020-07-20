@@ -78,6 +78,8 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( dupChan, newChan, readChan, writeChan )
 import Control.Exception
+    ( throwIO )
+import Control.Exception
     ( IOException )
 import Control.Monad
     ( forever, unless, (>=>) )
@@ -143,6 +145,8 @@ import Data.Word
 import Fmt
     ( Buildable (..), listF', mapF, pretty )
 import GHC.Stack
+    ( prettyCallStack )
+import GHC.Stack
     ( HasCallStack )
 import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
@@ -162,6 +166,8 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter )
+import Ouroboros.Consensus.HardFork.History.Summary
+    ( PastHorizonException (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -449,10 +455,15 @@ withNetworkLayer tr np addrInfo versionData action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-    _timeInterpreterQuery :: TVar IO (Maybe (CardanoInterpreter sc)) -> TimeInterpreter IO
-    _timeInterpreterQuery var q = atomically (readTVar var) >>= \case
-        Just i -> mkTimeInterpreter getGenesisBlockDate i q
-        Nothing -> interpreterFromGenesis gp q
+    _timeInterpreterQuery :: HasCallStack => TVar IO (Maybe (CardanoInterpreter sc)) -> TimeInterpreter IO
+    _timeInterpreterQuery var query = do
+        cached <- atomically (readTVar var)
+        let interpret = maybe (interpreterFromGenesis gp) (mkTimeInterpreter getGenesisBlockDate) cached
+        case interpret query of
+            Right res -> pure res
+            Left e -> do
+                traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
+                throwIO e
 
 type instance GetStakeDistribution (IO Shelley) (CardanoBlock sc) m
     = (Point (CardanoBlock sc)
@@ -868,6 +879,7 @@ data NetworkLayerLog sc where
     MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog sc
     MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog sc
     MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
+    MsgInterpreterPastHorizon :: Text -> PastHorizonException -> NetworkLayerLog sc
 
 data QueryClientName
     = TipSyncClient
@@ -958,6 +970,13 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
+        MsgInterpreterPastHorizon query (PastHorizon callstack eras) ->
+            "Time interpreter queried past the horizon. " <>
+            "This should not have happened.\n" <>
+            "Query is:\n" <> query <> "\n" <>
+            "Eras are:\n" <>
+            T.unlines (map (T.pack . show) eras) <> "\n" <>
+            T.pack (prettyCallStack callstack)
 
 instance HasPrivacyAnnotation (NetworkLayerLog b)
 instance HasSeverityAnnotation (NetworkLayerLog b) where
@@ -987,3 +1006,4 @@ instance HasSeverityAnnotation (NetworkLayerLog b) where
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
+        MsgInterpreterPastHorizon{}        -> Critical

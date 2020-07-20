@@ -363,12 +363,13 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
         -> P.ClientStNext n block (Tip block) m Void
     collectResponses respond blocks Zero = P.ClientStNext
         { P.recvMsgRollForward = \block tip -> do
-            traceWith tr $ MsgChainRollForward block
+            traceWith tr $ MsgChainRollForward block (getTipPoint tip)
             let cursor' = blockPoint block
             let blocks' = reverse (block:blocks)
             let tip'    = fromTip tip
             respond (RollForward cursor' tip' blocks')
             let distance = tipDistance (blockNo block) tip
+            traceWith tr $ MsgTipDistance distance
             let strategy = if distance <= 1
                     then oneByOne
                     else pipeline (fromIntegral $ min distance 1000) Zero
@@ -600,8 +601,9 @@ send queue cmd = do
 -- Tracing
 
 data ChainSyncLog block point
-    = MsgChainRollForward block
+    = MsgChainRollForward block point
     | MsgChainRollBackward point Int
+    | MsgTipDistance Natural
 
 mapChainSyncLog
     :: (b1 -> b2)
@@ -609,14 +611,15 @@ mapChainSyncLog
     -> ChainSyncLog b1 p1
     -> ChainSyncLog b2 p2
 mapChainSyncLog f g = \case
-    MsgChainRollForward block  -> MsgChainRollForward (f block)
+    MsgChainRollForward block point -> MsgChainRollForward (f block) (g point)
     MsgChainRollBackward point n -> MsgChainRollBackward (g point) n
+    MsgTipDistance d -> MsgTipDistance d
 
 instance (ToText block, ToText point)
     => ToText (ChainSyncLog block point) where
     toText = \case
-        MsgChainRollForward b ->
-            "ChainSync roll forward: " <> toText b
+        MsgChainRollForward b tip ->
+            "ChainSync roll forward: " <> toText b <> " tip is " <> toText tip
         MsgChainRollBackward b 0 ->
             "ChainSync roll backward: " <> toText b
         MsgChainRollBackward b bufferSize -> mconcat
@@ -625,6 +628,7 @@ instance (ToText block, ToText point)
             , ", handled inside buffer with remaining length "
             , toText bufferSize
             ]
+        MsgTipDistance d -> "Tip distance: " <> toText d
 
 instance HasPrivacyAnnotation (ChainSyncLog block point)
 
@@ -632,3 +636,4 @@ instance HasSeverityAnnotation (ChainSyncLog block point) where
     getSeverityAnnotation = \case
         MsgChainRollForward{} -> Debug
         MsgChainRollBackward{} -> Debug
+        MsgTipDistance{} -> Debug
