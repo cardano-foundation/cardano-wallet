@@ -1109,6 +1109,19 @@ spec = do
             expectErrorMessage errMsg400MinWithdrawalWrong r
             pure ()
 
+    it "TRANS_LIST_03 - Minimum withdrawal can be 1, shows empty when no withdrawals" $
+        \ctx -> do
+            w <- emptyWallet ctx
+            let link = Link.listTransactions' @'Shelley w
+                    (Just 1)
+                    Nothing
+                    Nothing
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode @IO HTTP.status200 r
+            let txs = getFromResponse Prelude.id r
+            txs `shouldBe` []
+
     it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
