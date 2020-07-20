@@ -112,7 +112,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock, toByronBlockHeader )
+    ( NodeVersionData, fromByronBlock, toByronBlockHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -240,9 +240,6 @@ import qualified Shelley.Spec.Ledger.Scripts as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
 import qualified Shelley.Spec.Ledger.TxData as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
-
-type NodeVersionData =
-    (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
 --------------------------------------------------------------------------------
 --

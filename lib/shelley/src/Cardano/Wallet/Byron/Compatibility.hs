@@ -22,9 +22,7 @@
 -- Conversion functions and static chain settings for Byron.
 
 module Cardano.Wallet.Byron.Compatibility
-    ( Byron
-    , ByronBlock
-    , NodeVersionData
+    ( NodeVersionData
 
       -- * Chain Parameters
     , mainnetVersionData
@@ -147,8 +145,6 @@ import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-
-data Byron
 
 type NodeVersionData =
     (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
