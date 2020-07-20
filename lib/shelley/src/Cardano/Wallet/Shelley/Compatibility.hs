@@ -54,6 +54,9 @@ module Cardano.Wallet.Shelley.Compatibility
     , toShelleyCoin
     , fromShelleyCoin
     , toHDPayloadAddress
+    , toCardanoStakeCredential
+    , toCardanoStakeAddress
+    , fromShelleyTx
 
       -- ** Stake pools
     , fromPoolId
@@ -94,7 +97,7 @@ import Cardano.Address.Derivation
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
-    ( Shelley )
+    ( AsType (..), Shelley, deserialiseFromRawBytes )
 import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
@@ -151,7 +154,7 @@ import Data.Foldable
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -216,6 +219,7 @@ import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
@@ -830,17 +834,32 @@ toCardanoTxIn :: W.TxIn -> Cardano.TxIn
 toCardanoTxIn (W.TxIn tid ix) =
     Cardano.TxIn (toCardanoTxId tid) (Cardano.TxIx (fromIntegral ix))
 
+toCardanoStakeCredential :: W.ChimericAccount -> Cardano.StakeCredential
+toCardanoStakeCredential = Cardano.StakeCredentialByKey
+    . Cardano.StakeKeyHash
+    . SL.KeyHash
+    . UnsafeHash
+    . SBS.toShort
+    . W.unChimericAccount
+
+toCardanoStakeAddress :: W.ChimericAccount -> Cardano.StakeAddress
+toCardanoStakeAddress =
+    fromMaybe (error "toCardanStakeAddress: malformed address")
+    . deserialiseFromRawBytes AsStakeAddress
+    . W.unChimericAccount
+
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
   where
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-toCardanoTxOut :: Cardano.NetworkId -> Cardano.PaymentCredential -> Cardano.StakeAddressReference -> W.TxOut -> Cardano.TxOut Cardano.Shelley
-toCardanoTxOut net cred stake (W.TxOut addr coin) =
+toCardanoTxOut :: W.TxOut -> Cardano.TxOut Shelley
+toCardanoTxOut (W.TxOut (W.Address addr) coin) =
     Cardano.TxOut addr' (toCardanoLovelace coin)
   where
-    addr' = Cardano.makeShelleyAddress net cred stake
+    addr' = fromMaybe (error "toCardanoTxOut: malformed address")
+        $ deserialiseFromRawBytes AsShelleyAddress addr
 
 -- | Convert from a chimeric account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
