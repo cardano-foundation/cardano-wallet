@@ -116,7 +116,12 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, TPraosStandardCrypto, fromCardanoBlock, fromNetworkMagic )
+    ( CardanoBlock
+    , TPraosStandardCrypto
+    , fromCardanoBlock
+    , fromNetworkMagic
+    , toCardanoNetworkId
+    )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -255,13 +260,13 @@ serveWallet
     serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
-                let pm = fromNetworkMagic $ networkMagic $ fst vData
                 let gp = genesisParameters np
-                randomApi <- apiLayer (newTransactionLayer proxy pm) nl
+                let net = toCardanoNetworkId proxy
+                randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
-                icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
+                icarusApi  <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
-                shelleyApi <- apiLayer (newTransactionLayer proxy pm) nl
+                shelleyApi <- apiLayer (newTransactionLayer net) nl
                     Server.manageRewardBalance
 
                 withPoolsMonitoring databaseDir gp nl $ \spl -> do
