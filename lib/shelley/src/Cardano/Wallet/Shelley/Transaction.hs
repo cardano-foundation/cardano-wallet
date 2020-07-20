@@ -38,22 +38,13 @@ module Cardano.Wallet.Shelley.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, toXPub, xpubPublicKey )
+    ( XPrv, toXPub )
 import Cardano.Api.Typed
-    ( NetworkId )
-import Cardano.Binary
-    ( serialize' )
+    ( NetworkId, TxExtraContent (..), serialiseToCBOR )
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..), SignedDSIGN (..) )
-import Cardano.Crypto.DSIGN.Ed25519
-    ( VerKeyDSIGN (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , Depth (..)
-    , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , WalletKey (..)
-    )
+    ( ChimericAccount (..), Depth (..), Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -67,12 +58,9 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , EpochLength (..)
     , Hash (..)
     , PoolId (..)
-    , ProtocolMagic (..)
     , SealedTx (..)
-    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -80,16 +68,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
-    , fromNetworkDiscriminant
     , fromShelleyTx
-    , toByronNetworkMagic
     , toCardanoLovelace
-    , toCardanoNetworkId
-    , toCardanoStakeAddress
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
-    , toHDPayloadAddress
     , toSealed
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
@@ -104,12 +87,8 @@ import Cardano.Wallet.Transaction
     )
 import Control.Monad
     ( forM )
-import Crypto.Error
-    ( throwCryptoError )
 import Data.ByteString
     ( ByteString )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -122,33 +101,20 @@ import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
-import Type.Reflection
-    ( Typeable )
 
 --import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Typed as Cardano
-import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as Crypto
-import qualified Cardano.Crypto.Hash.Class as Hash
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Crypto.PubKey.Ed25519 as Ed25519
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
-import qualified Shelley.Spec.Ledger.BaseTypes as SL
-import qualified Shelley.Spec.Ledger.Coin as SL
-import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
-import qualified Shelley.Spec.Ledger.TxData as SL
-import qualified Shelley.Spec.Ledger.UTxO as SL
 
 
 -- | Type encapsulating what we need to know to add things -- payloads,
@@ -220,17 +186,16 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
         TxWitnessByronUTxO -> do
             bootstrapWits <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
+                pure $ mkByronWitness unsigned networkId (getRawKey k, pwd)
             pure $ bootstrapWits <> mkExtraWits unsigned
 
-    let signed = Cardano.makeSignedTransaction wits unsigned
-    let tx = fromTypedTx signed
-    return (tx, undefined)
+    let tx = Cardano.makeSignedTransaction wits unsigned
+    return (toWalletTx tx, SealedTx $ serialiseToCBOR tx)
   where
     -- The Cardano.Tx GADT won't allow the Shelley crypto type param escape,
     -- so we convert directly to the concrete wallet Tx type:
-    fromTypedTx :: Cardano.Tx Cardano.Shelley -> Tx
-    fromTypedTx (Cardano.ShelleyTx x) =
+    toWalletTx :: Cardano.Tx Cardano.Shelley -> Tx
+    toWalletTx (Cardano.ShelleyTx x) =
         let (tx,_,_) = fromShelleyTx x in tx
 
 newTransactionLayer
@@ -481,7 +446,7 @@ computeTxSize networkId witTag action cs =
     byronWits = map dummyWitnessUniq $ CS.inputs cs
       where
         dummyWitness :: BL.ByteString -> Address -> Cardano.Witness Cardano.Shelley
-        dummyWitness chaff addr = error "todo"
+        dummyWitness _chaff _addr = error "todo"
 
         dummyWitnessUniq :: (TxIn, TxOut) -> Cardano.Witness Cardano.Shelley
         dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
@@ -521,7 +486,12 @@ mkUnsignedTx
     -> Cardano.TxBody Cardano.Shelley
 mkUnsignedTx ttl cs wdrls certs =
         Cardano.makeShelleyTransaction
-            Cardano.txExtraContentEmpty
+            TxExtraContent
+                { txMetadata = Nothing
+                , txWithdrawals = wdrls
+                , txCertificates = certs
+                , txUpdateProposal = Nothing
+                }
             ttl
             (toCardanoLovelace $ Coin $ feeBalance cs)
             (toCardanoTxIn . fst <$> CS.inputs cs)
@@ -559,10 +529,9 @@ mkShelleyWitness body key =
 mkByronWitness
     :: Cardano.TxBody Cardano.Shelley
     -> Cardano.NetworkId
-    -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.Witness Cardano.Shelley
-mkByronWitness body networkId addr (prv, Passphrase pwd) =
+mkByronWitness body networkId (prv, Passphrase pwd) =
     Cardano.makeShelleyBootstrapWitness networkId body signingKey
   where
     signingKey = Cardano.ByronSigningKey
