@@ -1416,7 +1416,7 @@ x-parametersMinWithdrawal: &parametersMinWithdrawal
     This is particularly useful when set to `1` in order to list the withdrawal history of a wallet.
   schema:
     type: integer
-    minimum: 0
+    minimum: 1
 
 #############################################################################
 #                                                                           #

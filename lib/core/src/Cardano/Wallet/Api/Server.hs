@@ -2170,6 +2170,9 @@ instance LiftHandler ErrListTransactions where
     handler = \case
         ErrListTransactionsNoSuchWallet e -> handler e
         ErrListTransactionsStartTimeLaterThanEndTime e -> handler e
+        ErrListTransactionsMinWithdrawalWrong ->
+            apiError err400 MinWithdrawalWrong
+            "The minimum withdrawal value must be at least 1 Lovelace."
 
 instance LiftHandler ErrStartTimeLaterThanEndTime where
     handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
