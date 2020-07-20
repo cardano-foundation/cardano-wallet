@@ -111,6 +111,8 @@ import Data.Functor
     ( ($>), (<&>) )
 import Data.List
     ( isInfixOf, nub, permutations, sort )
+import Data.Maybe
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -526,7 +528,7 @@ setupStakePoolData
     -> Maybe EpochNo
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr dir name params url pledgeAmt _mRetirementEpoch = do
+setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     let NodeParams severity systemStart (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
@@ -537,6 +539,8 @@ setupStakePoolData tr dir name params url pledgeAmt _mRetirementEpoch = do
     stakeCert <- issueStakeCert tr dir stakePub
     poolRegistrationCert <- issuePoolRegistrationCert
         tr dir opPub vrfPub stakePub url metadata pledgeAmt
+    mPoolRetirementCert <- traverse
+        (issuePoolRetirementCert tr dir opPub) mRetirementEpoch
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
@@ -553,8 +557,15 @@ setupStakePoolData tr dir name params url pledgeAmt _mRetirementEpoch = do
     -- in the transaction used to registered the stake key and the pool
     -- itself.  Thus, in a single transaction, we end up with a
     -- registered pool with some stake!
+
+    let certificates = catMaybes
+            [ pure stakeCert
+            , pure poolRegistrationCert
+            , pure dlgCert
+            , mPoolRetirementCert
+            ]
     (rawTx, faucetPrv) <- preparePoolRegistration
-        tr dir stakePub [stakeCert, poolRegistrationCert, dlgCert] pledgeAmt
+        tr dir stakePub certificates pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
