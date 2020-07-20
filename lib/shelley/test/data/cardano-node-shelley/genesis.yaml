@@ -25,7 +25,12 @@ protocolParams:
   minFeeA: 100
   maxBlockBodySize: 239857
   minFeeB: 100000
-  eMax: 0
+
+  # The epoch bound on pool retirements specifies how many epochs in advance
+  # retirements may be announced. For testing purposes, we allow retirements
+  # to be announced far into the future.
+  eMax: 1000000
+
   extraEntropy:
     tag: NeutralNonce
   maxBlockHeaderSize: 217569
