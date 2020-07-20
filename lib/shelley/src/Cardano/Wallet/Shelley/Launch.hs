@@ -378,9 +378,11 @@ withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
         forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
             link =<< async (handle onException $ do
                 let spCfg = NodeParams severity systemStart (port, peers)
-                withStakePool tr dir idx spCfg (pledgeOf idx) $ do
-                    writeChan waitGroup $ Right port
-                    readChan doneGroup)
+                let mRetirementEpoch = Nothing
+                withStakePool
+                    tr dir idx spCfg (pledgeOf idx) mRetirementEpoch $ do
+                        writeChan waitGroup $ Right port
+                        readChan doneGroup)
 
         traceWith tr MsgCartouche
         group <- waitAll
@@ -597,17 +599,18 @@ withStakePool
     -- ^ Configuration for the underlying node
     -> Integer
     -- ^ Pledge amount / initial stake
+    -> Maybe EpochNo
+    -- ^ Optional retirement epoch
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr baseDir idx params pledgeAmt action =
+withStakePool tr baseDir idx params pledgeAmt mRetirementEpoch action =
     bracketTracer' tr "withStakePool" $ do
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
-            let retirementEpoch = Nothing
             (cfg, opPub, tx) <- setupStakePoolData
-                tr dir name params url pledgeAmt retirementEpoch
+                tr dir name params url pledgeAmt mRetirementEpoch
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
                 timeout 120
