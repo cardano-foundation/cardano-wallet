@@ -95,9 +95,7 @@ import Control.Monad
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT, withExceptT )
-import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), withExceptT )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
@@ -105,7 +103,7 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( FromJSON (..), eitherDecode, toJSON, (.:), (.=) )
+    ( FromJSON (..), toJSON, (.:), (.=) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -255,20 +253,20 @@ parseGenesisData = \case
 
 
         let pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
-        let (discriminant, vdata) = someCustomDiscriminant mkSomeNetwork pm
+        let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
         let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
         let block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
 
         pure
             ( discriminant
             , np
-            , vdata
+            , vData
             , block0
             )
 
     StagingConfig byronGenesisFile -> do
-        (genesis :: ShelleyGenesis TPraosStandardCrypto)
-            <- ExceptT $ eitherDecode <$> BL.readFile byronGenesisFile
+        (genesisData, genesisHash) <-
+            withExceptT show $ readGenesisData byronGenesisFile
 
         let mkSomeNetwork
                 :: forall (pm :: Nat). KnownNat pm
@@ -276,10 +274,11 @@ parseGenesisData = \case
                 -> SomeNetworkDiscriminant
             mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Staging pm)
 
-        let nm = sgNetworkMagic genesis
-        let pm = ProtocolMagic $ fromIntegral nm
+        let pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
         let (discriminant, vData) = someCustomDiscriminant mkSomeNetwork pm
-        let (np, block0) = Shelley.fromGenesisData genesis (Map.toList $ sgInitialFunds genesis)
+        let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
+        let block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
+
         pure
             ( discriminant
             , np
