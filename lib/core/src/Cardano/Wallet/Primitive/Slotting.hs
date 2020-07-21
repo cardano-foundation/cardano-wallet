@@ -54,6 +54,7 @@ module Cardano.Wallet.Primitive.Slotting
 
 import Prelude
 
+import Cardano.Wallet.Orphans ()
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -271,23 +272,6 @@ instance Buildable (Qry a) where
         UTCTimeToRel t -> "UTCTimeToRel "+||t||+""
         QPure _ -> "qPure"
         QBind q _ -> "qBind " <> build q
-
-instance Buildable (HF.Qry a) where
-    build = \case
-        HF.QPure _ -> "QPure"
-        HF.QBind q _ -> "QBind "+|q|+""
-        HF.QAbsToRelTime t -> "QAbsToRelTime "+||t||+""
-        HF.QAbsToRelSlot sl -> "QAbsToRelSlot "+||sl||+""
-        HF.QAbsToRelEpoch ep -> "QAbsToRelEpoch "+||ep||+""
-        HF.QRelToAbsTime t -> "QRelToAbsTime " -- +||t||+""
-        HF.QRelToAbsSlot slt -> "QRelToAbsSlot " -- +||slt||+""
-        HF.QRelToAbsEpoch epe -> "QRelToAbsEpoch "-- +||epe||+""
-        HF.QRelTimeToSlot t -> "QRelTimeToSlot "-- +||t||+""
-        HF.QRelSlotToTime sl -> "QRelSlotToTime "-- +||sl||+""
-        HF.QRelSlotToEpoch sl -> "QRelSlotToEpoch "-- +||sl||+""
-        HF.QRelEpochToSlot ep -> "QRelEpochToSlot "-- +||ep||+""
-        HF.QSlotLength sl -> "QSlotLength "+||sl||+""
-        HF.QEpochSize ep -> "QEpochSize "+||ep||+""
 
 runQuery :: HasCallStack => MyInterpreter xs -> Qry a -> Either HF.PastHorizonException a
 runQuery (MyInterpreter systemStart int) = go

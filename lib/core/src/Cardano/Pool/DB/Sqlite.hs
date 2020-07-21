@@ -105,8 +105,6 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import GHC.Stack
-    ( HasCallStack )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -484,8 +482,7 @@ backoff time iter = addUTCTime delay time
 -------------------------------------------------------------------------------}
 
 selectPoolProduction
-    :: HasCallStack
-    => TimeInterpreter IO
+    :: TimeInterpreter IO
     -> EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction timeInterpreter epoch = do
