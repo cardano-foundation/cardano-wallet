@@ -248,6 +248,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.IORef
+    ( newIORef, readIORef, writeIORef )
 import Data.List
     ( (!!) )
 import Data.List.NonEmpty
@@ -612,17 +614,27 @@ eventuallyUsingDelay
     -> IO a
     -> IO a
 eventuallyUsingDelay delay desc io = do
-    winner <- race (threadDelay $ 300 * oneSecond) trial
+    lastErrorRef <- newIORef Nothing
+    winner <- race (threadDelay $ 300 * oneSecond) (trial lastErrorRef)
     case winner of
-        Left _ -> fail
-            ("Waited longer than 5 minutes for action to resolve.\
-            \ Action: " ++ show desc)
+        Left () -> do
+            lastError <- readIORef lastErrorRef
+            fail $ mconcat
+                [ "Waited longer than 5 minutes for action to resolve. "
+                , "Action: "
+                , show desc
+                , ". Error condition: "
+                , show lastError
+                ]
         Right a ->
             return a
   where
-    trial = io `catch` \(_ :: SomeException) -> do
-        threadDelay delay
-        trial
+    trial lastErrorRef = loop
+      where
+        loop = io `catch` \(e :: SomeException) -> do
+            writeIORef lastErrorRef (Just e)
+            threadDelay delay
+            loop
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
