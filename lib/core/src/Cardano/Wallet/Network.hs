@@ -143,7 +143,7 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: GetStakeDistribution target block m
+        :: GetStakeDistribution target m
 
     , getAccountBalance
         :: ChimericAccount
@@ -156,7 +156,6 @@ data NetworkLayer m target block = NetworkLayer
 instance Functor m => Functor (NetworkLayer m target) where
     fmap f nl = nl
         { nextBlocks = fmap (fmap f) . nextBlocks nl
-        , stakeDistribution = error "fixme: functor instance"
         }
 
 {-------------------------------------------------------------------------------
@@ -246,7 +245,7 @@ defaultRetryPolicy =
                                  Queries
 -------------------------------------------------------------------------------}
 
-type family GetStakeDistribution target block (m :: * -> *) :: *
+type family GetStakeDistribution target (m :: * -> *) :: *
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

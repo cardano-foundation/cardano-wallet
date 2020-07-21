@@ -420,7 +420,8 @@ withNetworkLayer tr np addrInfo versionData action = do
     handleQueryFailure =
         withExceptT (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e) . ExceptT
 
-    _stakeDistribution queue pt coin = do
+    _stakeDistribution queue bh coin = do
+        let pt = toPoint getGenesisBlockHash bh
         stakeMap <- handleQueryFailure
             (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution))
         let toStake = Set.singleton $ Left $ toShelleyCoin coin
@@ -465,10 +466,10 @@ withNetworkLayer tr np addrInfo versionData action = do
                 traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
                 throwIO e
 
-type instance GetStakeDistribution (IO Shelley) (CardanoBlock sc) m
-    = (Point (CardanoBlock sc)
+type instance GetStakeDistribution (IO Shelley) m =
+      W.BlockHeader
    -> W.Coin
-   -> ExceptT ErrNetworkUnavailable m NodePoolLsqData)
+   -> ExceptT ErrNetworkUnavailable m NodePoolLsqData
 
 data NodePoolLsqData = NodePoolLsqData
     { nOpt :: Int

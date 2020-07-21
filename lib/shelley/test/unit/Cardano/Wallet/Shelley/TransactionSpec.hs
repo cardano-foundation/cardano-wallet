@@ -79,7 +79,6 @@ import Test.QuickCheck
     , classify
     , counterexample
     , elements
-    , oneof
     , property
     , scale
     , vectorOf

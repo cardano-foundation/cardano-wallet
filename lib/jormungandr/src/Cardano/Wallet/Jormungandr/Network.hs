@@ -503,10 +503,9 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
                                  Queries
 -------------------------------------------------------------------------------}
 
-type instance GetStakeDistribution Jormungandr blk m =
+type instance GetStakeDistribution Jormungandr m =
     EpochNo
-    -> ExceptT ErrNetworkUnavailable m
-        (Map PoolId (Quantity "lovelace" Word64))
+    -> ExceptT ErrNetworkUnavailable m (Map PoolId (Quantity "lovelace" Word64))
 
 {-------------------------------------------------------------------------------
                              Jormungandr Cursor
