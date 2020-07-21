@@ -608,7 +608,7 @@ spec = do
                     , expectListField 0 #retirement
                         (`shouldBe` Nothing)
                     , expectListField 1 #retirement
-                        (`shouldSatisfy` retirementEpochIs 10)
+                        (`shouldSatisfy` retirementEpochIs 1_000)
                     , expectListField 2 #retirement
                         (`shouldSatisfy` retirementEpochIs 1_000_000)
                     ]
