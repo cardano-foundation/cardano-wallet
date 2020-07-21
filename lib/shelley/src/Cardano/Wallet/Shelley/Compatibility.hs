@@ -46,7 +46,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoLovelace
-    , toSealed
+    , sealShelleyTx
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
@@ -814,9 +814,8 @@ unsealShelleyTx = GenTxShelley
     . BL.fromStrict
     . W.getSealedTx
 
--- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
-toSealed :: Cardano.Tx Cardano.Shelley -> (W.Tx, W.SealedTx)
-toSealed tx = (toWalletTx tx, W.SealedTx $ serialiseToCBOR tx)
+sealShelleyTx :: Cardano.Tx Cardano.Shelley -> (W.Tx, W.SealedTx)
+sealShelleyTx tx = (toWalletTx tx, W.SealedTx $ serialiseToCBOR tx)
   where
     -- The Cardano.Tx GADT won't allow the Shelley crypto type param escape,
     -- so we convert directly to the concrete wallet Tx type:

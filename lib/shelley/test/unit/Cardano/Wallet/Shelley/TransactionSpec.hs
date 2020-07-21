@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, toSealed )
+    ( Shelley, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkShelleyWitness
@@ -180,7 +180,7 @@ prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) 
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
     _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
-        === Right (toSealed ledgerTx)
+        === Right (sealShelleyTx ledgerTx)
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
