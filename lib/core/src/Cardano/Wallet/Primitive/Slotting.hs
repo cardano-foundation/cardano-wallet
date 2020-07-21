@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -54,7 +55,8 @@ module Cardano.Wallet.Primitive.Slotting
 
 import Prelude
 
-import Cardano.Wallet.Orphans ()
+import Cardano.Wallet.Orphans
+    ()
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -84,8 +86,12 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
     ( Word32, Word64 )
+import Fmt
+    ( Buildable (..), (+||), (||+) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
@@ -94,8 +100,6 @@ import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter, mkInterpreter )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( neverForksSummary )
-import GHC.Stack (HasCallStack)
-import Fmt (Buildable(..), (+|), (|+), (||+), (+||))
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
