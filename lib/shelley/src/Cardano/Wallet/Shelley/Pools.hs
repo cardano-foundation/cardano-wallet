@@ -541,15 +541,10 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
 monitorMetadata
     :: Tracer IO StakePoolLog
     -> GenesisParameters
-<<<<<<< HEAD
-    -> (StakePoolMetadataUrl
+    -> (   StakePoolMetadataUrl
         -> StakePoolMetadataHash
-        -> IO (Either String StakePoolMetadata))
-||||||| merged common ancestors
-    -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Either String StakePoolMetadata))
-=======
-    -> (StakePoolMetadataUrl -> StakePoolMetadataHash -> IO (Maybe StakePoolMetadata))
->>>>>>> revise logging around pool metadata fetching to have more insight _inside_ the fetcher
+        -> IO (Maybe StakePoolMetadata)
+       )
     -> DBLayer IO
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do

@@ -78,7 +78,7 @@ import Network.HTTP.Client
     , withResponse
     )
 import Network.HTTP.Types.Status
-    ( status200 )
+    ( status200, status404 )
 import Network.URI
     ( URI (..), parseURI, pathSegments )
 
@@ -180,10 +180,16 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
             -- So, the total, including a pretty JSON encoding with newlines ought
             -- to be less than 512 bytes. For security reasons, we only download the
             -- first 512 bytes.
-            if responseStatus res /= status200 then
-                return $ Left "Server did reply, but not positively. This metadata may be blacklisted."
-            else
-                Right . Just . BL.toStrict <$> brReadSome (responseBody res) 512
+            case responseStatus res of
+                s | s == status200 -> do
+                    let body = responseBody res
+                    Right . Just . BL.toStrict <$> brReadSome body 512
+
+                s | s == status404 -> do
+                    pure $ Left "There's no known metadata for this pool."
+
+                s -> do
+                    pure $ Left $ "The server replied something unexpected: " <> show s
         case mChunk of
             Nothing -> do
                 liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
