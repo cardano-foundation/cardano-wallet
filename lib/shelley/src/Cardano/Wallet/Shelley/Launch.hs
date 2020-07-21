@@ -91,7 +91,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
+    ( forM, forM_, replicateM, replicateM_, unless, void, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -177,35 +177,20 @@ import qualified Shelley.Spec.Ledger.Coin as SL
 data NetworkConfiguration where
     -- | Mainnet does not have network discrimination.
     MainnetConfig
-        :: FilePath
-        -- ^ Genesis data in JSON format, for shelley era.
-        -> NetworkConfiguration
+        :: NetworkConfiguration
 
     -- | Testnet has network magic.
     TestnetConfig
         :: FilePath
         -- ^ Genesis data in JSON format, for byron era.
-        -> FilePath
-        -- ^ Genesis data in JSON format, for shelley era.
         -> NetworkConfiguration
 
     -- | Staging does not have network discrimination.
     StagingConfig
         :: FilePath
         -- ^ Genesis data in JSON format, for byron era.
-        -> FilePath
-        -- ^ Genesis data in JSON format, for shelley era.
         -> NetworkConfiguration
-
--- | Hand-written as there's no Show instance for 'NodeVersionData'
-instance Show NetworkConfiguration where
-    show = \case
-        MainnetConfig shelleyGenesisFile ->
-            "MainnetConfig " <> show shelleyGenesisFile
-        TestnetConfig byronGenesisFile shelleyGenesisFile ->
-            "TestnetConfig " <> show (byronGenesisFile, shelleyGenesisFile)
-        StagingConfig byronGenesisFile shelleyGenesisFile ->
-            "StagingConfig " <> show (byronGenesisFile, shelleyGenesisFile)
+  deriving (Show, Eq)
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
@@ -220,17 +205,15 @@ nodeSocketOption = optionT $ mempty
 networkConfigurationOption :: Parser NetworkConfiguration
 networkConfigurationOption = mainnet <|> testnet <|> staging
   where
-    mainnet = mainnetFlag <*> genesisFileOption "shelley"
-    testnet = testnetFlag <*> genesisFileOption "byron" <*> genesisFileOption "shelley"
-    staging = stagingFlag <*> genesisFileOption "byron" <*> genesisFileOption "shelley"
+    mainnet = mainnetFlag
+    testnet = TestnetConfig <$> genesisFileOption "byron" "testnet"
+    staging = StagingConfig <$> genesisFileOption "byron" "staging"
 
     mainnetFlag = flag' MainnetConfig (long "mainnet")
-    testnetFlag = flag' TestnetConfig (long "testnet")
-    stagingFlag = flag' StagingConfig (long "staging")
 
-    genesisFileOption :: String -> Parser FilePath
-    genesisFileOption era = optionT $ mempty
-        <> long (era ++ "-genesis")
+    genesisFileOption :: String -> String -> Parser FilePath
+    genesisFileOption era net = optionT $ mempty
+        <> long net
         <> metavar "FILE"
         <> help ("Path to the " <> era <> " genesis data in JSON format.")
 
@@ -252,11 +235,7 @@ parseGenesisData
     -> ExceptT String IO
         (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
-    MainnetConfig shelleyGenesisFile -> do
-        (shelleyGenesis :: ShelleyGenesis TPraosStandardCrypto)
-            <- ExceptT $ eitherDecode <$> BL.readFile shelleyGenesisFile
-        let (_snp, _sblock0) = Shelley.fromGenesisData shelleyGenesis (Map.toList $ sgInitialFunds shelleyGenesis)
-
+    MainnetConfig -> do
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
             , Byron.mainnetNetworkParameters
@@ -264,11 +243,9 @@ parseGenesisData = \case
             , Byron.emptyGenesis (genesisParameters Byron.mainnetNetworkParameters)
             )
 
-    TestnetConfig byronGenesisFile shelleyGenesisFile -> do
+    TestnetConfig byronGenesisFile -> do
         (genesisData, genesisHash) <-
             withExceptT show $ readGenesisData byronGenesisFile
-        (shelleyGenesis :: ShelleyGenesis TPraosStandardCrypto)
-            <- ExceptT $ eitherDecode <$> BL.readFile shelleyGenesisFile
 
         let mkSomeNetwork
                 :: forall (pm :: Nat). KnownNat pm
@@ -276,28 +253,20 @@ parseGenesisData = \case
                 -> SomeNetworkDiscriminant
             mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Testnet pm)
 
-        let nm = sgNetworkMagic shelleyGenesis
-        let pm = ProtocolMagic $ fromIntegral nm
-        let (shelleyDiscriminant, shelleyVData) = someCustomDiscriminant mkSomeNetwork pm
-        let (_snp, _sblock0) = Shelley.fromGenesisData shelleyGenesis (Map.toList $ sgInitialFunds shelleyGenesis)
 
-        let byronPm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
-        let (_byronDiscriminant, _byronVData) = someCustomDiscriminant mkSomeNetwork byronPm
-        let (bnp, bouts) = Byron.fromGenesisData (genesisData, genesisHash)
-        let bblock0 = Byron.genesisBlockFromTxOuts (genesisParameters bnp) bouts
-
-        when (byronPm /= pm) $
-            fail $ "Genesis files: Byron " <> show byronPm <>
-                " does not match Shelley " <> show pm
+        let pm = Byron.fromProtocolMagicId $ gdProtocolMagicId genesisData
+        let (discriminant, vdata) = someCustomDiscriminant mkSomeNetwork pm
+        let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
+        let block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
 
         pure
-            ( shelleyDiscriminant
-            , bnp
-            , shelleyVData
-            , bblock0
+            ( discriminant
+            , np
+            , vdata
+            , block0
             )
 
-    StagingConfig byronGenesisFile _shelleyGenesisFile -> do
+    StagingConfig byronGenesisFile -> do
         (genesis :: ShelleyGenesis TPraosStandardCrypto)
             <- ExceptT $ eitherDecode <$> BL.readFile byronGenesisFile
 
@@ -306,8 +275,6 @@ parseGenesisData = \case
                 => Proxy pm
                 -> SomeNetworkDiscriminant
             mkSomeNetwork _ = SomeNetworkDiscriminant $ Proxy @('Staging pm)
-
-        -- fixme: load byron genesis
 
         let nm = sgNetworkMagic genesis
         let pm = ProtocolMagic $ fromIntegral nm
