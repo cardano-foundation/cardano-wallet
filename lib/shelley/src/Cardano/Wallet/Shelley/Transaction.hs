@@ -106,8 +106,11 @@ import Ouroboros.Network.Block
 
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Chain.Common as Byron
-import qualified Cardano.Crypto as Crypto
-import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Crypto as CC
+import qualified Cardano.Crypto.DSIGN.Class as Crypto
+import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Crypto.Signing as Byron
+import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -118,7 +121,6 @@ import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 import qualified Shelley.Spec.Ledger.Tx as SL
-
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -189,7 +191,7 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
         TxWitnessByronUTxO -> do
             bootstrapWits <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkByronWitness unsigned networkId (getRawKey k, pwd)
+                pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let tx = Cardano.makeSignedTransaction wits unsigned
@@ -542,19 +544,71 @@ mkShelleyWitness body key =
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey
-        $ CC.xPrvChangePass pwd BS.empty xprv
+        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
     :: Cardano.TxBody Cardano.Shelley
     -> Cardano.NetworkId
+    -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.Witness Cardano.Shelley
-mkByronWitness body networkId (prv, Passphrase pwd) =
-    Cardano.makeShelleyBootstrapWitness networkId body signingKey
+mkByronWitness (Cardano.ShelleyTxBody txbody _) nw addr (prv, Passphrase pwd) =
+    Cardano.ShelleyBootstrapWitness $
+        -- Byron era witnesses were weird. This reveals all that weirdness.
+        SL.BootstrapWitness {
+          SL.bwKey        = vk,
+          SL.bwSig        = signature,
+          SL.bwChainCode  = chainCode,
+          SL.bwAttributes = attributes
+        }
   where
-    signingKey = Cardano.ByronSigningKey
-        $ Crypto.SigningKey
-        $ CC.xPrvChangePass pwd BS.empty prv
+    sk = CC.SigningKey $ Crypto.HD.xPrvChangePass pwd BS.empty prv
+
+    -- Starting with the easy bits: we /can/ convert the Byron verification key
+    -- to a the pair of a Shelley verification key plus the chain code.
+    --
+    (vk, chainCode) = SL.unpackByronVKey (Byron.toVerification sk)
+
+    -- Now the hairy bits.
+    --
+    -- Byron era signing keys were all /extended/ ed25519 keys. We have to
+    -- produce a signature using this extended signing key directly. They
+    -- /cannot/ be converted to a plain (non-extended) signing keys. Since we
+    -- now support extended signing keys for the Shelley too, we are able to
+    -- reuse that here.
+    --
+    signature
+        :: SL.SignedDSIGN TPraosStandardCrypto
+            (SL.Hash TPraosStandardCrypto (SL.TxBody TPraosStandardCrypto))
+    signature = fromXSignature $
+          Crypto.HD.sign
+            BS.empty  -- passphrase for (unused) in-mem encryption
+            (Byron.unSigningKey sk)
+            (Crypto.hashToBytes txhash)
+      where
+        fromXSignature :: Crypto.HD.XSignature
+                       -> SL.SignedDSIGN TPraosStandardCrypto b
+        fromXSignature =
+            Crypto.SignedDSIGN
+          . fromMaybe impossible
+          . rawDeserialiseSigDSIGN
+          . Crypto.HD.unXSignature
+
+        impossible =
+          error "mkByronWitness: byron and shelley signature sizes do not match"
+
+    txhash :: SL.Hash TPraosStandardCrypto (SL.TxBody TPraosStandardCrypto)
+    txhash = Crypto.hashWith serialize' txbody
+
+    -- And finally we need to provide the extra suffix bytes necessary to
+    -- reconstruct the mini-Merkel tree that is a Byron address. The suffix
+    -- bytes are the serialised address attributes.
+    attributes = serialize' $
+        Byron.mkAttributes Byron.AddrAttributes {
+          Byron.aaVKDerivationPath = toHDPayloadAddress addr,
+          Byron.aaNetworkMagic = Cardano.toByronNetworkMagic nw
+        }
+
 
 --------------------------------------------------------------------------------
 -- Extra validations on coin selection
