@@ -1236,22 +1236,22 @@ timeout t (title, action) = do
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
 
--- | A little disclaimer shown in the logs when setting up the cluster.
+-- | A little notice shown in the logs when setting up the cluster.
 cartouche :: Text
 cartouche = T.unlines
     [ ""
-    , "################################################################################"
-    , "#                                                                              #"
-    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
-    , "#                                                                              #"
-    , "#        Cluster is booting. Stake pools are being registered on chain.        #"
-    , "#                                                                              #"
-    , "#        This may take roughly 60s, after what pools will become active        #"
-    , "#        and will start producing blocks. Please be patient...                 #"
-    , "#                                                                              #"
-    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
-    , "#                                                                              #"
-    , "################################################################################"
+    , "########################################################################"
+    , "#                                                                      #"
+    , "#  ⚠                             NOTICE                             ⚠  #"
+    , "#                                                                      #"
+    , "#    Cluster is booting. Stake pools are being registered on chain.    #"
+    , "#                                                                      #"
+    , "#    This may take roughly 60s, after which pools will become active   #"
+    , "#    and will start producing blocks. Please be patient...             #"
+    , "#                                                                      #"
+    , "#  ⚠                             NOTICE                             ⚠  #"
+    , "#                                                                      #"
+    , "########################################################################"
     ]
 
 -- | Hash a ByteString using blake2b_256 and encode it in base16
