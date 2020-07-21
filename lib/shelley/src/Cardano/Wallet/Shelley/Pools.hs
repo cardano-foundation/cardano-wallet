@@ -72,7 +72,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , getProducer
     , poolCertsFromShelleyBlock
     , toCardanoBlockHeader
-    , toPoint
     , toShelleyBlockHeader
     )
 import Cardano.Wallet.Shelley.Network
@@ -174,8 +173,7 @@ newStakePoolLayer gp NetworkLayer{stakeDistribution,currentNodeTip} db = StakePo
             . Map.toList
             $ combineDbAndLsqData (slotParams gp) lsqData dbData
 
-    gh = getGenesisBlockHash gp
-    getTip = fmap (toPoint gh) . liftIO $ unsafeRunExceptT currentNodeTip
+    getTip = liftIO $ unsafeRunExceptT currentNodeTip
 
 --
 -- Data Combination functions
