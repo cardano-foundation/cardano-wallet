@@ -372,6 +372,7 @@ computeTxSize networkId witTag action cs =
     withUnderlyingShelleyTx f (Cardano.ShelleyTx x) = f x
 
     signed = Cardano.makeSignedTransaction wits unsigned
+
     unsigned = mkUnsignedTx maxBound cs' wdrls certs
       where
         cs' :: CoinSelection
@@ -389,7 +390,7 @@ computeTxSize networkId witTag action cs =
         dummyPoolId :: Cardano.PoolId
         dummyPoolId = fromMaybe (error "dummyPoolId couldn't be constructed")
             $ Cardano.deserialiseFromRawBytes (Cardano.AsHash Cardano.AsStakePoolKey)
-            $ BS.pack $ replicate 32 0
+            dummyKeyHashRaw
 
         certs = case action of
             Nothing -> []
@@ -411,10 +412,23 @@ computeTxSize networkId witTag action cs =
         (ChimericAccount dummyKeyHashRaw)
         (withdrawal cs)
 
+    -- NOTE
+    -- We do not allow certificate witnesses for Byron because we _know_ that we
+    -- don't have hybrid wallets (in the context of cardano-wallet). So, any
+    -- Byron UTxO would necessarily come from a Byron wallet (either Random or
+    -- Icarus) and therefore, have no delegation capability and no need for
+    -- certificate witnesses.
+    wits = case witTag of
+        TxWitnessShelleyUTxO ->
+           addrWits <> certWits
+        TxWitnessByronUTxO ->
+           byronWits
+
     (addrWits, certWits) =
-        (
-            map dummyWitnessUniq (fst <$> CS.inputs cs)
-            <> [dummyWitness "0" | null wdrls]
+        ( mconcat
+            [ map dummyWitnessUniq (fst <$> CS.inputs cs)
+            , if null wdrls then mempty else [dummyWitness "0"]
+            ]
         , case action of
             Nothing -> []
             Just{}  -> [dummyWitness "a"]
@@ -438,7 +452,6 @@ computeTxSize networkId witTag action cs =
             dummyWitness chaff
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
-
 
     -- Note that the "byron"/bootstrap witnesses are still shelley era
     -- witnesses.
@@ -482,14 +495,6 @@ computeTxSize networkId witTag action cs =
 
     bloatChaff :: Word -> BL.ByteString -> ByteString
     bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
-
-    -- TODO: Surely we can allow byron witnesses paying for certificates?
-    -- Should be no reason to case here.
-    wits = case witTag of
-        TxWitnessShelleyUTxO ->
-            addrWits <> certWits
-        TxWitnessByronUTxO ->
-           byronWits
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))

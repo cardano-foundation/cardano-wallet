@@ -78,6 +78,7 @@ import Test.QuickCheck
     , choose
     , classify
     , counterexample
+    , elements
     , oneof
     , property
     , scale
@@ -148,7 +149,7 @@ spec = do
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
-        res `shouldBe` Right (FeeEstimation 169857 169857)
+        res `shouldBe` Right (FeeEstimation 165413 165413)
 
 estimateMaxInputsTests
     :: Cardano.NetworkId
@@ -157,13 +158,13 @@ estimateMaxInputsTests net =
     describe ("estimateMaxNumberOfInputs for networkId="<> show net) $ do
 
         it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 22
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 23
         it "order of magnitude, nOuts = 10" $
             _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 10 `shouldBe` 16
         it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 8
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 9
         it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 30 `shouldBe` 1
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 30 `shouldBe` 2
 
         prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs net)
         prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs net)
@@ -271,9 +272,9 @@ instance Arbitrary DecodeShelleySetup where
         pure $ DecodeShelleySetup utxo outs slot pairs
 
 instance Arbitrary Cardano.NetworkId where
-    arbitrary = oneof
-        [return $ Cardano.Mainnet
-        , return $ Cardano.Testnet $ Cardano.NetworkMagic 42
+    arbitrary = elements
+        [ Cardano.Mainnet
+        , Cardano.Testnet $ Cardano.NetworkMagic 42
         ]
 
 instance Arbitrary DecodeByronSetup where
