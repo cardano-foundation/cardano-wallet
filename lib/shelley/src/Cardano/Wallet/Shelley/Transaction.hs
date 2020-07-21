@@ -40,7 +40,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Api.Typed
-    ( NetworkId, TxExtraContent (..), serialiseToCBOR )
+    ( NetworkId, TxExtraContent (..) )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
@@ -70,7 +70,6 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
-    , fromShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
@@ -195,13 +194,7 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let tx = Cardano.makeSignedTransaction wits unsigned
-    return (toWalletTx tx, SealedTx $ serialiseToCBOR tx)
-  where
-    -- The Cardano.Tx GADT won't allow the Shelley crypto type param escape,
-    -- so we convert directly to the concrete wallet Tx type:
-    toWalletTx :: Cardano.Tx Cardano.Shelley -> Tx
-    toWalletTx (Cardano.ShelleyTx x) =
-        let (tx,_,_) = fromShelleyTx x in tx
+    return $ toSealed tx
 
 newTransactionLayer
     :: forall k t.
@@ -338,13 +331,13 @@ _decodeSignedTx
     -> Either ErrDecodeSignedTx (Tx, SealedTx)
 _decodeSignedTx bytes = do
     case Cardano.deserialiseFromCBOR Cardano.AsShelleyTx bytes of
-        Right (Cardano.ShelleyTx txValid) ->
+        Right txValid ->
             pure $ toSealed txValid
         Left decodeErr ->
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
 _minimumFee
-    :: forall k. (TxWitnessTagFor k)
+    :: forall k. TxWitnessTagFor k
     => NetworkId
     -> FeePolicy
     -> Maybe DelegationAction
