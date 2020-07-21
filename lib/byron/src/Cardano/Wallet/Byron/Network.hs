@@ -114,7 +114,7 @@ import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock (..)
-    , ByronNodeToClientVersion (ByronNodeToClientVersion2)
+    , ByronNodeToClientVersion (ByronNodeToClientVersion1)
     , GenTx
     , Query (..)
     )
@@ -354,7 +354,7 @@ mkWalletClient gp chainSyncQ = do
         } = gp
 
     codecs :: MonadST m => ClientCodecs ByronBlock m
-    codecs = clientCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
+    codecs = clientCodecs (byronCodecConfig gp) ByronNodeToClientVersion1
 
     -- A low-level DEBUG chain sync tracer.
     --
@@ -444,7 +444,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onProtocolParamsUpdate = do
         } = W.genesisParameters np
 
     codecs :: MonadST m => DefaultCodecs ByronBlock m
-    codecs = defaultCodecs (byronCodecConfig gp) ByronNodeToClientVersion2
+    codecs = defaultCodecs (byronCodecConfig gp) ByronNodeToClientVersion1
 
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do

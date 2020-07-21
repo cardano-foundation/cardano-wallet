@@ -54,7 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxParameters (..)
-    , mainnetMagic
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
