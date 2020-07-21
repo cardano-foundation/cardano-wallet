@@ -179,7 +179,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": 1000000,
                             "unit": "lovelace"
                         }
                     }],

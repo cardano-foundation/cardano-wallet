@@ -174,7 +174,7 @@ spec = do
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
-            let args = [wSrc, "--payment" , T.unpack $ "1@" <> dest]
+            let args = [wSrc, "--payment" , T.unpack $ "1000000@" <> dest]
             (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
