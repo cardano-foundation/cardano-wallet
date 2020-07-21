@@ -40,7 +40,7 @@ module Cardano.Wallet.Shelley.Compatibility
       -- * Conversions
     , toCardanoHash
     , toEpochSize
-    , toShelleyGenTx
+    , unsealShelleyTx
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
@@ -644,17 +644,6 @@ optimumNumberOfPools = unsafeConvert . SL._nOpt
 -- Txs
 --
 
--- | SealedTx are the result of rightfully constructed shelley transactions so, it
--- is relatively safe to unserialize them from CBOR.
-toShelleyGenTx
-    :: (HasCallStack, Crypto c)
-    => W.SealedTx
-    -> CardanoGenTx c
-toShelleyGenTx = GenTxShelley
-    . unsafeDeserialiseCbor fromCBOR
-    . BL.fromStrict
-    . W.getSealedTx
-
 fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
 fromShelleyTxId (SL.TxId (UnsafeHash h)) = W.Hash $ fromShort h
 
@@ -813,6 +802,17 @@ toByronNetworkMagic pm@(W.ProtocolMagic magic) =
         Byron.NetworkMainOrStage
     else
         Byron.NetworkTestnet (fromIntegral magic)
+
+-- | SealedTx are the result of rightfully constructed shelley transactions so, it
+-- is relatively safe to unserialize them from CBOR.
+unsealShelleyTx
+    :: (HasCallStack, Crypto c)
+    => W.SealedTx
+    -> CardanoGenTx c
+unsealShelleyTx = GenTxShelley
+    . unsafeDeserialiseCbor fromCBOR
+    . BL.fromStrict
+    . W.getSealedTx
 
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
 toSealed :: Cardano.Tx Cardano.Shelley -> (W.Tx, W.SealedTx)
