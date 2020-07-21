@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -15,7 +16,8 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool
+    ( ApiEpochInfo (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
@@ -34,6 +36,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
+    , EpochNo (..)
     , PoolId (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
@@ -591,6 +594,23 @@ spec = do
                     , expectListField 2
                         (#metrics . #relativeStake)
                             (.> Quantity (unsafeMkPercentage 0))
+                    ]
+
+        it "pools have the correct retirement information" $ \ctx -> do
+            eventually "pools have the correct retirement information" $ do
+                r <- listPools ctx arbitraryStake
+                expectResponseCode HTTP.status200 r
+                let retirementEpochIs n = \case
+                        Nothing -> False
+                        Just ei -> epochNumber ei == ApiT (EpochNo n)
+                verify r
+                    [ expectListSize 3
+                    , expectListField 0 #retirement
+                        (`shouldBe` Nothing)
+                    , expectListField 1 #retirement
+                        (`shouldSatisfy` retirementEpochIs 1_000)
+                    , expectListField 2 #retirement
+                        (`shouldSatisfy` retirementEpochIs 1_000_000)
                     ]
 
         it "eventually has correct margin, cost and pledge" $ \ctx -> do

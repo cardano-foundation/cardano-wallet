@@ -26,6 +26,7 @@ module Cardano.Wallet.Shelley.Launch
     , withBFTNode
     , withStakePool
     , NodeParams (..)
+    , PoolConfig (..)
     , singleNodeParams
 
     -- * Utils
@@ -65,7 +66,12 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), NetworkParameters (..), PoolId (..), ProtocolMagic (..) )
+    ( Block (..)
+    , EpochNo (..)
+    , NetworkParameters (..)
+    , PoolId (..)
+    , ProtocolMagic (..)
+    )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -106,6 +112,8 @@ import Data.Functor
     ( ($>), (<&>) )
 import Data.List
     ( isInfixOf, nub, permutations, sort )
+import Data.Maybe
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -326,6 +334,13 @@ cliRetry tr msg args = do
     isFail (st, _, _) = pure (st /= ExitSuccess)
     pol = limitRetriesByCumulativeDelay 30_000_000 $ constantDelay 1_000_000
 
+newtype PoolConfig = PoolConfig
+    { retirementEpoch :: Maybe EpochNo
+      -- ^ An optional retirement epoch. If specified, then a pool retirement
+      -- certificate will be published after the pool is initially registered.
+    }
+    deriving (Eq, Show)
+
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
 -- test data.
@@ -338,57 +353,65 @@ withCluster
     -- ^ Trace for subprocess control logging
     -> Severity
     -- ^ Minimum logging severity for @cardano-node@
-    -> Int
-    -- ^ How many pools should the cluster spawn.
+    -> [PoolConfig]
+    -- ^ The configurations of pools to spawn.
     -> FilePath
     -- ^ Parent state directory for cluster
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Action to run with the cluster up
     -> IO a
-withCluster tr severity n dir action = bracketTracer' tr "withCluster" $ do
-    systemStart <- addUTCTime 1 <$> getCurrentTime
-    (port0:ports) <- randomUnusedTCPPorts (n + 2)
-    let bftCfg = NodeParams severity systemStart (head $ rotate ports)
-    withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
-        waitForSocket tr bftSocket
-        waitGroup <- newChan
-        doneGroup <- newChan
-        let waitAll   = do
-                traceWith tr $ MsgDebug "waiting for stake pools to register"
-                replicateM  n (readChan waitGroup)
-        let cancelAll = do
-                traceWith tr $ MsgDebug "stopping all stake pools"
-                replicateM_ n (writeChan doneGroup ())
+withCluster tr severity poolConfigs dir action =
+    bracketTracer' tr "withCluster" $ do
+        let poolCount = length poolConfigs
+        systemStart <- addUTCTime 1 <$> getCurrentTime
+        (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
+        let bftCfg = NodeParams severity systemStart (head $ rotate ports)
+        withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
+            waitForSocket tr bftSocket
+            waitGroup <- newChan
+            doneGroup <- newChan
+            let waitAll = do
+                    traceWith tr $
+                        MsgDebug "waiting for stake pools to register"
+                    replicateM poolCount (readChan waitGroup)
+            let cancelAll = do
+                    traceWith tr $ MsgDebug "stopping all stake pools"
+                    replicateM_ poolCount (writeChan doneGroup ())
 
-        let onException :: SomeException -> IO ()
-            onException e = do
-                traceWith tr $ MsgDebug $ "exception while starting pool: " <>
-                    T.pack (show e)
-                writeChan waitGroup (Left e)
+            let onException :: SomeException -> IO ()
+                onException e = do
+                    traceWith tr $
+                        MsgDebug $ "exception while starting pool: " <>
+                        T.pack (show e)
+                    writeChan waitGroup (Left e)
 
-        let pledgeOf 0 = 2*oneMillionAda
-            pledgeOf _ = oneMillionAda
-        forM_ (zip [0..] $ tail $ rotate ports) $ \(idx, (port, peers)) -> do
-            link =<< async (handle onException $ do
-                let spCfg = NodeParams severity systemStart (port, peers)
-                withStakePool tr dir idx spCfg (pledgeOf idx) $ do
-                    writeChan waitGroup $ Right port
-                    readChan doneGroup)
+            let pledgeOf 0 = 2*oneMillionAda
+                pledgeOf _ = oneMillionAda
+            forM_ (zip3 [0..] poolConfigs $ tail $ rotate ports) $
+                \(idx, poolConfig, (port, peers)) -> do
+                    link =<< async (handle onException $ do
+                        let spCfg =
+                                NodeParams severity systemStart (port, peers)
+                        withStakePool
+                            tr dir idx spCfg (pledgeOf idx) poolConfig $ do
+                                writeChan waitGroup $ Right port
+                                readChan doneGroup)
 
-        traceWith tr MsgCartouche
-        group <- waitAll
-        if length (filter isRight group) /= n then do
-            cancelAll
-            throwIO $ ProcessHasExited
-                ("cluster didn't start correctly: " <> show (filter isLeft group))
-                (ExitFailure 1)
-        else do
-            let cfg = NodeParams severity systemStart (port0, ports)
-            withRelayNode tr dir cfg $ \socket -> do
-                action socket block0 params `finally` cancelAll
+            traceWith tr MsgCartouche
+            group <- waitAll
+            if length (filter isRight group) /= poolCount then do
+                cancelAll
+                throwIO $ ProcessHasExited
+                    ("cluster didn't start correctly: "
+                        <> show (filter isLeft group))
+                    (ExitFailure 1)
+            else do
+                let cfg = NodeParams severity systemStart (port0, ports)
+                withRelayNode tr dir cfg $ \socket -> do
+                    action socket block0 params `finally` cancelAll
   where
-    -- | Get permutations of the size (n-1) for a list of n elements, alongside with
-    -- the element left aside. `[a]` is really expected to be `Set a`.
+    -- | Get permutations of the size (n-1) for a list of n elements, alongside
+    -- with the element left aside. `[a]` is really expected to be `Set a`.
     --
     -- >>> rotate [1,2,3]
     -- [(1,[2,3]), (2, [1,3]), (3, [1,2])]
@@ -516,9 +539,11 @@ setupStakePoolData
     -> String
     -- ^ Base URL of metadata server.
     -> Integer
-    -- ^ Pledge (and stake) amount
+    -- ^ Pledge (and stake) amount.
+    -> Maybe EpochNo
+    -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr dir name params url pledgeAmt = do
+setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     let NodeParams severity systemStart (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
@@ -527,7 +552,10 @@ setupStakePoolData tr dir name params url pledgeAmt = do
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
 
     stakeCert <- issueStakeCert tr dir stakePub
-    poolCert <- issuePoolCert tr dir opPub vrfPub stakePub url metadata pledgeAmt
+    poolRegistrationCert <- issuePoolRegistrationCert
+        tr dir opPub vrfPub stakePub url metadata pledgeAmt
+    mPoolRetirementCert <- traverse
+        (issuePoolRetirementCert tr dir opPub) mRetirementEpoch
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
@@ -544,8 +572,15 @@ setupStakePoolData tr dir name params url pledgeAmt = do
     -- in the transaction used to registered the stake key and the pool
     -- itself.  Thus, in a single transaction, we end up with a
     -- registered pool with some stake!
-    (rawTx, faucetPrv) <-
-        preparePoolRegistration tr dir stakePub [stakeCert, poolCert, dlgCert] pledgeAmt
+
+    let certificates = catMaybes
+            [ pure stakeCert
+            , pure poolRegistrationCert
+            , pure dlgCert
+            , mPoolRetirementCert
+            ]
+    (rawTx, faucetPrv) <- preparePoolRegistration
+        tr dir stakePub certificates pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -577,18 +612,22 @@ withStakePool
     -- ^ Configuration for the underlying node
     -> Integer
     -- ^ Pledge amount / initial stake
+    -> PoolConfig
+    -- ^ Pool configuration
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr baseDir idx params pledgeAmt action =
+withStakePool tr baseDir idx params pledgeAmt poolConfig action =
     bracketTracer' tr "withStakePool" $ do
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
-            (cfg, opPub, tx) <- setupStakePoolData tr dir name params url pledgeAmt
+            (cfg, opPub, tx) <- setupStakePoolData
+                tr dir name params url pledgeAmt (retirementEpoch poolConfig)
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
-                timeout 120 ("pool registration", waitUntilRegistered tr name opPub)
+                timeout 120
+                    ("pool registration", waitUntilRegistered tr name opPub)
                 action
   where
     dir = baseDir </> name
@@ -746,7 +785,7 @@ issueStakeCert tr dir stakePub = do
     pure file
 
 -- | Create a stake pool registration certificate
-issuePoolCert
+issuePoolRegistrationCert
     :: Tracer IO ClusterLog
     -> FilePath
     -> FilePath
@@ -756,22 +795,39 @@ issuePoolCert
     -> Aeson.Value
     -> Integer
     -> IO FilePath
-issuePoolCert tr dir opPub vrfPub stakePub baseURL metadata pledgeAmt = do
-    let file  = dir </> "pool.cert"
-    let bytes = Aeson.encode metadata
-    BL8.writeFile (dir </> "metadata.json") bytes
+issuePoolRegistrationCert
+    tr dir opPub vrfPub stakePub baseURL metadata pledgeAmt = do
+        let file  = dir </> "pool.cert"
+        let bytes = Aeson.encode metadata
+        BL8.writeFile (dir </> "metadata.json") bytes
+        void $ cli tr
+            [ "shelley", "stake-pool", "registration-certificate"
+            , "--cold-verification-key-file", opPub
+            , "--vrf-verification-key-file", vrfPub
+            , "--pool-pledge", show pledgeAmt
+            , "--pool-cost", "0"
+            , "--pool-margin", "0.1"
+            , "--pool-reward-account-verification-key-file", stakePub
+            , "--pool-owner-stake-verification-key-file", stakePub
+            , "--metadata-url", baseURL </> "metadata.json"
+            , "--metadata-hash", blake2b256S (BL.toStrict bytes)
+            , "--mainnet"
+            , "--out-file", file
+            ]
+        pure file
+
+issuePoolRetirementCert
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> FilePath
+    -> EpochNo
+    -> IO FilePath
+issuePoolRetirementCert tr dir opPub retirementEpoch = do
+    let file  = dir </> "pool-retirement.cert"
     void $ cli tr
-        [ "shelley", "stake-pool", "registration-certificate"
+        [ "shelley", "stake-pool", "deregistration-certificate"
         , "--cold-verification-key-file", opPub
-        , "--vrf-verification-key-file", vrfPub
-        , "--pool-pledge", show pledgeAmt
-        , "--pool-cost", "0"
-        , "--pool-margin", "0.1"
-        , "--pool-reward-account-verification-key-file", stakePub
-        , "--pool-owner-stake-verification-key-file", stakePub
-        , "--metadata-url", baseURL </> "metadata.json"
-        , "--metadata-hash", blake2b256S (BL.toStrict bytes)
-        , "--mainnet"
+        , "--epoch", show (unEpochNo retirementEpoch)
         , "--out-file", file
         ]
     pure file
@@ -1180,22 +1236,22 @@ timeout t (title, action) = do
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
 
--- | A little disclaimer shown in the logs when setting up the cluster.
+-- | A little notice shown in the logs when setting up the cluster.
 cartouche :: Text
 cartouche = T.unlines
     [ ""
-    , "################################################################################"
-    , "#                                                                              #"
-    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
-    , "#                                                                              #"
-    , "#        Cluster is booting. Stake pools are being registered on chain.        #"
-    , "#                                                                              #"
-    , "#        This may take roughly 60s, after what pools will become active        #"
-    , "#        and will start producing blocks. Please be patient...                 #"
-    , "#                                                                              #"
-    , "#  ⚠                           DISCLAIMER                                   ⚠  #"
-    , "#                                                                              #"
-    , "################################################################################"
+    , "########################################################################"
+    , "#                                                                      #"
+    , "#  ⚠                             NOTICE                             ⚠  #"
+    , "#                                                                      #"
+    , "#    Cluster is booting. Stake pools are being registered on chain.    #"
+    , "#                                                                      #"
+    , "#    This may take roughly 60s, after which pools will become active   #"
+    , "#    and will start producing blocks. Please be patient...             #"
+    , "#                                                                      #"
+    , "#  ⚠                             NOTICE                             ⚠  #"
+    , "#                                                                      #"
+    , "########################################################################"
     ]
 
 -- | Hash a ByteString using blake2b_256 and encode it in base16
