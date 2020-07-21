@@ -464,10 +464,13 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
         withBFTNode tr dir 0 bftCfg $ \bftSocket block0 params -> do
             let runningBftNode = RunningNode bftSocket block0 params
             onByron runningBftNode
+
             updateVersion tr dir bftSocket
             -- TODO: Maybe poll and detect when the fork occurs
+            traceWith tr MsgForkCartouche
             waitForHardFork bftSocket 2
             onFork runningBftNode
+
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             waitForSocket tr bftSocket
             waitGroup <- newChan
@@ -499,7 +502,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
                                 writeChan waitGroup $ Right port
                                 readChan doneGroup)
 
-            traceWith tr MsgCartouche
+            traceWith tr MsgClusterCartouche
             group <- waitAll
             if length (filter isRight group) /= poolCount then do
                 cancelAll
@@ -1431,8 +1434,21 @@ timeout t (title, action) = do
         Right a -> pure a
 
 -- | A little notice shown in the logs when setting up the cluster.
-cartouche :: Text
-cartouche = T.unlines
+forkCartouche :: Text
+forkCartouche = T.unlines
+    [ ""
+    , "########################################################################"
+    , "#                                                                      #"
+    , "#    Transition from byron to shelley has been triggered.              #"
+    , "#                                                                      #"
+    , "#    This may take roughly 60s. Please be patient...                   #"
+    , "#                                                                      #"
+    , "########################################################################"
+    ]
+
+-- | A little notice shown in the logs when setting up the cluster.
+clusterCartouche :: Text
+clusterCartouche = T.unlines
     [ ""
     , "########################################################################"
     , "#                                                                      #"
@@ -1441,7 +1457,7 @@ cartouche = T.unlines
     , "#    Cluster is booting. Stake pools are being registered on chain.    #"
     , "#                                                                      #"
     , "#    This may take roughly 60s, after which pools will become active   #"
-    , "#    and will start producing blocks. Please be patient...             #"
+    , "#    and will start producing blocks. Please be even more patient...   #"
     , "#                                                                      #"
     , "#  ⚠                             NOTICE                             ⚠  #"
     , "#                                                                      #"
@@ -1491,7 +1507,8 @@ withSystemTempDir tr name action = do
 -------------------------------------------------------------------------------}
 
 data ClusterLog
-    = MsgCartouche
+    = MsgClusterCartouche
+    | MsgForkCartouche
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
     | MsgTempNoCleanup FilePath
@@ -1508,7 +1525,8 @@ data ClusterLog
 
 instance ToText ClusterLog where
     toText = \case
-        MsgCartouche -> cartouche
+        MsgClusterCartouche -> clusterCartouche
+        MsgForkCartouche -> forkCartouche
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg
         MsgStartedStaticServer baseUrl fp ->
@@ -1544,7 +1562,8 @@ instance ToText ClusterLog where
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
-        MsgCartouche -> Warning
+        MsgClusterCartouche -> Warning
+        MsgForkCartouche -> Warning
         MsgLauncher _ msg -> getSeverityAnnotation msg
         MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
