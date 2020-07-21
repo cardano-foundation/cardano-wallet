@@ -70,12 +70,12 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
+    , sealShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
     , toHDPayloadAddress
-    , toSealed
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -194,7 +194,7 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let tx = Cardano.makeSignedTransaction wits unsigned
-    return $ toSealed tx
+    return $ sealShelleyTx tx
 
 newTransactionLayer
     :: forall k t.
@@ -332,7 +332,7 @@ _decodeSignedTx
 _decodeSignedTx bytes = do
     case Cardano.deserialiseFromCBOR Cardano.AsShelleyTx bytes of
         Right txValid ->
-            pure $ toSealed txValid
+            pure $ sealShelleyTx txValid
         Left decodeErr ->
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
