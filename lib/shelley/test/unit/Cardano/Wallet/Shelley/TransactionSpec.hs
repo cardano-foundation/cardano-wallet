@@ -50,7 +50,7 @@ import Cardano.Wallet.Primitive.Types
     , mainnetMagic
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, TPraosStandardCrypto, toCardanoNetworkId, toSealed )
+    ( Shelley, TPraosStandardCrypto, toSealed )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkShelleyWitness
@@ -254,7 +254,7 @@ testFeeOpts = feeOpts testTxLayer Nothing feePolicy
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 
 testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
-testTxLayer = newTransactionLayer @ShelleyKey (toCardanoNetworkId (Proxy @'Mainnet))
+testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO

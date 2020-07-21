@@ -270,7 +270,7 @@ prop_trackRegistrations test = monadicIO $ do
 
 data instance Cursor RegistrationsTest = Cursor BlockHeader
 
-type instance GetStakeDistribution RegistrationsTest m =
+type instance GetStakeDistribution RegistrationsTest blk m =
     EpochNo
     -> ExceptT ErrNetworkUnavailable m
         (Map PoolId (Quantity "lovelace" Word64))

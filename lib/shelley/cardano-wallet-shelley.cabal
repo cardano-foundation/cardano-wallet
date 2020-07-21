@@ -187,6 +187,7 @@ test-suite integration
     , aeson
     , async
     , bytestring
+    , cardano-api
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
