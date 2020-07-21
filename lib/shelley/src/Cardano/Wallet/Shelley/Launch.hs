@@ -186,7 +186,6 @@ import qualified Data.Yaml as Yaml
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
 
--- | Example byron;shelley using manual HardForkOnTrigger
 dev :: IO ()
 dev = do
     let dir = "/tmp/fork"
@@ -208,8 +207,6 @@ dev = do
     _action _fp _b0 (_np, _vData) _triggerHardFork = do
         putStrLn "hi"
 
--- | Example byron;shelley using HardForkAtEpoch 1, and withCluster, which
--- tries to register stake pools.
 dev2 :: IO ()
 dev2 = do
     let dir = "/tmp/fork"
