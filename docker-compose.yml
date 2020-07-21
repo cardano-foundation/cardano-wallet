@@ -28,7 +28,7 @@ services:
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ([[ $$NETWORK == \"testnet\" ]] && $$CMD --testnet /config/*testnet-genesis.json)
+        ([[ $$NETWORK == \"testnet\" ]] && $$CMD --testnet /config/7106qjwral616j6p5049m7hhi5ih0r33-testnet-genesis.json)
       "
     environment:
       CMD: "cardano-wallet-byron serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
