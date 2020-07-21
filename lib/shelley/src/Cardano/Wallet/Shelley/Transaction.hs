@@ -552,7 +552,7 @@ mkByronWitness
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.Witness Cardano.Shelley
-mkByronWitness (Cardano.ShelleyTxBody txbody _) nw addr (prv, Passphrase pwd) =
+mkByronWitness (Cardano.ShelleyTxBody txbody _) nw addr encryptedKey =
     Cardano.ShelleyBootstrapWitness $
         -- Byron era witnesses were weird. This reveals all that weirdness.
         SL.BootstrapWitness {
@@ -562,7 +562,10 @@ mkByronWitness (Cardano.ShelleyTxBody txbody _) nw addr (prv, Passphrase pwd) =
           SL.bwAttributes = attributes
         }
   where
-    sk = CC.SigningKey $ Crypto.HD.xPrvChangePass pwd BS.empty prv
+    unencrypt (xprv, pwd) = CC.SigningKey
+        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+
+    sk = unencrypt encryptedKey
 
     -- Starting with the easy bits: we /can/ convert the Byron verification key
     -- to a the pair of a Shelley verification key plus the chain code.
