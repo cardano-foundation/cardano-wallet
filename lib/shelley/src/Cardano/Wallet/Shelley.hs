@@ -353,9 +353,9 @@ serveWallet
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
         trFetch = contramap MsgFetchPoolMetadata tr
         onExit = defaultWorkerAfter poolsEngineTracer
-        fetchStrategies = maybe
-            [identityUrlBuilder]
-            (\proxyUrl -> [registryUrlBuilder proxyUrl, identityUrlBuilder])
+        fetchStrategies = pure $ maybe
+            identityUrlBuilder
+            registryUrlBuilder
             poolMetadataProxy
 
     apiLayer
