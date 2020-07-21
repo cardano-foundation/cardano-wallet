@@ -26,8 +26,7 @@ import Cardano.Wallet
     , handleCannotCover
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..)
-    , Passphrase (..)
+    ( Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
@@ -40,17 +39,9 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
-    , Hash (..)
-    , ProtocolMagic (..)
-    , TxIn (..)
-    , TxOut (..)
-    , UTxO (..)
-    , mainnetMagic
-    )
+    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, TPraosStandardCrypto, toSealed )
+    ( Shelley, toSealed )
 import Cardano.Wallet.Shelley.Transaction
     ( mkByronWitness
     , mkShelleyWitness
@@ -104,11 +95,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Shelley.Spec.Ledger.BaseTypes as SL
-import qualified Shelley.Spec.Ledger.Tx as SL
 
 spec :: Spec
 spec = do
@@ -185,29 +173,26 @@ prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) 
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
     let addrWits = map (mkShelleyWitness unsigned) pairs
-    let metadata = Nothing
     let wits = addrWits
-    -- let ledgerTx = SL.Tx unsigned wits metadata
-    let ledgerTx = error "fixme" :: SL.Tx TPraosStandardCrypto
-
-    _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
+    let ledgerTx = Cardano.makeSignedTransaction wits unsigned
+    _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
         === Right (toSealed ledgerTx)
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
     -> Property
-prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo magic pairs) = do
+prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo network pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs mempty []
-    -- let byronWits = zipWith (\((_, TxOut addr _)) pair -> mkByronWitness unsigned magic addr pair) inps pairs
-    let byronWits = error "fixme"
-    let metadata = SL.SNothing
-    -- let ledgerTx = SL.Tx unsigned byronWits metadata
-    let ledgerTx = error "fixme" :: SL.Tx TPraosStandardCrypto
+    let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
+    let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
-    _decodeSignedTx (Cardano.serialiseToCBOR (Cardano.ShelleyTx ledgerTx))
-        === Right (toSealed ledgerTx)
+    _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
+        === Right (sealShelleyTx ledgerTx)
+  where
+    mkByronWitness' unsigned (_, (TxOut addr _)) =
+        mkByronWitness unsigned network addr
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
@@ -241,9 +226,9 @@ prop_biggerMaxSizeMeansMoreInputs
     -> Property
 prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts = withMaxSuccess 1000 $
     size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @ShelleyKey Cardano.Mainnet (Quantity size) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity size) nOuts
         <=
-        _estimateMaxNumberOfInputs @ShelleyKey Cardano.Mainnet (Quantity (size * 2)) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity (size * 2)) nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
@@ -267,7 +252,7 @@ data DecodeByronSetup = DecodeByronSetup
     { inputs :: UTxO
     , outputs :: [TxOut]
     , ttl :: SlotNo
-    , protocolMagic :: ProtocolMagic
+    , network :: Cardano.NetworkId
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
 
@@ -281,17 +266,22 @@ instance Arbitrary DecodeShelleySetup where
         pairs <- vectorOf numInps arbitrary
         pure $ DecodeShelleySetup utxo outs slot pairs
 
+instance Arbitrary Cardano.NetworkId where
+    arbitrary = oneof
+        [return $ Cardano.Mainnet
+        , return $ Cardano.Testnet $ Cardano.NetworkMagic 42
+        ]
+
 instance Arbitrary DecodeByronSetup where
     arbitrary = do
         utxo <- arbitrary
         n <- choose (1,10)
         outs <- vectorOf n arbitrary
-        let pmTestnet = ProtocolMagic <$> arbitrary
-        pm <- oneof [pure mainnetMagic, pmTestnet]
+        net <- arbitrary
         let numInps = Map.size $ getUTxO utxo
         slot <- arbitrary
         pairs <- vectorOf numInps arbitrary
-        pure $ DecodeByronSetup utxo outs slot pm pairs
+        pure $ DecodeByronSetup utxo outs slot net pairs
 
 instance Arbitrary SlotNo where
     arbitrary = SlotNo <$> choose (1, 1000)

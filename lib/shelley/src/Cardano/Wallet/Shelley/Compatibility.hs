@@ -97,9 +97,9 @@ import Cardano.Address.Derivation
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
-    ( AsType (..), Shelley, deserialiseFromRawBytes )
+    ( AsType (..), Shelley, deserialiseFromRawBytes, serialiseToCBOR )
 import Cardano.Binary
-    ( fromCBOR, serialize' )
+    ( fromCBOR )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Slotting.Slot
@@ -815,12 +815,14 @@ toByronNetworkMagic pm@(W.ProtocolMagic magic) =
         Byron.NetworkTestnet (fromIntegral magic)
 
 -- NOTE: Arguably breaks naming conventions. Perhaps fromCardanoSignedTx instead
-toSealed :: Crypto crypto => SL.Tx crypto -> (W.Tx, W.SealedTx)
-toSealed tx =
-    let
-        (wtx, _, _) = fromShelleyTx tx
-        sealed = W.SealedTx $ serialize' $ O.mkShelleyTx tx
-    in (wtx, sealed)
+toSealed :: Cardano.Tx Cardano.Shelley -> (W.Tx, W.SealedTx)
+toSealed tx = (toWalletTx tx, W.SealedTx $ serialiseToCBOR tx)
+  where
+    -- The Cardano.Tx GADT won't allow the Shelley crypto type param escape,
+    -- so we convert directly to the concrete wallet Tx type:
+    toWalletTx :: Cardano.Tx Cardano.Shelley -> W.Tx
+    toWalletTx (Cardano.ShelleyTx x) =
+        let (wtx,_,_) = fromShelleyTx x in wtx
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
