@@ -104,7 +104,6 @@ import Ouroboros.Consensus.Shelley.Protocol.Crypto
 import Ouroboros.Network.Block
     ( SlotNo )
 
---import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as Crypto
