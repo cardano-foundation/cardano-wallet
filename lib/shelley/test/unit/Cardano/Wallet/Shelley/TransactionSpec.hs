@@ -117,15 +117,19 @@ spec = do
                 minFee = fromIntegral . getFee . minimumFee tl policy Nothing
                   where tl = testTxLayer
 
+                costWith = minFee (mempty { withdrawal })
+                costWithout = minFee mempty
+
                 costOfWithdrawal :: Integer
-                costOfWithdrawal =
-                    minFee (mempty { withdrawal }) - minFee mempty
+                costOfWithdrawal = costWith - costWithout
             in
                 (if withdrawal == 0
                     then property $ costOfWithdrawal == 0
                     else property $ costOfWithdrawal > 0
                 ) & classify (withdrawal == 0) "null withdrawal"
                 & counterexample ("cost of withdrawal: " <> show costOfWithdrawal)
+                & counterexample ("cost with: " <> show costWith)
+                & counterexample ("cost without: " <> show costWithout)
 
     it "regression #1740 - fee estimation at the boundaries" $ do
         let utxo = UTxO $ Map.fromList
@@ -144,7 +148,7 @@ spec = do
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
-        res `shouldBe` Right (FeeEstimation 165281 165281)
+        res `shouldBe` Right (FeeEstimation 169857 169857)
 
 estimateMaxInputsTests
     :: Cardano.NetworkId
@@ -153,11 +157,11 @@ estimateMaxInputsTests net =
     describe ("estimateMaxNumberOfInputs for networkId="<> show net) $ do
 
         it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 27
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 22
         it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 10 `shouldBe` 19
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 10 `shouldBe` 16
         it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 10
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 8
         it "order of magnitude, nOuts = 30" $
             _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 30 `shouldBe` 1
 
