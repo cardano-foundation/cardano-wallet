@@ -68,6 +68,7 @@ import Test.Integration.Framework.DSL
     , expectCliListField
     , expectValidJSON
     , faucetAmt
+    , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
     , getTransactionViaCLI
@@ -208,7 +209,8 @@ spec = do
                 , "--payment", toText amt <> "@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI @t ctx
+            (T.unpack fixturePassphrase) args
         err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
@@ -247,7 +249,8 @@ spec = do
                 , "--payment", "1@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI @t ctx
+            (T.unpack fixturePassphrase) args
         (T.unpack err) `shouldContain` errMsg403Fee
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -263,7 +266,8 @@ spec = do
                 , "--payment", "1000000@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI @t ctx
+            (T.unpack fixturePassphrase) args
         (T.unpack err) `shouldContain`
             errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
         out `shouldBe` ""
@@ -292,7 +296,8 @@ spec = do
                     , "--payment", "12@" <> (T.pack addr)
                     ]
 
-            (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+            (c, out, err) <- postTransactionViaCLI @t ctx
+                (T.unpack fixturePassphrase) args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
@@ -308,7 +313,8 @@ spec = do
                     , "--payment", amt <> "@" <> addr
                     ]
 
-            (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            (c, out, err) <- postTransactionViaCLI @t ctx
+                (T.unpack fixturePassphrase) args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1

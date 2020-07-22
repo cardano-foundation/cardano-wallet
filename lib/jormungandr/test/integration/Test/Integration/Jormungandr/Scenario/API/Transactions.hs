@@ -457,12 +457,11 @@ fixtureExternalTx
     -> IO ExternalTxFixture
 fixtureExternalTx ctx toSend = do
     -- we use faucet wallet as wSrc
-    let password = "cardano-wallet" :: Text
     mnemonicFaucet <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let restoreFaucetWallet = Json [json| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonicFaucet},
-            "passphrase": #{password}
+            "passphrase": #{fixturePassphrase}
             } |]
     r0 <- request
         @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
@@ -476,7 +475,7 @@ fixtureExternalTx ctx toSend = do
     txsSrc <- listAllTransactions @n ctx wSrc
     let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ outs _ _):_ = reverse txsSrc
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
-    let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet password
+    let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet fixturePassphrase
     -- we create change address
     let (addrChng, st') = genChange (delegationAddress @n) st
     -- we generate address private keys for all source wallet addresses
@@ -484,11 +483,10 @@ fixtureExternalTx ctx toSend = do
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng
 
     -- we create destination empty wallet
-    let password1 = "Secure Passphrase" :: Text
     let createWallet = Json [json| {
             "name": "Destination Wallet",
             "mnemonic_sentence": #{mnemonics15},
-            "passphrase": #{password1}
+            "passphrase": #{fixturePassphrase}
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     expectField
@@ -503,7 +501,7 @@ fixtureExternalTx ctx toSend = do
     let addrDest = (head addrsDest) ^. #id
     -- we choose one available address to which money will be transfered
     let addrDest' = getApiT $ fst addrDest
-    let (rootXPrv1, pwd1, st1) = getSeqState mnemonics15 password1
+    let (rootXPrv1, pwd1, st1) = getSeqState mnemonics15 fixturePassphrase
     -- we generate address private key for destination address
     let (Just keysAddrDest) = isOwned st1 (rootXPrv1, pwd1) addrDest'
 

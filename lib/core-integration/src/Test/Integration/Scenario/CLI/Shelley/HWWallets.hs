@@ -59,6 +59,7 @@ import Test.Integration.Framework.DSL
     , expectCliListField
     , expectValidJSON
     , expectWalletUTxO
+    , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWithMnemonics
     , generateMnemonicsViaCLI
@@ -177,7 +178,7 @@ spec = do
                     , "--payment", "1@" <> addr
                     ]
 
-            (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+            (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
             (T.unpack err)
                 `shouldContain` errMsg403NoRootKey (wRestored ^. walletId)
             out `shouldBe` ""

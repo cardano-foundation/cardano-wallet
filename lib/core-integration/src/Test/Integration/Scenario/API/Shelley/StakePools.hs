@@ -454,7 +454,7 @@ spec = do
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
                 "mnemonic_sentence": #{walletWithPreRegKey},
-                "passphrase": "Secure Passphrase"
+                "passphrase": #{fixturePassphrase}
                 } |]
 
         (_, w) <- unsafeRequest @ApiWallet ctx
@@ -463,7 +463,7 @@ spec = do
             ctx (Link.listStakePools arbitraryStake) Empty
 
         eventually "wallet join a pool" $ do
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -478,7 +478,7 @@ spec = do
             w <- fixtureWalletWith @n ctx [fee + depositAmt ctx]
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
-            joinStakePool @n ctx pool (w, passwd)>>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase)>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -491,7 +491,7 @@ spec = do
             w <- fixtureWalletWith @n ctx [fee + depositAmt ctx - 1]
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee 14101)
                 ]
@@ -509,7 +509,7 @@ spec = do
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -521,7 +521,7 @@ spec = do
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
 
-            quitStakePool @n ctx (w, passwd) >>= flip verify
+            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 ]
             eventually "Wallet is not delegating and it got his deposit back" $
@@ -548,7 +548,7 @@ spec = do
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -559,7 +559,7 @@ spec = do
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
-            quitStakePool @n ctx (w, passwd) >>= flip verify
+            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
@@ -751,8 +751,6 @@ spec = do
 
     setOf :: Ord b => [a] -> (a -> b) -> Set b
     setOf xs f = Set.fromList $ map f xs
-
-    passwd = "Secure Passphrase"
 
     depositAmt :: Context t -> Natural
     depositAmt ctx =

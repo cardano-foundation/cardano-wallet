@@ -86,7 +86,7 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Framework.DSL
-    ( Payload (..), json )
+    ( Payload (..), json, fixturePassphrase )
 
 falseWalletIds :: [(String, String)]
 falseWalletIds =
@@ -216,14 +216,14 @@ payloadWith :: Text -> [Text] -> Payload
 payloadWith name mnemonics = Json [json| {
      "name": #{name},
      "mnemonic_sentence": #{mnemonics},
-     "passphrase": "Secure passphrase"
+     "passphrase": #{fixturePassphrase}
      } |]
 
 simplePayload :: Payload
 simplePayload = Json [json| {
     "name": "Secure Wallet",
     "mnemonic_sentence": #{mnemonics21},
-    "passphrase": "Secure passphrase"
+    "passphrase": #{fixturePassphrase}
     } |]
 
 updateNamePayload :: Text -> Payload

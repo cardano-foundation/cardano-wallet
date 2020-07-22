@@ -59,6 +59,7 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , fixtureIcarusWallet
+    , fixturePassphrase
     , fixtureRandomWallet
     , getFromResponse
     , icarusAddresses
@@ -180,7 +181,7 @@ scenario_ADDRESS_CREATE_01
     => SpecWith (Context t)
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
-    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r
         [ expectResponseCode @IO HTTP.status201
@@ -197,7 +198,7 @@ scenario_ADDRESS_CREATE_02
     => SpecWith (Context t)
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
     w <- emptyIcarusWallet ctx
-    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify r
         [ expectResponseCode @IO HTTP.status403
@@ -232,7 +233,7 @@ scenario_ADDRESS_CREATE_04
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
 
-    let payload = Json [json| { "passphrase": "Secure Passphrase" }|]
+    let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     rA <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
     verify rA [ expectResponseCode @IO HTTP.status201 ]
     let addr = getFromResponse id rA
@@ -254,7 +255,7 @@ scenario_ADDRESS_CREATE_05
 scenario_ADDRESS_CREATE_05 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
-            { "passphrase": "Secure Passphrase"
+            { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
     r <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
@@ -274,7 +275,7 @@ scenario_ADDRESS_CREATE_06
 scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
-            { "passphrase": "Secure Passphrase"
+            { "passphrase": #{fixturePassphrase}
             , "address_index": 2147483662
             }|]
     r0 <- request @(ApiAddress n) ctx (Link.postRandomAddress w) Default payload
