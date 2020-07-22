@@ -232,11 +232,12 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
 
     withServer action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
+        testPoolConfigs' <- poolConfigsFromEnv
         withSystemTempDir tr' "test" $ \dir ->
             withCluster
                 tr'
                 minSev
-                testPoolConfigs
+                testPoolConfigs'
                 dir
                 onByron
                 (afterFork dir)
@@ -367,3 +368,9 @@ minSeverityFromEnv def var = lookupEnv var >>= \case
     Nothing -> pure def
     Just "" -> pure def
     Just arg -> either die pure (parseLoggingSeverity arg)
+
+poolConfigsFromEnv :: IO [PoolConfig]
+poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
+    Nothing -> pure testPoolConfigs
+    Just "" -> pure testPoolConfigs
+    Just _ -> pure []

@@ -23,8 +23,6 @@
 module Cardano.Wallet.Shelley.Launch
     ( -- * Integration Launcher
       withCluster
-    , dev
-    , dev2
     , sendFaucetFundsTo
     , withBFTNode
     , withStakePool
@@ -69,7 +67,7 @@ import Cardano.Launcher.Node
     , withCardanoNode
     )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, stdoutTextTracer )
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -149,12 +147,7 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile
-    , createDirectory
-    , createDirectoryIfMissing
-    , doesDirectoryExist
-    , removeDirectoryRecursive
-    )
+    ( copyFile, createDirectory, createDirectoryIfMissing )
 import System.Environment
     ( lookupEnv, setEnv )
 import System.Exit
@@ -188,50 +181,6 @@ import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.Coin as SL
-
-dev :: IO ()
-dev = do
-    let dir = "/tmp/fork"
-    exists <- doesDirectoryExist dir
-    when exists $
-        removeDirectoryRecursive dir
-    createDirectory dir
-    systemStart <- addUTCTime 1 <$> getCurrentTime
-    [port1] <- randomUnusedTCPPorts 1
-    let mode = RunByronShelley HardForkOnTrigger
-    let bftCfg1 = NodeParams Notice systemStart mode (port1, [])
-    withBFTNode stdoutTextTracer dir 0 bftCfg1 $ \_ _ _ -> do
-        putStrLn "BFT Node is up"
-        putStrLn "Submitting update proposal..."
-        updateVersion stdoutTextTracer dir
-        putStrLn "Has submitted update proposal"
-        threadDelay (300*1000*1000)
-  where
-    _action _fp _b0 (_np, _vData) _triggerHardFork = do
-        putStrLn "hi"
-
-dev2 :: IO ()
-dev2 = do
-    exists <- doesDirectoryExist dir
-    when exists $
-        removeDirectoryRecursive dir
-    createDirectory dir
-
-    let pools = replicate 3 $ PoolConfig Nothing
-    withCluster stdoutTextTracer Notice pools dir onByron afterFork onClusterStart
-  where
-    dir = "/tmp/fork"
-    onByron _ = do
-        putStrLn "### Byron has started!"
-    afterFork _ = do
-        putStrLn "### Fork has occured!"
-        sendFaucetFundsTo stdoutTextTracer dir
-            [ ("addr1vx0d0kyppx3qls8laq5jvpq0qa52d0gahm8tsyj2jpg0lpg4ue9lt"
-              , Coin $ fromIntegral oneMillionAda
-              )
-            ]
-    onClusterStart _ = do
-        putStrLn "### Cluster has started"
 
 -- | Shelley hard fork network configuration has two genesis datas.
 -- As a special case for mainnet, we hardcode the byron genesis data.
