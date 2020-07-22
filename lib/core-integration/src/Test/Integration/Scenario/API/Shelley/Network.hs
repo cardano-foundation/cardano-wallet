@@ -26,6 +26,7 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectField
     , expectResponseCode
+    , minUTxOValue
     , request
     , verify
     )
@@ -43,7 +44,6 @@ spec = do
         -- for Shelley desiredPoolNumber is node's nOpt protocol parameter
         -- in integration test setup it is 3
         let nOpt = 3
-        let minUtxoValue = Quantity 0
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)

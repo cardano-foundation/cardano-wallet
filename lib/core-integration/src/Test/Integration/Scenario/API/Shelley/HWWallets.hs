@@ -64,6 +64,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , minUTxOValue
     , pubKeyFromMnemonics
     , request
     , restoreWalletFromPubKey
@@ -105,7 +106,7 @@ spec = do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{minUTxOValue},
                         "unit": "lovelace"
                     }
                 }],
@@ -120,9 +121,9 @@ spec = do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
         -- delete wallet
@@ -160,7 +161,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }],
@@ -217,7 +218,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }]

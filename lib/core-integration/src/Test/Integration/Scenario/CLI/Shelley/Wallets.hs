@@ -76,6 +76,7 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
+    , minUTxOValue
     , notDelegating
     , postTransactionViaCLI
     , updateWalletNameViaCLI
@@ -198,7 +199,7 @@ spec = do
             ]
 
         --send transaction to the wallet
-        let amount = 11
+        let amount = minUTxOValue
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -51,6 +52,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , json
     , listAddresses
+    , minUTxOValue
     , request
     , verify
     , walletId
@@ -158,15 +160,16 @@ spec = do
                 ]
 
     it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> do
+        let initPoolGap = 10
         wSrc <- fixtureWallet ctx
-        wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 10)
+        wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", initPoolGap)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
         r <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shelley wDest) Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
-            , expectListSize 10
+            , expectListSize initPoolGap
             ]
         forM_ [0..9] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
@@ -179,7 +182,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1000000,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }],
@@ -191,11 +194,13 @@ spec = do
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
-        eventually "Wallet balance = 10" $ do
+        eventually "Wallet balance = initPoolGap * minUTxOValue" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 10) rb
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (10 * 1_000_000))
+                rb
 
         -- verify new address_pool_gap has been created
         rAddr <- request @[ApiAddress n] ctx
