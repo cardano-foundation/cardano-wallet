@@ -48,8 +48,6 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
-    , TxDescription (..)
-    , between
     , createWalletFromPublicKeyViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
@@ -76,6 +74,7 @@ import Test.Integration.Framework.DSL
     , updateWalletPassphraseViaCLI
     , verify
     , walletId
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NoRootKey )
@@ -228,22 +227,17 @@ spec = do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-            let amt = 1
+            let amt = 1 :: Int
             let args = T.unpack <$>
                     [ wRestored ^. walletId
                     , "--payment", T.pack (show amt) <> "@" <> addr
                     ]
-            let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
-                    { nInputs = 1
-                    , nOutputs = 1
-                    , nChanges = 1
-                    }
             (Exit code, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
             err `shouldBe` cmdOk
             txJson <- expectValidJSON (Proxy @ApiFee) out
             verify txJson
-                [ expectCliField (#estimatedMin . #getQuantity) $
-                    between (feeMin - amt, feeMax + amt)
+                [ expectCliField (#estimatedMin . #getQuantity) (.> 0)
+                , expectCliField (#estimatedMax . #getQuantity) (.> 0)
                 ]
             code `shouldBe` ExitSuccess
 

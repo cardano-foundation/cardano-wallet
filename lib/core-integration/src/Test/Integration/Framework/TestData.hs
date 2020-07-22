@@ -287,11 +287,15 @@ errMsg403NotEnoughMoney_ =
     "I can't process this payment because there's not enough UTxO available in \
     \the wallet."
 
-errMsg403NotEnoughMoney :: Int -> Int -> String
+errMsg403NotEnoughMoney :: Integral i => i -> i -> String
 errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
     \ not enough UTxO available in the wallet. The total UTxO sums up to\
-    \ " ++ show has ++ " Lovelace, but I need " ++ show needs ++ " Lovelace\
+    \ " ++ has' ++ " Lovelace, but I need " ++ needs' ++ " Lovelace\
     \ (excluding fee amount) in order to proceed  with the payment."
+
+  where
+    needs' = show (toInteger needs)
+    has' = show (toInteger has)
 
 errMsg403TxTooBig :: Int -> String
 errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
