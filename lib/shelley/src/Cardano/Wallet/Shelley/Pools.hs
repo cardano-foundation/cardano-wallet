@@ -156,12 +156,13 @@ newStakePoolLayer
     -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> StakePoolLayer
-newStakePoolLayer gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {..} =
-    StakePoolLayer
-    { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-    , knownPools = _knownPools
-    , listStakePools = _listPools
-    }
+newStakePoolLayer
+    gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {..} =
+        StakePoolLayer
+            { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+            , knownPools = _knownPools
+            , listStakePools = _listPools
+            }
   where
     _getPoolLifeCycleStatus
         :: PoolId -> IO PoolLifeCycleStatus
@@ -247,7 +248,7 @@ combineDbAndLsqData sp =
     -- treat the lsq data as the source of truth, and dropMissing here.
     dbButNoLsq = dropMissing
 
-    bothPresent = zipWithMatched  $ \k lsq db -> mkApiPool k lsq (Just db)
+    bothPresent = zipWithMatched $ \k lsq db -> mkApiPool k lsq (Just db)
 
     mkApiPool
         :: PoolId
