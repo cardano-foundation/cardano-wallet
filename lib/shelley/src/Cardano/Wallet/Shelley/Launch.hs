@@ -1023,7 +1023,7 @@ sendFaucetFundsTo tr dir allTargets = do
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
-        submitTxNoRetry tr tx
+        submitTx tr "facuet tx" tx
 
     -- TODO: Use split package?
     -- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
@@ -1095,15 +1095,6 @@ signTx tr dir rawTx keys = do
 submitTx :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
 submitTx tr name signedTx = do
     void $ cliRetry tr ("Submitting transaction for " ++ name)
-        [ "shelley", "transaction", "submit"
-        , "--tx-file", signedTx
-        , "--mainnet", "--cardano-mode"
-        ]
-
--- | Submit a transaction through a running node.
-submitTxNoRetry :: Tracer IO ClusterLog -> FilePath -> IO ()
-submitTxNoRetry tr signedTx = do
-    void $ cli tr
         [ "shelley", "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet", "--cardano-mode"
