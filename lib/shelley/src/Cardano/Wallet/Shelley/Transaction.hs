@@ -547,7 +547,7 @@ mkShelleyWitness body key =
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey
-        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+        $ CC.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
     :: Cardano.TxBody Cardano.Shelley
@@ -562,7 +562,7 @@ mkByronWitness (Cardano.ShelleyTxBody body _) nw addr encryptedKey =
     txHash = Crypto.hashWith serialize' body
 
     unencrypt (xprv, pwd) = CC.SigningKey
-        $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
+        $ CC.xPrvChangePass pwd BS.empty xprv
 
     addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
         (toHDPayloadAddress addr)
