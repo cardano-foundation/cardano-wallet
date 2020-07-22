@@ -53,6 +53,7 @@ import Test.Integration.Framework.DSL
     , expectCliListField
     , expectValidJSON
     , fixtureIcarusWallet
+    , fixturePassphrase
     , fixtureRandomWallet
     , icarusAddresses
     , importAddressViaCLI
@@ -206,7 +207,7 @@ scenario_ADDRESS_CREATE_01
 scenario_ADDRESS_CREATE_01 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
-    (c, out, err) <- createAddressViaCLI @t ctx [wid] "Secure Passphrase"
+    (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
     j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
@@ -224,7 +225,7 @@ scenario_ADDRESS_CREATE_02
 scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
     w <- emptyIcarusWallet ctx
     let wid = T.unpack (w ^. walletId)
-    (c, out, err) <- createAddressViaCLI @t ctx [wid] "Secure Passphrase"
+    (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` errMsg403NotAByronWallet
     c `shouldBe` ExitFailure 1
     out `shouldBe` mempty
@@ -258,7 +259,7 @@ scenario_ADDRESS_CREATE_04
 scenario_ADDRESS_CREATE_04 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
-    (c, out, err) <- createAddressViaCLI @t ctx [wid] "Secure Passphrase"
+    (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
     addr <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
@@ -282,7 +283,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", "2147483662" ]
-    (c, out, err) <- createAddressViaCLI @t ctx args "Secure Passphrase"
+    (c, out, err) <- createAddressViaCLI @t ctx args (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` cmdOk
     c `shouldBe` ExitSuccess
     j <- expectValidJSON (Proxy @(ApiAddress n)) (T.unpack out)
@@ -301,7 +302,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", "2147483662" ]
-    let createTheSameAddr = createAddressViaCLI @t ctx args "Secure Passphrase"
+    let createTheSameAddr = createAddressViaCLI @t ctx args (T.unpack fixturePassphrase)
     (c, _, _) <- createTheSameAddr
     c `shouldBe` ExitSuccess
 
@@ -325,7 +326,7 @@ scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", index ]
-    (c, out, err) <- createAddressViaCLI @t ctx args "Secure Passphrase"
+    (c, out, err) <- createAddressViaCLI @t ctx args (T.unpack fixturePassphrase)
     T.unpack err `shouldContain` expectedMsg
     c `shouldBe` ExitFailure 1
     out `shouldBe` mempty

@@ -671,25 +671,25 @@ emptyRandomWallet :: Context t -> IO ApiByronWallet
 emptyRandomWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonic, "Secure Passphrase")
+        ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 12)
 emptyRandomWalletMws ctx = do
     mnemonic <- entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonicToText @12 mnemonic, "Secure Passphrase")
+        ("Random Wallet", mnemonicToText @12 mnemonic, fixturePassphrase)
 
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet", mnemonic, "Secure Passphrase")
+        ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 15)
 emptyIcarusWalletMws ctx = do
     mnemonic <- entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet",mnemonicToText @15 mnemonic, "Secure Passphrase")
+        ("Icarus Wallet",mnemonicToText @15 mnemonic, fixturePassphrase)
 
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
@@ -756,7 +756,7 @@ emptyWallet ctx = do
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
             "mnemonic_sentence": #{mnemonic},
-            "passphrase": "Secure Passphrase"
+            "passphrase": #{fixturePassphrase}
         }|]
     r <- request @ApiWallet ctx
         (Link.postWallet @'Shelley) Default payload

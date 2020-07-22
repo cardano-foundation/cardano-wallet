@@ -67,6 +67,7 @@ import Test.Integration.Framework.DSL
     , expectCliListField
     , expectValidJSON
     , expectWalletUTxO
+    , fixturePassphrase
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listWalletsViaCLI
@@ -298,7 +299,7 @@ spec = do
             Stdout out <- getWalletViaCLI @t ctx wid
             expectValidJSON (Proxy @ApiByronWallet) out
                 >>= flip verify [ expectCliField #passphrase (`shouldSatisfy` isJust) ]
-            let oldPass = "Secure Passphrase"
+            let oldPass = T.unpack fixturePassphrase
             let newPass = "cardano-wallet-new-pass"
             (c, o, e) <-
                 updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
@@ -327,7 +328,7 @@ spec = do
         let errMsgTooShort = "passphrase is too short: expected at least 10 characters"
         let passTooLong = replicate (maxLength + 1) 'o'
         let errMsgTooLong = "passphrase is too long: expected at most 255 characters"
-        let passOK = "Secure Passphrase"
+        let passOK = T.unpack fixturePassphrase
 
         let matrix = [ ("old pass too short", passTooShort, passOK, errMsgTooShort)
                      , ("old pass too long", passTooLong, passOK, errMsgTooLong)

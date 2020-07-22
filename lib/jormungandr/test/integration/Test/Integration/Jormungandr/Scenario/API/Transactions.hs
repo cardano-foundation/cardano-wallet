@@ -484,11 +484,10 @@ fixtureExternalTx ctx toSend = do
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng
 
     -- we create destination empty wallet
-    let password1 = "Secure Passphrase" :: Text
     let createWallet = Json [json| {
             "name": "Destination Wallet",
             "mnemonic_sentence": #{mnemonics15},
-            "passphrase": #{password1}
+            "passphrase": #{fixturePassphrase}
             } |]
     r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
     expectField

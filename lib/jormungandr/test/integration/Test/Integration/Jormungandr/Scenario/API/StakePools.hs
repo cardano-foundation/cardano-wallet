@@ -404,7 +404,7 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
             w <- fixtureWalletWith @n ctx [fee+3]
-            joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")>>= flip verify
+            joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -416,7 +416,7 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
             w <- fixtureWalletWith @n ctx [fee - 1]
-            r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
+            r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
 
@@ -425,7 +425,7 @@ spec = do
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             w <- emptyWallet ctx
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
-            r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
+            r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee fee) r
 
@@ -436,7 +436,7 @@ spec = do
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription Quit
             let initBalance = [feeJoin + feeQuit + 3]
             (w, _) <- joinStakePoolWithWalletBalance @n ctx initBalance
-            rq <- quitStakePool @n ctx (w, "Secure Passphrase")
+            rq <- quitStakePool @n ctx (w, fixturePassphrase)
             expectResponseCode HTTP.status202 rq
             eventually "Wallet is not delegating and has balance = 0" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
@@ -454,7 +454,7 @@ spec = do
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription Quit
             let initBalance = [feeJoin+1]
             (w, _) <- joinStakePoolWithWalletBalance @n ctx initBalance
-            rq <- quitStakePool @n ctx (w, "Secure Passphrase")
+            rq <- quitStakePool @n ctx (w, fixturePassphrase)
             verify rq
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
@@ -473,7 +473,7 @@ spec = do
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \(_,_,ctx) -> do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
-        r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, "Secure Passphrase")
+        r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
@@ -847,7 +847,7 @@ joinStakePoolWithWalletBalance ctx balance = do
     w <- fixtureWalletWith @n ctx balance
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithWalletBalance" $
         unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
-    r <- joinStakePool @n ctx (p ^. #id) (w, "Secure Passphrase")
+    r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
     expectResponseCode HTTP.status202 r
     -- Verify the certificate was discovered
     eventually "Tx in ledger in joinStakePoolWithWalletBalance" $ do

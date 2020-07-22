@@ -89,6 +89,7 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
+    , fixturePassphrase
     , fixtureWallet
     , getFromResponse
     , json
@@ -142,7 +143,7 @@ spec = do
                 "name": "1st Wallet",
                 "mnemonic_sentence": #{mnemonics15},
                 "mnemonic_second_factor": #{mnemonics12},
-                "passphrase": "Secure Passphrase",
+                "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 30
                 } |]
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
@@ -276,7 +277,7 @@ spec = do
         let payload = Json [json| {
                 "name": "Some Wallet",
                 "mnemonic_sentence": #{mnemonics21},
-                "passphrase": "Secure Passphrase"
+                "passphrase": #{fixturePassphrase}
                 } |]
         r1 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
         expectResponseCode @IO HTTP.status201 r1
@@ -344,7 +345,7 @@ spec = do
             let payload = Json [json| {
                     "name": #{walName},
                     "mnemonic_sentence": #{mnemonics24},
-                    "passphrase": "Secure Passphrase"
+                    "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
@@ -381,7 +382,7 @@ spec = do
             let payload = Json [json| {
                     "name": "Just a łallet",
                     "mnemonic_sentence": #{mnemonics},
-                    "passphrase": "Secure Passphrase"
+                    "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
@@ -406,7 +407,7 @@ spec = do
                     "name": "Just a łallet",
                     "mnemonic_sentence": #{mnemonics15},
                     "mnemonic_second_factor": #{mnemonics},
-                    "passphrase": "Secure Passphrase"
+                    "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
@@ -561,7 +562,7 @@ spec = do
                 "name": "Wallet to be listed",
                 "mnemonic_sentence": #{mnemonics18},
                 "mnemonic_second_factor": #{mnemonics9},
-                "passphrase": "Secure Passphrase",
+                "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 20
                 } |]
         _ <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) payload
@@ -766,7 +767,7 @@ spec = do
 
     it "WALLETS_UPDATE_PASS_01 - passphaseLastUpdate gets updated" $ \ctx -> do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-        let payload = updatePassPayload "Secure passphrase" "New passphrase"
+        let payload = updatePassPayload fixturePassphrase "New passphrase"
         let endpoint = "v2/wallets" </> (getFromResponse walletId r)
                 </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
@@ -808,7 +809,7 @@ spec = do
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-            let payload = updatePassPayload "Secure passphrase" passphrase
+            let payload = updatePassPayload fixturePassphrase passphrase
             let endpoint = "v2/wallets" </> (getFromResponse walletId r)
                     </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
@@ -855,7 +856,7 @@ spec = do
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> do
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default simplePayload
-        let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
+        let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
         let walId = getFromResponse walletId r
         let delEndp = "v2/wallets" </> walId
         _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
@@ -927,7 +928,7 @@ spec = do
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
-            let payload = updatePassPayload "Secure passphrase" "Passphrase"
+            let payload = updatePassPayload fixturePassphrase "Passphrase"
             let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
@@ -1141,7 +1142,7 @@ spec = do
     it "BYRON_WALLETS_UPDATE_PASS -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> do
         w <- emptyRandomWallet ctx
-        let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
+        let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
         let wid = w ^. walletId
         let endpoint =
                 "v2/wallets"
@@ -1181,13 +1182,13 @@ spec = do
         m1 <- genMnemonics @12
         m2 <- genMnemonics @12
         m3 <- genMnemonics @12
-        _ <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
-        _ <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
+        _ <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
+        _ <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
+        _ <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)
 
-        _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
+        _ <- emptyWalletWith ctx ("shelley1", fixturePassphrase, 20)
+        _ <- emptyWalletWith ctx ("shelley2", fixturePassphrase, 20)
+        _ <- emptyWalletWith ctx ("shelley3", fixturePassphrase, 20)
 
         --list only byron
         rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
@@ -1219,13 +1220,13 @@ spec = do
         m1 <- genMnemonics @12
         m2 <- genMnemonics @12
         m3 <- genMnemonics @12
-        _   <- emptyByronWalletWith ctx "random" ("byron1", m1, "Secure Passphrase")
-        wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, "Secure Passphrase")
-        _   <- emptyByronWalletWith ctx "random" ("byron3", m3, "Secure Passphrase")
+        _   <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
+        wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
+        _   <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)
 
-        _ <- emptyWalletWith ctx ("shelley1", "Secure Passphrase", 20)
-        _ <- emptyWalletWith ctx ("shelley2", "Secure Passphrase", 20)
-        ws3 <- emptyWalletWith ctx ("shelley3", "Secure Passphrase", 20)
+        _ <- emptyWalletWith ctx ("shelley1", fixturePassphrase, 20)
+        _ <- emptyWalletWith ctx ("shelley2", fixturePassphrase, 20)
+        ws3 <- emptyWalletWith ctx ("shelley3", fixturePassphrase, 20)
 
         -- delete
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron wb2) Default Empty
