@@ -140,8 +140,13 @@ emptyTxPayload :: TxPayload c
 emptyTxPayload = TxPayload mempty mempty
 
 data TxWitnessTag
-    = TxWitnessByronUTxO
+    = TxWitnessByronUTxO WalletStyle
     | TxWitnessShelleyUTxO
+    deriving (Show, Eq)
+
+data WalletStyle
+    = Icarus
+    | Byron
     deriving (Show, Eq)
 
 -- | Provide a transaction witness for a given private key. The type of witness
@@ -150,9 +155,14 @@ data TxWitnessTag
 class TxWitnessTagFor (k :: Depth -> * -> *) where
     txWitnessTagFor :: TxWitnessTag
 
-instance TxWitnessTagFor ShelleyKey  where txWitnessTagFor = TxWitnessShelleyUTxO
-instance TxWitnessTagFor IcarusKey   where txWitnessTagFor = TxWitnessByronUTxO
-instance TxWitnessTagFor ByronKey    where txWitnessTagFor = TxWitnessByronUTxO
+instance TxWitnessTagFor ShelleyKey where
+    txWitnessTagFor = TxWitnessShelleyUTxO
+
+instance TxWitnessTagFor IcarusKey where
+    txWitnessTagFor = TxWitnessByronUTxO Icarus
+
+instance TxWitnessTagFor ByronKey where
+    txWitnessTagFor = TxWitnessByronUTxO Byron
 
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
@@ -186,7 +196,7 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
 
             pure $ mkExtraWits unsigned <> addrWits <> wdrlsWits
 
-        TxWitnessByronUTxO -> do
+        TxWitnessByronUTxO{} -> do
             bootstrapWits <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
@@ -360,9 +370,8 @@ computeTxSize
     -> CoinSelection
     -> Integer
 computeTxSize networkId witTag action cs =
-    withUnderlyingShelleyTx SL.txsize signed
+    withUnderlyingShelleyTx SL.txsize signed + outputCorrection
  where
-
     withUnderlyingShelleyTx
         :: (forall crypto. SL.Tx crypto -> a)
         -> Cardano.Tx Cardano.Shelley
@@ -370,6 +379,35 @@ computeTxSize networkId witTag action cs =
     withUnderlyingShelleyTx f (Cardano.ShelleyTx x) = f x
 
     signed = Cardano.makeSignedTransaction wits unsigned
+
+    -- NOTE
+    -- When we generate dummy output, we generate them as new Shelley addresses
+    -- because their format is much easier to generate (can be a sequence of
+    -- bytes, and a straightforward header). Generating dummy Byron or Icarus
+    -- addresses would be nuts. So instead, we apply a small correction for each
+    -- output which can either slightly increase or decrease the overall size.
+    --
+    -- When change are Shelley addresses, the correction is null.
+    outputCorrection =
+        toInteger (length $ change cs) * perChangeCorrection
+      where
+         perChangeCorrection = case witTag of
+            TxWitnessShelleyUTxO ->
+                0
+            TxWitnessByronUTxO Byron | networkId == Cardano.Mainnet ->
+                maxSizeOfByronMainAddr - maxSizeOfShelleyAddr
+            TxWitnessByronUTxO Byron ->
+                maxSizeOfByronTestAddr - maxSizeOfShelleyAddr
+            TxWitnessByronUTxO Icarus | networkId == Cardano.Mainnet ->
+                maxSizeOfIcarusMainAddr - maxSizeOfShelleyAddr
+            TxWitnessByronUTxO Icarus ->
+                maxSizeOfIcarusTestAddr - maxSizeOfShelleyAddr
+          where
+            maxSizeOfShelleyAddr    = 56 + 1
+            maxSizeOfByronMainAddr  = 76
+            maxSizeOfByronTestAddr  = 83
+            maxSizeOfIcarusMainAddr = 43
+            maxSizeOfIcarusTestAddr = 50
 
     unsigned = mkUnsignedTx maxBound cs' wdrls certs
       where
@@ -380,7 +418,8 @@ computeTxSize networkId witTag action cs =
             }
 
         dummyOutput :: Coin -> TxOut
-        dummyOutput = TxOut $ Address $ BS.pack (1:replicate 56 0)
+        dummyOutput =
+            TxOut $ Address $ BS.pack $ 0:replicate 56 0
 
         dummyStakeCred = toCardanoStakeCredential
             $ ChimericAccount dummyKeyHashRaw
@@ -419,7 +458,7 @@ computeTxSize networkId witTag action cs =
     wits = case witTag of
         TxWitnessShelleyUTxO ->
            addrWits <> certWits
-        TxWitnessByronUTxO ->
+        TxWitnessByronUTxO{} ->
            byronWits
 
     (addrWits, certWits) =
@@ -476,7 +515,7 @@ computeTxSize networkId witTag action cs =
                 $ Byron.mkAttributes
                 $ Byron.AddrAttributes
                     { Byron.aaVKDerivationPath = toHDPayloadAddress addr
-                    , Byron.aaNetworkMagic     = Cardano.toByronNetworkMagic networkId
+                    , Byron.aaNetworkMagic = Cardano.toByronNetworkMagic networkId
                     }
 
         dummyWitnessUniq :: (TxIn, TxOut) -> Cardano.Witness Cardano.Shelley
