@@ -415,10 +415,14 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
             let runningBftNode = RunningNode bftSocket block0 params
             waitForSocket tr bftSocket *> onByron runningBftNode
 
-            -- TODO: Maybe poll and detect when the fork occurs
             traceWith tr MsgForkCartouche
             updateVersion tr dir
             waitForHardFork bftSocket 2 *> onFork runningBftNode
+
+            setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
+            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
+            tx <- signTx tr dir rawTx [faucetPrv]
+            submitTx tr "pre-registered stake key" tx
 
             waitGroup <- newChan
             doneGroup <- newChan
