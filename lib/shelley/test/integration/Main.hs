@@ -70,6 +70,7 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
     , RunningNode (..)
+    , oneMillionAda
     , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
@@ -239,16 +240,12 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
     afterFork dir _ = do
-        putStrLn "### running afterFork action"
-        putStrLn "### generating shelley faucet addresses"
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let rawAddrs = (seqMnemonics >>= take 10 . genShelleyAddresses)
-        print rawAddrs
         let addresses = encodeAddr <$> rawAddrs
-        let oneMillionAda = Coin $ 1000000*1000000
-        putStrLn $ "Have " <> show (length addresses) <> " addresses to fund"
+        sendFaucetFundsTo stdoutTextTracer dir $
+            map (,Coin $ fromIntegral (oneMillionAda `div` 10)) addresses
 
-        sendFaucetFundsTo stdoutTextTracer dir $ map (,oneMillionAda) addresses
     onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.

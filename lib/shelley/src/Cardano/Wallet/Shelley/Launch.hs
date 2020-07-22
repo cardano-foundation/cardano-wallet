@@ -42,6 +42,7 @@ module Cardano.Wallet.Shelley.Launch
     , parseGenesisData
     , withTempDir
     , withSystemTempDir
+    , oneMillionAda
 
     -- * Logging
     , ClusterLog (..)
@@ -94,7 +95,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Concurrent.MVar
-    ( MVar, newMVar, putMVar, takeMVar )
+    ( MVar, modifyMVar, newMVar, putMVar, takeMVar )
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
@@ -199,10 +200,10 @@ dev = do
     [port1] <- randomUnusedTCPPorts 1
     let mode = RunByronShelley HardForkOnTrigger
     let bftCfg1 = NodeParams Notice systemStart mode (port1, [])
-    withBFTNode stdoutTextTracer dir 0 bftCfg1 $ \socket _ _ -> do
+    withBFTNode stdoutTextTracer dir 0 bftCfg1 $ \_ _ _ -> do
         putStrLn "BFT Node is up"
         putStrLn "Submitting update proposal..."
-        updateVersion stdoutTextTracer dir socket
+        updateVersion stdoutTextTracer dir
         putStrLn "Has submitted update proposal"
         threadDelay (300*1000*1000)
   where
@@ -467,16 +468,13 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
         let bftCfg = NodeParams severity systemStart mode (head $ rotate ports)
         withBFTNode tr dir 0 bftCfg $ \bftSocket block0 params -> do
             let runningBftNode = RunningNode bftSocket block0 params
-            onByron runningBftNode
+            waitForSocket tr bftSocket *> onByron runningBftNode
 
-            updateVersion tr dir bftSocket
             -- TODO: Maybe poll and detect when the fork occurs
             traceWith tr MsgForkCartouche
-            waitForHardFork bftSocket 2
-            onFork runningBftNode
+            updateVersion tr dir
+            waitForHardFork bftSocket 2 *> onFork runningBftNode
 
-            setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
-            waitForSocket tr bftSocket
             waitGroup <- newChan
             doneGroup <- newChan
             let waitAll = do
@@ -510,9 +508,9 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
             group <- waitAll
             if length (filter isRight group) /= poolCount then do
                 cancelAll
+                let errors = show (filter isLeft group)
                 throwIO $ ProcessHasExited
-                    ("cluster didn't start correctly: "
-                        <> show (filter isLeft group))
+                    ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
                 let cfg = NodeParams severity systemStart mode (port0, ports)
@@ -529,8 +527,10 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
 waitForHardFork :: FilePath -> Int -> IO ()
-waitForHardFork _socket epoch = threadDelay (slotDur * k * 10 * epoch + fuzz)
+waitForHardFork _socket epoch = do
+    threadDelay (slotDur * k * 10 * epoch + fuzz)
   where
+    -- TODO: DO NOT HARDCODE PARAMETERS HERE
     slotDur = 250_000
     k = 10
     fuzz = 2_000_000
@@ -556,12 +556,7 @@ withBFTNode
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode
-    tr
-    baseDir
-    i
-    (NodeParams severity systemStart mode (port, peers))
-    action =
+withBFTNode tr baseDir i params action =
     bracketTracer' tr "withBFTNode" $ do
         createDirectoryIfMissing False dir
 
@@ -619,6 +614,7 @@ withBFTNode
 
     name = "bft"
     dir = baseDir </> (name <> show i)
+    NodeParams severity systemStart mode (port, peers) = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -634,11 +630,11 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams severity systemStart hardFork (port, peers)) act =
+withRelayNode tr baseDir (NodeParams severity systemStart mode (port, peers)) act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
-        (config, _, _, _) <- genConfig dir severity systemStart hardFork
+        (config, _, _, _) <- genConfig dir severity systemStart mode
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -779,9 +775,8 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
     name = "pool-" ++ show idx
 
 
-updateVersion :: Tracer IO ClusterLog -> FilePath -> FilePath -> IO ()
-updateVersion tr tmpDir socket = do
-    waitForSocket tr socket
+updateVersion :: Tracer IO ClusterLog -> FilePath -> IO ()
+updateVersion tr tmpDir = do
     let updatePath = tmpDir </> "update-proposal"
     let votePath = tmpDir </> "update-vote"
     let network = "--mainnet"
@@ -1127,7 +1122,7 @@ sendFaucetFundsTo tr dir allTargets = do
   where
     sendBatch targets = do
         (faucetInput, faucetPrv) <- takeFaucet
-        let file = dir </> "facuet-tx.raw"
+        let file = dir </> "faucet-tx.raw"
         let outputs = flip concatMap targets $ \(addr, (Coin c)) ->
                 ["--tx-out", addr <> "+" <> show c]
 
@@ -1274,15 +1269,12 @@ waitUntilRegistered tr name opPub = do
 -- transaction.
 takeFaucet :: IO (String, String)
 takeFaucet = do
-    i <- takeMVar faucetIndex
-    putMVar faucetIndex (i + 1)
-
-    base58Addr <- BS.readFile $
-        source </> ("faucet-addrs/faucet" <> show i <> ".addr")
-    putStrLn $ "about to read faucet: " <> B8.unpack base58Addr
+    i <- modifyMVar faucetIndex (\i -> pure (i+1, i))
+    let basename = source </> "faucet-addrs" </> "faucet" <> show i
+    base58Addr <- BS.readFile $ basename <> ".addr"
     let Just addr = decodeBase58 bitcoinAlphabet $ BS.init base58Addr
     let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
-    let signingKey = source </> ("faucet-addrs/faucet" <> show i <> ".shelley.key")
+    let signingKey = basename <> ".shelley.key"
     pure (txin, signingKey)
   where
     source :: FilePath
@@ -1489,9 +1481,9 @@ forkCartouche = T.unlines
     [ ""
     , "########################################################################"
     , "#                                                                      #"
-    , "#    Transition from byron to shelley has been triggered.              #"
+    , "#         Transition from byron to shelley has been triggered.         #"
     , "#                                                                      #"
-    , "#    This may take roughly 60s. Please be patient...                   #"
+    , "#           This may take roughly 60s. Please be patient...            #"
     , "#                                                                      #"
     , "########################################################################"
     ]
