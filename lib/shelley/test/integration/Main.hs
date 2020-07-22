@@ -70,7 +70,6 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
     , RunningNode (..)
-    , oneMillionAda
     , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
@@ -78,6 +77,8 @@ import Cardano.Wallet.Shelley.Launch
     )
 import Cardano.Wallet.Shelley.Transaction
     ( _minimumFee )
+import Control.Arrow
+    ( first )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -115,7 +116,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
-    ( genShelleyAddresses, seqMnemonics )
+    ( shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -242,10 +243,8 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     onByron _ = pure ()
     afterFork dir _ = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
-        let rawAddrs = (seqMnemonics >>= take 10 . genShelleyAddresses)
-        let addresses = encodeAddr <$> rawAddrs
-        sendFaucetFundsTo stdoutTextTracer dir $
-            map (,Coin $ fromIntegral (oneMillionAda `div` 10)) addresses
+        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        sendFaucetFundsTo stdoutTextTracer dir addresses
 
     onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
