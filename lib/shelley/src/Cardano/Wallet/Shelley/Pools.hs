@@ -242,11 +242,23 @@ combineDbAndLsqData
 combineDbAndLsqData sp =
     Map.merge lsqButNoDb dbButNoLsq bothPresent
   where
-    lsqButNoDb = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
+    lsqButNoDb = traverseMissing $ \k lsq ->
+        pure $ mkApiPool k lsq Nothing
 
-    -- In case our chain following has missed a retirement certificate, we
-    -- treat the lsq data as the source of truth, and dropMissing here.
-    dbButNoLsq = dropMissing
+    -- When a pool is registered (with a registration certificate) but not
+    -- currently active (and therefore not causing pool metrics data to be
+    -- available over local state query), we use a default value of /zero/
+    -- for all stake pool metric values so that the pool can still be
+    -- included in the list of all known stake pools:
+    --
+    dbButNoLsq = traverseMissing $ \k db ->
+        pure $ mkApiPool k lsqDefault $ Just db
+      where
+        lsqDefault = PoolLsqData
+            { nonMyopicMemberRewards = minBound
+            , relativeStake = minBound
+            , saturation = 0
+            }
 
     bothPresent = zipWithMatched $ \k lsq db -> mkApiPool k lsq (Just db)
 
