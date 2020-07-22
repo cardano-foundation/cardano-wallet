@@ -25,6 +25,7 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , dev
     , dev2
+    , sendFaucetFundsTo
     , withBFTNode
     , withStakePool
     , NodeParams (..)
@@ -74,6 +75,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
+    , Coin (..)
     , EpochNo (..)
     , NetworkParameters (..)
     , PoolId (..)
@@ -209,7 +211,6 @@ dev = do
 
 dev2 :: IO ()
 dev2 = do
-    let dir = "/tmp/fork"
     exists <- doesDirectoryExist dir
     when exists $
         removeDirectoryRecursive dir
@@ -218,11 +219,17 @@ dev2 = do
     let pools = replicate 3 $ PoolConfig Nothing
     withCluster stdoutTextTracer Notice pools dir onByron afterFork onClusterStart
   where
-    onByron = \_ -> do
+    dir = "/tmp/fork"
+    onByron _ = do
         putStrLn "### Byron has started!"
-    afterFork = \_ -> do
+    afterFork _ = do
         putStrLn "### Fork has occured!"
-    onClusterStart = \_ -> do
+        sendFaucetFundsTo stdoutTextTracer dir
+            [ ("addr1vx0d0kyppx3qls8laq5jvpq0qa52d0gahm8tsyj2jpg0lpg4ue9lt"
+              , Coin $ fromIntegral oneMillionAda
+              )
+            ]
+    onClusterStart _ = do
         putStrLn "### Cluster has started"
 
 -- | Shelley hard fork network configuration has two genesis datas.
@@ -1110,6 +1117,43 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
 
     pure (file, faucetPrv)
 
+sendFaucetFundsTo
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> [(String, Coin)]
+    -> IO ()
+sendFaucetFundsTo tr dir allTargets = do
+    forM_ (group 20 allTargets) sendBatch
+  where
+    sendBatch targets = do
+        (faucetInput, faucetPrv) <- takeFaucet
+        let file = dir </> "facuet-tx.raw"
+        let outputs = flip concatMap targets $ \(addr, (Coin c)) ->
+                ["--tx-out", addr <> "+" <> show c]
+
+        let total = fromIntegral $ sum $ map (getCoin . snd) targets
+        when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
+
+        void $ cli tr $
+            [ "shelley", "transaction", "build-raw"
+            , "--tx-in", faucetInput
+            , "--ttl", "600"
+            , "--fee", show (faucetAmt - total)
+            , "--out-file", file
+            ] ++ outputs
+
+        tx <- signTx tr dir file [faucetPrv]
+        submitTxNoRetry tr tx
+
+    -- TODO: Use split package?
+    -- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
+    group :: Int -> [a] -> [[a]]
+    group _ [] = []
+    group n l
+      | n > 0 = (take n l) : (group n (drop n l))
+      | otherwise = error "Negative or zero n"
+
+
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
 prepareKeyRegistration
@@ -1176,6 +1220,15 @@ submitTx tr name signedTx = do
         , "--mainnet", "--cardano-mode"
         ]
 
+-- | Submit a transaction through a running node.
+submitTxNoRetry :: Tracer IO ClusterLog -> FilePath -> IO ()
+submitTxNoRetry tr signedTx = do
+    void $ cli tr
+        [ "shelley", "transaction", "submit"
+        , "--tx-file", signedTx
+        , "--mainnet", "--cardano-mode"
+        ]
+
 -- | Wait for a command which depends on connecting to the given socket path to
 -- succeed.
 --
@@ -1228,7 +1281,7 @@ takeFaucet = do
         source </> ("faucet-addrs/faucet" <> show i <> ".addr")
     putStrLn $ "about to read faucet: " <> B8.unpack base58Addr
     let Just addr = decodeBase58 bitcoinAlphabet $ BS.init base58Addr
-    let txin = (B8.unpack $ hex $ blake2b256 addr) <> "#0"
+    let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
     let signingKey = source </> ("faucet-addrs/faucet" <> show i <> ".shelley.key")
     pure (txin, signingKey)
   where

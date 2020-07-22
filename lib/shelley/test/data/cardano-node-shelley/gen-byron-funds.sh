@@ -8,7 +8,7 @@
 # The corresponding TxIn will then be blake2d256 of the address.
 dir=faucet-addrs
 rm $dir/*
-for i in $(seq 10);
+for i in $(seq 100);
 do
   # Generate payment key and addresses for payment and genesis utxo
   cardano-cli keygen --byron-formats --secret $dir/faucet$i.byron.key --no-password

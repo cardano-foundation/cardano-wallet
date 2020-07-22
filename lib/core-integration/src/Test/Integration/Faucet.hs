@@ -21,6 +21,7 @@ module Test.Integration.Faucet
     , genIcarusFaucets
     , genShelleyFaucets
     , genMnemonics
+    , genShelleyAddresses
     ) where
 
 import Prelude hiding
@@ -1388,27 +1389,27 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO ()
-genShelleyFaucets = genFaucet encodeAddress genAddresses
+genShelleyFaucets = genFaucet encodeAddress genShelleyAddresses
   where
     encodeAddress :: Address -> Text
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ convertToBase Base16 bytes
 
-    genAddresses :: Mnemonic 15 -> [Address]
-    genAddresses mw =
-        let
-            (seed, pwd) =
-                (SomeMnemonic mw, mempty)
-            rootXPrv =
-                Shelley.generateKeyFromSeed (seed, Nothing) pwd
-            accXPrv =
-                deriveAccountPrivateKey pwd rootXPrv minBound
-            addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv UTxOExternal
-        in
-            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
-            | ix <- [minBound..maxBound]
-            ]
+genShelleyAddresses :: Mnemonic 15 -> [Address]
+genShelleyAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Shelley.generateKeyFromSeed (seed, Nothing) pwd
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+    in
+        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        | ix <- [minBound..maxBound]
+        ]
 
 -- | Abstract function for generating a faucet.
 genFaucet
