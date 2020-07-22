@@ -6,16 +6,9 @@
 # b) the `systemStart` is hard-coded here to please the parser but is replaced dynamically
 #    by the same code generating the final node configuration for integration.
 #
-# c) initialFunds are defined as a list of singleton, and not as a key-value map like in the
-#    json equivalent. The reason is to allow preserving the order of declaration when parsing
-#    the file which is crucial for sequential discovery. Once again, when converting to JSON,
-#    this is transformed in a proper map.
-#
-# See also: lib/shelley/src/Cardano/Wallet/Shelley/Launch.hs for details.
 
 ---
 activeSlotsCoeff: 0.5
-TestShelleyHardForkAtEpoch: 2
 protocolParams:
   poolDeposit: 0
   protocolVersion:
@@ -61,3 +54,5 @@ maxKESEvolutions: 90
 securityParam: 10
 systemStart: "2020-06-19T16:07:37.740128433Z"
 initialFunds: []
+# For the Byron;Shelley test setup, funds have to be migrated from byron
+# using manually submitted transactions. The initialFunds field is ignored.
