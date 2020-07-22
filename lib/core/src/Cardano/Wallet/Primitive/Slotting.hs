@@ -149,20 +149,32 @@ firstSlotInEpoch = fmap fst . HardForkQry . HF.epochToSlot . convertEpochNo
   where
     convertEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
 
+-- | Transforms the given inclusive time range into an inclusive slot range.
+--
+-- This function returns a slot range if (and only if) the specified time range
+-- intersects with the life of the blockchain.
+--
+-- If, on the other hand, the specified time range terminates before the start
+-- of the blockchain, this function returns 'Nothing'.
 slotRangeFromTimeRange
     :: Range UTCTime
     -> Qry (Maybe (Range Cardano.SlotNo))
-slotRangeFromTimeRange (Range Nothing Nothing) = pure $ Just wholeRange
-slotRangeFromTimeRange (Range low hi) = do
-    low' <- liftMay ceilingSlotAt low
-    hi' <- liftMay ongoingSlotAt hi
-    pure $ Range low' <$> (maybe (Just Nothing) (fmap Just) hi')
-  where
+slotRangeFromTimeRange = \case
+    Range Nothing Nothing -> do
+        pure $ Just wholeRange
 
-    liftMay :: (a -> Qry b) -> Maybe a -> Qry (Maybe b)
-    liftMay f (Just x) = Just <$> f x
-    liftMay _ Nothing = return Nothing
+    Range (Just inf) Nothing -> do
+        inf' <- Just <$> ceilingSlotAt inf
+        pure $ Just $ Range inf' Nothing
 
+    Range Nothing (Just sup) -> do
+        sup' <- ongoingSlotAt sup
+        pure $ (Range Nothing . Just) <$> sup'
+
+    Range (Just inf) (Just sup) -> do
+        inf' <- Just <$> ceilingSlotAt inf
+        sup' <- ongoingSlotAt sup
+        pure $ (Range inf' . Just) <$> sup'
 
 -- @@
 --     slot:
