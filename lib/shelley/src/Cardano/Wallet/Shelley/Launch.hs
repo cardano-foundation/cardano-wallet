@@ -28,10 +28,7 @@ module Cardano.Wallet.Shelley.Launch
     , withStakePool
     , NodeParams (..)
     , PoolConfig (..)
-    , singleNodeParams
-    , HardFork (..)
     , RunningNode (..)
-    , CardanoMode (..)
 
     -- * Utils
     , NetworkConfiguration (..)
@@ -411,11 +408,10 @@ withCluster
 withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     bracketTracer' tr "withCluster" $ do
         let poolCount = length poolConfigs
-        let mode = RunByronShelley HardForkOnTrigger
         systemStart <- addUTCTime 1 <$> getCurrentTime
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
-        let bftCfg = NodeParams severity systemStart mode (head $ rotate ports)
-        withBFTNode tr dir 0 bftCfg $ \bftSocket block0 params -> do
+        let bftCfg = NodeParams severity systemStart (head $ rotate ports)
+        withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             let runningBftNode = RunningNode bftSocket block0 params
             waitForSocket tr bftSocket *> onByron runningBftNode
 
@@ -447,7 +443,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
                 \(idx, poolConfig, (port, peers)) -> do
                     link =<< async (handle onException $ do
                         let spCfg =
-                                NodeParams severity systemStart mode (port, peers)
+                                NodeParams severity systemStart (port, peers)
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
@@ -462,7 +458,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
-                let cfg = NodeParams severity systemStart mode (port0, ports)
+                let cfg = NodeParams severity systemStart (port0, ports)
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
                     onClusterStart runningRelay `finally` cancelAll
@@ -488,7 +484,6 @@ waitForHardFork _socket epoch = do
 data NodeParams = NodeParams
     { minSeverity :: Severity -- ^ Minimum logging severity
     , systemStart :: UTCTime -- ^ Genesis block start time
-    , nodeMode :: CardanoMode -- ^ When/how to hard fork
     , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
     } deriving (Show)
 
@@ -498,59 +493,38 @@ withBFTNode
     -> FilePath
     -- ^ Parent state directory. Node data will be created in a subdirectory of
     -- this.
-    -> Int
-    -- ^ Which node (assumes key files are indexed by this number)
     -> NodeParams
     -- ^ Parameters used to generate config files.
     -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
-withBFTNode tr baseDir i params action =
+withBFTNode tr baseDir params action =
     bracketTracer' tr "withBFTNode" $ do
         createDirectoryIfMissing False dir
 
-        [bftKey, bftDelegCert] <- forM
-            ["delegate-keys.00" <> show i <> ".key", "delegation-cert.00" <> show i <> ".json"]
-            (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
-
-        -- TODO: Doesn't support indexing by i
-        [vrfPrv, kesPrv, opCert] <- forM
-            [ "bft-leader" <> ".vrf.skey"
+        [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <- forM
+            [ "bft-leader" <> ".byron.cert"
+            , "bft-leader" <> ".byron.skey"
+            , "bft-leader" <> ".vrf.skey"
             , "bft-leader" <> ".kes.skey"
             , "bft-leader" <> ".opcert"
             ]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
         (config, block0, networkParams, versionData)
-            <- genConfig dir severity systemStart mode
+            <- genConfig dir severity systemStart
         topology <- genTopology dir peers
 
-
-        let byronKeys x =
-                    x { nodeDlgCertFile = Just bftDelegCert
-                      , nodeSignKeyFile = Just bftKey
-                      }
-        let shelleyKeys x =
-                    x { nodeOpCertFile = Just opCert
-                      , nodeKesKeyFile = Just kesPrv
-                      , nodeVrfKeyFile = Just vrfPrv
-                      }
-
-        let makeModeSpecific x = case mode of
-                 RunByronShelley _ -> byronKeys . shelleyKeys $ x
-                 RunByron -> byronKeys x
-                 RunShelley -> shelleyKeys x
-
-        let cfg = makeModeSpecific $ CardanoNodeConfig
+        let cfg = CardanoNodeConfig
                 { nodeDir = dir
                 , nodeConfigFile = config
                 , nodeTopologyFile = topology
                 , nodeDatabaseDir = "db"
-                , nodeDlgCertFile = Nothing
-                , nodeSignKeyFile = Nothing
-                , nodeOpCertFile = Nothing
-                , nodeKesKeyFile = Nothing
-                , nodeVrfKeyFile = Nothing
+                , nodeDlgCertFile = Just bftCert
+                , nodeSignKeyFile = Just bftPrv
+                , nodeOpCertFile = Just opCert
+                , nodeKesKeyFile = Just kesPrv
+                , nodeVrfKeyFile = Just vrfPrv
                 , nodePort = Just (NodePort port)
                 , nodeLoggingHostname = Just name
                 }
@@ -562,8 +536,8 @@ withBFTNode tr baseDir i params action =
     source = $(getTestData) </> "cardano-node-shelley"
 
     name = "bft"
-    dir = baseDir </> (name <> show i)
-    NodeParams severity systemStart mode (port, peers) = params
+    dir = baseDir </> name
+    NodeParams severity systemStart (port, peers) = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -579,11 +553,11 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams severity systemStart mode (port, peers)) act =
+withRelayNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
-        (config, _, _, _) <- genConfig dir severity systemStart mode
+        (config, _, _, _) <- genConfig dir severity systemStart
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -605,11 +579,6 @@ withRelayNode tr baseDir (NodeParams severity systemStart mode (port, peers)) ac
   where
     name = "node"
     dir = baseDir </> name
-
-singleNodeParams :: Severity -> IO NodeParams
-singleNodeParams severity = do
-    systemStart <- getCurrentTime
-    pure $ NodeParams severity systemStart RunShelley (0, [])
 
 -- | Populates the configuration directory of a stake pool @cardano-node@.
 --
@@ -634,7 +603,7 @@ setupStakePoolData
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
 setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
-    let NodeParams severity systemStart mode (port, peers) = params
+    let NodeParams severity systemStart (port, peers) = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
@@ -649,7 +618,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
-    (config, _, _, _) <- genConfig dir severity systemStart mode
+    (config, _, _, _) <- genConfig dir severity systemStart
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -733,7 +702,7 @@ updateVersion tr tmpDir = do
         [ "byron", "create-update-proposal"
         , "--filepath", updatePath
         , network
-        , "--signing-key", source </> "delegate-keys.000.key"
+        , "--signing-key", source </> "bft-leader.byron.skey"
         , "--protocol-version-major", "1"
         , "--protocol-version-minor", "0"
         , "--protocol-version-alt", "0"
@@ -746,7 +715,7 @@ updateVersion tr tmpDir = do
         [ "byron", "create-proposal-vote"
         , "--proposal-filepath", updatePath
         , network
-        , "--signing-key", source </> "delegate-keys.000.key"
+        , "--signing-key", source </> "bft-leader.byron.skey"
         , "--vote-yes"
         , "--output-filepath", votePath
         ]
@@ -776,17 +745,6 @@ withCardanoNodeProcess tr name cfg = withCardanoNode tr' cfg >=> throwErrs
     tr' = contramap (MsgLauncher name) tr
     throwErrs = either throwIO pure
 
-data CardanoMode
-     = RunByron
-     | RunByronShelley HardFork
-     | RunShelley
-     deriving Show
-
-data HardFork
-    = HardForkAtEpoch Int
-    | HardForkOnTrigger
-    deriving (Show, Eq)
-
 genConfig
     :: FilePath
     -- ^ A top-level directory where to put the configuration.
@@ -794,40 +752,18 @@ genConfig
     -- ^ Minimum severity level for logging
     -> UTCTime
     -- ^ Genesis block start time
-    -> CardanoMode
-    -- ^ When/how to hard fork
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity systemStart mode = do
+genConfig dir severity systemStart = do
     -- we need to specify genesis file location every run in tmp
     let withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
 
-    let withHardFork = case mode of
-            RunByronShelley (HardForkAtEpoch n) ->
-                withAddedKey "TestShelleyHardForkAtEpoch" n
-            RunByronShelley HardForkOnTrigger ->
-                withAddedKey "TestShelleyHardForkAtVersion" (1::Int)
-            _ -> pure
-
-    let addGenesis = case mode of
-             RunByron ->
-                 withAddedKey "ByronGenesisFile" byronGenesisFile
-             RunShelley ->
-                 withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
-             RunByronShelley _ ->
-                 (withAddedKey "ShelleyGenesisFile" shelleyGenesisFile)
-                 >=> (withAddedKey "ByronGenesisFile" byronGenesisFile)
-
-    let (protocol :: String) = case mode of
-             RunByron -> "RealPBFT"
-             RunShelley -> "TPraos"
-             RunByronShelley _ -> "Cardano"
-
     Yaml.decodeFileThrow (source </> "node.config")
-        >>= addGenesis
-        >>= withAddedKey "Protocol" protocol
-        >>= withHardFork
-        >>= withObject (addMinSeverityStdout severity)
+        >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
+        >>= withAddedKey "ByronGenesisFile" byronGenesisFile
+        >>= withAddedKey "Protocol" ("Cardano"::String)
+        >>= withAddedKey "TestShelleyHardForkAtVersion" (1::Int)
         >>= withAddedKey "minSeverity" Debug
+        >>= withObject (addMinSeverityStdout severity)
         >>= Yaml.encodeFile (dir </> "node.config")
 
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart

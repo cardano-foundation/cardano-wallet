@@ -275,6 +275,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
             (Link.listWallets @'Shelley) Empty
         forM_ wallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Shelley w) Default Empty
+
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
     PaymentDescription i o c ->
