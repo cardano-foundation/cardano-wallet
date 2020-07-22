@@ -655,7 +655,6 @@ data ApiErrorCode
     | NothingToMigrate
     | NoSuchPool
     | PoolAlreadyJoined
-    | PoolAlreadyRetired
     | NotDelegatingTo
     | InvalidRestorationParameters
     | RejectedTip
