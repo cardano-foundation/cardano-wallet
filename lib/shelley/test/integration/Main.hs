@@ -36,25 +36,10 @@ import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
-    , FeePolicy (..)
-    , Hash (..)
-    , NetworkParameters (..)
-    , ProtocolParameters (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxParameters (..)
-    )
+    ( Coin (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -75,8 +60,6 @@ import Cardano.Wallet.Shelley.Launch
     , withSystemTempDir
     , withTempDir
     )
-import Cardano.Wallet.Shelley.Transaction
-    ( _minimumFee )
 import Control.Arrow
     ( first )
 import Control.Concurrent.Async
@@ -101,16 +84,12 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Numeric.Natural
-    ( Natural )
 import System.Environment
     ( lookupEnv )
 import System.Exit
     ( die )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
-import System.Random
-    ( mkStdGen, randoms )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -122,15 +101,12 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , KnownCommand (..)
     , Payload (..)
-    , TxDescription (..)
     , request
     , unsafeRequest
     )
 
-import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 -- TODO: enable when byron transactions/addresses supported in the cardano-node
 -- import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
@@ -214,10 +190,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator
-                        $ getFeePolicy
-                        $ txParameters
-                        $ protocolParameters np
+                    , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _target = Proxy
                     }
@@ -274,41 +247,6 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
             (Link.listWallets @'Shelley) Empty
         forM_ wallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Shelley w) Default Empty
-
-mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
-mkFeeEstimator policy = \case
-    PaymentDescription i o c ->
-        let
-            fee = computeFee (dummySelection i o c) Nothing
-        in
-            ( fee, fee )
-
-    DelegDescription action ->
-        let
-            feeMin = computeFee (dummySelection 0 0 0) (Just action)
-            feeMax = computeFee (dummySelection 1 0 1) (Just action)
-        in
-            ( feeMin, feeMax )
-  where
-    genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)
-
-    dummySelection nInps nOuts nChgs =
-        let
-            inps = take nInps
-                [ ( TxIn (genTxId ix) ix
-                  , TxOut (Address mempty) minBound
-                  )
-                | ix <- [0..]
-                ]
-
-            outs =
-                replicate (nOuts + nChgs) (Coin minBound)
-        in
-            mempty { inputs = inps, change = outs }
-
-    computeFee selection action =
-        fromIntegral $ getFee $
-        _minimumFee @ShelleyKey Cardano.Mainnet policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging
