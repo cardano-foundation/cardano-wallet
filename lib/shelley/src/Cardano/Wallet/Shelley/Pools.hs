@@ -239,15 +239,15 @@ combineDbAndLsqData
     -> Map PoolId PoolDbData
     -> Map PoolId Api.ApiStakePool
 combineDbAndLsqData sp =
-    Map.merge lsqButNoChain chainButNoLsq bothPresent
+    Map.merge lsqButNoDb dbButNoLsq bothPresent
   where
-    lsqButNoChain = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
+    lsqButNoDb = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
 
     -- In case our chain following has missed a retirement certificate, we
     -- treat the lsq data as the source of truth, and dropMissing here.
-    chainButNoLsq = dropMissing
+    dbButNoLsq = dropMissing
 
-    bothPresent = zipWithMatched  $ \k lsq chain -> mkApiPool k lsq (Just chain)
+    bothPresent = zipWithMatched  $ \k lsq db -> mkApiPool k lsq (Just db)
 
     mkApiPool
         :: PoolId
