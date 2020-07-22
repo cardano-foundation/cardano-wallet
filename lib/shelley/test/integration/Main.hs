@@ -29,9 +29,9 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiWallet, WalletStyle (..) )
+    ( ApiByronWallet, ApiWallet, EncodeAddress (..), WalletStyle (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, trMessageText )
+    ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -70,6 +70,7 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
     , RunningNode (..)
+    , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
     , withTempDir
@@ -112,6 +113,8 @@ import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
+import Test.Integration.Faucet
+    ( genShelleyAddresses, seqMnemonics )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -230,12 +233,22 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 testPoolConfigs
                 dir
                 onByron
-                afterFork
+                (afterFork dir)
                 (onClusterStart action dir)
 
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
-    afterFork _ = pure ()
+    afterFork dir _ = do
+        putStrLn "### running afterFork action"
+        putStrLn "### generating shelley faucet addresses"
+        let encodeAddr = T.unpack . encodeAddress @'Mainnet
+        let rawAddrs = (seqMnemonics >>= take 10 . genShelleyAddresses)
+        print rawAddrs
+        let addresses = encodeAddr <$> rawAddrs
+        let oneMillionAda = Coin $ 1000000*1000000
+        putStrLn $ "Have " <> show (length addresses) <> " addresses to fund"
+
+        sendFaucetFundsTo stdoutTextTracer dir $ map (,oneMillionAda) addresses
     onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
@@ -264,7 +277,6 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
             (Link.listWallets @'Shelley) Empty
         forM_ wallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Shelley w) Default Empty
-
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy = \case
     PaymentDescription i o c ->
