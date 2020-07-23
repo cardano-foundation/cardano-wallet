@@ -360,6 +360,14 @@ prefilterBlock b u0 = runState $ do
         state (isOurs $ dlgCertAccount cert) <&> \case
             False -> Nothing
             True -> Just cert
+    ourChimericAccount
+        :: IsOurs s ChimericAccount
+        => (ChimericAccount, Coin)
+        -> State s (Maybe Natural)
+    ourChimericAccount (acct, Coin c) =
+        state (isOurs acct) <&> \case
+            False -> Nothing
+            True -> Just $ fromIntegral c
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -369,7 +377,7 @@ prefilterBlock b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: IsOurs s Address
+        :: (IsOurs s Address, IsOurs s ChimericAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -377,8 +385,9 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        let withdrawalAmt = sum $ map (fromIntegral . getCoin) $ Map.elems $ withdrawals tx
-        let received = fromIntegral @_ @Integer $ (withdrawalAmt + balance ourU)
+        ourWithdrawals <- mapMaybeM ourChimericAccount $ Map.toList $ withdrawals tx
+        let received =
+                fromIntegral @_ @Integer $ (sum ourWithdrawals) + balance ourU
         let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
         let amt = fromIntegral $ abs (received - spent)
         let hasKnownInput = ourIns /= mempty
