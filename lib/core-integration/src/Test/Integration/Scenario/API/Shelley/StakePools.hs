@@ -607,11 +607,12 @@ spec = do
             eventually "pools have the correct retirement information" $ do
                 response <- listPools ctx arbitraryStake
                 expectResponseCode HTTP.status200 response
+
                 let actualRetirementEpochs = response
                         & snd
                         & either (error . show) Prelude.id
                         & fmap (view #retirement)
-                        & fmap (fmap (getApiT . view #epochNumber))
+                        & fmap (fmap (view (#epochNumber . #getApiT)))
                         & Set.fromList
                 actualRetirementEpochs `shouldBe` expectedRetirementEpochs
 
