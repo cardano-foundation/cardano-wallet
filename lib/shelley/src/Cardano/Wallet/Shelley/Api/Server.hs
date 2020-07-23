@@ -193,14 +193,9 @@ server byron icarus shelley spl ntp =
                 ]
 
         )
-        :<|>
-            joinStakePool shelley np
-                (knownPools spl)
-                (getPoolLifeCycleStatus spl)
+        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
-      where
-        (_, np, _) = icarus ^. genesisData
 
     byronWallets :: Server ByronWallets
     byronWallets =

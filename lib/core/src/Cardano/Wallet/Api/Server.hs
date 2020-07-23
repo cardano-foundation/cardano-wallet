@@ -1318,7 +1318,6 @@ joinStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> NetworkParameters
     -> IO [PoolId]
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -1327,7 +1326,7 @@ joinStakePool
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx np knownPools getPoolStatus apiPoolId (ApiT wid) body = do
+joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     pid <- case apiPoolId of
@@ -1335,14 +1334,14 @@ joinStakePool ctx np knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         ApiPoolId pid -> pure pid
 
     poolStatus <- liftIO (getPoolStatus pid)
-
     pools <- liftIO knownPools
+    currentEpoch <- getCurrentEpoch ctx
 
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
         \wrk -> liftHandler $
             W.joinStakePool
-                @_ @s @t @k wrk np
-                pools pid poolStatus wid (delegationAddress @n) pwd
+                @_ @s @t @k wrk
+                currentEpoch pools pid poolStatus wid (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti

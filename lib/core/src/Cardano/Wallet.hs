@@ -358,7 +358,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -385,7 +385,6 @@ import Statistics.Quantile
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
-import qualified Cardano.Wallet.Primitive.Slotting as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -1745,7 +1744,7 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         )
     => ctx
-    -> NetworkParameters
+    -> W.EpochNo
     -> [PoolId]
     -> PoolId
     -> PoolLifeCycleStatus
@@ -1753,7 +1752,7 @@ joinStakePool
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx np knownPools pid poolStatus wid argGenChange pwd =
+joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
     db & \DBLayer{..} -> do
 
         (isKeyReg, walMeta) <- mapExceptT atomically
@@ -1761,10 +1760,6 @@ joinStakePool ctx np knownPools pid poolStatus wid argGenChange pwd =
             $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
                   <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
-        currentTime <- liftIO getCurrentTime
-        let currentEpoch = view #epochNumber
-                $ fromMaybe W.slotMinBound
-                $ W.slotAt' sp currentTime
         let mRetirementEpoch = view #retiredIn <$>
                 W.getPoolRetirementCertificate poolStatus
         let retirementInfo =
@@ -1791,7 +1786,6 @@ joinStakePool ctx np knownPools pid poolStatus wid argGenChange pwd =
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
-    sp = W.slotParams (np ^. #genesisParameters)
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
