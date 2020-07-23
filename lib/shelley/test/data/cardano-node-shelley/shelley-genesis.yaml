@@ -42,7 +42,7 @@ genDelegs:
     vrf: 4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e
 updateQuorum: 5
 maxMajorPV: 25446
-maxLovelaceSupply: 45000000000000000
+maxLovelaceSupply: 1000000000000000000
 protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
