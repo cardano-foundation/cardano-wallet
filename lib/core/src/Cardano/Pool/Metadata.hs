@@ -133,7 +133,7 @@ fetchFromRemote
     -> StakePoolMetadataHash
     -> IO (Maybe StakePoolMetadata)
 fetchFromRemote tr builders manager url hash = runExceptTLog $ do
-    chunk <- fromFirst builders
+    chunk <- getChunk `fromFirst` builders
     when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
         , B8.unpack $ hex $ blake2b256 chunk
@@ -142,12 +142,6 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
         ]
     except $ eitherDecodeStrict chunk
   where
-    fromIOException :: Monad m => IOException -> m (Either String a)
-    fromIOException = return . Left . ("IO exception: " <>) . show
-
-    fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
-    fromHttpException = const (return $ Right Nothing)
-
     runExceptTLog
         :: ExceptT String IO StakePoolMetadata
         -> IO (Maybe StakePoolMetadata)
@@ -158,14 +152,26 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
         Right meta ->
             Just meta <$ traceWith tr (MsgFetchPoolMetadataSuccess hash meta)
 
-    -- Try each builder in order, but only if the previous builder led to a
-    -- "ConnectionFailure" exception. Other exceptions mean that we could
-    -- likely reach the server.
-    fromFirst (builder:rest) = do
+    -- Try each builder in order, but only if the previous builder led to an
+    -- IO exception. Other exceptions like HTTP exceptions are treated as
+    -- 'normal' responses from the an aggregation server and do not cause a
+    -- retry.
+    fromFirst _ [] =
+        throwE "Metadata server(s) didn't reply in a timely manner."
+    fromFirst action (builder:rest) = do
         uri <- withExceptT show $ except $ builder url hash
+        action uri >>= \case
+            Nothing -> do
+                liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
+                fromFirst action rest
+            Just chunk ->
+                pure chunk
+
+    getChunk :: URI -> ExceptT String IO (Maybe ByteString)
+    getChunk uri = do
         req <- requestFromURI uri
         liftIO $ traceWith tr $ MsgFetchPoolMetadata hash uri
-        mChunk <- ExceptT
+        ExceptT
             $ handle fromIOException
             $ handle fromHttpException
             $ withResponse req manager $ \res -> do
@@ -190,13 +196,12 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
 
                 s -> do
                     pure $ Left $ "The server replied something unexpected: " <> show s
-        case mChunk of
-            Nothing -> do
-                liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
-                fromFirst rest
-            Just chunk -> pure chunk
-    fromFirst [] =
-        throwE "Metadata server(s) didn't reply in a timely manner."
+
+    fromIOException :: Monad m => IOException -> m (Either String a)
+    fromIOException = return . Left . ("IO exception: " <>) . show
+
+    fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
+    fromHttpException = const (return $ Right Nothing)
 
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI
