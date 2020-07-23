@@ -90,10 +90,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
-import Debug.Trace
-    ( trace )
 import Fmt
-    ( Buildable (..), pretty, (+||), (||+) )
+    ( Buildable (..), (+||), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
