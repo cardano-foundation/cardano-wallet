@@ -72,10 +72,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Coin (..)
+    , EpochLength (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , NetworkParameters (..)
     , PoolId (..)
     , ProtocolMagic (..)
+    , SlotLength (..)
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
@@ -128,7 +131,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime, getCurrentTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.TypeLits
@@ -417,7 +420,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
 
             traceWith tr MsgForkCartouche
             updateVersion tr dir
-            waitForHardFork bftSocket 2 *> onFork runningBftNode
+            waitForHardFork bftSocket (fst params) 2 *> onFork runningBftNode
 
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
@@ -475,13 +478,14 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
-waitForHardFork :: FilePath -> Int -> IO ()
-waitForHardFork _socket epoch = do
-    threadDelay (slotDur * k * 10 * epoch + fuzz)
+waitForHardFork :: FilePath -> NetworkParameters -> Int -> IO ()
+waitForHardFork _socket np epoch = threadDelay (ceiling delay)
   where
-    -- TODO: DO NOT HARDCODE PARAMETERS HERE
-    slotDur = 250_000
-    k = 10
+    delay :: NominalDiffTime
+    delay = slotDur * fromIntegral epLen * fromIntegral epoch + fuzz
+    EpochLength epLen = getEpochLength (genesisParameters np)
+    SlotLength slotDur = getSlotLength (genesisParameters np)
+    -- add two seconds just to make sure.
     fuzz = 2_000_000
 
 -- | Configuration parameters which update the @node.config@ test data file.
