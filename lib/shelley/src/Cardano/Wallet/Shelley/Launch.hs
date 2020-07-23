@@ -480,14 +480,14 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
 waitForHardFork :: FilePath -> NetworkParameters -> Int -> IO ()
-waitForHardFork _socket np epoch = threadDelay (ceiling delay)
+waitForHardFork _socket np epoch = threadDelay (ceiling (1e6 * delay))
   where
     delay :: NominalDiffTime
     delay = slotDur * fromIntegral epLen * fromIntegral epoch + fuzz
     EpochLength epLen = getEpochLength (genesisParameters np)
     SlotLength slotDur = getSlotLength (genesisParameters np)
     -- add two seconds just to make sure.
-    fuzz = 2_000_000
+    fuzz = 2
 
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams
