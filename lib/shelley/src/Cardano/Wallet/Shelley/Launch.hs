@@ -774,8 +774,6 @@ genConfig dir severity systemStart = do
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
         >>= withAddedKey "ByronGenesisFile" byronGenesisFile
-        >>= withAddedKey "Protocol" ("Cardano"::String)
-        >>= withAddedKey "TestShelleyHardForkAtVersion" (1::Int)
         >>= withAddedKey "minSeverity" Debug
         >>= withObject (addMinSeverityStdout severity)
         >>= Yaml.encodeFile (dir </> "node.config")
