@@ -163,6 +163,7 @@ spec = do
 
         -- Earn rewards
         waitForNextEpoch ctx
+        waitForNextEpoch ctx
         (previousBalance, walletRewards) <-
             eventually "Wallet gets rewards" $ do
                 r <- request @ApiWallet ctx (Link.getWallet @'Shelley w)
@@ -425,6 +426,7 @@ spec = do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
+        waitForNextEpoch ctx
         waitForNextEpoch ctx
 
         -- Wait for money to flow

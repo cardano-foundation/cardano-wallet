@@ -615,12 +615,19 @@ eventuallyUsingDelay
     -> IO a
 eventuallyUsingDelay delay desc io = do
     lastErrorRef <- newIORef Nothing
-    winner <- race (threadDelay $ 300 * oneSecond) (trial lastErrorRef)
+    -- NOTE
+    -- This __90s__ is mostly justified by the parameters in the shelley
+    -- genesis. The longest action we have two wait for are about 2 epochs,
+    -- which corresponds to 80s with the current parameters. Using something
+    -- much longer than that isn't really useful (in particular, this doesn't
+    -- depend on the host machine running the test, because the protocol moves
+    -- forward at the same speed regardless...)
+    winner <- race (threadDelay $ 90 * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
             lastError <- readIORef lastErrorRef
             fail $ mconcat
-                [ "Waited longer than 5 minutes for action to resolve. "
+                [ "Waited longer than 2 minutes for an action to resolve. "
                 , "Action: "
                 , show desc
                 , ". Error condition: "
