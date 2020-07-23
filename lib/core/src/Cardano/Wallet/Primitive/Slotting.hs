@@ -35,13 +35,15 @@ module Cardano.Wallet.Primitive.Slotting
     , MyInterpreter(..)
     , Qry
 
-      -- * Legacy api
+    -- ** Helpers
     , unsafeEpochNo
-    , epochStartTime
     , epochPred
     , epochSucc
+
+      -- * Legacy api - Inaccurate with cardano-node, okay with Jörmungandr
     , SlotParameters (..)
     , slotParams
+    , epochStartTime
     , flatSlot
     , fromFlatSlot
     , slotStartTime

@@ -255,12 +255,9 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
-    , epochStartTime
     , epochSucc
     , firstSlotInEpoch
-    , slotAt'
-    , slotMinBound
-    , slotParams
+    , ongoingSlotAt
     , startTime
     , toSlotId
     )
@@ -1519,23 +1516,21 @@ getNetworkInformation
     => (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
-getNetworkInformation (_block0, np, st) nl = do
+getNetworkInformation (_block0, _, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
-    let ntrkTip = fromMaybe slotMinBound (slotAt' sp now)
-    -- TODO(ADP-356): We need to retrieve the network tip using a different API,
-    -- AND it may not be availible.
-    --
-    -- We should mark it optional.
+    ntrkTipSlot <- fromMaybe minBound <$> liftIO (ti $ ongoingSlotAt now)
+    ntrkTip <- liftIO $ ti $ toSlotId ntrkTipSlot
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
+    nextEpochStart <- liftIO $ ti (firstSlotInEpoch nextEpochNo >>= startTime)
     progress <- liftIO $ syncProgress st ti nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
         , Api.nextEpoch =
             ApiEpochInfo
                 (ApiT nextEpochNo)
-                (epochStartTime sp nextEpochNo)
+                nextEpochStart
         , Api.nodeTip = apiNodeTip
         , Api.networkTip =
             ApiNetworkTip
@@ -1546,7 +1541,6 @@ getNetworkInformation (_block0, np, st) nl = do
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter nl
-    sp = slotParams (np ^. #genesisParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
