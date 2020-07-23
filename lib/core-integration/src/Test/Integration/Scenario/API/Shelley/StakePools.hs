@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
+    , ApiWalletDelegationStatus (..)
     , ApiWithdrawRewards (..)
     , DecodeAddress
     , DecodeStakeAddress
@@ -88,7 +89,6 @@ import Test.Integration.Framework.DSL
     , joinStakePool
     , json
     , listAddresses
-    , mkEpochInfo
     , notDelegating
     , quitStakePool
     , request
@@ -347,7 +347,7 @@ spec = do
         w <- fixtureWallet ctx
 
         -- make sure we are at the beginning of new epoch
-        (currentEpoch, sp) <- getSlotParams ctx
+        (currentEpoch, _) <- getSlotParams ctx
         waitForNextEpoch ctx
 
         pool1:pool2:_ <- map (view #id) . snd
@@ -372,10 +372,17 @@ spec = do
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
-                [ expectField #delegation
-                    (`shouldBe` notDelegating
-                        [ (Just pool1, mkEpochInfo (currentEpoch + 3) sp)
-                        ]
+                [ expectField (#delegation . #next)
+                    (\case
+                        [dlg] -> do
+                            (dlg ^. #status) `shouldBe`
+                                Delegating
+                            (dlg ^. #target) `shouldBe`
+                                Just pool1
+                            (view #epochNumber <$> dlg ^. #changesAt) `shouldBe`
+                                Just (ApiT $ currentEpoch + 3)
+                        _ ->
+                            fail "next delegation should contain exactly one element"
                     )
                 ]
         eventually "Wallet is delegating to p1" $ do
