@@ -615,9 +615,8 @@ spec = do
                         .
                         view #retirement
 
-                let actualRetirementEpochs = response
-                        & snd
-                        & either (error . show) Prelude.id
+                let actualRetirementEpochs =
+                        getFromResponse Prelude.id response
                         & fmap getRetirementEpoch
                         & Set.fromList
                 actualRetirementEpochs `shouldBe` expectedRetirementEpochs
