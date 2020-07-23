@@ -1179,6 +1179,7 @@ postTransaction
         , GenChange s
         , HasNetworkLayer t ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , ctx ~ ApiLayer s t k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -1313,6 +1314,7 @@ joinStakePool
         , s ~ SeqState n k
         , IsOwned s k
         , GenChange s
+        , HasRewardAccount (SeqState n k) k
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
@@ -1375,6 +1377,7 @@ quitStakePool
         , GenChange s
         , HasNetworkLayer t ctx
         , HardDerivation k
+        , HasRewardAccount (SeqState n k) k
         , AddressIndexDerivationType k ~ 'Soft
         , ctx ~ ApiLayer s t k
         )
@@ -1433,6 +1436,7 @@ migrateWallet
     :: forall s t k n p.
         ( IsOwned s k
         , HardDerivation k
+        , IsOurs s ChimericAccount
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ApiLayer s t k

@@ -357,6 +357,8 @@ import Data.List
     ( scanl' )
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -388,7 +390,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1393,6 +1395,7 @@ signPayment
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -1419,7 +1422,7 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs'
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' cs'
+            (time, meta) <- liftIO $ mkTxMeta ti (tx ^. #withdrawals) (currentTip cp) s' cs'
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1433,6 +1436,7 @@ signTx
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
+        , IsOurs s ChimericAccount
         , HasNetworkLayer t ctx
         , IsOwned s k
         , HardDerivation k
@@ -1457,7 +1461,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) cs
+            (time, meta) <- liftIO $ mkTxMeta ti (tx ^. #withdrawals) (currentTip cp) (getState cp) cs
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1519,6 +1523,7 @@ signDelegation
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -1568,7 +1573,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                             coinSel'
 
             (time, meta) <- liftIO $
-                mkTxMeta ti (currentTip cp) s' coinSel'
+                mkTxMeta ti (tx ^. #withdrawals) (currentTip cp) s' coinSel'
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1580,20 +1585,24 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
 mkTxMeta
-    :: (IsOurs s Address, Monad m)
+    :: forall s m.
+       ( IsOurs s Address
+       , IsOurs s ChimericAccount
+       , Monad m
+       )
     => TimeInterpreter m
+    -> Map ChimericAccount Coin
     -> BlockHeader
     -> s
     -> CoinSelection
     -> m (UTCTime, TxMeta)
-mkTxMeta interpretTime blockHeader wState cs =
+mkTxMeta interpretTime chimericAccts blockHeader wState cs =
     let
         amtOuts =
-            sum (mapMaybe ourCoins (outputs cs))
+            sum (mapMaybe ourCoins (outputs cs) ++ possibleWithdrawals)
 
         amtInps = fromIntegral $
             sum (getCoin . coin . snd <$> (inputs cs))
-            + withdrawal cs
             + reclaim cs
     in do
         t <- slotStartTime' (blockHeader ^. #slotNo)
@@ -1614,6 +1623,10 @@ mkTxMeta interpretTime blockHeader wState cs =
         if fst (isOurs addr wState)
         then Just (fromIntegral val)
         else Nothing
+    possibleWithdrawals =
+        map (fromIntegral . getCoin) $
+        Map.elems $
+        Map.filterWithKey (\chAcct _ -> fst $ isOurs chAcct wState) chimericAccts
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
@@ -1739,6 +1752,7 @@ joinStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -1795,6 +1809,7 @@ quitStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
