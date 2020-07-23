@@ -680,9 +680,17 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
-    -- TODO(ADP-356): This may fail when we are running Byron-Shelley.
-    -- According to Edsko we can know the start time of the next epoch,
-    -- but nothing beyond that.
+    -- This may fail
+    -- 1. In Byron when running Byron;Shelley
+    -- 2. In Shelley when running Byron;Shelley;SomethingElse
+    --
+    -- But:
+    -- 1. We should never see a delegation certificate in Byron (unless under
+    -- very intricate and rare conditions involving roll-backs and
+    -- raceconditions right at the fork?)
+    -- 2. We are currently only targeting Byron;Shelley.
+    --
+    -- so it shouldn't be a problem.
     toApiEpochInfo ep = do
         time <- ti (firstSlotInEpoch ep >>= startTime)
         return $ ApiEpochInfo (ApiT ep) time
