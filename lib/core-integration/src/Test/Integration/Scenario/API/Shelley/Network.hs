@@ -47,6 +47,6 @@ spec = do
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
-            , expectField (#minimumUtxoValue) (`shouldBe` minUtxoValue)
+            , expectField (#minimumUtxoValue) (`shouldBe` (Quantity minUTxOValue))
             , expectField (#hardforkAt) (`shouldNotBe` Nothing)
             ]

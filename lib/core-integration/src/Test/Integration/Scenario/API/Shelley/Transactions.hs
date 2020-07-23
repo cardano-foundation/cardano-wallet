@@ -132,6 +132,7 @@ import Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
+    , errMsg404MinUTxOValue
     , errMsg404NoWallet
     )
 import Web.HttpApiData
@@ -157,6 +158,52 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
 spec = do
+    it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $ \ctx -> do
+      wSrc <- fixtureWallet ctx
+      wDest <- emptyWallet ctx
+
+      let amt = minUTxOValue  - 1
+      addrs <- listAddresses @n ctx wDest
+      let destination = (addrs !! 1) ^. #id
+      let payload = Json [json|{
+              "payments": [{
+                  "address": #{destination},
+                  "amount": {
+                      "quantity": #{amt},
+                      "unit": "lovelace"
+                  }
+              }],
+              "passphrase": #{fixturePassphrase}
+          }|]
+
+      let ep = Link.createTransaction @'Shelley
+      r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
+      expectResponseCode HTTP.status403 r
+      expectErrorMessage (errMsg404MinUTxOValue minUTxOValue) r
+
+    it "TRANS_MIN_UTXO_02 - I cannot leave less than minUTxOValue" $ \ctx -> do
+      wSrc <- fixtureWalletWith @n ctx [3 * minUTxOValue]
+      wDest <- emptyWallet ctx
+
+      let amt = (2 * minUTxOValue) - 1
+      addrs <- listAddresses @n ctx wDest
+      let destination = (addrs !! 1) ^. #id
+      let payload = Json [json|{
+              "payments": [{
+                  "address": #{destination},
+                  "amount": {
+                      "quantity": #{amt},
+                      "unit": "lovelace"
+                  }
+              }],
+              "passphrase": #{fixturePassphrase}
+          }|]
+
+      let ep = Link.createTransaction @'Shelley
+      r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
+      expectResponseCode HTTP.status403 r
+      expectErrorMessage (errMsg404MinUTxOValue minUTxOValue) r
+
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
         \ while both, pending and in_ledger" $ \ctx -> do
