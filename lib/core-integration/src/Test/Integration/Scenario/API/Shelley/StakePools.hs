@@ -16,8 +16,7 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiEpochInfo (..)
-    , ApiStakePool
+    ( ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
@@ -36,7 +35,6 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
-    , EpochNo (..)
     , PoolId (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
@@ -46,6 +44,8 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -597,21 +597,23 @@ spec = do
                     ]
 
         it "pools have the correct retirement information" $ \ctx -> do
-            eventually "pools have the correct retirement information" $ do
-                r <- listPools ctx arbitraryStake
-                expectResponseCode HTTP.status200 r
-                let retirementEpochIs n = \case
-                        Nothing -> False
-                        Just ei -> epochNumber ei == ApiT (EpochNo n)
-                verify r
-                    [ expectListSize 3
-                    , expectListField 0 #retirement
-                        (`shouldBe` Nothing)
-                    , expectListField 1 #retirement
-                        (`shouldSatisfy` retirementEpochIs 1_000)
-                    , expectListField 2 #retirement
-                        (`shouldSatisfy` retirementEpochIs 1_000_000)
+
+            let expectedRetirementEpochs = Set.fromList
+                    [ Nothing
+                    , Just 1_000
+                    , Just 1_000_000
                     ]
+
+            eventually "pools have the correct retirement information" $ do
+                response <- listPools ctx arbitraryStake
+                expectResponseCode HTTP.status200 response
+                let actualRetirementEpochs = response
+                        & snd
+                        & either (error . show) Prelude.id
+                        & fmap (view #retirement)
+                        & fmap (fmap (getApiT . view #epochNumber))
+                        & Set.fromList
+                actualRetirementEpochs `shouldBe` expectedRetirementEpochs
 
         it "eventually has correct margin, cost and pledge" $ \ctx -> do
             eventually "pool worker finds the certificate" $ do
