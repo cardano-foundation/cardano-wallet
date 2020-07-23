@@ -421,7 +421,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
 
             traceWith tr MsgForkCartouche
             updateVersion tr dir
-            waitForHardFork bftSocket (fst params) 2 *> onFork runningBftNode
+            waitForHardFork bftSocket (fst params) 1 *> onFork runningBftNode
 
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir

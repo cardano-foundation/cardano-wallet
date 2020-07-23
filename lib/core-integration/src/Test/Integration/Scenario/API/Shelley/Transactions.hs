@@ -55,7 +55,7 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -163,7 +163,6 @@ spec = do
 
     it "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response" $ \ctx -> do
-        pendingWith "Currently failing. Cause is unknown."
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
 
@@ -640,10 +639,6 @@ spec = do
     -- +---+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> do
-        pendingWith
-            "Currently failing because of some inconsistency with the insertion \
-            \times returned by the API and the real insertion times. There's a \
-            \small diff of 2-3 seconds for which I couldn't yet find the cause."
         let a1 = Quantity $ sum $ replicate 10 1
         let a2 = Quantity $ sum $ replicate 10 2
         w <- fixtureWalletWith @n ctx $ mconcat
@@ -971,7 +966,6 @@ spec = do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
-              pendingWith "see TRANS_LIST_02,03x"
               w <- fixtureWalletWith @n ctx [1]
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
@@ -984,7 +978,6 @@ spec = do
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
           \ctx -> do
-              pendingWith "see TRANS_LIST_02,03x"
               w <- fixtureWalletWith @n ctx [1]
               t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let tl = utcTimeSucc t
