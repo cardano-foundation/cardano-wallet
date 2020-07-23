@@ -84,6 +84,7 @@ module Cardano.Wallet.Api.Server
     , rndStateChange
     , assignMigrationAddresses
     , withWorkerCtx
+    , getCurrentEpoch
 
     -- * Workers
     , manageRewardBalance
@@ -406,6 +407,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -1500,6 +1502,19 @@ assignMigrationAddresses addrs selections =
                                     Network
 -------------------------------------------------------------------------------}
 
+data ErrCurrentEpoch = ErrUnableToDetermineCurrentEpoch
+
+getCurrentEpoch
+    :: forall ctx s t k . (ctx ~ ApiLayer s t k)
+    => ctx
+    -> Handler W.EpochNo
+getCurrentEpoch ctx =
+    liftIO (S.currentEpoch ti) >>=
+        maybe (liftE ErrUnableToDetermineCurrentEpoch) pure
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
+
 getNetworkInformation
     :: forall t. ()
     => (Block, NetworkParameters, SyncTolerance)
@@ -1884,6 +1899,12 @@ newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrCurrentEpoch where
+    handler = \case
+        ErrUnableToDetermineCurrentEpoch ->
+            apiError err500 UnableToDetermineCurrentEpoch
+                "I'm unable to determine the current epoch."
 
 instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
     handler = \case
