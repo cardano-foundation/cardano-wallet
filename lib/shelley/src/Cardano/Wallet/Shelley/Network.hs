@@ -53,7 +53,7 @@ import Cardano.Wallet.Network
     , mapCursor
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpreterFromGenesis, mkTimeInterpreter )
+    ( TimeInterpreter, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
@@ -71,7 +71,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , unsealShelleyTx
     )
 import Control.Concurrent
-    ( ThreadId )
+    ( MVar, ThreadId, newEmptyMVar, putMVar, readMVar )
 import Control.Concurrent.Async
     ( Async, async, asyncThreadId, cancel, link )
 import Control.Concurrent.Chan
@@ -326,12 +326,12 @@ withNetworkLayer tr np addrInfo versionData action = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-        interpreterVar <- atomically $ newTVar Nothing
+        interpreterVar <- newEmptyMVar
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
             (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
-            (atomically . writeTVar interpreterVar . Just)
+            (putMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
         pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
 
@@ -465,14 +465,10 @@ withNetworkLayer tr np addrInfo versionData action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-    _timeInterpreterQuery
-        :: HasCallStack
-        => TVar IO (Maybe (CardanoInterpreter sc))
-        -> TimeInterpreter IO
+    _timeInterpreterQuery :: HasCallStack => MVar (CardanoInterpreter sc) -> TimeInterpreter IO
     _timeInterpreterQuery var query = do
-        cached <- atomically (readTVar var)
-        let interpret = maybe (interpreterFromGenesis gp)
-                (mkTimeInterpreter getGenesisBlockDate) cached
+        cached <- readMVar var
+        let interpret = (mkTimeInterpreter getGenesisBlockDate) cached
         case interpret query of
             Right res -> pure res
             Left e -> do
