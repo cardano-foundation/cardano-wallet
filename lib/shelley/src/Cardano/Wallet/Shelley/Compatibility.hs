@@ -55,7 +55,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
-    , toCardanoStakeAddress
     , fromShelleyTx
 
       -- ** Stake pools
@@ -839,12 +838,6 @@ toCardanoStakeCredential = Cardano.StakeCredentialByKey
     . SL.KeyHash
     . UnsafeHash
     . SBS.toShort
-    . W.unChimericAccount
-
-toCardanoStakeAddress :: W.ChimericAccount -> Cardano.StakeAddress
-toCardanoStakeAddress =
-    fromMaybe (error "toCardanStakeAddress: malformed address")
-    . deserialiseFromRawBytes AsStakeAddress
     . W.unChimericAccount
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
