@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
+    , EpochNo (..)
     , PoolId (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
@@ -608,11 +609,16 @@ spec = do
                 response <- listPools ctx arbitraryStake
                 expectResponseCode HTTP.status200 response
 
+                let getRetirementEpoch :: ApiStakePool -> Maybe EpochNo
+                    getRetirementEpoch =
+                        fmap (view (#epochNumber . #getApiT))
+                        .
+                        view #retirement
+
                 let actualRetirementEpochs = response
                         & snd
                         & either (error . show) Prelude.id
-                        & fmap (view #retirement)
-                        & fmap (fmap (view (#epochNumber . #getApiT)))
+                        & fmap getRetirementEpoch
                         & Set.fromList
                 actualRetirementEpochs `shouldBe` expectedRetirementEpochs
 
