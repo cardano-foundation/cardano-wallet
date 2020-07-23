@@ -649,6 +649,7 @@ data ApiErrorCode
     | MethodNotAllowed
     | NotAcceptable
     | StartTimeLaterThanEndTime
+    | UnableToDetermineCurrentEpoch
     | UnsupportedMediaType
     | UnexpectedError
     | NotSynced

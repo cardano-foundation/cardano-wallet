@@ -114,6 +114,7 @@ module Cardano.Wallet
     , ErrSelectForMigration (..)
 
     -- ** Delegation
+    , PoolRetirementEpochInfo (..)
     , joinStakePool
     , quitStakePool
     , selectCoinsForDelegation
@@ -277,6 +278,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId (..)
+    , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
     , SealedTx
@@ -1742,33 +1744,45 @@ joinStakePool
         , AddressIndexDerivationType k ~ 'Soft
         )
     => ctx
+    -> W.EpochNo
+    -> [PoolId]
+    -> PoolId
+    -> PoolLifeCycleStatus
     -> WalletId
-    -> (PoolId, [PoolId])
     -> ArgGenChange s
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx wid (pid, pools) argGenChange pwd = db & \DBLayer{..} -> do
-    (isKeyReg, walMeta) <- mapExceptT atomically
-        $ withExceptT ErrJoinStakePoolNoSuchWallet
-        $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
-              <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
+joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
+    db & \DBLayer{..} -> do
 
-    withExceptT ErrJoinStakePoolCannotJoin $ except $
-        guardJoin pools (walMeta ^. #delegation) pid
+        (isKeyReg, walMeta) <- mapExceptT atomically
+            $ withExceptT ErrJoinStakePoolNoSuchWallet
+            $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
+                  <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
-    let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
-    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+        let mRetirementEpoch = view #retiredIn <$>
+                W.getPoolRetirementCertificate poolStatus
+        let retirementInfo =
+                PoolRetirementEpochInfo currentEpoch <$> mRetirementEpoch
 
-    selection <- withExceptT ErrJoinStakePoolSelectCoin $
-        selectCoinsForDelegation @ctx @s @t @k ctx wid action
+        withExceptT ErrJoinStakePoolCannotJoin $ except $
+            guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
 
-    (tx, txMeta, txTime, sealedTx) <- withExceptT ErrJoinStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection action
+        let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
+        liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
-    withExceptT ErrJoinStakePoolSubmitTx $
-        submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+        selection <- withExceptT ErrJoinStakePoolSelectCoin $
+            selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
-    pure (tx, txMeta, txTime)
+        (tx, txMeta, txTime, sealedTx) <-
+            withExceptT ErrJoinStakePoolSignDelegation $
+                signDelegation
+                    @ctx @s @t @k ctx wid argGenChange pwd selection action
+
+        withExceptT ErrJoinStakePoolSubmitTx $
+            submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
+
+        pure (tx, txMeta, txTime)
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
@@ -2156,20 +2170,37 @@ withNoSuchWallet
 withNoSuchWallet wid =
     maybeToExceptT (ErrNoSuchWallet wid) . MaybeT
 
+data PoolRetirementEpochInfo = PoolRetirementEpochInfo
+    { currentEpoch
+        :: W.EpochNo
+        -- ^ The current epoch.
+    , retirementEpoch
+        :: W.EpochNo
+        -- ^ The retirement epoch of a pool.
+    }
+    deriving (Eq, Generic, Show)
+
 guardJoin
     :: [PoolId]
     -> WalletDelegation
     -> PoolId
+    -> Maybe PoolRetirementEpochInfo
     -> Either ErrCannotJoin ()
-guardJoin knownPools WalletDelegation{active,next} pid = do
+guardJoin knownPools delegation pid mRetirementEpochInfo = do
     when (pid `notElem` knownPools) $
         Left (ErrNoSuchPool pid)
+
+    forM_ mRetirementEpochInfo $ \info ->
+        when (currentEpoch info >= retirementEpoch info) $
+            Left (ErrNoSuchPool pid)
 
     when ((null next) && isDelegatingTo (== pid) active) $
         Left (ErrAlreadyDelegating pid)
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $
         Left (ErrAlreadyDelegating pid)
+  where
+    WalletDelegation {active, next} = delegation
 
 guardQuit
     :: WalletDelegation

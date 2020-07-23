@@ -154,8 +154,10 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
+    , checkCoverage
     , choose
     , counterexample
+    , cover
     , elements
     , label
     , oneof
@@ -239,43 +241,50 @@ spec = do
             (property prop_guardQuitJoin)
 
     describe "Join/Quit Stake pool unit tests" $ do
+        let noRetirementPlanned = Nothing
         it "Cannot join A, when active = A" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}
-            W.guardJoin knownPools dlg pidA
+            W.guardJoin knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Cannot join A, when next = [A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
-            W.guardJoin knownPools dlg pidA
+            W.guardJoin knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Can join A, when active = A, next = [B]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
-            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
-            W.guardJoin knownPools dlg pidA `shouldBe` Right ()
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1]}
+            W.guardJoin knownPools dlg pidA noRetirementPlanned
+                `shouldBe` Right ()
         it "Cannot join A, when active = A, next = [B, A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            W.guardJoin knownPools dlg pidA
+            W.guardJoin knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
         it "Cannot join when pool is unknown" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardJoin knownPools dlg pidUnknown
+            W.guardJoin knownPools dlg pidUnknown noRetirementPlanned
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [not_delegating]" $ do
             let next1 = next (EpochNo 1) NotDelegating
-            let dlg = WalletDelegation {active = Delegating pidA, next = [next1]}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1]}
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [B, not_delegating]" $ do
             let next1 = next (EpochNo 1) (Delegating pidB)
             let next2 = next (EpochNo 2) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            W.guardQuit dlg (Quantity 0) `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
+            W.guardQuit dlg (Quantity 0)
+                `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Can quit when active: not_delegating, next = [A]" $ do
             let next1 = next (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation
@@ -289,7 +298,6 @@ spec = do
          next epoch dlgStatus =
              WalletDelegationNext {changesAt = epoch, status = dlgStatus}
 
-
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
@@ -298,16 +306,35 @@ prop_guardJoinQuit
     :: [PoolId]
     -> WalletDelegation
     -> PoolId
+    -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPools dlg pid =
-    case W.guardJoin knownPools dlg pid of
+prop_guardJoinQuit knownPools dlg pid mRetirementInfo = checkCoverage
+    $ cover 10 retirementNotPlanned
+        "retirementNotPlanned"
+    $ cover 10 retirementPlanned
+        "retirementPlanned"
+    $ cover 10 alreadyRetired
+        "alreadyRetired"
+    $ case W.guardJoin knownPools dlg pid mRetirementInfo of
         Right () ->
-            label "I can join" $ property True
-        Left W.ErrNoSuchPool{}  ->
+            label "I can join" $ property $
+                alreadyRetired `shouldBe` False
+        Left W.ErrNoSuchPool{} ->
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"
                 (W.guardQuit dlg (Quantity 0) === Right ())
+  where
+    retirementNotPlanned =
+        isNothing mRetirementInfo
+    retirementPlanned =
+        (Just True ==) $ do
+            info <- mRetirementInfo
+            pure $ W.currentEpoch info < W.retirementEpoch info
+    alreadyRetired =
+        (Just True ==) $ do
+            info <- mRetirementInfo
+            pure $ W.currentEpoch info >= W.retirementEpoch info
 
 prop_guardQuitJoin
     :: NonEmptyList PoolId
@@ -315,12 +342,14 @@ prop_guardQuitJoin
     -> Word64
     -> Property
 prop_guardQuitJoin (NonEmpty knownPools) dlg rewards =
+    let noRetirementPlanned = Nothing in
     case W.guardQuit dlg (Quantity rewards) of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
-            label "ErrNotDelegatingOrAboutTo"
-                (W.guardJoin knownPools dlg (last knownPools) === Right ())
+            label "ErrNotDelegatingOrAboutTo" $
+                W.guardJoin knownPools dlg (last knownPools) noRetirementPlanned
+                    === Right ()
         Left W.ErrNonNullRewards{} ->
             label "ErrNonNullRewards"
                 (property $ rewards /= 0)
@@ -611,6 +640,10 @@ instance Arbitrary WalletDelegationNext where
 
 instance Arbitrary PoolId where
     arbitrary = pure $ PoolId "a"
+
+instance Arbitrary W.PoolRetirementEpochInfo where
+    arbitrary = W.PoolRetirementEpochInfo <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo

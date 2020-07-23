@@ -82,6 +82,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , ProtocolParameters
@@ -155,7 +156,11 @@ data Block = Block
 -- | @StakePoolLayer@ is a thin layer ontop of the DB. It is /one/ value that
 -- can easily be passed to the API-server, where it can be used in a simple way.
 data StakePoolLayer e m = StakePoolLayer
-    { listStakePools
+    { getPoolLifeCycleStatus
+        :: PoolId
+        -> IO PoolLifeCycleStatus
+
+    , listStakePools
         :: ExceptT e m [(StakePool, Maybe StakePoolMetadata)]
 
     , knownStakePools
@@ -280,7 +285,9 @@ newStakePoolLayer
     -- it does not exist.
     -> StakePoolLayer ErrListStakePools IO
 newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolLayer
-    { listStakePools = do
+    { getPoolLifeCycleStatus =
+        liftIO . atomically . readPoolLifeCycleStatus
+    , listStakePools = do
         lift $ traceWith tr MsgListStakePoolsBegin
         stakePools <- sortKnownPools
         meta <- lift $ findMetadata (map (first (^. #poolId)) stakePools)

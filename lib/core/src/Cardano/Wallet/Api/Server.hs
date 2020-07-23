@@ -84,6 +84,7 @@ module Cardano.Wallet.Api.Server
     , rndStateChange
     , assignMigrationAddresses
     , withWorkerCtx
+    , getCurrentEpoch
 
     -- * Workers
     , manageRewardBalance
@@ -276,6 +277,7 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -405,6 +407,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -1318,21 +1321,27 @@ joinStakePool
     -> IO [PoolId]
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
+    -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiPoolId
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-joinStakePool ctx knownPools apiPoolId (ApiT wid) body = do
+joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
     pid <- case apiPoolId of
         ApiPoolIdPlaceholder -> liftE ErrUnexpectedPoolIdPlaceholder
         ApiPoolId pid -> pure pid
 
+    poolStatus <- liftIO (getPoolStatus pid)
     pools <- liftIO knownPools
+    currentEpoch <- getCurrentEpoch ctx
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.joinStakePool @_ @s @t @k wrk wid (pid, pools) (delegationAddress @n) pwd
+    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
+        \wrk -> liftHandler $
+            W.joinStakePool
+                @_ @s @t @k wrk
+                currentEpoch pools pid poolStatus wid (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti
@@ -1491,6 +1500,19 @@ assignMigrationAddresses addrs selections =
 {-------------------------------------------------------------------------------
                                     Network
 -------------------------------------------------------------------------------}
+
+data ErrCurrentEpoch = ErrUnableToDetermineCurrentEpoch
+
+getCurrentEpoch
+    :: forall ctx s t k . (ctx ~ ApiLayer s t k)
+    => ctx
+    -> Handler W.EpochNo
+getCurrentEpoch ctx =
+    liftIO (S.currentEpoch ti) >>=
+        maybe (liftE ErrUnableToDetermineCurrentEpoch) pure
+  where
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getNetworkInformation
     :: forall t. ()
@@ -1877,6 +1899,12 @@ newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
 showT :: Show a => a -> Text
 showT = T.pack . show
 
+instance LiftHandler ErrCurrentEpoch where
+    handler = \case
+        ErrUnableToDetermineCurrentEpoch ->
+            apiError err500 UnableToDetermineCurrentEpoch
+                "I'm unable to determine the current epoch."
+
 instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
     handler = \case
         ErrUnexpectedPoolIdPlaceholder ->
@@ -2239,8 +2267,8 @@ instance LiftHandler ErrJoinStakePool where
                 apiError err403 PoolAlreadyJoined $ mconcat
                     [ "I couldn't join a stake pool with the given id: "
                     , toText pid
-                    , ". I have already joined this pool; joining again would incur"
-                    , " an unnecessary fee!"
+                    , ". I have already joined this pool;"
+                    , " joining again would incur an unnecessary fee!"
                     ]
             ErrNoSuchPool pid ->
                 apiError err404 NoSuchPool $ mconcat

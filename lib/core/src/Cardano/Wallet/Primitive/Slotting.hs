@@ -17,7 +17,9 @@
 module Cardano.Wallet.Primitive.Slotting
     ( -- * New api using ouroboros-concensus
       -- ** Queries
-      epochOf
+      currentEpoch
+    , epochAt
+    , epochOf
     , startTime
     , toSlotId
     , slotRangeFromTimeRange
@@ -65,7 +67,9 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Control.Monad
-    ( ap, liftM )
+    ( ap, liftM, (<=<) )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
@@ -75,7 +79,7 @@ import Data.Maybe
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
 import GHC.Generics
@@ -100,6 +104,12 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 --
 -- Queries
 --
+
+currentEpoch :: MonadIO m => TimeInterpreter m -> m (Maybe EpochNo)
+currentEpoch ti = ti . epochAt =<< liftIO getCurrentTime
+
+epochAt :: UTCTime -> Qry (Maybe EpochNo)
+epochAt = traverse epochOf <=< ongoingSlotAt
 
 epochOf :: Cardano.SlotNo -> Qry EpochNo
 epochOf slot = epochNumber <$> toSlotId slot

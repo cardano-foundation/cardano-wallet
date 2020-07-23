@@ -181,7 +181,10 @@ server byron icarus jormungandr spl ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools = (listPools spl)
-        :<|> joinStakePool jormungandr (knownStakePools spl)
+        :<|>
+            joinStakePool jormungandr
+                (knownStakePools spl)
+                (getPoolLifeCycleStatus spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
 
