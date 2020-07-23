@@ -226,16 +226,14 @@ spec = do
 
         -- can use rewards with special transaction query param
         -- (ApiWithdrawRewards True)
-        let totalAmtWithoutFee = Quantity $ coin + (getQuantity walletRewards)
-
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
             Default (Json payload)
         verify rTx
-            [ expectField #amount (.> totalAmtWithoutFee)
+            [ expectField #amount (.> (Quantity coin))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
-        --let totalAmt = getFromResponse #amount rTx
+        let totalAmt = getFromResponse #amount rTx
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
@@ -257,7 +255,7 @@ spec = do
             verify rWithdrawal
                 [ expectResponseCode HTTP.status200
                 , expectField #withdrawals (`shouldSatisfy` (not . null))
-            --    , expectField #amount (`shouldBe` totalAmt)
+                , expectField #amount (`shouldBe` totalAmt)
                 ]
             rw2 <- request @[ApiTransaction n] ctx
                 (Link.listTransactions' @'Shelley w (Just 1)
