@@ -22,9 +22,11 @@
 # 3. After pushing the image to the repo, the "latest" tags are updated.
 #
 #    - "inputoutput/cardano-wallet:latest" should point to the most
-#      recent VERSION-byron tag build.
+#      recent VERSION-shelley tag build.
 #    - "inputoutput/cardano-wallet:byron" should point to the most
 #      recent VERSION-byron tag build.
+#    - "inputoutput/cardano-wallet:shelley" should point to the most
+#      recent VERSION-shelley tag build.
 #    - "inputoutput/cardano-wallet:jormungandr" should point to the most
 #      recent VERSION-jormungandr tag build.
 #
@@ -78,7 +80,7 @@ in
     if [[ "$git_tag" =~ ^v20 ]]; then
       tags+=( "${image.imageTag}" )
       tags+=( "${image.backend}" )
-      ${optionalString (image.backend == "byron") ''
+      ${optionalString (image.backend == "shelley") ''
       tags+=( "latest" )
       ''}
     elif [[ "$git_branch" = master ]]; then
