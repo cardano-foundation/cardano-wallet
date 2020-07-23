@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
+    , SlotNo (..)
     , StartTime (..)
     , unsafeEpochNo
     , wholeRange
@@ -125,10 +126,10 @@ currentEpoch ti = ti . epochAt =<< liftIO getCurrentTime
 epochAt :: UTCTime -> Qry (Maybe EpochNo)
 epochAt = traverse epochOf <=< ongoingSlotAt
 
-epochOf :: Cardano.SlotNo -> Qry EpochNo
+epochOf :: SlotNo -> Qry EpochNo
 epochOf slot = epochNumber <$> toSlotId slot
 
-toSlotId :: Cardano.SlotNo -> Qry SlotId
+toSlotId :: SlotNo -> Qry SlotId
 toSlotId slot = HardForkQry $ do
     (e, s, _) <- HF.slotToEpoch slot
     return $ SlotId
@@ -138,13 +139,13 @@ toSlotId slot = HardForkQry $ do
     unsafeConvert :: Word64 -> Word32
     unsafeConvert = fromIntegral
 
-startTime :: Cardano.SlotNo -> Qry UTCTime
+startTime :: SlotNo -> Qry UTCTime
 startTime s = do
     rel <- HardForkQry (fst <$> HF.slotToWallclock s)
     RelToUTCTime rel
 
 -- | Translate 'EpochNo' to the 'SlotNo' of the first slot in that epoch
-firstSlotInEpoch :: EpochNo -> Qry Cardano.SlotNo
+firstSlotInEpoch :: EpochNo -> Qry SlotNo
 firstSlotInEpoch = fmap fst . HardForkQry . HF.epochToSlot . convertEpochNo
   where
     convertEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
@@ -158,7 +159,7 @@ firstSlotInEpoch = fmap fst . HardForkQry . HF.epochToSlot . convertEpochNo
 -- of the blockchain, this function returns 'Nothing'.
 slotRangeFromTimeRange
     :: Range UTCTime
-    -> Qry (Maybe (Range Cardano.SlotNo))
+    -> Qry (Maybe (Range SlotNo))
 slotRangeFromTimeRange = \case
     Range Nothing Nothing -> do
         pure $ Just wholeRange
@@ -188,7 +189,7 @@ slotRangeFromTimeRange = \case
 -- @@
 --
 --
-ongoingSlotAt :: UTCTime -> Qry (Maybe Cardano.SlotNo)
+ongoingSlotAt :: UTCTime -> Qry (Maybe SlotNo)
 ongoingSlotAt x = do
      slotAtTimeDetailed x >>= \case
         Just (slot, _timeInSlot, _timeRemainingInSlot) -> pure $ Just slot
@@ -205,19 +206,19 @@ ongoingSlotAt x = do
 --                    3
 -- @@
 --
-ceilingSlotAt :: UTCTime -> Qry Cardano.SlotNo
+ceilingSlotAt :: UTCTime -> Qry SlotNo
 ceilingSlotAt t = do
      slotAtTimeDetailed t >>= \case
         Just (s, 0, _) -> return s
         Just (s, _, _) -> return (s + 1)
         Nothing -> do
-            return $ Cardano.SlotNo 0
+            return $ SlotNo 0
 
 -- | Helper that returns @(slot, elapsedTimeInSlot, remainingTimeInSlot)@ for a
 -- given @UTCTime@.
 slotAtTimeDetailed
     :: UTCTime
-    -> Qry (Maybe (Cardano.SlotNo, NominalDiffTime, NominalDiffTime))
+    -> Qry (Maybe (SlotNo, NominalDiffTime, NominalDiffTime))
 slotAtTimeDetailed t = do
     UTCTimeToRel t >>= \case
         Just relTime -> fmap Just $ HardForkQry $ HF.wallclockToSlot relTime
