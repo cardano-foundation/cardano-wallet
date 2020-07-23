@@ -1,4 +1,4 @@
-Docker builds of `cardano-wallet` are available on [DockerHub][].
+oDocker builds of `cardano-wallet` are available on [DockerHub][].
 
 [DockerHub]: https://hub.docker.com/repository/docker/inputoutput/cardano-wallet
 
@@ -24,7 +24,7 @@ To run basic CLI commands, use:
 docker run --rm inputoutput/cardano-wallet:byron --help
 ```
 
-See [Wallet Command Line Interface](./Wallet-command-line-interface)
+See [Wallet Command Line Interface](./Wallet-command-line-interface-cardano-node)
 for full documentation of the CLI.
 
 
@@ -36,7 +36,7 @@ To run basic CLI commands, use:
 docker run --rm inputoutput/cardano-wallet:shelley --help
 ```
 
-See [Wallet Command Line Interface](./Wallet-command-line-interface)
+See [Wallet Command Line Interface](./Wallet-command-line-interface-cardano-node)
 for full documentation of the CLI.
 
 
@@ -48,7 +48,7 @@ To run basic CLI commands, use:
 docker run --rm inputoutput/cardano-wallet:jormungandr --help
 ```
 
-See [Wallet Command Line Interface](./Wallet-command-line-interface)
+See [Wallet Command Line Interface](./Wallet-command-line-interface-jormungandr)
 for full documentation of the CLI.
 
 Running a `cardano-wallet` server requires setting up a state
@@ -120,14 +120,14 @@ The following tags are pushed to [DockerHub][].
 
 | Tag                                                 | Network node backend        | Version          |
 |:----------------------------------------------------|:---------------------------:|:-----------------|
-| `inputoutput/cardano-wallet`                        | cardano-node (Byron reboot) | same as _byron_ |
+| `inputoutput/cardano-wallet`                        | cardano-node (Shelley)      | same as _shelley_ |
 | `inputoutput/cardano-wallet:byron`                  | cardano-node (Byron reboot) | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
 | `inputoutput/cardano-wallet:dev-master-byron`       | cardano-node (Byron reboot) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
 | `inputoutput/cardano-wallet:2020.4.28-byron`        | cardano-node (Byron reboot) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
 | `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-byron` | cardano-node (Byron reboot) | A certain revision of the master branch (aa46adf for example). |
-| `inputoutput/cardano-wallet:shelley`                  | cardano-node (Shelley only) | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
-| `inputoutput/cardano-wallet:dev-master-shelley`       | cardano-node (Shelley only) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
-| `inputoutput/cardano-wallet:2020.4.28-shelley`        | cardano-node (Shelley only) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
+| `inputoutput/cardano-wallet:shelley`                  | cardano-node (Shelley) | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
+| `inputoutput/cardano-wallet:dev-master-shelley`       | cardano-node (Shelley) | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
+| `inputoutput/cardano-wallet:2020.4.28-shelley`        | cardano-node (Shelley) | [v2020-04-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-04-28) (for example) |
 | `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-shelley` | cardano-node (Shelley only) | A certain revision of the master branch (aa46adf for example). |
 | `inputoutput/cardano-wallet:jormungandr`            | Jörmungandr                 | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
 | `inputoutput/cardano-wallet:dev-master-jormungandr` | Jörmungandr                 | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
@@ -152,11 +152,11 @@ then loaded into your local Docker image storage.
 ## Inspecting the contents of the Docker image
 
 The default entrypoint of the image is
-`/bin/start-cardano-wallet-byron`. If you need to run a shell
+`/bin/start-cardano-wallet-shelley`. If you need to run a shell
 inside the Docker image, use the bash shell as the entrypoint:
 
 ```
-docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:byron
+docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:shelley
 ```
 
 ## Docker compose
