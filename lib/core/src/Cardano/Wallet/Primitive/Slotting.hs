@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     )
 import Control.Monad
-    ( (<=<), ap, liftM )
+    ( ap, liftM, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Functor.Identity
