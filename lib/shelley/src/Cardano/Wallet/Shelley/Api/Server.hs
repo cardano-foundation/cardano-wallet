@@ -190,7 +190,10 @@ server byron icarus shelley spl ntp =
         :<|> delegationFee shelley
       where
         listStakePools_ = \case
-            Just (ApiT stake) -> liftHandler $ listStakePools spl stake
+            Just (ApiT stake) -> do
+                -- TODO: Determine the real current epoch here:
+                let currentEpoch = maxBound
+                liftHandler $ listStakePools spl currentEpoch stake
             Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
                 mconcat
                 [ "The stake intended to delegate must be provided as a query "

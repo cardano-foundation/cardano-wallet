@@ -51,6 +51,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader
     , CertificatePublicationTime (..)
     , Coin (..)
+    , EpochNo (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
     , PoolId
@@ -131,10 +132,16 @@ data StakePoolLayer = StakePoolLayer
         :: IO [PoolId]
 
     -- | List pools based given the the amount of stake the user intends to
-    -- delegate, which affects the size of the rewards and the ranking of the
-    -- pools.
+    --   delegate, which affects the size of the rewards and the ranking of
+    --   the pools.
+    --
+    -- Pools with a retirement epoch earlier than or equal to the specified
+    -- epoch will be excluded from the result.
+    --
     , listStakePools
-        :: Coin
+        :: EpochNo
+            -- ^ Exclude all pools that retired in or before this epoch.
+        -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     }
 
@@ -166,9 +173,11 @@ newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
             Left _e -> return []
 
     _listPools
-        :: Coin
+        :: EpochNo
+            -- ^ Exclude all pools that retired in or before this epoch.
+        -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
-    _listPools userStake = do
+    _listPools _currentEpoch userStake = do
         tip <- liftIO getTip
         lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
         dbData <- liftIO $ readPoolDbData db
