@@ -181,6 +181,7 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
 testPoolConfigs :: [PoolConfig]
 testPoolConfigs =
     [ PoolConfig {retirementEpoch = Nothing}
+    , PoolConfig {retirementEpoch = Just 1}
     , PoolConfig {retirementEpoch = Just 1_000}
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
