@@ -89,6 +89,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -177,15 +179,28 @@ newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
             -- ^ Exclude all pools that retired in or before this epoch.
         -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
-    _listPools _currentEpoch userStake = do
+    _listPools currentEpoch userStake = do
         tip <- liftIO getTip
         lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
         dbData <- liftIO $ readPoolDbData db
         return
             . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
+            . filter (not . poolIsRetired)
             . map snd
             . Map.toList
             $ combineDbAndLsqData (slotParams gp) lsqData dbData
+      where
+        epochIsInFuture :: EpochNo -> Bool
+        epochIsInFuture = (>= currentEpoch)
+
+        poolIsRetired :: Api.ApiStakePool -> Bool
+        poolIsRetired =
+            maybe False (not . epochIsInFuture) . poolRetirementEpoch
+
+        poolRetirementEpoch :: Api.ApiStakePool -> Maybe EpochNo
+        poolRetirementEpoch p = p
+            & view #retirement
+            & fmap (view (#epochNumber . #getApiT))
 
     gh = getGenesisBlockHash gp
     getTip = fmap (toPoint gh) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
