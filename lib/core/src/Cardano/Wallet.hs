@@ -1140,10 +1140,11 @@ feeOpts
     :: TransactionLayer t k
     -> Maybe DelegationAction
     -> FeePolicy
+    -> W.Coin
     -> FeeOptions
-feeOpts tl action feePolicy = FeeOptions
+feeOpts tl action feePolicy minUtxo = FeeOptions
     { estimateFee = minimumFee tl feePolicy action
-    , dustThreshold = minBound
+    , dustThreshold = minUtxo
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     }
 
@@ -1166,7 +1167,8 @@ selectCoinsForPayment
 selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    cs <- selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients withdrawal
+    cs <-
+        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
     pure cs
@@ -1195,16 +1197,17 @@ selectCoinsForPaymentFromUTxO
     => ctx
     -> W.UTxO
     -> W.TxParameters
+    -> W.Coin
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPaymentFromUTxO ctx utxo txp recipients withdrawal = do
+selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients withdrawal utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy)
+    let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy) minUtxo
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1226,9 +1229,9 @@ selectCoinsForDelegation
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid action = do
-    (utxo, txp, _) <- withExceptT ErrSelectForDelegationNoSuchWallet $
+    (utxo, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp action
+    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp minUtxo action
 
 selectCoinsForDelegationFromUTxO
     :: forall ctx t k.
@@ -1238,10 +1241,11 @@ selectCoinsForDelegationFromUTxO
     => ctx
     -> W.UTxO
     -> W.TxParameters
+    -> W.Coin
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
-selectCoinsForDelegationFromUTxO ctx utxo txp action = do
-    let feePolicy = feeOpts tl (Just action) (txp ^. #getFeePolicy)
+selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
+    let feePolicy = feeOpts tl (Just action) (txp ^. #getFeePolicy) minUtxo
     let sel = initDelegationSelection tl (txp ^. #getFeePolicy) action
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
@@ -1262,7 +1266,7 @@ estimateFeeForDelegation
     -> WalletId
     -> ExceptT ErrSelectForDelegation IO FeeEstimation
 estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
-    (utxo, txp, _) <- withExceptT ErrSelectForDelegationNoSuchWallet
+    (utxo, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet
         $ selectCoinsSetup @ctx @s @k ctx wid
 
     isKeyReg <- mapExceptT atomically
@@ -1271,7 +1275,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     let selectCoins =
-            selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp action
+            selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp minUtxo action
     estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
   where
     db  = ctx ^. dbLayer @s @k
@@ -1299,9 +1303,9 @@ selectCoinsForMigration
         , Quantity "lovelace" Natural
         )
 selectCoinsForMigration ctx wid = do
-    (utxo, txp, _) <- withExceptT ErrSelectForMigrationNoSuchWallet $
+    (utxo, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp wid
+    selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp minUtxo wid
 
 selectCoinsForMigrationFromUTxO
     :: forall ctx t k n.
@@ -1312,17 +1316,18 @@ selectCoinsForMigrationFromUTxO
     => ctx
     -> W.UTxO
     -> W.TxParameters
+    -> W.Coin
     -> WalletId
        -- ^ The source wallet ID.
     -> ExceptT ErrSelectForMigration IO
         ( [CoinSelection]
         , Quantity "lovelace" Natural
         )
-selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
+selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
     let feeOptions = FeeOptions
             { estimateFee = minimumFee tl feePolicy Nothing . worstCase
-            , dustThreshold = Coin $ ceiling a
+            , dustThreshold = max (Coin $ ceiling a) minUtxo
             , onDanglingChange = if allowUnbalancedTx tl
                 then SaveMoney
                 else PayAndBalance
@@ -1386,7 +1391,7 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
         selectCoinsSetup @ctx @s @k ctx wid
 
     let selectCoins =
-            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp recipients withdrawal
+            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
 
     cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
