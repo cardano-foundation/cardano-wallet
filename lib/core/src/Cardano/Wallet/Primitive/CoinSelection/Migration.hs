@@ -88,7 +88,7 @@ depleteUTxO feeOpts batchSize utxo =
         if null batch then
             pure []
         else case adjustForFee (mkCoinSelection batch) of
-            Nothing -> pure []
+            Nothing -> migrate
             Just coinSel -> do
                 rest <- migrate
                 pure (coinSel:rest)
