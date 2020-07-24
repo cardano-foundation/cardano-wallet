@@ -26,7 +26,7 @@ module Cardano.Wallet.Primitive.Slotting
     , slotRangeFromTimeRange
     , firstSlotInEpoch
     , ongoingSlotAt
-    , forecastFutureEpochStartUsingTip
+    , endTimeOfEpoch
 
     -- ** Running queries
     , TimeInterpreter
@@ -149,39 +149,25 @@ startTime s = do
     rel <- HardForkQry (fst <$> HF.slotToWallclock s)
     RelToUTCTime rel
 
--- | @Qry@ can not normally be used for conversions outside the forecast range.
+-- | Can be used to know when the next epoch starts.
 --
--- This function estimates the start time of an epoch based on the time/slot
--- information of a given @SlotNo@.
---
--- If a hard-fork occurs between the tip and the epoch, the result will be
--- incorrect.
-forecastFutureEpochStartUsingTip :: SlotNo -> EpochNo -> Qry UTCTime
-forecastFutureEpochStartUsingTip tip epoch = do
-    tipEpoch <- epochOf tip
-    -- Epoch: e         | e+1    | ... | ... | e+?
-    --           *      *                    *
-    --          tip    ref              future epoch
-
-    let refEpoch = EpochNo $ fromIntegral (unEpochNo tipEpoch) + 1
-    ref <- firstSlotInEpoch refEpoch
+-- This is preferable to asking for the start time of the /next/ epoch, because
+-- the next epoch may be outside the forecast range, and result in
+-- @PastHorizonException@.
+endTimeOfEpoch :: EpochNo -> Qry UTCTime
+endTimeOfEpoch epoch = do
+    ref <- firstSlotInEpoch epoch
     refTime <- startTime ref
-    el <- HardForkQry $ HF.QEpochSize $ toCardanoEpochNo refEpoch
+    el <- HardForkQry $ HF.QEpochSize $ toCardanoEpochNo epoch
     sl <- HardForkQry $ HF.QSlotLength ref
 
-    if refEpoch < epoch
-    then
-        let
-            convert = fromRational . toRational
-            el' = convert $ Cardano.unEpochSize el
-            sl' = Cardano.getSlotLength sl
-            epochDelta = convert $ fromIntegral $ unEpochNo $ epoch - refEpoch
+    let convert = fromRational . toRational
+    let el' = convert $ Cardano.unEpochSize el
+    let sl' = Cardano.getSlotLength sl
 
-            slotDelta = el' * sl' * epochDelta
+    let timeInEpoch = el' * sl'
 
-        in return $ slotDelta `addUTCTime` refTime
-    else startTime =<< firstSlotInEpoch epoch
-
+    return $ timeInEpoch `addUTCTime` refTime
   where
     toCardanoEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
 

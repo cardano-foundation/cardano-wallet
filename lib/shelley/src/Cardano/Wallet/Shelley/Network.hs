@@ -71,7 +71,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , unsealShelleyTx
     )
 import Control.Concurrent
-    ( MVar, ThreadId, newEmptyMVar, putMVar, readMVar )
+    ( ThreadId )
 import Control.Concurrent.Async
     ( Async, async, asyncThreadId, cancel, link )
 import Control.Concurrent.Chan
@@ -79,7 +79,7 @@ import Control.Concurrent.Chan
 import Control.Exception
     ( IOException )
 import Control.Monad
-    ( forever, unless, (>=>) )
+    ( forever, unless, void, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -88,13 +88,18 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
+    , TMVar
     , TQueue
     , TVar
     , atomically
+    , isEmptyTMVar
+    , newEmptyTMVar
     , newTMVarM
     , newTQueue
     , newTVar
     , putTMVar
+    , putTMVar
+    , readTMVar
     , readTVar
     , takeTMVar
     , writeTVar
@@ -312,26 +317,33 @@ withNetworkLayer tr np addrInfo versionData action = do
         } = W.genesisParameters np
     cfg = codecConfig gp
 
+    -- Put if empty, replace if not empty.
+    repsertTMVar var x = do
+        e <- isEmptyTMVar var
+        unless e $ void $ takeTMVar var
+        putTMVar var x
+
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
         -> IO ( Chan (Tip (CardanoBlock TPraosStandardCrypto))
               , TVar IO W.ProtocolParameters
-              , TVar IO (Maybe (CardanoInterpreter TPraosStandardCrypto))
+              , TMVar IO (CardanoInterpreter TPraosStandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
                   (GenTx (CardanoBlock TPraosStandardCrypto))
                   (CardanoApplyTxErr TPraosStandardCrypto)
-                  IO))
+                  IO)
+              )
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-        interpreterVar <- newEmptyMVar
+        interpreterVar <- atomically newEmptyTMVar
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
             (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
-            (putMVar interpreterVar)
+            (atomically . repsertTMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
         pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
 
@@ -467,10 +479,10 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _timeInterpreterQuery
         :: HasCallStack
-        => MVar (CardanoInterpreter sc)
+        => TMVar IO (CardanoInterpreter sc)
         -> TimeInterpreter (ExceptT PastHorizonException IO)
     _timeInterpreterQuery var query = do
-        interpreter <- liftIO $ readMVar var
+        interpreter <- liftIO $ atomically $ readTMVar var
         res <- liftIO $ runExceptT $ mkTimeInterpreter getGenesisBlockDate interpreter query
         case res of
             Right r -> pure r

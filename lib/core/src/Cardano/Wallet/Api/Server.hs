@@ -255,11 +255,12 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
+    , Qry
     , TimeInterpreter
     , currentEpoch
+    , endTimeOfEpoch
     , epochSucc
     , firstSlotInEpoch
-    , forecastFutureEpochStartUsingTip
     , ongoingSlotAt
     , startTime
     , toSlotId
@@ -314,6 +315,8 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
 import Control.Tracer
     ( Tracer )
 import Data.Aeson
@@ -1547,34 +1550,55 @@ getNetworkInformation (_block0, _, st) nl = do
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ unsafeRunExceptT $ mkApiBlockReference ti nodeTip
 
-    -- A dummy tip. We should concider changing the api to allow
-    -- returning null.
-    let noTip = W.SlotId 0 0
+    nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
 
-    let qry = ongoingSlotAt now >>= \x -> maybe (pure noTip) toSlotId x
-    ntrkTip <- liftIO (runExceptT $ ti qry) >>= \case
-        Right x -> pure x
-        Left _ -> pure noTip
-    let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
-    nextEpochStart <- liftIO $ unsafeRunExceptT $ ti
-        (forecastFutureEpochStartUsingTip (nodeTip ^. #slotNo) nextEpochNo)
     progress <- liftIO $ syncProgress st (unsafeRunExceptT . ti) nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
-        , Api.nextEpoch =
-            ApiEpochInfo
-                (ApiT nextEpochNo)
-                nextEpochStart
+        , Api.nextEpoch = snd <$> nowInfo
         , Api.nodeTip = apiNodeTip
-        , Api.networkTip =
-            ApiNetworkTip
-                { epochNumber = ApiT $ ntrkTip ^. #epochNumber
-                , slotNumber  = ApiT $ ntrkTip ^. #slotNumber
-                }
+        , Api.networkTip = fst <$> nowInfo
         }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter nl
+
+    -- (network tip, next epoch)
+    -- May be unavailible if the node is still syncing.
+    networkTipInfo :: UTCTime -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
+    networkTipInfo now = do
+        networkTip <- toSlotId' =<< ongoingSlotAt' now
+        let curEpoch = networkTip ^. #epochNumber
+        nextEpochStart <- endTimeOfEpoch' curEpoch
+
+        let tip = ApiNetworkTip
+                (ApiT $ networkTip ^. #epochNumber)
+                (ApiT $ networkTip ^. #slotNumber)
+        let nextEpoch = ApiEpochInfo
+                (ApiT $ unsafeEpochSucc curEpoch)
+                (nextEpochStart)
+        return (tip, nextEpoch)
+
+      where
+        -- Helper functions that return @Nothing@ both if the @Qry@ itself
+        -- returns @Nothing@, and if the running of the @Qry@ returns
+        -- @Left PastHorizonException@
+        --
+        -- This makes them easier to work with.
+
+        ongoingSlotAt' :: UTCTime -> MaybeT IO W.SlotNo
+        ongoingSlotAt' x = (run (ongoingSlotAt x)) >>= (MaybeT . pure)
+
+        endTimeOfEpoch' :: W.EpochNo -> MaybeT IO UTCTime
+        endTimeOfEpoch' x = run (endTimeOfEpoch x)
+
+        toSlotId' :: W.SlotNo -> MaybeT IO W.SlotId
+        toSlotId' x = run (toSlotId x)
+
+        run :: Qry a -> MaybeT IO a
+        run q = MaybeT $ runExceptT (ti q) >>= \case
+            Right x -> pure $ Just x
+            Left _ -> pure Nothing
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)

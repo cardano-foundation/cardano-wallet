@@ -340,6 +340,7 @@ combineDbAndLsqData (sp, pp) lsqData =
         }
 
     toApiEpochInfo ep =
+        -- TODO(ADP-356): Use new slotting api, or this will be incorrect.
         Api.ApiEpochInfo (ApiT ep) (epochStartTime sp ep)
 
 -- | Combines all the LSQ data into a single map.
