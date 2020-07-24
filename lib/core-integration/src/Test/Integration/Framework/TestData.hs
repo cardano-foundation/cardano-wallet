@@ -86,7 +86,7 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Framework.DSL
-    ( Payload (..), json, fixturePassphrase )
+    ( Payload (..), fixturePassphrase, json )
 
 falseWalletIds :: [(String, String)]
 falseWalletIds =

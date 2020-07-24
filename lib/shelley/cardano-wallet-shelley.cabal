@@ -36,7 +36,6 @@ library
     , bech32
     , bech32-th
     , binary
-    , byron-spec-ledger
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -53,7 +52,6 @@ library
     , cborg
     , containers
     , contra-tracer
-    , cryptonite
     , directory
     , exceptions
     , extra
@@ -186,7 +184,6 @@ test-suite integration
       base
     , aeson
     , async
-    , bytestring
     , cardano-api
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -198,7 +195,6 @@ test-suite integration
     , hspec
     , http-client
     , iohk-monitoring
-    , random
     , text
     , text-class
   build-tools:

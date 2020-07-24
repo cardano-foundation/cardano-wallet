@@ -45,9 +45,7 @@ module Cardano.Wallet.Shelley
 import Prelude
 
 import Cardano.Api.Typed
-    ( Shelley )
-import Cardano.Api.Typed
-    ( NetworkId )
+    ( NetworkId, Shelley )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer

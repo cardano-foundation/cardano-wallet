@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
@@ -87,10 +88,10 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
-import UnliftIO.Exception
-    ( throwIO )
 import GHC.Stack
     ( HasCallStack )
+import UnliftIO.Exception
+    ( throwIO )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T

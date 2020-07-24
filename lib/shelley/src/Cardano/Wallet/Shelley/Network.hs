@@ -78,9 +78,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( dupChan, newChan, readChan, writeChan )
 import Control.Exception
-    ( throwIO )
-import Control.Exception
-    ( IOException )
+    ( IOException, throwIO )
 import Control.Monad
     ( forever, unless, (>=>) )
 import Control.Monad.Catch
@@ -125,9 +123,7 @@ import Data.Function
 import Data.List
     ( isInfixOf )
 import Data.Map
-    ( Map )
-import Data.Map
-    ( (!) )
+    ( Map, (!) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -145,9 +141,7 @@ import Data.Word
 import Fmt
     ( Buildable (..), listF', mapF, pretty )
 import GHC.Stack
-    ( prettyCallStack )
-import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack, prettyCallStack )
 import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
 import Ouroboros.Consensus.Cardano

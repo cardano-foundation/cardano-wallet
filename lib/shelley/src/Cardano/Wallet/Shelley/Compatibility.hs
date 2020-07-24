@@ -98,9 +98,7 @@ import Cardano.Api.Shelley.Genesis
 import Cardano.Api.Typed
     ( AsType (..), Shelley, deserialiseFromRawBytes )
 import Cardano.Binary
-    ( serialize' )
-import Cardano.Binary
-    ( fromCBOR )
+    ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Slotting.Slot
@@ -823,7 +821,7 @@ sealShelleyTx (Cardano.ShelleyTx tx) =
         (walletTx, _, _) = fromShelleyTx tx
         sealed = serialize' $ O.mkShelleyTx tx
     in
-        (walletTx, W.SealedTx $ sealed)
+        (walletTx, W.SealedTx sealed)
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
