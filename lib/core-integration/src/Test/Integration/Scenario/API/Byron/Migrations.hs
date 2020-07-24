@@ -210,10 +210,10 @@ spec = do
     it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
         -- NOTE
-        -- Special mnemonic for which 500 legacy funds are attached to in the
+        -- Special mnemonic for which 200 legacy funds are attached to in the
         -- genesis file.
         --
-        -- Out of these 500 coins, 100 of them are of 1 Lovelace and are
+        -- Out of these 200 coins, 100 of them are of 1 Lovelace and are
         -- expected to be treated as dust. The rest are all worth:
         -- 10,000,000,000 lovelace.
         let mnemonics =
@@ -229,14 +229,15 @@ spec = do
                 } |]
         (_, wOld) <- unsafeRequest @ApiByronWallet ctx
             (Link.postWallet @'Byron) payloadRestore
-        eventually "wallet balance greater than 0" $ do
-            request @ApiByronWallet ctx
+        originalBalance <- eventually "wallet balance greater than 0" $ do
+            r <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron wOld)
                 Default
-                Empty >>= flip verify
+                Empty
+            verify r
                 [ expectField (#balance . #available) (.> Quantity 0)
                 ]
-        let originalBalance = view (#balance . #available . #getQuantity) wOld
+            return $ getFromResponse (#balance . #available . #getQuantity) r
 
         -- Calculate the expected migration fee:
         rFee <- request @ApiWalletMigrationInfo ctx
@@ -248,6 +249,7 @@ spec = do
             , expectField #migrationCost (.> Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
+        let leftovers = getFromResponse (#leftovers . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -264,11 +266,11 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 2). length)
+            , expectField id ((`shouldBe` 17). length)
             ]
 
         -- Check that funds become available in the target wallet:
-        let expectedBalance = originalBalance - expectedFee
+        let expectedBalance = originalBalance - expectedFee - leftovers
         eventually "wallet balance = expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)
@@ -288,7 +290,7 @@ spec = do
             Empty >>= flip verify
             [ expectField
                 #distribution
-                ((`shouldBe` (Just 400)) . Map.lookup 10_000_000_000)
+                ((`shouldBe` (Just 100)) . Map.lookup 10_000_000_000)
             ]
 
     it "BYRON_MIGRATE_01 - \
@@ -485,6 +487,7 @@ spec = do
                 , expectField #migrationCost (.> Quantity 0)
                 ]
             let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
+            let leftovers = getFromResponse (#leftovers . #getQuantity) r0
 
             -- Perform a migration from the source wallet to the target wallet:
             r1 <- request @[ApiTransaction n] ctx
@@ -500,7 +503,7 @@ spec = do
                 ]
 
             -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee
+            let expectedBalance = originalBalance - expectedFee - leftovers
             eventually "Wallet has expectedBalance" $ do
                 r2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
