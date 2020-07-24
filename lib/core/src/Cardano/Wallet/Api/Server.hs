@@ -1402,7 +1402,9 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
-    :: forall s t k. ()
+    :: forall s t k n.
+        ( PaymentAddress n ByronKey
+        )
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
@@ -1424,13 +1426,14 @@ getMigrationInfo ctx (ApiT wid) = do
 
     getSelections :: Handler ([CoinSelection], Quantity "lovelace" Natural)
     getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.selectCoinsForMigration @_ @s @t @k wrk wid
+        W.selectCoinsForMigration @_ @s @t @k @n wrk wid
 
 migrateWallet
     :: forall s t k n p.
         ( IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , PaymentAddress n ByronKey
         )
     => ApiLayer s t k
         -- ^ Source wallet context
@@ -1443,7 +1446,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 
     migration <- do
         withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            (cs, _) <- W.selectCoinsForMigration @_ @_ @t wrk wid
+            (cs, _) <- W.selectCoinsForMigration @_ @_ @t @_ @n wrk wid
             pure $ assignMigrationAddresses addrs cs
 
     forM migration $ \cs -> do
@@ -1489,6 +1492,7 @@ assignMigrationAddresses addrs selections =
     accumulate sel (txs, addrsAvailable) = first
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ change sel) addrsAvailable)
+
     makeTx :: CoinSelection -> [Address] -> UnsignedTx
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))

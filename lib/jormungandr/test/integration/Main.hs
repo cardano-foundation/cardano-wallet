@@ -47,7 +47,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
+    , PaymentAddress
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.Fee
@@ -173,6 +176,7 @@ specWithServer
         , EncodeAddress n
         , EncodeStakeAddress n
         , DelegationAddress n JormungandrKey
+        , PaymentAddress n ByronKey
         )
     => Trace IO Text
     -> SpecWith (Port "node", FeePolicy, Context Jormungandr)

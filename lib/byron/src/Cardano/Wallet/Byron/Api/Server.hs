@@ -272,8 +272,8 @@ server byron icarus ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron wid)
-                (icarus, getMigrationInfo icarus wid)
+                (byron , getMigrationInfo @_ @_ @_ @n byron wid)
+                (icarus, getMigrationInfo @_ @_ @_ @n icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron wid m)

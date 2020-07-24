@@ -213,7 +213,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+    ( ByronKey, unsafeMkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -310,6 +310,8 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeXPrv )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -388,6 +390,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -1282,10 +1285,11 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 -- transactions will have the effect of migrating all funds from the given
 -- source wallet to the specified target wallet.
 selectCoinsForMigration
-    :: forall ctx s t k.
+    :: forall ctx s t k n.
         ( HasTransactionLayer t k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , PaymentAddress n ByronKey
         )
     => ctx
     -> WalletId
@@ -1297,12 +1301,13 @@ selectCoinsForMigration
 selectCoinsForMigration ctx wid = do
     (utxo, txp, _) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForMigrationFromUTxO @ctx @t @k ctx utxo txp wid
+    selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp wid
 
 selectCoinsForMigrationFromUTxO
-    :: forall ctx t k.
+    :: forall ctx t k n.
         ( HasTransactionLayer t k ctx
         , HasLogger WalletLog ctx
+        , PaymentAddress n ByronKey
         )
     => ctx
     -> W.UTxO
@@ -1315,8 +1320,13 @@ selectCoinsForMigrationFromUTxO
         )
 selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl Nothing feePolicy)
-            { dustThreshold = Coin $ ceiling a }
+    let feeOptions = FeeOptions
+            { estimateFee = minimumFee tl feePolicy Nothing . worstCase
+            , dustThreshold = Coin $ ceiling a
+            , onDanglingChange = if allowUnbalancedTx tl
+                then SaveMoney
+                else PayAndBalance
+            }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
     let previousDistribution = W.computeUtxoStatistics W.log10 utxo
     liftIO $ traceWith tr $ MsgMigrationUTxOBefore previousDistribution
@@ -1338,6 +1348,25 @@ selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     getCoins :: CoinSelection -> [Word64]
     getCoins CoinSelection{change,outputs} =
         (getCoin <$> change) ++ (getCoin . coin <$> outputs)
+
+    -- When performing a selection for migration, at this stage, we do not know
+    -- exactly to which address we're going to assign which change. It could be
+    -- an Icarus address, a Byron address or anything else. But, depending on
+    -- the address, we get to pay more-or-less as fees!
+    --
+    -- Therefore, we assume the worse, which are byron payment addresses, this
+    -- will create __slightly__ overpriced selections but.. meh.
+    worstCase :: CoinSelection -> CoinSelection
+    worstCase cs = cs
+        { change = mempty
+        , outputs = TxOut worstCaseAddress <$> change cs
+        }
+      where
+        worstCaseAddress :: Address
+        worstCaseAddress = paymentAddress @n @ByronKey $ publicKey $
+            unsafeMkByronKeyFromMasterKey
+                (minBound, minBound)
+                (unsafeXPrv $ BS.replicate 128 0)
 
 -- | Estimate fee for 'selectCoinsForPayment'.
 estimateFeeForPayment
