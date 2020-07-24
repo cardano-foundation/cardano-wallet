@@ -507,8 +507,9 @@ propDivvyFeeInvariantEmptyList (fee, outs) =
 prop_rebalanceSelection
     :: CoinSelection
     -> OnDanglingChange
+    -> Coin
     -> Property
-prop_rebalanceSelection sel onDangling = do
+prop_rebalanceSelection sel onDangling threshold = do
     let (sel', fee') = rebalanceSelection opts sel
 
     let selectionIsBalanced = case onDangling of
@@ -520,10 +521,14 @@ prop_rebalanceSelection sel onDangling = do
     let equalityModuloChange =
             sel { change = [] } == sel' { change = [] }
 
+    let noDust =
+            all (>= threshold) (change sel')
+
     conjoin
         [ fee' == Fee 0 ==> selectionIsBalanced
         , selectionIsBalanced ==> not (null (inputs sel'))
         , selectionIsBalanced ==> isValidSelection sel'
+        , property noDust
         , property equalityModuloChange
         ]
         & counterexample (unlines
@@ -560,7 +565,7 @@ prop_rebalanceSelection sel onDangling = do
                 size = fromIntegral $ length $ show cs
             in
                 Fee (100000 + 100 * size)
-        , dustThreshold = minBound
+        , dustThreshold = threshold
         , onDanglingChange = onDangling
         }
 
