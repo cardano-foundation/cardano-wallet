@@ -80,13 +80,16 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ProtocolMagic (..)
     , SlotLength (..)
+    , TxOut
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeRunExceptT )
+import Control.Arrow
+    ( first, second )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -119,6 +122,8 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
     ( isLeft, isRight )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
 import Data.List
@@ -166,6 +171,8 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 
+import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Chain.UTxO as Legacy
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.Aeson as Aeson
@@ -180,8 +187,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
-import qualified Shelley.Spec.Ledger.Address as SL
-import qualified Shelley.Spec.Ledger.Coin as SL
 
 -- | Shelley hard fork network configuration has two genesis datas.
 -- As a special case for mainnet, we hardcode the byron genesis data.
@@ -306,25 +311,28 @@ parseGenesisData = \case
 -- ordering on the keys when parsing the map. Because this wallet uses sequential
 -- derivation, it relies on addresses being discovered in a certain order.
 newtype PreserveInitialFundsOrdering =
-    PreserveInitialFundsOrdering
-        ( ShelleyGenesis TPraosStandardCrypto
-        , [(SL.Addr TPraosStandardCrypto, SL.Coin)]
-        )
+    PreserveInitialFundsOrdering [TxOut]
     deriving (Show)
 
 instance FromJSON PreserveInitialFundsOrdering where
     parseJSON source = do
-        json <- parseJSON source
-        base <- clearField "initialFunds" json >>= parseJSON
-        initialFunds <- flip (Aeson.withObject "ShelleyGenesis") source $ \obj ->
-            obj .: "initialFunds"
-        pure $ PreserveInitialFundsOrdering
-            ( base
-            , mconcat (Map.toList <$> initialFunds)
-            )
+        initialFunds <- flip (Aeson.withObject "ByronGenesis") source $ \obj ->
+            obj .: "nonAvvmBalances"
+        let outs = mconcat (Map.toList <$> initialFunds)
+                & map (first unsafeMkAddress)
+                & map (second unsafeMkLovelace)
+                & map (Byron.fromTxOut . uncurry Legacy.TxOut)
+        pure $ PreserveInitialFundsOrdering outs
       where
-        clearField field = withObject
-            (pure . HM.update (const (Just $ Aeson.Object mempty)) field)
+        unsafeMkAddress =
+            either bomb id . Byron.decodeAddressBase58
+          where
+            bomb = error "PreserveInitialFundsOrdering: address not valid base58"
+
+        unsafeMkLovelace =
+            either bomb id . Byron.mkLovelace . read
+          where
+            bomb = error "PreserveInitialFundsOrdering: invalid lovelace value"
 
 --------------------------------------------------------------------------------
 -- For Integration
@@ -768,9 +776,11 @@ genConfig
     -- ^ Genesis block start time
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
 genConfig dir severity systemStart = do
-    -- we need to specify genesis file location every run in tmp
-    let withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
+    let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
+    let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
 
+    ----
+    -- Configuration
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
         >>= withAddedKey "ByronGenesisFile" byronGenesisFile
@@ -778,34 +788,47 @@ genConfig dir severity systemStart = do
         >>= withObject (addMinSeverityStdout severity)
         >>= Yaml.encodeFile (dir </> "node.config")
 
-    let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
-    let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
-    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "shelley-genesis.yaml")
-        >>= withObject (pure . updateSystemStart systemStart')
-        >>= withObject transformInitialFunds
-        >>= Aeson.encodeFile shelleyGenesisFile
-
+    ----
+    -- Byron Genesis
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "byron-genesis.yaml")
         >>= withAddedKey "startTime" startTime
         >>= withObject transformInitialFunds
         >>= Aeson.encodeFile byronGenesisFile
 
-    PreserveInitialFundsOrdering (genesis, initialFunds) <-
-        Yaml.decodeFileThrow (source </> "shelley-genesis.yaml")
-        >>= withObject (pure . updateSystemStart systemStart)
-        >>= either fail pure . Aeson.parseEither parseJSON
+    ----
+    -- Shelley Genesis
+    Yaml.decodeFileThrow @_ @Aeson.Value (source </> "shelley-genesis.yaml")
+        >>= withObject (pure . updateSystemStart systemStart')
+        >>= Aeson.encodeFile shelleyGenesisFile
 
-    let nm = sgNetworkMagic genesis
-    let (networkParameters, block0) = Shelley.fromGenesisData genesis initialFunds
+    ----
+    -- Initial Funds.
+    PreserveInitialFundsOrdering initialFunds <-
+        Yaml.decodeFileThrow @_ @Aeson.Value (source </> "byron-genesis.yaml")
+        >>= withAddedKey "startTime" startTime
+        >>= either fail pure . Aeson.parseEither parseJSON
+    (byronGenesisData, byronGenesisHash) <- unsafeRunExceptT
+        $ withExceptT show
+        $ readGenesisData byronGenesisFile
+    let (byronParams, _) = Byron.fromGenesisData (byronGenesisData, byronGenesisHash)
+    let gp = genesisParameters byronParams
+    let block0 = Byron.genesisBlockFromTxOuts gp initialFunds
+
+    ----
+    -- Parameters
+    shelleyGenesis <- Yaml.decodeFileThrow
+        @_ @(ShelleyGenesis TPraosStandardCrypto) shelleyGenesisFile
+    let networkMagic = sgNetworkMagic shelleyGenesis
+    let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
-            ( NodeToClientVersionData $ NetworkMagic nm
+            ( NodeToClientVersionData $ NetworkMagic networkMagic
             , nodeToClientCodecCBORTerm
             )
 
     pure
         ( dir </> "node.config"
         , block0
-        , networkParameters
+        , byronParams { protocolParameters = protocolParameters shelleyParams }
         , versionData
         )
   where
@@ -817,6 +840,10 @@ genConfig dir severity systemStart = do
 
     byronGenesisFile :: FilePath
     byronGenesisFile = dir </> "byron-genesis.json"
+
+    -- we need to specify genesis file location every run in tmp
+    withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
+
 
 -- | Generate a topology file from a list of peers.
 genTopology :: FilePath -> [Int] -> IO FilePath
@@ -1035,7 +1062,7 @@ sendFaucetFundsTo tr dir allTargets = do
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
-        submitTx tr "facuet tx" tx
+        submitTx tr "faucet tx" tx
 
     -- TODO: Use split package?
     -- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
@@ -1356,7 +1383,7 @@ addMinSeverityStdout severity ob = case HM.lookup "setupScribes" ob of
 transformInitialFunds
     :: Aeson.Object
     -> IO Aeson.Object
-transformInitialFunds = pure . HM.update toObject "initialFunds"
+transformInitialFunds = pure . HM.update toObject "nonAvvmBalances"
   where
     toObject = \case
         Aeson.Array xs ->

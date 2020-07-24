@@ -53,6 +53,6 @@ slotLength: 0.2
 maxKESEvolutions: 90
 securityParam: 10
 systemStart: "2020-06-19T16:07:37.740128433Z"
-initialFunds: []
+initialFunds: {}
 # For the Byron;Shelley test setup, funds have to be migrated from byron
 # using manually submitted transactions. The initialFunds field is ignored.
