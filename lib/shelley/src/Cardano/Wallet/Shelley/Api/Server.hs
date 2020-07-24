@@ -48,6 +48,7 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , getCurrentEpoch
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -191,8 +192,7 @@ server byron icarus shelley spl ntp =
       where
         listStakePools_ = \case
             Just (ApiT stake) -> do
-                -- TODO: Determine the real current epoch here:
-                let currentEpoch = maxBound
+                currentEpoch <- getCurrentEpoch shelley
                 liftHandler $ listStakePools spl currentEpoch stake
             Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
                 mconcat
