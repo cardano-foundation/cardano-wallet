@@ -1284,6 +1284,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 selectCoinsForMigration
     :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -1298,6 +1299,7 @@ selectCoinsForMigration ctx wid = do
 selectCoinsForMigrationFromUTxO
     :: forall ctx t k.
         ( HasTransactionLayer t k ctx
+        , HasLogger WalletLog ctx
         )
     => ctx
     -> W.UTxO
@@ -1310,11 +1312,22 @@ selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feeOptions = (feeOpts tl Nothing feePolicy)
             { dustThreshold = Coin $ ceiling a }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
+    let previousDistribution = W.computeUtxoStatistics W.log10 utxo
+    liftIO $ traceWith tr $ MsgMigrationUTxOBefore previousDistribution
     case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
-        cs | not (null cs) -> pure cs
+        cs | not (null cs) -> do
+            let resultDistribution = W.computeStatistics getCoins W.log10 cs
+            liftIO $ traceWith tr $ MsgMigrationUTxOAfter resultDistribution
+            liftIO $ traceWith tr $ MsgMigrationResult cs
+            pure cs
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
     tl = ctx ^. transactionLayer @t @k
+    tr = ctx ^. logger
+
+    getCoins :: CoinSelection -> [Word64]
+    getCoins CoinSelection{change,outputs} =
+        (getCoin <$> change) ++ (getCoin . coin <$> outputs)
 
 -- | Estimate fee for 'selectCoinsForPayment'.
 estimateFeeForPayment
@@ -2254,6 +2267,9 @@ data WalletLog
     | MsgPaymentCoinSelectionStart W.UTxO W.TxParameters (NonEmpty TxOut)
     | MsgPaymentCoinSelection CoinSelection
     | MsgPaymentCoinSelectionAdjusted CoinSelection
+    | MsgMigrationUTxOBefore UTxOStatistics
+    | MsgMigrationUTxOAfter UTxOStatistics
+    | MsgMigrationResult [CoinSelection]
     | MsgRewardBalanceQuery BlockHeader
     | MsgRewardBalanceResult (Either ErrFetchRewards (Quantity "lovelace" Word64))
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
@@ -2312,6 +2328,12 @@ instance ToText WalletLog where
             "Coins selected for payment: \n" <> pretty sel
         MsgPaymentCoinSelectionAdjusted sel ->
             "Coins after fee adjustment: \n" <> pretty sel
+        MsgMigrationUTxOBefore summary ->
+            "About to migrate the following distribution: \n" <> pretty summary
+        MsgMigrationUTxOAfter summary ->
+            "Expected distribution after complete migration: \n" <> pretty summary
+        MsgMigrationResult cs ->
+            "Migration plan: \n" <> pretty (blockListF cs)
         MsgRewardBalanceQuery bh ->
             "Updating the reward balance for block " <> pretty bh
         MsgRewardBalanceResult (Right amt) ->
@@ -2343,6 +2365,9 @@ instance HasSeverityAnnotation WalletLog where
         MsgPaymentCoinSelectionStart{} -> Debug
         MsgPaymentCoinSelection _ -> Debug
         MsgPaymentCoinSelectionAdjusted _ -> Debug
+        MsgMigrationUTxOBefore _ -> Info
+        MsgMigrationUTxOAfter _ -> Info
+        MsgMigrationResult _ -> Debug
         MsgIsStakeKeyRegistered _ -> Info
         MsgRewardBalanceQuery _ -> Debug
         MsgRewardBalanceResult (Right _) -> Debug
