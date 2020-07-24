@@ -254,7 +254,9 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
+    ( PastHorizonException (..)
+    , TimeInterpreter
+    , currentEpoch
     , epochSucc
     , firstSlotInEpoch
     , ongoingSlotAt
@@ -404,7 +406,6 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -655,7 +656,22 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         }
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+
+    -- This may fail
+    -- 1. In Byron when running Byron;Shelley
+    -- 2. In Shelley when running Byron;Shelley;SomethingElse
+    --
+    -- But:
+    -- 1. We should never see a delegation certificate in Byron (unless under
+    -- very intricate and rare conditions involving roll-backs and
+    -- raceconditions right at the fork?)
+    -- 2. We are currently only targeting Byron;Shelley.
+    --
+    -- so it shouldn't be a problem.
+    toApiEpochInfo ep = do
+        time <- ti (firstSlotInEpoch ep >>= startTime)
+        return $ ApiEpochInfo (ApiT ep) time
 
     toApiWalletDelegation W.WalletDelegation{active,next} = do
         apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
@@ -680,20 +696,6 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
-    -- This may fail
-    -- 1. In Byron when running Byron;Shelley
-    -- 2. In Shelley when running Byron;Shelley;SomethingElse
-    --
-    -- But:
-    -- 1. We should never see a delegation certificate in Byron (unless under
-    -- very intricate and rare conditions involving roll-backs and
-    -- raceconditions right at the fork?)
-    -- 2. We are currently only targeting Byron;Shelley.
-    --
-    -- so it shouldn't be a problem.
-    toApiEpochInfo ep = do
-        time <- ti (firstSlotInEpoch ep >>= startTime)
-        return $ ApiEpochInfo (ApiT ep) time
 
 --------------------- Legacy
 
@@ -777,7 +779,8 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         }
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+
     matchEmptyPassphrase
         :: WorkerCtx ctx
         -> Handler (Either ErrWithRootKey ())
@@ -1222,7 +1225,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
         #pendingSince
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
@@ -1256,8 +1259,10 @@ listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     defaultSortOrder :: SortOrder
     defaultSortOrder = Descending
 
+    -- In the Shelley of Byron;Shelley this is fine, but otherwise,
+    -- supplying a time range in the future may cause a err500.
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 getTransaction
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
@@ -1271,7 +1276,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     liftIO $ mkApiTransactionFromInfo ti tx
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -1342,13 +1347,13 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
 
     poolStatus <- liftIO (getPoolStatus pid)
     pools <- liftIO knownPools
-    currentEpoch <- getCurrentEpoch ctx
+    curEpoch <- getCurrentEpoch ctx
 
     (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $
         \wrk -> liftHandler $
             W.joinStakePool
                 @_ @s @t @k wrk
-                currentEpoch pools pid poolStatus wid (delegationAddress @n) pwd
+                curEpoch pools pid poolStatus wid (delegationAddress @n) pwd
 
     liftIO $ mkApiTransaction
         ti
@@ -1359,8 +1364,9 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (txMeta, txTime)
         #pendingSince
   where
+    -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 delegationFee
     :: forall ctx s t n k.
@@ -1404,8 +1410,9 @@ quitStakePool ctx (ApiT wid) body = do
         (txMeta, txTime)
         #pendingSince
   where
+    -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 {-------------------------------------------------------------------------------
                                 Migrations
@@ -1475,8 +1482,9 @@ migrateWallet ctx (ApiT wid) migrateData = do
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
     addrs = getApiT . fst <$> migrateData ^. #addresses
+    -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 
 -- | Transform the given set of migration coin selections (for a source wallet)
@@ -1518,11 +1526,14 @@ getCurrentEpoch
     :: forall ctx s t k . (ctx ~ ApiLayer s t k)
     => ctx
     -> Handler W.EpochNo
-getCurrentEpoch ctx =
-    liftIO (S.currentEpoch ti) >>=
-        maybe (liftE ErrUnableToDetermineCurrentEpoch) pure
+getCurrentEpoch ctx = do
+    res <- liftIO $ runExceptT (currentEpoch ti)
+    case res of
+        Left _ -> liftE ErrUnableToDetermineCurrentEpoch
+        Right Nothing -> liftE ErrUnableToDetermineCurrentEpoch
+        Right (Just x) -> pure x
   where
-    ti :: TimeInterpreter IO
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getNetworkInformation
@@ -1533,12 +1544,19 @@ getNetworkInformation
 getNetworkInformation (_block0, _, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
-    apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
-    ntrkTipSlot <- fromMaybe minBound <$> liftIO (ti $ ongoingSlotAt now)
-    ntrkTip <- liftIO $ ti $ toSlotId ntrkTipSlot
+    apiNodeTip <- liftIO $ unsafeRunExceptT $ mkApiBlockReference ti nodeTip
+
+    ntrkTipSlot <- liftIO (runExceptT $ ti $ ongoingSlotAt now) >>= \case
+        Right (Just x) -> pure x
+        Left _ -> pure minBound
+        Right Nothing -> pure minBound
+    ntrkTip <- liftIO $ unsafeRunExceptT $ ti $ toSlotId ntrkTipSlot
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
-    nextEpochStart <- liftIO $ ti (firstSlotInEpoch nextEpochNo >>= startTime)
-    progress <- liftIO $ syncProgress st ti nodeTip now
+    -- TODO: Re-write firstSlotInEpoch to look at the last time of the previous
+    -- epoch. firstSlotInEpoch may fail.
+    nextEpochStart <- liftIO $ unsafeRunExceptT $ ti
+        (firstSlotInEpoch nextEpochNo >>= startTime)
+    progress <- liftIO $ syncProgress st (unsafeRunExceptT . ti) nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
         , Api.nextEpoch =
@@ -1553,7 +1571,7 @@ getNetworkInformation (_block0, _, st) nl = do
                 }
         }
   where
-    ti :: TimeInterpreter IO
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter nl
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch

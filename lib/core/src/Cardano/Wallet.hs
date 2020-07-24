@@ -312,7 +312,7 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeXPrv )
+    ( unsafeRunExceptT, unsafeXPrv )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -660,7 +660,7 @@ walletSyncProgress ctx w = do
     (_,_,st) = ctx ^. genesisData
 
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -1493,7 +1493,7 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
+    ti = unsafeRunExceptT . timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1531,7 +1531,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
+    ti = unsafeRunExceptT . timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1642,7 +1642,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
+    ti = unsafeRunExceptT . timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
@@ -1760,7 +1760,8 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             (pure [])
             (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
-    ti = timeInterpreter $ ctx ^. networkLayer @t
+    ti :: TimeInterpreter IO
+    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
 
     db = ctx ^. dbLayer @s @k
 

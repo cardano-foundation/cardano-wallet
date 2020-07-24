@@ -97,6 +97,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Slotting
+    ( unsafeNoForecasts )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -328,7 +330,11 @@ serveWallet
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
-        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) (timeInterpreter nl) $ \db -> do
+        Pool.withDBLayer
+                poolsDbTracer
+                (Pool.defaultFilePath <$> dir)
+                (unsafeNoForecasts $ timeInterpreter nl)
+                $ \db -> do
             let spl = newStakePoolLayer (genesisParameters np) nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
@@ -365,7 +371,7 @@ serveWallet
                     hardforkEpochNo (protocolParameters np)
                 }
             )
-            (timeInterpreter nl)
+            (unsafeNoForecasts $ timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where

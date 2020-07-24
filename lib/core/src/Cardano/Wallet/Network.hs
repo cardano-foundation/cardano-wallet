@@ -44,7 +44,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChimericAccount (..)
@@ -151,7 +151,7 @@ data NetworkLayer m target block = NetworkLayer
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
 
     , timeInterpreter
-        :: HasCallStack => TimeInterpreter m
+        :: HasCallStack => TimeInterpreter (ExceptT PastHorizonException m)
     }
 
 instance Functor m => Functor (NetworkLayer m target) where

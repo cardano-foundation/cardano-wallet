@@ -139,6 +139,8 @@ import Cardano.Wallet.Registry
     ( WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Applicative
     ( Const (..) )
 import Control.Concurrent
@@ -237,7 +239,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             let icarusTl = newTransactionLayer (getGenesisBlockHash gp)
             let jormungandrTl = newTransactionLayer (getGenesisBlockHash gp)
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
-            Pool.withDBLayer stakePoolDbTracer poolDBPath (timeInterpreter nl) $ \db ->
+            Pool.withDBLayer stakePoolDbTracer poolDBPath (unsafeRunExceptT . timeInterpreter nl) $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md ->
                 withIOManager $ \io ->
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
@@ -300,7 +302,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
                     hardforkEpochNo (protocolParameters np)
                 }
             )
-            (timeInterpreter nl)
+            (unsafeRunExceptT . timeInterpreter nl)
             databaseDir
         Server.newApiLayer
             walletEngineTracer (toWLBlock el block0, np, sTolerance) nl' tl db

@@ -28,6 +28,8 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , SlotNo
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Exception
@@ -136,4 +138,4 @@ spec = around setup $ do
     withDB name nl action =
         withSystemTempDirectory "stake-pool" $ \dir -> do
             let dbFile = dir </> name
-            Pool.withDBLayer nullTracer (Just dbFile) (timeInterpreter nl) action
+            Pool.withDBLayer nullTracer (Just dbFile) (unsafeRunExceptT . timeInterpreter nl) action

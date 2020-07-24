@@ -77,7 +77,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( Chan, dupChan, newChan, readChan, writeChan )
 import Control.Exception
-    ( IOException, throwIO )
+    ( IOException )
 import Control.Monad
     ( forever, unless, (>=>) )
 import Control.Monad.Catch
@@ -468,15 +468,15 @@ withNetworkLayer tr np addrInfo versionData action = do
     _timeInterpreterQuery
         :: HasCallStack
         => MVar (CardanoInterpreter sc)
-        -> TimeInterpreter IO
+        -> TimeInterpreter (ExceptT PastHorizonException IO)
     _timeInterpreterQuery var query = do
-        interpreter <- readMVar var
-        res <- runExceptT $ mkTimeInterpreter getGenesisBlockDate interpreter query
+        interpreter <- liftIO $ readMVar var
+        res <- liftIO $ runExceptT $ mkTimeInterpreter getGenesisBlockDate interpreter query
         case res of
             Right r -> pure r
             Left e -> do
-                traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
-                throwIO e
+                liftIO $ traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
+                throwE e
 
 type instance GetStakeDistribution (IO Shelley) m =
       W.BlockHeader

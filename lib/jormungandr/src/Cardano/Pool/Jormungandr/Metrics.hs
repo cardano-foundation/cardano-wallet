@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , StakePool (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeMkPercentage, unsafeRunExceptT )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -221,7 +221,7 @@ monitorStakePools tr (block0, Quantity k) nl db@DBLayer{..} = do
         -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ErrMonitorStakePools)
     forward blocks (nodeTip, _params) = handler $ do
-        let epochOf' = liftIO . timeInterpreter nl . epochOf
+        let epochOf' = liftIO . unsafeRunExceptT . timeInterpreter nl . epochOf
         epochs <- NE.nub <$> mapM (epochOf' . (view (#header . #slotNo))) blocks
 
         distributions <- forM epochs $ \ep -> do
@@ -299,7 +299,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         Set.fromList <$> atomically listRegisteredPools
     }
   where
-    epochOf' = liftIO . timeInterpreter nl . epochOf
+    epochOf' = liftIO . unsafeRunExceptT . timeInterpreter nl . epochOf
     sortKnownPools :: ExceptT ErrListStakePools IO [(StakePool, [PoolOwner])]
     sortKnownPools = do
         nodeTip <- withExceptT ErrListStakePoolsCurrentNodeTip

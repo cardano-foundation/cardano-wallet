@@ -31,6 +31,8 @@ module Cardano.Wallet.Primitive.Slotting
     , TimeInterpreter
     , singleEraInterpreter
     , mkTimeInterpreter
+    , unsafeNoForecasts
+    , HF.PastHorizonException (..)
     , Qry
 
     -- ** Helpers
@@ -78,7 +80,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -269,6 +271,15 @@ mkTimeInterpreter
     -> Interpreter xs
     -> TimeInterpreter (ExceptT HF.PastHorizonException IO)
 mkTimeInterpreter start i q = ExceptT $ pure $ runQuery (coerce start) i q
+
+unsafeNoForecasts
+    :: TimeInterpreter (ExceptT HF.PastHorizonException IO)
+    -> TimeInterpreter IO
+unsafeNoForecasts ti q = do
+    res <- runExceptT $ ti q
+    case res of
+        Right x -> pure x
+        Left e -> fail $ show e
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones
