@@ -49,7 +49,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -169,7 +169,6 @@ spec = do
 
     it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
-        pendingWith "see note below."
 
         -- NOTE
         -- Special mnemonic for which 200 shelley funds are attached to in the
@@ -210,6 +209,7 @@ spec = do
             , expectField #migrationCost (.> Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
+        let leftovers = getFromResponse (#leftovers . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -226,15 +226,11 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            -- TODO: There's now only 3 transactions generated whereas it was 7
-            -- before the HFC combinator. I don't quite see why the hard-fork
-            -- would change that. As a result, the final balance of the migrated
-            -- wallet is far less than what it should be.
-            , expectField id ((`shouldBe` 3). length)
+            , expectField id ((`shouldBe` 9) . length)
             ]
 
         -- Check that funds become available in the target wallet:
-        let expectedBalance = originalBalance - expectedFee
+        let expectedBalance = originalBalance - expectedFee - leftovers
         eventually "wallet balance = expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)
