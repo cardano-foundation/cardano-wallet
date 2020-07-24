@@ -660,7 +660,7 @@ spec = do
         it "contains pool metadata" $ \ctx -> do
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
-                let metadataList =
+                let metadataPossible = Set.fromList
                         [ StakePoolMetadata
                             { ticker = (StakePoolTicker "GPA")
                             , name = "Genesis Pool A"
@@ -679,16 +679,21 @@ spec = do
                             , description = Just "Lorem Ipsum Dolor Sit Amet."
                             , homepage = "https://iohk.io"
                             }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPD")
+                            , name = "Genesis Pool D"
+                            , description = Just "Lorem Ipsum Dolor Sit Amet."
+                            , homepage = "https://iohk.io"
+                            }
                         ]
 
                 verify r
                     [ expectListSize 3
-                    , expectField Prelude.id $ \pools ->
-                        -- To ignore the arbitrary order,
-                        -- we sort on the names before comparing
-                        sortOn name
-                            (mapMaybe (fmap getApiT . view #metadata) pools)
-                            `shouldBe` metadataList
+                    , expectField Prelude.id $ \pools -> do
+                        let metadataActual = Set.fromList $
+                                mapMaybe (fmap getApiT . view #metadata) pools
+                        metadataActual
+                            `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
                     ]
 
         it "contains and is sorted by non-myopic-rewards" $ \ctx -> do
