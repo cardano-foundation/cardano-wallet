@@ -106,12 +106,10 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
--- TODO: enable when byron transactions/addresses supported in the cardano-node
--- import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
--- import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
--- import qualified Test.Integration.Byron.Scenario.API.Transactions as ByronTransactions
--- import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactionsCommon
--- import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
+import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
+import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
+import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
+import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
@@ -142,14 +140,18 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
-                ByronWallets.spec @n
-                Migrations.spec @n
-                Transactions.spec @n
+                ByronAddresses.spec @n
                 Wallets.spec @n
+                ByronWallets.spec @n
                 HWWallets.spec @n
+                Migrations.spec @n
+                ByronMigrations.spec @n
+                Transactions.spec @n
                 Network.spec
                 Network_.spec
                 StakePools.spec @n
+                ByronTransactions.spec @n
+                ByronHWWallets.spec @n
             describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
