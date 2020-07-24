@@ -142,7 +142,7 @@ data StakePoolLayer = StakePoolLayer
     --
     , listStakePools
         :: EpochNo
-            -- ^ Exclude all pools that retired in or before this epoch.
+        -- Exclude all pools that retired in or before this epoch.
         -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     }
@@ -176,7 +176,7 @@ newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
 
     _listPools
         :: EpochNo
-            -- ^ Exclude all pools that retired in or before this epoch.
+        -- Exclude all pools that retired in or before this epoch.
         -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
