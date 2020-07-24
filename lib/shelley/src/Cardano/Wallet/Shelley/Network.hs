@@ -106,7 +106,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -465,12 +465,15 @@ withNetworkLayer tr np addrInfo versionData action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-    _timeInterpreterQuery :: HasCallStack => MVar (CardanoInterpreter sc) -> TimeInterpreter IO
+    _timeInterpreterQuery
+        :: HasCallStack
+        => MVar (CardanoInterpreter sc)
+        -> TimeInterpreter IO
     _timeInterpreterQuery var query = do
-        cached <- readMVar var
-        let interpret = (mkTimeInterpreter getGenesisBlockDate) cached
-        case interpret query of
-            Right res -> pure res
+        interpreter <- readMVar var
+        res <- runExceptT $ mkTimeInterpreter getGenesisBlockDate interpreter query
+        case res of
+            Right r -> pure r
             Left e -> do
                 traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
                 throwIO e

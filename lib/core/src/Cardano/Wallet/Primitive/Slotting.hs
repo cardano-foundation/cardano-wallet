@@ -30,9 +30,7 @@ module Cardano.Wallet.Primitive.Slotting
     -- ** Running queries
     , TimeInterpreter
     , singleEraInterpreter
-    , interpreterFromGenesis
     , mkTimeInterpreter
-    , MyInterpreter(..)
     , Qry
 
     -- ** Helpers
@@ -79,6 +77,8 @@ import Control.Monad
     ( ap, liftM, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -240,39 +240,35 @@ slotAtTimeDetailed t = do
 -- fixme: this is backend-specific code -- it should be moved to the shelley package.
 type TimeInterpreter m = forall a. Qry a -> m a
 
--- | The hardfork query intepreter plus start time information.
-data MyInterpreter xs = MyInterpreter SystemStart (Interpreter xs)
-
 -- | An 'Interpreter' for a single era, where the slotting from
 -- @GenesisParameters@ cannot change.
 --
 -- Queries can never fail with @singleEraInterpreter@. This function will throw
 -- a 'PastHorizonException' if they do.
 singleEraInterpreter :: HasCallStack => GenesisParameters -> TimeInterpreter Identity
-singleEraInterpreter gp = mkTimeInterpreterI gp (mkInterpreter summary)
+singleEraInterpreter gp = mkTimeInterpreterI (mkInterpreter summary)
   where
     summary = neverForksSummary sz len
     sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
     len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
 
-mkTimeInterpreterI :: HasCallStack => GenesisParameters -> Interpreter xs -> TimeInterpreter Identity
-mkTimeInterpreterI gp int q = neverFails $ runQuery (MyInterpreter start int) q
-  where
-    start = coerce (gp ^. #getGenesisBlockDate)
+    mkTimeInterpreterI
+        :: HasCallStack
+        => Interpreter xs
+        -> TimeInterpreter Identity
+    mkTimeInterpreterI int q = neverFails $ runQuery start int q
+      where
+        start = coerce (gp ^. #getGenesisBlockDate)
 
-    neverFails = either bomb pure
-    bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
+        neverFails = either bomb pure
+        bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
 
-interpreterFromGenesis :: HasCallStack => GenesisParameters -> (forall a. Qry a -> Either HF.PastHorizonException a)
-interpreterFromGenesis gp = mkTimeInterpreter start (mkInterpreter summary)
-  where
-    summary = neverForksSummary sz len
-    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
-    len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
-    start = gp ^. #getGenesisBlockDate
-
-mkTimeInterpreter :: HasCallStack => StartTime -> Interpreter xs -> (forall a. Qry a -> Either HF.PastHorizonException a)
-mkTimeInterpreter start = runQuery . MyInterpreter (coerce start)
+mkTimeInterpreter
+    :: HasCallStack
+    => StartTime
+    -> Interpreter xs
+    -> TimeInterpreter (ExceptT HF.PastHorizonException IO)
+mkTimeInterpreter start i q = ExceptT $ pure $ runQuery (coerce start) i q
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones
@@ -302,8 +298,13 @@ instance Buildable (Qry a) where
         QPure _ -> "qPure"
         QBind q _ -> "qBind " <> build q
 
-runQuery :: HasCallStack => MyInterpreter xs -> Qry a -> Either HF.PastHorizonException a
-runQuery (MyInterpreter systemStart int) = go
+runQuery
+    :: HasCallStack
+    => SystemStart
+    -> Interpreter xs
+    -> Qry a
+    -> Either HF.PastHorizonException a
+runQuery systemStart int = go
   where
     go :: Qry a -> Either HF.PastHorizonException a
     go (HardForkQry q) = HF.interpretQuery int q
