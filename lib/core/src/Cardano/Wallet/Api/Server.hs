@@ -259,6 +259,7 @@ import Cardano.Wallet.Primitive.Slotting
     , currentEpoch
     , epochSucc
     , firstSlotInEpoch
+    , forecastFutureEpochStartUsingTip
     , ongoingSlotAt
     , startTime
     , toSlotId
@@ -1546,16 +1547,17 @@ getNetworkInformation (_block0, _, st) nl = do
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ unsafeRunExceptT $ mkApiBlockReference ti nodeTip
 
-    ntrkTipSlot <- liftIO (runExceptT $ ti $ ongoingSlotAt now) >>= \case
-        Right (Just x) -> pure x
-        Left _ -> pure minBound
-        Right Nothing -> pure minBound
-    ntrkTip <- liftIO $ unsafeRunExceptT $ ti $ toSlotId ntrkTipSlot
+    -- A dummy tip. We should concider changing the api to allow
+    -- returning null.
+    let noTip = W.SlotId 0 0
+
+    let qry = ongoingSlotAt now >>= \x -> maybe (pure noTip) toSlotId x
+    ntrkTip <- liftIO (runExceptT $ ti qry) >>= \case
+        Right x -> pure x
+        Left _ -> pure noTip
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
-    -- TODO: Re-write firstSlotInEpoch to look at the last time of the previous
-    -- epoch. firstSlotInEpoch may fail.
     nextEpochStart <- liftIO $ unsafeRunExceptT $ ti
-        (firstSlotInEpoch nextEpochNo >>= startTime)
+        (forecastFutureEpochStartUsingTip (nodeTip ^. #slotNo) nextEpochNo)
     progress <- liftIO $ syncProgress st (unsafeRunExceptT . ti) nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress

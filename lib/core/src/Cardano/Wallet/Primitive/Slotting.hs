@@ -26,6 +26,7 @@ module Cardano.Wallet.Primitive.Slotting
     , slotRangeFromTimeRange
     , firstSlotInEpoch
     , ongoingSlotAt
+    , forecastFutureEpochStartUsingTip
 
     -- ** Running queries
     , TimeInterpreter
@@ -147,6 +148,42 @@ startTime :: SlotNo -> Qry UTCTime
 startTime s = do
     rel <- HardForkQry (fst <$> HF.slotToWallclock s)
     RelToUTCTime rel
+
+-- | @Qry@ can not normally be used for conversions outside the forecast range.
+--
+-- This function estimates the start time of an epoch based on the time/slot
+-- information of a given @SlotNo@.
+--
+-- If a hard-fork occurs between the tip and the epoch, the result will be
+-- incorrect.
+forecastFutureEpochStartUsingTip :: SlotNo -> EpochNo -> Qry UTCTime
+forecastFutureEpochStartUsingTip tip epoch = do
+    tipEpoch <- epochOf tip
+    -- Epoch: e         | e+1    | ... | ... | e+?
+    --           *      *                    *
+    --          tip    ref              future epoch
+
+    let refEpoch = EpochNo $ fromIntegral (unEpochNo tipEpoch) + 1
+    ref <- firstSlotInEpoch refEpoch
+    refTime <- startTime ref
+    el <- HardForkQry $ HF.QEpochSize $ toCardanoEpochNo refEpoch
+    sl <- HardForkQry $ HF.QSlotLength ref
+
+    if refEpoch < epoch
+    then
+        let
+            convert = fromRational . toRational
+            el' = convert $ Cardano.unEpochSize el
+            sl' = Cardano.getSlotLength sl
+            epochDelta = convert $ fromIntegral $ unEpochNo $ epoch - refEpoch
+
+            slotDelta = el' * sl' * epochDelta
+
+        in return $ slotDelta `addUTCTime` refTime
+    else startTime =<< firstSlotInEpoch epoch
+
+  where
+    toCardanoEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
 
 -- | Translate 'EpochNo' to the 'SlotNo' of the first slot in that epoch
 firstSlotInEpoch :: EpochNo -> Qry SlotNo
