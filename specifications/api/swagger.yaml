@@ -1026,8 +1026,14 @@ components:
       type: object
       required:
         - migration_cost
+        - leftovers
       properties:
-        migration_cost: *amount
+        migration_cost:
+          <<: *amount
+          description: Total amount which will be paid as fees for the migration.
+        leftovers:
+          <<: *amount
+          description: Leftovers dust coins which won't be migrated nor spent as fees.
 
     ApiWalletPassphrase: &ApiWalletPassphrase
       type: object

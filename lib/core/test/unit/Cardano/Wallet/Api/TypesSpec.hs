@@ -602,6 +602,8 @@ spec = do
                 x' = ApiWalletMigrationInfo
                     { migrationCost =
                         migrationCost (x :: ApiWalletMigrationInfo)
+                    , leftovers =
+                        leftovers (x :: ApiWalletMigrationInfo)
                     }
             in
                 x' === x .&&. show x' === show x

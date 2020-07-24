@@ -616,8 +616,9 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
 
-newtype ApiWalletMigrationInfo = ApiWalletMigrationInfo
+data ApiWalletMigrationInfo = ApiWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
+    , leftovers :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
 
 newtype ApiWithdrawRewards = ApiWithdrawRewards Bool

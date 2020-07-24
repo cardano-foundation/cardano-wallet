@@ -1409,20 +1409,20 @@ getMigrationInfo
         -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
-    infoFromSelections <$> getSelections
+    (cs, leftovers) <- getSelections
+    let migrationCost = costFromSelections cs
+    pure $ ApiWalletMigrationInfo{migrationCost,leftovers}
   where
-    infoFromSelections :: [CoinSelection] -> ApiWalletMigrationInfo
-    infoFromSelections =
-        ApiWalletMigrationInfo
-            . Quantity
-            . fromIntegral
-            . sum
-            . fmap selectionFee
+    costFromSelections :: [CoinSelection] -> Quantity "lovelace" Natural
+    costFromSelections = Quantity
+        . fromIntegral
+        . sum
+        . fmap selectionFee
 
     selectionFee :: CoinSelection -> Word64
     selectionFee s = inputBalance s - changeBalance s
 
-    getSelections :: Handler [CoinSelection]
+    getSelections :: Handler ([CoinSelection], Quantity "lovelace" Natural)
     getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.selectCoinsForMigration @_ @s @t @k wrk wid
 
@@ -1443,7 +1443,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 
     migration <- do
         withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            cs <- W.selectCoinsForMigration @_ @_ @t wrk wid
+            (cs, _) <- W.selectCoinsForMigration @_ @_ @t wrk wid
             pure $ assignMigrationAddresses addrs cs
 
     forM migration $ \cs -> do

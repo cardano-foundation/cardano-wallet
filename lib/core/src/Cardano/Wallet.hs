@@ -1290,7 +1290,10 @@ selectCoinsForMigration
     => ctx
     -> WalletId
        -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO [CoinSelection]
+    -> ExceptT ErrSelectForMigration IO
+        ( [CoinSelection]
+        , Quantity "lovelace" Natural
+        )
 selectCoinsForMigration ctx wid = do
     (utxo, txp, _) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
@@ -1306,7 +1309,10 @@ selectCoinsForMigrationFromUTxO
     -> W.TxParameters
     -> WalletId
        -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO [CoinSelection]
+    -> ExceptT ErrSelectForMigration IO
+        ( [CoinSelection]
+        , Quantity "lovelace" Natural
+        )
 selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl Nothing feePolicy)
@@ -1319,7 +1325,11 @@ selectCoinsForMigrationFromUTxO ctx utxo txp wid = do
             let resultDistribution = W.computeStatistics getCoins W.log10 cs
             liftIO $ traceWith tr $ MsgMigrationUTxOAfter resultDistribution
             liftIO $ traceWith tr $ MsgMigrationResult cs
-            pure cs
+            let leftovers =
+                    W.balance utxo
+                    -
+                    fromIntegral (W.balance' $ concatMap inputs cs)
+            pure (cs, Quantity leftovers)
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
     tl = ctx ^. transactionLayer @t @k
