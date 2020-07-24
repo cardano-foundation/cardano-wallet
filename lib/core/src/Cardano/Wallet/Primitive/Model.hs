@@ -61,6 +61,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
+    , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
@@ -376,9 +377,11 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
+        let withdrawalAmt =
+                sum $ map (fromIntegral . getCoin) $ Map.elems $ withdrawals tx
         let received = fromIntegral @_ @Integer $ balance ourU
         let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
-        let amt = fromIntegral $ abs (received - spent)
+        let amt = fromIntegral $ abs (received - spent - withdrawalAmt)
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         return $ if hasKnownOutput && not hasKnownInput then
