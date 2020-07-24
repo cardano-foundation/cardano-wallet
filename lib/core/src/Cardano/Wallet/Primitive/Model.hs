@@ -379,9 +379,9 @@ prefilterBlock b u0 = runState $ do
         let u' = (u <> ourU) `excluding` ourIns
         let withdrawalAmt =
                 sum $ map (fromIntegral . getCoin) $ Map.elems $ withdrawals tx
-        let received = fromIntegral @_ @Integer $ (withdrawalAmt + balance ourU)
+        let received = fromIntegral @_ @Integer $ balance ourU
         let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
-        let amt = fromIntegral $ abs (received - spent)
+        let amt = fromIntegral $ abs (received - spent - withdrawalAmt)
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         return $ if hasKnownOutput && not hasKnownInput then

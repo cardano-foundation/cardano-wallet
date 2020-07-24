@@ -232,7 +232,7 @@ spec = do
             [ expectField #amount (.> (Quantity coin))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
-        let totalAmt = getFromResponse #amount rTx
+        let totalAmtAfterWithdrawals = getFromResponse #amount rTx
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
@@ -254,7 +254,7 @@ spec = do
             verify rWithdrawal
                 [ expectResponseCode HTTP.status200
                 , expectField #withdrawals (`shouldSatisfy` (not . null))
-                , expectField #amount (`shouldBe` totalAmt)
+                , expectField #amount (`shouldBe` totalAmtAfterWithdrawals)
                 ]
             rw2 <- request @[ApiTransaction n] ctx
                 (Link.listTransactions' @'Shelley w (Just 1)
