@@ -235,63 +235,45 @@ rebalanceSelection opts s
     -- context of delegation / de-registration.
     --
     -- A transaction would have initially no inputs.
-    | null (inputs s) =
-        (s, Fee φ_original)
+    | null (inputs s') =
+        (s', Fee fee)
 
     -- selection is now balanced, nothing to do.
-    | φ_original == δ_original =
-        (s, Fee 0)
+    | fee == delta =
+        (s', Fee 0)
 
     -- some fee left to pay, but we've depleted all change outputs
-    | φ_original > δ_original && null (change s) =
-        (s, Fee (φ_original - δ_original))
+    | fee > delta && null (change s') =
+        (s', Fee (fee - delta))
 
     -- some fee left to pay, and we've haven't depleted all change yet
-    | φ_original > δ_original && not (null (change s)) = do
-        let chgs' = removeDust (Coin 0)
-                $ map reduceSingleChange
-                $ divvyFee (Fee $ φ_original - δ_original) (change s)
-        rebalanceSelection opts (s { change = chgs' })
+    | fee > delta && not (null (change s')) = do
+        let chgs' = map reduceSingleChange
+                $ divvyFee (Fee $ fee - delta) (change s')
+        rebalanceSelection opts (s' { change = chgs' })
 
-    -- we've left too much, but adding a change output would be more
-    -- expensive than not having it. Here we have two choices:
-    --
-    -- a) If the node allows unbalanced transaction, we can stop here and do
-    -- nothing. We'll leave slightly more than what's needed for fees, but
-    -- having an extra change output isn't worth it anyway.
-    --
-    -- b) If we __must__ balance the transaction, then we can choose to pay
-    -- the extra cost by adding the change output and pick a new input to
-    -- pay for the fee.
-    | φ_dangling >= δ_original && φ_dangling > δ_dangling =
+    -- there's more left than requested, we either quit here or demand another
+    -- input.
+    | otherwise =
         case onDanglingChange opts of
             SaveMoney ->
-                (s, Fee 0)
+                (s', Fee 0)
             PayAndBalance ->
-                (sDangling, Fee (φ_dangling - δ_dangling))
-
-    -- So, we can simply add the change output, and iterate.
-    | otherwise =
-        rebalanceSelection opts sDangling
+                (s', Fee fee)
   where
+    s' = s { change = coalesceDust (dustThreshold opts) (change s) }
+
     -- The original requested fee amount
-    Fee φ_original = estimateFee opts s
+    Fee fee = estimateFee opts s'
+
     -- The initial amount left for fee (i.e. inputs - outputs), with a minimum
     -- of 0 in case there are more output than inputs. This is possible when
     -- there are other elements apart from normal outputs like a deposit.
-    δ_original
-        | inputBalance s >= (outputBalance s + changeBalance s) =
-            inputBalance s - (outputBalance s + changeBalance s)
+    delta
+        | inputBalance s' >= (outputBalance s' + changeBalance s') =
+            inputBalance s' - (outputBalance s' + changeBalance s')
         | otherwise =
             0
-
-    -- The new amount left after balancing (i.e. φ_original)
-    Fee φ_dangling = estimateFee opts sDangling
-    -- The new requested fee after adding the output.
-    δ_dangling = φ_original -- by construction of the change output
-
-    extraChng = Coin (δ_original - φ_original)
-    sDangling = s { change = splitChange extraChng (change s) }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.
@@ -326,20 +308,28 @@ divvyFee (Fee f0) outs = go f0 [] outs
         in
             go (f - fOut) ((Fee fOut, Coin out):xs) q
 
--- | Remove coins that are below a given threshold. Note that we can't simply
--- "remove" coins from the list because this could create an unbalanced
--- transaction. Therefore, we want `removeDust` to have the following property:
+-- | Remove coins that are below a given threshold. It'll try two strategies:
+--
+-- 1. Try to coalesce dust coins with other non-dust coins.
+-- 2. If the result is a single coin still smaller than the threshold, it'll
+-- return an empty list.
 --
 --     ∀δ≥0. sum coins == sum (removeDust δcoins)
 --
-removeDust :: Coin -> [Coin] -> [Coin]
-removeDust threshold coins =
-    let
-        filtered = L.filter (> threshold) coins
-        diff = balance coins - balance filtered
-            where balance = L.foldl' (\total (Coin c) -> c + total) 0
-    in
-        splitChange (Coin diff) filtered
+coalesceDust :: Coin -> [Coin] -> [Coin]
+coalesceDust threshold coins
+    | balance coins < getCoin threshold =
+        []
+    | otherwise =
+        let
+            filtered = L.filter (> threshold) coins
+            diff = balance coins - balance filtered
+        in
+            splitChange (Coin diff) filtered
+
+balance :: [Coin] -> Word64
+balance = L.foldl' (\total (Coin c) -> c + total) 0
+
 
 -- Equally split the extra change obtained when picking new inputs across all
 -- other change. Note that, it may create an extra change output if:
