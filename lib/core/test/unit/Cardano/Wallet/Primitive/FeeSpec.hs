@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Fee
     , FeeOptions (..)
     , OnDanglingChange (..)
     , adjustForFee
+    , coalesceDust
     , divvyFee
     , rebalanceSelection
     )
@@ -40,7 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     )
 import Control.Arrow
-    ( left )
+    ( first, left )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -183,7 +184,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [4,2]
+            , csChngs = [6]
             })
 
         -- Cannot cover fee, no extra inputs
@@ -510,7 +511,7 @@ prop_rebalanceSelection
     -> Coin
     -> Property
 prop_rebalanceSelection sel onDangling threshold = do
-    let (sel', fee') = rebalanceSelection opts sel
+    let (sel', fee') = first withCoalescedDust $ rebalanceSelection opts sel
 
     let selectionIsBalanced = case onDangling of
             PayAndBalance ->
@@ -522,7 +523,7 @@ prop_rebalanceSelection sel onDangling threshold = do
             sel { change = [] } == sel' { change = [] }
 
     let noDust =
-            all (>= threshold') (change sel')
+            all (> threshold') (change sel')
 
     conjoin
         [ fee' == Fee 0 ==> selectionIsBalanced
@@ -555,6 +556,10 @@ prop_rebalanceSelection sel onDangling threshold = do
         fromIntegral (inputBalance s)
         -
         fromIntegral (outputBalance s + changeBalance s)
+
+    withCoalescedDust :: CoinSelection -> CoinSelection
+    withCoalescedDust cs =
+        cs { change = coalesceDust threshold' (change cs) }
 
     -- NOTE: We only allow non-null dust threshold if 'onDangling' is
     -- set to 'SaveMoney'.
