@@ -59,7 +59,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -340,6 +340,7 @@ spec = do
                 rGet
 
         it "Can list wallet" $ \ctx -> do
+            pendingWith "TODO: appears to be flaky from time to time."
             mnemonics <- entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             _ <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
@@ -351,6 +352,7 @@ spec = do
                 rl
 
         it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> do
+            pendingWith "TODO: appears to flaky from time to time."
             mnemonics <- entropyToMnemonic <$> genEntropy
             let mnemonicsTxt = mnemonicToText @15 mnemonics
 

@@ -50,7 +50,7 @@
             (hsPkgs."free" or (errorHandler.buildDepError "free"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+            (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
             (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
             (hsPkgs."sequence" or (errorHandler.buildDepError "sequence"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
@@ -67,8 +67,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "a790fb38cced04d8d8a9aeacc2a761717f11f94e";
-      sha256 = "0j5sgx7wqf46f30r8dgmxk85y99pvn7dzrj99xi7779lllqn4ddg";
+      rev = "183a70c001587d9b1977541deae28c3e44713907";
+      sha256 = "15vhqa5vxn7xr1a93qf6wqi5h6c17h29mmd8is7z14ma08bl1baf";
       });
     postUnpack = "sourceRoot+=/semantics/executable-spec; echo source root reset to \$sourceRoot";
     }
