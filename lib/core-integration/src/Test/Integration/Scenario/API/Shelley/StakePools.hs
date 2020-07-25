@@ -603,7 +603,7 @@ spec = do
 
             let expectedRetirementEpochs = Set.fromList
                     [ Nothing
-                    , Just 1_000
+                    , Just 100_000
                     , Just 1_000_000
                     ]
 
