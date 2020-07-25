@@ -180,9 +180,13 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
 
 testPoolConfigs :: [PoolConfig]
 testPoolConfigs =
-    [ PoolConfig {retirementEpoch = Nothing}
+    [ -- This pool should never retire:
+      PoolConfig {retirementEpoch = Nothing}
+      -- This pool should retire almost immediately:
     , PoolConfig {retirementEpoch = Just 1}
+      -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000}
+      -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
 
