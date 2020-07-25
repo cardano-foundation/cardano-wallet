@@ -194,7 +194,7 @@ newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
             $ combineDbAndLsqData (slotParams gp) lsqData dbData
       where
         epochIsInFuture :: EpochNo -> Bool
-        epochIsInFuture = (>= currentEpoch)
+        epochIsInFuture = (> currentEpoch)
 
         poolIsRetired :: Api.ApiStakePool -> Bool
         poolIsRetired =
