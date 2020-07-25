@@ -51,6 +51,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader
     , CertificatePublicationTime (..)
     , Coin (..)
+    , EpochNo (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
     , PoolId
@@ -88,6 +89,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -131,10 +134,16 @@ data StakePoolLayer = StakePoolLayer
         :: IO [PoolId]
 
     -- | List pools based given the the amount of stake the user intends to
-    -- delegate, which affects the size of the rewards and the ranking of the
-    -- pools.
+    --   delegate, which affects the size of the rewards and the ranking of
+    --   the pools.
+    --
+    -- Pools with a retirement epoch earlier than or equal to the specified
+    -- epoch will be excluded from the result.
+    --
     , listStakePools
-        :: Coin
+        :: EpochNo
+        -- Exclude all pools that retired in or before this epoch.
+        -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     }
 
@@ -166,17 +175,35 @@ newStakePoolLayer gp nl db@DBLayer {..} = StakePoolLayer
             Left _e -> return []
 
     _listPools
-        :: Coin
+        :: EpochNo
+        -- Exclude all pools that retired in or before this epoch.
+        -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
-    _listPools userStake = do
+    _listPools currentEpoch userStake = do
         tip <- liftIO getTip
         lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
         dbData <- liftIO $ readPoolDbData db
+        -- TODO:
+        -- Use a more efficient way of filtering out retired pools.
+        -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
         return
             . sortOn (Down . (view (#metrics . #nonMyopicMemberRewards)))
+            . filter (not . poolIsRetired)
             . map snd
             . Map.toList
             $ combineDbAndLsqData (slotParams gp) lsqData dbData
+      where
+        epochIsInFuture :: EpochNo -> Bool
+        epochIsInFuture = (> currentEpoch)
+
+        poolIsRetired :: Api.ApiStakePool -> Bool
+        poolIsRetired =
+            maybe False (not . epochIsInFuture) . poolRetirementEpoch
+
+        poolRetirementEpoch :: Api.ApiStakePool -> Maybe EpochNo
+        poolRetirementEpoch p = p
+            & view #retirement
+            & fmap (view (#epochNumber . #getApiT))
 
     gh = getGenesisBlockHash gp
     getTip = fmap (toPoint gh) . liftIO $ unsafeRunExceptT $ currentNodeTip nl
@@ -325,9 +352,34 @@ combineChainData registrationMap retirementMap prodMap metaMap =
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
 
--- NOTE: If performance becomes a problem, we could try replacing all
--- the individual database queries and combining functions with a single
--- hand-written database query.
+-- TODO:
+--
+-- This function currently executes a total of (2n + 1) database queries, where
+-- n is the total number of pools with entries in the pool registrations table.
+--
+-- Specifically:
+--
+--    1.  We first execute a query to determine the complete set of all pools
+--        (including those that may have retired).
+--
+--    2.  For each pool, we determine its current life-cycle status by executing
+--        a pair of queries to fetch:
+--
+--          a. The most recent registration certificate.
+--          b. The most recent retirement certificate.
+--
+-- This is almost certainly not optimal.
+--
+-- If performance becomes a problem, we should investigate ways to reduce the
+-- number of queries required:
+--
+--    See: https://jira.iohk.io/browse/ADP-383
+--
+-- Additionally, we can consider performing garbage collection of retired pools
+-- from the database:
+--
+--    See: https://jira.iohk.io/browse/ADP-376
+--
 readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools

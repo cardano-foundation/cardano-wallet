@@ -48,6 +48,7 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , getCurrentEpoch
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -184,18 +185,20 @@ server byron icarus shelley spl ntp =
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
-        (\case
-            Just (ApiT stake) -> liftHandler $ listStakePools spl stake
+        listStakePools_
+        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> quitStakePool shelley
+        :<|> delegationFee shelley
+      where
+        listStakePools_ = \case
+            Just (ApiT stake) -> do
+                currentEpoch <- getCurrentEpoch shelley
+                liftHandler $ listStakePools spl currentEpoch stake
             Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
                 mconcat
                 [ "The stake intended to delegate must be provided as a query "
                 , "parameter as it affects the rewards and ranking."
                 ]
-
-        )
-        :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
-        :<|> quitStakePool shelley
-        :<|> delegationFee shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =

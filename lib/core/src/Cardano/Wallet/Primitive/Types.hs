@@ -616,7 +616,7 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
-    } deriving (Eq, Show, Generic)
+    } deriving (Eq, Ord, Show, Generic)
 
 instance FromJSON StakePoolMetadata where
     parseJSON = withObject "StakePoolMetadta" $ \obj -> do
@@ -635,7 +635,7 @@ instance FromJSON StakePoolMetadata where
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
-    deriving stock (Generic, Show, Eq)
+    deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (ToText)
 
 instance FromText StakePoolTicker where
