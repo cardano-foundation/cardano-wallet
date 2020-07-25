@@ -41,7 +41,7 @@ in pkgs: super: with pkgs; {
       jq . < ${__toFile "${name}-config.json" (__toJSON (updateConfig env))} > $cfg/configuration.json
     '' + (if env.consensusProtocol == "Cardano" then ''
       jq . < ${env.genesisFile} > $cfg/genesis-byron.json
-      jq . < ${env.genesisFileHfc} > $cfg/genesis-shelley.json
+      cp ${env.genesisFileHfc} $cfg/genesis-shelley.json
     '' else ''
       jq . < ${env.genesisFile} > $cfg/genesis.json
     '')) environments);

@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -16,11 +17,15 @@ module Test.Integration.Faucet
     , icaMnemonics
     , rndMnemonics
 
+      -- * Integration test funds
+    , shelleyIntegrationTestFunds
+
       -- * Internals
     , genByronFaucets
     , genIcarusFaucets
     , genShelleyFaucets
     , genMnemonics
+    , genShelleyAddresses
     ) where
 
 import Prelude hiding
@@ -48,9 +53,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , liftIndex
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin )
+    ( Address (..), Coin (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
     ( MVar, putMVar, takeMVar )
 import Control.Monad
@@ -1388,38 +1393,31 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO ()
-genShelleyFaucets = genFaucet encodeAddress genAddresses
+genShelleyFaucets = genFaucet encodeAddress genShelleyAddresses
   where
     encodeAddress :: Address -> Text
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ convertToBase Base16 bytes
 
-    genAddresses :: Mnemonic 15 -> [Address]
-    genAddresses mw =
-        let
-            (seed, pwd) =
-                (SomeMnemonic mw, mempty)
-            rootXPrv =
-                Shelley.generateKeyFromSeed (seed, Nothing) pwd
-            accXPrv =
-                deriveAccountPrivateKey pwd rootXPrv minBound
-            addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv UTxOExternal
-        in
-            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
-            | ix <- [minBound..maxBound]
-            ]
+genShelleyAddresses :: Mnemonic 15 -> [Address]
+genShelleyAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Shelley.generateKeyFromSeed (seed, Nothing) pwd
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+    in
+        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        | ix <- [minBound..maxBound]
+        ]
 
 -- | Abstract function for generating a faucet.
 genFaucet
-    :: forall mw ent csz.
-        ( ValidMnemonicSentence mw
-        , ValidEntropySize ent
-        , ValidChecksumSize ent csz
-        , ent ~ EntropySize mw
-        , mw ~ MnemonicWords ent
-        )
-    => (Address -> Text)
+    :: (Address -> Text)
     -> (Mnemonic mw -> [Address])
     -> FilePath
     -> [Mnemonic mw]
@@ -1450,6 +1448,55 @@ genMnemonics
     -> IO [Mnemonic mw]
 genMnemonics n =
     replicateM n (entropyToMnemonic @mw <$> genEntropy)
+
+--
+-- Integration test funds
+--
+
+-- | A special wallet with only dust
+onlyDustWallet :: Mnemonic 15
+onlyDustWallet = unsafeMkMnemonic
+    [ "either" , "flip" , "maple" , "shift" , "dismiss"
+    , "bridge" , "sweet" , "reveal" , "green" , "tornado"
+    , "need" , "patient" , "wall" , "stamp" , "pass"
+    ]
+
+-- | A special Shelley Wallet with 200 UTxOs where 100 of them are dust
+bigDustWallet :: Mnemonic 15
+bigDustWallet = unsafeMkMnemonic
+    [ "radar", "scare", "sense", "winner", "little"
+    , "jeans", "blue", "spell", "mystery", "sketch"
+    , "omit", "time", "tiger", "leave", "load"
+    ]
+
+shelleyIntegrationTestFunds :: [(Address, Coin)]
+shelleyIntegrationTestFunds = mconcat
+    [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses)
+
+    , zip (addresses onlyDustWallet) (map Coin [1,1,5,12,1,5,3,10,2,3])
+
+    , take 100 (map (, defaultAmt) $ addresses bigDustWallet)
+    , take 100 . drop 100 $ map (,Coin 1) $ addresses bigDustWallet
+
+    , preregKeyWalletFunds
+    ]
+  where
+    defaultAmt = Coin 100000000000
+    addresses = genShelleyAddresses
+
+    -- Funds for wallet with a pre-registered stake key.
+    --
+    --  _preregKeyWallet :: Mnemonic 15
+    --  _preregKeyWallet = unsafeMkMnemonic
+    --      ["over", "decorate", "flock", "badge", "beauty"
+    --      , "stamp", "chest", "owner", "excess", "omit"
+    --      , "bid", "raccoon", "spin", "reduce", "rival"
+    --      ]
+    --
+    preregKeyWalletFunds = map ((,defaultAmt) . Address . unsafeFromHex)
+        [ "6199a7c32aaa55a628d936b539f01d5415318dec8bcb5e59ec71af695b"
+        , "61386c7a86d8844f4085a50241556043c9842d72c315c897a42a8a0510"
+        ]
 
 --
 -- Helpers

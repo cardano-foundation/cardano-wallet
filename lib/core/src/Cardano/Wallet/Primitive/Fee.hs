@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.Fee
     , OnDanglingChange(..)
     , adjustForFee
     , rebalanceSelection
+    , coalesceDust
     ) where
 
 import Prelude
@@ -174,7 +175,9 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -- the upper bound. We could do some binary search and try to
         -- re-distribute excess across changes until fee becomes bigger.
         if remFee == Fee 0
-        then pure coinSel'
+        then pure $ coinSel'
+            { change = coalesceDust (dustThreshold opt) (change coinSel')
+            }
         else do
             -- Otherwise, we need an extra entries from the available utxo to
             -- cover what's left. Note that this entry may increase our change
@@ -248,7 +251,7 @@ rebalanceSelection opts s
 
     -- some fee left to pay, and we've haven't depleted all change yet
     | φ_original > δ_original && not (null (change s)) = do
-        let chgs' = removeDust (Coin 0)
+        let chgs' = coalesceDust (Coin 0)
                 $ map reduceSingleChange
                 $ divvyFee (Fee $ φ_original - δ_original) (change s)
         rebalanceSelection opts (s { change = chgs' })
@@ -326,20 +329,28 @@ divvyFee (Fee f0) outs = go f0 [] outs
         in
             go (f - fOut) ((Fee fOut, Coin out):xs) q
 
--- | Remove coins that are below a given threshold. Note that we can't simply
--- "remove" coins from the list because this could create an unbalanced
--- transaction. Therefore, we want `removeDust` to have the following property:
+-- | Remove coins that are below a given threshold. It'll try two strategies:
+--
+-- 1. Try to coalesce dust coins with other non-dust coins.
 --
 --     ∀δ≥0. sum coins == sum (removeDust δcoins)
 --
-removeDust :: Coin -> [Coin] -> [Coin]
-removeDust threshold coins =
-    let
-        filtered = L.filter (> threshold) coins
-        diff = balance coins - balance filtered
-            where balance = L.foldl' (\total (Coin c) -> c + total) 0
-    in
-        splitChange (Coin diff) filtered
+-- 2. If the result is a single coin still smaller than the threshold, it'll
+-- return an empty list.
+coalesceDust :: Coin -> [Coin] -> [Coin]
+coalesceDust threshold coins
+    | balance coins < getCoin threshold =
+        []
+    | otherwise =
+        let
+            filtered = L.filter (> threshold) coins
+            diff = balance coins - balance filtered
+        in
+            splitChange (Coin diff) filtered
+
+balance :: [Coin] -> Word64
+balance = L.foldl' (\total (Coin c) -> c + total) 0
+
 
 -- Equally split the extra change obtained when picking new inputs across all
 -- other change. Note that, it may create an extra change output if:

@@ -615,12 +615,19 @@ eventuallyUsingDelay
     -> IO a
 eventuallyUsingDelay delay desc io = do
     lastErrorRef <- newIORef Nothing
-    winner <- race (threadDelay $ 300 * oneSecond) (trial lastErrorRef)
+    -- NOTE
+    -- This __90s__ is mostly justified by the parameters in the shelley
+    -- genesis. The longest action we have two wait for are about 2 epochs,
+    -- which corresponds to 80s with the current parameters. Using something
+    -- much longer than that isn't really useful (in particular, this doesn't
+    -- depend on the host machine running the test, because the protocol moves
+    -- forward at the same speed regardless...)
+    winner <- race (threadDelay $ 90 * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
             lastError <- readIORef lastErrorRef
             fail $ mconcat
-                [ "Waited longer than 5 minutes for action to resolve. "
+                [ "Waited longer than 2 minutes for an action to resolve. "
                 , "Action: "
                 , show desc
                 , ". Error condition: "
@@ -671,25 +678,25 @@ emptyRandomWallet :: Context t -> IO ApiByronWallet
 emptyRandomWallet ctx = do
     mnemonic <- mnemonicToText @12 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonic, "Secure Passphrase")
+        ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 12)
 emptyRandomWalletMws ctx = do
     mnemonic <- entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonicToText @12 mnemonic, "Secure Passphrase")
+        ("Random Wallet", mnemonicToText @12 mnemonic, fixturePassphrase)
 
 emptyIcarusWallet :: Context t -> IO ApiByronWallet
 emptyIcarusWallet ctx = do
     mnemonic <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet", mnemonic, "Secure Passphrase")
+        ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWalletMws :: Context t -> IO (ApiByronWallet, Mnemonic 15)
 emptyIcarusWalletMws ctx = do
     mnemonic <- entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet",mnemonicToText @15 mnemonic, "Secure Passphrase")
+        ("Icarus Wallet",mnemonicToText @15 mnemonic, fixturePassphrase)
 
 emptyRandomWalletWithPasswd :: Context t -> Text -> IO ApiByronWallet
 emptyRandomWalletWithPasswd ctx rawPwd = do
@@ -756,7 +763,7 @@ emptyWallet ctx = do
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
             "mnemonic_sentence": #{mnemonic},
-            "passphrase": "Secure Passphrase"
+            "passphrase": #{fixturePassphrase}
         }|]
     r <- request @ApiWallet ctx
         (Link.postWallet @'Shelley) Default payload

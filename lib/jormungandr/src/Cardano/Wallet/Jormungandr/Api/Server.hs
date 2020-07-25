@@ -90,7 +90,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiErrorCode (..), ApiT (..), SomeByronWalletPostData (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), NetworkDiscriminant (..) )
+    ( DelegationAddress (..), NetworkDiscriminant (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -128,6 +128,7 @@ server
         , jormungandr ~ ApiLayer (SeqState n JormungandrKey) t JormungandrKey
         , DelegationAddress n JormungandrKey
         , Buildable (ErrValidateSelection t)
+        , PaymentAddress n ByronKey
         )
     => byron
     -> icarus
@@ -261,12 +262,12 @@ server byron icarus jormungandr spl ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo byron wid)
-                (icarus, getMigrationInfo icarus wid)
+                (byron , getMigrationInfo @_ @_ @_ @n byron wid)
+                (icarus, getMigrationInfo @_ @_ @_ @n icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
-                (byron , migrateWallet byron wid m)
-                (icarus, migrateWallet icarus wid m)
+                (byron , migrateWallet @_ @_ @_ @n byron wid m)
+                (icarus, migrateWallet @_ @_ @_ @n icarus wid m)
              )
 
     network :: Server Network

@@ -169,6 +169,7 @@ spec = do
 
     it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+
         -- NOTE
         -- Special mnemonic for which 200 shelley funds are attached to in the
         -- genesis file.
@@ -187,14 +188,16 @@ spec = do
                 } |]
         (_, wOld) <- unsafeRequest @ApiWallet ctx
             (Link.postWallet @'Shelley) payloadRestore
-        eventually "wallet balance greater than 0" $ do
-            request @ApiWallet ctx
+        originalBalance <- eventually "wallet balance greater than 0" $ do
+            r <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wOld)
                 Default
-                Empty >>= flip verify
+                Empty
+            verify r
                 [ expectField (#balance . #getApiT . #available) (.> Quantity 0)
                 ]
-        let originalBalance = view (#balance . #getApiT . #available . #getQuantity) wOld
+            return $ getFromResponse
+                (#balance . #getApiT . #available . #getQuantity) r
 
         -- Calculate the expected migration fee:
         rFee <- request @ApiWalletMigrationInfo ctx
@@ -206,6 +209,7 @@ spec = do
             , expectField #migrationCost (.> Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
+        let leftovers = getFromResponse (#leftovers . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -222,11 +226,11 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 7). length)
+            , expectField id ((`shouldBe` 9) . length)
             ]
 
         -- Check that funds become available in the target wallet:
-        let expectedBalance = originalBalance - expectedFee
+        let expectedBalance = originalBalance - expectedFee - leftovers
         eventually "wallet balance = expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)

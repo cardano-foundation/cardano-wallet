@@ -29,33 +29,15 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiWallet, WalletStyle (..) )
+    ( ApiByronWallet, ApiWallet, EncodeAddress (..), WalletStyle (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, trMessageText )
+    ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
-import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
-    , FeePolicy (..)
-    , Hash (..)
-    , NetworkParameters (..)
-    , ProtocolParameters (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxParameters (..)
-    , mainnetMagic
-    )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , Tracers
@@ -70,12 +52,14 @@ import Cardano.Wallet.Shelley.Faucet
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
+    , RunningNode (..)
+    , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
     , withTempDir
     )
-import Cardano.Wallet.Shelley.Transaction
-    ( _minimumFee )
+import Control.Arrow
+    ( first )
 import Control.Concurrent.Async
     ( race )
 import Control.Concurrent.MVar
@@ -98,40 +82,34 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Numeric.Natural
-    ( Natural )
 import System.Environment
     ( lookupEnv )
 import System.Exit
     ( die )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
-import System.Random
-    ( mkStdGen, randoms )
 import Test.Hspec
     ( Spec, SpecWith, after, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
+import Test.Integration.Faucet
+    ( shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , KnownCommand (..)
     , Payload (..)
-    , TxDescription (..)
     , request
     , unsafeRequest
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
--- TODO: enable when byron transactions/addresses supported in the cardano-node
--- import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
--- import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
--- import qualified Test.Integration.Byron.Scenario.API.Transactions as ByronTransactions
--- import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactionsCommon
--- import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
+import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
+import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
+import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
+import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
@@ -162,14 +140,18 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
-                ByronWallets.spec @n
-                Migrations.spec @n
-                Transactions.spec @n
+                ByronAddresses.spec @n
                 Wallets.spec @n
+                ByronWallets.spec @n
                 HWWallets.spec @n
+                Migrations.spec @n
+                ByronMigrations.spec @n
+                Transactions.spec @n
                 Network.spec
                 Network_.spec
                 StakePools.spec @n
+                ByronTransactions.spec @n
+                ByronHWWallets.spec @n
             describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
@@ -183,9 +165,9 @@ testPoolConfigs =
     [ -- This pool should never retire:
       PoolConfig {retirementEpoch = Nothing}
       -- This pool should retire almost immediately:
-    , PoolConfig {retirementEpoch = Just 1}
+    , PoolConfig {retirementEpoch = Just 3}
       -- This pool should retire, but not within the duration of a test run:
-    , PoolConfig {retirementEpoch = Just 1_000}
+    , PoolConfig {retirementEpoch = Just 100_000}
       -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
@@ -213,10 +195,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                     , _manager = manager
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
-                    , _feeEstimator = mkFeeEstimator
-                        $ getFeePolicy
-                        $ txParameters
-                        $ protocolParameters np
+                    , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _target = Proxy
                     }
@@ -225,25 +204,42 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         race (takeMVar ctx >>= action') (withServer setupContext) >>=
             either pure (throwIO . ProcessHasExited "integration")
 
-    withServer onStart = bracketTracer' tr "withServer" $ do
+    withServer action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
-        let tr' = contramap MsgCluster tr
+        testPoolConfigs' <- poolConfigsFromEnv
         withSystemTempDir tr' "test" $ \dir ->
-            withCluster tr' minSev testPoolConfigs dir $
-                \socketPath block0 (gp, vData) ->
-                    withTempDir tr' dir "wallets" $ \db -> do
-                        serveWallet @(IO Shelley)
-                            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                            tracers
-                            (SyncTolerance 10)
-                            (Just db)
-                            "127.0.0.1"
-                            ListenOnRandomPort
-                            Nothing
-                            socketPath
-                            block0
-                            (gp, vData)
-                            (onStart gp)
+            withCluster
+                tr'
+                minSev
+                testPoolConfigs'
+                dir
+                onByron
+                (afterFork dir)
+                (onClusterStart action dir)
+
+    tr' = contramap MsgCluster tr
+    onByron _ = pure ()
+    afterFork dir _ = do
+        let encodeAddr = T.unpack . encodeAddress @'Mainnet
+        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        sendFaucetFundsTo stdoutTextTracer dir addresses
+
+    onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
+        -- NOTE: We may want to keep a wallet running across the fork, but
+        -- having three callbacks like this might not work well for that.
+        withTempDir tr' dir "wallets" $ \db -> do
+            serveWallet @(IO Shelley)
+                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                tracers
+                (SyncTolerance 10)
+                (Just db)
+                "127.0.0.1"
+                ListenOnRandomPort
+                Nothing
+                socketPath
+                block0
+                (gp, vData)
+                (action gp)
 
     -- | teardown after each test (currently only deleting all wallets)
     tearDown :: Context t -> IO ()
@@ -256,41 +252,6 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
             (Link.listWallets @'Shelley) Empty
         forM_ wallets $ \w -> void $ request @Aeson.Value ctx
             (Link.deleteWallet @'Shelley w) Default Empty
-
-mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
-mkFeeEstimator policy = \case
-    PaymentDescription i o c ->
-        let
-            fee = computeFee (dummySelection i o c) Nothing
-        in
-            ( fee, fee )
-
-    DelegDescription action ->
-        let
-            feeMin = computeFee (dummySelection 0 0 0) (Just action)
-            feeMax = computeFee (dummySelection 1 0 1) (Just action)
-        in
-            ( feeMin, feeMax )
-  where
-    genTxId i = Hash $ BS.pack $ take 32 $ randoms $ mkStdGen (fromIntegral i)
-
-    dummySelection nInps nOuts nChgs =
-        let
-            inps = take nInps
-                [ ( TxIn (genTxId ix) ix
-                  , TxOut (Address mempty) minBound
-                  )
-                | ix <- [0..]
-                ]
-
-            outs =
-                replicate (nOuts + nChgs) (Coin minBound)
-        in
-            mempty { inputs = inps, change = outs }
-
-    computeFee selection action =
-        fromIntegral $ getFee $
-        _minimumFee @_ @ShelleyKey (Proxy @'Mainnet) mainnetMagic policy action selection
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -345,3 +306,9 @@ minSeverityFromEnv def var = lookupEnv var >>= \case
     Nothing -> pure def
     Just "" -> pure def
     Just arg -> either die pure (parseLoggingSeverity arg)
+
+poolConfigsFromEnv :: IO [PoolConfig]
+poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
+    Nothing -> pure testPoolConfigs
+    Just "" -> pure testPoolConfigs
+    Just _ -> pure []

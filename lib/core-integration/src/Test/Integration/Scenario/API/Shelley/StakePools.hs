@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
+    , ApiWalletDelegationStatus (..)
     , ApiWithdrawRewards (..)
     , DecodeAddress
     , DecodeStakeAddress
@@ -41,8 +42,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolTicker (..)
     , TxStatus (..)
     )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Data.Function
@@ -73,7 +72,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , TxDescription (..)
     , delegating
     , delegationFee
     , emptyWallet
@@ -91,7 +89,6 @@ import Test.Integration.Framework.DSL
     , joinStakePool
     , json
     , listAddresses
-    , mkEpochInfo
     , notDelegating
     , quitStakePool
     , request
@@ -165,6 +162,7 @@ spec = do
             ]
 
         -- Earn rewards
+        waitForNextEpoch ctx
         waitForNextEpoch ctx
         (previousBalance, walletRewards) <-
             eventually "Wallet gets rewards" $ do
@@ -349,7 +347,7 @@ spec = do
         w <- fixtureWallet ctx
 
         -- make sure we are at the beginning of new epoch
-        (currentEpoch, sp) <- getSlotParams ctx
+        (currentEpoch, _) <- getSlotParams ctx
         waitForNextEpoch ctx
 
         pool1:pool2:_ <- map (view #id) . snd
@@ -374,10 +372,17 @@ spec = do
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
-                [ expectField #delegation
-                    (`shouldBe` notDelegating
-                        [ (Just pool1, mkEpochInfo (currentEpoch + 3) sp)
-                        ]
+                [ expectField (#delegation . #next)
+                    (\case
+                        [dlg] -> do
+                            (dlg ^. #status) `shouldBe`
+                                Delegating
+                            (dlg ^. #target) `shouldBe`
+                                Just pool1
+                            (view #epochNumber <$> dlg ^. #changesAt) `shouldBe`
+                                Just (ApiT $ currentEpoch + 3)
+                        _ ->
+                            fail "next delegation should contain exactly one element"
                     )
                 ]
         eventually "Wallet is delegating to p1" $ do
@@ -429,6 +434,7 @@ spec = do
                 ]
 
         waitForNextEpoch ctx
+        waitForNextEpoch ctx
 
         -- Wait for money to flow
         eventually "Wallet gets rewards" $ do
@@ -454,7 +460,7 @@ spec = do
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
                 "mnemonic_sentence": #{walletWithPreRegKey},
-                "passphrase": "Secure Passphrase"
+                "passphrase": #{fixturePassphrase}
                 } |]
 
         (_, w) <- unsafeRequest @ApiWallet ctx
@@ -463,22 +469,19 @@ spec = do
             ctx (Link.listStakePools arbitraryStake) Empty
 
         eventually "wallet join a pool" $ do
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
-
         it "STAKE_POOLS_JOIN_01x - \
             \I can join if I have just the right amount" $ \ctx -> do
-            let (_, fee) = ctx ^. #_feeEstimator $
-                    DelegDescription (RegisterKeyAndJoin dummyPool)
-            w <- fixtureWalletWith @n ctx [fee + depositAmt ctx]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx]
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
-            joinStakePool @n ctx pool (w, passwd)>>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase)>>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -486,30 +489,30 @@ spec = do
 
         it "STAKE_POOLS_JOIN_01x - \
            \I cannot join if I have not enough fee to cover" $ \ctx -> do
-            let (fee, _) = ctx ^. #_feeEstimator $
-                    DelegDescription (RegisterKeyAndJoin dummyPool)
-            w <- fixtureWalletWith @n ctx [fee + depositAmt ctx - 1]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx - 1]
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403DelegationFee 14101)
+                , expectErrorMessage (errMsg403DelegationFee 1)
                 ]
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
 
         it "STAKE_POOLS_QUIT_01x - \
             \I can quit if I have enough to cover fee" $ \ctx -> do
-            let (_, feeJoin) = ctx ^. #_feeEstimator $
-                    DelegDescription (RegisterKeyAndJoin dummyPool)
-            let (_, feeQuit) = ctx ^. #_feeEstimator $ DelegDescription Quit
-            let initBalance = [feeJoin + depositAmt ctx + feeQuit]
+            let initBalance =
+                    [ costOfJoining ctx
+                    + depositAmt ctx
+                    + costOfQuitting ctx
+                    + costOfChange ctx
+                    ]
             w <- fixtureWalletWith @n ctx initBalance
 
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -521,7 +524,7 @@ spec = do
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
 
-            quitStakePool @n ctx (w, passwd) >>= flip verify
+            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 ]
             eventually "Wallet is not delegating and it got his deposit back" $
@@ -538,17 +541,14 @@ spec = do
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
-            \I cannot quit if I have not enough fee to cover" $ \ctx -> do
-            let (_, feeJoin) = ctx ^. #_feeEstimator $
-                    DelegDescription (RegisterKeyAndJoin dummyPool)
-            let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription Quit
-            let initBalance = [feeJoin + depositAmt ctx + 1]
+            \I cannot quit if I have not enough to cover fees" $ \ctx -> do
+            let initBalance = [ costOfJoining ctx + depositAmt ctx ]
             w <- fixtureWalletWith @n ctx initBalance
 
             pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx pool (w, passwd) >>= flip verify
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -559,19 +559,19 @@ spec = do
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
-            quitStakePool @n ctx (w, passwd) >>= flip verify
+
+            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
+                , expectErrorMessage $ errMsg403DelegationFee 115900
                 ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
         \empty wallet cannot estimate fee" $ \ctx -> do
         w <- emptyWallet ctx
-        let (fee, _) = ctx ^. #_feeEstimator $
-                DelegDescription (RegisterKeyAndJoin dummyPool)
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage $ errMsg403DelegationFee fee
+            , expectErrorMessage $ errMsg403DelegationFee
+                (costOfJoining ctx - costOfChange ctx)
             ]
 
     let listPools ctx stake = request @[ApiStakePool] @IO ctx
@@ -603,7 +603,7 @@ spec = do
 
             let expectedRetirementEpochs = Set.fromList
                     [ Nothing
-                    , Just 1_000
+                    , Just 100_000
                     , Just 1_000_000
                     ]
 
@@ -746,13 +746,8 @@ spec = do
     arbitraryStake = Just $ ada 10_000_000_000
       where ada = Coin . (1000*1000*)
 
-    dummyPool :: PoolId
-    dummyPool = PoolId mempty
-
     setOf :: Ord b => [a] -> (a -> b) -> Set b
     setOf xs f = Set.fromList $ map f xs
-
-    passwd = "Secure Passphrase"
 
     depositAmt :: Context t -> Natural
     depositAmt ctx =
@@ -761,3 +756,20 @@ spec = do
             LinearFee _ _ (Quantity c) = pp ^. #txParameters . #getFeePolicy
         in
             round c
+
+    costOfJoining :: Context t -> Natural
+    costOfJoining = costOf (\coeff cst -> 364 * coeff + cst)
+
+    costOfQuitting :: Context t -> Natural
+    costOfQuitting = costOf (\coeff cst -> 297 * coeff + cst)
+
+    costOfChange :: Context t -> Natural
+    costOfChange = costOf (\coeff _cst -> 133 * coeff)
+
+    costOf :: (Natural -> Natural -> Natural) -> Context t -> Natural
+    costOf withCoefficients ctx =
+        withCoefficients coeff cst
+      where
+        pp = ctx ^. #_networkParameters . #protocolParameters
+        (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
+        LinearFee a b _ = pp ^. #txParameters . #getFeePolicy

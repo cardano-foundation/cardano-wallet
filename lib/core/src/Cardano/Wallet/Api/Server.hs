@@ -255,12 +255,9 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
-    , epochStartTime
     , epochSucc
     , firstSlotInEpoch
-    , slotAt'
-    , slotMinBound
-    , slotParams
+    , ongoingSlotAt
     , startTime
     , toSlotId
     )
@@ -1405,35 +1402,38 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
-    :: forall s t k. ()
+    :: forall s t k n.
+        ( PaymentAddress n ByronKey
+        )
     => ApiLayer s t k
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
-    infoFromSelections <$> getSelections
+    (cs, leftovers) <- getSelections
+    let migrationCost = costFromSelections cs
+    pure $ ApiWalletMigrationInfo{migrationCost,leftovers}
   where
-    infoFromSelections :: [CoinSelection] -> ApiWalletMigrationInfo
-    infoFromSelections =
-        ApiWalletMigrationInfo
-            . Quantity
-            . fromIntegral
-            . sum
-            . fmap selectionFee
+    costFromSelections :: [CoinSelection] -> Quantity "lovelace" Natural
+    costFromSelections = Quantity
+        . fromIntegral
+        . sum
+        . fmap selectionFee
 
     selectionFee :: CoinSelection -> Word64
     selectionFee s = inputBalance s - changeBalance s
 
-    getSelections :: Handler [CoinSelection]
+    getSelections :: Handler ([CoinSelection], Quantity "lovelace" Natural)
     getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.selectCoinsForMigration @_ @s @t @k wrk wid
+        W.selectCoinsForMigration @_ @s @t @k @n wrk wid
 
 migrateWallet
     :: forall s t k n p.
         ( IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , PaymentAddress n ByronKey
         )
     => ApiLayer s t k
         -- ^ Source wallet context
@@ -1446,7 +1446,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 
     migration <- do
         withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            cs <- W.selectCoinsForMigration @_ @_ @t wrk wid
+            (cs, _) <- W.selectCoinsForMigration @_ @_ @t @_ @n wrk wid
             pure $ assignMigrationAddresses addrs cs
 
     forM migration $ \cs -> do
@@ -1492,6 +1492,7 @@ assignMigrationAddresses addrs selections =
     accumulate sel (txs, addrsAvailable) = first
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ change sel) addrsAvailable)
+
     makeTx :: CoinSelection -> [Address] -> UnsignedTx
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
@@ -1519,23 +1520,21 @@ getNetworkInformation
     => (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
-getNetworkInformation (_block0, np, st) nl = do
+getNetworkInformation (_block0, _, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
-    let ntrkTip = fromMaybe slotMinBound (slotAt' sp now)
-    -- TODO(ADP-356): We need to retrieve the network tip using a different API,
-    -- AND it may not be availible.
-    --
-    -- We should mark it optional.
+    ntrkTipSlot <- fromMaybe minBound <$> liftIO (ti $ ongoingSlotAt now)
+    ntrkTip <- liftIO $ ti $ toSlotId ntrkTipSlot
     let nextEpochNo = unsafeEpochSucc (ntrkTip ^. #epochNumber)
+    nextEpochStart <- liftIO $ ti (firstSlotInEpoch nextEpochNo >>= startTime)
     progress <- liftIO $ syncProgress st ti nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
         , Api.nextEpoch =
             ApiEpochInfo
                 (ApiT nextEpochNo)
-                (epochStartTime sp nextEpochNo)
+                nextEpochStart
         , Api.nodeTip = apiNodeTip
         , Api.networkTip =
             ApiNetworkTip
@@ -1546,7 +1545,6 @@ getNetworkInformation (_block0, np, st) nl = do
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter nl
-    sp = slotParams (np ^. #genesisParameters)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)

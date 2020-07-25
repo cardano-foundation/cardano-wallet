@@ -87,6 +87,7 @@ module Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , BoundType
     , computeUtxoStatistics
+    , computeStatistics
     , log10
 
     -- * Network Parameters
@@ -1271,13 +1272,15 @@ log10 = Log10
 
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
-computeUtxoStatistics btype utxos =
-    (F.fold foldStatistics (getCoins utxos)) btype
-  where
-    getCoins :: UTxO -> [Word64]
-    getCoins =
-        map (getCoin . coin) . Map.elems . getUTxO
+computeUtxoStatistics btype =
+    computeStatistics (pure . getCoin . coin) btype . Map.elems . getUTxO
 
+-- | A more generic function for computing UTxO statistics on some other type of
+-- data that maps to UTxO's values.
+computeStatistics :: (a -> [Word64]) -> BoundType -> [a] -> UTxOStatistics
+computeStatistics getCoins btype utxos =
+    (F.fold foldStatistics (mconcat $ getCoins <$> utxos)) btype
+  where
     foldStatistics :: F.Fold Word64 (BoundType -> UTxOStatistics)
     foldStatistics = UTxOStatistics
         <$> foldBuckets (generateBounds btype)

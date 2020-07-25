@@ -107,6 +107,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , expectWalletUTxO
     , faucetAmt
+    , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
     , json
@@ -264,10 +265,10 @@ walletApiBench capture benchWithServer = do
 
     repeatPostMultiTx ctx wDest amtToSend batchSize (amtExp, utxoExp) = do
         wSrc <- fixtureWalletWith @n ctx (replicate batchSize 1000)
-        let pass = "Secure Passphrase" :: Text
 
         postMultiTx ctx
-            (wSrc, Link.createTransaction @'Shelley, pass) wDest amtToSend batchSize
+            (wSrc, Link.createTransaction @'Shelley, fixturePassphrase)
+            wDest amtToSend batchSize
         eventually "repeatPostMultiTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty

@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = { development = false; sts_assert = false; };
     package = {
       specVersion = "1.10";
       identifier = { name = "small-steps"; version = "0.1.0.0"; };
@@ -31,15 +31,13 @@
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."free" or (errorHandler.buildDepError "free"))
-          (hsPkgs."goblins" or (errorHandler.buildDepError "goblins"))
-          (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-          (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."ansi-wl-pprint" or (errorHandler.buildDepError "ansi-wl-pprint"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           ];
         buildable = true;
         };
@@ -64,32 +62,13 @@
             ];
           buildable = true;
           };
-        "examples" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
-            (hsPkgs."tasty-expected-failure" or (errorHandler.buildDepError "tasty-expected-failure"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
-            (hsPkgs."Unique" or (errorHandler.buildDepError "Unique"))
-            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-            (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "12b13f390d64df6af6054b0d33bb3767756da041";
-      sha256 = "0v9zj73sz984xpg0azckfpibkllribbzksg18isx2m7w58bya77m";
+      rev = "a790fb38cced04d8d8a9aeacc2a761717f11f94e";
+      sha256 = "0j5sgx7wqf46f30r8dgmxk85y99pvn7dzrj99xi7779lllqn4ddg";
       });
     postUnpack = "sourceRoot+=/semantics/executable-spec; echo source root reset to \$sourceRoot";
     }

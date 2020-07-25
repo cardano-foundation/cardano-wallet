@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
@@ -87,6 +88,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import UnliftIO.Exception
     ( throwIO )
 
@@ -146,8 +149,9 @@ data NetworkLayer m target block = NetworkLayer
     , getAccountBalance
         :: ChimericAccount
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
+
     , timeInterpreter
-        :: TimeInterpreter m
+        :: HasCallStack => TimeInterpreter m
     }
 
 instance Functor m => Functor (NetworkLayer m target) where

@@ -52,9 +52,9 @@ library
     , cborg
     , containers
     , contra-tracer
-    , cryptonite
     , directory
     , exceptions
+    , extra
     , filepath
     , fmt
     , generic-lens
@@ -65,6 +65,8 @@ library
     , network-mux
     , optparse-applicative
     , ouroboros-consensus
+    , ouroboros-consensus-byron
+    , ouroboros-consensus-cardano
     , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-framework
@@ -85,6 +87,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Wallet.Byron.Compatibility
       Cardano.Wallet.Shelley
       Cardano.Wallet.Shelley.Api.Server
       Cardano.Wallet.Shelley.Compatibility
@@ -181,7 +184,7 @@ test-suite integration
       base
     , aeson
     , async
-    , bytestring
+    , cardano-api
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
@@ -192,7 +195,6 @@ test-suite integration
     , hspec
     , http-client
     , iohk-monitoring
-    , random
     , text
     , text-class
   build-tools:

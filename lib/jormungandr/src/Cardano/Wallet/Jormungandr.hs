@@ -104,6 +104,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
+    , PaymentAddress
     , PersistPrivateKey
     , WalletKey
     , networkDiscriminantVal
@@ -202,6 +203,7 @@ serveWallet
         , EncodeStakeAddress n
         , EncodeAddress n
         , DelegationAddress n JormungandrKey
+        , PaymentAddress n ByronKey
         )
     => Tracers IO
     -- ^ Logging config.

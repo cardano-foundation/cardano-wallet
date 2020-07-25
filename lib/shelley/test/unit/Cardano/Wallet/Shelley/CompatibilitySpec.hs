@@ -50,13 +50,13 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyBlock
+    ( CardanoBlock
     , TPraosStandardCrypto
     , decentralizationLevelFromPParams
     , fromTip
     , invertUnitInterval
+    , toCardanoHash
     , toPoint
-    , toShelleyHash
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
@@ -87,7 +87,7 @@ import GHC.TypeLits
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
     ( Crypto (..) )
 import Ouroboros.Network.Block
-    ( BlockNo (..), SlotNo (..), Tip (..), getTipPoint )
+    ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.Hspec.QuickCheck
@@ -110,6 +110,7 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
@@ -122,7 +123,7 @@ spec = do
     describe "Conversions" $
         it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
             let fromTip' = fromTip gh
-            let toPoint' = toPoint gh
+            let toPoint' = toPoint gh :: W.BlockHeader -> Point (CardanoBlock TPraosStandardCrypto)
             toPoint' (fromTip' tip) === (getTipPoint tip)
 
     describe "Shelley StakeAddress" $ do
@@ -231,7 +232,7 @@ instance Arbitrary (Hash "BlockHeader") where
 instance Arbitrary ChimericAccount where
     arbitrary = ChimericAccount . BS.pack <$> vector 28
 
-instance Arbitrary (Tip ShelleyBlock) where
+instance Arbitrary (Tip (CardanoBlock TPraosStandardCrypto)) where
     arbitrary = frequency
         [ (10, return TipGenesis)
         , (90, arbitraryTip)
@@ -239,7 +240,7 @@ instance Arbitrary (Tip ShelleyBlock) where
       where
         arbitraryTip = do
             n <- choose (0, 100)
-            hash <- toShelleyHash
+            hash <- toCardanoHash
                 . Hash
                 . digest (Proxy @(HASH TPraosStandardCrypto))
                 . BS.pack <$> vector 5

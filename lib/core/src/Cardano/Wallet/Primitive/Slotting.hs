@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -29,15 +30,20 @@ module Cardano.Wallet.Primitive.Slotting
     -- ** Running queries
     , TimeInterpreter
     , singleEraInterpreter
+    , interpreterFromGenesis
+    , mkTimeInterpreter
+    , MyInterpreter(..)
     , Qry
 
-      -- * Legacy api
+    -- ** Helpers
     , unsafeEpochNo
-    , epochStartTime
     , epochPred
     , epochSucc
+
+      -- * Legacy api - Inaccurate with cardano-node, okay with Jörmungandr
     , SlotParameters (..)
     , slotParams
+    , epochStartTime
     , flatSlot
     , fromFlatSlot
     , slotStartTime
@@ -53,6 +59,8 @@ module Cardano.Wallet.Primitive.Slotting
 
 import Prelude
 
+import Cardano.Wallet.Orphans
+    ()
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
@@ -62,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
+    , SlotNo (..)
     , StartTime (..)
     , unsafeEpochNo
     , wholeRange
@@ -70,6 +79,8 @@ import Control.Monad
     ( ap, liftM, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Data.Coerce
+    ( coerce )
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
@@ -82,14 +93,20 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
+import Fmt
+    ( Buildable (..), (+||), (||+) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.HardFork.History.EraParams
-    ( EraParams (..), noLowerBoundSafeZone )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( SystemStart (..) )
+import Ouroboros.Consensus.HardFork.History.Qry
+    ( Interpreter, mkInterpreter )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( Summary (..), neverForksSummary )
+    ( neverForksSummary )
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
@@ -111,10 +128,10 @@ currentEpoch ti = ti . epochAt =<< liftIO getCurrentTime
 epochAt :: UTCTime -> Qry (Maybe EpochNo)
 epochAt = traverse epochOf <=< ongoingSlotAt
 
-epochOf :: Cardano.SlotNo -> Qry EpochNo
+epochOf :: SlotNo -> Qry EpochNo
 epochOf slot = epochNumber <$> toSlotId slot
 
-toSlotId :: Cardano.SlotNo -> Qry SlotId
+toSlotId :: SlotNo -> Qry SlotId
 toSlotId slot = HardForkQry $ do
     (e, s, _) <- HF.slotToEpoch slot
     return $ SlotId
@@ -124,31 +141,43 @@ toSlotId slot = HardForkQry $ do
     unsafeConvert :: Word64 -> Word32
     unsafeConvert = fromIntegral
 
-startTime :: Cardano.SlotNo -> Qry UTCTime
+startTime :: SlotNo -> Qry UTCTime
 startTime s = do
     rel <- HardForkQry (fst <$> HF.slotToWallclock s)
     RelToUTCTime rel
 
 -- | Translate 'EpochNo' to the 'SlotNo' of the first slot in that epoch
-firstSlotInEpoch :: EpochNo -> Qry Cardano.SlotNo
+firstSlotInEpoch :: EpochNo -> Qry SlotNo
 firstSlotInEpoch = fmap fst . HardForkQry . HF.epochToSlot . convertEpochNo
   where
     convertEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
 
+-- | Transforms the given inclusive time range into an inclusive slot range.
+--
+-- This function returns a slot range if (and only if) the specified time range
+-- intersects with the life of the blockchain.
+--
+-- If, on the other hand, the specified time range terminates before the start
+-- of the blockchain, this function returns 'Nothing'.
 slotRangeFromTimeRange
     :: Range UTCTime
-    -> Qry (Maybe (Range Cardano.SlotNo))
-slotRangeFromTimeRange (Range Nothing Nothing) = pure $ Just wholeRange
-slotRangeFromTimeRange (Range low hi) = do
-    low' <- liftMay ceilingSlotAt low
-    hi' <- liftMay ongoingSlotAt hi
-    pure $ Range low' <$> (maybe (Just Nothing) (fmap Just) hi')
-  where
+    -> Qry (Maybe (Range SlotNo))
+slotRangeFromTimeRange = \case
+    Range Nothing Nothing -> do
+        pure $ Just wholeRange
 
-    liftMay :: (a -> Qry b) -> Maybe a -> Qry (Maybe b)
-    liftMay f (Just x) = Just <$> f x
-    liftMay _ Nothing = return Nothing
+    Range (Just inf) Nothing -> do
+        inf' <- Just <$> ceilingSlotAt inf
+        pure $ Just $ Range inf' Nothing
 
+    Range Nothing (Just sup) -> do
+        sup' <- ongoingSlotAt sup
+        pure $ (Range Nothing . Just) <$> sup'
+
+    Range (Just inf) (Just sup) -> do
+        inf' <- Just <$> ceilingSlotAt inf
+        sup' <- ongoingSlotAt sup
+        pure $ (Range inf' . Just) <$> sup'
 
 -- @@
 --     slot:
@@ -162,7 +191,7 @@ slotRangeFromTimeRange (Range low hi) = do
 -- @@
 --
 --
-ongoingSlotAt :: UTCTime -> Qry (Maybe Cardano.SlotNo)
+ongoingSlotAt :: UTCTime -> Qry (Maybe SlotNo)
 ongoingSlotAt x = do
      slotAtTimeDetailed x >>= \case
         Just (slot, _timeInSlot, _timeRemainingInSlot) -> pure $ Just slot
@@ -179,19 +208,19 @@ ongoingSlotAt x = do
 --                    3
 -- @@
 --
-ceilingSlotAt :: UTCTime -> Qry Cardano.SlotNo
+ceilingSlotAt :: UTCTime -> Qry SlotNo
 ceilingSlotAt t = do
      slotAtTimeDetailed t >>= \case
         Just (s, 0, _) -> return s
         Just (s, _, _) -> return (s + 1)
         Nothing -> do
-            return $ Cardano.SlotNo 0
+            return $ SlotNo 0
 
 -- | Helper that returns @(slot, elapsedTimeInSlot, remainingTimeInSlot)@ for a
 -- given @UTCTime@.
 slotAtTimeDetailed
     :: UTCTime
-    -> Qry (Maybe (Cardano.SlotNo, NominalDiffTime, NominalDiffTime))
+    -> Qry (Maybe (SlotNo, NominalDiffTime, NominalDiffTime))
 slotAtTimeDetailed t = do
     UTCTimeToRel t >>= \case
         Just relTime -> fmap Just $ HardForkQry $ HF.wallclockToSlot relTime
@@ -206,43 +235,44 @@ slotAtTimeDetailed t = do
 -- We cannot manually specify when the fetching happens.
 --
 -- This may or may not be what we actually want.
+--
+-- fixme: this rank-2 type is inconvenient to set up in network layer.
+-- fixme: this is backend-specific code -- it should be moved to the shelley package.
 type TimeInterpreter m = forall a. Qry a -> m a
---
--- Interpretation
---
 
-data Interpreter xs = Interpreter
-    { _iSummary :: Summary xs
-    , _iGenesisStartDate :: StartTime
-    }
+-- | The hardfork query intepreter plus start time information.
+data MyInterpreter xs = MyInterpreter SystemStart (Interpreter xs)
 
 -- | An 'Interpreter' for a single era, where the slotting from
 -- @GenesisParameters@ cannot change.
 --
--- Queries can never fail with @singleEraInterpreter@.
-singleEraInterpreter :: GenesisParameters -> TimeInterpreter Identity
-singleEraInterpreter gp q = either bomb return $ runQuery q int
+-- Queries can never fail with @singleEraInterpreter@. This function will throw
+-- a 'PastHorizonException' if they do.
+singleEraInterpreter :: HasCallStack => GenesisParameters -> TimeInterpreter Identity
+singleEraInterpreter gp = mkTimeInterpreterI gp (mkInterpreter summary)
   where
-    bomb x = error $ "singleEraIntepreter: the impossible happened: " <> show x
-    int = flip Interpreter (gp ^. #getGenesisBlockDate)
-        $ neverForksSummary
-        $ EraParams
-            { eraEpochSize =
-                Cardano.EpochSize
-                . fromIntegral
-                . unEpochLength
-                $ gp ^. #getEpochLength
+    summary = neverForksSummary sz len
+    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
+    len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
 
-            , eraSlotLength =
-                Cardano.mkSlotLength
-                . unSlotLength
-                $ gp ^. #getSlotLength
+mkTimeInterpreterI :: HasCallStack => GenesisParameters -> Interpreter xs -> TimeInterpreter Identity
+mkTimeInterpreterI gp int q = neverFails $ runQuery (MyInterpreter start int) q
+  where
+    start = coerce (gp ^. #getGenesisBlockDate)
 
-            , eraSafeZone =
-                noLowerBoundSafeZone (k * 2)
-            }
-      where
-        k = fromIntegral $ getQuantity $ getEpochStability gp
+    neverFails = either bomb pure
+    bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
+
+interpreterFromGenesis :: HasCallStack => GenesisParameters -> (forall a. Qry a -> Either HF.PastHorizonException a)
+interpreterFromGenesis gp = mkTimeInterpreter start (mkInterpreter summary)
+  where
+    summary = neverForksSummary sz len
+    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
+    len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
+    start = gp ^. #getGenesisBlockDate
+
+mkTimeInterpreter :: HasCallStack => StartTime -> Interpreter xs -> (forall a. Qry a -> Either HF.PastHorizonException a)
+mkTimeInterpreter start = runQuery . MyInterpreter (coerce start)
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones
@@ -264,11 +294,19 @@ instance Monad Qry where
   return = pure
   (>>=)  = QBind
 
-runQuery :: (Qry a) -> Interpreter xs -> Either HF.PastHorizonException a
-runQuery qry (Interpreter summary (StartTime t0)) = go qry
+instance Buildable (Qry a) where
+    build = \case
+        HardForkQry qry -> build qry
+        RelToUTCTime t -> "RelToUTCTime "+||t||+""
+        UTCTimeToRel t -> "UTCTimeToRel "+||t||+""
+        QPure _ -> "qPure"
+        QBind q _ -> "qBind " <> build q
+
+runQuery :: HasCallStack => MyInterpreter xs -> Qry a -> Either HF.PastHorizonException a
+runQuery (MyInterpreter systemStart int) = go
   where
     go :: Qry a -> Either HF.PastHorizonException a
-    go (HardForkQry q) = HF.runQuery q summary
+    go (HardForkQry q) = HF.interpretQuery int q
     go (QPure a) =
         return a
     go (QBind x f) = do
@@ -277,10 +315,8 @@ runQuery qry (Interpreter summary (StartTime t0)) = go qry
         pure $ Cardano.fromRelativeTime systemStart rel
     go (UTCTimeToRel utc)
         -- Cardano.toRelativeTime may throw, so we need this guard:
-        | utc < t0 = pure Nothing
+        | utc < getSystemStart systemStart = pure Nothing
         | otherwise = pure $ Just $ Cardano.toRelativeTime systemStart utc
-
-    systemStart = Cardano.SystemStart t0
 
 -- -----------------------------------------------------------------------------
 -- Legacy functions

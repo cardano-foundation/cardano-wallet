@@ -120,9 +120,9 @@ spec = do
             m1 <- genMnemonics @12
             m2 <- genMnemonics @12
             m3 <- genMnemonics @12
-            _ <- emptyByronWalletWith ctx "random" ("b1", m1, "Secure Passphrase")
-            _ <- emptyByronWalletWith ctx "random" ("b2", m2, "Secure Passphrase")
-            _ <- emptyByronWalletWith ctx "random" ("b3", m3, "Secure Passphrase")
+            _ <- emptyByronWalletWith ctx "random" ("b1", m1, fixturePassphrase)
+            _ <- emptyByronWalletWith ctx "random" ("b2", m2, fixturePassphrase)
+            _ <- emptyByronWalletWith ctx "random" ("b3", m3, fixturePassphrase)
 
             rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
             verify rl
@@ -137,7 +137,7 @@ spec = do
                 ]
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> do
-        let pwd = "Secure Passphrase"
+        let pwd = fixturePassphrase
         genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
         genMnemonics @12 >>= \m -> void (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
         genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
@@ -159,7 +159,7 @@ spec = do
                 let payload = Json [json| {
                         "name": #{name},
                         "mnemonic_sentence": #{mnemonic},
-                        "passphrase": "Secure Passphrase",
+                        "passphrase": #{fixturePassphrase},
                         "style": #{style}
                     }|]
                 let discovery =
@@ -205,7 +205,7 @@ spec = do
                 let payload = Json [json| {
                         "name": "Empty Byron Wallet",
                         "mnemonic_sentence": #{mnemonic},
-                        "passphrase": "Secure Passphrase",
+                        "passphrase": #{fixturePassphrase},
                         "style": #{style}
                     }|]
                 r <- request @ApiByronWallet ctx
@@ -255,7 +255,7 @@ spec = do
         \ctx -> do
             m <- genMnemonics @12
             w <- emptyByronWalletWith ctx "random"
-                ("Byron Wallet", m, "Secure Passphrase")
+                ("Byron Wallet", m, fixturePassphrase)
             rd <- request
                 @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode @IO HTTP.status204 rd
@@ -268,7 +268,7 @@ spec = do
         let payload = Json [json| {
                 "name": "Some Byron Wallet",
                 "mnemonic_sentence": #{mnemonic},
-                "passphrase": "Secure Passphrase",
+                "passphrase": #{fixturePassphrase},
                 "style": "random"
                 } |]
         r1 <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
@@ -383,7 +383,7 @@ spec = do
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
             >>= flip verify [ expectField #passphrase (`shouldSatisfy` isJust) ]
 
-        let payload = updatePassPayload "Secure Passphrase" "New Secure Passphrase"
+        let payload = updatePassPayload fixturePassphrase "New Secure Passphrase"
         r <- request @ApiByronWallet ctx
             (Link.putWalletPassphrase @'Byron w) Default payload
         verify r

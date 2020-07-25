@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -45,6 +44,8 @@ module Cardano.Wallet.Shelley
 
 import Prelude
 
+import Cardano.Api.Typed
+    ( NetworkId, Shelley )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -96,8 +97,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, singleEraInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -114,7 +113,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, ShelleyBlock, fromNetworkMagic, fromShelleyBlock )
+    ( CardanoBlock, TPraosStandardCrypto, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -138,8 +137,6 @@ import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Function
     ( (&) )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -148,6 +145,8 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownNat, natVal )
 import Network.Ntp
     ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
 import Network.Socket
@@ -167,6 +166,7 @@ import System.IOManager
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -183,6 +183,7 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
             , DelegationAddress n ShelleyKey
+            , HasNetworkId n
             , DecodeAddress n
             , EncodeAddress n
             , DecodeStakeAddress n
@@ -191,6 +192,24 @@ data SomeNetworkDiscriminant where
             )
         => Proxy n
         -> SomeNetworkDiscriminant
+
+
+-- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
+class HasNetworkId (n :: NetworkDiscriminant) where
+    networkIdVal :: Proxy n -> NetworkId
+
+instance HasNetworkId 'Mainnet where
+    networkIdVal _ = Cardano.Mainnet
+
+instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
+    networkIdVal _ = Cardano.Testnet networkMagic
+      where
+        networkMagic = Cardano.NetworkMagic
+            . fromIntegral
+            $ natVal (Proxy @protocolMagic)
+
+instance HasNetworkId ('Staging protocolMagic) where
+    networkIdVal _ = Cardano.Mainnet
 
 deriving instance Show SomeNetworkDiscriminant
 
@@ -247,19 +266,16 @@ serveWallet
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
-
-    ti :: TimeInterpreter IO
-    ti = pure . runIdentity . singleEraInterpreter (genesisParameters np)
     serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
-                let pm = fromNetworkMagic $ networkMagic $ fst vData
                 let gp = genesisParameters np
-                randomApi <- apiLayer (newTransactionLayer proxy pm) nl
+                let net = networkIdVal proxy
+                randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
-                icarusApi  <- apiLayer (newTransactionLayer proxy pm) nl
+                icarusApi  <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
-                shelleyApi <- apiLayer (newTransactionLayer proxy pm) nl
+                shelleyApi <- apiLayer (newTransactionLayer net) nl
                     Server.manageRewardBalance
 
                 withPoolsMonitoring databaseDir gp nl $ \spl -> do
@@ -308,11 +324,11 @@ serveWallet
     withPoolsMonitoring
         :: Maybe FilePath
         -> GenesisParameters
-        -> NetworkLayer IO t ShelleyBlock
+        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
-        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) ti $ \db -> do
+        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) (timeInterpreter nl) $ \db -> do
             let spl = newStakePoolLayer (genesisParameters np) nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
@@ -331,7 +347,7 @@ serveWallet
             , WalletKey k
             )
         => TransactionLayer t k
-        -> NetworkLayer IO t ShelleyBlock
+        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
         -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
         -> IO (ApiLayer s t k)
     apiLayer tl nl coworker = do
@@ -347,12 +363,12 @@ serveWallet
                     minimumUTxOvalue (protocolParameters np)
                 }
             )
-            ti
+            (timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
-        gp@GenesisParameters{getGenesisBlockHash} = genesisParameters np
-        nl' = fromShelleyBlock getGenesisBlockHash <$> nl
+        gp = genesisParameters np
+        nl' = fromCardanoBlock gp <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode
@@ -426,7 +442,7 @@ data Tracers' f = Tracers
     , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
     , poolsDbTracer      :: f DBLog
     , ntpClientTracer    :: f NtpTrace
-    , networkTracer      :: f NetworkLayerLog
+    , networkTracer      :: f (NetworkLayerLog TPraosStandardCrypto)
     }
 
 -- | All of the Shelley 'Tracer's.
