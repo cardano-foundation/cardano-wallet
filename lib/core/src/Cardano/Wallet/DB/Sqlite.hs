@@ -468,7 +468,7 @@ migrateManually tr defaultFieldValues =
         addColumn conn (DBField ProtocolParametersHardforkEpoch) value
       where
         value = case defaultHardforkEpoch defaultFieldValues of
-            Nothing -> ""
+            Nothing -> "NULL"
             Just v -> T.pack $ show $ W.unEpochNo v
 
     -- | This table became @protocol_parameters@.
