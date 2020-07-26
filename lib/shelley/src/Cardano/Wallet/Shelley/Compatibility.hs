@@ -176,6 +176,8 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, CardanoEras, CardanoGenTx, GenTx (..), HardForkBlock (..) )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..) )
+import Ouroboros.Consensus.HardFork.History.Summary
+    ( Bound (..) )
 import Ouroboros.Consensus.Shelley.Ledger
     ( Crypto, ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Ledger.Block
@@ -471,8 +473,8 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromShelleyPParams :: SL.PParams -> W.ProtocolParameters
-fromShelleyPParams pp = W.ProtocolParameters
+fromShelleyPParams :: Maybe Bound -> SL.PParams -> W.ProtocolParameters
+fromShelleyPParams bound pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
     , txParameters =
@@ -481,8 +483,11 @@ fromShelleyPParams pp = W.ProtocolParameters
         desiredNumberOfStakePoolsFromPParams pp
     , minimumUTxOvalue =
         minimumUTxOvalueFromPParams pp
-    , hardforkEpochNo = Nothing
+    , hardforkEpochNo = fromBound <$> bound
     }
+  where
+    fromBound (Bound _relTime _slotNo (EpochNo e)) =
+        W.EpochNo $ fromIntegral e
 
 -- | Extract the current network decentralization level from the given set of
 --   protocol parameters.
@@ -561,7 +566,8 @@ fromGenesisData g initialFunds =
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient . fromRational . sgActiveSlotsCoeff $ g
             }
-        , protocolParameters = fromShelleyPParams . sgProtocolParams $ g
+        , protocolParameters =
+            (fromShelleyPParams Nothing) . sgProtocolParams $ g
         }
     , genesisBlockFromTxOuts initialFunds
     )

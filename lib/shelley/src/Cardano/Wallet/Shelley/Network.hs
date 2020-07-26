@@ -161,7 +161,7 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( PastHorizonException (..) )
+    ( Bound (..), PastHorizonException (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -653,7 +653,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
 
         handleParamsUpdate
             :: Point (CardanoBlock sc)
-            -> (p -> W.ProtocolParameters)
+            -> (Maybe Bound -> p -> W.ProtocolParameters)
             -> Either AcquireFailure (Either (MismatchEraInfo (CardanoEras sc)) p)
             -> m ()
         handleParamsUpdate pt convert = \case
@@ -663,8 +663,8 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                     boundRes <- localStateQueryQ `send`
                         CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
                     case boundRes of
-                        Right _boundM ->
-                            onPParamsUpdate' $ convert ls
+                        Right boundM ->
+                            onPParamsUpdate' $ convert boundM ls
                         Left (e2 :: AcquireFailure) ->
                             traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e2
             Right (Left mismatch) ->

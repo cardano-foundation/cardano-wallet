@@ -113,6 +113,8 @@ import Ouroboros.Consensus.Byron.Ledger.Config
     ( CodecConfig (..) )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
+import Ouroboros.Consensus.HardFork.History.Summary
+    ( Bound (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash
@@ -453,8 +455,11 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-protocolParametersFromPP :: Update.ProtocolParameters -> W.ProtocolParameters
-protocolParametersFromPP pp = W.ProtocolParameters
+protocolParametersFromPP
+    :: Maybe Bound
+    -> Update.ProtocolParameters
+    -> W.ProtocolParameters
+protocolParametersFromPP bound pp = W.ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = W.TxParameters
         { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
@@ -462,14 +467,17 @@ protocolParametersFromPP pp = W.ProtocolParameters
         }
     , desiredNumberOfStakePools = 0
     , minimumUTxOvalue = W.Coin 0
-    , hardforkEpochNo = Nothing
+    , hardforkEpochNo = fromBound <$> bound
     }
+  where
+    fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
+        W.EpochNo $ fromIntegral e
 
 -- | Extract the protocol parameters relevant to the wallet out of the
 --   cardano-chain update state record.
-protocolParametersFromUpdateState :: Update.State -> W.ProtocolParameters
-protocolParametersFromUpdateState =
-    protocolParametersFromPP . Update.adoptedProtocolParameters
+protocolParametersFromUpdateState :: Maybe Bound -> Update.State -> W.ProtocolParameters
+protocolParametersFromUpdateState b =
+    (protocolParametersFromPP b) . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
@@ -495,7 +503,7 @@ fromGenesisData (genesisData, genesisHash) =
                 W.ActiveSlotCoefficient 1.0
             }
         , protocolParameters =
-            protocolParametersFromPP . gdProtocolParameters $ genesisData
+            (protocolParametersFromPP Nothing) . gdProtocolParameters $ genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )
