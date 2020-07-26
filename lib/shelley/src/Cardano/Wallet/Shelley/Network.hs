@@ -155,7 +155,7 @@ import Ouroboros.Consensus.Cardano.Block
     , Query (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( QueryHardFork (..) )
+    ( QueryAnytime (..), QueryHardFork (..) )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -645,21 +645,28 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
         queryLocalState pt = do
             pp <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
-            handleParamsUpdate fromShelleyPParams pp
+            handleParamsUpdate pt fromShelleyPParams pp
 
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
-            handleParamsUpdate protocolParametersFromUpdateState st
+            handleParamsUpdate pt protocolParametersFromUpdateState st
 
         handleParamsUpdate
-            :: (p -> W.ProtocolParameters)
+            :: Point (CardanoBlock sc)
+            -> (p -> W.ProtocolParameters)
             -> Either AcquireFailure (Either (MismatchEraInfo (CardanoEras sc)) p)
             -> m ()
-        handleParamsUpdate convert = \case
-            Left (e :: AcquireFailure) ->
-                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
-            Right (Right ls) ->
-                    onPParamsUpdate' $ convert ls
+        handleParamsUpdate pt convert = \case
+            Left (e1 :: AcquireFailure) ->
+                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e1
+            Right (Right ls) -> do
+                    boundRes <- localStateQueryQ `send`
+                        CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
+                    case boundRes of
+                        Right _boundM ->
+                            onPParamsUpdate' $ convert ls
+                        Left (e2 :: AcquireFailure) ->
+                            traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e2
             Right (Left mismatch) ->
                 traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
