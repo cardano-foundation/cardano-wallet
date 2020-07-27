@@ -20,7 +20,6 @@ module Cardano.Wallet.Network
     , FollowAction (..)
     , FollowExit (..)
     , GetStakeDistribution
-    , getAccountBalanceRetry
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -70,12 +69,7 @@ import Control.Monad
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Retry
-    ( RetryPolicyM
-    , constantDelay
-    , limitRetries
-    , limitRetriesByCumulativeDelay
-    , retrying
-    )
+    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
@@ -164,25 +158,6 @@ instance Functor m => Functor (NetworkLayer m target) where
     fmap f nl = nl
         { nextBlocks = fmap (fmap f) . nextBlocks nl
         }
-
--- Fetching the account balance may sometimes fail, especially on epoch
--- boundaries. Therefore, we add some retrying mecanism here to cope with
--- that nicely. 'readNextWithdrawal' is typically called by one-time
--- handlers like 'postTransactions' and not by workers polling things
--- regularly, so retrying a few times is okay here.
-getAccountBalanceRetry
-    :: NetworkLayer IO target block
-    -> ChimericAccount
-    -> ExceptT ErrGetAccountBalance IO (Quantity "lovelace" Word64)
-getAccountBalanceRetry nl account = ExceptT $
-    retrying policy decision (const $ runExceptT $ getAccountBalance nl account)
-  where
-    second = 1000*1000
-    policy = constantDelay second <> limitRetries 3
-    decision _ = \case
-        Right{} -> pure False
-        Left ErrGetAccountBalanceAccountNotFound{} -> pure False
-        Left ErrGetAccountBalanceNetworkUnreachable{} -> pure True
 
 {-------------------------------------------------------------------------------
                                   Errors

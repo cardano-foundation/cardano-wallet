@@ -78,6 +78,9 @@ module Cardano.Wallet
     , rollbackBlocks
     , checkWalletIntegrity
     , readNextWithdrawal
+    , readChimericAccount
+    , someChimericAccount
+    , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -196,7 +199,6 @@ import Cardano.Wallet.Network
     , FollowLog (..)
     , NetworkLayer (..)
     , follow
-    , getAccountBalanceRetry
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
@@ -206,6 +208,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
+    , NetworkDiscriminant
     , Passphrase
     , PaymentAddress (..)
     , WalletKey (..)
@@ -354,7 +357,7 @@ import Data.Foldable
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (^.) )
 import Data.Generics.Labels
@@ -907,96 +910,77 @@ readNextWithdrawal
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasTransactionLayer t k ctx
-        , HasNetworkLayer t ctx
-        , HasRewardAccount s k
-        , HasRewardAccount s ShelleyKey
         )
     => ctx
     -> WalletId
-    -> Either WalletId SomeMnemonic
-    -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
-readNextWithdrawal ctx wid src = db & \DBLayer{..} -> do
-    account <- either fromOwnWallet (pure . fromExternalWallet) src
-    (pp, Quantity withdrawal) <- (,)
-        <$> liftIO (atomically $ readProtocolParameters $ PrimaryKey wid)
-        <*> mapExceptT (fmap handleErr) (getAccountBalanceRetry nl account)
-    case pp of
+    -> Quantity "lovelace" Word64
+    -> IO (Quantity "lovelace" Word64)
+readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
+    liftIO (atomically $ readProtocolParameters $ PrimaryKey wid) <&> \case
         -- May happen if done very early, in which case, rewards are probably
         -- not woth considering anyway.
-        Nothing -> pure (Quantity 0)
-
-        Just ProtocolParameters{txParameters} -> do
+        Nothing -> Quantity 0
+        Just ProtocolParameters{txParameters} ->
             let policy = W.getFeePolicy txParameters
 
-            let costOfWithdrawal =
+                costOfWithdrawal =
                     minFee policy (mempty { withdrawal })
                     -
                     minFee policy mempty
 
-            pure $ if toInteger withdrawal < 2 * costOfWithdrawal
+            in
+                if toInteger withdrawal < 2 * costOfWithdrawal
                 then Quantity 0
                 else Quantity withdrawal
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
-    nl = ctx ^. networkLayer @t
 
     minFee :: FeePolicy -> CoinSelection -> Integer
     minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
 
-    handleErr = \case
-        Right x -> Right x
-        Left ErrGetAccountBalanceAccountNotFound{} ->
-            Right $ Quantity 0
-        Left (ErrGetAccountBalanceNetworkUnreachable e) ->
-            Left $ ErrFetchRewardsNetworkUnreachable e
+readChimericAccount
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        , HasRewardAccount s k
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO ChimericAccount
+readChimericAccount ctx wid = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically . withNoSuchWallet wid $
+        readCheckpoint (PrimaryKey wid)
+    pure $ toChimericAccount @s @k . rewardAccountKey $ getState cp
+  where
+    db = ctx ^. dbLayer @s @k
 
-    fromOwnWallet
-        :: WalletId
-        -> ExceptT ErrFetchRewards IO ChimericAccount
-    fromOwnWallet _wid = db & \DBLayer{..} -> do
-        cp <- withExceptT ErrFetchRewardsNoSuchWallet
-            . mapExceptT atomically
-            . withNoSuchWallet wid
-            $ readCheckpoint (PrimaryKey wid)
-        pure $ toChimericAccount @s @k . rewardAccountKey $ getState cp
-
-    fromExternalWallet
-        :: SomeMnemonic
-        -> ChimericAccount
-    fromExternalWallet mw =
-        let
-            rootK = Shelley.generateKeyFromSeed (mw, Nothing) mempty
-            acctK = deriveRewardAccount mempty rootK
-        in
-            toChimericAccount @s (publicKey acctK)
+someChimericAccount
+    :: forall s k (n :: NetworkDiscriminant).
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        )
+    => SomeMnemonic
+    -> ChimericAccount
+someChimericAccount mw =
+    toChimericAccount @s (publicKey acctK)
+  where
+    rootK = Shelley.generateKeyFromSeed (mw, Nothing) mempty
+    acctK = deriveRewardAccount mempty rootK
 
 -- | Query the node for the reward balance of a given wallet.
 --
 -- Rather than force all callers of 'readWallet' to wait for fetching the
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
 queryRewardBalance
-    :: forall ctx s t k.
-        ( HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
-        , HasRewardAccount s k
+    :: forall ctx t.
+        ( HasNetworkLayer t ctx
         )
     => ctx
-    -> WalletId
+    -> ChimericAccount
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
-queryRewardBalance ctx wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrFetchRewardsNoSuchWallet
-        . mapExceptT atomically
-        . withNoSuchWallet wid
-        $ readCheckpoint pk
-    mapExceptT (fmap handleErr)
-        . getAccountBalance nw
-        . toChimericAccount @s @k
-        . rewardAccountKey
-        $ getState cp
+queryRewardBalance ctx acct = do
+    mapExceptT (fmap handleErr) $ getAccountBalance nw acct
   where
-    pk = PrimaryKey wid
-    db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
     handleErr = \case
         Right x -> Right x
@@ -1019,7 +1003,10 @@ manageRewardBalance
 manageRewardBalance ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
-         query <- runExceptT $ queryRewardBalance @ctx @s @t @k ctx wid
+         query <- runExceptT $ do
+            acct <- withExceptT ErrFetchRewardsNoSuchWallet $
+                readChimericAccount @ctx @s @k ctx wid
+            queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do

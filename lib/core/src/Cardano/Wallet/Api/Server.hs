@@ -234,8 +234,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
@@ -1203,7 +1201,6 @@ postTransaction
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasRewardAccount s k
-        , HasRewardAccount s ShelleyKey
         )
     => ctx
     -> ArgGenChange s
@@ -1217,7 +1214,10 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
 
     selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         withdrawal <- if withdrawRewards
-            then liftHandler $ W.readNextWithdrawal @_ @s @t @k wrk wid (Left wid)
+            then do
+                acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
+                liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
             else pure (Quantity 0)
         liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
@@ -1317,7 +1317,6 @@ postTransactionFee
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
         , HasRewardAccount s k
-        , HasRewardAccount s ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1329,7 +1328,10 @@ postTransactionFee ctx (ApiT wid) withdrawRewards body = do
     let outs = coerceCoin <$> (body ^. #payments)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         withdrawal <- if withdrawRewards
-            then liftHandler $ W.readNextWithdrawal @_ @s @t @k wrk wid (Left wid)
+            then do
+                acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
+                liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
             else pure $ Quantity 0
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
         pure $ apiFee fee
