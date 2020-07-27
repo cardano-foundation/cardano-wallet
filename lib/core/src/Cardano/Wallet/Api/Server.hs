@@ -2075,6 +2075,15 @@ instance Buildable e => LiftHandler (ErrSelectForPayment e) where
         ErrSelectForPaymentCoinSelection e -> handler e
         ErrSelectForPaymentFee e -> handler e
         ErrSelectForPaymentMinimumUTxOValue e -> handler e
+        ErrSelectForPaymentAlreadyWithdrawing tx ->
+            apiError err403 AlreadyWithdrawing $ mconcat
+                [ "I already know of a pending transaction with withdrawals: "
+                , toText (txId tx), ". Note that when I withdraw rewards, I "
+                , "need to withdraw them fully for the Ledger to accept it. "
+                , "There's therefore no point creating another conflicting "
+                , "transaction; if, for some reason, you really want a new "
+                , "transaction, then cancel the previous one first."
+                ]
 
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case
