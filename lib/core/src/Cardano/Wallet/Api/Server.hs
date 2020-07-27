@@ -1566,7 +1566,7 @@ getNetworkParameters (_block0, np, _st) nl = do
                 liftIO $ timeInterpreter nl
                 (firstSlotInEpoch epochNo >>= startTime)
             pure $ apiNetworkParams
-                { hardforkEpochInfo = Just $
+                { hardforkAt = Just $
                     ApiEpochInfo (ApiT epochNo) epochStartTime }
         Nothing ->
             pure apiNetworkParams

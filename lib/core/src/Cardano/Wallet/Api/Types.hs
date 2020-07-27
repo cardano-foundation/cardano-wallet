@@ -514,7 +514,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
-    , hardforkEpochInfo :: !(Maybe ApiEpochInfo)
+    , hardforkAt :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters

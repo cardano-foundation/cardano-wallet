@@ -48,5 +48,5 @@ spec = do
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
             , expectField (#minimumUtxoValue) (`shouldBe` minUtxoValue)
-            , expectField (#hardforkEpochInfo) (`shouldNotBe` Nothing)
+            , expectField (#hardforkAt) (`shouldNotBe` Nothing)
             ]
