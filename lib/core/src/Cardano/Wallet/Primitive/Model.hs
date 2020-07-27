@@ -289,14 +289,23 @@ availableBalance :: Set Tx -> Wallet s -> Natural
 availableBalance pending =
     balance . availableUTxO pending
 
--- | Total balance = 'balance' . 'totalUTxO'
+-- | Total balance = 'balance' . 'totalUTxO' +? rewards
 totalBalance
-    :: IsOurs s Address
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Set Tx
+    -> Quantity "lovelace" Natural
     -> Wallet s
     -> Natural
-totalBalance pending =
-    balance . totalUTxO pending
+totalBalance pending (Quantity rewards) s =
+    balance (totalUTxO pending s) + if hasPendingWithdrawals then 0 else rewards
+  where
+    hasPendingWithdrawals =
+        not $ Set.null $ Set.filter
+            (any ourChimericAccount . Map.keys . withdrawals)
+            pending
+
+    ourChimericAccount acct =
+        evalState (state (isOurs acct)) (getState s)
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO

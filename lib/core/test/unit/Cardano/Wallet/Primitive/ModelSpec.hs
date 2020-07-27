@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -20,9 +21,11 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
-    ( applyBlock
+    ( Wallet
+    , applyBlock
     , applyBlocks
     , availableBalance
+    , availableUTxO
     , currentTip
     , getState
     , initWallet
@@ -76,31 +79,40 @@ import Data.Set
     ( Set, (\\) )
 import Data.Traversable
     ( for )
+import Fmt
+    ( Buildable, blockListF, pretty )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Positive (..)
     , Property
     , checkCoverage
     , choose
+    , classify
     , counterexample
     , cover
     , elements
+    , frequency
     , genericShrink
     , listOf
+    , oneof
     , property
     , shrinkList
+    , vector
+    , withMaxSuccess
     , (.&&.)
     , (===)
     )
 
+import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -129,6 +141,9 @@ spec = do
         it "applyBlocks increases the blockHeight"
             (property prop_applyBlocksBlockHeight)
 
+        it "only counts rewards once."
+            (property prop_countRewardsOnce)
+
 {-------------------------------------------------------------------------------
                                 Properties
 -------------------------------------------------------------------------------}
@@ -146,7 +161,8 @@ prop_3_2 (ApplyBlock s utxo block) =
         ShowFmt (new block)
     new b = flip evalState s $ do
         let txs = Set.fromList $ transactions b
-        utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
+        utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
+            <$> state (txOutsOurs txs)
         return $ utxo' `excluding` txIns txs
     updateUTxO' b u = evalState (updateUTxO b u) s
 
@@ -170,7 +186,7 @@ prop_applyBlockBasic s =
         in
             (ShowFmt utxo === ShowFmt utxo') .&&.
             (availableBalance mempty wallet === balance utxo') .&&.
-            (totalBalance mempty wallet === balance utxo')
+            (totalBalance mempty (Quantity 0) wallet === balance utxo')
 
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
@@ -214,6 +230,47 @@ prop_initialBlockHeight s =
   where
     (_, wallet) = initWallet block0 dummyGenesisParameters s
 
+-- Rationale here is that pending transactions contributes towards the total
+-- balance but also _cost_ something as fee.
+--
+-- In particular, this tests that the reward amount is correctly reported in the
+-- context of withdrawals. Before this property was introduced, we would simply
+-- add the wallet's reward to the total balance every time so when a withdrawal
+-- was pending, the rewards would be counted almost twice (once as raw rewards,
+-- and once as part of change output on the pending withdrawal!).
+prop_countRewardsOnce :: WithPending WalletState -> Property
+prop_countRewardsOnce (WithPending wallet pending rewards)
+    = withMaxSuccess 1000
+    $ counterexample ("Total UTxO:\n" <> pretty' (totalUTxO pending wallet))
+    $ counterexample ("Available UTxO:\n" <> pretty' (availableUTxO pending wallet))
+    $ counterexample ("Pending Transactions:\n" <> pretty' (blockListF pending))
+    $ counterexample ("Pending balance:            " <> show pendingBalance)
+    $ counterexample ("Total Rewards:              " <> show (getCoin rewards))
+    $ counterexample ("Total Balance (w/ pending): " <> show totalWithPending)
+    $ counterexample ("Total Balance (no pending): " <> show totalWithoutPending)
+    $ classify hasPending "has pending"
+    $ classify hasWithdrawals "has withdrawals"
+    $ if hasPending
+      then property (totalWithPending < totalWithoutPending)
+      else property (totalWithPending == totalWithoutPending)
+  where
+    pendingBalance =
+        sum $ (getCoin . coin) <$> concatMap outputs (Set.elems pending)
+    totalWithPending =
+        totalBalance pending rewardsQ wallet
+    totalWithoutPending =
+        totalBalance Set.empty rewardsQ wallet
+    rewardsQ =
+        Quantity $ fromIntegral $ getCoin rewards
+
+    hasPending =
+        not $ Set.null pending
+    hasWithdrawals =
+        not $ null $ Set.filter (not . null . withdrawals) pending
+
+    pretty' :: Buildable a => a -> String
+    pretty' = T.unpack . pretty
+
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
 
@@ -234,7 +291,8 @@ updateUTxO
     -> State s UTxO
 updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
-    utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
+    utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
+        <$> state (txOutsOurs txs)
     return $ (utxo <> utxo') `excluding` txIns txs
 
 -- | Return all transaction outputs that are ours. This plays well within a
@@ -250,14 +308,15 @@ txOutsOurs
     :: forall s. (IsOurs s Address)
     => Set Tx
     -> s
-    -> (Set TxOut, s)
+    -> (Set (Tx, TxOut), s)
 txOutsOurs txs =
-    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
+    runState $ Set.fromList <$>
+        forMaybe (foldMap (\tx -> zip (repeat tx) (outputs tx)) txs) pick
   where
-    pick :: TxOut -> State s (Maybe TxOut)
-    pick out = do
+    pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
+    pick (tx, out) = do
         predicate <- state $ isOurs (address out)
-        return $ if predicate then Just out else Nothing
+        return $ if predicate then Just (tx, out) else Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
@@ -292,6 +351,9 @@ ourAddresses :: WalletState -> Set Address
 ourAddresses =
     Set.map (\(ShowFmt a) -> a) . _ourAddresses
 
+ourChimericAccount :: ChimericAccount
+ourChimericAccount = ChimericAccount $ BS.replicate 28 0
+
 instance NFData WalletState
 
 instance Semigroup WalletState where
@@ -308,7 +370,7 @@ instance IsOurs WalletState Address where
             (False, s)
 
 instance IsOurs WalletState ChimericAccount where
-    isOurs _account s = (False, s)
+    isOurs account s = (account == ourChimericAccount, s)
 
 instance Arbitrary WalletState where
     shrink = genericShrink
@@ -319,6 +381,70 @@ instance Arbitrary WalletState where
 instance Arbitrary (ShowFmt Address) where
     shrink _ = []
     arbitrary = ShowFmt <$> elements addresses
+
+data WithPending s = WithPending
+    { _wallet :: Wallet s
+    , _pendingTxs :: Set Tx
+    , _rewards :: Coin
+    } deriving (Generic, Show)
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash . BS.pack <$> vector 32
+
+instance Arbitrary (WithPending WalletState) where
+    shrink _  = []
+    arbitrary = do
+        (_, cp0) <- initWallet @_ block0 dummyGenesisParameters <$> arbitrary
+        subChain <- flip take blockchain <$> choose (1, length blockchain)
+        let wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 subChain
+        rewards <- Coin <$> oneof [pure 0, choose (1, 10000)]
+        pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
+        pure $ WithPending wallet pending rewards
+      where
+        genPendingTx :: UTxO -> Coin -> Gen (Set Tx)
+        genPendingTx (UTxO u) rewards
+            | Map.null u = pure Set.empty
+            | otherwise  = do
+                (inp, out) <-
+                    (\i -> Map.toList u !! i) <$> choose (0, Map.size u - 1)
+
+                arbitraryHash <- arbitrary
+
+                withWithdrawal <- frequency
+                    [ (3, pure id)
+                    , (1, pure $ \tx ->
+                        if rewards == Coin 0
+                        then tx
+                        else tx
+                            { withdrawals =
+                                Map.singleton ourChimericAccount rewards
+                            , outputs =
+                                out { coin = rewards } : outputs tx
+                            }
+                      )
+                    ]
+
+                -- NOTE:
+                --
+                -- - We simply re-use the same output to send money to it, since
+                --   we know it's already ours.
+                --
+                -- - We send less than the input value, to simulate some fees
+                --
+                -- - Sometimes, we also add a withdrawal by creating another
+                --   change output and an explicit withdrawal in the
+                --   transaction.
+                let pending = withWithdrawal $ Tx
+                        { txId = arbitraryHash
+                        , resolvedInputs = [(inp, coin out)]
+                        , outputs = [out { coin = simulateFee (coin out) }]
+                        , withdrawals = mempty
+                        }
+
+                elements [Set.singleton pending, Set.empty]
+          where
+            simulateFee (Coin amt) = Coin (amt - 5000)
+
 
 -- | Since it's quite tricky to generate a valid Arbitrary chain and
 -- corresponding initial UTxO, instead, we take subset of our small valid
