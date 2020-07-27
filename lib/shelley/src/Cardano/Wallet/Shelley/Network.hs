@@ -1019,7 +1019,6 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
             "Updated the history interpreter: " <> T.pack (show interpreter)
         MsgInterpreterPastHorizon query (PastHorizon callstack eras) ->
             "Time interpreter queried past the horizon. " <>
-            "This should not have happened.\n" <>
             "Query is:\n" <> query <> "\n" <>
             "Eras are:\n" <>
             T.unlines (map (T.pack . show) eras) <> "\n" <>
@@ -1053,4 +1052,4 @@ instance HasSeverityAnnotation (NetworkLayerLog b) where
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
-        MsgInterpreterPastHorizon{}        -> Critical
+        MsgInterpreterPastHorizon{}        -> Error
