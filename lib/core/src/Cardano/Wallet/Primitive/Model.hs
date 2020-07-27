@@ -10,7 +10,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -290,14 +289,23 @@ availableBalance :: Set Tx -> Wallet s -> Natural
 availableBalance pending =
     balance . availableUTxO pending
 
--- | Total balance = 'balance' . 'totalUTxO'
+-- | Total balance = 'balance' . 'totalUTxO' +? rewards
 totalBalance
-    :: IsOurs s Address
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Set Tx
+    -> Quantity "lovelace" Natural
     -> Wallet s
     -> Natural
-totalBalance pending =
-    balance . totalUTxO pending
+totalBalance pending (Quantity rewards) s =
+    balance (totalUTxO pending s) + if hasPendingWithdrawals then 0 else rewards
+  where
+    hasPendingWithdrawals =
+        not $ Set.null $ Set.filter
+            (any ourChimericAccount . Map.keys . withdrawals)
+            pending
+
+    ourChimericAccount acct =
+        evalState (state (isOurs acct)) (getState s)
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO
@@ -360,6 +368,14 @@ prefilterBlock b u0 = runState $ do
         state (isOurs $ dlgCertAccount cert) <&> \case
             False -> Nothing
             True -> Just cert
+    ourChimericAccount
+        :: IsOurs s ChimericAccount
+        => (ChimericAccount, Coin)
+        -> State s (Maybe Natural)
+    ourChimericAccount (acct, Coin c) =
+        state (isOurs acct) <&> \case
+            False -> Nothing
+            True -> Just $ fromIntegral c
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -369,7 +385,7 @@ prefilterBlock b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: IsOurs s Address
+        :: (IsOurs s Address, IsOurs s ChimericAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -377,19 +393,17 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        let withdrawalAmt =
-                sum $ map (fromIntegral . getCoin) $ Map.elems $ withdrawals tx
-        let received = fromIntegral @_ @Integer $ balance ourU
-        let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
-        let amt = fromIntegral $ abs (received - spent - withdrawalAmt)
+        ourWithdrawals <- mapMaybeM ourChimericAccount $ Map.toList $ withdrawals tx
+        let received = balance ourU
+        let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         return $ if hasKnownOutput && not hasKnownInput then
-            ( (tx, mkTxMeta amt Incoming) : txs
+            ( (tx, mkTxMeta received Incoming) : txs
             , u'
             )
         else if hasKnownInput then
-            ( (tx, mkTxMeta amt Outgoing) : txs
+            ( (tx, mkTxMeta (spent - received) Outgoing) : txs
             , u'
             )
         else

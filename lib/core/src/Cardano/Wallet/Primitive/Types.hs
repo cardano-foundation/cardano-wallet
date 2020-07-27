@@ -825,6 +825,7 @@ instance NFData Tx
 instance Buildable Tx where
     build (Tx tid ins outs ws) = mempty
         <> build tid
+        <> build ("\n" :: String)
         <> blockListF' "inputs" build (fst <$> ins)
         <> blockListF' "outputs" build outs
         <> blockListF' "withdrawals" tupleF (Map.toList ws)

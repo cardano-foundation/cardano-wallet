@@ -150,12 +150,13 @@ spec = do
     it "STAKE_POOLS_JOIN_01 - \
         \Can join a pool, earn rewards and collect them" $ \ctx -> do
         -- Setup
-        w <- fixtureWallet ctx
+        src <- fixtureWallet ctx
+        dest <- emptyWallet ctx
 
         -- Join Pool
         pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Empty
-        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
+        joinStakePool @n ctx pool (src, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -166,7 +167,7 @@ spec = do
         waitForNextEpoch ctx
         (previousBalance, walletRewards) <-
             eventually "Wallet gets rewards" $ do
-                r <- request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
                     Default Empty
                 verify r
                     [ expectField
@@ -180,7 +181,7 @@ spec = do
                 pure (availableBalance, rewardBalance)
 
         -- Try to use rewards
-        addrs <- listAddresses @n ctx w
+        addrs <- listAddresses @n ctx dest
         let coin = 1 :: Natural
         let addr = (addrs !! 1) ^. #id
         let payload = [json|
@@ -197,18 +198,18 @@ spec = do
 
         -- cannot use rewards by default
         r1 <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley w)
+            (Link.createTransaction @'Shelley src)
             Default (Json payload)
         expectResponseCode HTTP.status202 r1
         eventually "Wallet has not consumed rewards" $ do
           let linkSrc = Link.getTransaction @'Shelley
-                  w (getFromResponse Prelude.id r1)
+                  src (getFromResponse Prelude.id r1)
           request @(ApiTransaction n) ctx linkSrc Default Empty
               >>= flip verify
                   [ expectField
                       (#status . #getApiT) (`shouldBe` InLedger)
                   ]
-          request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+          request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
               >>= flip verify
                   [ expectField
                       (#balance . #getApiT . #reward) (`shouldBe` walletRewards)
@@ -216,7 +217,7 @@ spec = do
 
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
-            (Link.listTransactions' @'Shelley w (Just 1)
+            (Link.listTransactions' @'Shelley src (Just 1)
                 Nothing Nothing Nothing)
             Default Empty
         verify rw1 [ expectListSize 0 ]
@@ -224,17 +225,17 @@ spec = do
         -- can use rewards with special transaction query param
         -- (ApiWithdrawRewards True)
         rTx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction' @'Shelley w (ApiWithdrawRewards True))
+            (Link.createTransaction' @'Shelley src (ApiWithdrawRewards True))
             Default (Json payload)
         verify rTx
             [ expectField #amount (.> (Quantity coin))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
-        let totalAmtAfterWithdrawals = getFromResponse #amount rTx
+        let txAmount = getFromResponse #amount rTx
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField
                         (#balance . #getApiT . #reward)
@@ -244,30 +245,38 @@ spec = do
                         (.> previousBalance)
                     ]
 
-        eventually "There's at least one transaction with a withdrawal" $ do
+        eventually "There's at least one outgoing transaction with a withdrawal" $ do
             rWithdrawal <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley w
+                (Link.getTransaction @'Shelley src
                     (getFromResponse Prelude.id rTx))
                 Default Empty
             verify rWithdrawal
                 [ expectResponseCode HTTP.status200
                 , expectField #withdrawals (`shouldSatisfy` (not . null))
-                , expectField #amount (`shouldBe` totalAmtAfterWithdrawals)
+                , expectField #amount (`shouldBe` txAmount)
                 ]
             rw2 <- request @[ApiTransaction n] ctx
-                (Link.listTransactions' @'Shelley w (Just 1)
+                (Link.listTransactions' @'Shelley src (Just 1)
                     Nothing Nothing Nothing)
                 Default Empty
             verify rw2 [ expectListSize 1 ]
 
+        eventually "There's one incoming transaction with correct amount" $ do
+            request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley dest)
+                Default Empty >>= flip verify
+                [ expectListSize 2
+                , expectListField 0 (#amount . #getQuantity) (`shouldBe` coin)
+                , expectListField 1 (#amount . #getQuantity) (`shouldBe` coin)
+                ]
+
         -- Quit delegation altogether.
-        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+        quitStakePool @n ctx (src, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
         eventually "Certificates are inserted after quiting a pool" $ do
-            let ep = Link.listTransactions @'Shelley w
+            let ep = Link.listTransactions @'Shelley src
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListField 0
                     (#direction . #getApiT) (`shouldBe` Outgoing)

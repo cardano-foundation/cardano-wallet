@@ -626,11 +626,12 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
-    Quantity reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+    reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
         liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
 
@@ -641,8 +642,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
             { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ reward + totalBalance pending cp
-            , reward = Quantity reward
+            , total = Quantity $ totalBalance pending reward cp
+            , reward
             }
         , delegation = apiDelegation
         , id = ApiT wid
@@ -724,6 +725,7 @@ mkLegacyWallet
         , KnownDiscovery s
         , HasNetworkLayer t ctx
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -756,7 +758,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
             { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending cp
+            , total = Quantity $ totalBalance pending (Quantity 0) cp
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -2073,6 +2075,15 @@ instance Buildable e => LiftHandler (ErrSelectForPayment e) where
         ErrSelectForPaymentCoinSelection e -> handler e
         ErrSelectForPaymentFee e -> handler e
         ErrSelectForPaymentMinimumUTxOValue e -> handler e
+        ErrSelectForPaymentAlreadyWithdrawing tx ->
+            apiError err403 AlreadyWithdrawing $ mconcat
+                [ "I already know of a pending transaction with withdrawals: "
+                , toText (txId tx), ". Note that when I withdraw rewards, I "
+                , "need to withdraw them fully for the Ledger to accept it. "
+                , "There's therefore no point creating another conflicting "
+                , "transaction; if, for some reason, you really want a new "
+                , "transaction, then cancel the previous one first."
+                ]
 
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case

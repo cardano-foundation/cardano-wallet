@@ -302,6 +302,7 @@ import Cardano.Wallet.Primitive.Types
     , fromTransactionInfo
     , log10
     , wholeRange
+    , withdrawals
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -360,7 +361,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromJust, isJust, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -1165,13 +1166,22 @@ selectCoinsForPayment
     -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal = do
-    (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
+    (utxo, pending, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
+
+    let pendingWithdrawal = Set.lookupMin $ Set.filter hasWithdrawal pending
+    when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
+        ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
+
     cs <-
         selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
     pure cs
+  where
+    hasWithdrawal :: Tx -> Bool
+    hasWithdrawal = not . null . withdrawals
+
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1180,13 +1190,13 @@ selectCoinsSetup
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO (W.UTxO, W.TxParameters, W.Coin)
+    -> ExceptT ErrNoSuchWallet IO (W.UTxO, Set Tx, W.TxParameters, W.Coin)
 selectCoinsSetup ctx wid = do
     (wal, _, pending) <- readWallet @ctx @s @k ctx wid
     txp <- txParameters <$> readWalletProtocolParameters @ctx @s @k ctx wid
     minUTxO <- minimumUTxOvalue <$> readWalletProtocolParameters @ctx @s @k ctx wid
     let utxo = availableUTxO @s pending wal
-    return (utxo, txp, minUTxO)
+    return (utxo, pending, txp, minUTxO)
 
 selectCoinsForPaymentFromUTxO
     :: forall ctx t k e.
@@ -1229,7 +1239,7 @@ selectCoinsForDelegation
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid action = do
-    (utxo, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
+    (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
     selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp minUtxo action
 
@@ -1266,7 +1276,7 @@ estimateFeeForDelegation
     -> WalletId
     -> ExceptT ErrSelectForDelegation IO FeeEstimation
 estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
-    (utxo, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet
+    (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet
         $ selectCoinsSetup @ctx @s @k ctx wid
 
     isKeyReg <- mapExceptT atomically
@@ -1303,7 +1313,7 @@ selectCoinsForMigration
         , Quantity "lovelace" Natural
         )
 selectCoinsForMigration ctx wid = do
-    (utxo, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
+    (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
     selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp minUtxo wid
 
@@ -1387,7 +1397,7 @@ estimateFeeForPayment
     -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
 estimateFeeForPayment ctx wid recipients withdrawal = do
-    (utxo, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
+    (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
     let selectCoins =
@@ -2071,6 +2081,7 @@ data ErrSelectForPayment e
     | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
     | ErrSelectForPaymentFee ErrAdjustForFee
     | ErrSelectForPaymentMinimumUTxOValue ErrUTxOTooSmall
+    | ErrSelectForPaymentAlreadyWithdrawing Tx
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
