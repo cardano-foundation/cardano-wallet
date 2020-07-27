@@ -1,3 +1,4 @@
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -161,6 +162,13 @@ spec = do
                 runIdentity
                     (syncProgress tolerance ti nodeTip ntwkTime)
                     `shouldBe` progress
+
+
+        it "unit test #7 - 1k/2M 0.5% (regression for overflow issue)" $ do
+            let tip = mkTip (SlotNo 1_000)
+            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 2_000_000
+            runIdentity (syncProgress tolerance ti tip ntwkTime)
+                `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.0005)
 
         it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \tip dt -> monadicIO $ do
