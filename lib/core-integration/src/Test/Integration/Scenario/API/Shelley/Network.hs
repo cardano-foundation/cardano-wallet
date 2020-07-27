@@ -16,13 +16,14 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( SpecWith, shouldBe )
+    ( SpecWith, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , eventually
     , expectField
     , expectResponseCode
     , request
@@ -34,7 +35,8 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
 spec = do
-    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
+    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx ->
+        eventually "hardfork is detected in network parameters " $ do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
         let Right d = Quantity <$> mkPercentage (3 % 4)
@@ -42,10 +44,9 @@ spec = do
         -- in integration test setup it is 3
         let nOpt = 3
         let minUtxoValue = Quantity 0
-        let hardforkEpochNo = Nothing
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
             , expectField (#minimumUtxoValue) (`shouldBe` minUtxoValue)
-            , expectField (#hardforkEpochInfo) (`shouldBe` hardforkEpochNo)
+            , expectField (#hardforkEpochInfo) (`shouldNotBe` Nothing)
             ]
