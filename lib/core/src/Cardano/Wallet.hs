@@ -1470,10 +1470,15 @@ signPayment
     => ctx
     -> WalletId
     -> ArgGenChange s
+    -> ( (k 'RootK XPrv, Passphrase "encryption")
+        ->
+         (k 'AddressK XPrv, Passphrase "encryption")
+       )
+       -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
+signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1485,9 +1490,9 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = mkRewardAccount (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs'
+                mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) cs'
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' cs'
             return (tx, meta, time, sealedTx)

@@ -225,6 +225,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , deriveRewardAccount
     , digest
     , preparePassphrase
     , publicKey
@@ -1216,8 +1217,9 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
             else pure (Quantity 0)
         liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
+    let mkRewardAccount (rootK, pwdP) = (deriveRewardAccount @k pwdP rootK, pwdP)
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.signPayment @_ @s @t @k wrk wid genChange pwd selection
+        W.signPayment @_ @s @t @k wrk wid genChange mkRewardAccount pwd selection
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
