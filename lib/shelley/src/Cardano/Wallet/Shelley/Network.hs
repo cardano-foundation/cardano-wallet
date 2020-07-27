@@ -643,31 +643,39 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             :: Point (CardanoBlock sc)
             -> m ()
         queryLocalState pt = do
+            mb <- localStateQueryQ `send`
+                CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
+
             pp <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
-            handleParamsUpdate pt fromShelleyPParams pp
+
+            sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                >>= handleAcquireFailure
 
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
-            handleParamsUpdate pt protocolParametersFromUpdateState st
+
+            sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
+                >>= handleAcquireFailure
+
+        handleAcquireFailure
+            :: Either AcquireFailure ()
+            -> m ()
+        handleAcquireFailure = \case
+            Right () ->
+                pure ()
+            Left e ->
+                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
 
         handleParamsUpdate
-            :: Point (CardanoBlock sc)
-            -> (Maybe Bound -> p -> W.ProtocolParameters)
-            -> Either AcquireFailure (Either (MismatchEraInfo (CardanoEras sc)) p)
+            :: (Maybe Bound -> p -> W.ProtocolParameters)
+            -> (Maybe Bound)
+            -> (Either (MismatchEraInfo (CardanoEras sc)) p)
             -> m ()
-        handleParamsUpdate pt convert = \case
-            Left (e1 :: AcquireFailure) ->
-                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e1
-            Right (Right ls) -> do
-                    boundRes <- localStateQueryQ `send`
-                        CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
-                    case boundRes of
-                        Right boundM ->
-                            onPParamsUpdate' $ convert boundM ls
-                        Left (e2 :: AcquireFailure) ->
-                            traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e2
-            Right (Left mismatch) ->
+        handleParamsUpdate convert boundM = \case
+            Right ls -> do
+                onPParamsUpdate' $ convert boundM ls
+            Left mismatch -> do
                 traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
         queryInterpreter
