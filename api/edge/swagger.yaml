@@ -870,6 +870,9 @@ components:
       required:
         - id
         - metrics
+        - cost
+        - margin
+        - pledge
       properties:
         id: *stakePoolId
         metrics: *stakePoolMetrics
