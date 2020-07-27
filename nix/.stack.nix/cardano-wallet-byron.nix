@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet-byron"; version = "2020.7.6"; };
+      identifier = { name = "cardano-wallet-byron"; version = "2020.7.28"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
