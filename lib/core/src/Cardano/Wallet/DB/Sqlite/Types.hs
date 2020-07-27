@@ -300,11 +300,7 @@ instance PathPiece SlotNo where
 ----------------------------------------------------------------------------
 -- EpochNo
 
-instance ToJSON EpochNo where
-    toJSON (EpochNo n) = toJSON (fromIntegral @Word31 @Word32 n)
-
-instance FromJSON EpochNo where
-    parseJSON = fmap unsafeEpochNo . parseJSON
+deriving via Word32 instance (PersistFieldSql EpochNo)
 
 mkEpochNo :: Word32 -> Either Text EpochNo
 mkEpochNo n
@@ -312,12 +308,12 @@ mkEpochNo n
     | otherwise = Left . T.pack $ "not a valid epoch number: " <> show n
     where c = unsafeEpochNo n
 
-instance PersistField EpochNo where
-    toPersistValue = toPersistValue . fromIntegral @Word31 @Word32 . unEpochNo
-    fromPersistValue = fromPersistValue >=> mkEpochNo
+persistEpochNo :: EpochNo -> PersistValue
+persistEpochNo = toPersistValue . fromIntegral @Word31 @Word32 . unEpochNo
 
-instance PersistFieldSql EpochNo where
-    sqlType _ = sqlType (Proxy @Text)
+instance PersistField EpochNo where
+    toPersistValue = persistEpochNo
+    fromPersistValue = fromPersistValue >=> mkEpochNo
 
 instance ToHttpApiData EpochNo where
     toUrlPiece = error "toUrlPiece stub needed for persistent"
