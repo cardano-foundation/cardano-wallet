@@ -259,7 +259,7 @@ combineDbAndLsqData sp =
             , saturation = 0
             }
 
-    bothPresent = zipWithMatched $ \k lsq db -> mkApiPool k lsq db
+    bothPresent = zipWithMatched mkApiPool
 
     mkApiPool
         :: PoolId
