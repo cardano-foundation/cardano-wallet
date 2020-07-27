@@ -174,6 +174,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Mnemonic
+    ( SomeMnemonic )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.DB
@@ -194,6 +196,7 @@ import Cardano.Wallet.Network
     , FollowLog (..)
     , NetworkLayer (..)
     , follow
+    , getAccountBalanceRetry
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
@@ -216,6 +219,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, unsafeMkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -387,6 +392,7 @@ import Safe
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -901,14 +907,19 @@ readNextWithdrawal
     :: forall ctx s t k.
         ( HasDBLayer s k ctx
         , HasTransactionLayer t k ctx
+        , HasNetworkLayer t ctx
+        , HasRewardAccount s k
+        , HasRewardAccount s ShelleyKey
         )
     => ctx
     -> WalletId
-    -> IO (Quantity "lovelace" Word64)
-readNextWithdrawal ctx wid = db & \DBLayer{..} -> do
-    (pp, withdrawal) <- atomically $ (,)
-        <$> readProtocolParameters pk
-        <*> fmap getQuantity (readDelegationRewardBalance pk)
+    -> Either WalletId SomeMnemonic
+    -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
+readNextWithdrawal ctx wid src = db & \DBLayer{..} -> do
+    account <- either fromOwnWallet (pure . fromExternalWallet) src
+    (pp, Quantity withdrawal) <- (,)
+        <$> liftIO (atomically $ readProtocolParameters $ PrimaryKey wid)
+        <*> mapExceptT (fmap handleErr) (getAccountBalanceRetry nl account)
     case pp of
         -- May happen if done very early, in which case, rewards are probably
         -- not woth considering anyway.
@@ -928,10 +939,37 @@ readNextWithdrawal ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
-    pk = PrimaryKey wid
+    nl = ctx ^. networkLayer @t
 
     minFee :: FeePolicy -> CoinSelection -> Integer
     minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
+
+    handleErr = \case
+        Right x -> Right x
+        Left ErrGetAccountBalanceAccountNotFound{} ->
+            Right $ Quantity 0
+        Left (ErrGetAccountBalanceNetworkUnreachable e) ->
+            Left $ ErrFetchRewardsNetworkUnreachable e
+
+    fromOwnWallet
+        :: WalletId
+        -> ExceptT ErrFetchRewards IO ChimericAccount
+    fromOwnWallet _wid = db & \DBLayer{..} -> do
+        cp <- withExceptT ErrFetchRewardsNoSuchWallet
+            . mapExceptT atomically
+            . withNoSuchWallet wid
+            $ readCheckpoint (PrimaryKey wid)
+        pure $ toChimericAccount @s @k . rewardAccountKey $ getState cp
+
+    fromExternalWallet
+        :: SomeMnemonic
+        -> ChimericAccount
+    fromExternalWallet mw =
+        let
+            rootK = Shelley.generateKeyFromSeed (mw, Nothing) mempty
+            acctK = deriveRewardAccount mempty rootK
+        in
+            toChimericAccount @s (publicKey acctK)
 
 -- | Query the node for the reward balance of a given wallet.
 --
@@ -1464,8 +1502,6 @@ signPayment
         , HasNetworkLayer t ctx
         , IsOwned s k
         , GenChange s
-        , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> WalletId

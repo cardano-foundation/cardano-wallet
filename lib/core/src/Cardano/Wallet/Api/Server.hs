@@ -234,6 +234,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
@@ -1200,6 +1202,8 @@ postTransaction
         , ctx ~ ApiLayer s t k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HasRewardAccount s k
+        , HasRewardAccount s ShelleyKey
         )
     => ctx
     -> ArgGenChange s
@@ -1213,7 +1217,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
 
     selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         withdrawal <- if withdrawRewards
-            then liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+            then liftHandler $ W.readNextWithdrawal @_ @s @t @k wrk wid (Left wid)
             else pure (Quantity 0)
         liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
@@ -1312,6 +1316,8 @@ apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
 postTransactionFee
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
+        , HasRewardAccount s k
+        , HasRewardAccount s ShelleyKey
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1323,7 +1329,7 @@ postTransactionFee ctx (ApiT wid) withdrawRewards body = do
     let outs = coerceCoin <$> (body ^. #payments)
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         withdrawal <- if withdrawRewards
-            then liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid
+            then liftHandler $ W.readNextWithdrawal @_ @s @t @k wrk wid (Left wid)
             else pure $ Quantity 0
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
         pure $ apiFee fee
