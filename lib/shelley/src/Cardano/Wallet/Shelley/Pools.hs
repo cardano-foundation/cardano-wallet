@@ -280,7 +280,7 @@ combineDbAndLsqData sp =
                 (fmap fromIntegral . nProducedBlocks) dbData
             }
         , Api.metadata =
-            metadata dbData >>= return . ApiT
+            ApiT <$> metadata dbData
         , Api.cost =
             fmap fromIntegral $ poolCost $ registrationCert dbData
         , Api.pledge =
