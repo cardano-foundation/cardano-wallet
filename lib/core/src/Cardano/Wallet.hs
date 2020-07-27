@@ -1805,7 +1805,7 @@ joinStakePool
         )
     => ctx
     -> W.EpochNo
-    -> [PoolId]
+    -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
@@ -2241,13 +2241,13 @@ data PoolRetirementEpochInfo = PoolRetirementEpochInfo
     deriving (Eq, Generic, Show)
 
 guardJoin
-    :: [PoolId]
+    :: Set PoolId
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
     -> Either ErrCannotJoin ()
 guardJoin knownPools delegation pid mRetirementEpochInfo = do
-    when (pid `notElem` knownPools) $
+    when (pid `Set.notMember` knownPools) $
         Left (ErrNoSuchPool pid)
 
     forM_ mRetirementEpochInfo $ \info ->

@@ -1315,7 +1315,7 @@ joinStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> IO [PoolId]
+    -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
     -> (PoolId -> IO PoolLifeCycleStatus)

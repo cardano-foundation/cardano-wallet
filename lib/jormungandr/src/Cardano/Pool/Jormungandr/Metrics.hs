@@ -121,6 +121,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Ratio
     ( (%) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Vector.Shuffle
@@ -138,6 +140,7 @@ import qualified Cardano.Pool.Jormungandr.Ranking as Ranking
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 -- Types
@@ -164,9 +167,9 @@ data StakePoolLayer e m = StakePoolLayer
         :: ExceptT e m [(StakePool, Maybe StakePoolMetadata)]
 
     , knownStakePools
-        :: m [PoolId]
-        -- ^ Get a list of known pools that doesn't require fetching things from
-        -- any registry. This list comes from the registration certificates
+        :: m (Set PoolId)
+        -- ^ Get a set of known pools that doesn't require fetching things from
+        -- any registry. This set comes from the registration certificates
         -- that have been seen on chain.
     }
 
@@ -293,7 +296,7 @@ newStakePoolLayer tr block0H getEpCst db@DBLayer{..} nl metadataDir = StakePoolL
         meta <- lift $ findMetadata (map (first (^. #poolId)) stakePools)
         pure $ zip (map fst stakePools) meta
     , knownStakePools =
-        atomically listRegisteredPools
+        Set.fromList <$> atomically listRegisteredPools
     }
   where
     epochOf' = liftIO . timeInterpreter nl . epochOf

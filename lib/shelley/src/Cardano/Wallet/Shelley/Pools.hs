@@ -106,6 +106,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Word
@@ -120,7 +122,6 @@ import Ouroboros.Consensus.Shelley.Protocol
     ( TPraosCrypto )
 
 import qualified Cardano.Wallet.Api.Types as Api
-import qualified Data.Foldable as F
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -135,7 +136,7 @@ data StakePoolLayer = StakePoolLayer
         -> IO PoolLifeCycleStatus
 
     , knownPools
-        :: IO [PoolId]
+        :: IO (Set PoolId)
 
     -- | List pools based given the the amount of stake the user intends to
     --   delegate, which affects the size of the rewards and the ranking of
@@ -171,9 +172,9 @@ newStakePoolLayer
         liftIO $ atomically $ readPoolLifeCycleStatus pid
 
     _knownPools
-        :: IO [PoolId]
+        :: IO (Set PoolId)
     _knownPools =
-        F.toList . Map.keysSet <$> liftIO (readPoolDbData db)
+        Map.keysSet <$> liftIO (readPoolDbData db)
 
     _listPools
         :: EpochNo
