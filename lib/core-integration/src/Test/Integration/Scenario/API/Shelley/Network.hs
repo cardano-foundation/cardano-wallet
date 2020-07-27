@@ -42,8 +42,10 @@ spec = do
         -- in integration test setup it is 3
         let nOpt = 3
         let minUtxoValue = Quantity 0
+        let hardforkEpochNo = Nothing
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
             , expectField (#minimumUtxoValue) (`shouldBe` minUtxoValue)
+            , expectField (#hardforkEpochInfo) (`shouldBe` hardforkEpochNo)
             ]
