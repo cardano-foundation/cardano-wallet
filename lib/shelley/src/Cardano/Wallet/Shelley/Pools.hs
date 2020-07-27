@@ -120,6 +120,7 @@ import Ouroboros.Consensus.Shelley.Protocol
     ( TPraosCrypto )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Data.Foldable as F
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -171,14 +172,8 @@ newStakePoolLayer
 
     _knownPools
         :: IO [PoolId]
-    _knownPools = do
-        tip <- getTip
-        let dummyCoin = Coin 0
-        res <- runExceptT $ map fst . Map.toList
-            . combineLsqData <$> stakeDistribution tip dummyCoin
-        case res of
-            Right x -> return x
-            Left _e -> return []
+    _knownPools =
+        F.toList . Map.keysSet <$> liftIO (readPoolDbData db)
 
     _listPools
         :: EpochNo
