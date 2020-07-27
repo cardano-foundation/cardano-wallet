@@ -729,7 +729,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
             "rollbackPoint = slotMinBound"
         $ cover 4 (rollbackPoint > SlotNo 0)
             "rollbackPoint > slotMinBound"
-        $ cover 4 (null expectedPublications)
+        $ cover 2 (null expectedPublications)
             "length expectedPublications = 0"
         $ cover 4 (not (null expectedPublications))
             "length expectedPublications > 0"
