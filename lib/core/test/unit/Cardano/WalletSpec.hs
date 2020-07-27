@@ -187,6 +187,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
@@ -294,7 +295,7 @@ spec = do
          pidA = PoolId "A"
          pidB = PoolId "B"
          pidUnknown = PoolId "unknown"
-         knownPools = [pidA, pidB]
+         knownPools = Set.fromList [pidA, pidB]
          next epoch dlgStatus =
              WalletDelegationNext {changesAt = epoch, status = dlgStatus}
 
@@ -308,7 +309,7 @@ prop_guardJoinQuit
     -> PoolId
     -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPools dlg pid mRetirementInfo = checkCoverage
+prop_guardJoinQuit knownPoolsList dlg pid mRetirementInfo = checkCoverage
     $ cover 10 retirementNotPlanned
         "retirementNotPlanned"
     $ cover 10 retirementPlanned
@@ -325,6 +326,7 @@ prop_guardJoinQuit knownPools dlg pid mRetirementInfo = checkCoverage
             label "ErrAlreadyDelegating"
                 (W.guardQuit dlg (Quantity 0) === Right ())
   where
+    knownPools = Set.fromList knownPoolsList
     retirementNotPlanned =
         isNothing mRetirementInfo
     retirementPlanned =
@@ -341,14 +343,16 @@ prop_guardQuitJoin
     -> WalletDelegation
     -> Word64
     -> Property
-prop_guardQuitJoin (NonEmpty knownPools) dlg rewards =
+prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
+    let knownPools = Set.fromList knownPoolsList in
     let noRetirementPlanned = Nothing in
     case W.guardQuit dlg (Quantity rewards) of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
             label "ErrNotDelegatingOrAboutTo" $
-                W.guardJoin knownPools dlg (last knownPools) noRetirementPlanned
+                W.guardJoin
+                    knownPools dlg (last knownPoolsList) noRetirementPlanned
                     === Right ()
         Left W.ErrNonNullRewards{} ->
             label "ErrNonNullRewards"

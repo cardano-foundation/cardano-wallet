@@ -106,6 +106,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Word
@@ -134,7 +136,7 @@ data StakePoolLayer = StakePoolLayer
         -> IO PoolLifeCycleStatus
 
     , knownPools
-        :: IO [PoolId]
+        :: IO (Set PoolId)
 
     -- | List pools based given the the amount of stake the user intends to
     --   delegate, which affects the size of the rewards and the ranking of
@@ -156,12 +158,13 @@ newStakePoolLayer
     -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> StakePoolLayer
-newStakePoolLayer gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {..} =
-    StakePoolLayer
-    { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-    , knownPools = _knownPools
-    , listStakePools = _listPools
-    }
+newStakePoolLayer
+    gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {..} =
+        StakePoolLayer
+            { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+            , knownPools = _knownPools
+            , listStakePools = _listPools
+            }
   where
     _getPoolLifeCycleStatus
         :: PoolId -> IO PoolLifeCycleStatus
@@ -169,15 +172,9 @@ newStakePoolLayer gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {
         liftIO $ atomically $ readPoolLifeCycleStatus pid
 
     _knownPools
-        :: IO [PoolId]
-    _knownPools = do
-        tip <- getTip
-        let dummyCoin = Coin 0
-        res <- runExceptT $ map fst . Map.toList
-            . combineLsqData <$> stakeDistribution tip dummyCoin
-        case res of
-            Right x -> return x
-            Left _e -> return []
+        :: IO (Set PoolId)
+    _knownPools =
+        Map.keysSet <$> liftIO (readPoolDbData db)
 
     _listPools
         :: EpochNo
@@ -239,20 +236,31 @@ combineDbAndLsqData
     -> Map PoolId PoolDbData
     -> Map PoolId Api.ApiStakePool
 combineDbAndLsqData sp =
-    Map.merge lsqButNoChain chainButNoLsq bothPresent
+    Map.merge lsqButNoDb dbButNoLsq bothPresent
   where
-    lsqButNoChain = traverseMissing $ \k lsq -> pure $ mkApiPool k lsq Nothing
+    lsqButNoDb = dropMissing
 
-    -- In case our chain following has missed a retirement certificate, we
-    -- treat the lsq data as the source of truth, and dropMissing here.
-    chainButNoLsq = dropMissing
+    -- When a pool is registered (with a registration certificate) but not
+    -- currently active (and therefore not causing pool metrics data to be
+    -- available over local state query), we use a default value of /zero/
+    -- for all stake pool metric values so that the pool can still be
+    -- included in the list of all known stake pools:
+    --
+    dbButNoLsq = traverseMissing $ \k db ->
+        pure $ mkApiPool k lsqDefault db
+      where
+        lsqDefault = PoolLsqData
+            { nonMyopicMemberRewards = minBound
+            , relativeStake = minBound
+            , saturation = 0
+            }
 
-    bothPresent = zipWithMatched  $ \k lsq chain -> mkApiPool k lsq (Just chain)
+    bothPresent = zipWithMatched mkApiPool
 
     mkApiPool
         :: PoolId
         -> PoolLsqData
-        -> Maybe PoolDbData
+        -> PoolDbData
         -> Api.ApiStakePool
     mkApiPool
         pid
@@ -264,19 +272,19 @@ combineDbAndLsqData sp =
             { Api.nonMyopicMemberRewards = fmap fromIntegral prew
             , Api.relativeStake = Quantity pstk
             , Api.saturation = psat
-            , Api.producedBlocks = maybe (Quantity 0)
-                    (fmap fromIntegral . nProducedBlocks) dbData
+            , Api.producedBlocks =
+                (fmap fromIntegral . nProducedBlocks) dbData
             }
         , Api.metadata =
-            dbData >>= metadata >>= (return . ApiT)
+            ApiT <$> metadata dbData
         , Api.cost =
-            fmap fromIntegral . poolCost . registrationCert <$> dbData
+            fmap fromIntegral $ poolCost $ registrationCert dbData
         , Api.pledge =
-            fmap fromIntegral . poolPledge . registrationCert <$> dbData
+            fmap fromIntegral $ poolPledge $ registrationCert dbData
         , Api.margin =
-            Quantity . poolMargin . registrationCert <$> dbData
+            Quantity $ poolMargin $ registrationCert dbData
         , Api.retirement =
-            toApiEpochInfo . retiredIn <$> (retirementCert =<< dbData)
+            toApiEpochInfo . retiredIn <$> retirementCert dbData
         }
 
     toApiEpochInfo ep =
