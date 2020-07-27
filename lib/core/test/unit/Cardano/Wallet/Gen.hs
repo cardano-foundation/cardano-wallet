@@ -99,7 +99,7 @@ genLegacyAddress pm = do
 
 -- | Don't generate /too/ large slots
 genSlotNo :: Gen SlotNo
-genSlotNo = SlotNo . fromIntegral <$> (arbitrary @Word32)
+genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32
 
 shrinkSlotNo :: SlotNo -> [SlotNo]
 shrinkSlotNo (SlotNo x) = map SlotNo $ shrink x

@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, dummyGenesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, shrinkSlotNo )
+    ( genMnemonic, shrinkSlotNo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -333,13 +333,18 @@ instance Arbitrary PassphraseScheme where
 
 instance Arbitrary BlockHeader where
     arbitrary = do
-        slot <- arbitrary
-        let height = Quantity . fromIntegral . unSlotNo $ slot
+        EpochNo ep <- arbitrary
+        SlotInEpoch sl <- arbitrary
+        let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         blockH <- arbitrary
-        pure $ BlockHeader slot height blockH (coerce blockH)
+        let slot = SlotNo $ fromIntegral h
+        pure $ BlockHeader slot (Quantity h) blockH (coerce blockH)
 
 instance Arbitrary SlotNo where
-    arbitrary = genSlotNo
+    arbitrary = do
+        SlotInEpoch sl <- arbitrary
+        EpochNo ep <- arbitrary
+        pure $ SlotNo $ fromIntegral $ fromIntegral ep * arbitraryChainLength + sl
     shrink = shrinkSlotNo
 
 instance Arbitrary SlotInEpoch where
