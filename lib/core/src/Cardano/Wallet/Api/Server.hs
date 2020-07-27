@@ -1558,7 +1558,19 @@ getNetworkParameters
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, np, _st) nl = do
     pp <- liftIO $ NW.getProtocolParameters nl
-    pure $ toApiNetworkParameters np { protocolParameters = pp }
+    let (apiNetworkParams, epochNoM) =
+            toApiNetworkParameters np { protocolParameters = pp }
+    case epochNoM of
+        Just epochNo -> do
+            epochStartTime <-
+                liftIO $ timeInterpreter nl
+                (firstSlotInEpoch epochNo >>= startTime)
+            pure $ apiNetworkParams
+                { hardforkEpochInfo = Just $
+                    ApiEpochInfo (ApiT epochNo) epochStartTime }
+        Nothing ->
+            pure apiNetworkParams
+
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
