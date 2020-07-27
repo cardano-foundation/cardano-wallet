@@ -71,6 +71,7 @@ library
     , ouroboros-network
     , ouroboros-network-framework
     , process
+    , random
     , retry
     , servant-server
     , shelley-spec-ledger
