@@ -37,7 +37,8 @@ import Cardano.Pool.DB
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable
+    ( ErrCurrentNodeTip (..)
+    , ErrNetworkUnavailable (..)
     , FollowAction (..)
     , FollowExit (..)
     , FollowLog
@@ -58,7 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , ProtocolParameters
+    , ProtocolParameters (..)
     , SlotLength (..)
     , SlotNo
     , StakePoolMetadata
@@ -77,7 +78,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage, unsafeRunExceptT )
+    ( unsafeMkPercentage )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -85,7 +86,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..), runExceptT, withExceptT )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Function
@@ -122,6 +123,7 @@ import Ouroboros.Consensus.Shelley.Protocol
     ( TPraosCrypto )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Data.List as L
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -158,8 +160,7 @@ newStakePoolLayer
     -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> StakePoolLayer
-newStakePoolLayer
-    gp NetworkLayer{stakeDistribution,currentNodeTip} db@DBLayer {..} =
+newStakePoolLayer gp nl db@DBLayer {..} =
         StakePoolLayer
             { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
             , knownPools = _knownPools
@@ -182,9 +183,10 @@ newStakePoolLayer
         -> Coin
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        tip <- liftIO getTip
-        lsqData <- combineLsqData <$> stakeDistribution tip userStake
+        tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
+        lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
         dbData <- liftIO $ readPoolDbData db
+        pp <- liftIO $ getProtocolParameters nl
         -- TODO:
         -- Use a more efficient way of filtering out retired pools.
         -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
@@ -193,8 +195,13 @@ newStakePoolLayer
             . filter (not . poolIsRetired)
             . map snd
             . Map.toList
-            $ combineDbAndLsqData (slotParams gp) lsqData dbData
+            $ combineDbAndLsqData (slotParams gp, pp) lsqData dbData
       where
+        fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrNetworkUnavailable
+        fromErrCurrentNodeTip = \case
+            ErrCurrentNodeTipNetworkUnreachable e -> e
+            ErrCurrentNodeTipNotFound -> ErrNetworkUnreachable "tip not found"
+
         epochIsInFuture :: EpochNo -> Bool
         epochIsInFuture = (> currentEpoch)
 
@@ -206,8 +213,6 @@ newStakePoolLayer
         poolRetirementEpoch p = p
             & view #retirement
             & fmap (view (#epochNumber . #getApiT))
-
-    getTip = liftIO $ unsafeRunExceptT currentNodeTip
 
 --
 -- Data Combination functions
@@ -231,13 +236,15 @@ data PoolDbData = PoolDbData
 
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
-    :: SlotParameters
+    :: (SlotParameters, ProtocolParameters)
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
     -> Map PoolId Api.ApiStakePool
-combineDbAndLsqData sp =
-    Map.merge lsqButNoDb dbButNoLsq bothPresent
+combineDbAndLsqData (sp, pp) lsqData =
+    Map.merge lsqButNoDb dbButNoLsq bothPresent lsqData
   where
+    bothPresent = zipWithMatched mkApiPool
+
     lsqButNoDb = dropMissing
 
     -- When a pool is registered (with a registration certificate) but not
@@ -250,23 +257,35 @@ combineDbAndLsqData sp =
         pure $ mkApiPool k lsqDefault db
       where
         lsqDefault = PoolLsqData
-            { nonMyopicMemberRewards = minBound
+            { nonMyopicMemberRewards = freshmenMemberRewards
             , relativeStake = minBound
             , saturation = 0
             }
 
-    bothPresent = zipWithMatched mkApiPool
+    -- To give a chance to freshly registered pools that haven't been part of
+    -- any leader schedule, we assign them the average reward of the top @k@
+    -- pools.
+    freshmenMemberRewards
+        = Quantity
+        $ average
+        $ L.take (fromIntegral $ desiredNumberOfStakePools pp)
+        $ L.sort
+        $ map (Down . getQuantity . nonMyopicMemberRewards)
+        $ Map.elems lsqData
+      where
+        average [] = 0
+        average xs = round $ double (sum xs) / double (length xs)
+
+        double :: Integral a => a -> Double
+        double = fromIntegral
 
     mkApiPool
         :: PoolId
         -> PoolLsqData
         -> PoolDbData
         -> Api.ApiStakePool
-    mkApiPool
-        pid
-        (PoolLsqData prew pstk psat)
-        dbData
-        = Api.ApiStakePool
+    mkApiPool pid (PoolLsqData prew pstk psat) dbData =
+        Api.ApiStakePool
         { Api.id = (ApiT pid)
         , Api.metrics = Api.ApiStakePoolMetrics
             { Api.nonMyopicMemberRewards = fmap fromIntegral prew
