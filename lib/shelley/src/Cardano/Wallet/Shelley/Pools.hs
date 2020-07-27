@@ -251,7 +251,7 @@ combineDbAndLsqData sp =
     -- included in the list of all known stake pools:
     --
     dbButNoLsq = traverseMissing $ \k db ->
-        pure $ mkApiPool k lsqDefault $ Just db
+        pure $ mkApiPool k lsqDefault db
       where
         lsqDefault = PoolLsqData
             { nonMyopicMemberRewards = minBound
@@ -259,12 +259,12 @@ combineDbAndLsqData sp =
             , saturation = 0
             }
 
-    bothPresent = zipWithMatched $ \k lsq db -> mkApiPool k lsq (Just db)
+    bothPresent = zipWithMatched $ \k lsq db -> mkApiPool k lsq db
 
     mkApiPool
         :: PoolId
         -> PoolLsqData
-        -> Maybe PoolDbData
+        -> PoolDbData
         -> Api.ApiStakePool
     mkApiPool
         pid
@@ -276,19 +276,19 @@ combineDbAndLsqData sp =
             { Api.nonMyopicMemberRewards = fmap fromIntegral prew
             , Api.relativeStake = Quantity pstk
             , Api.saturation = psat
-            , Api.producedBlocks = maybe (Quantity 0)
-                    (fmap fromIntegral . nProducedBlocks) dbData
+            , Api.producedBlocks =
+                (fmap fromIntegral . nProducedBlocks) dbData
             }
         , Api.metadata =
-            dbData >>= metadata >>= (return . ApiT)
+            metadata dbData >>= return . ApiT
         , Api.cost =
-            fmap fromIntegral . poolCost . registrationCert <$> dbData
+            fmap fromIntegral $ poolCost $ registrationCert dbData
         , Api.pledge =
-            fmap fromIntegral . poolPledge . registrationCert <$> dbData
+            fmap fromIntegral $ poolPledge $ registrationCert dbData
         , Api.margin =
-            Quantity . poolMargin . registrationCert <$> dbData
+            Quantity $ poolMargin $ registrationCert dbData
         , Api.retirement =
-            toApiEpochInfo . retiredIn <$> (retirementCert =<< dbData)
+            toApiEpochInfo . retiredIn <$> retirementCert dbData
         }
 
     toApiEpochInfo ep =

@@ -403,9 +403,9 @@ data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
     , metrics :: !ApiStakePoolMetrics
     , metadata :: !(Maybe (ApiT StakePoolMetadata))
-    , cost :: !(Maybe (Quantity "lovelace" Natural))
-    , margin :: !(Maybe (Quantity "percent" Percentage))
-    , pledge :: !(Maybe (Quantity "lovelace" Natural))
+    , cost :: !(Quantity "lovelace" Natural)
+    , margin :: !(Quantity "percent" Percentage)
+    , pledge :: !(Quantity "lovelace" Natural)
     , retirement :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 

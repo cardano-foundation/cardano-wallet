@@ -632,18 +632,18 @@ spec = do
 
                 -- To ignore the ordering of the pools, we use Set.
                 setOf pools (view #cost)
-                    `shouldBe` Set.singleton (Just $ Quantity 0)
+                    `shouldBe` Set.singleton (Quantity 0)
 
                 setOf pools (view #margin)
                     `shouldBe`
                     Set.singleton
-                        (Just $ Quantity $ unsafeMkPercentage 0.1)
+                        (Quantity $ unsafeMkPercentage 0.1)
 
                 setOf pools (view #pledge)
                     `shouldBe`
                     Set.fromList
-                        [ Just (Quantity oneMillionAda)
-                        , Just (Quantity $ 2 * oneMillionAda)
+                        [ Quantity oneMillionAda
+                        , Quantity $ 2 * oneMillionAda
                         ]
 
         it "at least one pool eventually produces block" $ \ctx -> do
