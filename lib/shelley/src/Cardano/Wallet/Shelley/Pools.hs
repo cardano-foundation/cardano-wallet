@@ -242,8 +242,7 @@ combineDbAndLsqData
 combineDbAndLsqData sp =
     Map.merge lsqButNoDb dbButNoLsq bothPresent
   where
-    lsqButNoDb = traverseMissing $ \k lsq ->
-        pure $ mkApiPool k lsq Nothing
+    lsqButNoDb = dropMissing
 
     -- When a pool is registered (with a registration certificate) but not
     -- currently active (and therefore not causing pool metrics data to be
