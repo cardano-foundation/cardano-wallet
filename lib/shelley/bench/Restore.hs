@@ -15,12 +15,12 @@
 -- Easiest run using
 -- @
 --     $ export NODE_DB="node-db-testnet"
---     $ nix-build -A benchmarks.cardano-wallet-byron.restore -o restore && ./restore/bin/restore testnet
+--     $ nix-build -A benchmarks.cardano-wallet-shelley.restore -o restore && ./restore/bin/restore testnet
 -- @
 --
 -- or
 -- @
---     $ ./.buildkite/bench-restore.sh byron testnet
+--     $ ./.buildkite/bench-restore.sh shelley testnet
 -- @
 --
 -- since it relies on lots of configuration most most easily retrieved with nix.
@@ -44,23 +44,23 @@ import Cardano.Wallet.BenchShared
     , execBenchWithNode
     , runBenchmarks
     )
-import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..) )
-import Cardano.Wallet.Byron.Compatibility
-    ( Byron
+import Cardano.Wallet.Shelley
+    ( SomeNetworkDiscriminant (..), HasNetworkId(..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( Shelley
     , NodeVersionData
     , emptyGenesis
-    , fromByronBlock
+    , fromCardanoBlock
     , fromNetworkMagic
     , mainnetVersionData
     )
-import Cardano.Wallet.Byron.Launch
+import Cardano.Wallet.Shelley.Launch
     ( NetworkConfiguration (..), parseGenesisData )
-import Cardano.Wallet.Byron.Network
+import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
-import Cardano.Wallet.Byron.Transaction
+import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
-import Cardano.Wallet.Byron.Transaction.Size
+import Cardano.Wallet.Shelley.Transaction.Size
     ( MaxSizeOf (..) )
 import Cardano.Wallet.DB
     ( DBLayer )
@@ -79,8 +79,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , digest
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -152,17 +152,17 @@ import System.IO.Temp
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 main :: IO ()
-main = execBenchWithNode argsNetworkConfig byronRestoreBench
+main = execBenchWithNode argsNetworkConfig cardanoRestoreBench
 
 {-------------------------------------------------------------------------------
-                                Byron benchmarks
+                                Shelley benchmarks
 -------------------------------------------------------------------------------}
 
 argsNetworkConfig :: RestoreBenchArgs -> NetworkConfiguration
@@ -170,11 +170,11 @@ argsNetworkConfig args = case argNetworkName args of
     "mainnet" ->
         MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData)
     _ ->
-        TestnetConfig (argsNetworkDir args </> "genesis.json")
+        TestnetConfig (argsNetworkDir args </> "byron-genesis.json")
 
 -- | Run all available benchmarks.
-byronRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO ()
-byronRestoreBench tr c socketFile = do
+cardanoRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO ()
+cardanoRestoreBench tr c socketFile = do
     (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
@@ -195,7 +195,7 @@ byronRestoreBench tr c socketFile = do
 
     -- Temporary directory for storing socket
     tmpDir <- getCanonicalTemporaryDirectory
-        >>= \tmpRoot -> createTempDirectory tmpRoot "cw-byron"
+        >>= \tmpRoot -> createTempDirectory tmpRoot "cw-shelley"
 
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
@@ -203,7 +203,7 @@ byronRestoreBench tr c socketFile = do
     prepareNode networkProxy socketFile np vData
     runBenchmarks
         [ bench ("restore " <> network <> " seq")
-            (bench_restoration @_ @ByronKey
+            (bench_restoration @_ @ShelleyKey
                 networkProxy
                 tr
                 socketFile
@@ -240,7 +240,7 @@ byronRestoreBench tr c socketFile = do
             seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
                 "involve key curtain arrest fortune custom lens marine before \
                 \material wheel glide cause weapon wrap"
-            xprv = Byron.generateKeyFromSeed seed mempty
+            xprv = Shelley.generateKeyFromSeed seed mempty
             wid = WalletId $ digest $ publicKey xprv
             wname = WalletName "Benchmark Sequential Wallet"
             rngSeed = 0
@@ -264,11 +264,11 @@ bench_restoration
         , WalletKey k
         , NFData s
         , Show s
-        , MaxSizeOf Address n ByronKey
+        , MaxSizeOf Address n ShelleyKey
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         , NetworkDiscriminantVal n
-        , t ~ IO Byron
+        , t ~ IO Shelley
         )
     => Proxy n
     -> Trace IO Text
@@ -280,13 +280,14 @@ bench_restoration
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
+bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
+    let networkId = networkIdVal proxy
     let pm = fromNetworkMagic $ networkMagic $ fst vData
-    let tl = newTransactionLayer @n @k @(IO Byron) (Proxy) pm
+    let tl = newTransactionLayer @k @(IO Shelley) networkId
     withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
-        let convert = fromByronBlock gp
+        let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
         withBenchDBLayer @s @k tracer (timeInterpreter nw) $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
@@ -368,7 +369,7 @@ prepareNode _ socketPath np vData = do
     sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
     sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
-        let convert = fromByronBlock gp
+        let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
         waitForNodeSync nw logQuiet
     sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
@@ -405,7 +406,7 @@ waitForWalletSync walletLayer wid gp vData = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer IO (IO Byron) Block
+    :: NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> (SlotNo -> SlotNo -> IO ())
     -> IO SlotNo
 waitForNodeSync nw _logSlot = loop 10

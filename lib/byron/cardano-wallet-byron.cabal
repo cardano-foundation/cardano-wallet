@@ -200,55 +200,6 @@ test-suite integration
       Test.Integration.Byron.Scenario.API.Migrations
       Test.Integration.Byron.Scenario.CLI.Transactions
 
-benchmark restore
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
-  build-depends:
-      base
-    , bytestring
-    , cardano-addresses
-    , cardano-wallet-core
-    , cardano-wallet-core-integration
-    , optparse-applicative
-    , cardano-wallet-byron
-    , cardano-wallet-launcher
-    , ouroboros-network
-    , contra-tracer
-    , containers
-    , criterion-measurement
-    , cryptonite
-    , deepseq
-    , digest
-    , directory
-    , filepath
-    , fmt
-    , iohk-monitoring
-    , persistent
-    , persistent-template
-    , process
-    , say
-    , temporary
-    , text
-    , time
-    , transformers
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      bench
-  main-is:
-      Restore.hs
-  other-modules:
-      Cardano.Wallet.Primitive.AddressDiscovery.Any
-      Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
-
 benchmark latency
   default-language:
       Haskell2010
