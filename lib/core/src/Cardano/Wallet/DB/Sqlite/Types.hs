@@ -45,6 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , WalletId (..)
     , isValidCoin
+    , isValidEpochNo
     , unsafeEpochNo
     )
 import Control.Arrow
@@ -288,17 +289,37 @@ instance PersistField SlotNo where
     toPersistValue = persistSlotNo
     fromPersistValue = unPersistSlotNo
 
-instance ToJSON EpochNo where
-    toJSON (EpochNo n) = toJSON (fromIntegral @Word31 @Word32 n)
-
-instance FromJSON EpochNo where
-    parseJSON = fmap unsafeEpochNo . parseJSON
-
 instance ToHttpApiData SlotNo where
     toUrlPiece = error "toUrlPiece stub needed for persistent"
 instance FromHttpApiData SlotNo where
     parseUrlPiece = error "parseUrlPiece stub needed for persistent"
 instance PathPiece SlotNo where
+    toPathPiece = error "toPathPiece stub needed for persistent"
+    fromPathPiece = error "fromPathPiece stub needed for persistent"
+
+----------------------------------------------------------------------------
+-- EpochNo
+
+deriving via Word32 instance (PersistFieldSql EpochNo)
+
+mkEpochNo :: Word32 -> Either Text EpochNo
+mkEpochNo n
+    | isValidEpochNo c = Right c
+    | otherwise = Left . T.pack $ "not a valid epoch number: " <> show n
+    where c = unsafeEpochNo n
+
+persistEpochNo :: EpochNo -> PersistValue
+persistEpochNo = toPersistValue . fromIntegral @Word31 @Word32 . unEpochNo
+
+instance PersistField EpochNo where
+    toPersistValue = persistEpochNo
+    fromPersistValue = fromPersistValue >=> mkEpochNo
+
+instance ToHttpApiData EpochNo where
+    toUrlPiece = error "toUrlPiece stub needed for persistent"
+instance FromHttpApiData EpochNo where
+    parseUrlPiece = error "parseUrlPiece stub needed for persistent"
+instance PathPiece EpochNo where
     toPathPiece = error "toPathPiece stub needed for persistent"
     fromPathPiece = error "fromPathPiece stub needed for persistent"
 

@@ -514,10 +514,13 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
+    , hardforkAt :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
-toApiNetworkParameters :: NetworkParameters -> ApiNetworkParameters
-toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
+toApiNetworkParameters
+    :: NetworkParameters
+    -> (ApiNetworkParameters, Maybe EpochNo)
+toApiNetworkParameters (NetworkParameters gp pp) = (ApiNetworkParameters
     (ApiT $ getGenesisBlockHash gp)
     (ApiT $ getGenesisBlockDate gp)
     (Quantity $ unSlotLength $ getSlotLength gp)
@@ -530,6 +533,7 @@ toApiNetworkParameters (NetworkParameters gp pp) = ApiNetworkParameters
     (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
     (view #desiredNumberOfStakePools pp)
     (Quantity $ fromIntegral $ getCoin $ view #minimumUTxOvalue pp)
+    Nothing, view #hardforkEpochNo pp)
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")

@@ -100,6 +100,7 @@ module Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , unsafeEpochNo
+    , isValidEpochNo
     , FeePolicy (..)
     , SlotId (..)
     , SlotNo (..)
@@ -1378,7 +1379,6 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
-
 -- | Protocol parameters that can be changed through the update system.
 --
 data ProtocolParameters = ProtocolParameters
@@ -1394,7 +1394,10 @@ data ProtocolParameters = ProtocolParameters
         -- Also known as k parameter.
     , minimumUTxOvalue
         :: Coin
-        -- ^ The minimu UTxO value.
+        -- ^ The minimum UTxO value.
+    , hardforkEpochNo
+        :: Maybe EpochNo
+        -- ^ The hardfork epoch number.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -1405,6 +1408,11 @@ instance Buildable ProtocolParameters where
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
         , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
+        , case pp ^. #hardforkEpochNo of
+              Just epochNo ->
+                  "Hardfork occuring at epoch: " <> build epochNo
+              Nothing ->
+                  mempty
         ]
 
 -- | Indicates the current level of decentralization in the network.
@@ -1471,6 +1479,18 @@ newtype EpochNo = EpochNo { unEpochNo :: Word31 }
 
 instance ToText EpochNo where
     toText = T.pack . show . unEpochNo
+
+instance FromText EpochNo where
+    fromText = validate <=< (fmap (EpochNo . fromIntegral) . fromText @Natural)
+      where
+        validate x
+            | isValidEpochNo x =
+                return x
+            | otherwise =
+                Left $ TextDecodingError "EpochNo value is out of bounds"
+
+isValidEpochNo :: EpochNo -> Bool
+isValidEpochNo c = c >= minBound && c <= maxBound
 
 instance Buildable EpochNo where
     build (EpochNo e) = build $ fromIntegral @Word31 @Word32 e

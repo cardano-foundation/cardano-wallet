@@ -155,13 +155,13 @@ import Ouroboros.Consensus.Cardano.Block
     , Query (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( QueryHardFork (..) )
+    ( QueryAnytime (..), QueryHardFork (..) )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( PastHorizonException (..) )
+    ( Bound (..), PastHorizonException (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -643,24 +643,39 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             :: Point (CardanoBlock sc)
             -> m ()
         queryLocalState pt = do
+            mb <- localStateQueryQ `send`
+                CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
+
             pp <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
-            handleParamsUpdate fromShelleyPParams pp
+
+            sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                >>= handleAcquireFailure
 
             st <- localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
-            handleParamsUpdate protocolParametersFromUpdateState st
+
+            sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
+                >>= handleAcquireFailure
+
+        handleAcquireFailure
+            :: Either AcquireFailure ()
+            -> m ()
+        handleAcquireFailure = \case
+            Right () ->
+                pure ()
+            Left e ->
+                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
 
         handleParamsUpdate
-            :: (p -> W.ProtocolParameters)
-            -> Either AcquireFailure (Either (MismatchEraInfo (CardanoEras sc)) p)
+            :: (Maybe Bound -> p -> W.ProtocolParameters)
+            -> (Maybe Bound)
+            -> (Either (MismatchEraInfo (CardanoEras sc)) p)
             -> m ()
-        handleParamsUpdate convert = \case
-            Left (e :: AcquireFailure) ->
-                traceWith tr $ MsgLocalStateQueryError TipSyncClient $ show e
-            Right (Right ls) ->
-                    onPParamsUpdate' $ convert ls
-            Right (Left mismatch) ->
+        handleParamsUpdate convert boundM = \case
+            Right ls -> do
+                onPParamsUpdate' $ convert boundM ls
+            Left mismatch -> do
                 traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
         queryInterpreter

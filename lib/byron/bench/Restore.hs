@@ -427,6 +427,7 @@ withBenchDBLayer tr ti action =
         { Sqlite.defaultActiveSlotCoefficient = 1
         , Sqlite.defaultDesiredNumberOfPool = 0
         , Sqlite.defaultMinimumUTxOValue = Coin 0
+        , Sqlite.defaultHardforkEpoch = Nothing
         }
 
     -- This tweaks the DB support the AnyAddressState.
