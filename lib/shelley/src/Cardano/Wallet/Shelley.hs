@@ -335,7 +335,7 @@ serveWallet
                 (Pool.defaultFilePath <$> dir)
                 (unsafeNoForecasts $ timeInterpreter nl)
                 $ \db -> do
-            let spl = newStakePoolLayer (genesisParameters np) nl db
+            let spl = newStakePoolLayer nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
             void $ forkFinally (monitorMetadata tr gp fetch db) onExit
