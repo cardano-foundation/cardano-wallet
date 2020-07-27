@@ -804,6 +804,12 @@ handleIOException tr onResourceVanished e
     | isDoesNotExistError e =
         pure True
 
+    -- If the nonblocking UNIX domain socket connection cannot be completed
+    -- immediately (i.e. connect() returns EAGAIN), try again. This happens
+    -- because the node's listen queue is quite short.
+    | isTryAgainError e =
+        pure True
+
     | isResourceVanishedError e = do
         traceWith tr $ Just e
         pure onResourceVanished
@@ -812,6 +818,7 @@ handleIOException tr onResourceVanished e
         pure False
   where
     isResourceVanishedError = isInfixOf "resource vanished" . show
+    isTryAgainError = isInfixOf "resource exhausted" . show
 
 handleMuxError
     :: Tracer IO (Maybe IOException)
