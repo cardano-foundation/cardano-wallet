@@ -107,6 +107,7 @@
         "unit" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."async" or (errorHandler.buildDepError "async"))
             (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
@@ -116,7 +117,9 @@
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
             (hsPkgs."cardano-wallet-shelley" or (errorHandler.buildDepError "cardano-wallet-shelley"))
+            (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
