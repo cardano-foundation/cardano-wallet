@@ -1518,7 +1518,7 @@ getCurrentEpoch ctx =
     ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getNetworkInformation
-    :: forall t. ()
+    :: forall t. (HasCallStack)
     => (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation

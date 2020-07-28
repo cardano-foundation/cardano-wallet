@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -76,7 +75,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( Async, async, asyncThreadId, cancel, link )
 import Control.Concurrent.Chan
-    ( dupChan, newChan, readChan, writeChan )
+    ( Chan, dupChan, newChan, readChan, writeChan )
 import Control.Exception
     ( IOException, throwIO )
 import Control.Monad
@@ -263,7 +262,7 @@ data instance Cursor (m Shelley) = Cursor
 
 -- | Create an instance of the network layer
 withNetworkLayer
-    :: forall sc a. (sc ~ TPraosStandardCrypto)
+    :: forall sc a. (HasCallStack, sc ~ TPraosStandardCrypto)
     => Tracer IO (NetworkLayerLog sc)
         -- ^ Logging of network layer startup
     -> W.NetworkParameters
@@ -289,7 +288,7 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    nodeTipVar <- atomically $ newTVar TipGenesis :: IO (TVar IO (Tip (CardanoBlock sc)))
+    nodeTipVar <- atomically $ newTVar TipGenesis
     let updateNodeTip = readChan nodeTipChan >>= (atomically . writeTVar nodeTipVar)
     link =<< async (forever updateNodeTip)
 
@@ -313,6 +312,16 @@ withNetworkLayer tr np addrInfo versionData action = do
         } = W.genesisParameters np
     cfg = codecConfig gp
 
+    connectNodeTipClient
+        :: HasCallStack
+        => RetryHandlers
+        -> IO ( Chan (Tip (CardanoBlock TPraosStandardCrypto))
+              , TVar IO W.ProtocolParameters
+              , TVar IO (Maybe (CardanoInterpreter TPraosStandardCrypto))
+              , TQueue IO (LocalTxSubmissionCmd
+                  (GenTx (CardanoBlock TPraosStandardCrypto))
+                  (CardanoApplyTxErr TPraosStandardCrypto)
+                  IO))
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
@@ -326,12 +335,18 @@ withNetworkLayer tr np addrInfo versionData action = do
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
         pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
 
+    connectDelegationRewardsClient
+        :: HasCallStack
+        => RetryHandlers
+        -> IO (TQueue IO
+                (LocalStateQueryCmd (CardanoBlock TPraosStandardCrypto) IO))
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
         let cl = mkDelegationRewardsClient tr cfg cmdQ
         link =<< async (connectClient tr handlers cl versionData addrInfo)
         pure cmdQ
 
+    _initCursor :: HasCallStack => [W.BlockHeader] -> IO (Cursor (IO Shelley))
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient (contramap MsgChainSyncCmd tr) gp chainSyncQ
@@ -450,10 +465,14 @@ withNetworkLayer tr np addrInfo versionData action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-    _timeInterpreterQuery :: HasCallStack => TVar IO (Maybe (CardanoInterpreter sc)) -> TimeInterpreter IO
+    _timeInterpreterQuery
+        :: HasCallStack
+        => TVar IO (Maybe (CardanoInterpreter sc))
+        -> TimeInterpreter IO
     _timeInterpreterQuery var query = do
         cached <- atomically (readTVar var)
-        let interpret = maybe (interpreterFromGenesis gp) (mkTimeInterpreter getGenesisBlockDate) cached
+        let interpret = maybe (interpreterFromGenesis gp)
+                (mkTimeInterpreter getGenesisBlockDate) cached
         case interpret query of
             Right res -> pure res
             Left e -> do
@@ -761,7 +780,7 @@ doNothingProtocol =
 -- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
 connectClient
     :: Tracer IO (NetworkLayerLog sc)
-    -> [RetryStatus -> Handler IO Bool]
+    -> RetryHandlers
     -> NetworkClient IO
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
     -> FilePath
@@ -782,10 +801,11 @@ connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp ->
     policy :: RetryPolicyM IO
     policy = fibonacciBackoff 250_000 & capDelay 2_000_000
 
+-- | Shorthand for the list of exception handlers used with 'recovering'.
+type RetryHandlers = [RetryStatus -> Handler IO Bool]
+
 -- | Handlers that are retrying on every connection lost.
-retryOnConnectionLost
-    :: Tracer IO (NetworkLayerLog sc)
-    -> [RetryStatus -> Handler IO Bool]
+retryOnConnectionLost :: Tracer IO (NetworkLayerLog sc) -> RetryHandlers
 retryOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' True
     , const $ Handler $ handleMuxError tr' True
@@ -794,9 +814,7 @@ retryOnConnectionLost tr =
     tr' = contramap MsgConnectionLost tr
 
 -- | Handlers that are failing if the connection is lost
-failOnConnectionLost
-    :: Tracer IO (NetworkLayerLog sc)
-    -> [RetryStatus -> Handler IO Bool]
+failOnConnectionLost :: Tracer IO (NetworkLayerLog sc) -> RetryHandlers
 failOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' False
     , const $ Handler $ handleMuxError tr' False
