@@ -50,59 +50,33 @@ jobs:
     name: "Executables"
     script:
     ############################
-    # cardano-wallet-shelley
+    # cardano-node
     ############################
 
     # Fetch the linux archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-linux64/latest/download/1 | tar xz
     - find . -maxdepth 1 -type d -name "cardano-wallet-shelley-*" -exec mv \{} cardano-wallet-shelley-linux64 \;
     - mv cardano-wallet-shelley-linux64/cardano-wallet-shelley cardano-wallet-shelley-linux64/cardano-wallet
-    - tar czf cardano-wallet-shelley-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-shelley-linux64
-    - rm -r cardano-wallet-shelley-linux64
+    - tar czf cardano-wallet-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-shelley-linux64
+    - rm -rf cardano-wallet-shelley-linux64
 
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-macos64/latest/download/1 | tar xz
     - find . -maxdepth 1 -type d -name "cardano-wallet-shelley-*" -exec mv \{} cardano-wallet-shelley-macos64 \;
     - mv cardano-wallet-shelley-macos64/cardano-wallet-shelley cardano-wallet-shelley-macos64/cardano-wallet
-    - tar czf cardano-wallet-shelley-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-shelley-macos64
-    - rm -r cardano-wallet-shelley-macos64
+    - tar czf cardano-wallet-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-shelley-macos64
+    - rm -rf cardano-wallet-shelley-macos64
 
     # Fetch the Windows archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-win64/latest/download/1 --output cardano-wallet-shelley-win64.zip
     - unzip -d cardano-wallet-shelley-win64 cardano-wallet-shelley-win64.zip
     - mv cardano-wallet-shelley-win64/cardano-wallet-shelley.exe cardano-wallet-shelley-win64/cardano-wallet.exe
-    - zip -r cardano-wallet-shelley-$TRAVIS_TAG-win64.zip cardano-wallet-shelley-win64
-    - rm -r cardano-wallet-shelley-win64
+    - zip -r cardano-wallet-$TRAVIS_TAG-win64.zip cardano-wallet-shelley-win64
+    - rm -rf cardano-wallet-shelley-win64
     - rm cardano-wallet-shelley-win64.zip
 
     ############################
-    # cardano-wallet-byron
-    ############################
-
-    # Fetch the linux archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-byron-linux64/latest/download/1 | tar xz
-    - find . -maxdepth 1 -type d -name "cardano-wallet-byron-*" -exec mv \{} cardano-wallet-byron-linux64 \;
-    - mv cardano-wallet-byron-linux64/cardano-wallet-byron cardano-wallet-byron-linux64/cardano-wallet
-    - tar czf cardano-wallet-byron-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-byron-linux64
-    - rm -r cardano-wallet-byron-linux64
-
-    # Fetch the MacOS archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-byron-macos64/latest/download/1 | tar xz
-    - find . -maxdepth 1 -type d -name "cardano-wallet-byron-*" -exec mv \{} cardano-wallet-byron-macos64 \;
-    - mv cardano-wallet-byron-macos64/cardano-wallet-byron cardano-wallet-byron-macos64/cardano-wallet
-    - tar czf cardano-wallet-byron-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-byron-macos64
-    - rm -r cardano-wallet-byron-macos64
-
-    # Fetch the Windows archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-byron-win64/latest/download/1 --output cardano-wallet-byron-win64.zip
-    - unzip -d cardano-wallet-byron-win64 cardano-wallet-byron-win64.zip
-    - mv cardano-wallet-byron-win64/cardano-wallet-byron.exe cardano-wallet-byron-win64/cardano-wallet.exe
-    - zip -r cardano-wallet-byron-$TRAVIS_TAG-win64.zip cardano-wallet-byron-win64
-    - rm -r cardano-wallet-byron-win64
-    - rm cardano-wallet-byron-win64.zip
-
-    ############################
-    # cardano-wallet-jormungandr
+    # jörmungandr
     ############################
 
     # Fetch the linux archive
@@ -110,21 +84,21 @@ jobs:
     - find . -maxdepth 1 -type d -name "cardano-wallet-jormungandr-*" -exec mv \{} cardano-wallet-jormungandr-linux64 \;
     - mv cardano-wallet-jormungandr-linux64/cardano-wallet-jormungandr cardano-wallet-jormungandr-linux64/cardano-wallet
     - tar czf cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-jormungandr-linux64
-    - rm -r cardano-wallet-jormungandr-linux64
+    - rm -rf cardano-wallet-jormungandr-linux64
 
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest/download/1 | tar xz
     - find . -maxdepth 1 -type d -name "cardano-wallet-jormungandr-*" -exec mv \{} cardano-wallet-jormungandr-macos64 \;
     - mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet
     - tar czf cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-jormungandr-macos64
-    - rm -r cardano-wallet-jormungandr-macos64
+    - rm -rf cardano-wallet-jormungandr-macos64
 
     # Fetch the Windows archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest/download/1 --output cardano-wallet-jormungandr-win64.zip
     - unzip -d cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-win64.zip
     - mv cardano-wallet-jormungandr-win64/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-win64/cardano-wallet.exe
     - zip -r cardano-wallet-itn-$TRAVIS_TAG-win64.zip cardano-wallet-jormungandr-win64
-    - rm -r cardano-wallet-jormungandr-win64
+    - rm -rf cardano-wallet-jormungandr-win64
     - rm cardano-wallet-jormungandr-win64.zip
 
     # Deploy documentation snapshot
@@ -141,15 +115,10 @@ jobs:
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        # cardano-node / Byron
-        - cardano-wallet-byron-$TRAVIS_TAG-linux64.tar.gz
-        - cardano-wallet-byron-$TRAVIS_TAG-macos64.tar.gz
-        - cardano-wallet-byron-$TRAVIS_TAG-win64.zip
-
-        # cardano-node / Shelley
-        - cardano-wallet-shelley-$TRAVIS_TAG-linux64.tar.gz
-        - cardano-wallet-shelley-$TRAVIS_TAG-macos64.tar.gz
-        - cardano-wallet-shelley-$TRAVIS_TAG-win64.zip
+        # cardano-node
+        - cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
+        - cardano-wallet-$TRAVIS_TAG-macos64.tar.gz
+        - cardano-wallet-$TRAVIS_TAG-win64.zip
 
         # Jörmungandr / ITN
         - cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz
