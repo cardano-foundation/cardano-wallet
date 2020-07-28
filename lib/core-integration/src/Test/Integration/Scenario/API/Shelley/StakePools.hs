@@ -51,7 +51,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( listToMaybe, mapMaybe )
+    ( fromMaybe, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -329,17 +329,17 @@ spec = do
                 & fmap (view (#id . #getApiT))
                 & Set.fromList
                 & pure
+        let reportError = error $ unlines
+                [ "Unable to find a retired pool ID."
+                , "Test cluster pools:"
+                , unlines (showT <$> Set.toList testClusterPoolIds)
+                , "Non-retired pools:"
+                , unlines (showT <$> Set.toList nonRetiredPoolIds)
+                ]
         let retiredPoolIds =
                 testClusterPoolIds `Set.difference` nonRetiredPoolIds
-        let retiredPoolId = case listToMaybe (Set.toList retiredPoolIds) of
-                Just a -> a
-                Nothing -> error $ unlines
-                    [ "Unable to find a retired pool ID."
-                    , "Test cluster pools:"
-                    , unlines (showT <$> Set.toList testClusterPoolIds)
-                    , "Non-retired pools:"
-                    , unlines (showT <$> Set.toList nonRetiredPoolIds)
-                    ]
+        let retiredPoolId =
+                fromMaybe reportError $ listToMaybe $ Set.toList retiredPoolIds
         w <- fixtureWallet ctx
         r <- joinStakePool @n ctx (ApiT retiredPoolId) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
