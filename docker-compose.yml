@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:latest
+    image: inputoutput/cardano-node:1.18.0
     environment:
       NETWORK:
     volumes:
@@ -28,10 +28,11 @@ services:
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ([[ $$NETWORK == \"testnet\" ]] && $$CMD --testnet /config/7106qjwral616j6p5049m7hhi5ih0r33-testnet-genesis.json)
+        ([[ $$NETWORK == \"mainnet_candidate*\" ]] && $$CMD --staging /config/*-$$NETWORK-byron-genesis.json) ||
+        ($$CMD --testnet /config/*-$$NETWORK-byron-genesis.json)
       "
     environment:
-      CMD: "cardano-wallet-byron serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
+      CMD: "cardano-wallet-shelley serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
     restart: on-failure
     logging:
@@ -44,7 +45,15 @@ services:
 volumes:
   node-mainnet-db:
   node-testnet-db:
+  node-mainnet_candidate-db:
+  node-mainnet_candidate_2-db:
+  node-mainnet_candidate_3-db:
+  node-mainnet_candidate_4-db:
   wallet-mainnet-db:
   wallet-testnet-db:
+  wallet-mainnet_candidate-db:
+  wallet-mainnet_candidate_2-db:
+  wallet-mainnet_candidate_3-db:
+  wallet-mainnet_candidate_4-db:
   node-ipc:
   node-config:
