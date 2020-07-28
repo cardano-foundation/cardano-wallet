@@ -194,8 +194,8 @@ import Cardano.Wallet.Api.Types
     , KnownDiscovery (..)
     , MinWithdrawal (..)
     , PostExternalTransactionData (..)
-    , PostTransactionData
-    , PostTransactionFeeData
+    , PostPaymentOrWithdrawalData (..)
+    , PostPaymentOrWithdrawalFeeData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -339,6 +339,8 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -635,7 +637,6 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , IsOurs s Address
-        , IsOurs s ChimericAccount
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
@@ -743,7 +744,6 @@ mkLegacyWallet
         , KnownDiscovery s
         , HasNetworkLayer t ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -1201,41 +1201,80 @@ postTransaction
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasRewardAccount s k
+        , WalletKey k
         )
     => ctx
     -> ArgGenChange s
     -> ApiT WalletId
     -> Bool
-    -> PostTransactionData n
+    -> PostPaymentOrWithdrawalData n
     -> Handler (ApiTransaction n)
-postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
-    let outs = coerceCoin <$> (body ^. #payments)
-    let pwd = coerce $ getApiT $ body ^. #passphrase
+postTransaction ctx genChange (ApiT wid) withdrawRewards = \case
+    PostPaymentOrWithdrawalData (Left body) -> do
+        let pwd = coerce $ getApiT $ body ^. #passphrase
+        let src = getApiMnemonicT $ body ^. #source
+        let (xprv, acct) = W.someChimericAccount src
 
-    selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- if withdrawRewards
-            then do
-                acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
-                raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
-            else pure (Quantity 0)
-        liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
+        selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            withdrawal <- if withdrawRewards
+                then do
+                    raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
+                    liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
+                else pure (Quantity 0)
 
-    let mkRewardAccount (rootK, pwdP) = (deriveRewardAccount @k pwdP rootK, pwdP)
-    (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.signPayment @_ @s @t @k wrk wid genChange mkRewardAccount pwd selection
+            -- TODO:
+            -- Fail when there's nothing to withdraw to not do a useless
+            -- transaction.
 
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+            addr <- liftHandler $ W.createChangeAddress @_ @s @k wrk wid genChange
+            let outs = (TxOut addr (Coin 1)) :| []
+            liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
 
-    liftIO $ mkApiTransaction
-        ti
-        (txId tx)
-        (fmap Just <$> selection ^. #inputs)
-        (tx ^. #outputs)
-        (tx ^. #withdrawals)
-        (meta, time)
-        #pendingSince
+        let mkRewardAccount _ = (xprv, mempty)
+        (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+            W.signPayment @_ @s @t @k wrk wid genChange mkRewardAccount pwd selection
+
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+            W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+
+        liftIO $ mkApiTransaction
+            ti
+            (txId tx)
+            (fmap Just <$> selection ^. #inputs)
+            (tx ^. #outputs)
+            (tx ^. #withdrawals)
+            (meta, time)
+            #pendingSince
+
+    PostPaymentOrWithdrawalData (Right body) -> do
+        let pwd = coerce $ getApiT $ body ^. #passphrase
+        let outs = coerceCoin <$> (body ^. #payments)
+
+        selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            withdrawal <- if withdrawRewards
+                then do
+                    acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                    raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
+                    liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
+                else pure (Quantity 0)
+            liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs withdrawal
+
+        let mkRewardAccount (rootK, pwdP) =
+                (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
+        (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+            W.signPayment @_ @s @t @k wrk wid genChange mkRewardAccount pwd selection
+
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+            W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
+
+        liftIO $ mkApiTransaction
+            ti
+            (txId tx)
+            (fmap Just <$> selection ^. #inputs)
+            (tx ^. #outputs)
+            (tx ^. #withdrawals)
+            (meta, time)
+            #pendingSince
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
@@ -1322,19 +1361,23 @@ postTransactionFee
     => ctx
     -> ApiT WalletId
     -> Bool
-    -> PostTransactionFeeData n
+    -> PostPaymentOrWithdrawalFeeData n
     -> Handler ApiFee
-postTransactionFee ctx (ApiT wid) withdrawRewards body = do
-    let outs = coerceCoin <$> (body ^. #payments)
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        withdrawal <- if withdrawRewards
-            then do
-                acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
-                raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
-            else pure $ Quantity 0
-        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
-        pure $ apiFee fee
+postTransactionFee ctx (ApiT wid) withdrawRewards = \case
+    PostPaymentOrWithdrawalFeeData (Left _body) -> do
+        fail "TODO: postTransactionFee for withdrawals."
+
+    PostPaymentOrWithdrawalFeeData (Right body) -> do
+        let outs = coerceCoin <$> (body ^. #payments)
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+            withdrawal <- if withdrawRewards
+                then do
+                    acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                    raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
+                    liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
+                else pure $ Quantity 0
+            fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs withdrawal
+            pure $ apiFee fee
 
 joinStakePool
     :: forall ctx s t n k.
@@ -1344,6 +1387,7 @@ joinStakePool
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1406,6 +1450,7 @@ quitStakePool
         , HasNetworkLayer t ctx
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1468,6 +1513,7 @@ migrateWallet
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , PaymentAddress n ByronKey
+        , WalletKey k
         )
     => ApiLayer s t k
         -- ^ Source wallet context

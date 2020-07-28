@@ -17,7 +17,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubPublicKey )
+    ( toXPub, xpubPublicKey )
 import Cardano.Wallet.Jormungandr.Binary
     ( Fragment (..)
     , MkFragment (..)
@@ -89,23 +89,23 @@ newTransactionLayer block0H = TransactionLayer
             ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
     , mkDelegationJoinTx = \pool accXPrv keyFrom _ cs ->
-        let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
+        let acc = ChimericAccount . xpubPublicKey . toXPub . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
                 (txWitnessTagFor @k)
                 (DlgFull pool)
                 acc
-                (first getRawKey accXPrv)
+                accXPrv
             ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
     , mkDelegationQuitTx = \accXPrv keyFrom _ cs ->
-        let acc = ChimericAccount . xpubPublicKey . getRawKey . publicKey . fst $ accXPrv
+        let acc = ChimericAccount . xpubPublicKey . toXPub . fst $ accXPrv
         in mkFragment
             ( MkFragmentStakeDelegation
                 (txWitnessTagFor @k)
                 DlgNone
                 acc
-                (first getRawKey accXPrv)
+                accXPrv
             ) keyFrom (CS.inputs cs) (CS.outputs cs)
 
     , initDelegationSelection = const mempty

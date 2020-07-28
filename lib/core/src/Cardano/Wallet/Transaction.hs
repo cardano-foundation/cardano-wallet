@@ -48,7 +48,7 @@ import Data.Word
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
-        :: (k 'AddressK XPrv, Passphrase "encryption")
+        :: (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
@@ -69,7 +69,7 @@ data TransactionLayer t k = TransactionLayer
     , mkDelegationJoinTx
         :: PoolId
             -- Pool Id to which we're planning to delegate
-        -> (k 'AddressK XPrv, Passphrase "encryption")
+        -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
@@ -87,7 +87,7 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: (k 'AddressK XPrv, Passphrase "encryption")
+        :: (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store

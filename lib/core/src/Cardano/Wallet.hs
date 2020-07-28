@@ -90,6 +90,7 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
 
     -- ** Address
+    , createChangeAddress
     , createRandomAddress
     , importRandomAddresses
     , listAddresses
@@ -960,9 +961,9 @@ someChimericAccount
         , k ~ ShelleyKey
         )
     => SomeMnemonic
-    -> ChimericAccount
+    -> (XPrv, ChimericAccount)
 someChimericAccount mw =
-    toChimericAccount @s (publicKey acctK)
+    (getRawKey acctK, toChimericAccount @s (publicKey acctK))
   where
     rootK = Shelley.generateKeyFromSeed (mw, Nothing) mempty
     acctK = deriveRewardAccount mempty rootK
@@ -1070,6 +1071,25 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     primaryKey = PrimaryKey wid
+
+createChangeAddress
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        , GenChange s
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> ExceptT ErrNoSuchWallet IO Address
+createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withNoSuchWallet wid (readCheckpoint pk)
+        let (addr, s') = genChange argGenChange (getState cp)
+        putCheckpoint pk (updateState s' cp)
+        pure addr
+  where
+    db = ctx ^. dbLayer @s @k
+    pk = PrimaryKey wid
 
 createRandomAddress
     :: forall ctx s k n.
@@ -1493,10 +1513,7 @@ signPayment
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> ( (k 'RootK XPrv, Passphrase "encryption")
-        ->
-         (k 'AddressK XPrv, Passphrase "encryption")
-       )
+    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> CoinSelection
@@ -1535,6 +1552,7 @@ signTx
         , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , WalletKey k
         )
     => ctx
     -> WalletId
@@ -1551,7 +1569,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
 
             let cs = mempty { inputs = inps, outputs = outs }
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
 
@@ -1620,6 +1638,7 @@ signDelegation
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> WalletId
@@ -1640,7 +1659,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
@@ -1841,6 +1860,7 @@ joinStakePool
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> W.EpochNo
@@ -1897,6 +1917,7 @@ quitStakePool
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> WalletId

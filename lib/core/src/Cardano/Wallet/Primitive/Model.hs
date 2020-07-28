@@ -291,7 +291,7 @@ availableBalance pending =
 
 -- | Total balance = 'balance' . 'totalUTxO' +? rewards
 totalBalance
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: IsOurs s Address
     => Set Tx
     -> Quantity "lovelace" Natural
     -> Wallet s
@@ -301,11 +301,8 @@ totalBalance pending (Quantity rewards) s =
   where
     hasPendingWithdrawals =
         not $ Set.null $ Set.filter
-            (any ourChimericAccount . Map.keys . withdrawals)
+            (not . Map.null . withdrawals)
             pending
-
-    ourChimericAccount acct =
-        evalState (state (isOurs acct)) (getState s)
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO
@@ -368,14 +365,6 @@ prefilterBlock b u0 = runState $ do
         state (isOurs $ dlgCertAccount cert) <&> \case
             False -> Nothing
             True -> Just cert
-    ourChimericAccount
-        :: IsOurs s ChimericAccount
-        => (ChimericAccount, Coin)
-        -> State s (Maybe Natural)
-    ourChimericAccount (acct, Coin c) =
-        state (isOurs acct) <&> \case
-            False -> Nothing
-            True -> Just $ fromIntegral c
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -385,7 +374,7 @@ prefilterBlock b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: (IsOurs s Address, IsOurs s ChimericAccount)
+        :: (IsOurs s Address)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -393,9 +382,9 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        ourWithdrawals <- mapMaybeM ourChimericAccount $ Map.toList $ withdrawals tx
+        let wdrls = fromIntegral . getCoin <$> Map.elems (withdrawals tx)
         let received = balance ourU
-        let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals
+        let spent = balance (u `restrictedBy` ourIns) + sum wdrls
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         return $ if hasKnownOutput && not hasKnownInput then

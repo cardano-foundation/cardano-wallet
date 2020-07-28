@@ -170,7 +170,7 @@ mkTx
     -> TxPayload Cardano.Shelley
     -> SlotNo
     -- ^ Time to Live
-    -> (k 'AddressK XPrv, Passphrase "encryption")
+    -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
@@ -178,7 +178,7 @@ mkTx
 mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
     let wdrls = mkWithdrawals
             networkId
-            (toChimericAccountRaw . getRawKey . publicKey $ rewardAcnt)
+            (toChimericAccountRaw . toXPub $ rewardAcnt)
             (withdrawal cs)
 
     let unsigned = mkUnsignedTx timeToLive cs wdrls certs
@@ -192,7 +192,7 @@ mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) ke
             let wdrlsWits
                     | null wdrls = []
                     | otherwise =
-                      [mkShelleyWitness unsigned (getRawKey rewardAcnt, pwdAcnt)]
+                      [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
 
             pure $ mkExtraWits unsigned <> addrWits <> wdrlsWits
 

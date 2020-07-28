@@ -112,7 +112,7 @@ newTransactionLayer _proxy protocolMagic = TransactionLayer
     }
   where
     _mkStdTx
-        :: (k 'AddressK XPrv, Passphrase "encryption")
+        :: (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
