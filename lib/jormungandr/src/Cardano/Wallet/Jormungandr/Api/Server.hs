@@ -275,12 +275,12 @@ server byron icarus jormungandr spl ntp =
 
     network :: Server Network
     network =
-        getNetworkInformation genesis nl
+        getNetworkInformation syncTolerance nl
         :<|> getNetworkParameters genesis nl
         :<|> getNetworkClock ntp
       where
         nl = jormungandr ^. networkLayer @t
-        genesis = jormungandr ^. genesisData
+        genesis@(_,_,syncTolerance) = jormungandr ^. genesisData
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction jormungandr

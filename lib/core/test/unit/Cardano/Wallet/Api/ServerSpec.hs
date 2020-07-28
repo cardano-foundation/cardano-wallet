@@ -1,17 +1,62 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Api.ServerSpec (spec) where
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( EpochNo (..) )
 import Cardano.Wallet.Api.Server
-    ( Listen (..), ListenError (..), withListeningSocket )
+    ( Listen (..)
+    , ListenError (..)
+    , getNetworkInformation
+    , withListeningSocket
+    )
+import Cardano.Wallet.Api.Types
+    ( ApiNetworkInformation (..) )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter, mkTimeInterpreter )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( mkSyncTolerance )
+import Cardano.Wallet.Primitive.Types
+    ( Block (..), BlockHeader (..), Hash (..), SlotNo (..), StartTime (..) )
+import Control.Exception
+    ( throwIO )
+import Data.Maybe
+    ( isJust, isNothing )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Time.Clock
+    ( addUTCTime, getCurrentTime )
 import Network.Socket
     ( SockAddr (..), getSocketName, tupleToHostAddress )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( RelativeTime (..), mkSlotLength )
+import Ouroboros.Consensus.Config.SecurityParam
+    ( SecurityParam (..) )
+import Ouroboros.Consensus.Util.Counting
+    ( exactlyOne )
+import Servant.Server.Internal.Handler
+    ( runHandler )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
+import Test.QuickCheck.Modifiers
+    ( NonNegative (..) )
+import Test.QuickCheck.Monadic
+    ( PropertyM, assert, monadicIO, monitor, run )
+import Test.QuickCheck.Property
+    ( counterexample, property )
 import Test.Utils.Windows
     ( skipOnWindows )
+
+import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
+import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
+import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 spec :: Spec
 spec = describe "API Server" $ do
@@ -53,3 +98,72 @@ spec = describe "API Server" $ do
                 withListeningSocket "127.0.0.1" (ListenOnPort port) $ \res ->
                     res `shouldBe` Left (ListenErrorAddressAlreadyInUse (Just port))
             Left e -> fail (show e)
+
+    describe "getNetworkInformation" $ do
+        it "doesn't return 500 when the time interpreter horizon is behind\
+           \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
+            monadicIO $ do
+            let gap = fromRational $ toRational $ getNonNegative gap'
+            st <- run $ StartTime . ((negate gap) `addUTCTime`)
+                    <$> getCurrentTime
+            let ti = either throwIO pure . forkInterpreter st
+            let nodeTip' = SlotNo 0
+            let nl = dummyNetworkLayer nodeTip' ti
+            let tolerance = mkSyncTolerance 5
+            Right info <- run $ runHandler $ getNetworkInformation tolerance nl
+
+            -- 0              20
+            -- *               |        *
+            -- Node tip     Horizon   Network Tip
+            -- <------------------------>
+            --           gap
+            --
+            -- 20 = epoch length = 10*k
+            if gap >= 20
+            then do
+                assertWith "networkTip is Nothing" $ isNothing $ networkTip info
+                assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
+            else do
+                assertWith "networkTip is Just " $ isJust $ networkTip info
+                assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
+
+  where
+    assertWith :: String -> Bool -> PropertyM IO ()
+    assertWith lbl condition = do
+        let flag = if condition then "✓" else "✗"
+        monitor (counterexample $ lbl <> " " <> flag)
+        assert condition
+
+    dummyNetworkLayer :: SlotNo -> TimeInterpreter IO -> NetworkLayer IO () Block
+    dummyNetworkLayer sl ti = NetworkLayer
+        { nextBlocks = error "nextBlocks: not implemented"
+        , initCursor = error "initCursor: not implemented"
+        , destroyCursor = error "destroyCursor: not implemented"
+        , cursorSlotNo = error "cursorSlotNo: not implemented"
+        , currentNodeTip = return $
+                BlockHeader
+                    sl
+                    (Quantity $ fromIntegral $ unSlotNo sl)
+                    (Hash "header hash")
+                    (Hash "prevHeaderHash")
+        , watchNodeTip = error "todo"
+        , getProtocolParameters = error "getProtocolParameters: not implemented"
+        , postTx = error "postTx: not implemented"
+        , stakeDistribution = error "stakeDistribution: not implemented"
+        , getAccountBalance = error "getAccountBalance: not implemented"
+        , timeInterpreter = ti
+        }
+
+    forkInterpreter startTime =
+        let
+            start = HF.initBound
+            end = HF.Bound
+                    (RelativeTime 20)
+                    (SlotNo 20)
+                    (EpochNo 1)
+
+            era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+            summary = HF.summaryWithExactly $ exactlyOne $
+                HF.EraSummary start (HF.EraEnd end) era1Params
+            int = HF.mkInterpreter summary
+        in mkTimeInterpreter startTime int

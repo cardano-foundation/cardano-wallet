@@ -192,6 +192,7 @@ test-suite unit
     , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
+    , ouroboros-consensus
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cardano-slotting
