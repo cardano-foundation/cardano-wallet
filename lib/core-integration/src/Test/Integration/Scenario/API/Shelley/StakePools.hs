@@ -120,6 +120,9 @@ spec :: forall n t.
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
+    let listPools ctx stake = request @[ApiStakePool] @IO ctx
+            (Link.listStakePools stake) Default Empty
+
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> do
         w <- emptyWallet ctx
         let wid = w ^. walletId
@@ -582,9 +585,6 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee
                 (costOfJoining ctx - costOfChange ctx)
             ]
-
-    let listPools ctx stake = request @[ApiStakePool] @IO ctx
-            (Link.listStakePools stake) Default Empty
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
 
