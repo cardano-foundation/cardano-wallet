@@ -111,8 +111,6 @@ import Cardano.Wallet.Registry
     ( WorkerLog (..) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Control.Applicative
     ( Const (..) )
 import Control.Tracer
@@ -287,7 +285,7 @@ serveWallet
                     hardforkEpochNo (protocolParameters np)
                 }
             )
-            (unsafeRunExceptT . timeInterpreter nl)
+            (timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db
             Server.idleWorker

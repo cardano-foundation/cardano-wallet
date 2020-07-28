@@ -368,7 +368,7 @@ bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname,
         let gp = genesisParameters np
         let convert = fromByronBlock gp
         let nw = convert <$> nw'
-        withBenchDBLayer @s @k tracer (unsafeRunExceptT . timeInterpreter nw) $ \db -> do
+        withBenchDBLayer @s @k tracer (timeInterpreter nw) $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
             sayErr . fmt $ networkText ||+ " tip is at " +|| sl ||+ ""
 
@@ -467,7 +467,7 @@ waitForWalletSync walletLayer wid gp vData = do
     let tolerance = mkSyncTolerance 3600
     prog <- syncProgress
                 tolerance
-                (unsafeRunExceptT . timeInterpreter nl)
+                (timeInterpreter nl)
                 (currentTip w)
                 =<< getCurrentTime
     case prog of
@@ -496,7 +496,7 @@ waitForNodeSync nw _logSlot = loop 10
             let tolerance = mkSyncTolerance 60
             prog <- syncProgress
                         tolerance
-                        (unsafeRunExceptT . timeInterpreter nw)
+                        (timeInterpreter nw)
                         nodeTip
                         =<< getCurrentTime
             if prog == Ready

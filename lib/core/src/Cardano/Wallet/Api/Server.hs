@@ -254,9 +254,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException (..)
-    , Qry
-    , TimeInterpreter
+    ( TimeInterpreter
     , currentEpoch
     , endTimeOfEpoch
     , epochSucc
@@ -313,6 +311,8 @@ import Control.Monad
     ( forM, forever, void, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
@@ -660,7 +660,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         }
   where
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
     -- This may fail
     -- 1. In Byron when running Byron;Shelley
@@ -783,7 +783,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         }
   where
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
     matchEmptyPassphrase
         :: WorkerCtx ctx
@@ -1229,7 +1229,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards body = do
         #pendingSince
   where
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
@@ -1266,7 +1266,7 @@ listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     -- In the Shelley of Byron;Shelley this is fine, but otherwise,
     -- supplying a time range in the future may cause a err500.
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getTransaction
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
@@ -1280,7 +1280,7 @@ getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     liftIO $ mkApiTransactionFromInfo ti tx
   where
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -1370,7 +1370,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
   where
     -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 delegationFee
     :: forall ctx s t n k.
@@ -1416,7 +1416,7 @@ quitStakePool ctx (ApiT wid) body = do
   where
     -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 {-------------------------------------------------------------------------------
                                 Migrations
@@ -1488,7 +1488,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
     addrs = getApiT . fst <$> migrateData ^. #addresses
     -- Not forecasting into the future. Should be safe.
     ti :: TimeInterpreter IO
-    ti = unsafeRunExceptT . timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
 
 -- | Transform the given set of migration coin selections (for a source wallet)
@@ -1531,13 +1531,12 @@ getCurrentEpoch
     => ctx
     -> Handler W.EpochNo
 getCurrentEpoch ctx = do
-    res <- liftIO $ runExceptT (currentEpoch ti)
+    res <- liftIO $ currentEpoch ti
     case res of
-        Left _ -> liftE ErrUnableToDetermineCurrentEpoch
-        Right Nothing -> liftE ErrUnableToDetermineCurrentEpoch
-        Right (Just x) -> pure x
+        Nothing -> liftE ErrUnableToDetermineCurrentEpoch
+        Just x  -> pure x
   where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
 
 getNetworkInformation
@@ -1548,16 +1547,9 @@ getNetworkInformation
 getNetworkInformation (_block0, _, st) nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
-    apiNodeTip <- liftIO $ unsafeRunExceptT $ mkApiBlockReference ti nodeTip
-
+    apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
     nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
-
-    -- I don't /think/ this should fail, but in case we do, it seems better to
-    -- return NotResponding than to throw an uncaught exception.
-    progress <- liftIO $ runExceptT (syncProgress st ti nodeTip now) >>= \case
-        Right x -> pure x
-        Left _ -> pure NotResponding
-
+    progress <- liftIO $ syncProgress st ti nodeTip now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
         , Api.nextEpoch = snd <$> nowInfo
@@ -1565,16 +1557,16 @@ getNetworkInformation (_block0, _, st) nl = do
         , Api.networkTip = fst <$> nowInfo
         }
   where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti :: TimeInterpreter IO
     ti = timeInterpreter nl
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
     networkTipInfo :: UTCTime -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
     networkTipInfo now = do
-        networkTip <- toSlotId' =<< ongoingSlotAt' now
+        networkTip <- lift . ti . toSlotId =<< MaybeT (ti $ ongoingSlotAt now)
         let curEpoch = networkTip ^. #epochNumber
-        nextEpochStart <- endTimeOfEpoch' curEpoch
+        nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
 
         let tip = ApiNetworkTip
                 (ApiT $ networkTip ^. #epochNumber)
@@ -1583,27 +1575,6 @@ getNetworkInformation (_block0, _, st) nl = do
                 (ApiT $ unsafeEpochSucc curEpoch)
                 (nextEpochStart)
         return (tip, nextEpoch)
-
-      where
-        -- Helper functions that return @Nothing@ both if the @Qry@ itself
-        -- returns @Nothing@, and if the running of the @Qry@ returns
-        -- @Left PastHorizonException@
-        --
-        -- This makes them easier to work with.
-
-        ongoingSlotAt' :: UTCTime -> MaybeT IO W.SlotNo
-        ongoingSlotAt' x = (run (ongoingSlotAt x)) >>= (MaybeT . pure)
-
-        endTimeOfEpoch' :: W.EpochNo -> MaybeT IO UTCTime
-        endTimeOfEpoch' x = run (endTimeOfEpoch x)
-
-        toSlotId' :: W.SlotNo -> MaybeT IO W.SlotId
-        toSlotId' x = run (toSlotId x)
-
-        run :: Qry a -> MaybeT IO a
-        run q = MaybeT $ runExceptT (ti q) >>= \case
-            Right x -> pure $ Just x
-            Left _ -> pure Nothing
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)

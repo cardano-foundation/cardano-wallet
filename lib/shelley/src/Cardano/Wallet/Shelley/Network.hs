@@ -77,7 +77,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( Chan, dupChan, newChan, readChan, writeChan )
 import Control.Exception
-    ( IOException )
+    ( IOException, throwIO )
 import Control.Monad
     ( forever, unless, void, (>=>) )
 import Control.Monad.Catch
@@ -111,7 +111,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -480,15 +480,14 @@ withNetworkLayer tr np addrInfo versionData action = do
     _timeInterpreterQuery
         :: HasCallStack
         => TMVar IO (CardanoInterpreter sc)
-        -> TimeInterpreter (ExceptT PastHorizonException IO)
+        -> TimeInterpreter IO
     _timeInterpreterQuery var query = do
         interpreter <- liftIO $ atomically $ readTMVar var
-        res <- liftIO $ runExceptT $ mkTimeInterpreter getGenesisBlockDate interpreter query
-        case res of
+        case mkTimeInterpreter getGenesisBlockDate interpreter query of
             Right r -> pure r
             Left e -> do
                 liftIO $ traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
-                throwE e
+                throwIO e
 
 type instance GetStakeDistribution (IO Shelley) m =
       W.BlockHeader
@@ -658,7 +657,7 @@ mkTipSyncClient
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter sc -> m ())
-        -- ^ Notifier callback for when time interpreter is updates
+        -- ^ Notifier callback for when time interpreter is updated.
     -> m (NetworkClient m)
 mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpreterUpdate = do
     localStateQueryQ <- atomically newTQueue

@@ -32,7 +32,6 @@ module Cardano.Wallet.Primitive.Slotting
     , TimeInterpreter
     , singleEraInterpreter
     , mkTimeInterpreter
-    , unsafeNoForecasts
     , HF.PastHorizonException (..)
     , Qry
 
@@ -80,8 +79,6 @@ import Control.Monad
     ( ap, liftM, (<=<) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -270,7 +267,10 @@ type TimeInterpreter m = forall a. Qry a -> m a
 --
 -- Queries can never fail with @singleEraInterpreter@. This function will throw
 -- a 'PastHorizonException' if they do.
-singleEraInterpreter :: HasCallStack => GenesisParameters -> TimeInterpreter Identity
+singleEraInterpreter
+    :: HasCallStack
+    => GenesisParameters
+    -> TimeInterpreter Identity
 singleEraInterpreter gp = mkTimeInterpreterI (mkInterpreter summary)
   where
     summary = neverForksSummary sz len
@@ -292,17 +292,9 @@ mkTimeInterpreter
     :: HasCallStack
     => StartTime
     -> Interpreter xs
-    -> TimeInterpreter (ExceptT HF.PastHorizonException IO)
-mkTimeInterpreter start i q = ExceptT $ pure $ runQuery (coerce start) i q
-
-unsafeNoForecasts
-    :: TimeInterpreter (ExceptT HF.PastHorizonException IO)
-    -> TimeInterpreter IO
-unsafeNoForecasts ti q = do
-    res <- runExceptT $ ti q
-    case res of
-        Right x -> pure x
-        Left e -> fail $ show e
+    -> TimeInterpreter (Either HF.PastHorizonException)
+mkTimeInterpreter start =
+    runQuery (coerce start)
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones

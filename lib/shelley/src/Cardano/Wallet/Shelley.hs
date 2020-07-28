@@ -97,8 +97,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.Slotting
-    ( unsafeNoForecasts )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -333,7 +331,7 @@ serveWallet
         Pool.withDBLayer
                 poolsDbTracer
                 (Pool.defaultFilePath <$> dir)
-                (unsafeNoForecasts $ timeInterpreter nl)
+                (timeInterpreter nl)
                 $ \db -> do
             let spl = newStakePoolLayer nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
@@ -371,7 +369,7 @@ serveWallet
                     hardforkEpochNo (protocolParameters np)
                 }
             )
-            (unsafeNoForecasts $ timeInterpreter nl)
+            (timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
