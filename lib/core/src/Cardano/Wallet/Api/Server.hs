@@ -254,7 +254,8 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
+    ( PastHorizonException
+    , TimeInterpreter
     , currentEpoch
     , endTimeOfEpoch
     , epochSucc
@@ -309,6 +310,8 @@ import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
     ( forM, forever, void, (>=>) )
+import Control.Monad.Catch
+    ( handle )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -1549,7 +1552,8 @@ getNetworkInformation (_block0, _, st) nl = do
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
     nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
-    progress <- liftIO $ syncProgress st ti nodeTip now
+    progress <- handle (\(_ :: PastHorizonException) -> pure NotResponding)
+        $ liftIO (syncProgress st ti nodeTip now)
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
         , Api.nextEpoch = snd <$> nowInfo
@@ -1563,11 +1567,10 @@ getNetworkInformation (_block0, _, st) nl = do
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
     networkTipInfo :: UTCTime -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
-    networkTipInfo now = do
+    networkTipInfo now = handle handlePastHorizonException $ do
         networkTip <- lift . ti . toSlotId =<< MaybeT (ti $ ongoingSlotAt now)
         let curEpoch = networkTip ^. #epochNumber
         nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
-
         let tip = ApiNetworkTip
                 (ApiT $ networkTip ^. #epochNumber)
                 (ApiT $ networkTip ^. #slotNumber)
@@ -1575,6 +1578,12 @@ getNetworkInformation (_block0, _, st) nl = do
                 (ApiT $ unsafeEpochSucc curEpoch)
                 (nextEpochStart)
         return (tip, nextEpoch)
+      where
+        handlePastHorizonException
+            :: PastHorizonException
+            -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
+        handlePastHorizonException _ =
+            MaybeT (pure Nothing)
 
     -- Unsafe constructor for the next epoch. Chances to reach the last epoch
     -- are quite unlikely in this context :)
@@ -1600,7 +1609,6 @@ getNetworkParameters (_block0, np, _st) nl = do
                     ApiEpochInfo (ApiT epochNo) epochStartTime }
         Nothing ->
             pure apiNetworkParams
-
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
