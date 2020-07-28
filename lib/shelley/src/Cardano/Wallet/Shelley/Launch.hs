@@ -420,8 +420,8 @@ withCluster
 withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
     bracketTracer' tr "withCluster" $ do
         let poolCount = length poolConfigs
-        systemStart <- addUTCTime 1 <$> getCurrentTime
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
+        systemStart <- addUTCTime 1 <$> getCurrentTime
         let bftCfg = NodeParams severity systemStart (head $ rotate ports)
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             let runningBftNode = RunningNode bftSocket block0 params
