@@ -31,7 +31,7 @@ services:
         ([[ $$NETWORK == \"testnet\" ]] && $$CMD --testnet /config/7106qjwral616j6p5049m7hhi5ih0r33-testnet-genesis.json)
       "
     environment:
-      CMD: "cardano-wallet-byron serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
+      CMD: "cardano-wallet-shelley serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
     restart: on-failure
     logging:
