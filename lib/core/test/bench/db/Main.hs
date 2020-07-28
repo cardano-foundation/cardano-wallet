@@ -73,16 +73,23 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
+import Cardano.Wallet.Primitive.Slotting
+    ( singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
+    , ActiveSlotCoefficient (..)
     , Address (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
+    , GenesisParameters (..)
     , Hash (..)
     , Range (..)
+    , SlotLength (..)
     , SlotNo (..)
     , SortOrder (..)
+    , StartTime (..)
     , TransactionInfo
     , Tx (..)
     , TxIn (..)
@@ -119,12 +126,16 @@ import Data.ByteString
     ( ByteString )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
 import Data.Typeable
@@ -146,6 +157,7 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
@@ -337,7 +349,14 @@ setupDB = do
     (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
-    ti = error "timeInterpreter" -- EpochLength 500 was used here.
+    ti = pure . runIdentity . singleEraInterpreter (GenesisParameters
+        { getGenesisBlockHash = Hash $ BS.replicate 32 0
+        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
+        , getSlotLength = SlotLength 1
+        , getEpochLength = EpochLength 21600
+        , getEpochStability = Quantity 108
+        , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+        })
 
 defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
