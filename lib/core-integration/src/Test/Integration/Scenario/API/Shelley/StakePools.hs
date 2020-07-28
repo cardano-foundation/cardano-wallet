@@ -782,3 +782,18 @@ spec = do
         pp = ctx ^. #_networkParameters . #protocolParameters
         (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
         LinearFee a b _ = pp ^. #txParameters . #getFeePolicy
+
+-- The complete set of pool identifiers in the static test pool cluster.
+--
+-- NOTE: This set effectively duplicates the set of pool identifiers defined
+-- in the 'operators' constant of 'Cardano.Wallet.Shelley.Launch'.
+--
+-- TODO: Remove this duplication.
+--
+testClusterPoolIds :: Set PoolId
+testClusterPoolIds = Set.fromList $ PoolId . unsafeFromHex <$>
+    [ "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
+    , "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
+    , "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
+    , "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
+    ]
