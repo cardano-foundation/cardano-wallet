@@ -436,7 +436,7 @@ migrateManually tr defaultFieldValues =
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn =
-        addColumn conn (DBField CheckpointActiveSlotCoeff) value
+        addColumn conn True (DBField CheckpointActiveSlotCoeff) value
       where
         value = toText
             $ W.unActiveSlotCoefficient
@@ -447,7 +447,7 @@ migrateManually tr defaultFieldValues =
     --
     addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
     addDesiredPoolNumberIfMissing conn = do
-        addColumn conn (DBField ProtocolParametersDesiredNumberOfPools) value
+        addColumn conn True (DBField ProtocolParametersDesiredNumberOfPools) value
       where
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
@@ -456,7 +456,7 @@ migrateManually tr defaultFieldValues =
     --
     addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
     addMinimumUTxOValueIfMissing conn = do
-        addColumn conn (DBField ProtocolParametersMinimumUtxoValue) value
+        addColumn conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
         value = T.pack $ show $ W.getCoin $ defaultMinimumUTxOValue defaultFieldValues
 
@@ -465,7 +465,7 @@ migrateManually tr defaultFieldValues =
     --
     addHardforkEpochIfMissing :: Sqlite.Connection -> IO ()
     addHardforkEpochIfMissing conn = do
-        addColumn conn (DBField ProtocolParametersHardforkEpoch) value
+        addColumn conn False (DBField ProtocolParametersHardforkEpoch) value
       where
         value = case defaultHardforkEpoch defaultFieldValues of
             Nothing -> "NULL"
@@ -499,10 +499,11 @@ migrateManually tr defaultFieldValues =
     -- it's a common use-case.
     addColumn
         :: Sqlite.Connection
+        -> Bool
         -> DBField
         -> Text
         -> IO ()
-    addColumn conn field value = do
+    addColumn conn notNull field value = do
         isFieldPresent conn field >>= \case
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
@@ -511,7 +512,8 @@ migrateManually tr defaultFieldValues =
                 query <- Sqlite.prepare conn $ T.unwords
                     [ "ALTER TABLE", tableName field
                     , "ADD COLUMN", fieldName field
-                    , fieldType field, "NOT NULL", "DEFAULT", value
+                    , fieldType field, if notNull then "NOT NULL" else ""
+                    , "DEFAULT", value
                     , ";"
                     ]
                 _ <- Sqlite.step query
