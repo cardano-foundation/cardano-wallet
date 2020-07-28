@@ -328,8 +328,12 @@ serveWallet
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
-        Pool.withDBLayer poolsDbTracer (Pool.defaultFilePath <$> dir) (timeInterpreter nl) $ \db -> do
-            let spl = newStakePoolLayer (genesisParameters np) nl db
+        Pool.withDBLayer
+                poolsDbTracer
+                (Pool.defaultFilePath <$> dir)
+                (timeInterpreter nl)
+                $ \db -> do
+            let spl = newStakePoolLayer nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             fetch <- fetchFromRemote <$> newManager defaultManagerSettings
             void $ forkFinally (monitorMetadata tr gp fetch db) onExit

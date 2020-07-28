@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -46,7 +47,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters, epochStartTime, slotParams )
+    ( TimeInterpreter, firstSlotInEpoch, startTime )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
@@ -100,7 +101,7 @@ import Data.List.NonEmpty
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
-    ( dropMissing, traverseMissing, zipWithMatched )
+    ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
 import Data.Maybe
     ( catMaybes )
 import Data.Ord
@@ -157,12 +158,11 @@ data StakePoolLayer = StakePoolLayer
     }
 
 newStakePoolLayer
-    :: forall sc.
-       GenesisParameters
-    -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
+    :: forall sc. ()
+    => NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> StakePoolLayer
-newStakePoolLayer gp nl db@DBLayer {..} =
+newStakePoolLayer nl db@DBLayer {..} =
         StakePoolLayer
             { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
             , knownPools = _knownPools
@@ -193,12 +193,12 @@ newStakePoolLayer gp nl db@DBLayer {..} =
         -- TODO:
         -- Use a more efficient way of filtering out retired pools.
         -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
-        return
-            . sortByReward seed
+        liftIO $
+            sortByReward seed
             . filter (not . poolIsRetired)
             . map snd
             . Map.toList
-            $ combineDbAndLsqData (slotParams gp, pp) lsqData dbData
+            <$> combineDbAndLsqData (timeInterpreter nl) pp lsqData dbData
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrNetworkUnavailable
         fromErrCurrentNodeTip = \case
@@ -269,14 +269,16 @@ data PoolDbData = PoolDbData
 
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
-    :: (SlotParameters, ProtocolParameters)
+    :: forall m. (Monad m)
+    => TimeInterpreter m
+    -> ProtocolParameters
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
-    -> Map PoolId Api.ApiStakePool
-combineDbAndLsqData (sp, pp) lsqData =
-    Map.merge lsqButNoDb dbButNoLsq bothPresent lsqData
+    -> m (Map PoolId Api.ApiStakePool)
+combineDbAndLsqData ti pp lsqData =
+    Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
   where
-    bothPresent = zipWithMatched mkApiPool
+    bothPresent = zipWithAMatched mkApiPool
 
     lsqButNoDb = dropMissing
 
@@ -287,7 +289,7 @@ combineDbAndLsqData (sp, pp) lsqData =
     -- included in the list of all known stake pools:
     --
     dbButNoLsq = traverseMissing $ \k db ->
-        pure $ mkApiPool k lsqDefault db
+        mkApiPool k lsqDefault db
       where
         lsqDefault = PoolLsqData
             { nonMyopicMemberRewards = freshmanMemberRewards
@@ -316,31 +318,33 @@ combineDbAndLsqData (sp, pp) lsqData =
         :: PoolId
         -> PoolLsqData
         -> PoolDbData
-        -> Api.ApiStakePool
-    mkApiPool pid (PoolLsqData prew pstk psat) dbData =
-        Api.ApiStakePool
-        { Api.id = (ApiT pid)
-        , Api.metrics = Api.ApiStakePoolMetrics
-            { Api.nonMyopicMemberRewards = fmap fromIntegral prew
-            , Api.relativeStake = Quantity pstk
-            , Api.saturation = psat
-            , Api.producedBlocks =
-                (fmap fromIntegral . nProducedBlocks) dbData
+        -> m Api.ApiStakePool
+    mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
+        let mRetiredIn = retiredIn <$> retirementCert dbData
+        retirementEpochInfo <- traverse toApiEpochInfo mRetiredIn
+        pure $ Api.ApiStakePool
+            { Api.id = (ApiT pid)
+            , Api.metrics = Api.ApiStakePoolMetrics
+                { Api.nonMyopicMemberRewards = fmap fromIntegral prew
+                , Api.relativeStake = Quantity pstk
+                , Api.saturation = psat
+                , Api.producedBlocks =
+                    (fmap fromIntegral . nProducedBlocks) dbData
+                }
+            , Api.metadata =
+                ApiT <$> metadata dbData
+            , Api.cost =
+                fmap fromIntegral $ poolCost $ registrationCert dbData
+            , Api.pledge =
+                fmap fromIntegral $ poolPledge $ registrationCert dbData
+            , Api.margin =
+                Quantity $ poolMargin $ registrationCert dbData
+            , Api.retirement = retirementEpochInfo
             }
-        , Api.metadata =
-            ApiT <$> metadata dbData
-        , Api.cost =
-            fmap fromIntegral $ poolCost $ registrationCert dbData
-        , Api.pledge =
-            fmap fromIntegral $ poolPledge $ registrationCert dbData
-        , Api.margin =
-            Quantity $ poolMargin $ registrationCert dbData
-        , Api.retirement =
-            toApiEpochInfo . retiredIn <$> retirementCert dbData
-        }
 
-    toApiEpochInfo ep =
-        Api.ApiEpochInfo (ApiT ep) (epochStartTime sp ep)
+    toApiEpochInfo ep = do
+        time <- ti $ startTime =<< firstSlotInEpoch ep
+        return $ Api.ApiEpochInfo (ApiT ep) time
 
 -- | Combines all the LSQ data into a single map.
 --

@@ -143,8 +143,8 @@ syncProgress (SyncTolerance tolerance) ti tip now = do
     let timeCovered = tipTime `diffUTCTime` genesisDate
 
     -- Using (max 1) to avoid division by 0.
-    let progress = (fromEnum timeCovered)
-            % (max 1 (fromEnum (timeCovered + timeRemaining)))
+    let progress = (convert timeCovered)
+            % max 1 (convert $ timeCovered + timeRemaining)
     if timeRemaining < tolerance || timeRemaining < 0 || progress >= 1 then
         return Ready
     else
@@ -156,4 +156,7 @@ syncProgress (SyncTolerance tolerance) ti tip now = do
         . toRational
         $ progress
   where
+    convert :: NominalDiffTime -> Integer
+    convert = round
+
     errMsg x = "syncProgress: " ++ show x ++ " is out of bounds"

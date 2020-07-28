@@ -26,13 +26,13 @@ module Cardano.Wallet.Primitive.Slotting
     , slotRangeFromTimeRange
     , firstSlotInEpoch
     , ongoingSlotAt
+    , endTimeOfEpoch
 
     -- ** Running queries
     , TimeInterpreter
     , singleEraInterpreter
-    , interpreterFromGenesis
     , mkTimeInterpreter
-    , MyInterpreter(..)
+    , HF.PastHorizonException (..)
     , Qry
 
     -- ** Helpers
@@ -146,6 +146,28 @@ startTime s = do
     rel <- HardForkQry (fst <$> HF.slotToWallclock s)
     RelToUTCTime rel
 
+-- | Can be used to know when the next epoch starts.
+--
+-- This is preferable to asking for the start time of the /next/ epoch, because
+-- the next epoch may be outside the forecast range, and result in
+-- @PastHorizonException@.
+endTimeOfEpoch :: EpochNo -> Qry UTCTime
+endTimeOfEpoch epoch = do
+    ref <- firstSlotInEpoch epoch
+    refTime <- startTime ref
+    el <- HardForkQry $ HF.QEpochSize $ toCardanoEpochNo epoch
+    sl <- HardForkQry $ HF.QSlotLength ref
+
+    let convert = fromRational . toRational
+    let el' = convert $ Cardano.unEpochSize el
+    let sl' = Cardano.getSlotLength sl
+
+    let timeInEpoch = el' * sl'
+
+    return $ timeInEpoch `addUTCTime` refTime
+  where
+    toCardanoEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
+
 -- | Translate 'EpochNo' to the 'SlotNo' of the first slot in that epoch
 firstSlotInEpoch :: EpochNo -> Qry SlotNo
 firstSlotInEpoch = fmap fst . HardForkQry . HF.epochToSlot . convertEpochNo
@@ -240,39 +262,39 @@ slotAtTimeDetailed t = do
 -- fixme: this is backend-specific code -- it should be moved to the shelley package.
 type TimeInterpreter m = forall a. Qry a -> m a
 
--- | The hardfork query intepreter plus start time information.
-data MyInterpreter xs = MyInterpreter SystemStart (Interpreter xs)
-
 -- | An 'Interpreter' for a single era, where the slotting from
 -- @GenesisParameters@ cannot change.
 --
 -- Queries can never fail with @singleEraInterpreter@. This function will throw
 -- a 'PastHorizonException' if they do.
-singleEraInterpreter :: HasCallStack => GenesisParameters -> TimeInterpreter Identity
-singleEraInterpreter gp = mkTimeInterpreterI gp (mkInterpreter summary)
+singleEraInterpreter
+    :: HasCallStack
+    => GenesisParameters
+    -> TimeInterpreter Identity
+singleEraInterpreter gp = mkTimeInterpreterI (mkInterpreter summary)
   where
     summary = neverForksSummary sz len
     sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
     len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
 
-mkTimeInterpreterI :: HasCallStack => GenesisParameters -> Interpreter xs -> TimeInterpreter Identity
-mkTimeInterpreterI gp int q = neverFails $ runQuery (MyInterpreter start int) q
-  where
-    start = coerce (gp ^. #getGenesisBlockDate)
+    mkTimeInterpreterI
+        :: HasCallStack
+        => Interpreter xs
+        -> TimeInterpreter Identity
+    mkTimeInterpreterI int q = neverFails $ runQuery start int q
+      where
+        start = coerce (gp ^. #getGenesisBlockDate)
 
-    neverFails = either bomb pure
-    bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
+        neverFails = either bomb pure
+        bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
 
-interpreterFromGenesis :: HasCallStack => GenesisParameters -> (forall a. Qry a -> Either HF.PastHorizonException a)
-interpreterFromGenesis gp = mkTimeInterpreter start (mkInterpreter summary)
-  where
-    summary = neverForksSummary sz len
-    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
-    len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
-    start = gp ^. #getGenesisBlockDate
-
-mkTimeInterpreter :: HasCallStack => StartTime -> Interpreter xs -> (forall a. Qry a -> Either HF.PastHorizonException a)
-mkTimeInterpreter start = runQuery . MyInterpreter (coerce start)
+mkTimeInterpreter
+    :: HasCallStack
+    => StartTime
+    -> Interpreter xs
+    -> TimeInterpreter (Either HF.PastHorizonException)
+mkTimeInterpreter start =
+    runQuery (coerce start)
 
 -- | Wrapper around HF.Qry to allow converting times relative to the genesis
 -- block date to absolute ones
@@ -302,8 +324,13 @@ instance Buildable (Qry a) where
         QPure _ -> "qPure"
         QBind q _ -> "qBind " <> build q
 
-runQuery :: HasCallStack => MyInterpreter xs -> Qry a -> Either HF.PastHorizonException a
-runQuery (MyInterpreter systemStart int) = go
+runQuery
+    :: HasCallStack
+    => SystemStart
+    -> Interpreter xs
+    -> Qry a
+    -> Either HF.PastHorizonException a
+runQuery systemStart int = go
   where
     go :: Qry a -> Either HF.PastHorizonException a
     go (HardForkQry q) = HF.interpretQuery int q

@@ -16,6 +16,9 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , NtpSyncingStatus (..)
     , WalletStyle (..)
+    , epochStartTime
+    , getApiT
+    , nextEpoch
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
@@ -23,6 +26,10 @@ import Control.Monad
     ( when )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Generics.Internal.VL.Lens
+    ( view, (^.) )
+import Data.Maybe
+    ( fromJust )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
@@ -51,22 +58,21 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. SpecWith (Context t)
 spec = do
     it "NETWORK - Can query network information" $ \ctx -> do
-        r <- eventually "wallet's syncProgress = Ready" $ do
+        eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx
                 Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
+            let i = getFromResponse id r
+            (epochStartTime <$> nextEpoch i) .> Just now
             verify r
-                [ expectField #nextEpoch ((.> now) . epochStartTime)
-                , expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
+                [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
                 ]
-            return r
 
-        let currentEpochNum =
-                getFromResponse (#networkTip . #epochNumber . #getApiT) r
-        let nextEpochNum =
-                getFromResponse (#nextEpoch . #epochNumber . #getApiT) r
-        nextEpochNum `shouldBe` currentEpochNum + 1
+            let Just currentEpochNum = getApiT . (view #epochNumber) <$> (i ^. #networkTip)
+            let nextEpochNum = view (#epochNumber . #getApiT)
+                    $ fromJust $ getFromResponse #nextEpoch r
+            nextEpochNum `shouldBe` currentEpochNum + 1
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> do

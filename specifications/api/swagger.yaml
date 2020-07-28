@@ -815,8 +815,6 @@ components:
       required:
         - sync_progress
         - node_tip
-        - network_tip
-        - next_epoch
       properties:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip

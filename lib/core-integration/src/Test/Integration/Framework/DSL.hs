@@ -1712,7 +1712,10 @@ getSlotParams
 getSlotParams ctx = do
     r1 <- request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
-    let (ApiT currentEpoch) = getFromResponse (#networkTip . #epochNumber) r1
+    let ApiT currentEpoch =
+             view #epochNumber
+            $ fromMaybe (error "getSlotParams: tip is Nothing")
+            $ getFromResponse #networkTip r1
 
     let endpoint = ( "GET", "v2/network/parameters" )
     r2 <- request @ApiNetworkParameters ctx endpoint Default Empty

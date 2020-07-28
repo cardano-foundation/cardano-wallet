@@ -1760,7 +1760,8 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             (pure [])
             (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
-    ti = timeInterpreter $ ctx ^. networkLayer @t
+    ti :: TimeInterpreter IO
+    ti = timeInterpreter (ctx ^. networkLayer @t)
 
     db = ctx ^. dbLayer @s @k
 

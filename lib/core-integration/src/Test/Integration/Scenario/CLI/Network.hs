@@ -26,6 +26,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import System.Command
@@ -56,7 +58,7 @@ spec = do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
         let nextEpochNum =
-                info ^. (#nextEpoch . #epochNumber . #getApiT)
+                (fromJust (info ^. #nextEpoch)) ^. #epochNumber . #getApiT
         nextEpochNum `shouldBe` (currentEpochNo info) + 1
 
     it "NETWORK_PARAMS - network parameters" $ \ctx -> do
@@ -107,4 +109,4 @@ spec = do
 
       currentEpochNo :: ApiNetworkInformation -> EpochNo
       currentEpochNo netInfo =
-          netInfo ^. (#networkTip . #epochNumber . #getApiT)
+          (fromJust (netInfo ^. #networkTip)) ^. #epochNumber . #getApiT

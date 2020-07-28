@@ -203,7 +203,7 @@ prop_trackRegistrations test = monadicIO $ do
     (logs, registrations) <- run $ captureLogging $ \tr -> do
         done <- newEmptyMVar
         nl <- newMockNetworkLayer done test
-        db@DBLayer{..} <- newDBLayer (timeInterpreter mockNetworkLayer)
+        db@DBLayer{..} <- newDBLayer testTimeInterpreter
         race_ (takeMVar done) (monitorStakePools tr (block0, Quantity 10) nl db)
 
         let pids = poolId <$> expected

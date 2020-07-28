@@ -53,7 +53,7 @@ import Cardano.Wallet.Network
     , mapCursor
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, interpreterFromGenesis, mkTimeInterpreter )
+    ( TimeInterpreter, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , TPraosStandardCrypto
@@ -79,7 +79,7 @@ import Control.Concurrent.Chan
 import Control.Exception
     ( IOException, throwIO )
 import Control.Monad
-    ( forever, unless, (>=>) )
+    ( forever, unless, void, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -88,13 +88,18 @@ import Control.Monad.Class.MonadST
     ( MonadST )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
+    , TMVar
     , TQueue
     , TVar
     , atomically
+    , isEmptyTMVar
+    , newEmptyTMVar
     , newTMVarM
     , newTQueue
     , newTVar
     , putTMVar
+    , putTMVar
+    , readTMVar
     , readTVar
     , takeTMVar
     , writeTVar
@@ -312,26 +317,33 @@ withNetworkLayer tr np addrInfo versionData action = do
         } = W.genesisParameters np
     cfg = codecConfig gp
 
+    -- Put if empty, replace if not empty.
+    repsertTMVar var x = do
+        e <- isEmptyTMVar var
+        unless e $ void $ takeTMVar var
+        putTMVar var x
+
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
         -> IO ( Chan (Tip (CardanoBlock TPraosStandardCrypto))
               , TVar IO W.ProtocolParameters
-              , TVar IO (Maybe (CardanoInterpreter TPraosStandardCrypto))
+              , TMVar IO (CardanoInterpreter TPraosStandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
                   (GenTx (CardanoBlock TPraosStandardCrypto))
                   (CardanoApplyTxErr TPraosStandardCrypto)
-                  IO))
+                  IO)
+              )
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
-        interpreterVar <- atomically $ newTVar Nothing
+        interpreterVar <- atomically newEmptyTMVar
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
             (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
-            (atomically . writeTVar interpreterVar . Just)
+            (atomically . repsertTMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
         pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
 
@@ -467,16 +479,14 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _timeInterpreterQuery
         :: HasCallStack
-        => TVar IO (Maybe (CardanoInterpreter sc))
+        => TMVar IO (CardanoInterpreter sc)
         -> TimeInterpreter IO
     _timeInterpreterQuery var query = do
-        cached <- atomically (readTVar var)
-        let interpret = maybe (interpreterFromGenesis gp)
-                (mkTimeInterpreter getGenesisBlockDate) cached
-        case interpret query of
-            Right res -> pure res
+        interpreter <- liftIO $ atomically $ readTMVar var
+        case mkTimeInterpreter getGenesisBlockDate interpreter query of
+            Right r -> pure r
             Left e -> do
-                traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
+                liftIO $ traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
                 throwIO e
 
 type instance GetStakeDistribution (IO Shelley) m =
@@ -647,7 +657,7 @@ mkTipSyncClient
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter sc -> m ())
-        -- ^ Notifier callback for when time interpreter is updates
+        -- ^ Notifier callback for when time interpreter is updated.
     -> m (NetworkClient m)
 mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpreterUpdate = do
     localStateQueryQ <- atomically newTQueue
@@ -1008,7 +1018,6 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
             "Updated the history interpreter: " <> T.pack (show interpreter)
         MsgInterpreterPastHorizon query (PastHorizon callstack eras) ->
             "Time interpreter queried past the horizon. " <>
-            "This should not have happened.\n" <>
             "Query is:\n" <> query <> "\n" <>
             "Eras are:\n" <>
             T.unlines (map (T.pack . show) eras) <> "\n" <>
@@ -1042,4 +1051,4 @@ instance HasSeverityAnnotation (NetworkLayerLog b) where
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
-        MsgInterpreterPastHorizon{}        -> Critical
+        MsgInterpreterPastHorizon{}        -> Error
