@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
@@ -37,6 +38,8 @@ import Fmt
     ( Buildable, build )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Safe
     ( readMay )
 
@@ -120,7 +123,7 @@ instance FromText SyncTolerance where
 -- `h` becomes bigger and `X` becomes smaller making the progress estimation
 -- better and better. At some point, `X` is null, and we have `p = h / h`
 syncProgress
-    :: Monad m
+    :: (HasCallStack, Monad m)
     => SyncTolerance
         -- ^ A time tolerance inside which we consider ourselves synced
     -> TimeInterpreter m
