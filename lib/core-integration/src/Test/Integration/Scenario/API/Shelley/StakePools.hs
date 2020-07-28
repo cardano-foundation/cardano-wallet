@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkPercentage )
+    ( unsafeFromHex, unsafeMkPercentage )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -51,7 +51,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.List
     ( sortOn )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -61,7 +61,7 @@ import Data.Set
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( showT, toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -120,6 +120,9 @@ spec :: forall n t.
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
 spec = do
+    let listPools ctx stake = request @[ApiStakePool] @IO ctx
+            (Link.listStakePools stake) Default Empty
+
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> do
         w <- emptyWallet ctx
         let wid = w ^. walletId
@@ -317,6 +320,30 @@ spec = do
             , expectErrorMessage
                 (errMsg403PoolAlreadyJoined $ toText $ getApiT pool)
             ]
+
+    it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> do
+        nonRetiredPoolIds <- eventually "One of the pools should retire." $ do
+            response <- listPools ctx arbitraryStake
+            verify response [ expectListSize 3 ]
+            getFromResponse Prelude.id response
+                & fmap (view (#id . #getApiT))
+                & Set.fromList
+                & pure
+        let reportError = error $ unlines
+                [ "Unable to find a retired pool ID."
+                , "Test cluster pools:"
+                , unlines (showT <$> Set.toList testClusterPoolIds)
+                , "Non-retired pools:"
+                , unlines (showT <$> Set.toList nonRetiredPoolIds)
+                ]
+        let retiredPoolIds =
+                testClusterPoolIds `Set.difference` nonRetiredPoolIds
+        let retiredPoolId =
+                fromMaybe reportError $ listToMaybe $ Set.toList retiredPoolIds
+        w <- fixtureWallet ctx
+        r <- joinStakePool @n ctx (ApiT retiredPoolId) (w, fixturePassphrase)
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage (errMsg404NoSuchPool (toText retiredPoolId)) r
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> do
         w <- fixtureWallet ctx
@@ -583,9 +610,6 @@ spec = do
                 (costOfJoining ctx - costOfChange ctx)
             ]
 
-    let listPools ctx stake = request @[ApiStakePool] @IO ctx
-            (Link.listStakePools stake) Default Empty
-
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
 
         it "has non-zero saturation & stake" $ \ctx -> do
@@ -782,3 +806,18 @@ spec = do
         pp = ctx ^. #_networkParameters . #protocolParameters
         (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
         LinearFee a b _ = pp ^. #txParameters . #getFeePolicy
+
+-- The complete set of pool identifiers in the static test pool cluster.
+--
+-- NOTE: This set effectively duplicates the set of pool identifiers defined
+-- in the 'operators' constant of 'Cardano.Wallet.Shelley.Launch'.
+--
+-- TODO: Remove this duplication.
+--
+testClusterPoolIds :: Set PoolId
+testClusterPoolIds = Set.fromList $ PoolId . unsafeFromHex <$>
+    [ "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
+    , "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
+    , "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
+    , "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
+    ]
