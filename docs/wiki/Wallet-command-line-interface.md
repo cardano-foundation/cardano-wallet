@@ -118,26 +118,12 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 Start cardano-node:
 
-- on Byron Mainnet:
+- on Mainnet:
 
 ```
 git clone https://github.com/input-output-hk/cardano-node.git
 cd cardano-node
 nix-build -A scripts.mainnet.node -o mainnet-node-local && ./mainnet-node-local
-```
-
-- on Shelley F&F Testnet:
-
-```
-git clone https://github.com/input-output-hk/cardano-node.git
-cd cardano-node
-nix-build -A scripts.ff.node -o ff-node-local && ./ff-node-local
-```
-
-Serve cardano-wallet:
-
-```
-cardano-wallet serve --node-socket ~/cardano-node/state-node-mainnet/node.socket --mainnet --database /tmp/mainnet
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
