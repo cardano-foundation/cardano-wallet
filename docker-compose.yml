@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:latest
+    image: inputoutput/cardano-node:1.18.0
     environment:
       NETWORK:
     volumes:
@@ -26,10 +26,7 @@ services:
     ports:
       - 8090:8090
     entrypoint: []
-    command: bash -c "
-        ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ([[ $$NETWORK == \"testnet\" ]] && $$CMD --testnet /config/7106qjwral616j6p5049m7hhi5ih0r33-testnet-genesis.json)
-      "
+    command: bash -c "([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) || $$CMD --testnet /config/*-$$NETWORK-byron-genesis.json"
     environment:
       CMD: "cardano-wallet-shelley serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
