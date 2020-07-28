@@ -1,4 +1,7 @@
-{-# LANGUAGE NumericUnderscores #-}
+-- |
+-- Copyright: © 2020 IOHK
+-- License: Apache-2.0
+--
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
@@ -8,22 +11,26 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( nullTracer )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
-    ( singleNodeParams, withBFTNode, withSystemTempDir )
+    ( ClusterLog, singleNodeParams, withBFTNode, withSystemTempDir )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Concurrent.Async
-    ( replicateConcurrently_ )
+    ( async, race_, waitAnyCancel )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
+import Control.Monad
+    ( replicateM, void )
+import Control.Tracer
+    ( Tracer )
 import Test.Hspec
     ( Spec, describe, it )
-import Test.Utils.Trace
-    ( withLogging )
 
 {-------------------------------------------------------------------------------
                                       Spec
@@ -32,16 +39,20 @@ import Test.Utils.Trace
 spec :: Spec
 spec = describe "NetworkLayer regression test #1708" $ do
     it "Parallel local socket connections" $
-        withTestNode $ \np sock vData -> withLogging $ \(tr, _getLogs) ->
-            replicateConcurrently_ 5 $
-                withNetworkLayer tr np sock vData $ \_nl ->
-                    threadDelay 1_000_000
+        withTestNode nullTracer $ \np sock vData -> do
+            tasks <- replicateM 10 $ async $
+                withNetworkLayer nullTracer np sock vData $ \nl -> do
+                    -- Wait for the first tip result from the node
+                    waiter <- newEmptyMVar
+                    race_ (watchNodeTip nl (putMVar waiter)) (takeMVar waiter)
+            void $ waitAnyCancel tasks
 
 withTestNode
-    :: (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
+    :: Tracer IO ClusterLog
+    -> (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
-withTestNode action = do
+withTestNode tr action = do
     cfg <- singleNodeParams Error
-    withSystemTempDir nullTracer "network-spec" $ \dir ->
-        withBFTNode nullTracer dir cfg $ \sock _block0 (np, vData) ->
+    withSystemTempDir tr "network-spec" $ \dir ->
+        withBFTNode tr dir cfg $ \sock _block0 (np, vData) ->
             action np sock vData

@@ -148,8 +148,8 @@ test-suite unit
     , cardano-crypto-class
     , cardano-wallet-core
     , cardano-wallet-shelley
-    , cardano-wallet-test-utils
     , containers
+    , contra-tracer
     , iohk-monitoring
     , hspec
     , memory
