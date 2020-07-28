@@ -87,8 +87,12 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
+    , PostPaymentOrWithdrawalData (..)
+    , PostPaymentOrWithdrawalFeeData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , PostWithdrawalData (..)
+    , PostWithdrawalFeeData (..)
     , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
@@ -314,6 +318,10 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @PostWithdrawalData
+            jsonRoundtripAndGolden $ Proxy @PostWithdrawalFeeData
+            jsonRoundtripAndGolden $ Proxy @(PostPaymentOrWithdrawalData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(PostPaymentOrWithdrawalFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
@@ -1232,6 +1240,10 @@ instance Arbitrary (PostTransactionData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary PostWithdrawalData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary (ApiPutAddressesData t) where
     arbitrary = do
         n <- choose (1,255)
@@ -1239,6 +1251,18 @@ instance Arbitrary (ApiPutAddressesData t) where
         pure $ ApiPutAddressesData ((, Proxy @t) <$> addrs)
 
 instance Arbitrary (PostTransactionFeeData t) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary PostWithdrawalFeeData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (PostPaymentOrWithdrawalData t) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (PostPaymentOrWithdrawalFeeData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1512,9 +1536,45 @@ instance ToSchema ByronWalletPutPassphraseData where
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
+instance ToSchema PostWithdrawalData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostWithdrawalData"
+
 instance ToSchema (PostTransactionFeeData t) where
-    declareNamedSchema _ =
-        declareSchemaForDefinition "ApiPostTransactionFeeData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
+
+instance ToSchema PostWithdrawalFeeData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostWithdrawalFeeData"
+
+instance ToSchema (PostPaymentOrWithdrawalData t) where
+    declareNamedSchema _ = do
+        -- NOTE
+        -- See also: 'WalletOrAccountPostData'
+        NamedSchema _ withdrawalData <-
+            declareNamedSchema (Proxy @PostWithdrawalData)
+        NamedSchema _ paymentData  <-
+            declareNamedSchema (Proxy @(PostTransactionData _))
+        pure $ NamedSchema Nothing $ mempty
+            & type_ .~ Just SwaggerObject
+            & required .~ ["passphrase"]
+            & properties .~ mconcat
+                [ withdrawalData ^. properties
+                , paymentData ^. properties
+                ]
+
+instance ToSchema (PostPaymentOrWithdrawalFeeData t) where
+    declareNamedSchema _ = do
+        -- NOTE
+        -- See also: 'WalletOrAccountPostData'
+        NamedSchema _ withdrawalFeeData <-
+            declareNamedSchema (Proxy @PostWithdrawalFeeData)
+        NamedSchema _ paymentFeeData  <-
+            declareNamedSchema (Proxy @(PostTransactionData _))
+        pure $ NamedSchema Nothing $ mempty
+            & type_ .~ Just SwaggerObject
+            & properties .~ mconcat
+                [ withdrawalFeeData ^. properties
+                , paymentFeeData ^. properties
+                ]
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

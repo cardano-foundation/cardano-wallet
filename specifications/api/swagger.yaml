@@ -1268,12 +1268,34 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
 
+    ApiPostWithdrawalData: &ApiPostWithdrawalData
+      type: object
+      required:
+        - source
+        - passphrase
+      properties:
+        source:
+          <<: *walletMnemonicSentence
+          description: Wallet from which rewards should be drained.
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+
     ApiPostTransactionFeeData: &ApiPostTransactionFeeData
       type: object
       required:
         - payments
       properties:
         payments: *transactionOutputs
+
+    ApiPostWithdrawalFeeData: &ApiPostWithdrawalFeeData
+      type: object
+      required:
+        - source
+      properties:
+        source:
+          <<: *walletMnemonicSentence
+          description: Wallet from which rewards should be drained.
 
     ApiPostRandomAddressData: &ApiPostRandomAddressData
       type: object
@@ -1999,7 +2021,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiPostTransactionFeeData
+            schema:
+              oneOf:
+                - <<: *ApiPostTransactionFeeData
+                  title: Payment
+
+                - <<: *ApiPostWithdrawalFeeData
+                  title: Withdrawal
       responses: *responsesPostTransactionFee
 
   /wallets/{walletId}/transactions:
@@ -2018,7 +2046,14 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiPostTransactionData
+            schema:
+              oneOf:
+                - <<: *ApiPostTransactionData
+                  title: Payment
+
+                - <<: *ApiPostWithdrawalData
+                  title: Withdrawal
+
       responses: *responsesPostTransaction
 
     get:

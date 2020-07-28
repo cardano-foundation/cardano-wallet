@@ -79,6 +79,8 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
+    , PostPaymentOrWithdrawalDataT
+    , PostPaymentOrWithdrawalFeeDataT
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , WalletPutData (..)
@@ -387,3 +389,5 @@ type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance PostTransactionDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
+type instance PostPaymentOrWithdrawalDataT Aeson.Value = Aeson.Value
+type instance PostPaymentOrWithdrawalFeeDataT Aeson.Value = Aeson.Value

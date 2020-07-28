@@ -61,6 +61,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase
     , ByronWalletPutPassphraseData
     , PostExternalTransactionData
+    , PostPaymentOrWithdrawalData
+    , PostPaymentOrWithdrawalFeeData
     , PostTransactionData
     , PostTransactionFeeData
     , SomeByronWalletPostData
@@ -888,12 +890,82 @@ instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
               )
             ]
 
-instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
+instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm)))
+  where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionFeeData(PostTransactionFeeData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionFeeData(PostTransactionFeeData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
+
+instance Malformed (BodyParam (PostPaymentOrWithdrawalData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing PostPaymentOrWithdrawalData failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing PostPaymentOrWithdrawalData failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
+            [ -- passphrase
+              ( [aesonQQ|
+                { "payments": [
+                    {
+                        "address": #{addrPlaceholder},
+                        "amount": {
+                            "quantity": 42000000,
+                            "unit": "lovelace"
+                        }
+                    }
+                   ]
+                }|]
+              , "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionData(PostTransactionData) failed, key 'passphrase' not found"
+              )
+            , ( [aesonQQ|
+               { "payments": [
+                   {
+                       "address": #{addrPlaceholder},
+                       "amount": {
+                           "quantity": 42000000,
+                           "unit": "lovelace"
+                       }
+                   }
+                  ],
+                  "passphrase": #{nameTooLong}
+               }|]
+               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+                { "payments": []
+                , "source": []
+                , "passphrase": #{wPassphrase}
+                }|]
+              , "Error in $: empty"
+              )
+            , ( [aesonQQ|
+                { "source": #{mnemonics3}
+                , "passphase": #{wPassphrase}
+                }|]
+              , "Error in $.source: Invalid number of words: 15, 18, 21 or 24 words are expected."
+              )
+            , ( [aesonQQ|
+                { "source": #{invalidMnemonics15}
+                , "passphase": #{wPassphrase}
+                }|]
+              , "Error in $.source: Invalid entropy checksum: please double-check the last word of your mnemonic sentence."
+              )
+            ]
+
+instance Malformed (BodyParam (PostPaymentOrWithdrawalFeeData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing PostPaymentOrWithdrawalFeeData failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing PostPaymentOrWithdrawalFeeData failed, expected Object, but encountered String")
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
