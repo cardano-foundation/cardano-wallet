@@ -133,8 +133,9 @@ let
 
         # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench jmPkgs.jormungandr;
-        # Add cardano-node to the PATH of the byron latency benchmark
+        # Add cardano-node to the PATH of the byron and shelley latency benchmarks
         packages.cardano-wallet-byron.components.benchmarks.latency = wrapBench pkgs.cardano-node;
+        packages.cardano-wallet-shelley.components.benchmarks.latency = wrapBench pkgs.cardano-node;
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
