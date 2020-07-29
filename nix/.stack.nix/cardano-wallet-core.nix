@@ -62,6 +62,7 @@
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."monad-logger" or (errorHandler.buildDepError "monad-logger"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
           (hsPkgs."ntp-client" or (errorHandler.buildDepError "ntp-client"))
           (hsPkgs."OddWord" or (errorHandler.buildDepError "OddWord"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
