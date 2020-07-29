@@ -357,6 +357,7 @@ benchWithShelleyServer tracers action = do
                 "127.0.0.1"
                 ListenOnRandomPort
                 Nothing
+                Nothing
                 socketPath
                 block0
                 (gp, vData)

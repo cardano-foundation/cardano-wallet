@@ -165,7 +165,9 @@ testPoolConfigs =
     [ -- This pool should never retire:
       PoolConfig {retirementEpoch = Nothing}
       -- This pool should retire almost immediately:
-    , PoolConfig {retirementEpoch = Just 1_000}
+    , PoolConfig {retirementEpoch = Just 3}
+      -- This pool should retire, but not within the duration of a test run:
+    , PoolConfig {retirementEpoch = Just 100_000}
       -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
@@ -233,6 +235,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 (Just db)
                 "127.0.0.1"
                 ListenOnRandomPort
+                Nothing
                 Nothing
                 socketPath
                 block0

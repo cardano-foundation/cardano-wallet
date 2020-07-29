@@ -207,7 +207,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       databaseDir
       sTolerance
       enableShutdownHandler
-      poolMetadataProxy
+      smashURL
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
@@ -230,7 +230,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     host
                     listen
                     tlsConfig
-                    poolMetadataProxy
+                    smashURL
                     nodeSocket
                     block0
                     (gp, vData)
