@@ -279,7 +279,6 @@ testnetVersionData pm =
 --
 -- Type Conversions
 
--- fixme: maybe just toByronHash = ByronHash . CC.unsafeHashFromBytes
 toByronHash :: W.Hash "BlockHeader" -> ByronHash
 toByronHash (W.Hash bytes) =
     case CC.hashFromBytes bytes of

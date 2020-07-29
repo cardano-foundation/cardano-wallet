@@ -431,7 +431,7 @@ withNetworkLayer tr np addrInfo versionData action = do
             SubmitSuccess -> pure ()
             SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-    -- fixme: only shelley transactions can be submitted like this, because they
+    -- NOTE: only shelley transactions can be submitted like this, because they
     -- are deserialised as shelley transactions before submitting.
     _postSealedTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
