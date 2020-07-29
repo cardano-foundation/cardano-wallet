@@ -53,7 +53,7 @@ module Cardano.CLI
     , stateDirOption
     , syncToleranceOption
     , tlsOption
-    , poolMetadataProxyOption
+    , smashURLOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -166,7 +166,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when )
+    ( join, unless, void, when, (>=>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -202,7 +202,7 @@ import Network.HTTP.Client
     , responseTimeoutNone
     )
 import Network.URI
-    ( URI, parseURI )
+    ( URI (..), parseAbsoluteURI )
 import Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -1299,20 +1299,25 @@ tlsOption = TlsConfiguration
         <> metavar "FILE"
         <> help "The RSA Server key which signed the x.509 server certificate."
 
-poolMetadataProxyOption
+smashURLOption
     :: Parser URI
-poolMetadataProxyOption = option (eitherReader reader) $ mempty
-    <> long "pool-metadata-proxy"
-    <> metavar "URI"
-    <> help "An optional URI to a proxy serving pool metadata (e.g. SMASH)"
+smashURLOption = option (eitherReader reader) $ mempty
+    <> long "smash-url"
+    <> metavar "URL"
+    <> help "Optional HTTP(S) address of a \
+            \Stakepool Metadata Aggregation Server."
   where
     reader :: String -> Either String URI
-    reader = maybe (Left err) Right . parseURI
+    reader = maybe (Left err) Right . (parseAbsoluteURI >=> isHttp)
+
+    isHttp uri
+        | uriScheme uri `elem` ["http:", "https:"] = Just uri
+        | otherwise = Nothing
 
     err :: String
     err =
-        "Invalid URI. Make sure the URI is well formed, with \
-        \a protocol and a host."
+        "Invalid URI. Make sure it is a well-formed \
+        \ absolute http or https URI."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

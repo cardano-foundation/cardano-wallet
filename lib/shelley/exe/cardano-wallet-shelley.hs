@@ -50,10 +50,10 @@ import Cardano.CLI
     , loggingOptions
     , loggingSeverityOrOffReader
     , loggingTracers
-    , poolMetadataProxyOption
     , runCli
     , setupDirectory
     , shutdownHandlerFlag
+    , smashURLOption
     , syncToleranceOption
     , tlsOption
     , withLogging
@@ -174,7 +174,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
-    , _poolMetadataProxy :: Maybe URI
+    , _smashURL :: Maybe URI
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -194,7 +194,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> optional databaseOption
         <*> syncToleranceOption
         <*> shutdownHandlerFlag
-        <*> optional poolMetadataProxyOption
+        <*> optional smashURLOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs -> IO ()

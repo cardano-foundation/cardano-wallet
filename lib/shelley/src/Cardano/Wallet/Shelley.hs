@@ -264,7 +264,7 @@ serveWallet
   hostPref
   listen
   tlsConfig
-  poolMetadataProxy
+  smashURL
   socketPath
   block0
   (np, vData)
@@ -356,7 +356,7 @@ serveWallet
         fetchStrategies = pure $ maybe
             identityUrlBuilder
             registryUrlBuilder
-            poolMetadataProxy
+            smashURL
 
     apiLayer
         :: forall s k.
