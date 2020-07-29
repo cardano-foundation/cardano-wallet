@@ -44,24 +44,6 @@ import Cardano.Wallet.BenchShared
     , execBenchWithNode
     , runBenchmarks
     )
-import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..), HasNetworkId(..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
-    , NodeVersionData
-    , emptyGenesis
-    , fromCardanoBlock
-    , fromNetworkMagic
-    , mainnetVersionData
-    )
-import Cardano.Wallet.Shelley.Launch
-    ( NetworkConfiguration (..), parseGenesisData )
-import Cardano.Wallet.Shelley.Network
-    ( withNetworkLayer )
-import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
-import Cardano.Wallet.Shelley.Transaction.Size
-    ( MaxSizeOf (..) )
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
@@ -79,10 +61,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , digest
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs, IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
@@ -91,6 +75,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
     ( migrateAll )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState (..), mkAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Model
     ( currentTip, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -111,6 +97,20 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Shelley
+    ( HasNetworkId (..) )
+import Cardano.Wallet.Shelley
+    ( SomeNetworkDiscriminant (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( NodeVersionData, Shelley, emptyGenesis, fromCardanoBlock )
+import Cardano.Wallet.Shelley.Launch
+    ( NetworkConfiguration (..), parseGenesisData )
+import Cardano.Wallet.Shelley.Network
+    ( withNetworkLayer )
+import Cardano.Wallet.Shelley.Transaction
+    ( TxWitnessTagFor (..) )
+import Cardano.Wallet.Shelley.Transaction
+    ( newTransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeRunExceptT )
 import Control.Concurrent
@@ -139,8 +139,6 @@ import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
     ( build, fmt, pretty, (+|), (+||), (|+), (||+) )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..) )
 import Say
     ( sayErr )
 import System.FilePath
@@ -152,6 +150,7 @@ import System.IO.Temp
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
@@ -168,7 +167,7 @@ main = execBenchWithNode argsNetworkConfig cardanoRestoreBench
 argsNetworkConfig :: RestoreBenchArgs -> NetworkConfiguration
 argsNetworkConfig args = case argNetworkName args of
     "mainnet" ->
-        MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData)
+        MainnetConfig
     _ ->
         TestnetConfig (argsNetworkDir args </> "byron-genesis.json")
 
@@ -177,25 +176,6 @@ cardanoRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO (
 cardanoRestoreBench tr c socketFile = do
     (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
-
-    ----------------------------------------------------------------------------
-    -- Environment variables set by nix/haskell.nix (or manually)
-    configs <- getEnv "CARDANO_NODE_CONFIGS"
-    let networkDir = case c of
-            MainnetConfig _ -> "mainnet"
-            TestnetConfig _ -> "testnet"
-            StagingConfig _ -> "staging"
-        topology = configs </> networkDir </> "topology.json"
-        config = configs </> networkDir </> "configuration.json"
-
-    ----------------------------------------------------------------------------
-    -- Environment variables set by ./buildkite/bench-restore.sh (or manually)
-    nodeDB <- getEnv "NODE_DB"
-    ----------------------------------------------------------------------------
-
-    -- Temporary directory for storing socket
-    tmpDir <- getCanonicalTemporaryDirectory
-        >>= \tmpRoot -> createTempDirectory tmpRoot "cw-shelley"
 
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
@@ -210,7 +190,16 @@ cardanoRestoreBench tr c socketFile = do
                 np
                 vData
                 "seq.timelog"
-                (walletRnd))
+                (walletSeq networkProxy))
+        , bench ("restore " <> network <> " rnd")
+            (bench_restoration @_ @ByronKey
+                networkProxy
+                tr
+                socketFile
+                np
+                vData
+                "rnd.timelog"
+                walletRnd)
 
         , bench ("restore " <> network <> " 1% ownership")
             (bench_restoration @_ @IcarusKey
@@ -240,11 +229,26 @@ cardanoRestoreBench tr c socketFile = do
             seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
                 "involve key curtain arrest fortune custom lens marine before \
                 \material wheel glide cause weapon wrap"
-            xprv = Shelley.generateKeyFromSeed seed mempty
+            xprv = Byron.generateKeyFromSeed seed mempty
             wid = WalletId $ digest $ publicKey xprv
             wname = WalletName "Benchmark Sequential Wallet"
             rngSeed = 0
             s = mkRndState xprv rngSeed
+        in
+            (wid, wname, s)
+    walletSeq
+        :: forall n. Proxy n
+        -> (WalletId, WalletName, SeqState n ShelleyKey)
+    walletSeq _ =
+        let
+            seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
+                "involve key curtain arrest fortune custom lens marine before \
+                \material wheel glide cause weapon wrap"
+            xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
+            wid = WalletId $ digest $ publicKey xprv
+            wname = WalletName "Benchmark Sequential Wallet"
+            Right gap = mkAddressPoolGap 20
+            s = mkSeqStateFromRootXPrv (xprv, mempty) gap
         in
             (wid, wname, s)
 
@@ -264,10 +268,11 @@ bench_restoration
         , WalletKey k
         , NFData s
         , Show s
-        , MaxSizeOf Address n ShelleyKey
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         , NetworkDiscriminantVal n
+        , HasNetworkId n
+        , TxWitnessTagFor k
         , t ~ IO Shelley
         )
     => Proxy n
@@ -283,7 +288,6 @@ bench_restoration
 bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let networkId = networkIdVal proxy
-    let pm = fromNetworkMagic $ networkMagic $ fst vData
     let tl = newTransactionLayer @k @(IO Shelley) networkId
     withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
@@ -406,7 +410,7 @@ waitForWalletSync walletLayer wid gp vData = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer IO (IO Shelley) (CardanoBlock sc)
+    :: NetworkLayer IO (IO Shelley) Block
     -> (SlotNo -> SlotNo -> IO ())
     -> IO SlotNo
 waitForNodeSync nw _logSlot = loop 10
