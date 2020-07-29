@@ -72,7 +72,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
+    , deriveRewardAccount
     , fromHex
     , hex
     , networkDiscriminantVal
@@ -435,7 +437,14 @@ instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), Jorm
 
 instance forall n. HasRewardAccount (SeqState n JormungandrKey) JormungandrKey where
     rewardAccountKey  = Seq.rewardAccountKey
+
+instance ToChimericAccount JormungandrKey where
     toChimericAccount = ChimericAccount . xpubPublicKey . getKey
+    someChimericAccount mw =
+        (getRawKey acctK, toChimericAccount (publicKey acctK))
+      where
+        rootK = generateKeyFromSeed (mw, Nothing) mempty
+        acctK = deriveRewardAccount mempty rootK
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

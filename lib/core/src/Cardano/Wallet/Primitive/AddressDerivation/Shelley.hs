@@ -69,7 +69,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
+    , deriveRewardAccount
     , fromHex
     , hex
     )
@@ -349,7 +351,14 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance forall n. HasRewardAccount (SeqState n ShelleyKey) ShelleyKey where
     rewardAccountKey  = Seq.rewardAccountKey
+
+instance ToChimericAccount ShelleyKey where
     toChimericAccount = toChimericAccountRaw . getKey
+    someChimericAccount mw =
+        (getRawKey acctK, toChimericAccount (publicKey acctK))
+      where
+        rootK = generateKeyFromSeed (mw, Nothing) mempty
+        acctK = deriveRewardAccount mempty rootK
 
 toChimericAccountRaw :: XPub -> ChimericAccount
 toChimericAccountRaw = ChimericAccount . blake2b224 . xpubPublicKey

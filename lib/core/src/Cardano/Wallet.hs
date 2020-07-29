@@ -15,6 +15,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -88,6 +89,7 @@ module Cardano.Wallet
     , ErrFetchRewards (..)
     , ErrCheckWalletIntegrity (..)
     , ErrWalletNotResponding (..)
+    , ErrReadChimericAccount (..)
 
     -- ** Address
     , createChangeAddress
@@ -178,8 +180,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Mnemonic
-    ( SomeMnemonic )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.DB
@@ -209,9 +209,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant
+    , NetworkDiscriminant (..)
     , Passphrase
     , PaymentAddress (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
     , checkPassphrase
     , deriveRewardAccount
@@ -379,6 +380,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -395,8 +398,9 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Type.Reflection
+    ( Typeable, typeRep )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -941,32 +945,28 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
     minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
 
 readChimericAccount
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
         ( HasDBLayer s k ctx
-        , HasRewardAccount s k
+        , shelley ~ SeqState n ShelleyKey
+        , Typeable n
+        , Typeable s
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrNoSuchWallet IO ChimericAccount
+    -> ExceptT ErrReadChimericAccount IO ChimericAccount
 readChimericAccount ctx wid = db & \DBLayer{..} -> do
-    cp <- mapExceptT atomically . withNoSuchWallet wid $
-        readCheckpoint (PrimaryKey wid)
-    pure $ toChimericAccount @s @k . rewardAccountKey $ getState cp
+    cp <- withExceptT ErrReadChimericNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+    case testEquality (typeRep @s) (typeRep @shelley) of
+        Nothing -> throwE ErrReadChimericAccountNotAShelleyWallet
+        Just Refl -> pure
+            $ toChimericAccount
+            $ rewardAccountKey @shelley @ShelleyKey
+            $ getState cp
   where
     db = ctx ^. dbLayer @s @k
-
-someChimericAccount
-    :: forall s k (n :: NetworkDiscriminant).
-        ( s ~ SeqState n k
-        , k ~ ShelleyKey
-        )
-    => SomeMnemonic
-    -> (XPrv, ChimericAccount)
-someChimericAccount mw =
-    (getRawKey acctK, toChimericAccount @s (publicKey acctK))
-  where
-    rootK = Shelley.generateKeyFromSeed (mw, Nothing) mempty
-    acctK = deriveRewardAccount mempty rootK
 
 -- | Query the node for the reward balance of a given wallet.
 --
@@ -991,12 +991,13 @@ queryRewardBalance ctx acct = do
             Left $ ErrFetchRewardsNetworkUnreachable e
 
 manageRewardBalance
-    :: forall ctx s t k.
+    :: forall ctx s t k (n :: NetworkDiscriminant).
         ( HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
-        , HasRewardAccount s k
         , ctx ~ WalletLayer s t k
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> WalletId
@@ -1005,8 +1006,8 @@ manageRewardBalance ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            acct <- withExceptT ErrFetchRewardsNoSuchWallet $
-                readChimericAccount @ctx @s @k ctx wid
+            acct <- withExceptT ErrFetchRewardsReadChimericAccount $
+                readChimericAccount @ctx @s @k @n ctx wid
             queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
@@ -2231,7 +2232,7 @@ data ErrQuitStakePool
 -- | Errors that can occur when fetching the reward balance of a wallet
 data ErrFetchRewards
     = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
-    | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
+    | ErrFetchRewardsReadChimericAccount ErrReadChimericAccount
     deriving (Generic, Eq, Show)
 
 data ErrSelectForMigration
@@ -2277,6 +2278,11 @@ data ErrImportRandomAddress
 
 data ErrNotASequentialWallet
     = ErrNotASequentialWallet
+    deriving (Generic, Eq, Show)
+
+data ErrReadChimericAccount
+    = ErrReadChimericAccountNotAShelleyWallet
+    | ErrReadChimericNoSuchWallet ErrNoSuchWallet
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

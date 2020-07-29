@@ -33,7 +33,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount, Depth (..), Passphrase (..) )
+    ( Depth (..), Passphrase (..), ToChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 
@@ -133,6 +133,5 @@ class KnownAddresses s where
 --
 -- Each account key can also be encoded to a 'ChimericAccount' (also called
 -- reward address in cardano-node).
-class HasRewardAccount s k where
+class ToChimericAccount k => HasRewardAccount s k where
     rewardAccountKey  :: s -> k 'AddressK XPub
-    toChimericAccount :: k 'AddressK XPub -> ChimericAccount
