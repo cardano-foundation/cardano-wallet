@@ -53,6 +53,7 @@ module Cardano.CLI
     , stateDirOption
     , syncToleranceOption
     , tlsOption
+    , smashURLOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -165,7 +166,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when )
+    ( join, unless, void, when, (>=>) )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -200,6 +201,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutNone
     )
+import Network.URI
+    ( URI (..), parseAbsoluteURI )
 import Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -1295,6 +1298,26 @@ tlsOption = TlsConfiguration
         <> long "tls-sv-key"
         <> metavar "FILE"
         <> help "The RSA Server key which signed the x.509 server certificate."
+
+smashURLOption
+    :: Parser URI
+smashURLOption = option (eitherReader reader) $ mempty
+    <> long "smash-url"
+    <> metavar "URL"
+    <> help "Optional HTTP(S) address of a \
+            \Stakepool Metadata Aggregation Server."
+  where
+    reader :: String -> Either String URI
+    reader = maybe (Left err) Right . (parseAbsoluteURI >=> isHttp)
+
+    isHttp uri
+        | uriScheme uri `elem` ["http:", "https:"] = Just uri
+        | otherwise = Nothing
+
+    err :: String
+    err =
+        "Invalid URI. Make sure it is a well-formed \
+        \ absolute http or https URI."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

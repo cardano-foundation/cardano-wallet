@@ -1,4 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -8,8 +11,15 @@
 -- from pool operators, or from smash).
 
 module Cardano.Pool.Metadata
-    ( fetchFromRemote
-    -- TODO: fetchFromAggregationServer
+    (
+
+    -- * Fetch
+      fetchFromRemote
+    , StakePoolMetadataFetchLog (..)
+
+    -- * Construct URLs
+    , identityUrlBuilder
+    , registryUrlBuilder
 
     -- * re-exports
     , newManager
@@ -18,6 +28,10 @@ module Cardano.Pool.Metadata
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -25,35 +39,53 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     )
-import Control.Arrow
-    ( left )
 import Control.Exception
-    ( IOException, SomeException, handle )
+    ( IOException, handle )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO (..) )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, runExceptT, throwE )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( eitherDecodeStrict )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
+import Data.ByteString
+    ( ByteString )
+import Data.Coerce
+    ( coerce )
+import Data.List
+    ( intercalate )
+import Data.Text.Class
+    ( ToText (..) )
+import Fmt
+    ( pretty )
 import Network.HTTP.Client
-    ( HttpException
+    ( HttpException (..)
     , Manager
     , ManagerSettings
     , brReadSome
     , managerResponseTimeout
-    , parseUrlThrow
+    , requestFromURI
     , responseBody
+    , responseStatus
     , responseTimeoutMicro
     , withResponse
     )
+import Network.HTTP.Types.Status
+    ( status200, status404 )
+import Network.URI
+    ( URI (..), parseURI, pathSegments )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Client.TLS as HTTPS
 
 
@@ -70,45 +102,138 @@ defaultManagerSettings =
 newManager :: MonadIO m => ManagerSettings -> m Manager
 newManager = HTTPS.newTlsManagerWith
 
-fetchFromRemote
-    :: Manager
+-- | Simply return a pool metadata url, unchanged
+identityUrlBuilder
+    :: StakePoolMetadataUrl
+    -> StakePoolMetadataHash
+    -> Either HttpException URI
+identityUrlBuilder (StakePoolMetadataUrl url) _ =
+    maybe (Left e) Right $ parseURI (T.unpack url)
+  where
+    e = InvalidUrlException (T.unpack url) "Invalid URL"
+
+-- | Build a URL from a metadata hash compatible with an aggregation registry
+registryUrlBuilder
+    :: URI
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
-    -> IO (Either String StakePoolMetadata)
-fetchFromRemote manager url_ hash_ = runExceptT $ do
-    req <- fromInvalidUrl $ parseUrlThrow (T.unpack url)
-    chunk <- ExceptT
-        $ handle fromIOException
-        $ handle fromHttpException
-        $ withResponse req manager $ \res -> do
-        -- NOTE
-        -- Metadata are _supposed to_ be made of:
-        --
-        -- - A name (at most 50 UTF-8 bytes)
-        -- - An optional description (at most 250 UTF-8 bytes)
-        -- - A ticker (at most 5 UTF-8 bytes)
-        -- - A homepage (at most 100 UTF-8 bytes)
-        --
-        -- So, the total, including a pretty JSON encoding with newlines ought
-        -- to be less than 512 bytes. For security reasons, we only download the
-        -- first 512 bytes.
-        pure . BL.toStrict <$> brReadSome (responseBody res) 512
-    when (blake2b256 chunk /= hash) $ throwE $ mconcat
+    -> Either HttpException URI
+registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
+    Right $ baseUrl
+        { uriPath = "/" <> intercalate "/" (pathSegments baseUrl ++ [hash])
+        }
+  where
+    hash = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
+
+fetchFromRemote
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> [StakePoolMetadataUrl -> StakePoolMetadataHash -> Either HttpException URI]
+    -> Manager
+    -> StakePoolMetadataUrl
+    -> StakePoolMetadataHash
+    -> IO (Maybe StakePoolMetadata)
+fetchFromRemote tr builders manager url hash = runExceptTLog $ do
+    chunk <- getChunk `fromFirst` builders
+    when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
         , B8.unpack $ hex $ blake2b256 chunk
         , ", but expected: "
-        , B8.unpack $ hex hash
+        , B8.unpack $ hex $ coerce @_ @ByteString hash
         ]
     except $ eitherDecodeStrict chunk
   where
-    StakePoolMetadataUrl  url  = url_
-    StakePoolMetadataHash hash = hash_
+    runExceptTLog
+        :: ExceptT String IO StakePoolMetadata
+        -> IO (Maybe StakePoolMetadata)
+    runExceptTLog action = runExceptT action >>= \case
+        Left msg ->
+            Nothing <$ traceWith tr (MsgFetchPoolMetadataFailure hash msg)
+
+        Right meta ->
+            Just meta <$ traceWith tr (MsgFetchPoolMetadataSuccess hash meta)
+
+    -- Try each builder in order, but only if the previous builder led to an
+    -- IO exception. Other exceptions like HTTP exceptions are treated as
+    -- 'normal' responses from the an aggregation server and do not cause a
+    -- retry.
+    fromFirst _ [] =
+        throwE "Metadata server(s) didn't reply in a timely manner."
+    fromFirst action (builder:rest) = do
+        uri <- withExceptT show $ except $ builder url hash
+        action uri >>= \case
+            Nothing -> do
+                liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
+                fromFirst action rest
+            Just chunk ->
+                pure chunk
+
+    getChunk :: URI -> ExceptT String IO (Maybe ByteString)
+    getChunk uri = do
+        req <- requestFromURI uri
+        liftIO $ traceWith tr $ MsgFetchPoolMetadata hash uri
+        ExceptT
+            $ handle fromIOException
+            $ handle fromHttpException
+            $ withResponse req manager $ \res -> do
+            -- NOTE
+            -- Metadata are _supposed to_ be made of:
+            --
+            -- - A name (at most 50 UTF-8 bytes)
+            -- - An optional description (at most 250 UTF-8 bytes)
+            -- - A ticker (at most 5 UTF-8 bytes)
+            -- - A homepage (at most 100 UTF-8 bytes)
+            --
+            -- So, the total, including a pretty JSON encoding with newlines ought
+            -- to be less than 512 bytes. For security reasons, we only download the
+            -- first 512 bytes.
+            case responseStatus res of
+                s | s == status200 -> do
+                    let body = responseBody res
+                    Right . Just . BL.toStrict <$> brReadSome body 512
+
+                s | s == status404 -> do
+                    pure $ Left "There's no known metadata for this pool."
+
+                s -> do
+                    pure $ Left $ "The server replied something unexpected: " <> show s
 
     fromIOException :: Monad m => IOException -> m (Either String a)
     fromIOException = return . Left . ("IO exception: " <>) . show
 
-    fromHttpException :: Monad m => HttpException -> m (Either String a)
-    fromHttpException = return . Left . ("HTTP exception: " <>) . show
+    fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
+    fromHttpException = const (return $ Right Nothing)
 
-    fromInvalidUrl :: Monad m => Either SomeException a -> ExceptT String m a
-    fromInvalidUrl = except . left (("Invalid metadata url: " <>) . show)
+data StakePoolMetadataFetchLog
+    = MsgFetchPoolMetadata StakePoolMetadataHash URI
+    | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
+    | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
+    | MsgFetchPoolMetadataFallback URI Bool
+    deriving (Show, Eq)
+
+instance HasPrivacyAnnotation StakePoolMetadataFetchLog
+instance HasSeverityAnnotation StakePoolMetadataFetchLog where
+    getSeverityAnnotation = \case
+        MsgFetchPoolMetadata{} -> Info
+        MsgFetchPoolMetadataSuccess{} -> Info
+        MsgFetchPoolMetadataFailure{} -> Warning
+        MsgFetchPoolMetadataFallback{} -> Warning
+
+instance ToText StakePoolMetadataFetchLog where
+    toText = \case
+        MsgFetchPoolMetadata hash uri -> mconcat
+            [ "Fetching metadata with hash ", pretty hash
+            , " from ", T.pack (show uri)
+            ]
+        MsgFetchPoolMetadataSuccess hash meta -> mconcat
+            [ "Successfully fetched metadata with hash ", pretty hash
+            , ": ", T.pack (show meta)
+            ]
+        MsgFetchPoolMetadataFailure hash msg -> mconcat
+            [ "Failed to fetch metadata with hash ", pretty hash, ": ", T.pack msg
+            ]
+        MsgFetchPoolMetadataFallback uri noMoreUrls -> mconcat
+            [ "Couldn't reach server at ", T.pack (show uri), "."
+            , if noMoreUrls
+                then ""
+                else " Falling back using a different strategy."
+            ]

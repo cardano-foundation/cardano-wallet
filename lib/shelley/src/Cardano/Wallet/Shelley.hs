@@ -55,7 +55,12 @@ import Cardano.BM.Trace
 import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Pool.Metadata
-    ( defaultManagerSettings, fetchFromRemote, newManager )
+    ( defaultManagerSettings
+    , fetchFromRemote
+    , identityUrlBuilder
+    , newManager
+    , registryUrlBuilder
+    )
 import Cardano.Wallet
     ( WalletLog )
 import Cardano.Wallet.Api
@@ -118,7 +123,7 @@ import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
-    , StakePoolLog
+    , StakePoolLog (..)
     , monitorMetadata
     , monitorStakePools
     , newStakePoolLayer
@@ -151,6 +156,8 @@ import Network.Ntp
     ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
+import Network.URI
+    ( URI )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
@@ -232,6 +239,8 @@ serveWallet
     -- ^ HTTP API Server port.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
+    -> Maybe URI
+    -- ^ An optional base URI for a pool metadata proxy
     -> FilePath
     -- ^ Socket for communicating with the node
     -> Block
@@ -255,6 +264,7 @@ serveWallet
   hostPref
   listen
   tlsConfig
+  smashURL
   socketPath
   block0
   (np, vData)
@@ -335,12 +345,18 @@ serveWallet
                 $ \db -> do
             let spl = newStakePoolLayer nl db
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
-            fetch <- fetchFromRemote <$> newManager defaultManagerSettings
+            fetch <- fetchFromRemote trFetch fetchStrategies
+                <$> newManager defaultManagerSettings
             void $ forkFinally (monitorMetadata tr gp fetch db) onExit
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
+        trFetch = contramap MsgFetchPoolMetadata tr
         onExit = defaultWorkerAfter poolsEngineTracer
+        fetchStrategies = pure $ maybe
+            identityUrlBuilder
+            registryUrlBuilder
+            smashURL
 
     apiLayer
         :: forall s k.

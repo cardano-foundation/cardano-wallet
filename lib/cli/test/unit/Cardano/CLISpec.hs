@@ -28,6 +28,7 @@ import Cardano.CLI
     , cmdWalletCreate
     , hGetLine
     , hGetSensitiveLine
+    , smashURLOption
     )
 import Cardano.Wallet.Api.Client
     ( addressClient
@@ -48,12 +49,15 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import Network.URI
+    ( parseURI )
 import Options.Applicative
     ( ParserInfo
     , ParserPrefs
     , ParserResult (..)
     , columns
     , execParserPure
+    , info
     , prefs
     , renderFailure
     )
@@ -68,7 +72,14 @@ import System.IO.Temp
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( HasCallStack, Spec, describe, expectationFailure, it, shouldBe )
+    ( HasCallStack
+    , Spec
+    , describe
+    , expectationFailure
+    , it
+    , shouldBe
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -630,6 +641,22 @@ spec = do
             , expectedStdout = "Prompt: ******\ESC[1D \ESC[1D\ESC[1D \ESC[1D**\n"
             , expectedResult = "pata14" :: Text
             }
+
+    describe "SMASH URL option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info smashURLOption mempty) ["--smash-url", arg]
+        let ok arg (Success url) = Just url == parseURI arg
+            ok _ _ = False
+        let err _ (Failure _) = True
+            err _ _ = False
+        mapM_
+            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst arg))
+            [ ( "http", "http://localhost/api", ok )
+            , ( "https", "https://iohkdev.io", ok )
+            , ( "not http(s)", "gopher://iohk.io", err )
+            , ( "relative", "/home/user", err )
+            ]
+
   where
     backspace :: Text
     backspace = T.singleton (toEnum 127)

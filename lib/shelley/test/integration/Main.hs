@@ -236,6 +236,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 "127.0.0.1"
                 ListenOnRandomPort
                 Nothing
+                Nothing
                 socketPath
                 block0
                 (gp, vData)
