@@ -187,9 +187,9 @@ newStakePoolLayer nl db@DBLayer {..} =
         -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
         tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
-        lsqData <- combineLsqData <$> stakeDistribution nl tip userStake
+        rawLsqData <- stakeDistribution nl tip userStake
+        let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db
-        pp <- liftIO $ getProtocolParameters nl
         seed <- liftIO $ atomically readSystemSeed
         -- TODO:
         -- Use a more efficient way of filtering out retired pools.
@@ -199,7 +199,11 @@ newStakePoolLayer nl db@DBLayer {..} =
             . filter (not . poolIsRetired)
             . map snd
             . Map.toList
-            <$> combineDbAndLsqData (timeInterpreter nl) pp lsqData dbData
+            <$> combineDbAndLsqData
+                (timeInterpreter nl)
+                (nOpt rawLsqData)
+                lsqData
+                dbData
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrNetworkUnavailable
         fromErrCurrentNodeTip = \case
@@ -272,11 +276,11 @@ data PoolDbData = PoolDbData
 combineDbAndLsqData
     :: forall m. (Monad m)
     => TimeInterpreter m
-    -> ProtocolParameters
+    -> Int -- ^ nOpt; desired number of pools
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
     -> m (Map PoolId Api.ApiStakePool)
-combineDbAndLsqData ti pp lsqData =
+combineDbAndLsqData ti nOpt lsqData =
     Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
   where
     bothPresent = zipWithAMatched mkApiPool
@@ -304,7 +308,7 @@ combineDbAndLsqData ti pp lsqData =
     freshmanMemberRewards
         = Quantity
         $ average
-        $ L.take (fromIntegral $ desiredNumberOfStakePools pp)
+        $ L.take nOpt
         $ L.sort
         $ map (Down . getQuantity . nonMyopicMemberRewards)
         $ Map.elems lsqData
