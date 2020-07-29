@@ -75,12 +75,9 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
-    , ApiWithdrawRewards (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostPaymentOrWithdrawalDataT
-    , PostPaymentOrWithdrawalFeeDataT
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , WalletPutData (..)
@@ -147,12 +144,10 @@ data TransactionClient = TransactionClient
         -> ClientM [ApiTransactionT Aeson.Value]
     , postTransaction
         :: ApiT WalletId
-        -> ApiWithdrawRewards
         -> PostTransactionDataT Aeson.Value
         -> ClientM (ApiTransactionT Aeson.Value)
     , postTransactionFee
         :: ApiT WalletId
-        -> ApiWithdrawRewards
         -> PostTransactionFeeDataT Aeson.Value
         -> ClientM ApiFee
     , postExternalTransaction
@@ -279,8 +274,8 @@ transactionClient =
     in
         TransactionClient
             { listTransactions = (`_listTransactions` Nothing)
-            , postTransaction = \wid -> _postTransaction wid . coerce
-            , postTransactionFee = \wid -> _postTransactionFee wid . coerce
+            , postTransaction = _postTransaction
+            , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
             , getTransaction = _getTransaction
@@ -303,8 +298,8 @@ byronTransactionClient =
 
     in TransactionClient
         { listTransactions = _listTransactions
-        , postTransaction = \wid _ -> _postTransaction wid
-        , postTransactionFee = \wid _ -> _postTransactionFee wid
+        , postTransaction = _postTransaction
+        , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
@@ -389,5 +384,3 @@ type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance PostTransactionDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
-type instance PostPaymentOrWithdrawalDataT Aeson.Value = Aeson.Value
-type instance PostPaymentOrWithdrawalFeeDataT Aeson.Value = Aeson.Value

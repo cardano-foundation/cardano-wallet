@@ -371,6 +371,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
     ( fromJust, isJust, mapMaybe )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -998,10 +1000,11 @@ manageRewardBalance
         , Typeable s
         , Typeable n
         )
-    => ctx
+    => Proxy n
+    -> ctx
     -> WalletId
     -> IO ()
-manageRewardBalance ctx wid = db & \DBLayer{..} -> do
+manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do

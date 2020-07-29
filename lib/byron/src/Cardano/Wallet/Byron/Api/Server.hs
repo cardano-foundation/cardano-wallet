@@ -108,6 +108,8 @@ import Network.Ntp
     ( NtpClient )
 import Servant
     ( (:<|>) (..), Server, err501, throwError )
+import Type.Reflection
+    ( Typeable )
 
 -- | A diminished servant server to serve Byron wallets only.
 server
@@ -115,6 +117,7 @@ server
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
+        , Typeable n
         )
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
@@ -153,9 +156,9 @@ server byron icarus ntp =
 
     transactions :: Server (Transactions n)
     transactions =
-             (\_ _ _ -> throwError err501)
+             (\_ _ -> throwError err501)
         :<|> (\_ _ _ _ _ -> throwError err501)
-        :<|> (\_ _ _ -> throwError err501)
+        :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
@@ -243,11 +246,11 @@ server byron icarus ntp =
                  (byron , do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
-                    postTransaction byron genChange wid False tx
+                    postTransaction byron genChange wid tx
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
-                    postTransaction icarus genChange wid False tx
+                    postTransaction icarus genChange wid tx
                  )
              )
         :<|>
@@ -257,8 +260,8 @@ server byron icarus ntp =
              )
         :<|>
             (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid False tx)
-                (icarus, postTransactionFee icarus wid False tx)
+                (byron , postTransactionFee byron wid tx)
+                (icarus, postTransactionFee icarus wid tx)
             )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)

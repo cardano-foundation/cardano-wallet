@@ -242,7 +242,7 @@ newTransactionLayer networkId = TransactionLayer
     _mkDelegationJoinTx
         :: PoolId
             -- ^ Pool Id to which we're planning to delegate
-        -> (k 'AddressK XPrv, Passphrase "encryption")
+        -> (XPrv, Passphrase "encryption")
             -- ^ Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- ^ Key store
@@ -253,7 +253,7 @@ newTransactionLayer networkId = TransactionLayer
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom tip cs = do
-        let accXPub = toXPub $ getRawKey accXPrv
+        let accXPub = toXPub accXPrv
         let certs =
                 if deposit cs > 0 then
                     [ toStakeKeyRegCert  accXPub
@@ -263,7 +263,7 @@ newTransactionLayer networkId = TransactionLayer
                     [ toStakePoolDlgCert accXPub poolId ]
 
         let mkWits unsigned =
-                [ mkShelleyWitness unsigned (getRawKey accXPrv, pwd')
+                [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
         let payload = TxPayload certs mkWits
@@ -271,7 +271,7 @@ newTransactionLayer networkId = TransactionLayer
         mkTx networkId payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
-        :: (k 'AddressK XPrv, Passphrase "encryption")
+        :: (XPrv, Passphrase "encryption")
             -- reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
@@ -282,10 +282,10 @@ newTransactionLayer networkId = TransactionLayer
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
     _mkDelegationQuitTx acc@(accXPrv, pwd') keyFrom tip cs = do
-        let accXPub = toXPub $ getRawKey accXPrv
+        let accXPub = toXPub accXPrv
         let certs = [toStakeKeyDeregCert accXPub]
         let mkWits unsigned =
-                [ mkShelleyWitness unsigned (getRawKey accXPrv, pwd')
+                [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
         let payload = TxPayload certs mkWits

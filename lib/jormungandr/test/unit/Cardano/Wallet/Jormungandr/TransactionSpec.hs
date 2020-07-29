@@ -24,6 +24,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , Passphrase (..)
     , PaymentAddress (..)
+    , WalletKey
+    , getRawKey
     , networkDiscriminantVal
     , paymentAddress
     , publicKey
@@ -511,7 +513,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     title = "golden test mkStdTx: " <> show inps <> show outs
 
 goldenTestDelegationCertTx
-    :: forall t k. (HasCallStack)
+    :: forall t k. (HasCallStack, WalletKey k)
     => TransactionLayer t k
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> PoolId
@@ -523,7 +525,7 @@ goldenTestDelegationCertTx
 goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inputs outputs bytes' = it title $ do
     let res = mkDelegationJoinTx tl
             pool
-            (accountXPrv, pass)
+            (getRawKey accountXPrv, pass)
             keystore
             (SlotNo 0)
             (mempty { inputs, outputs })

@@ -286,7 +286,7 @@ serveWallet
                 icarusApi  <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
-                    Server.manageRewardBalance
+                    (Server.manageRewardBalance proxy)
 
                 withPoolsMonitoring databaseDir gp nl $ \spl -> do
                     startServer
@@ -314,6 +314,7 @@ serveWallet
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n
+            , Typeable n
             )
         => Proxy n
         -> Socket

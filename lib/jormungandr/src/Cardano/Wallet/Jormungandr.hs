@@ -181,6 +181,8 @@ import System.IO.Temp
     ( withSystemTempDirectory )
 import System.IOManager
     ( withIOManager )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
@@ -204,6 +206,7 @@ serveWallet
         , EncodeAddress n
         , DelegationAddress n JormungandrKey
         , PaymentAddress n ByronKey
+        , Typeable n
         )
     => Tracers IO
     -- ^ Logging config.

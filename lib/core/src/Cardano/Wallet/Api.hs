@@ -128,8 +128,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time
     , MinWithdrawal
     , PostExternalTransactionData
-    , PostPaymentOrWithdrawalDataT
-    , PostPaymentOrWithdrawalFeeDataT
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , SomeByronWalletPostData
@@ -314,8 +312,7 @@ type Transactions n =
 type CreateTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> QueryFlag "withdrawRewards"
-    :> ReqBody '[JSON] (PostPaymentOrWithdrawalDataT n)
+    :> ReqBody '[JSON] (PostTransactionDataT n)
     :> PostAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransactions
@@ -339,8 +336,7 @@ type GetTransaction n = "wallets"
 type PostTransactionFee n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "payment-fees"
-    :> QueryFlag "withdrawRewards"
-    :> ReqBody '[JSON] (PostPaymentOrWithdrawalFeeDataT n)
+    :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction

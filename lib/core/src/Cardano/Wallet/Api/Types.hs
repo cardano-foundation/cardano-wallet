@@ -57,13 +57,10 @@ module Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , PostWithdrawalData (..)
-    , PostWithdrawalFeeData (..)
-    , PostPaymentOrWithdrawalData (..)
-    , PostPaymentOrWithdrawalFeeData (..)
     , PostExternalTransactionData (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
+    , ApiWithdrawalPostData (..)
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -85,7 +82,6 @@ module Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
-    , ApiWithdrawRewards (..)
     , ApiWithdrawal (..)
 
     -- * API Types (Byron)
@@ -124,8 +120,6 @@ module Cardano.Wallet.Api.Types
     , ApiTransactionT
     , PostTransactionDataT
     , PostTransactionFeeDataT
-    , PostPaymentOrWithdrawalDataT
-    , PostPaymentOrWithdrawalFeeDataT
     , ApiWalletMigrationPostDataT
     ) where
 
@@ -187,13 +181,11 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Control.Applicative
-    ( empty )
-import Control.Applicative
-    ( optional )
+    ( optional, (<|>) )
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( (>=>) )
+    ( guard, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -497,27 +489,12 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
-data PostWithdrawalData = PostWithdrawalData
-    { source :: !(ApiMnemonicT '[15,18,21,24])
-    , passphrase :: !(ApiT (Passphrase "lenient"))
-    } deriving (Eq, Generic, Show)
-
-newtype PostPaymentOrWithdrawalData n = PostPaymentOrWithdrawalData
-    { postData :: Either PostWithdrawalData (PostTransactionData n)
-    } deriving (Eq, Generic, Show)
-
-newtype PostWithdrawalFeeData = PostWithdrawalFeeData
-    { source :: ApiMnemonicT '[15,18,21,24]
-    } deriving (Eq, Generic, Show)
-
-newtype PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
+data PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
-    } deriving (Eq, Generic, Show)
-
-newtype PostPaymentOrWithdrawalFeeData n = PostPaymentOrWithdrawalFeeData
-    { postData :: Either PostWithdrawalFeeData (PostTransactionFeeData n)
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -581,6 +558,11 @@ data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT ChimericAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+
+data ApiWithdrawalPostData
+    = SelfWithdrawal
+    | ExternalWithdrawal (ApiMnemonicT '[15,18,21,24])
+    deriving (Eq, Generic, Show)
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
@@ -1169,46 +1151,22 @@ instance DecodeAddress t => FromJSON (PostTransactionData t) where
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON PostWithdrawalData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON PostWithdrawalData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance EncodeAddress t => ToJSON (PostPaymentOrWithdrawalData t) where
-    toJSON (PostPaymentOrWithdrawalData (Left x))  = toJSON x
-    toJSON (PostPaymentOrWithdrawalData (Right x)) = toJSON x
-instance DecodeAddress t => FromJSON (PostPaymentOrWithdrawalData t) where
-    parseJSON val = flip (withObject "PostPaymentOrWithdrawalData") val $ \o -> do
-        case (HM.lookup "source" o, HM.lookup "payments" o) of
-            (Just{}, Just{})   -> empty
-            (Nothing, Nothing) -> empty
-            (Just{}, Nothing)  ->
-                (PostPaymentOrWithdrawalData . Left)  <$> parseJSON val
-            (Nothing, Just{})  ->
-                (PostPaymentOrWithdrawalData . Right) <$> parseJSON val
+instance FromJSON ApiWithdrawalPostData where
+    parseJSON obj =
+        parseSelfWithdrawal <|> fmap ExternalWithdrawal (parseJSON obj)
+      where
+        parseSelfWithdrawal = do
+            str <- parseJSON obj
+            SelfWithdrawal <$ guard (str == ("self" :: String))
+instance ToJSON ApiWithdrawalPostData where
+    toJSON = \case
+        SelfWithdrawal -> toJSON ("self" :: String)
+        ExternalWithdrawal mw -> toJSON mw
 
 instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON PostWithdrawalFeeData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON PostWithdrawalFeeData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance EncodeAddress t => ToJSON (PostPaymentOrWithdrawalFeeData t) where
-    toJSON (PostPaymentOrWithdrawalFeeData (Left x))  = toJSON x
-    toJSON (PostPaymentOrWithdrawalFeeData (Right x)) = toJSON x
-instance DecodeAddress t => FromJSON (PostPaymentOrWithdrawalFeeData t) where
-    parseJSON val = flip (withObject "PostPaymentOrWithdrawalFeeData") val $ \o -> do
-        case (HM.lookup "source" o, HM.lookup "payments" o) of
-            (Just{}, Just{})   -> empty
-            (Nothing, Nothing) -> empty
-            (Just{}, Nothing)  ->
-                (PostPaymentOrWithdrawalFeeData . Left)  <$> parseJSON val
-            (Nothing, Just{})  ->
-                (PostPaymentOrWithdrawalFeeData . Right) <$> parseJSON val
 
 instance FromJSON ApiTimeReference where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -1579,8 +1537,6 @@ type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
-type family PostPaymentOrWithdrawalDataT (n :: k) :: *
-type family PostPaymentOrWithdrawalFeeDataT (n :: k) :: *
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: *
 type family ApiPutAddressesDataT (n :: k) :: *
 
@@ -1607,12 +1563,6 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
-
-type instance PostPaymentOrWithdrawalDataT (n :: NetworkDiscriminant) =
-    PostPaymentOrWithdrawalData n
-
-type instance PostPaymentOrWithdrawalFeeDataT (n :: NetworkDiscriminant) =
-    PostPaymentOrWithdrawalFeeData n
 
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
