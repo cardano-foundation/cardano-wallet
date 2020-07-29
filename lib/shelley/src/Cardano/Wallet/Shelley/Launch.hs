@@ -225,7 +225,9 @@ networkConfigurationOption = mainnet <|> testnet <|> staging
     testnet = TestnetConfig <$> genesisFileOption "byron" "testnet"
     staging = StagingConfig <$> genesisFileOption "byron" "staging"
 
-    mainnetFlag = flag' MainnetConfig (long "mainnet")
+    mainnetFlag = flag' MainnetConfig $ mempty
+        <> long "mainnet"
+        <> help "Use Cardano mainnet protocol"
 
     genesisFileOption :: String -> String -> Parser FilePath
     genesisFileOption era net = optionT $ mempty
