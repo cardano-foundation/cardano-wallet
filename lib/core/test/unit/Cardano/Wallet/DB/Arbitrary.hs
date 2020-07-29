@@ -63,13 +63,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
-    , blockchainParameters
-    , currentTip
-    , getState
-    , unsafeInitWallet
-    , utxo
-    )
+    ( Wallet, currentTip, genesisHash, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Slotting
     ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
@@ -105,6 +99,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , getGenesisBlockHash
     , isPending
     , rangeIsValid
     , wholeRange
@@ -291,7 +286,7 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
             (utxo cp)
             (block0 ^. #header)
             (getState cp)
-            (blockchainParameters cp)
+            (genesisHash cp)
 
 {-------------------------------------------------------------------------------
                                    Wallets
@@ -299,13 +294,13 @@ instance GenState s => Arbitrary (InitialCheckpoint s) where
 
 instance GenState s => Arbitrary (Wallet s) where
     shrink w =
-        [ unsafeInitWallet u (currentTip w) s (blockchainParameters w)
+        [ unsafeInitWallet u (currentTip w) s (genesisHash w)
         | (u, s) <- shrink (utxo w, getState w) ]
     arbitrary = unsafeInitWallet
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> pure dummyGenesisParameters
+        <*> pure (getGenesisBlockHash dummyGenesisParameters)
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []

@@ -346,15 +346,16 @@ withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
 setupDB :: IO (FilePath, SqliteContext, DBLayerBench)
 setupDB = do
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f) ti
+    (ctx, db) <- newDBLayer nullTracer k defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
+    k = Quantity 108
     ti = pure . runIdentity . singleEraInterpreter (GenesisParameters
         { getGenesisBlockHash = Hash $ BS.replicate 32 0
         , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
         , getSlotLength = SlotLength 1
         , getEpochLength = EpochLength 21600
-        , getEpochStability = Quantity 108
+        , getEpochStability = k
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
         })
 
@@ -500,7 +501,7 @@ mkCheckpoints numCheckpoints utxoSize =
             (Hash $ label "headerHash" i)
         )
         initDummyState
-        dummyGenesisParameters
+        (getGenesisBlockHash dummyGenesisParameters)
 
     utxo i = Map.fromList $ zip
         (map fst $ mkInputs i utxoSize)
@@ -531,7 +532,7 @@ utxoFixture db@DBLayer{..} numCheckpoints utxoSize = do
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs DBLayer{..} =
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk)
-        [ snd $ initWallet block0 dummyGenesisParameters $
+        [ snd $ initWallet block0 (getGenesisBlockHash dummyGenesisParameters) $
             SeqState
                 (mkPool numAddrs i)
                 (mkPool numAddrs i)
@@ -635,7 +636,7 @@ instance NFData SqliteContext where
     rnf _ = ()
 
 testCp :: WalletBench
-testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
+testCp = snd $ initWallet block0 (getGenesisBlockHash dummyGenesisParameters) initDummyState
 
 {-# NOINLINE initDummyState #-}
 initDummyState :: SeqState 'Mainnet JormungandrKey

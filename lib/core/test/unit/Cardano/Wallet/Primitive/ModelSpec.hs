@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , balance
     , excluding
+    , getGenesisBlockHash
     , invariant
     , restrictedTo
     , txId
@@ -179,7 +180,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            (_, cp0) = initWallet @_ block0 dummyGenesisParameters s
+            (_, cp0) = initWallet' s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO mempty wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
@@ -193,7 +194,7 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    (_, cp0) = initWallet @_ block0 dummyGenesisParameters s
+    (_, cp0) = initWallet' @_ s
     bs = NE.fromList blockchain
     (filteredBlocks, cps) = NE.unzip $ applyBlocks bs cp0
     txs = fold $ (view #transactions) <$> filteredBlocks
@@ -209,7 +210,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    (_, wallet) = initWallet @_ block0 dummyGenesisParameters s
+    (_, wallet) = initWallet' s
     wallet' = snd $ applyBlock b wallet
 
 -- | applyBlocks increases the block height.
@@ -219,7 +220,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
     bh wallet' - bh wallet `shouldSatisfy` (> 0)
   where
     bs = NE.fromList (take n blockchain)
-    (_, wallet) = initWallet block0 dummyGenesisParameters s
+    (_, wallet) = initWallet' s
     wallet' = NE.last $ snd <$> applyBlocks bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
@@ -228,7 +229,7 @@ prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
     property $ blockHeight (currentTip wallet) === Quantity 0
   where
-    (_, wallet) = initWallet block0 dummyGenesisParameters s
+    (_, wallet) = initWallet' s
 
 -- Rationale here is that pending transactions contributes towards the total
 -- balance but also _cost_ something as fee.
@@ -394,7 +395,7 @@ instance Arbitrary (Hash "Tx") where
 instance Arbitrary (WithPending WalletState) where
     shrink _  = []
     arbitrary = do
-        (_, cp0) <- initWallet @_ block0 dummyGenesisParameters <$> arbitrary
+        (_, cp0) <- initWallet' <$> arbitrary
         subChain <- flip take blockchain <$> choose (1, length blockchain)
         let wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 subChain
         rewards <- Coin <$> oneof [pure 0, choose (1, 10000)]
@@ -471,6 +472,12 @@ addresses = map address
     $ concatMap outputs
     $ concatMap transactions
     blockchain
+
+initWallet'
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    =>  s
+    -> ([(Tx, TxMeta)], Wallet s)
+initWallet' = initWallet block0 (getGenesisBlockHash dummyGenesisParameters)
 
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test

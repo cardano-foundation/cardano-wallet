@@ -289,6 +289,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
     apiLayer (block0, np) tl nl = do
         db <- Sqlite.newDBFactory
             walletDbTracer
+            (getEpochStability $ genesisParameters np)
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =
                     getActiveSlotCoefficient (genesisParameters np)

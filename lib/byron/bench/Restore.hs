@@ -368,7 +368,7 @@ bench_restoration _proxy tracer socketPath np vData progressLogFile (wid, wname,
         let gp = genesisParameters np
         let convert = fromByronBlock gp
         let nw = convert <$> nw'
-        withBenchDBLayer @s @k tracer (timeInterpreter nw) $ \db -> do
+        withBenchDBLayer @s @k tracer (timeInterpreter nw) gp $ \db -> do
             BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
             sayErr . fmt $ networkText ||+ " tip is at " +|| sl ||+ ""
 
@@ -413,11 +413,17 @@ withBenchDBLayer
         )
     => Trace IO Text
     -> TimeInterpreter IO
+    -> GenesisParameters
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withBenchDBLayer tr ti action =
+withBenchDBLayer tr ti gp action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
+        let before = newDBLayer
+                (trMessageText tr)
+                (getEpochStability gp)
+                migrationDefaultValues
+                (Just dbFile)
+                ti
         let after = destroyDBLayer . fst
         bracket before after $ \(ctx, db) -> do
             migrateDB ctx

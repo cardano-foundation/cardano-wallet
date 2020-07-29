@@ -146,7 +146,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -209,6 +209,8 @@ withDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> Quantity "block" Word32
+       -- ^ Epoch stability, a.k.a security parameter, a.k.a @k@.
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
     -> Maybe FilePath
@@ -217,10 +219,10 @@ withDBLayer
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace defaultFieldValues mDatabaseDir timeInterpreter =
+withDBLayer trace k defaultFieldValues mDatabaseDir timeInterpreter =
     bracket before after
   where
-    before = newDBLayer trace defaultFieldValues mDatabaseDir timeInterpreter
+    before = newDBLayer trace k defaultFieldValues mDatabaseDir timeInterpreter
     after = destroyDBLayer . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
@@ -232,6 +234,8 @@ newDBFactory
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> Quantity "block" Word32
+       -- ^ Epoch stability, a.k.a security parameter, a.k.a @k@.
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
     -> TimeInterpreter IO
@@ -239,7 +243,7 @@ newDBFactory
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
-newDBFactory tr defaultFieldValues timeInterpreter = \case
+newDBFactory tr k defaultFieldValues timeInterpreter = \case
     Nothing -> do
         -- NOTE
         -- For the in-memory database, we do actually preserve the database
@@ -254,7 +258,7 @@ newDBFactory tr defaultFieldValues timeInterpreter = \case
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
                         (ctx, db) <-
-                            newDBLayer tr defaultFieldValues Nothing timeInterpreter
+                            newDBLayer tr k defaultFieldValues Nothing timeInterpreter
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -270,6 +274,7 @@ newDBFactory tr defaultFieldValues timeInterpreter = \case
         pure DBFactory
             { withDatabase = \wid action -> withRef refs wid $ withDBLayer
                 tr
+                k
                 defaultFieldValues
                 (Just $ databaseFile wid)
                 timeInterpreter
@@ -336,8 +341,6 @@ migrateManually
 migrateManually tr defaultFieldValues =
     ManualMigration $ \conn -> do
         assignDefaultPassphraseScheme conn
-
-        addActiveSlotCoefficientIfMissing conn
 
         addDesiredPoolNumberIfMissing conn
 
@@ -430,17 +433,6 @@ migrateManually tr defaultFieldValues =
       where
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
         rndAccountIx   = DBField RndStateAddressAccountIndex
-
-    -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
-    --   it is missing.
-    --
-    addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
-    addActiveSlotCoefficientIfMissing conn =
-        addColumn conn True (DBField CheckpointActiveSlotCoeff) value
-      where
-        value = toText
-            $ W.unActiveSlotCoefficient
-            $ defaultActiveSlotCoefficient defaultFieldValues
 
     -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
     -- table if it is missing.
@@ -548,13 +540,15 @@ newDBLayer
         )
     => Tracer IO DBLog
        -- ^ Logging object
+    -> Quantity "block" Word32
+       -- ^ Epoch stability, a.k.a security parameter, a.k.a @k@.
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
     -> Maybe FilePath
        -- ^ Path to database file, or Nothing for in-memory database
     -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
+newDBLayer trace k defaultFieldValues mDatabaseFile timeInterpreter = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
         startSqliteBackend
@@ -645,7 +639,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
             selectLatestCheckpoint wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
-                    pruneCheckpoints wid cp
+                    pruneCheckpoints k wid cp
                     deleteLooseTransactions
 
         {-----------------------------------------------------------------------
@@ -924,31 +918,20 @@ mkCheckpointEntity wid wal =
     header = W.currentTip wal
     sl = header ^. #slotNo
     (Quantity bh) = header ^. #blockHeight
-    gp = W.blockchainParameters wal
+    gh = W.genesisHash wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
         , checkpointBlockHeight = bh
-        , checkpointGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-        , checkpointGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-        , checkpointSlotLength = coerceSlotLength $ gp ^. #getSlotLength
-        , checkpointEpochLength = coerce (gp ^. #getEpochLength)
-        , checkpointEpochStability = coerce (gp ^. #getEpochStability)
-        , checkpointActiveSlotCoeff =
-            W.unActiveSlotCoefficient (gp ^. #getActiveSlotCoefficient)
-        , checkpointFeePolicyUnused = ""
-        , checkpointTxMaxSizeUnused = 0
+        , checkpointGenesisHash = BlockId (coerce gh)
         }
     utxo =
         [ UTxO wid sl (TxId input) ix addr coin
         | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
-
-    coerceSlotLength :: W.SlotLength -> Word64
-    coerceSlotLength (W.SlotLength x) = toEnum (fromEnum x)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
@@ -958,7 +941,7 @@ checkpointFromEntity
     -> s
     -> W.Wallet s
 checkpointFromEntity cp utxo s =
-    W.unsafeInitWallet utxo' header s gp
+    W.unsafeInitWallet utxo' header s gh
   where
     (Checkpoint
         _walletId
@@ -967,27 +950,13 @@ checkpointFromEntity cp utxo s =
         (BlockId parentHeaderHash)
         bh
         (BlockId genesisHash)
-        genesisStart
-        _feePolicyUnused
-        slotLength
-        epochLength
-        _txMaxSizeUnused
-        epochStability
-        activeSlotCoeff
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    gp = W.GenesisParameters
-        { getGenesisBlockHash = coerce genesisHash
-        , getGenesisBlockDate = W.StartTime genesisStart
-        , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
-        , getEpochLength = W.EpochLength epochLength
-        , getEpochStability = Quantity epochStability
-        , getActiveSlotCoefficient = W.ActiveSlotCoefficient activeSlotCoeff
-        }
+    gh = coerce genesisHash
 
 mkTxHistory
     :: W.WalletId
@@ -1182,13 +1151,14 @@ deleteCheckpoints wid filters = do
 
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
-    :: W.WalletId
+    :: Quantity "block" Word32
+       -- ^ Epoch stability, a.k.a security parameter, a.k.a @k@.
+    -> W.WalletId
     -> Checkpoint
     -> SqlPersistT IO ()
-pruneCheckpoints wid cp = do
+pruneCheckpoints k wid cp = do
     let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
-    let epochStability = Quantity $ checkpointEpochStability cp
-    let cps = sparseCheckpoints epochStability height
+    let cps = sparseCheckpoints k height
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.

@@ -274,6 +274,7 @@ serveWallet
         let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory
             walletDbTracer
+            (getEpochStability gp)
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =
                     getActiveSlotCoefficient gp

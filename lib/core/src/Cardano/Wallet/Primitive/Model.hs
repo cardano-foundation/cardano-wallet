@@ -48,7 +48,7 @@ module Cardano.Wallet.Primitive.Model
     , totalUTxO
     , availableUTxO
     , utxo
-    , blockchainParameters
+    , genesisHash
     ) where
 
 import Prelude
@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
-    , GenesisParameters (..)
+    , Hash (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -156,22 +156,22 @@ data Wallet s = Wallet
       -- | Address discovery state
     , getState :: s
 
-      -- | Parameters may change over time via protocol updates, so we keep
-      -- track of them as part of the wallet checkpoints.
-    , blockchainParameters :: GenesisParameters
+      -- | The genesis hash. Used to make sure a @Wallet@ checkpoint from one
+      -- chain doesn't end up being interpreted as part of another one.
+    , genesisHash :: Hash "Genesis"
     } deriving (Generic, Eq, Show)
 
 instance NFData s => NFData (Wallet s) where
-    rnf (Wallet u sl s gp) =
+    rnf (Wallet u sl s gh) =
         deepseq (rnf u) $
         deepseq (rnf sl) $
         deepseq (rnf s) $
-        deepseq (rnf gp) ()
+        deepseq (rnf gh) ()
 
 instance Buildable s => Buildable (Wallet s) where
-    build (Wallet u tip s gp) = "Wallet s\n"
+    build (Wallet u tip s gh) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
-        <> indentF 4 ("Parameters:\n" <> indentF 4 (build gp))
+        <> indentF 4 ("Parameters:\n" <> indentF 4 (build gh))
         <> indentF 4 ("UTxO: " <> build u)
         <> indentF 4 (build s)
 
@@ -186,16 +186,16 @@ initWallet
     :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Block
         -- ^ The genesis block
-    -> GenesisParameters
-        -- ^ Initial blockchain parameters
+    -> Hash "Genesis"
+        -- ^ Genesis hash
     -> s
         -- ^ Initial address discovery state
     -> ([(Tx, TxMeta)], Wallet s)
-initWallet block gp s =
+initWallet block gh s =
     let
         ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
     in
-        (txs, Wallet u (header block) s' gp)
+        (txs, Wallet u (header block) s' gh)
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -209,8 +209,8 @@ unsafeInitWallet
     -- ^ Header of the latest applied block (current tip)
     -> s
     -- ^ Address discovery state
-    -> GenesisParameters
-    -- ^ Blockchain parameters
+    -> Hash "Genesis"
+    -- ^ Genesis Hash
     -> Wallet s
 unsafeInitWallet = Wallet
 
@@ -219,7 +219,7 @@ updateState
     :: s
     -> Wallet s
     -> Wallet s
-updateState s (Wallet u tip _ gp) = Wallet u tip s gp
+updateState s (Wallet u tip _ gh) = Wallet u tip s gh
 
 -- | Represents the subset of data from a single block that are relevant to a
 --   particular wallet, discovered when applying a block to that wallet.
@@ -244,8 +244,8 @@ applyBlock
     => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
-applyBlock !b (Wallet !u _ s gp) =
-    (filteredBlock, Wallet u' (b ^. #header) s' gp)
+applyBlock !b (Wallet !u _ s gh) =
+    (filteredBlock, Wallet u' (b ^. #header) s' gh)
   where
     ((filteredBlock, u'), s') = prefilterBlock b u s
 

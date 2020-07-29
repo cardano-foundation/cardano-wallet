@@ -132,6 +132,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , getEpochStability
+    , getGenesisBlockHash
     , toTxHistory
     , wholeRange
     )
@@ -280,9 +282,10 @@ testMigrationPassphraseScheme = do
     withSystemTempDirectory "migration-db" $ \dir -> do
         let path = dir </> "db.sqlite"
         let ti = dummyTimeInterpreter
+        let k = error "unused from testMigrationPassphraseScheme"
         copyFile orig path
         (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+            withDBLayer @s @k tr k defaultFieldValues (Just path) ti
                 $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
                 $ do
                     Just a <- readWalletMeta $ PrimaryKey walNeedMigration
@@ -380,9 +383,10 @@ newMemoryDBLayer'
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
     (logVar, ) <$>
-        newDBLayer (traceInTVarIO logVar) defaultFieldValues Nothing ti
+        newDBLayer (traceInTVarIO logVar) k defaultFieldValues Nothing ti
   where
    ti = dummyTimeInterpreter
+   k = getEpochStability dummyGenesisParameters
 
 withLoggingDB
     ::  ( PersistState s
@@ -432,8 +436,9 @@ fileModeSpec =  do
 
     describe "DBFactory" $ do
         let ti = dummyTimeInterpreter
+        let k = getEpochStability dummyGenesisParameters
         let withDBFactory action = withSystemTempDirectory "DBFactory" $ \dir -> do
-                dbf <- newDBFactory nullTracer defaultFieldValues ti (Just dir)
+                dbf <- newDBFactory nullTracer k defaultFieldValues ti (Just dir)
                 action dir dbf
 
         let whileFileOpened delay f action = do
@@ -721,6 +726,7 @@ withTestDBFile action expectations = do
         removeFile fp
         withDBLayer
             (trMessageText trace)
+            k
             defaultFieldValues
             (Just fp)
             ti
@@ -728,6 +734,7 @@ withTestDBFile action expectations = do
         expectations fp
   where
     ti = dummyTimeInterpreter
+    k = getEpochStability dummyGenesisParameters
 
 inMemoryDBLayer
     :: PersistState s
@@ -749,9 +756,10 @@ newDBLayer'
     :: PersistState s
     => Maybe FilePath
     -> IO (SqliteContext, DBLayer IO s JormungandrKey)
-newDBLayer' fp = newDBLayer nullTracer defaultFieldValues fp ti
+newDBLayer' fp = newDBLayer nullTracer k defaultFieldValues fp ti
   where
     ti = dummyTimeInterpreter
+    k = getEpochStability dummyGenesisParameters
 
 -- | Clean the database
 cleanDB'
@@ -828,8 +836,9 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState 'Mainnet JormungandrKey)
-testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
+testCp = snd $ initWallet block0 gh initDummyState
   where
+    gh = getGenesisBlockHash dummyGenesisParameters
     initDummyState :: SeqState 'Mainnet JormungandrKey
     initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
       where
@@ -885,7 +894,9 @@ getTxsInLedger DBLayer {..} = do
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState 'Mainnet JormungandrKey)
-testCpSeq = snd $ initWallet block0 dummyGenesisParameters initDummyStateSeq
+testCpSeq = snd $ initWallet block0 gh initDummyStateSeq
+  where
+    gh = getGenesisBlockHash dummyGenesisParameters
 
 initDummyStateSeq :: SeqState 'Mainnet JormungandrKey
 initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap

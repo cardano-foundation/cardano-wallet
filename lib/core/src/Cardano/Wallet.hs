@@ -252,8 +252,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
     , availableUTxO
-    , blockchainParameters
     , currentTip
+    , genesisHash
     , getState
     , initWallet
     , updateState
@@ -539,7 +539,7 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
-    let (hist, cp) = initWallet block0 gp s
+    let (hist, cp) = initWallet block0 gh s
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -552,6 +552,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     (block0, NetworkParameters gp pp, _) = ctx ^. genesisData
+    gh = getGenesisBlockHash gp
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -575,7 +576,7 @@ createIcarusWallet
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials $
             mkUnboundedAddressPoolGap 10000
-    let (hist, cp) = initWallet block0 gp s
+    let (hist, cp) = initWallet block0 gh s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
@@ -596,6 +597,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     (block0, NetworkParameters gp pp, _) = ctx ^. genesisData
+    gh = getGenesisBlockHash gp
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
@@ -607,15 +609,14 @@ checkWalletIntegrity
 checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
         readCheckpoint (PrimaryKey wid)
-    whenDifferentGenesis (blockchainParameters cp) gp $ throwE $
+    let expected = gp ^. #getGenesisBlockHash
+    let stored = genesisHash cp
+    when (expected /= stored) $ throwE $
         ErrCheckIntegrityDifferentGenesis
-            (getGenesisBlockHash gp)
-            (getGenesisBlockHash (blockchainParameters cp))
+            expected
+            stored
   where
     db = ctx ^. dbLayer @s @k
-    whenDifferentGenesis bp1 bp2 = when $
-        (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
-        (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -787,7 +788,6 @@ restoreBlocks
 restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
     meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
-    let gp = blockchainParameters cp
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
@@ -805,7 +805,6 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
             , cert <- certs
             ]
     let txs = fold $ view #transactions <$> filteredBlocks
-    let k = gp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
     putTxHistory (PrimaryKey wid) txs
@@ -837,6 +836,11 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger @WalletLog
+
+    k = getEpochStability $ genesisParameters np
+      where
+        (_,np,_) = ctx ^. genesisData
+
 
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
