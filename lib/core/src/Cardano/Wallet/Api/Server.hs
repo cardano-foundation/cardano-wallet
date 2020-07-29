@@ -116,6 +116,7 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
+    , ErrReadChimericAccount (..)
     , ErrRemovePendingTx (..)
     , ErrSelectCoinsExternal (..)
     , ErrSelectForDelegation (..)
@@ -224,6 +225,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , SoftDerivation (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
     , deriveRewardAccount
     , digest
@@ -234,10 +236,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
-    , HasRewardAccount
     , IsOurs
     , IsOwned
     , KnownAddresses
@@ -410,6 +413,8 @@ import System.IO.Error
     )
 import System.Random
     ( getStdRandom, random )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
@@ -548,11 +553,13 @@ postWallet
         , SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
-        , HasRewardAccount s k
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
+        , IsOurs s ChimericAccount
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -563,7 +570,8 @@ postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
     Left  body' ->
         postShelleyWallet ctx generateKey body'
     Right body' ->
-        postAccountWallet ctx mkShelleyWallet liftKey W.manageRewardBalance body'
+        postAccountWallet ctx mkShelleyWallet liftKey
+            (W.manageRewardBalance @_ @_ @_ @_ @n) body'
 
 postShelleyWallet
     :: forall ctx s t k n.
@@ -576,7 +584,9 @@ postShelleyWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , HasRewardAccount s k
+        , IsOurs s ChimericAccount
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -587,7 +597,7 @@ postShelleyWallet ctx generateKey body = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
-        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @t @k wrk wid)
+        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @t @k @n wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @t @k) (ApiT wid)
@@ -608,8 +618,8 @@ postAccountWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , HasRewardAccount s k
         , HasWorkerRegistry s k ctx
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -1200,8 +1210,9 @@ postTransaction
         , ctx ~ ApiLayer s t k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , HasRewardAccount s k
         , WalletKey k
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ArgGenChange s
@@ -1213,7 +1224,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards = \case
     PostPaymentOrWithdrawalData (Left body) -> do
         let pwd = coerce $ getApiT $ body ^. #passphrase
         let src = getApiMnemonicT $ body ^. #source
-        let (xprv, acct) = W.someChimericAccount src
+        let (xprv, acct) = W.someChimericAccount @ShelleyKey src
 
         selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             withdrawal <- if withdrawRewards
@@ -1253,7 +1264,7 @@ postTransaction ctx genChange (ApiT wid) withdrawRewards = \case
         selection <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             withdrawal <- if withdrawRewards
                 then do
-                    acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                    acct <- liftHandler $ W.readChimericAccount @_ @s @k @n wrk wid
                     raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                     liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
                 else pure (Quantity 0)
@@ -1355,8 +1366,9 @@ apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
 postTransactionFee
     :: forall ctx s t k n.
         ( Buildable (ErrValidateSelection t)
-        , HasRewardAccount s k
         , ctx ~ ApiLayer s t k
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ApiT WalletId
@@ -1372,7 +1384,7 @@ postTransactionFee ctx (ApiT wid) withdrawRewards = \case
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             withdrawal <- if withdrawRewards
                 then do
-                    acct <- liftHandler $ W.readChimericAccount @_ @s @k wrk wid
+                    acct <- liftHandler $ W.readChimericAccount @_ @s @k @n wrk wid
                     raw <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                     liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid raw
                 else pure $ Quantity 0
@@ -2391,8 +2403,18 @@ instance LiftHandler ErrJoinStakePool where
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
-        ErrFetchRewardsNoSuchWallet e -> handler e
+        ErrFetchRewardsReadChimericAccount e -> handler e
         ErrFetchRewardsNetworkUnreachable e -> handler e
+
+instance LiftHandler ErrReadChimericAccount where
+    handler = \case
+        ErrReadChimericAccountNoSuchWallet e -> handler e
+        ErrReadChimericAccountNotAShelleyWallet ->
+            apiError err403 InvalidWalletType $ mconcat
+                [ "It is regrettable but you've just attempted an operation "
+                , "that is invalid for this type of wallet. Only new 'Shelley' "
+                , "wallets can do something with rewards and this one isn't."
+                ]
 
 instance LiftHandler ErrQuitStakePool where
     handler = \case

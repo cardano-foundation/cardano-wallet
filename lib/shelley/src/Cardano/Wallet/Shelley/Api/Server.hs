@@ -91,6 +91,8 @@ import Cardano.Wallet.Api.Types
     ( ApiErrorCode (..)
     , ApiStakePool
     , ApiT (..)
+    , PostPaymentOrWithdrawalData (..)
+    , PostPaymentOrWithdrawalFeeData (..)
     , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -272,6 +274,7 @@ server byron icarus shelley spl ntp =
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
                     postTransaction byron genChange wid False tx
+
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
@@ -285,8 +288,8 @@ server byron icarus shelley spl ntp =
              )
         :<|>
             (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid False tx)
-                (icarus, postTransactionFee icarus wid False tx)
+                (byron , postTransactionFee byron wid False (byronFee tx))
+                (icarus, postTransactionFee icarus wid False (byronFee tx))
             )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)
@@ -296,6 +299,8 @@ server byron icarus shelley spl ntp =
                 (byron , getTransaction byron wid txid)
                 (icarus, getTransaction icarus wid txid)
              )
+      where
+        byronFee = PostPaymentOrWithdrawalFeeData . Right
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =

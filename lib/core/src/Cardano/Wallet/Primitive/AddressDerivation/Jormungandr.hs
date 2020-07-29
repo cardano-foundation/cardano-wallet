@@ -80,9 +80,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( HasRewardAccount (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-    ( SeqState )
+    ( IsOurs (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState, rewardAccountKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -108,7 +108,6 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack )
 
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -435,8 +434,12 @@ instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), Jorm
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance forall n. HasRewardAccount (SeqState n JormungandrKey) JormungandrKey where
-    rewardAccountKey  = Seq.rewardAccountKey
+instance IsOurs (SeqState n JormungandrKey) ChimericAccount
+  where
+    isOurs account state =
+        (account == ourAccount, state)
+      where
+        ourAccount = toChimericAccount $ rewardAccountKey state
 
 instance ToChimericAccount JormungandrKey where
     toChimericAccount = ChimericAccount . xpubPublicKey . getKey

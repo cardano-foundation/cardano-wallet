@@ -25,15 +25,14 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
-    , HasRewardAccount(..)
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub )
+    ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase (..), ToChimericAccount (..) )
+    ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 
@@ -127,11 +126,3 @@ class KnownAddresses s where
     knownAddresses
         :: s
         -> [Address]
-
--- | Interface for getting access to a wallet's reward account. Every wallet is
--- assumed to have a single account on a specific location.
---
--- Each account key can also be encoded to a 'ChimericAccount' (also called
--- reward address in cardano-node).
-class ToChimericAccount k => HasRewardAccount s k where
-    rewardAccountKey  :: s -> k 'AddressK XPub

@@ -414,7 +414,7 @@ instance PaymentAddress n IcarusKey
       where
         err = ErrInvalidAddress (proxy, k) Proxy
 
-instance {-# OVERLAPS #-} IsOurs (SeqState n IcarusKey) ChimericAccount where
+instance IsOurs (SeqState n IcarusKey) ChimericAccount where
     isOurs _account state = (False, state)
 
 {-------------------------------------------------------------------------------

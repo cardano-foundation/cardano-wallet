@@ -229,7 +229,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , HasRewardAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -955,7 +954,7 @@ readChimericAccount
     -> WalletId
     -> ExceptT ErrReadChimericAccount IO ChimericAccount
 readChimericAccount ctx wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrReadChimericNoSuchWallet
+    cp <- withExceptT ErrReadChimericAccountNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
         $ readCheckpoint (PrimaryKey wid)
@@ -963,7 +962,7 @@ readChimericAccount ctx wid = db & \DBLayer{..} -> do
         Nothing -> throwE ErrReadChimericAccountNotAShelleyWallet
         Just Refl -> pure
             $ toChimericAccount
-            $ rewardAccountKey @shelley @ShelleyKey
+            $ Seq.rewardAccountKey
             $ getState cp
   where
     db = ctx ^. dbLayer @s @k
@@ -1161,14 +1160,14 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
 normalizeDelegationAddress
     :: forall s k n.
         ( DelegationAddress n k
-        , HasRewardAccount s k
+        , s ~ SeqState n k
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint (rewardAccountKey @s @k s)
+    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -2282,7 +2281,7 @@ data ErrNotASequentialWallet
 
 data ErrReadChimericAccount
     = ErrReadChimericAccountNotAShelleyWallet
-    | ErrReadChimericNoSuchWallet ErrNoSuchWallet
+    | ErrReadChimericAccountNoSuchWallet ErrNoSuchWallet
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

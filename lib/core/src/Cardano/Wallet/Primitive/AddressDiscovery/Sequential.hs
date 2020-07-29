@@ -64,7 +64,6 @@ import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
-    , ChimericAccount (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -76,7 +75,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
-    , ToChimericAccount (..)
     , WalletKey (..)
     , deriveRewardAccount
     )
@@ -615,13 +613,6 @@ instance
             ours = isJust (internal <|> external)
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
-
-instance (ToChimericAccount k) => IsOurs (SeqState n k) ChimericAccount
-  where
-    isOurs account state =
-        (account == ourAccount, state)
-      where
-        ourAccount = toChimericAccount @k $ rewardAccountKey state
 
 instance
     ( SoftDerivation k
