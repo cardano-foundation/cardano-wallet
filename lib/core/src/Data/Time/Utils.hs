@@ -10,12 +10,17 @@ module Data.Time.Utils
     ( nominalDiffTimeToMicroseconds
     , utcTimePred
     , utcTimeSucc
+    , waitUntil
     ) where
 
 import Prelude
 
+import Control.Concurrent
+    ( threadDelay )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Data.Time
-    ( NominalDiffTime, UTCTime, addUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 
 -- | Converts the specified time difference into an integral number of
 --   microseconds.
@@ -32,3 +37,16 @@ utcTimeSucc = addUTCTime $ succ 0
 --   for which 't1 < t0'.
 utcTimePred :: UTCTime -> UTCTime
 utcTimePred = addUTCTime $ pred 0
+
+-- | Suspends the current thread until after the specified time has passed.
+--
+-- There is no guarantee that the thread will be rescheduled promptly when the
+-- delay has expired, but the thread will never continue to run earlier than
+-- specified.
+--
+waitUntil :: MonadIO m => UTCTime -> m ()
+waitUntil futureTime = liftIO $ do
+    currentTime <- getCurrentTime
+    threadDelay
+        $ nominalDiffTimeToMicroseconds
+        $ futureTime `diffUTCTime` currentTime
