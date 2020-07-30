@@ -44,7 +44,6 @@ library
     , cborg
     , command
     , containers
-    , contra-tracer
     , criterion-measurement
     , cryptonite
     , deepseq

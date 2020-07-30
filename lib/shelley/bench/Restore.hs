@@ -98,9 +98,7 @@ import Cardano.Wallet.Primitive.Types
     , log10
     )
 import Cardano.Wallet.Shelley
-    ( HasNetworkId (..) )
-import Cardano.Wallet.Shelley
-    ( SomeNetworkDiscriminant (..) )
+    ( HasNetworkId (..), SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, Shelley, emptyGenesis, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Launch
@@ -108,9 +106,7 @@ import Cardano.Wallet.Shelley.Launch
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTagFor (..) )
-import Cardano.Wallet.Shelley.Transaction
-    ( newTransactionLayer )
+    ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeRunExceptT )
 import Control.Concurrent

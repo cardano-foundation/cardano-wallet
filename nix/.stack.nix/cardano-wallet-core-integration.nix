@@ -44,7 +44,6 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."command" or (errorHandler.buildDepError "command"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."criterion-measurement" or (errorHandler.buildDepError "criterion-measurement"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))

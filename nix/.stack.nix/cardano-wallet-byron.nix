@@ -59,7 +59,6 @@
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-          (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
           (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))

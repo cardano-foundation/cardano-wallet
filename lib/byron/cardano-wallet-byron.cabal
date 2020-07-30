@@ -62,7 +62,6 @@ library
     , ouroboros-consensus-byron
     , ouroboros-network
     , ouroboros-network-framework
-    , process
     , retry
     , servant-server
     , temporary

@@ -232,23 +232,17 @@ benchmark restore
     , cardano-addresses
     , cardano-wallet-core
     , cardano-wallet-core-integration
-    , optparse-applicative
     , cardano-wallet-shelley
-    , cardano-wallet-launcher
-    , ouroboros-network
     , contra-tracer
     , containers
-    , criterion-measurement
     , cryptonite
     , deepseq
     , digest
-    , directory
     , filepath
     , fmt
     , iohk-monitoring
     , persistent
     , persistent-template
-    , process
     , say
     , temporary
     , text

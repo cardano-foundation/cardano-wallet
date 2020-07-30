@@ -51,7 +51,7 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Byron.Faucet
     ( initFaucet )
 import Cardano.Wallet.Byron.Launch
-    ( withCardanoNode, withCardanoSelfNode )
+    ( withCardanoSelfNode )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
