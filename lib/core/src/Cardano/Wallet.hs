@@ -382,7 +382,9 @@ import Data.Set
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( UTCTime, getCurrentTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+import Data.Time.Utils
+    ( waitUntil )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
@@ -2134,6 +2136,34 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
     action xprv scheme
   where
     db = ctx ^. dbLayer @s @k
+
+-- | Runs the given action, returning immediately on success, but suspending
+--   the current thread for a period of time in the event of a failure.
+--
+-- In the event of a failure, this function aims to require a total execution
+-- time that is approximately equal to the specified 'minimumExecutionTime'
+-- argument, and independent of the time period actually required to run the
+-- action.
+--
+-- However, this property can /only/ be guaranteed if the 'minimumExecutionTime'
+-- argument is longer than the time period actually required to run the action.
+--
+-- Therefore, it's important to choose a value of 'minimumExecutionTime' that is
+-- likely to be longer than the time required to run the action.
+--
+withMinimumExecutionTimeOnFailure
+    :: MonadIO m
+    => NominalDiffTime
+    -> ExceptT e m a
+    -> ExceptT e m a
+withMinimumExecutionTimeOnFailure minimumExecutionTime action = do
+    timeAtStart <- liftIO getCurrentTime
+    lift (runExceptT action) >>= \case
+        Left failure -> do
+            waitUntil (minimumExecutionTime `addUTCTime` timeAtStart)
+            throwE failure
+        Right result ->
+            pure result
 
 {-------------------------------------------------------------------------------
                                    Errors
