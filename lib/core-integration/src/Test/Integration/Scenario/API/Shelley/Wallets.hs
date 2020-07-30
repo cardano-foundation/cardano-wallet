@@ -26,6 +26,8 @@ import Cardano.Mnemonic
     , genEntropy
     , mnemonicToText
     )
+import Cardano.Wallet
+    ( minimumExecutionTimeOnAuthFailure )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
@@ -68,6 +70,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Data.Time
+    ( diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -932,6 +936,19 @@ spec = do
             let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
+
+    it "WALLETS_UPDATE_PASS_08 - Delay on authentication failure" $ \ctx -> do
+        w <- emptyWalletWith ctx
+            ("Wallet to update pass", "cardano-passphrase", 20)
+        let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
+        startTime <- getCurrentTime
+        rup <- request @ApiWallet ctx
+            (Link.putWalletPassphrase @'Shelley w) Default payload
+        endTime <- getCurrentTime
+        let timeElapsed = endTime `diffUTCTime` startTime
+        timeElapsed `shouldSatisfy` (> minimumExecutionTimeOnAuthFailure)
+        expectResponseCode @IO HTTP.status403 rup
+        expectErrorMessage errMsg403WrongPass rup
 
     it "WALLETS_COIN_SELECTION_01 - \
         \A singleton payment is included in the coin selection output." $

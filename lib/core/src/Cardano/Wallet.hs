@@ -164,6 +164,7 @@ module Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
 
     -- ** Root Key
+    , minimumExecutionTimeOnAuthFailure
     , withRootKey
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
