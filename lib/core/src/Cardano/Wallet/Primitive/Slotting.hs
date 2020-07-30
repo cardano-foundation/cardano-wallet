@@ -258,8 +258,6 @@ slotAtTimeDetailed t = do
 --
 -- This may or may not be what we actually want.
 --
--- fixme: this rank-2 type is inconvenient to set up in network layer.
--- fixme: this is backend-specific code -- it should be moved to the shelley package.
 type TimeInterpreter m = forall a. Qry a -> m a
 
 -- | An 'Interpreter' for a single era, where the slotting from
