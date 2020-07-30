@@ -116,15 +116,16 @@ execBenchWithNode networkConfig action = do
 withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
     -- Temporary directory for storing socket and node database
-    let withDbDir cb = case argNodeDatabaseDir args of
-            Nothing -> withSystemTempDirectory "cw-byron" cb
+    let withNodeDir cb = case argNodeDatabaseDir args of
+            Nothing -> withSystemTempDirectory "cw-node" cb
             Just d -> cb d
 
     let networkDir = argsNetworkDir args
     port <- fromIntegral <$> getRandomPort
-    withDbDir $ \dbDir -> action CardanoNodeConfig
-        { nodeConfigFile   = networkDir </> "configuration.json"
-        , nodeDatabaseDir  = dbDir
+    withNodeDir $ \dir -> action CardanoNodeConfig
+        { nodeDir          = dir
+        , nodeConfigFile   = networkDir </> "configuration.json"
+        , nodeDatabaseDir  = "db"
         , nodeDlgCertFile  = Nothing
         , nodeSignKeyFile  = Nothing
         , nodeTopologyFile = networkDir </> "topology.json"
@@ -132,6 +133,7 @@ withNetworkConfiguration args action = do
         , nodeKesKeyFile   = Nothing
         , nodeVrfKeyFile   = Nothing
         , nodePort         = Just (NodePort port)
+        , nodeLoggingHostname = Nothing
         }
 
 argsNetworkDir :: RestoreBenchArgs -> FilePath

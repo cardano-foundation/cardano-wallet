@@ -169,7 +169,7 @@ argsNetworkConfig args = case argNetworkName args of
     "mainnet" ->
         MainnetConfig
     _ ->
-        TestnetConfig (argsNetworkDir args </> "byron-genesis.json")
+        TestnetConfig (argsNetworkDir args </> "genesis-byron.json")
 
 -- | Run all available benchmarks.
 cardanoRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO ()
