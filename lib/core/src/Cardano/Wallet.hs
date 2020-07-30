@@ -2172,7 +2172,8 @@ withMinimumExecutionTimeOnFailure minimumExecutionTime action = do
     timeAtStart <- liftIO getCurrentTime
     lift (runExceptT action) >>= \case
         Left failure -> do
-            waitUntil (minimumExecutionTime `addUTCTime` timeAtStart)
+            let timeToExit = minimumExecutionTime `addUTCTime` timeAtStart
+            waitUntil timeToExit
             throwE failure
         Right result ->
             pure result
