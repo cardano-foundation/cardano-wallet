@@ -133,6 +133,7 @@ import Cardano.Wallet
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
+    , ErrWithdrawalNotWorth (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasLogger
@@ -313,7 +314,7 @@ import Control.Concurrent.Async
 import Control.Exception
     ( IOException, bracket, throwIO, tryJust )
 import Control.Monad
-    ( forM, forever, void, (>=>) )
+    ( forM, forever, void, when, (>=>) )
 import Control.Monad.Catch
     ( handle )
 import Control.Monad.IO.Class
@@ -1240,6 +1241,9 @@ postTransaction ctx genChange (ApiT wid) body = do
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 (, const (xprv, mempty))
                     <$> liftIO (W.readNextWithdrawal @_ @s @t @k wrk wid wdrl)
+
+        when (isJust (body ^. #withdrawal) && wdrl == Quantity 0) $ do
+            liftHandler $ throwE ErrWithdrawalNotWorth
 
         selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl
         pure (selection, credentials)
@@ -2447,6 +2451,16 @@ instance LiftHandler ErrNotASequentialWallet where
             apiError err403 InvalidWalletType $ mconcat
                 [ "I cannot derive new address for this wallet type. "
                 , "Make sure to use a sequential wallet style, like Icarus."
+                ]
+
+instance LiftHandler ErrWithdrawalNotWorth where
+    handler = \case
+        ErrWithdrawalNotWorth ->
+            apiError err403 WithdrawalNotWorth $ mconcat
+                [ "I've noticed that you're requesting a withdrawal from an "
+                , "account that is either empty or doesn't have a balance big "
+                , "enough to deserve being withdrawn. I won't proceed with that "
+                , "request."
                 ]
 
 instance LiftHandler (Request, ServerError) where

@@ -114,6 +114,7 @@ module Cardano.Wallet
     , ErrValidateSelection
     , ErrNotASequentialWallet (..)
     , ErrUTxOTooSmall (..)
+    , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -2285,6 +2286,10 @@ data ErrNotASequentialWallet
 data ErrReadChimericAccount
     = ErrReadChimericAccountNotAShelleyWallet
     | ErrReadChimericAccountNoSuchWallet ErrNoSuchWallet
+    deriving (Generic, Eq, Show)
+
+data ErrWithdrawalNotWorth
+    = ErrWithdrawalNotWorth
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
