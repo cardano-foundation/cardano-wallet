@@ -75,6 +75,8 @@ module Test.Integration.Framework.TestData
     , errMsgNotInDictionary
     , errMsg403RejectedTip
     , errMsg400MinWithdrawalWrong
+    , errMsg403WithdrawalNotWorth
+    , errMsg403NotAShelleyWallet
     ) where
 
 import Prelude
@@ -427,3 +429,15 @@ errMsg403RejectedTip =
     "I am sorry but I refuse to rollback to the given point. \
     \Notwithstanding I'll willingly rollback to the genesis point (0, 0) \
     \should you demand it."
+
+errMsg403WithdrawalNotWorth :: String
+errMsg403WithdrawalNotWorth =
+    "I've noticed that you're requesting a withdrawal from an account that is \
+    \either empty or doesn't have a balance big enough to deserve being \
+    \withdrawn. I won't proceed with that request."
+
+errMsg403NotAShelleyWallet :: String
+errMsg403NotAShelleyWallet =
+    "It is regrettable but you've just attempted an operation that is invalid \
+    \for this type of wallet. Only new 'Shelley' wallets can do something with \
+    \rewards and this one isn't."

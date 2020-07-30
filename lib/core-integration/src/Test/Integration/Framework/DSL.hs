@@ -788,7 +788,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 
 rewardWallet :: Context t -> IO (ApiWallet, Mnemonic 24)
 rewardWallet ctx = do
-    mw <- nextWallet @"reward" ctx
+    mw <- nextWallet @"reward" (_faucet ctx)
     let mnemonic = mnemonicToText mw
     let payload = Json [aesonQQ|{
             "name": "MIR Wallet",
