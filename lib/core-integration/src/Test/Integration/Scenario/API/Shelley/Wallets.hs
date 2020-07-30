@@ -950,6 +950,19 @@ spec = do
         expectResponseCode @IO HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
 
+    it "WALLETS_UPDATE_PASS_09 - \
+        \No delay on authentication success" $ \ctx -> do
+        w <- emptyWalletWith ctx
+            ("Wallet to update pass", "cardano-passphrase", 20)
+        let payload = updatePassPayload "cardano-passphrase" "whatever-pass"
+        startTime <- getCurrentTime
+        rup <- request @ApiWallet ctx
+            (Link.putWalletPassphrase @'Shelley w) Default payload
+        endTime <- getCurrentTime
+        let timeElapsed = endTime `diffUTCTime` startTime
+        timeElapsed `shouldSatisfy` (< minimumExecutionTimeOnAuthFailure)
+        expectResponseCode @IO HTTP.status204 rup
+
     it "WALLETS_COIN_SELECTION_01 - \
         \A singleton payment is included in the coin selection output." $
         \ctx -> do
