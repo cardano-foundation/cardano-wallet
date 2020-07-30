@@ -53,7 +53,7 @@ show ylabel;
 
 set terminal svg dynamic size 1200,700 background rgb 'white';
 set output "plot.svg";
-set title "Restoring byron wallets on $network";
+set title "Restoring $target wallets on $network";
 
 set key left top;
 
