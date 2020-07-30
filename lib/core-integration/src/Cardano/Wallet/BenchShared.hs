@@ -164,12 +164,15 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenc
           <> short 'c'
           <> metavar "DIR"
           <> envDefault "CARDANO_NODE_CONFIGS" envConfigsDir
-          <> help "Directory containing configurations for each network.")
+          <> help "Directory containing configurations for each network. \
+              \This must contain a subdirectory corresponding to NETWORK, \
+              \which has the files configuration.json and topology.json.")
     <*> optional (strOption
         ( long "node-db"
           <> metavar "DB"
           <> envDefault "NODE_DB" envNodeDatabaseDir
-          <> help "Directory to put cardano-node state. Defaults to $NODE_DB, falls back to temporary directory"))
+          <> help "Directory to put cardano-node state. Defaults to $NODE_DB, \
+              \falls back to temporary directory"))
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env = showDefaultWith (const ('$':name))
