@@ -60,6 +60,7 @@ module Test.Integration.Framework.DSL
     , emptyWallet
     , emptyWalletWith
     , emptyByronWalletFromXPrvWith
+    , rewardWallet
     , getFromResponse
     , getFromResponseList
     , json
@@ -784,6 +785,27 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
         (Link.postWallet @'Shelley) Default payload
     expectResponseCode @IO HTTP.status201 r
     return (getFromResponse id r)
+
+rewardWallet :: Context t -> IO (ApiWallet, Mnemonic 24)
+rewardWallet ctx = do
+    mw <- nextWallet @"reward" ctx
+    let mnemonic = mnemonicToText mw
+    let payload = Json [aesonQQ|{
+            "name": "MIR Wallet",
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": #{fixturePassphrase}
+        }|]
+    r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+    expectResponseCode @IO HTTP.status201 r
+    let w = getFromResponse id r
+    waitForNextEpoch ctx
+    eventually "MIR wallet: wallet is 100% synced " $ do
+        rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+        verify rg
+            [ expectField (#balance . #getApiT . #available . #getQuantity) (.> 0)
+            , expectField (#balance . #getApiT . #reward . #getQuantity) (.> 0)
+            ]
+        pure (getFromResponse id rg, mw)
 
 fixtureRawTx
     :: Context t

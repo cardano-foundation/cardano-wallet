@@ -23,13 +23,17 @@
 module Cardano.Wallet.Shelley.Launch
     ( -- * Integration Launcher
       withCluster
-    , sendFaucetFundsTo
     , withBFTNode
     , withStakePool
     , NodeParams (..)
     , singleNodeParams
     , PoolConfig (..)
     , RunningNode (..)
+
+      -- * Faucets
+    , sendFaucetFundsTo
+    , moveInstantaneousRewardsTo
+    , oneMillionAda
 
     -- * Utils
     , NetworkConfiguration (..)
@@ -38,7 +42,6 @@ module Cardano.Wallet.Shelley.Launch
     , parseGenesisData
     , withTempDir
     , withSystemTempDir
-    , oneMillionAda
 
     -- * Logging
     , ClusterLog (..)
@@ -46,6 +49,8 @@ module Cardano.Wallet.Shelley.Launch
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubPublicKey )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.BM.Data.Severity
@@ -634,7 +639,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     (kesPrv, kesPub) <- genKesKeyPair tr dir
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
 
-    stakeCert <- issueStakeCert tr dir stakePub
+    stakeCert <- issueStakeCert tr dir "stake-pool" stakePub
     poolRegistrationCert <- issuePoolRegistrationCert
         tr dir opPub vrfPub stakePub url metadata pledgeAmt
     mPoolRetirementCert <- traverse
@@ -931,9 +936,14 @@ issueOpCert tr dir kesPub opPrv opCount = do
     pure file
 
 -- | Create a stake address registration certificate
-issueStakeCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> IO FilePath
-issueStakeCert tr dir stakePub = do
-    let file = dir </> "stake.cert"
+issueStakeCert
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> String
+    -> FilePath
+    -> IO FilePath
+issueStakeCert tr dir prefix stakePub = do
+    let file = dir </> prefix <> "-stake.cert"
     void $ cli tr
         [ "shelley", "stake-address", "registration-certificate"
         , "--staking-verification-key-file", stakePub
@@ -1074,6 +1084,67 @@ sendFaucetFundsTo tr dir allTargets = do
       | n > 0 = (take n l) : (group n (drop n l))
       | otherwise = error "Negative or zero n"
 
+moveInstantaneousRewardsTo
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> [(XPub, Coin)]
+    -> IO ()
+moveInstantaneousRewardsTo tr dir targets = do
+    certs <- mapM (mkVerificationKey >=> mkMIRCertificate) targets
+    (faucetInput, faucetPrv) <- takeFaucet
+    let file = dir </> "mir-tx.raw"
+
+    let total = fromIntegral $ sum $ map (getCoin . snd) targets
+    let totalDeposit = fromIntegral (length targets) * depositAmt
+    when (total > faucetAmt) $ error "moveInstantaneousRewardsTo: too much to pay"
+
+    sink <- genSinkAddress tr dir
+
+    void $ cli tr $
+        [ "shelley", "transaction", "build-raw"
+        , "--tx-in", faucetInput
+        , "--ttl", "600"
+        , "--fee", show (faucetAmt - 1 - totalDeposit)
+        , "--tx-out", sink <> "+" <> "1"
+        , "--out-file", file
+        ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
+
+    let bftPrv = testData </> "bft-leader" <> ".skey"
+
+    tx <- signTx tr dir file [faucetPrv, bftPrv]
+    submitTx tr "MIR certificates" tx
+  where
+    testData :: FilePath
+    testData = $(getTestData) </> "cardano-node-shelley"
+
+    mkVerificationKey
+        :: (XPub, Coin)
+        -> IO (String, FilePath, Coin)
+    mkVerificationKey (xpub, reward) = do
+        let base16 = T.unpack $ T.decodeUtf8 $ hex $ xpubPublicKey xpub
+        let json = Aeson.object
+                [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
+                , "description" .= Aeson.String "Stake Verification Key"
+                , "cborHex" .= Aeson.String ("5820" <> T.pack base16)
+                ]
+        let file = dir </> base16 <> ".vk"
+        BL8.writeFile file (Aeson.encode json)
+        pure (base16, file, reward)
+
+    mkMIRCertificate
+        :: (String, FilePath, Coin)
+        -> IO [FilePath]
+    mkMIRCertificate (pub, stakeVK, Coin reward) = do
+        let mirCert = dir </> pub <> ".mir"
+        stakeCert <- issueStakeCert tr dir pub stakeVK
+        void $ cli tr
+            [ "shelley", "governance", "create-mir-certificate"
+            , "--treasury"
+            , "--reward", show reward
+            , "--stake-verification-key-file", stakeVK
+            , "--out-file", mirCert
+            ]
+        pure [stakeCert, mirCert]
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
@@ -1089,8 +1160,25 @@ prepareKeyRegistration tr dir = do
 
     (faucetInput, faucetPrv) <- takeFaucet
 
-    cert <- issueStakeCert tr dir stakePub
+    cert <- issueStakeCert tr dir "pre-registered" stakePub
+    sink <- genSinkAddress tr dir
 
+    void $ cli tr
+        [ "shelley", "transaction", "build-raw"
+        , "--tx-in", faucetInput
+        , "--tx-out", sink <> "+" <> "1"
+        , "--ttl", "400"
+        , "--fee", show (faucetAmt - depositAmt - 1)
+        , "--certificate-file", cert
+        , "--out-file", file
+        ]
+    pure (file, faucetPrv)
+
+genSinkAddress
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> IO String
+genSinkAddress tr dir = do
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
     void $ cli tr
@@ -1103,17 +1191,7 @@ prepareKeyRegistration tr dir = do
         , "--payment-verification-key-file", sinkPub
         , "--mainnet"
         ]
-
-    void $ cli tr
-        [ "shelley", "transaction", "build-raw"
-        , "--tx-in", faucetInput
-        , "--tx-out", init addr <> "+" <> "1"
-        , "--ttl", "400"
-        , "--fee", show (faucetAmt - depositAmt - 1)
-        , "--certificate-file", cert
-        , "--out-file", file
-        ]
-    pure (file, faucetPrv)
+    pure (init addr)
 
 -- | Sign a transaction with all the necessary signatures.
 signTx

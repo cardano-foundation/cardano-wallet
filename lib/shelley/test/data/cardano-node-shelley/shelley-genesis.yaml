@@ -40,7 +40,7 @@ genDelegs:
   8ae01cab15f6235958b1147e979987bbdb90788f7c4e185f1632427a:
     delegate: b7bf59bb963aa785afe220f5b0d3deb826fd0bcaeeee58cb81ab443d
     vrf: 4ebcf8b4c13c24d89144d72f544d1c425b4a3aa1ace30af4eb72752e75b40d3e
-updateQuorum: 5
+updateQuorum: 1
 maxMajorPV: 25446
 maxLovelaceSupply: 1000000000000000000
 protocolMagicId: 764824073

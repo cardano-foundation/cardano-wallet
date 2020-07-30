@@ -9,6 +9,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{- HLINT ignore "Use head" -}
+
 module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
     ) where
@@ -60,6 +62,8 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
+import Test.Integration.Faucet
+    ( mirMnemonics )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -87,6 +91,7 @@ import Test.Integration.Framework.DSL
     , listAllTransactions
     , listTransactions
     , request
+    , rewardWallet
     , toQueryString
     , unsafeRequest
     , utcIso8601ToText
@@ -1240,6 +1245,11 @@ spec = do
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
+
+    it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> do
+        w <- rewardWallet ctx (mirMnemonics !! 0)
+        print $ w ^. #balance . #getApiT
+
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do

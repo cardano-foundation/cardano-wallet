@@ -27,7 +27,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Integration.Faucet
-    ( Faucet (..), icaMnemonics, rndMnemonics, seqMnemonics )
+    ( Faucet (..), icaMnemonics, mirMnemonics, rndMnemonics, seqMnemonics )
 import Test.Integration.Jcli
     ( argHex, argInt, getBlock0H, jcli, jcli_, sinkAddress )
 
@@ -45,6 +45,7 @@ initFaucet policy = Faucet
     <$> newMVar seqMnemonics
     <*> newMVar icaMnemonics
     <*> newMVar rndMnemonics
+    <*> newMVar mirMnemonics
     <*> newMVar (mkTxBuilder policy <$> externalAddresses)
 
 -- | Prepare externally signed Tx for Jormungandr
