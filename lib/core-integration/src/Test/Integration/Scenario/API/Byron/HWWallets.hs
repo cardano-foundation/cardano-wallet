@@ -319,7 +319,7 @@ spec = do
             source <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
             let [addr] = take 1 $ icarusAddresses @n mnemonics
 
-            let amount = Quantity 1
+            let amount = Quantity minUTxOValue
             let payment = AddressAmount (ApiT addr, Proxy @n) amount
             selectCoins @n @'Byron ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200

@@ -228,7 +228,7 @@ spec = do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-            let amt = fromIntegral minUTxOValue
+            let amt = minUTxOValue
             let args = T.unpack <$>
                     [ wRestored ^. walletId
                     , "--payment", T.pack (show amt) <> "@" <> addr
