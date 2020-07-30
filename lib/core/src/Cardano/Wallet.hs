@@ -2097,6 +2097,14 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
                 }
         putWalletMeta (PrimaryKey wid) (modify meta)
 
+-- | Specifies a minimum bound on the length of time that is allowed to elapse
+--   before an authentication failure can be reported to the user.
+--
+minimumExecutionTimeOnAuthFailure :: NominalDiffTime
+minimumExecutionTimeOnAuthFailure = threeSeconds
+  where
+    threeSeconds = fromRational 3
+
 -- | Execute an action which requires holding a root XPrv.
 --
 -- 'withRootKey' takes a callback function with two arguments:
@@ -2121,20 +2129,24 @@ withRootKey
     -> (ErrWithRootKey -> e)
     -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
-withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
-    (xprv, scheme) <- withExceptT embed $ mapExceptT atomically $ do
-        mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
-            lift (readWalletMeta $ PrimaryKey wid)
-        mXPrv <- lift $ readPrivateKey $ PrimaryKey wid
-        case (mXPrv, mScheme) of
-            (Just (xprv, hpwd), Just scheme) -> do
-                withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
-                    return $ checkPassphrase scheme pwd hpwd
-                return (xprv, scheme)
-            _ ->
-                throwE $ ErrWithRootKeyNoRootKey wid
+withRootKey ctx wid pwd embed action =  do
+    (xprv, scheme) <- withMinimumExecutionTimeOnFailure
+        minimumExecutionTimeOnAuthFailure
+        doAuthentication
     action xprv scheme
   where
+    doAuthentication = db & \DBLayer {..} ->
+        withExceptT embed $ mapExceptT atomically $ do
+            mScheme <- (>>= (fmap passphraseScheme . passphraseInfo)) <$>
+                lift (readWalletMeta $ PrimaryKey wid)
+            mXPrv <- lift $ readPrivateKey $ PrimaryKey wid
+            case (mXPrv, mScheme) of
+                (Just (xprv, hpwd), Just scheme) -> do
+                    withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
+                        return $ checkPassphrase scheme pwd hpwd
+                    return (xprv, scheme)
+                _ ->
+                    throwE $ ErrWithRootKeyNoRootKey wid
     db = ctx ^. dbLayer @s @k
 
 -- | Runs the given action, returning immediately on success, but suspending
