@@ -17,7 +17,7 @@ Available OPTIONS:
 Available COMMANDS:
   <a href="#serve">serve</a>                    Serve an HTTP API that listens for commands/actions.
   recovery-phrase
-    <a href="#recovery-phrase-generate">generate</a>               Generate an English recovery phrase 
+    <a href="#recovery-phrase-generate">generate</a>               Generate an English recovery phrase
   wallet
     <a href="#wallet-list">list</a>                   List all known wallets
     create
@@ -97,7 +97,9 @@ Serve API that listens for commands/actions. Before launching user should start 
 >   --tls-sv-key FILE        The RSA Server key which signed the x.509 server
 >                            certificate.
 >   --node-socket FILE       Path to the node's domain socket.
->   --testnet FILE           Path to the genesis .json file.
+>   --mainnet                Use Cardano mainnet protocol
+>   --testnet FILE           Path to the byron genesis data in JSON format.
+>   --staging FILE           Path to the byron genesis data in JSON format.
 >   --database DIR           use this directory for storing wallets. Run in-memory
 >                            otherwise.
 >   --sync-tolerance DURATION
@@ -114,17 +116,61 @@ Serve API that listens for commands/actions. Before launching user should start 
 >
 > ```
 
-##### example
+##### example on mainnet
 
-Start cardano-node:
+1. Build `cardano-node` with mainnet configuration:
 
-- on Mainnet:
+   ```
+   git clone https://github.com/input-output-hk/cardano-node.git
+   cd cardano-node
+   nix-build -A scripts.mainnet.node -o mainnet-node-local
+   ```
 
-```
-git clone https://github.com/input-output-hk/cardano-node.git
-cd cardano-node
-nix-build -A scripts.mainnet.node -o mainnet-node-local && ./mainnet-node-local
-```
+2. Start `cardano-node` for mainnet. This will create a directory called `./state-node-mainnet`.
+
+   ```
+   ./mainnet-node-local
+   ```
+
+3. Start `cardano-wallet` (in another terminal).
+
+   ```
+   cardano-wallet serve \
+       --mainnet \
+       --node-socket state-node-mainnet/node.socket \
+       --database ./wallets-mainnet
+   ```
+
+##### example on testnet
+
+Note that for testnets, a _byron_ genesis file is required, even
+though the network is in the shelley era. This is because the chain is
+synced from the beginning of the first era.
+
+1. Download byronGenesis for testnet from [Cardano Configurations](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html).
+
+2. Build `cardano-node` with testnet configuration:
+
+   ```
+   git clone https://github.com/input-output-hk/cardano-node.git
+   cd cardano-node
+   nix-build -A scripts.testnet.node -o testnet-node-local
+   ```
+
+3. Start `cardano-node` for testnet. This will create a directory called `./state-node-testnet`.
+
+   ```
+   ./testnet-node-local
+   ```
+
+4. Start `cardano-wallet` (in another terminal).
+
+   ```
+   cardano-wallet serve \
+       --testnet testnet-byron-genesis.json \
+       --node-socket state-node-testnet/node.socket \
+       --database ./wallets-testnet
+   ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
@@ -410,7 +456,7 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 > `cardano-wallet address create [--port INT] [--address-index INDEX] WALLET_ID`
 
-Create new address for random wallet. 
+Create new address for random wallet.
 
 ```
 $ cardano-wallet address create 03f4c150aa4626e28d02be95f31d3c79df344877
@@ -483,11 +529,11 @@ Extract the root extended private key from a recovery phrase. New recovery phras
 > ```
 > Usage: cardano-wallet key from-recovery-phrase ([--base16] | [--base58] | [--bech32]) STYLE
 >   Convert a recovery phrase to an extended private key
-> 
+>
 > Available options:
 >   -h,--help                Show this help text
 >   STYLE                    Byron | Icarus | Jormungandr | Shelley
-> 
+>
 > The recovery phrase is read from stdin.
 
 
@@ -507,12 +553,12 @@ Derive child key from root private key. The parent key is read from standard inp
 > ```
 > Usage: cardano-wallet key child ([--base16] | [--base58] | [--bech32]) [--legacy] DERIVATION-PATH
 >   Derive child keys from a parent public/private key
-> 
+>
 > Available options:
 >   -h,--help                Show this help text
->   DERIVATION-PATH          Slash-separated derivation path. 
+>   DERIVATION-PATH          Slash-separated derivation path.
 >                            Hardened indexes are marked with a 'H' (e.g. 1852H/1815H/0H/0).
-> 
+>
 > The parent key is read from stdin.
 > ```
 
@@ -526,15 +572,15 @@ xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtc
 
 ## key public
 
-Extract the public key of an extended private key. Keys can be obtained using <a href="#key-from-recovery-phrase">`key from-recovery-phrase`</a> and <a href="#key-child">`key child`</a>. 
+Extract the public key of an extended private key. Keys can be obtained using <a href="#key-from-recovery-phrase">`key from-recovery-phrase`</a> and <a href="#key-child">`key child`</a>.
 
 > ```
 > Usage: cardano-wallet-jormungandr key public ([--base16] | [--base58] | [--bech32])
 >   Get the public counterpart of a private key
-> 
+>
 > Available options:
 >   -h,--help                Show this help text
-> 
+>
 > The private key is read from stdin.
 > ```
 
@@ -549,12 +595,12 @@ xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ync
 ## key inspect
 
 > ```
-> Usage: cardano-wallet-jormungandr key inspect 
+> Usage: cardano-wallet-jormungandr key inspect
 >   Show information about a key
-> 
+>
 > Available options:
 >   -h,--help                Show this help text
-> 
+>
 > The parent key is read from stdin.
 > ```
 
