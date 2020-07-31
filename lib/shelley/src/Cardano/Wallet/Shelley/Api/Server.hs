@@ -314,12 +314,12 @@ server byron icarus shelley spl ntp =
 
     network :: Server Network
     network =
-        getNetworkInformation genesis nl
+        getNetworkInformation syncTolerance nl
         :<|> getNetworkParameters genesis nl
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer @t
-        genesis = icarus ^. genesisData
+        genesis@(_,_,syncTolerance) = icarus ^. genesisData
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus

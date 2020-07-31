@@ -1591,10 +1591,10 @@ getCurrentEpoch ctx = do
 
 getNetworkInformation
     :: forall t. (HasCallStack)
-    => (Block, NetworkParameters, SyncTolerance)
+    => SyncTolerance
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
-getNetworkInformation (_block0, _, st) nl = do
+getNetworkInformation st nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
