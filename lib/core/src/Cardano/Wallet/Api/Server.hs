@@ -1140,12 +1140,13 @@ putRandomAddress
     -> ApiT WalletId
     -> ApiAddress
     -> Handler NoContent
-putRandomAddress ctx (ApiT wid) apiAddr = do
+putRandomAddress ctx (ApiT wid) (ApiAddress apiAddr) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE
         $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid [addr]
     pure NoContent
   where
-    addr = (error "TODO: decodeAddr") apiAddr
+    addr = either (error "TODO: Handle error") Prelude.id
+        $ addressFromText (ctx ^. W.addressScheme) apiAddr
 
 putRandomAddresses
     :: forall ctx s t k.
@@ -1162,7 +1163,10 @@ putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
         $ \wrk -> liftHandler $ W.importRandomAddresses @_ @s @k wrk wid addrs'
     pure NoContent
   where
-    addrs' = (error "TODO: decode addrs") addrs
+    addrs' = map decodeAddr addrs
+    decodeAddr = either (error "TODO: Handle error") Prelude.id
+        . addressFromText (ctx ^. W.addressScheme)
+        . apiAddress
 
 listAddresses
     :: forall ctx s t k.
@@ -1791,7 +1795,7 @@ mkApiTransaction
     -> (W.TxMeta, UTCTime)
     -> Lens' ApiTransaction (Maybe ApiTimeReference)
     -> m ApiTransaction
-mkApiTransaction ti _addrScheme txid ins outs ws (meta, timestamp) setTimeReference = do
+mkApiTransaction ti addrScheme txid ins outs ws (meta, timestamp) setTimeReference = do
     timeRef <- timeReference
     return $ tx & setTimeReference .~ Just timeRef
   where
@@ -1805,7 +1809,7 @@ mkApiTransaction ti _addrScheme txid ins outs ws (meta, timestamp) setTimeRefere
         , direction = ApiT (meta ^. #direction)
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
         , outputs = toAddressAmount <$> outs
-        , withdrawals = mkApiWithdrawal <$> Map.toList ws
+        , withdrawals = mkApiWithdrawal addrScheme <$> Map.toList ws
         , status = ApiT (meta ^. #status)
         }
 
@@ -1830,7 +1834,8 @@ mkApiTransaction ti _addrScheme txid ins outs ws (meta, timestamp) setTimeRefere
     toAddressAmount (TxOut addr c) =
         AddressAmount (ApiAddress $ encodeAddr addr) (mkApiCoin c)
 
-    encodeAddr = error "todo: encodeAddr"
+    encodeAddr = addressToText addrScheme
+
 
 mkApiCoin
     :: Coin
@@ -1838,12 +1843,13 @@ mkApiCoin
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
 
 mkApiWithdrawal
-    :: (ChimericAccount, Coin)
+    :: AddressScheme k
+    -> (ChimericAccount, Coin)
     -> ApiWithdrawal
-mkApiWithdrawal (acct, c) =
-    ApiWithdrawal (encodeChimericAcc acct) (mkApiCoin c)
-  where
-    encodeChimericAcc = error "TODO"
+mkApiWithdrawal AddressScheme{stakeAddressToText} (acct, c) =
+    ApiWithdrawal
+        (stakeAddressToText acct)
+        (mkApiCoin c)
 
 coerceCoin :: AddressScheme k -> AddressAmount ApiAddress -> TxOut
 coerceCoin addrScheme (AddressAmount (ApiAddress addr) (Quantity c)) =

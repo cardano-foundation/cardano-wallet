@@ -287,6 +287,8 @@ shelleyScheme net mstakingKey = AddressScheme
         BS.pack [enterprise + networkId] <> f
     , addressToText = T.decodeUtf8 . hex . unAddress
     , addressFromText = _decodeAddress
+    , stakeAddressFromText = error "todo"
+    , stakeAddressToText = error "todo"
     }
   where
     keyHash = blake2b224 . unXPub . getRawKey

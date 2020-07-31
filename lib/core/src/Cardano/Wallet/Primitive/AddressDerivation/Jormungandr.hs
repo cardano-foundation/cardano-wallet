@@ -303,6 +303,8 @@ jormungandrScheme net rewardKey = AddressScheme
     , addressFromFingerprint = error "todo: jorm addressFromFingerprint"
     , addressToText = error "todo: jorm addressToText"
     , addressFromText = error "todo: jormungandr addressFromText"
+    , stakeAddressFromText = error "todo"
+    , stakeAddressToText = error "todo"
     }
 
   where

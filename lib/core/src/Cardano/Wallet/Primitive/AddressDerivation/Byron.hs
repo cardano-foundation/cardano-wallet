@@ -169,6 +169,8 @@ byronScheme net = AddressScheme
         Mainnet -> decodeLegacyAddress Nothing
         Testnet pm -> decodeLegacyAddress . Just . ProtocolMagic . fromIntegral $ pm
         Staging _ -> error "TODO: staging"
+    , stakeAddressFromText = error "todo"
+    , stakeAddressToText = error "todo"
     }
   where
     _addressFromKey = \k ->

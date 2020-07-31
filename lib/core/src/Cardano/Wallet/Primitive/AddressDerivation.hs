@@ -184,6 +184,10 @@ data AddressScheme (key :: Depth -> * -> *) = AddressScheme
         :: KeyFingerprint -> Address
         -- TODO: Can we remove the need for this somehow?
         -- I think we can, by parameterizing AddressPool over address.
+    , stakeAddressFromText
+        :: Text -> Either TextDecodingError ChimericAccount
+    , stakeAddressToText
+        :: ChimericAccount -> Text
     } deriving Generic
 
 instance Show (AddressScheme k) where
