@@ -77,6 +77,7 @@ module Test.Integration.Framework.TestData
     , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
+    , errMsg403InputsDepleted
     ) where
 
 import Prelude
@@ -250,6 +251,11 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 ---
 --- Error messages
 ---
+
+errMsg403InputsDepleted :: String
+errMsg403InputsDepleted = "I cannot select enough UTxO from your wallet to construct\
+  \ an adequate transaction. Try sending a smaller amount or increasing the number\
+  \ of available UTxO."
 
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\

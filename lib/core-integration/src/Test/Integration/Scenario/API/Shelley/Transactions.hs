@@ -111,6 +111,7 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
+    , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
@@ -1255,47 +1256,60 @@ spec = do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> do
+    -- Reward wallets have 100k ADA UTxO and 1M ADA rewards,
+    -- fixtureWalletsWith have 100k ADA UTxO too
+    -- Verifying withdrawals for some boundary values
+    let rewardsMatrix = [ ("redeem sending exactly rewards", oneMillionAda)
+                        , ("redeem sending exactly UTxO", 100 * oneThousandAda)
+                        , ("redeem sending more than UTxO", 100 * oneThousandAda + oneAda)
+                        , ("redeem sending less than UTxO", 100 * oneThousandAda - oneAda)
+                        , ("redeem sending more than rewards", oneMillionAda + oneAda)
+                        , ("redeem sending less than rewards", oneMillionAda - oneAda)
+                        ]
+    describe "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ do
+
+      forM_ rewardsMatrix $ \(name, amt) -> it name $ \ctx -> do
         (wSrc,_) <- rewardWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
+        print wSrc
 
         let payload = Json [json|{
-                "withdrawal": "self",
-                "payments": [{
-                    "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
+              "withdrawal": "self",
+              "payments": [{
+                  "address": #{addr},
+                  "amount": { "quantity": #{amt}, "unit": "lovelace" }
+              }],
+              "passphrase": #{fixturePassphrase}
+          }|]
         rTx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload
+          (Link.createTransaction @'Shelley wSrc) Default payload
         verify rTx
-            [ expectResponseCode HTTP.status202
-            , expectField #withdrawals
-                (`shouldSatisfy` (not . null))
-            ]
+          [ expectResponseCode HTTP.status202
+          , expectField #withdrawals
+              (`shouldSatisfy` (not . null))
+          ]
 
         eventually "rewards are transferred from self to self" $ do
-            rW <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wSrc) Default payload
-            print rW
-            verify rW
-                [ expectField (#balance . #getApiT . #available)
-                    (.> (wSrc ^. #balance . #getApiT . #available))
-                , expectField (#balance . #getApiT . #reward)
-                    (`shouldBe` Quantity 0)
-                ]
+          rW <- request @ApiWallet ctx
+              (Link.getWallet @'Shelley wSrc) Default payload
+          verify rW
+              [ expectField (#balance . #getApiT . #available)
+                  (.> (wSrc ^. #balance . #getApiT . #available))
+              , expectField (#balance . #getApiT . #reward)
+                  (`shouldBe` Quantity 0)
+              ]
 
-    it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ \ctx -> do
+    describe "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ do
+      forM_ rewardsMatrix $ \(name, amt) -> it name $ \ctx -> do
         (wOther, mw) <- rewardWallet ctx
-        wSelf  <- fixtureWallet ctx
+        wSelf  <- fixtureWalletWith @n ctx [100 * oneThousandAda]
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1416,6 +1430,67 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotAShelleyWallet
             ]
+
+    it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other" $ \ctx -> do
+        (_, mw) <- rewardWallet ctx
+        wSelf  <- emptyWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1000000, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- Try withdrawing when no UTxO on a wallet
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
+            ]
+
+    it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self" $ \ctx -> do
+        (wRewards, mw) <- rewardWallet ctx
+        wOther  <- emptyWallet ctx
+
+        -- migrate all utxo from rewards wallet
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wOther
+        let payloadMigr = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "addresses": [#{addr}]
+            }|]
+
+        let ep = Link.migrateWallet @'Shelley wRewards
+        rM <- request @[ApiTransaction n] ctx ep Default payloadMigr
+        expectResponseCode HTTP.status202 rM
+
+        eventually "No UTxO is on rewards wallet" $ do
+            rWOther <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wRewards) Default Empty
+            verify rWOther
+                [ expectField (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity 0)
+                ]
+
+        -- Try withdrawing when no UTxO on a wallet
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": #{oneAda}, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wRewards) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
+            ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do
@@ -1506,3 +1581,12 @@ spec = do
     plusDelta, minusDelta :: UTCTime -> UTCTime
     plusDelta = addUTCTime (toEnum 1000000000)
     minusDelta = addUTCTime (toEnum (-1000000000))
+
+    oneAda :: Natural
+    oneAda = 1_000_000
+
+    oneThousandAda :: Natural
+    oneThousandAda = 1_000 * oneAda
+
+    oneMillionAda :: Natural
+    oneMillionAda = 1_000 * oneThousandAda
