@@ -12,16 +12,19 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressWithState (..)
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+<<<<<<< HEAD
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , encodeAddress
     , getApiT
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
@@ -63,7 +66,8 @@ import Test.Integration.Framework.DSL
     , generateMnemonicsViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
-    , listAddresses
+    , listAddressesAsText
+    , listAddressesAsText
     , listAddressesViaCLI
     , listTransactionsViaCLI
     , listWalletsViaCLI
@@ -83,14 +87,17 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import qualified Data.Text as T
 
+<<<<<<< HEAD
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
+=======
+spec :: forall t . KnownCommand t => SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 spec = do
-
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
 
@@ -109,8 +116,7 @@ spec = do
 
         --send transaction to the wallet
         let amount = 11
-        addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        addr:_ <- listAddressesAsText ctx wDest
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -118,7 +124,7 @@ spec = do
 
         (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
-        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
+        _ <- expectValidJSON (Proxy @ApiTransaction) op
         cp `shouldBe` ExitSuccess
 
         eventually "Wallet balance is as expected" $ do
@@ -170,8 +176,7 @@ spec = do
 
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            addr:_ <- listAddressesAsText ctx wDest
             let args = T.unpack <$>
                     [ wRestored ^. walletId
                     , "--payment", "1@" <> addr
@@ -225,9 +230,14 @@ spec = do
 
             -- get fee
             wDest <- emptyWallet ctx
+<<<<<<< HEAD
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let amt = 1 :: Int
+=======
+            addr:_ <- listAddressesAsText ctx wDest
+            let amt = 1
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
             let args = T.unpack <$>
                     [ wRestored ^. walletId
                     , "--payment", T.pack (show amt) <> "@" <> addr
@@ -266,7 +276,7 @@ spec = do
                 listAddressesViaCLI @t ctx [T.unpack (w ^. walletId)]
             err `shouldBe` "Ok.\n"
             c `shouldBe` ExitSuccess
-            json <- expectValidJSON (Proxy @[ApiAddress n]) out
+            json <- expectValidJSON (Proxy @[ApiAddressWithState]) out
             length json `shouldBe` g
             forM_ [0..(g-1)] $ \addrNum -> do
                 expectCliListField

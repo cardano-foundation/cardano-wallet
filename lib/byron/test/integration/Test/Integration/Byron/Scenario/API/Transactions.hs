@@ -18,26 +18,27 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAddress (..)
+    , ApiByronWallet
     , ApiFee
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics
+<<<<<<< HEAD
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
+=======
+    , ApiWalletMigrationInfo
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     , Iso8601Time (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..), PaymentAddress (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Direction (..), TxStatus (..) )
+    ( Direction (..), TxStatus (..) )
 import Control.Monad
     ( forM, forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -105,7 +106,10 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+-- TODO: Taking NetworkDiscriminant as an argument is superfluous when it already
+-- exists within @Context@.
 spec
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
@@ -115,66 +119,101 @@ spec
         )
     => SpecWith (Context t)
 spec = do
+=======
+    :: forall t. NetworkDiscriminant -> SpecWith (Context t)
+spec n = do
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     describe "BYRON_TXS" $ do
         -- Random → Random
-        scenario_TRANS_CREATE_01_02 @n fixtureRandomWallet
-            [ fixtureRandomWalletAddrs @n
+        scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+            [ fixtureRandomWalletAddrs n
             ]
 
         -- Random → [Random, Icarus]
-        scenario_TRANS_CREATE_01_02 @n fixtureRandomWallet
-            [ fixtureRandomWalletAddrs @n
-            , fixtureIcarusWalletAddrs @n
+        scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+            [ fixtureRandomWalletAddrs n
+            , fixtureIcarusWalletAddrs n
             ]
 
         -- Icarus → Icarus
-        scenario_TRANS_CREATE_01_02 @n fixtureIcarusWallet
-            [ fixtureIcarusWalletAddrs @n
+        scenario_TRANS_CREATE_01_02 fixtureIcarusWallet
+            [ fixtureIcarusWalletAddrs n
             ]
 
         -- Icarus → [Icarus, Random]
-        scenario_TRANS_CREATE_01_02 @n fixtureRandomWallet
-            [ fixtureIcarusWalletAddrs @n
-            , fixtureRandomWalletAddrs @n
+        scenario_TRANS_CREATE_01_02 fixtureRandomWallet
+            [ fixtureIcarusWalletAddrs n
+            , fixtureRandomWalletAddrs n
             ]
 
+<<<<<<< HEAD
         -- TRANS_CREATE_03 requires actually being able to compute exact fees, which
         -- is not really possible w/ cardano-node. So, skipping.
 
         scenario_TRANS_CREATE_04b @n
         scenario_TRANS_CREATE_04c @n
         scenario_TRANS_CREATE_04d @n
+=======
+        scenario_TRANS_CREATE_02x
 
-        scenario_TRANS_CREATE_07 @n
+        -- TRANS_CREATE_03 requires actually being able to compute exact fees, which
+        -- is not really possible w/ cardano-node. So, skipping.
 
-        scenario_TRANS_ESTIMATE_01_02 @n fixtureRandomWallet
-            [ randomAddresses @n . entropyToMnemonic <$> genEntropy
+        scenario_TRANS_CREATE_04a
+        scenario_TRANS_CREATE_04b
+        scenario_TRANS_CREATE_04c
+        scenario_TRANS_CREATE_04d
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
+
+        scenario_TRANS_CREATE_07
+
+        scenario_TRANS_ESTIMATE_01_02 fixtureRandomWallet
+            [ randomAddresses n . entropyToMnemonic <$> genEntropy
             ]
 
-        scenario_TRANS_ESTIMATE_01_02 @n fixtureIcarusWallet
-            [ icarusAddresses @n . entropyToMnemonic <$> genEntropy
-            , icarusAddresses @n . entropyToMnemonic <$> genEntropy
+        scenario_TRANS_ESTIMATE_01_02 fixtureIcarusWallet
+            [ icarusAddresses n . entropyToMnemonic <$> genEntropy
+            , icarusAddresses n . entropyToMnemonic <$> genEntropy
             ]
 
+<<<<<<< HEAD
         scenario_TRANS_ESTIMATE_04b @n
         scenario_TRANS_ESTIMATE_04c @n
+=======
+        scenario_TRANS_ESTIMATE_04a
+        scenario_TRANS_ESTIMATE_04b
+        scenario_TRANS_ESTIMATE_04c
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
-        scenario_TRANS_REG_1670 @n (fixtureIcarusWalletWith @n)
+        scenario_TRANS_REG_1670 (fixtureIcarusWalletWith)
 
     describe "BYRON_RESTORATION" $ do
-        scenario_RESTORE_01 @n fixtureRandomWallet
-        scenario_RESTORE_02 @n (fixtureRandomWalletAddrs @n)
-        scenario_RESTORE_03 @n (fixtureRandomWalletAddrs @n)
+        scenario_RESTORE_01 fixtureRandomWallet
+        scenario_RESTORE_02 (fixtureRandomWalletAddrs n)
+        scenario_RESTORE_03 (fixtureRandomWalletAddrs n)
 
     describe "BYRON_UTXO" $ do
-        scenario_TRANS_UTXO_01 @n fixtureIcarusWallet (fixtureIcarusWalletAddrs @n)
-        scenario_TRANS_UTXO_01 @n fixtureRandomWallet (fixtureRandomWalletAddrs @n)
+        scenario_TRANS_UTXO_01 fixtureIcarusWallet (fixtureIcarusWalletAddrs n)
+        scenario_TRANS_UTXO_01 fixtureRandomWallet (fixtureRandomWalletAddrs n)
 
+<<<<<<< HEAD
+=======
+    describe "BYRON_MIGRATE" $ do
+        scenario_MIGRATE_01 fixtureRandomWallet
+        scenario_MIGRATE_02 fixtureRandomWallet 1
+        scenario_MIGRATE_02 fixtureRandomWallet 3
+        scenario_MIGRATE_02 fixtureRandomWallet 10
+        scenario_MIGRATE_02 fixtureIcarusWallet 1
+        scenario_MIGRATE_02 fixtureIcarusWallet 3
+        scenario_MIGRATE_02 fixtureIcarusWallet 10
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 --
 -- Scenarios
 --
 
 scenario_TRANS_CREATE_01_02
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -182,6 +221,10 @@ scenario_TRANS_CREATE_01_02
         )
     => (Context t -> IO ApiByronWallet)
     -> [Context t -> IO (ApiByronWallet, [Address])]
+=======
+    :: (Context t -> IO ApiByronWallet)
+    -> [Context t -> IO (ApiByronWallet, [ApiAddress])]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     -- SETUP
@@ -189,11 +232,15 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     wSrc <- fixtureSource ctx
     (recipients, payments) <- fmap unzip $ forM fixtures $ \fixtureTarget -> do
         (wDest, addrs) <- fixtureTarget ctx
-        pure (wDest, mkPayment @n (head addrs) amnt)
+        pure (wDest, mkPayment (head addrs) amnt)
 
     -- ACTION
+<<<<<<< HEAD
     r <- postByronTransaction @n ctx wSrc payments fixturePassphrase
     let txid = getFromResponse #id r
+=======
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -231,7 +278,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
                     (`shouldBe` Quantity (faucetAmt + amnt))
                 ]
         let link = Link.listTransactions @'Byron wDest
-        rTrans <- request @([ApiTransaction n]) ctx link Default Empty
+        rTrans <- request @([ApiTransaction]) ctx link Default Empty
         verify rTrans
             [ expectResponseCode @IO HTTP.status200
             , expectListSize 11
@@ -261,6 +308,7 @@ scenario_TRANS_CREATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     n = fromIntegral $ length fixtures
 
 scenario_TRANS_ESTIMATE_01_02
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -268,6 +316,10 @@ scenario_TRANS_ESTIMATE_01_02
         )
     => (Context t -> IO ApiByronWallet)
     -> [IO [Address]]
+=======
+    :: (Context t -> IO ApiByronWallet)
+    -> [IO [ApiAddress]]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     -- SETUP
@@ -275,7 +327,7 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
     wSrc <- fixtureSource ctx
     payments <- forM fixtures $ \fixtureTarget -> do
         addrs <- fixtureTarget
-        pure $ mkPayment @n (head addrs) amnt
+        pure $ mkPayment (head addrs) amnt
 
     -- ACTION
     r <- estimateByronTransaction ctx wSrc payments
@@ -293,6 +345,7 @@ scenario_TRANS_ESTIMATE_01_02 fixtureSource fixtures = it title $ \ctx -> do
   where
     title = "TRANS_ESTIMATE_01/02 - " ++ show (length fixtures) ++ " recipient(s)"
 
+<<<<<<< HEAD
 scenario_TRANS_CREATE_04b
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
@@ -301,12 +354,50 @@ scenario_TRANS_CREATE_04b
         , PaymentAddress n IcarusKey
         )
     => SpecWith (Context t)
-scenario_TRANS_CREATE_04b = it title $ \ctx -> do
+=======
+scenario_TRANS_CREATE_02x
+    :: SpecWith (Context t)
+scenario_TRANS_CREATE_02x = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureCantCoverFee @n ctx
+    (wSrc, payments) <- fixtureSingleUTxO ctx
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc payments fixturePassphrase
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
+
+    -- ASSERTIONS
+    verify r
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage errMsg403UTxO
+        ]
+  where
+    title = "TRANS_CREATE_02x - Multi-output failure w/ single UTxO"
+
+scenario_TRANS_CREATE_04a
+    :: SpecWith (Context t)
+scenario_TRANS_CREATE_04a = it title $ \ctx -> do
+    -- SETUP
+    (wSrc, payments) <- fixtureErrInputsDepleted ctx
+
+    -- ACTION
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
+
+    -- ASSERTIONS
+    verify r
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage errMsg403InputsDepleted
+        ]
+  where
+    title = "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered"
+
+scenario_TRANS_CREATE_04b
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
+scenario_TRANS_CREATE_04b = it title $ \ctx -> do
+    -- SETUP
+    (wSrc, payments) <- fixtureCantCoverFee ctx
+
+    -- ACTION
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
 
     -- ASSERTIONS
     verify r
@@ -317,6 +408,7 @@ scenario_TRANS_CREATE_04b = it title $ \ctx -> do
     title = "TRANS_CREATE_04 - Can't cover fee"
 
 scenario_TRANS_CREATE_04c
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -324,12 +416,15 @@ scenario_TRANS_CREATE_04c
         , PaymentAddress n IcarusKey
         )
     => SpecWith (Context t)
+=======
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 scenario_TRANS_CREATE_04c = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureNotEnoughMoney @n ctx
+    (wSrc, payments) <- fixtureNotEnoughMoney ctx
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc payments fixturePassphrase
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
 
     -- ASSERTIONS
     verify r
@@ -340,6 +435,7 @@ scenario_TRANS_CREATE_04c = it title $ \ctx -> do
     title = "TRANS_CREATE_04 - Not enough money"
 
 scenario_TRANS_CREATE_04d
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -347,12 +443,15 @@ scenario_TRANS_CREATE_04d
         , PaymentAddress n IcarusKey
         )
     => SpecWith (Context t)
+=======
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 scenario_TRANS_CREATE_04d = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureWrongPassphrase @n ctx
+    (wSrc, payments) <- fixtureWrongPassphrase ctx
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc payments "This passphrase is wrong"
+    r <- postByronTransaction ctx wSrc payments "This passphrase is wrong"
 
     -- ASSERTIONS
     verify r
@@ -362,6 +461,7 @@ scenario_TRANS_CREATE_04d = it title $ \ctx -> do
   where
     title = "TRANS_CREATE_04 - Wrong password"
 
+<<<<<<< HEAD
 scenario_TRANS_ESTIMATE_04b
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
@@ -370,9 +470,30 @@ scenario_TRANS_ESTIMATE_04b
         , PaymentAddress n IcarusKey
         )
     => SpecWith (Context t)
+=======
+scenario_TRANS_ESTIMATE_04a
+    :: SpecWith (Context t)
+scenario_TRANS_ESTIMATE_04a = it title $ \ctx -> do
+    -- SETUP
+    (wSrc, payments) <- fixtureErrInputsDepleted ctx
+
+    -- ACTION
+    r <- estimateByronTransaction ctx wSrc payments
+
+    -- ASSERTIONS
+    verify r
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage errMsg403InputsDepleted
+        ]
+  where
+    title = "TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered"
+
+scenario_TRANS_ESTIMATE_04b
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureCantCoverFee @n ctx
+    (wSrc, payments) <- fixtureCantCoverFee ctx
 
     -- ACTION
     r <- estimateByronTransaction ctx wSrc payments
@@ -391,6 +512,7 @@ scenario_TRANS_ESTIMATE_04b = it title $ \ctx -> do
     title = "TRANS_ESTIMATE_04 - Can't cover fee"
 
 scenario_TRANS_ESTIMATE_04c
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -398,9 +520,12 @@ scenario_TRANS_ESTIMATE_04c
         , PaymentAddress n IcarusKey
         )
     => SpecWith (Context t)
+=======
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 scenario_TRANS_ESTIMATE_04c = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureNotEnoughMoney @n ctx
+    (wSrc, payments) <- fixtureNotEnoughMoney ctx
 
     -- ACTION
     r <- estimateByronTransaction ctx wSrc payments
@@ -414,6 +539,7 @@ scenario_TRANS_ESTIMATE_04c = it title $ \ctx -> do
     title = "TRANS_ESTIMATE_04 - Not enough money"
 
 scenario_TRANS_CREATE_07
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -421,12 +547,15 @@ scenario_TRANS_CREATE_07
         , PaymentAddress n ByronKey
         )
     => SpecWith (Context t)
+=======
+    :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 scenario_TRANS_CREATE_07 = it title $ \ctx -> do
     -- SETUP
-    (wSrc, payments) <- fixtureDeletedWallet @n ctx
+    (wSrc, payments) <- fixtureDeletedWallet ctx
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc payments fixturePassphrase
+    r <- postByronTransaction ctx wSrc payments fixturePassphrase
 
     -- ASSERTIONS
     verify r
@@ -437,6 +566,7 @@ scenario_TRANS_CREATE_07 = it title $ \ctx -> do
     title = "TRANS_CREATE_07 - Deleted wallet"
 
 scenario_RESTORE_01
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -444,6 +574,9 @@ scenario_RESTORE_01
         , PaymentAddress n ByronKey
         )
     => (Context t -> IO ApiByronWallet)
+=======
+    :: (Context t -> IO ApiByronWallet)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
     -- SETUP
@@ -451,11 +584,11 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
     wSrc <- fixtureSource ctx
     (wDest, payment, mnemonics) <- do
         (wDest, mnemonics) <- fixtureRandomWalletMws ctx
-        let addrs = randomAddresses @n mnemonics
-        pure (wDest, mkPayment @n (head addrs) amnt, mnemonics)
+        let addrs = randomAddresses (_network ctx) mnemonics
+        pure (wDest, mkPayment (head addrs) amnt, mnemonics)
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    r <- postByronTransaction ctx wSrc [payment] fixturePassphrase
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -515,12 +648,16 @@ scenario_RESTORE_01 fixtureSource = it title $ \ctx -> do
     title = "BYRON_RESTORE_01 - can restore recipient wallet from xprv"
 
 scenario_RESTORE_02
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
         , EncodeAddress n
         )
     => (Context t -> IO (ApiByronWallet, [Address]))
+=======
+    :: (Context t -> IO (ApiByronWallet, [ApiAddress]))
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
     -- SETUP
@@ -531,10 +668,10 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
             ("Byron Wallet Restored", rootXPrv, fixturePassphraseEncrypted)
     (wDest, payment) <- do
         (wDest, addrs) <- fixtureTarget ctx
-        pure (wDest, mkPayment @n (head addrs) amnt)
+        pure (wDest, mkPayment (head addrs) amnt)
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    r <- postByronTransaction ctx wSrc [payment] fixturePassphrase
 
     -- ASSERTIONS
     let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
@@ -573,12 +710,16 @@ scenario_RESTORE_02 fixtureTarget = it title $ \ctx -> do
     title = "BYRON_RESTORE_02 - can send tx from restored wallet from xprv"
 
 scenario_RESTORE_03
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
         , EncodeAddress n
         )
     => (Context t -> IO (ApiByronWallet, [Address]))
+=======
+    :: (Context t -> IO (ApiByronWallet, [ApiAddress]))
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     -- SETUP
@@ -588,7 +729,7 @@ scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
     let amnt = 100_000 :: Natural
     (_, payment) <- do
         (wDest, addrs) <- fixtureTarget ctx
-        pure (wDest, mkPayment @n (head addrs) amnt)
+        pure (wDest, mkPayment (head addrs) amnt)
 
     -- ACTION
     wSrc <- emptyByronWalletFromXPrvWith ctx "random"
@@ -602,7 +743,7 @@ scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
         ]
 
     -- ACTION
-    r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    r <- postByronTransaction ctx wSrc [payment] fixturePassphrase
     -- ASSERTIONS
     verify r
         [ expectResponseCode HTTP.status403
@@ -614,6 +755,7 @@ scenario_RESTORE_03 fixtureTarget = it title $ \ctx -> do
             \ proper balance but sending tx fails"
 
 scenario_TRANS_UTXO_01
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -621,6 +763,10 @@ scenario_TRANS_UTXO_01
         )
     => (Context t -> IO ApiByronWallet)
     -> (Context t -> IO (ApiByronWallet, [Address]))
+=======
+    :: (Context t -> IO ApiByronWallet)
+    -> (Context t -> IO (ApiByronWallet, [ApiAddress]))
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_TRANS_UTXO_01 fixtureSource fixtureTarget = it title $ \ctx -> do
     -- SETUP
@@ -630,10 +776,10 @@ scenario_TRANS_UTXO_01 fixtureSource fixtureTarget = it title $ \ctx -> do
     (wDest, addrs) <- fixtureTarget ctx
 
     forM_ matrix $ \(c, alreadyAbsorbed) -> do
-        let payment = mkPayment @n (head addrs) c
+        let payment = mkPayment (head addrs) c
 
         -- ACTION
-        r <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+        r <- postByronTransaction ctx wSrc [payment] fixturePassphrase
         let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
         let coinsSentAll = sum coinsSent
 
@@ -659,6 +805,7 @@ scenario_TRANS_UTXO_01 fixtureSource fixtureTarget = it title $ \ctx -> do
   where
     title = "TRANS_UTXO_01 - one recipient multiple txs received"
 
+<<<<<<< HEAD
 scenario_TRANS_REG_1670
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
@@ -667,8 +814,87 @@ scenario_TRANS_REG_1670
         , PaymentAddress n IcarusKey
         )
     => (Context t -> [Natural] -> IO ApiByronWallet)
+=======
+scenario_MIGRATE_01
+    :: (Context t -> IO ApiByronWallet)
+    -> SpecWith (Context t)
+scenario_MIGRATE_01 fixtureSource = it title $ \ctx -> do
+    wSrc <- fixtureSource ctx
+
+    r <- request @[ApiTransaction] ctx
+         (Link.migrateWallet @'Byron wSrc)
+         Default
+         (NonJson "{passphrase:,}")
+    expectResponseCode @IO HTTP.status400 r
+    expectErrorMessage errMsg400ParseError r
+  where
+    title = "BYRON_MIGRATE_01 - invalid payload, parser error"
+
+scenario_MIGRATE_02
+    :: (Context t -> IO ApiByronWallet)
+    -> Int
+    -> SpecWith (Context t)
+scenario_MIGRATE_02 fixtureSource addrCount = it title $ \ctx -> do
+
+    let n = _network ctx
+
+    -- Restore a Byron wallet with funds, to act as a source wallet:
+    wSrc <- fixtureSource ctx
+    let originalBalance =
+            view (#balance . #available . #getQuantity) wSrc
+
+    -- Create an empty target wallet:
+    (wDest, mw) <- emptyRandomWalletMws ctx
+    let addresses :: [Text] =
+            take addrCount $ apiAddress <$> randomAddresses n mw
+
+    -- Calculate the expected migration fee:
+    r0 <- request @ApiWalletMigrationInfo ctx
+          (Link.getMigrationInfo @'Byron wSrc) Default Empty
+    verify r0
+        [ expectResponseCode @IO HTTP.status200
+        , expectField #migrationCost (.> Quantity 0)
+        ]
+    let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
+
+    -- Perform a migration from the source wallet to the target wallet:
+    r1 <- request @[ApiTransaction] ctx
+          (Link.migrateWallet @'Byron wSrc)
+          Default
+          (Json [json|
+              { passphrase: #{fixturePassphrase}
+              , addresses: #{addresses}
+              }|])
+    verify r1
+        [ expectResponseCode @IO HTTP.status202
+        , expectField id (`shouldSatisfy` (not . null))
+        ]
+
+    -- Check that funds become available in the target wallet:
+    let expectedBalance = originalBalance - expectedFee
+    eventually "Wallet has expectedBalance" $ do
+        r2 <- request @ApiByronWallet ctx
+              (Link.getWallet @'Byron wDest) Default Empty
+        verify r2
+            [ expectField
+                (#balance . #available)
+                (`shouldBe` Quantity expectedBalance)
+            , expectField
+                (#balance . #total)
+                (`shouldBe` Quantity expectedBalance)
+            ]
+  where
+    title = "BYRON_MIGRATE_02 - after a migration operation successfully \
+            \completes, the correct amount eventually becomes available \
+            \in the target wallet for an arbitrary number of specified addresses."
+
+scenario_TRANS_REG_1670
+    :: (Context t -> [Natural] -> IO ApiByronWallet)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> SpecWith (Context t)
 scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
+    let n = _network ctx
+
     -- SETUP
     -- We want to construct two transactions, where the second transaction uses
     -- an output of the first one. We achieve this by having a wallet with a
@@ -685,13 +911,13 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
     let amnt = 1
     let (_, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
     wSrc <- fixture ctx [2*amnt+2*feeMax]
-    [sink] <- take 1 . icarusAddresses @n . entropyToMnemonic <$> genEntropy
-    let payment = mkPayment @n sink amnt
+    [sink] <- take 1 . icarusAddresses n . entropyToMnemonic <$> genEntropy
+    let payment = mkPayment sink amnt
 
     -- 1st TX
-    _ <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    _ <- postByronTransaction ctx wSrc [payment] fixturePassphrase
     eventually "transaction is inserted" $ do
-        rTxs <- request @[ApiTransaction n] ctx
+        rTxs <- request @[ApiTransaction] ctx
             (Link.listTransactions @'Byron wSrc) Default Empty
         verify rTxs
             [ expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
@@ -699,9 +925,9 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
             ]
 
     -- 2nd TX
-    _ <- postByronTransaction @n ctx wSrc [payment] fixturePassphrase
+    _ <- postByronTransaction ctx wSrc [payment] fixturePassphrase
     start <- eventually "transaction is inserted" $ do
-        rTxs <- request @[ApiTransaction n] ctx
+        rTxs <- request @[ApiTransaction] ctx
             (Link.listTransactions @'Byron wSrc) Default Empty
         verify rTxs
             [ expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
@@ -712,6 +938,7 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
         pure $ Iso8601Time $ maximum $ getTime <$> getFromResponse id rTxs
 
     -- ACTION
+<<<<<<< HEAD
     rTxsFromDate <- request @[ApiTransaction n] ctx
         (Link.listTransactions' @'Byron wSrc Nothing (Just start) Nothing Nothing)
         Default
@@ -719,12 +946,21 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
 
     rTxsAll <- request @[ApiTransaction n] ctx
         (Link.listTransactions' @'Byron wSrc Nothing Nothing Nothing Nothing)
+=======
+    rTxsFromDate <- request @[ApiTransaction] ctx
+        (Link.listTransactions' @'Byron wSrc (Just start) Nothing Nothing)
+        Default
+        Empty
+
+    rTxsAll <- request @[ApiTransaction] ctx
+        (Link.listTransactions' @'Byron wSrc Nothing Nothing Nothing)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         Default
         Empty
 
     -- ASSERTIONS
     let outgoing t = (view (#direction. #getApiT) t) == Outgoing
-    let txsFromDate, txsAllOutgoing :: [ApiTransaction n]
+    let txsFromDate, txsAllOutgoing :: [ApiTransaction]
         txsFromDate = getFromResponse id rTxsFromDate
         txsAllOutgoing = filter outgoing (getFromResponse id rTxsAll)
 
@@ -738,6 +974,7 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
   where
     title = "TRANS_REG_1670"
     verifyTxInputsAndOutputs
+<<<<<<< HEAD
         :: forall (d :: NetworkDiscriminant).
             ( DecodeAddress d
             , DecodeStakeAddress d
@@ -745,6 +982,9 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
             , PaymentAddress d IcarusKey
             )
         => [ApiTransaction d]
+=======
+        :: [ApiTransaction]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         -> IO()
     verifyTxInputsAndOutputs transactions = do
         let inputs = view (#inputs)
@@ -762,6 +1002,7 @@ scenario_TRANS_REG_1670 fixture = it title $ \ctx -> do
 -- | Returns a source wallet and a list of payments.
 --
 -- NOTE: Random or Icarus wallets can be used interchangeably here.
+<<<<<<< HEAD
 fixtureCantCoverFee
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
@@ -770,17 +1011,54 @@ fixtureCantCoverFee
         , PaymentAddress n IcarusKey
         )
     => Context t
+=======
+fixtureSingleUTxO
+    :: Context t
+    -> IO (ApiByronWallet, [Aeson.Value])
+fixtureSingleUTxO ctx = do
+    let n = _network ctx
+    wSrc  <- fixtureRandomWalletWith ctx [1_000_000]
+    addrs <- randomAddresses n . entropyToMnemonic <$> genEntropy
+    let payments =
+            [ mkPayment (head addrs) 100_000
+            , mkPayment (head addrs) 100_000
+            ]
+    pure (wSrc, payments)
+
+-- | Returns a source wallet and a list of payments. If submitted, the payments
+-- should result in an error 403.
+--
+-- NOTE: Random or Icarus wallets can be used interchangeably here.
+fixtureErrInputsDepleted
+    :: Context t
+    -> IO (ApiByronWallet, [Aeson.Value])
+fixtureErrInputsDepleted ctx = do
+    let n = _network ctx
+    wSrc  <- fixtureRandomWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+    addrs <- randomAddresses n . entropyToMnemonic <$> genEntropy
+    let amnts = [40_000_000, 22, 22] :: [Natural]
+    let payments = flip map (zip addrs amnts) $ uncurry (mkPayment)
+    pure (wSrc, payments)
+
+-- | Returns a source wallet and a list of payments.
+--
+-- NOTE: Random or Icarus wallets can be used interchangeably here.
+fixtureCantCoverFee
+    :: Context t
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> IO (ApiByronWallet, [Aeson.Value])
 fixtureCantCoverFee ctx = do
+    let n = _network ctx
     let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
-    wSrc <- fixtureIcarusWalletWith @n ctx [feeMin `div` 2]
-    addrs <- icarusAddresses @n . entropyToMnemonic <$> genEntropy
-    pure (wSrc, [mkPayment @n (head addrs) 1])
+    wSrc <- fixtureIcarusWalletWith ctx [feeMin `div` 2]
+    addrs <- icarusAddresses n . entropyToMnemonic <$> genEntropy
+    pure (wSrc, [mkPayment (head addrs) 1])
 
 -- | Returns a source wallet and a list of payments.
 --
 -- NOTE: Random or Icarus wallets can be used interchangeably here.
 fixtureNotEnoughMoney
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -788,16 +1066,21 @@ fixtureNotEnoughMoney
         , PaymentAddress n IcarusKey
         )
     => Context t
+=======
+    :: Context t
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> IO (ApiByronWallet, [Aeson.Value])
 fixtureNotEnoughMoney ctx = do
+    let n = _network ctx
     wSrc <- emptyIcarusWallet ctx
-    addrs <- icarusAddresses @n . entropyToMnemonic <$> genEntropy
-    pure (wSrc, [mkPayment @n (head addrs) 1])
+    addrs <- icarusAddresses n . entropyToMnemonic <$> genEntropy
+    pure (wSrc, [mkPayment (head addrs) 1])
 
 -- | Returns a source wallet and a list of payments.
 --
 -- NOTE: Random or Icarus wallets can be used interchangeably here.
 fixtureWrongPassphrase
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -805,15 +1088,20 @@ fixtureWrongPassphrase
         , PaymentAddress n IcarusKey
         )
     => Context t
+=======
+    :: Context t
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> IO (ApiByronWallet, [Aeson.Value])
 fixtureWrongPassphrase ctx = do
-    (wSrc, addrs) <- fixtureIcarusWalletAddrs @n ctx
-    pure (wSrc, [mkPayment @n (head addrs) 100_000])
+    let n = _network ctx
+    (wSrc, addrs) <- fixtureIcarusWalletAddrs n ctx
+    pure (wSrc, [mkPayment (head addrs) 100_000])
 
 -- | Returns a source wallet and a list of payments.
 --
 -- NOTE: Random or Icarus wallets can be used interchangeably here.
 fixtureDeletedWallet
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
@@ -821,12 +1109,16 @@ fixtureDeletedWallet
         , PaymentAddress n ByronKey
         )
     => Context t
+=======
+    :: Context t
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> IO (ApiByronWallet, [Aeson.Value])
 fixtureDeletedWallet ctx = do
+    let n = _network ctx
     wSrc <- emptyRandomWallet ctx
     _ <- request @() ctx (Link.deleteWallet @'Byron wSrc) Default Empty
-    addrs <- randomAddresses @n . entropyToMnemonic <$> genEntropy
-    pure (wSrc, [mkPayment @n (head addrs) 100_000])
+    addr:_ <- randomAddresses n . entropyToMnemonic <$> genEntropy
+    pure (wSrc, [mkPayment addr 100_000])
 
 --
 -- Helpers
@@ -834,28 +1126,27 @@ fixtureDeletedWallet ctx = do
 
 -- | Construct a JSON payload for a single payment (address + amount)
 mkPayment
-    :: forall (n :: NetworkDiscriminant).
-        ( EncodeAddress n
-        )
-    => Address
+    :: ApiAddress
     -> Natural
     -> Aeson.Value
-mkPayment addr_ amnt = [json|
+mkPayment (ApiAddress addr) amnt = [json|
     { "address": #{addr}
     , "amount":
         { "quantity": #{amnt}
         , "unit": "lovelace"
         }
     } |]
-  where
-    addr = encodeAddress @n addr_
 
 postByronTransaction
+<<<<<<< HEAD
     :: forall (n :: NetworkDiscriminant) t.
         ( DecodeAddress n
         , DecodeStakeAddress n
         )
     => Context t
+=======
+    :: Context t
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         -- A surrounding API context
     -> ApiByronWallet
         -- ^ Source wallet
@@ -863,7 +1154,7 @@ postByronTransaction
         -- ^ A list of payment
     -> Text
         -- ^ Passphrase
-    -> IO (HTTP.Status, Either RequestException (ApiTransaction n))
+    -> IO (HTTP.Status, Either RequestException ApiTransaction)
 postByronTransaction ctx wSrc payments passphrase = do
     let body = [json|
             { "payments": #{payments}

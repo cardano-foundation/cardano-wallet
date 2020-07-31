@@ -123,6 +123,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount
     , AllowedMnemonics
     , ApiAccountPublicKey
+    , ApiAddress
     , ApiByronWallet
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
@@ -133,6 +134,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
+    , PostTransactionData (..)
     , SomeByronWalletPostData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -169,11 +171,22 @@ import Control.Monad
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
-    ( ToJSON (..), (.:), (.=) )
+    ( ToJSON (..), (.:) )
 import Data.Bifunctor
     ( bimap )
 import Data.Char
     ( toLower )
+<<<<<<< HEAD
+=======
+import Data.Coerce
+    ( coerce )
+import Data.Either
+    ( isRight )
+import Data.List
+    ( nub, sort )
+import Data.List.Extra
+    ( enumerate )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -704,19 +717,17 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <*> fmap NE.fromList (some paymentOption)
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
         wPayments <- either (fail . getTextDecodingError) pure $
-            traverse (fromText @(AddressAmount Text)) wAddressAmounts
+            traverse (fromText @(AddressAmount API.ApiAddress)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
                 wPwd <- getPassphrase @"raw" "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
                     mkTxClient
-                    (ApiT wId)
-                    (Aeson.object
-                        [ "payments" .= wPayments
-                        , "passphrase" .= ApiT wPwd
-                        ]
-                    )
+                        (ApiT wId)
+                        (PostTransactionData
+                            wPayments
+                            (ApiT $ coerce wPwd))
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
@@ -735,14 +746,14 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <*> fmap NE.fromList (some paymentOption)
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
         wPayments <- either (fail . getTextDecodingError) pure $
-            traverse (fromText @(AddressAmount Text)) wAddressAmounts
+            traverse (fromText @(AddressAmount ApiAddress)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
         case res of
             Right _ -> do
                 runClient wPort Aeson.encodePretty $ postTransactionFee
                     mkTxClient
-                    (ApiT wId)
-                    (Aeson.object [ "payments" .= wPayments ])
+                        (ApiT wId)
+                        (API.PostTransactionFeeData wPayments)
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
@@ -927,7 +938,8 @@ cmdAddressImport mkClient =
         <*> walletIdArgument
         <*> addressIdArgument
     exec (AddressImportArgs wPort wId addr) = do
-        runClient wPort (const "") $ putRandomAddress mkClient (ApiT wId) addr
+        runClient wPort (const "") $ putRandomAddress mkClient (ApiT wId)
+            (error "todo" $ addr)
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'

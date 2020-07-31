@@ -60,6 +60,8 @@ module Cardano.Wallet
     , transactionLayer
     , HasGenesisData
     , genesisData
+    , HasAddressScheme
+    , addressScheme
 
     -- * Interface
     -- ** Wallet
@@ -203,16 +205,14 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( AddressScheme (..)
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
     , Index (..)
-    , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
     , Passphrase
-    , PaymentAddress (..)
+    , Passphrase
     , ToChimericAccount (..)
     , WalletKey (..)
     , checkPassphrase
@@ -222,18 +222,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey, unsafeMkByronKeyFromMasterKey )
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , IsOurs (..)
-    , IsOwned (..)
-    , KnownAddresses (..)
-    )
+    ( CompareDiscovery (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -321,8 +316,6 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeXPrv )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -352,8 +345,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( partitionEithers )
-import Data.Either.Extra
-    ( eitherToMaybe )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -372,8 +363,6 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
     ( fromJust, isJust, mapMaybe )
-import Data.Proxy
-    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -407,7 +396,6 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -463,6 +451,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
         (NetworkLayer IO t Block)
         (TransactionLayer t k)
         (DBLayer IO s k)
+        (AddressScheme k)
     deriving (Generic)
 
 {-------------------------------------------------------------------------------
@@ -504,6 +493,7 @@ type HasLogger msg = HasType (Tracer IO msg)
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
 type HasNetworkLayer t = HasType (NetworkLayer IO t Block)
+type HasAddressScheme (k :: Depth -> * -> *) = HasType (AddressScheme k)
 
 type HasTransactionLayer t k = HasType (TransactionLayer t k)
 
@@ -512,6 +502,12 @@ dbLayer
     => Lens' ctx (DBLayer IO s k)
 dbLayer =
     typed @(DBLayer IO s k)
+
+addressScheme
+    :: forall k ctx. HasAddressScheme k ctx
+    => Lens' ctx (AddressScheme k)
+addressScheme =
+    typed @(AddressScheme k)
 
 genesisData
     :: forall ctx. HasGenesisData ctx
@@ -576,12 +572,12 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
 -- To work-around this, we scan the genesis block with an arbitrary big gap and
 -- resort to a default gap afterwards.
 createIcarusWallet
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasGenesisData ctx
         , HasDBLayer s k ctx
-        , PaymentAddress n k
+        , HasAddressScheme k ctx
         , k ~ IcarusKey
-        , s ~ SeqState n k
+        , s ~ SeqState k
         )
     => ctx
     -> WalletId
@@ -589,14 +585,14 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv @n credentials $
+    let s = mkSeqStateFromRootXPrv addrScheme credentials  $
             mkUnboundedAddressPoolGap 10000
     let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
+            (shrinkPool addressFromFingerprint addrs g (Seq.internalPool s))
+            (shrinkPool addressFromFingerprint addrs g (Seq.externalPool s))
             (Seq.pendingChangeIxs s)
             (Seq.rewardAccountKey s)
     now <- lift getCurrentTime
@@ -612,6 +608,11 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     (block0, NetworkParameters gp pp, _) = ctx ^. genesisData
+    addrScheme@AddressScheme{addressFromFingerprint} = ctx ^. addressScheme
+    -- We shouldn't have to add it to the AddressSchema. Instead:
+    -- 1. Use Icarus-specific function
+    -- 2. Allow the SeqState to shrink itself when applying blocks (drastic
+    -- change of responsibility though, I think)
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
@@ -947,10 +948,9 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
     minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
 
 readChimericAccount
-    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
+    :: forall ctx s k shelley.
         ( HasDBLayer s k ctx
-        , shelley ~ SeqState n ShelleyKey
-        , Typeable n
+        , shelley ~ SeqState ShelleyKey
         , Typeable s
         )
     => ctx
@@ -993,24 +993,22 @@ queryRewardBalance ctx acct = do
             Left $ ErrFetchRewardsNetworkUnreachable e
 
 manageRewardBalance
-    :: forall ctx s t k (n :: NetworkDiscriminant).
+    :: forall ctx s t k .
         ( HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
         , ctx ~ WalletLayer s t k
         , Typeable s
-        , Typeable n
         )
-    => Proxy n
-    -> ctx
+    => ctx
     -> WalletId
     -> IO ()
-manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
+manageRewardBalance ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
             acct <- withExceptT ErrFetchRewardsReadChimericAccount $
-                readChimericAccount @ctx @s @k @n ctx wid
+                readChimericAccount @ctx @s @k ctx wid
             queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
@@ -1079,16 +1077,15 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
 createChangeAddress
     :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , GenChange s
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> ExceptT ErrNoSuchWallet IO Address
-createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
+createChangeAddress ctx wid genChange = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withNoSuchWallet wid (readCheckpoint pk)
-        let (addr, s') = genChange argGenChange (getState cp)
+        let (addr, s') = genChange (getState cp)
         putCheckpoint pk (updateState s' cp)
         pure addr
   where
@@ -1096,11 +1093,11 @@ createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
     pk = PrimaryKey wid
 
 createRandomAddress
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , PaymentAddress n ByronKey
-        , s ~ RndState n
+        , s ~ RndState
         , k ~ ByronKey
+        , HasAddressScheme k ctx
         )
     => ctx
     -> WalletId
@@ -1124,20 +1121,21 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
                     pure $ Rnd.findUnusedPath (Rnd.gen s) accIx (Rnd.unavailablePaths s)
 
             let prepared = preparePassphrase scheme pwd
-            let addr = Rnd.deriveRndStateAddress @n xprv prepared path
+            let addr = Rnd.deriveRndStateAddress addrScheme xprv prepared path
             let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
             withExceptT ErrCreateAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             pure addr
   where
     db = ctx ^. dbLayer @s @k
+    addrScheme = ctx ^. addressScheme
     isKnownIndex accIx addrIx s =
         (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
 importRandomAddresses
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , s ~ RndState n
+        , s ~ RndState
         , k ~ ByronKey
         )
     => ctx
@@ -1162,16 +1160,12 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
 -- delegation addresses. So we normalize them all to be delegation addresses
 -- to make sure that we compare them correctly.
 normalizeDelegationAddress
-    :: forall s k n.
-        ( DelegationAddress n k
-        , s ~ SeqState n k
-        )
-    => s
+    :: s
     -> Address
     -> Maybe Address
-normalizeDelegationAddress s addr = do
-    fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
+normalizeDelegationAddress _s = Just
+-- TODO: Fix
+-- error "todo: Can we remove this by putting \ \it directly into the target-specific listAddresses?"
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -1348,11 +1342,10 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 -- transactions will have the effect of migrating all funds from the given
 -- source wallet to the specified target wallet.
 selectCoinsForMigration
-    :: forall ctx s t k n.
+    :: forall ctx s t k.
         ( HasTransactionLayer t k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
-        , PaymentAddress n ByronKey
         )
     => ctx
     -> WalletId
@@ -1364,13 +1357,12 @@ selectCoinsForMigration
 selectCoinsForMigration ctx wid = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp minUtxo wid
+    selectCoinsForMigrationFromUTxO @ctx @t @k ctx utxo txp minUtxo wid
 
 selectCoinsForMigrationFromUTxO
-    :: forall ctx t k n.
+    :: forall ctx t k.
         ( HasTransactionLayer t k ctx
         , HasLogger WalletLog ctx
-        , PaymentAddress n ByronKey
         )
     => ctx
     -> W.UTxO
@@ -1426,11 +1418,13 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
         , outputs = TxOut worstCaseAddress <$> change cs
         }
       where
-        worstCaseAddress :: Address
-        worstCaseAddress = paymentAddress @n @ByronKey $ publicKey $
-            unsafeMkByronKeyFromMasterKey
-                (minBound, minBound)
-                (unsafeXPrv $ BS.replicate 128 0)
+        worstCaseAddress = error "TODO"
+        -- TODO: Need to deal with this
+        --worstCaseAddress :: Address
+        --worstCaseAddress = paymentAddress @ByronKey $ publicKey $
+        --    unsafeMkByronKeyFromMasterKey
+        --        (minBound, minBound)
+        --        (unsafeXPrv $ BS.replicate 128 0)
 
 -- | Estimate fee for 'selectCoinsForPayment'.
 estimateFeeForPayment
@@ -1487,17 +1481,14 @@ handleNotSuccessfulCoinSelection _ =
 -- to change outputs to which new addresses are being assigned to. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
-    :: forall s m.
-        ( GenChange s
-        , MonadIO m
-        )
-    => ArgGenChange s
+    :: forall s m. MonadIO m
+    => (s -> (Address, s))
     -> CoinSelection
     -> s
     -> m (CoinSelection, s)
-assignChangeAddresses argGenChange cs = runStateT $ do
+assignChangeAddresses genChange cs = runStateT $ do
     chgsOuts <- forM (change cs) $ \c -> do
-        addr <- state (genChange argGenChange)
+        addr <- state genChange
         pure $ TxOut addr c
     outs' <- liftIO $ shuffle (outputs cs ++ chgsOuts)
     pure $ cs { change = [], outputs = outs' }
@@ -1512,11 +1503,10 @@ signPayment
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
-        , GenChange s
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
@@ -1591,15 +1581,14 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
     :: forall ctx s t k e.
-        ( GenChange s
-        , HasDBLayer s k ctx
+        ( HasDBLayer s k ctx
         , HasLogger WalletLog ctx
         , HasTransactionLayer t k ctx
         , e ~ ErrValidateSelection t
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
@@ -1639,14 +1628,13 @@ signDelegation
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
-        , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> Passphrase "raw"
     -> CoinSelection
     -> DelegationAction
@@ -1861,7 +1849,6 @@ joinStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
-        , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
@@ -1872,7 +1859,7 @@ joinStakePool
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> Passphrase "raw"
     -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
@@ -1918,17 +1905,16 @@ quitStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
-        , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
+    -> (s -> (Address, s))
     -> Passphrase "raw"
     -> ExceptT ErrQuitStakePool IO (Tx, TxMeta, UTCTime)
-quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
+quitStakePool ctx wid genChange pwd = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
 
@@ -1942,7 +1928,7 @@ quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
         selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
     (tx, txMeta, txTime, sealedTx) <- withExceptT ErrQuitStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection action
+        signDelegation @ctx @s @t @k ctx wid genChange pwd selection action
 
     withExceptT ErrQuitStakePoolSubmitTx $
         submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)

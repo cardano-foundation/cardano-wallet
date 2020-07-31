@@ -28,6 +28,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
+    , shelleyScheme
 
     -- * Reward Account
     , toChimericAccountRaw
@@ -55,17 +56,15 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , DelegationAddress (..)
+    ( AddressScheme (..)
+    , ChimericAccount (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -81,6 +80,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, rewardAccountKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
+import Control.Arrow
+    ( left )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -95,12 +96,14 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Binary.Put
     ( putByteString, putWord8, runPut )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Word
@@ -111,6 +114,7 @@ import GHC.Generics
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -257,77 +261,62 @@ instance WalletKey ShelleyKey where
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet ShelleyKey where
-    paymentAddress paymentK = do
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 1
+shelleyScheme
+    :: NetworkDiscriminant
+    -> Maybe (ShelleyKey 'AddressK XPub)
+    -> AddressScheme ShelleyKey
+shelleyScheme net mstakingKey = AddressScheme
+    { addressFromKey = \paymentK -> do
+        case mstakingKey of
+                Just stakingK ->
+                    Address $ BL.toStrict $ runPut $ do
+                        putWord8 (base + networkId)
+                        putByteString . keyHash $ paymentK
+                        putByteString . keyHash $ stakingK
+                Nothing ->
+                    Address $ BL.toStrict $ runPut $ do
+                        putWord8 (enterprise + networkId)
+                        putByteString . keyHash $ paymentK
 
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 1
+    , addressFingerprint = \(Address bytes) ->
+        Right $ KeyFingerprint $ BS.take (hashDigestSize Blake2b_224) $ BS.drop 1 bytes
 
-instance PaymentAddress ('Testnet pm) ShelleyKey where
-    paymentAddress paymentK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 0
+    , keyFingerprint = Right . KeyFingerprint . keyHash
 
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 0
+    , addressFromFingerprint = \(KeyFingerprint f) -> Address $
+        BS.pack [enterprise + networkId] <> f
+    , addressToText = T.decodeUtf8 . hex . unAddress
+    , addressFromText = _decodeAddress
+    }
+  where
+    keyHash = blake2b224 . unXPub . getRawKey
+    enterprise = 96
+    base = 0
+    networkId = case net of
+        Mainnet   -> 1
+        Testnet _ -> 0
+        _ -> error "todo: staging"
 
-instance DelegationAddress 'Mainnet ShelleyKey where
-    delegationAddress paymentK stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
+    _decodeAddress :: Text -> Either TextDecodingError Address
+    _decodeAddress x = validateWithLedger =<< Address <$> fromHex' x
       where
-        base = 0
-        networkId = 1
+        -- Can we replace this with the existing @fromHex@?
+        fromHex' :: Text -> Either TextDecodingError ByteString
+        fromHex' =
+            left (const $ TextDecodingError "Unable to decode Address: not valid hex encoding.")
+            .  convertFromBase @ByteString @ByteString Base16
+            . T.encodeUtf8
 
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString fingerprint
-            putByteString . blake2b224. xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 1
+        validateWithLedger = return
 
-instance DelegationAddress ('Testnet pm) ShelleyKey where
-    delegationAddress paymentK stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 0
+-- TODO: Having to add shelley-specific deps make this inconvenient.
+--
+--        validateWithLedger addr@(W.Address bytes) =
+--            case SL.deserialiseAddr @TPraosStandardCrypto bytes of
+--                Just _ -> Right addr
+--                Nothing -> Left $ TextDecodingError
+--                    "Unable to decode Address: not a well-formed Shelley Address."
 
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString fingerprint
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 0
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeShelleyAddress
@@ -336,19 +325,11 @@ decodeShelleyAddress
 decodeShelleyAddress _bytes = do
     error "TODO: decodeShelleyAddress"
 
-instance MkKeyFingerprint ShelleyKey Address where
-    paymentKeyFingerprint (Address bytes) =
-        Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
-
-instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyKey 'AddressK XPub) where
-    paymentKeyFingerprint (_, paymentK) =
-        Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
-
 {-------------------------------------------------------------------------------
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n ShelleyKey) ChimericAccount
+instance IsOurs (SeqState ShelleyKey) ChimericAccount
   where
     isOurs account state =
         (account == ourAccount, state)
@@ -391,11 +372,3 @@ instance PersistPublicKey (ShelleyKey depth) where
         either err ShelleyKey . (xpub <=< fromHex @ByteString)
       where
         err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
-
-{-------------------------------------------------------------------------------
-                                 Internals
--------------------------------------------------------------------------------}
-
-hashSize :: Int
-hashSize =
-    hashDigestSize Blake2b_224

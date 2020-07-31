@@ -14,6 +14,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
+<<<<<<< HEAD
     ( ApiFee (..)
     , ApiTransaction
     , ApiWallet
@@ -22,6 +23,9 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , getApiT
     )
+=======
+    ( ApiAddress (..), ApiFee, ApiTransaction, ApiWallet )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), SortOrder (..), TxStatus (..) )
 import Control.Monad
@@ -97,12 +101,16 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
+<<<<<<< HEAD
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
+=======
+spec :: forall t. KnownCommand t => SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 spec = do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -144,9 +152,9 @@ spec = do
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr <- listAddresses @n ctx wDest
-        let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
+        addrs <- map (view #id) <$> listAddresses  ctx wDest
+        let ApiAddress addr1 = addrs !! 1
+        let ApiAddress addr2 = addrs !! 2
         let amt = 14
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -160,7 +168,7 @@ spec = do
         -- post transaction
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
-        txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
+        txJson <- expectValidJSON (Proxy @ApiTransaction) out
         verify txJson
             [ expectCliField
                 (#amount . #getQuantity)
@@ -185,16 +193,181 @@ spec = do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
+<<<<<<< HEAD
                     (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
                 , expectCliField
                     (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
                 ]
 
+=======
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
+                , expectCliField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
+                ]
+
+    it "TRANS_CREATE_02 - Multiple Output Tx to different wallets via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest1 <- emptyWallet ctx
+        wDest2 <- emptyWallet ctx
+        ApiAddress addr1:_ <- map (view #id) <$> listAddresses  ctx wDest1
+        ApiAddress addr2:_ <- map (view #id ) <$> listAddresses  ctx wDest2
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 2
+                , nOutputs = 2
+                , nChanges = 2
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr1
+                , "--payment", T.pack (show amt) <> "@" <> addr2
+                ]
+
+        -- post transaction
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @ApiTransaction) out
+        verify txJson
+            [ expectCliField
+                (#amount . #getQuantity)
+                (between (feeMin + (2*amt), feeMax + (2*amt)))
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        c `shouldBe` ExitSuccess
+
+        -- verify balance on src wallet
+        Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
+        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
+        verify gJson
+            [ expectCliField (#balance . #getApiT . #total)
+                $ between
+                    ( Quantity (faucetAmt - feeMax - (2*amt))
+                    , Quantity (faucetAmt - feeMin - (2*amt))
+                    )
+            ]
+
+        eventually "balance on dest wallets is OK" $ forM_ [wDest1, wDest2] $ \wDest -> do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                , expectCliField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                ]
+
+    it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
+        wSrc <- fixtureWalletWith  ctx [2_124_333]
+        wDest <- emptyWallet ctx
+        addr1:addr2:_ <- map (view (#id . #apiAddress))
+            <$> listAddresses  ctx wDest
+
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "12333@" <> addr1
+                , "--payment", "4666@" <> addr2
+                ]
+
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        (T.unpack err) `shouldContain` errMsg403UTxO
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 0
+        let amt = 1
+        wSrc <- fixtureWalletWith  ctx [feeMin+amt]
+        wDest <- emptyWallet ctx
+        addr:_ <- map (view (#id . #apiAddress))
+            <$> listAddresses  ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", toText amt <> "@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
+        txJson <- expectValidJSON (Proxy @ApiTransaction) out
+        verify txJson
+            [ expectCliField (#amount . #getQuantity) (`shouldBe` feeMin+amt)
+            , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        c `shouldBe` ExitSuccess
+
+        Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
+        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
+        verify gJson
+            [ expectCliField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            ]
+
+        eventually "Balance on dest wallet is OK" $ do
+            Stdout gOutDest <- getWalletViaCLI @t ctx
+                (T.unpack (wDest ^. walletId))
+            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            verify destJson
+                [ expectCliField
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                , expectCliField
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                ]
+
+    it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        wSrc <- fixtureWalletWith  ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addr1:addr2:addr3:_ <- map (view (#id . #apiAddress)) <$> listAddresses ctx wDest
+
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "40000000@" <> addr1
+                , "--payment", "22@" <> addr2
+                , "--payment", "22@" <> addr3
+                ]
+
+        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (T.unpack err) `shouldContain` errMsg403InputsDepleted
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
+        wSrc <- fixtureWalletWith  ctx [feeMin `div` 2]
+        wDest <- emptyWallet ctx
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses  ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (T.unpack err) `shouldContain` errMsg403Fee
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
+        wSrc <- fixtureWalletWith  ctx [feeMin]
+        wDest <- emptyWallet ctx
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses  ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1000000@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
+        (T.unpack err) `shouldContain`
+            errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses ctx wDest
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", "14@" <> addr
@@ -223,8 +396,7 @@ spec = do
         forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses  ctx wDest
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", amt <> "@" <> addr
@@ -239,12 +411,11 @@ spec = do
     describe "TRANS_CREATE_07 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
+            addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses  ctx wDest
             let port = show $ ctx ^. typed @(Port "wallet")
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
             let args =
                     [ "transaction", "create", "--port", port
-                    , walId, "--payment", "12@" ++  (T.unpack addr)
+                    , walId, "--payment", "12@" ++  T.unpack addr
                     ]
             -- make sure CLI returns error before asking for passphrase
             (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
@@ -260,9 +431,8 @@ spec = do
     it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
         wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses @n ctx wDest
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses  ctx wDest
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
                 , T.append (wSrc ^. walletId) "0", "--payment", "11@" <> addr
@@ -280,8 +450,7 @@ spec = do
         ex `shouldBe` ExitSuccess
 
         wDest <- emptyWallet ctx
-        addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        addr:_ <- listAddressesAsText  ctx wDest
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
@@ -294,6 +463,144 @@ spec = do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
+<<<<<<< HEAD
+=======
+    it "TRANS_ESTIMATE_01 - Can estimate fee of transaction via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddressesAsText ctx wDest
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 1
+                , nOutputs = 1
+                , nChanges = 1
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr
+                ]
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliField (#estimatedMin . #getQuantity) $
+                between (feeMin - amt, feeMax + amt)
+            ]
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_02 - Multiple Output Tx fees estimate to single wallet via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr1:addr2:_ <- listAddressesAsText ctx wDest
+        let amt = 14 :: Natural
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 2
+                , nOutputs = 2
+                , nChanges = 2
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr1
+                , "--payment", T.pack (show amt) <> "@" <> addr2
+                ]
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliField (#estimatedMin . #getQuantity) $
+                between (feeMin, feeMax)
+            ]
+        c `shouldBe` ExitSuccess
+
+
+    it "TRANS_ESTIMATE_03 - Multiple Output Tx fees estimation to different wallets via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest1 <- emptyWallet ctx
+        wDest2 <- emptyWallet ctx
+        addr1:_ <- listAddressesAsText ctx wDest1
+        addr2:_ <- listAddressesAsText ctx wDest2
+        let amt = 14 :: Natural
+        let (feeMin, feeMax) = ctx ^. #_feeEstimator $ PaymentDescription
+                { nInputs = 2
+                , nOutputs = 2
+                , nChanges = 2
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr1
+                , "--payment", T.pack (show amt) <> "@" <> addr2
+                ]
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliField (#estimatedMin . #getQuantity) $
+                between (feeMin, feeMax)
+            ]
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_04 - Multiple Output Txs fees estimation doesn't work on single UTxO" $ \ctx -> do
+        wSrc <- fixtureWalletWith  ctx [2_124_333]
+        wDest <- emptyWallet ctx
+        addr1:addr2:_ <- listAddressesAsText ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "12333@" <> addr1
+                , "--payment", "4666@" <> addr2
+                ]
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403UTxO
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_05 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        wSrc <- fixtureWalletWith  ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addr1:addr2:addr3:_ <- listAddressesAsText ctx wDest
+
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "40000000@" <> addr1
+                , "--payment", "22@" <> addr2
+                , "--payment", "22@" <> addr3
+                ]
+
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain` errMsg403InputsDepleted
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
+        wSrc <- fixtureWalletWith  ctx [feeMin `div` 2]
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddressesAsText ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1@" <> addr
+                ]
+
+        (Exit c, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
+        let (feeMin, _) = ctx ^. #_feeEstimator $ PaymentDescription 1 1 1
+        wSrc <- fixtureWalletWith  ctx [feeMin]
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddressesAsText ctx wDest
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1000000@" <> addr
+                ]
+
+        (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldContain`
+            errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     describe "TRANS_ESTIMATE_08 - Invalid addresses" $ do
         forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
@@ -311,8 +618,7 @@ spec = do
         forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            addr:_ <- listAddressesAsText ctx wDest
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", amt <> "@" <> addr
@@ -351,12 +657,11 @@ spec = do
         -- Make tx from fixtureWallet
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        addr:_ <- listAddresses @n ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        addr:_ <- listAddressesAsText ctx wDest
         let amt = 14 :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
-                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                , "--payment", T.pack (show amt) <> "@" <> addr
                 ]
 
         -- post transaction
@@ -378,7 +683,7 @@ spec = do
             listTransactionsViaCLI @t ctx [T.unpack $ wSrc ^. walletId]
         err `shouldBe` "Ok.\n"
         code `shouldBe` ExitSuccess
-        outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
+        outJson <- expectValidJSON (Proxy @([ApiTransaction])) out
         verify outJson
             [ expectCliListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliListField 1 (#direction . #getApiT) (`shouldBe` Incoming)
@@ -418,7 +723,7 @@ spec = do
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
         let a1 = Quantity $ sum $ replicate 10 1
         let a2 = Quantity $ sum $ replicate 10 2
-        w <- fixtureWalletWith @n ctx $ mconcat
+        w <- fixtureWalletWith  ctx $ mconcat
                 [ replicate 10 1
                 , replicate 10 2
                 ]
@@ -446,7 +751,7 @@ spec = do
                 listTransactionsViaCLI @t ctx args
             err `shouldBe` "Ok.\n"
             code `shouldBe` ExitSuccess
-            outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
+            outJson <- expectValidJSON (Proxy @([ApiTransaction])) out
             length outJson `shouldBe` 2
             verify outJson expects
 
@@ -525,9 +830,9 @@ spec = do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
-              w <- fixtureWalletWith @n ctx [1]
+              w <- fixtureWalletWith  ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions  ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               let query t1 t2 =
                         [ "--start", utcIso8601ToText t1
@@ -541,40 +846,40 @@ spec = do
                     ( T.unpack <$> walId : (query t tl) )
               Stdout o4 <- listTransactionsViaCLI @t ctx
                     ( T.unpack <$> walId : (query te tl) )
-              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
-              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
-              oJson3 <- expectValidJSON (Proxy @([ApiTransaction n])) o3
-              oJson4 <- expectValidJSON (Proxy @([ApiTransaction n])) o4
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction])) o2
+              oJson3 <- expectValidJSON (Proxy @([ApiTransaction])) o3
+              oJson4 <- expectValidJSON (Proxy @([ApiTransaction])) o4
               length <$> [oJson1, oJson2, oJson3, oJson4] `shouldSatisfy` all (== 1)
 
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range [t + 𝛿t, ...)" $
           \ctx -> do
-              w <- fixtureWalletWith @n ctx [1]
+              w <- fixtureWalletWith  ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions  ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
               Stdout o1  <- listTransactionsViaCLI @t ctx
                     ( T.unpack <$> [walId, "--start", tl] )
               Stdout o2 <- listTransactionsViaCLI @t ctx
                     ( T.unpack <$> [walId, "--start", tl, "--end", tl] )
-              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
-              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t]" $
           \ctx -> do
-              w <- fixtureWalletWith @n ctx [1]
+              w <- fixtureWalletWith  ctx [1]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime <$> listAllTransactions  ctx w
               let te = utcIso8601ToText $ utcTimePred t
               Stdout o1  <- listTransactionsViaCLI @t ctx
                       ( T.unpack <$> [walId, "--end", te] )
               Stdout o2 <- listTransactionsViaCLI @t ctx
                       ( T.unpack <$> [walId, "--start", te, "--end", te] )
-              oJson1 <- expectValidJSON (Proxy @([ApiTransaction n])) o1
-              oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
     it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> do
@@ -687,7 +992,7 @@ spec = do
 
         eventually "Tx is in ledger" $ do
             (fromStdout <$> listTransactionsViaCLI @t ctx [wSrcId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
+                >>= expectValidJSON (Proxy @([ApiTransaction]))
                 >>= flip verify
                     [ expectCliListField 0
                         (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -781,8 +1086,7 @@ spec = do
         forM_ ["create", "fees"] $ \action -> it action $ \ctx -> do
             wSrc <- emptyRandomWallet ctx
             wDest <- emptyWallet ctx
-            addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            addr:_ <- listAddressesAsText ctx wDest
             let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
             let args = T.unpack <$>
                     [ "transaction", T.pack action, "--port", port
@@ -795,20 +1099,31 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
   where
+
+      listAddressesAsText a b =
+          (map (view (#id . #apiAddress))) <$> listAddresses a b
       postTxViaCLI
           :: Context t
           -> ApiWallet
           -> ApiWallet
           -> Natural
-          -> IO (ApiTransaction n)
+          -> IO ApiTransaction
       postTxViaCLI ctx wSrc wDest amt = do
+<<<<<<< HEAD
           args <- postTxArgs ctx wSrc wDest amt
+=======
+          addr:_ <- listAddressesAsText ctx wDest
+          let args = T.unpack <$>
+                  [ wSrc ^. walletId
+                  , "--payment", T.pack (show amt) <> "@" <> addr
+                  ]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
           -- post transaction
           (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
           err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
           c `shouldBe` ExitSuccess
-          expectValidJSON (Proxy @(ApiTransaction n)) out
+          expectValidJSON (Proxy @ApiTransaction) out
 
       postTxArgs
         :: Context t

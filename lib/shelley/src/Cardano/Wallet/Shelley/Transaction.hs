@@ -93,8 +93,11 @@ import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
+<<<<<<< HEAD
 import Data.Proxy
     ( Proxy (..) )
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -211,7 +214,13 @@ newTransactionLayer
         , TxWitnessTagFor k
         , WalletKey k
         )
+<<<<<<< HEAD
     => NetworkId
+=======
+    => NetworkDiscriminant
+    -> ProtocolMagic
+    -> EpochLength
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     -> TransactionLayer t k
 newTransactionLayer networkId = TransactionLayer
     { mkStdTx = \acc ks tip ->

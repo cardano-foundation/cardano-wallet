@@ -29,11 +29,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, WalletStyle (..) )
 import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..)
-    , serveWallet
-    , setupTracers
-    , tracerSeverities
-    )
+    ( serveWallet, setupTracers, tracerSeverities )
 import Cardano.Wallet.Byron.Compatibility
     ( Byron )
 import Cardano.Wallet.Byron.Faucet
@@ -127,25 +123,34 @@ import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 instance KnownCommand Byron where
     commandName = "cardano-wallet-byron"
 
-main :: forall t n. (t ~ Byron, n ~ 'Mainnet) => IO ()
+main :: forall t . (t ~ Byron) => IO ()
 main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
+    let n = Mainnet
     hSetBuffering stdout LineBuffering
     hspec $ do
         describe "No backend required" $ do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
         describe "API Specifications" $ specWithServer tr $ do
+<<<<<<< HEAD
             WalletsByron.spec @n
             HWWalletsByron.spec @n
             AddressesByron.spec @n
             TransactionsByron.spec @n
             MigrationsByron.spec @n
             TransactionsByronCommon.spec @n
+=======
+            WalletsByron.spec
+            HWWalletsByron.spec
+            AddressesByron.spec
+            TransactionsByron.spec n
+            TransactionsByronCommon.spec
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
             Network.spec
             NetworkByron.spec
         describe "CLI Specifications" $ specWithServer tr $ do
-            WalletsByronCLI.spec @n
-            TransactionsByronCLI.spec @n
-            AddressesByronCLI.spec @n
+            WalletsByronCLI.spec
+            TransactionsByronCLI.spec n
+            AddressesByronCLI.spec n
             PortCLI.spec @t
             NetworkCLI.spec @t
 
@@ -177,6 +182,7 @@ specWithServer tr = aroundAll withContext . after tearDown
                         $ txParameters
                         $ protocolParameters np
                     , _networkParameters = np
+                    , _network = Mainnet
                     , _target = Proxy
                     }
         race (takeMVar ctx >>= action) (withServer setupContext) >>=
@@ -186,7 +192,7 @@ specWithServer tr = aroundAll withContext . after tearDown
         withCardanoNode tr $(getTestData) Info $ \socketPath block0 (np, vData) ->
         withSystemTempDirectory "cardano-wallet-databases" $ \db ->
             serveWallet
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                Mainnet
                 (setupTracers (tracerSeverities (Just Info)) tr)
                 (SyncTolerance 10)
                 (Just db)
@@ -217,16 +223,16 @@ mkFeeEstimator policy = \case
               where
                 coin_ = minBound
                 addr_ = Address $ flip BS.replicate 0 $ minimum
-                    [ minSizeOf @Address @'Mainnet @IcarusKey
-                    , minSizeOf @Address @'Mainnet @ByronKey
+                    [ minSizeOf @Address @IcarusKey Mainnet
+                    , minSizeOf @Address @ByronKey Mainnet
                     ]
 
             outsMax = replicate (nOuts + nChgs) (TxOut addr_ coin_)
               where
                 coin_ = maxBound
                 addr_ = Address $ flip BS.replicate 0 $ maximum
-                    [ maxSizeOf @Address @'Mainnet @IcarusKey
-                    , maxSizeOf @Address @'Mainnet @ByronKey
+                    [ maxSizeOf @Address @IcarusKey Mainnet
+                    , maxSizeOf @Address @ByronKey Mainnet
                     ]
 
         in

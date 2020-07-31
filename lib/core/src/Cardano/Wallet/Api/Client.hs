@@ -57,20 +57,18 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressIdT
-    , ApiAddressT
+    ( ApiAddress
+    , ApiAddressWithState
     , ApiByronWallet
-    , ApiCoinSelectionT
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostRandomAddressData
-    , ApiPutAddressesDataT
-    , ApiSelectCoinsDataT
+    , ApiPutAddressesData
     , ApiT (..)
-    , ApiTransactionT
+    , ApiTransaction
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet (..)
@@ -78,8 +76,8 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , PostTransactionDataT
-    , PostTransactionFeeDataT
+    , PostTransactionData
+    , PostTransactionFeeData
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
@@ -87,6 +85,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState, Coin (..), SortOrder, WalletId )
 import Control.Monad
     ( void )
+import Data.Aeson
+    ( FromJSON )
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
@@ -95,14 +95,10 @@ import Data.Generics.Labels
     ()
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
 import Servant
     ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( ClientM, client )
-
-import qualified Data.Aeson as Aeson
 
 {-------------------------------------------------------------------------------
                               Server Interaction
@@ -141,14 +137,14 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
-        -> ClientM [ApiTransactionT Aeson.Value]
+        -> ClientM [ApiTransaction]
     , postTransaction
         :: ApiT WalletId
-        -> PostTransactionDataT Aeson.Value
-        -> ClientM (ApiTransactionT Aeson.Value)
+        -> PostTransactionData
+        -> ClientM ApiTransaction
     , postTransactionFee
         :: ApiT WalletId
-        -> PostTransactionFeeDataT Aeson.Value
+        -> PostTransactionFeeData
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
@@ -160,25 +156,25 @@ data TransactionClient = TransactionClient
     , getTransaction
         :: ApiT WalletId
         -> ApiTxId
-        -> ClientM (ApiTransactionT Aeson.Value)
+        -> ClientM ApiTransaction
     }
 
 data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
-        -> ClientM [Aeson.Value]
+        -> ClientM [ApiAddressWithState]
     , postRandomAddress
         :: ApiT WalletId
         -> ApiPostRandomAddressData
-        -> ClientM (ApiAddressT Aeson.Value)
+        -> ClientM (ApiAddressWithState)
     , putRandomAddress
         :: ApiT WalletId
-        -> ApiAddressIdT Aeson.Value
+        -> ApiAddress
         -> ClientM NoContent
     , putRandomAddresses
         :: ApiT WalletId
-        -> ApiPutAddressesDataT Aeson.Value
+        -> ApiPutAddressesData
         -> ClientM NoContent
     }
 
@@ -189,11 +185,11 @@ data StakePoolClient apiPool = StakePoolClient
         :: ApiPoolId
         -> ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransactionT Aeson.Value)
+        -> ClientM ApiTransaction
     , quitStakePool
         :: ApiT WalletId
         -> ApiWalletPassphrase
-        -> ClientM (ApiTransactionT Aeson.Value)
+        -> ClientM ApiTransaction
     }
 
 
@@ -267,7 +263,7 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _deleteTransaction
             :<|> _getTransaction
-            = client (Proxy @("v2" :> (Transactions Aeson.Value)))
+            = client (Proxy @("v2" :> Transactions))
 
         _postExternalTransaction
             = client (Proxy @("v2" :> Proxy_))
@@ -291,7 +287,7 @@ byronTransactionClient =
             :<|> _postTransactionFee
             :<|> _deleteTransaction
             :<|> _getTransaction
-            = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
+            = client (Proxy @("v2" :> ByronTransactions))
 
         _postExternalTransaction
             = client (Proxy @("v2" :> Proxy_))
@@ -311,7 +307,7 @@ addressClient
 addressClient =
     let
         _listAddresses
-            = client (Proxy @("v2" :> Addresses Aeson.Value))
+            = client (Proxy @("v2" :> Addresses))
     in
         AddressClient
             { listAddresses = _listAddresses
@@ -330,7 +326,7 @@ byronAddressClient =
             :<|> _putRandomAddress
             :<|> _putRandomAddresses
             :<|> _listAddresses
-            = client (Proxy @("v2" :> ByronAddresses Aeson.Value))
+            = client (Proxy @("v2" :> ByronAddresses))
     in
         AddressClient
             { listAddresses = _listAddresses
@@ -341,14 +337,14 @@ byronAddressClient =
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API
 stakePoolClient
-    :: forall apiPool. (Aeson.FromJSON apiPool) => StakePoolClient apiPool
+    :: forall apiPool. (FromJSON apiPool) => StakePoolClient apiPool
 stakePoolClient =
     let
         _listPools
             :<|> _joinStakePool
             :<|> _quitStakePool
             :<|> _delegationFee
-            = client (Proxy @("v2" :> StakePools Aeson.Value apiPool))
+            = client (Proxy @("v2" :> StakePools apiPool))
     in
         StakePoolClient
             { listPools = _listPools
@@ -371,16 +367,3 @@ networkClient =
             , networkParameters = _networkParameters
             , networkClock = _networkClock
             }
-
---
--- Type families
---
-
-type instance ApiAddressT Aeson.Value = Aeson.Value
-type instance ApiAddressIdT Aeson.Value = Text
-type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
-type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
-type instance ApiTransactionT Aeson.Value = Aeson.Value
-type instance PostTransactionDataT Aeson.Value = Aeson.Value
-type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
-type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value

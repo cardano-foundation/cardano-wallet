@@ -35,6 +35,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , minSeedLengthBytes
     , unsafeMkByronKeyFromMasterKey
     , mkByronKeyFromMasterKey
+    , byronScheme
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -61,22 +62,21 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( AddressScheme (..)
+    , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , Index (..)
     , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , WalletKey (..)
     , fromHex
     , hex
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), ProtocolMagic (..), invariant, testnetMagic )
+    ( Address (..), Hash (..), ProtocolMagic (..), invariant )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -91,12 +91,18 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Either.Extra
+    ( maybeToEither )
+import Data.Function
+    ( (&) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat )
 
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -106,6 +112,7 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -147,35 +154,62 @@ instance WalletKey ByronKey where
     getRawKey = getKey
     keyTypeDescriptor _ = "rnd"
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
-    paymentAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
-            , CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
+
+byronScheme :: NetworkDiscriminant -> AddressScheme ByronKey
+byronScheme net = AddressScheme
+    { addressFromKey = _addressFromKey
+    , addressFingerprint = \addr@(Address bytes) ->
+         case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
+             Just _  -> Right $ KeyFingerprint bytes
+             Nothing -> Left $ ErrInvalidAddress addr
+    , keyFingerprint = Right . KeyFingerprint . unAddress . _addressFromKey
+    , addressFromFingerprint = \(KeyFingerprint bytes) -> Address bytes
+    , addressToText = gEncodeAddress
+    , addressFromText = gDecodeAddress $ case net of
+        Mainnet -> decodeLegacyAddress Nothing
+        Testnet pm -> decodeLegacyAddress . Just . ProtocolMagic . fromIntegral $ pm
+        Staging _ -> error "TODO: staging"
+    }
+  where
+    _addressFromKey = \k ->
+         let (acctIx, addrIx) = derivationPath k
+             pwd = payloadPassphrase k
+         in Address
+         $ CBOR.toStrictByteString
+         $ CBOR.encodeAddress (getKey k) $
+             CBOR.encodeDerivationPathAttr pwd acctIx addrIx
+             : defaultAttrs
+    defaultAttrs = case net of
+        Mainnet -> []
+        Testnet magic ->
+            [ CBOR.encodeProtocolMagicAttr $ ProtocolMagic (fromIntegral magic)
             ]
-      where
-        (acctIx, addrIx) = derivationPath k
-        pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
+        Staging _ -> error "TODO: staging"
 
-instance PaymentAddress 'Mainnet ByronKey where
-    paymentAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
-      where
-        (acctIx, addrIx) = derivationPath k
-        pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
+gEncodeAddress :: Address -> Text
+gEncodeAddress (Address bytes) =
+    T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
 
-instance MkKeyFingerprint ByronKey Address where
-    paymentKeyFingerprint addr@(Address bytes) =
-        case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
-            Just _  -> Right $ KeyFingerprint bytes
-            Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
+gDecodeAddress
+    :: (ByteString -> Maybe Address)
+    -> Text
+    -> Either TextDecodingError Address
+gDecodeAddress decodeByron text =
+    case tryBase58 of
+        Just bytes ->
+            decodeByron bytes
+                & maybeToEither (TextDecodingError
+                    "Unable to decode Address: not a well-formed Byron Address.")
+
+        Nothing ->
+            Left $ TextDecodingError
+                "Unable to decode Address: not a valid Base58 encoded string."
+  where
+    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+    tryBase58 :: Maybe ByteString
+    tryBase58 =
+        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
+
 
 {-------------------------------------------------------------------------------
                             Encoding / Decoding

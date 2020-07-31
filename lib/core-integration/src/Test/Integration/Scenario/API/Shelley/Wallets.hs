@@ -35,19 +35,17 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+<<<<<<< HEAD
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+=======
+    , ApiWalletMigrationInfo (..)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -94,6 +92,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , listAddressesAsText
     , notDelegating
     , request
     , selectCoins
@@ -129,6 +128,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+<<<<<<< HEAD
 spec :: forall n t.
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -137,6 +137,10 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
+=======
+
+spec :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
@@ -230,8 +234,8 @@ spec = do
 
         --send funds
         let wDest = getFromResponse id rInit
-        addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -242,7 +246,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction n) ctx
+        rTrans <- request @ApiTransaction ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
@@ -883,8 +887,8 @@ spec = do
                    (Link.putWalletPassphrase @'Shelley wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
-            addrs <- listAddresses @n ctx wDest
-            let destination = (addrs !! 1) ^. #id
+            addrs <- listAddresses ctx wDest
+            let destination = (addrs !! 1)
             let payloadTrans = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -895,7 +899,7 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction n) ctx
+            r <- request @ApiTransaction ctx
                 (Link.createTransaction @'Shelley wSrc) Default payloadTrans
             verify r expectations
 
@@ -938,10 +942,10 @@ spec = do
         \ctx -> do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
+            addr: _ <- map (view #id) <$> listAddresses ctx target
             let amount = Quantity 1
-            let payment = AddressAmount targetAddress amount
-            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
+            let payment = AddressAmount addr amount
+            selectCoins @'Shelley ctx source (payment:| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))
@@ -955,12 +959,12 @@ spec = do
             let paymentCount = 10
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
+            targetAddresses <- map (view #id) <$> listAddresses ctx target
             let amounts = Quantity <$> [1 ..]
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
-            selectCoins @_ @'Shelley ctx source payments >>= flip verify
+            selectCoins @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode
                     HTTP.status200
                 , expectField
@@ -974,10 +978,10 @@ spec = do
     it "WALLETS_COIN_SELECTION_03 - \
         \Deleted wallet is not available for selection" $ \ctx -> do
         w <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+        (addr:_) <- map (view #id) <$> listAddresses ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-        selectCoins @_ @'Shelley ctx w payments >>= flip verify
+        selectCoins @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
@@ -985,7 +989,7 @@ spec = do
     it "WALLETS_COIN_SELECTION_03 - \
         \Wrong selection method (not 'random')" $ \ctx -> do
         w <- fixtureWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+        (addr:_) <- listAddresses ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
@@ -994,7 +998,7 @@ spec = do
                 , [ "v2/wallets/", wid, "/coin-selections" ]
                 ]
         forM_ endpoints $ \endpoint -> do
-            r <- request @(ApiCoinSelection n) ctx endpoint Default payload
+            r <- request @(ApiCoinSelection) ctx endpoint Default payload
             verify r [ expectResponseCode @IO HTTP.status404 ]
 
     describe "WALLETS_COIN_SELECTION_04 - HTTP headers" $ do
@@ -1033,10 +1037,10 @@ spec = do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- fixtureWallet ctx
-            (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+            (addr:_) <- listAddresses ctx w
             let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
             let payload = Json [json| { "payments": #{payments} } |]
-            r <- request @(ApiCoinSelection n) ctx
+            r <- request @ApiCoinSelection ctx
                 (Link.selectCoins @'Shelley w) headers payload
             verify r expectations
 
@@ -1052,6 +1056,7 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send funds
+<<<<<<< HEAD
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         let coins = [13::Word64, 43, 66, 101, 1339]
@@ -1065,6 +1070,39 @@ spec = do
                 "payments": #{payments},
                 "passphrase": "cardano-wallet"
                 }|]
+=======
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1)
+        let coins = [13::Natural, 43, 66, 101, 1339]
+        let matrix = zip coins [1..]
+        forM_ matrix $ \(c, alreadyAbsorbed) -> do
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{c},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+            rTrans <- request @ApiTransaction ctx
+                (Link.createTransaction @'Shelley wSrc) Default payload
+            expectResponseCode @IO HTTP.status202 rTrans
+
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            eventually "Wallet balance is as expected" $ do
+                rGet <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley wDest) Default Empty
+                verify rGet
+                    [ expectField
+                            (#balance . #getApiT . #total)
+                            (`shouldBe` Quantity (fromIntegral $ sum coinsSent))
+                    , expectField
+                            (#balance . #getApiT . #available)
+                            (`shouldBe` Quantity (fromIntegral $ sum coinsSent))
+                    ]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
         rTrans <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default (Json payload)
@@ -1162,6 +1200,51 @@ spec = do
         expectResponseCode @IO HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
+<<<<<<< HEAD
+=======
+    describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
+        forM_ [ ("Byron", emptyRandomWallet)
+              , ("Icarus", emptyIcarusWallet)
+              ] $ \(walType, destWallet) -> do
+
+            it ("From wallet type: " ++ walType) $ \ctx -> do
+                let n = _network ctx
+                --shelley address
+                wShelley <- emptyWallet ctx
+                addrs <- listAddresses ctx wShelley
+                let addrShelley = (addrs !! 1) ^. #id
+                --icarus address
+                addrIcarus <- head . icarusAddresses n
+                    . entropyToMnemonic @15 <$> genEntropy
+                --byron address
+                addrByron <- head . randomAddresses n
+                    . entropyToMnemonic @12 <$> genEntropy
+
+                sWallet <- destWallet ctx
+                r <- request @[ApiTransaction] ctx
+                    (Link.migrateWallet @'Byron sWallet)
+                    Default
+                    (Json [json|
+                        { passphrase: #{fixturePassphrase}
+                        , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
+                        }|])
+                verify r
+                    [ expectResponseCode @IO HTTP.status403
+                    , expectErrorMessage
+                        (errMsg403NothingToMigrate (sWallet ^. walletId))
+                    ]
+
+    it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
+        sourceWallet <- emptyRandomWallet ctx
+
+        r <- request @[ApiTransaction] ctx
+            (Link.migrateWallet @'Byron sourceWallet)
+            Default
+            (NonJson "{passphrase:,}")
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400ParseError r
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     it "BYRON_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx
@@ -1265,6 +1348,270 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
+<<<<<<< HEAD
+=======
+    it "BYRON_CALCULATE_03 - \
+        \Cannot estimate migration for Shelley wallet using Byron endpoint"
+        $ \ctx -> do
+            w <- emptyWallet ctx
+            let ep = Link.getMigrationInfo @'Byron w
+            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            expectResponseCode @IO HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "BYRON_MIGRATE_01 - \
+        \after a migration operation successfully completes, the correct \
+        \amount eventually becomes available in the target wallet for arbitrary \
+        \ number of specified addresses."
+        $ \ctx -> do
+              testAddressCycling ctx 1
+              testAddressCycling ctx 3
+              testAddressCycling ctx 10
+
+    it "BYRON_MIGRATE_01 - \
+        \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+        pendingWith "Byron wallets not support in cardano-node yet"
+        -- NOTE
+        -- Special mnemonic for which 500 legacy funds are attached to in the
+        -- genesis file.
+        --
+        -- Out of these 500 coins, 100 of them are of 1 Lovelace and are
+        -- expected to be treated as dust. The rest are all worth:
+        -- 10,000,000,000 lovelace.
+        let mnemonics =
+                ["collect", "fold", "file", "clown"
+                , "injury", "sun", "brass", "diet"
+                , "exist", "spike", "behave", "clip"
+                ] :: [Text]
+        let payloadRestore = Json [json| {
+                "name": "Big Byron Wallet",
+                "mnemonic_sentence": #{mnemonics},
+                "passphrase": #{fixturePassphrase},
+                "style": "random"
+                } |]
+        (_, wOld) <- unsafeRequest @ApiByronWallet ctx
+            (Link.postWallet @'Byron) payloadRestore
+        eventually "wallet balance greater than 0" $ do
+            request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wOld)
+                Default
+                Empty >>= flip verify
+                [ expectField (#balance . #available) (.> Quantity 0)
+                ]
+        let originalBalance = view (#balance . #available . #getQuantity) wOld
+
+        -- Calculate the expected migration fee:
+        rFee <- request @ApiWalletMigrationInfo ctx
+            (Link.getMigrationInfo @'Byron wOld)
+            Default
+            Empty
+        verify rFee
+            [ expectResponseCode @IO HTTP.status200
+            , expectField #migrationCost (.> Quantity 0)
+            ]
+        let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
+
+        -- Migrate to a new empty wallet
+        wNew <- emptyWallet ctx
+        addrs <- listAddresses ctx wNew
+        let addr1 = addrs !! 1
+
+        let payloadMigrate =
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: [#{addr1}]
+                    }|]
+        request @[ApiTransaction] ctx
+            (Link.migrateWallet @'Byron wOld)
+            Default
+            payloadMigrate >>= flip verify
+            [ expectResponseCode @IO HTTP.status202
+            , expectField id ((`shouldBe` 2). length)
+            ]
+
+        -- Check that funds become available in the target wallet:
+        let expectedBalance = originalBalance - expectedFee
+        eventually "wallet balance = expectedBalance" $ do
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley wNew)
+                Default
+                Empty >>= flip verify
+                [ expectField
+                        (#balance . #getApiT . #available)
+                        ( `shouldBe` Quantity expectedBalance)
+                , expectField
+                        (#balance . #getApiT . #total)
+                        ( `shouldBe` Quantity expectedBalance)
+                ]
+
+        -- Analyze the target wallet UTxO distribution
+        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
+            Default
+            Empty >>= flip verify
+            [ expectField
+                #distribution
+                ((`shouldBe` (Just 400)) . Map.lookup 10_000_000_000)
+            ]
+
+    it "BYRON_MIGRATE_01 - \
+        \a migration operation removes all funds from the source wallet."
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureByronWallet ctx
+
+            -- Perform a migration from the source wallet to a target wallet:
+            targetWallet <- emptyWallet ctx
+            addrs <- listAddresses ctx targetWallet
+            let addr1 = addrs !! 1
+
+            r0 <- request @[ApiTransaction] ctx
+                (Link.migrateWallet @'Byron sourceWallet)
+                Default
+                (Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: [#{addr1}]
+                    }|])
+            verify r0
+                [ expectResponseCode @IO HTTP.status202
+                , expectField id (`shouldSatisfy` (not . null))
+                ]
+
+            -- Verify that the source wallet has no funds available:
+            r1 <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron sourceWallet) Default Empty
+            verify r1
+                [ expectResponseCode @IO HTTP.status200
+                , expectField (#balance . #available) (`shouldBe` Quantity 0)
+                ]
+
+    it "BYRON_MIGRATE_02 - \
+        \migrating an empty wallet should fail."
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
+            sourceWallet <- emptyByronWallet ctx
+            targetWallet <- emptyWallet ctx
+            addrs <- listAddresses ctx targetWallet
+            let addr1 = addrs !! 1
+            let payload =
+                    Json [json|
+                        { passphrase: #{fixturePassphrase}
+                        , addresses: [#{addr1}]
+                        }|]
+            let ep = Link.migrateWallet @'Byron sourceWallet
+            r <- request @[ApiTransaction] ctx ep Default payload
+            let srcId = sourceWallet ^. walletId
+            verify r
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate srcId)
+                ]
+
+    it "BYRON_MIGRATE_02 - \
+        \migrating wallet with dust should fail."
+        $ \ctx -> do
+            -- NOTE
+            -- Special mnemonic for which wallet with dust
+            -- (5 utxos with 60 lovelace in total)
+            let mnemonics =
+                    [ "suffer", "decorate", "head", "opera"
+                    , "yellow", "debate", "visa", "fire"
+                    , "salute", "hybrid", "stone", "smart"
+                    ] :: [Text]
+            let payloadRestore = Json [json| {
+                    "name": "Dust Byron Wallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": #{fixturePassphrase},
+                    "style": "random"
+                    } |]
+            pendingWith "Byron wallets not supported in cardano-node yet."
+            (_, sourceWallet) <- unsafeRequest @ApiByronWallet ctx
+                (Link.postWallet @'Byron) payloadRestore
+            eventually "wallet balance greater than 0" $ do
+                request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron sourceWallet)
+                    Default
+                    Empty >>= flip verify
+                    [ expectField (#balance . #available) (.> Quantity 0)
+                    ]
+
+            targetWallet <- emptyWallet ctx
+            addrs <- listAddresses ctx targetWallet
+            let addr1 = addrs !! 1
+            let payload =
+                    Json [json|
+                        { passphrase: #{fixturePassphrase}
+                        , addresses: [#{addr1}]
+                        }|]
+            let ep = Link.migrateWallet @'Byron sourceWallet
+            r <- request @[ApiTransaction] ctx ep Default payload
+            let srcId = sourceWallet ^. walletId
+            verify r
+                [ expectResponseCode @IO HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate srcId)
+                ]
+
+    it "BYRON_MIGRATE_03 - \
+        \actual fee for migration is the same as the predicted fee."
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
+            -- Restore a Byron wallet with funds.
+            sourceWallet <- fixtureByronWallet ctx
+
+            -- Request a migration fee prediction.
+            let ep0 = (Link.getMigrationInfo @'Byron sourceWallet)
+            r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectField #migrationCost (.> Quantity 0)
+                ]
+
+            -- Perform the migration.
+            targetWallet <- emptyWallet ctx
+            addrs <- listAddresses ctx targetWallet
+            let addr1 = addrs !! 1
+            let payload =
+                    Json [json|
+                        { passphrase: #{fixturePassphrase}
+                        , addresses: [#{addr1}]
+                        }|]
+            let ep1 = Link.migrateWallet @'Byron sourceWallet
+            r1 <- request @[ApiTransaction] ctx ep1 Default payload
+            verify r1
+                [ expectResponseCode @IO HTTP.status202
+                , expectField id (`shouldSatisfy` (not . null))
+                ]
+
+            -- Verify that the fee prediction was correct.
+            let actualFee = fromIntegral $ sum $ apiTransactionFee
+                    <$> getFromResponse id r1
+            let predictedFee =
+                    getFromResponse (#migrationCost . #getQuantity) r0
+            actualFee `shouldBe` predictedFee
+
+    it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
+        pendingWith "Byron wallets not supported in cardano-node yet."
+        -- Restore a Byron wallet with funds, to act as a source wallet:
+        sourceWallet <- fixtureByronWallet ctx
+
+        -- Perform a migration from the source wallet to a target wallet:
+        targetWallet <- emptyWallet ctx
+        addr1:_ <- listAddressesAsText ctx targetWallet
+        r0 <- request @[ApiTransaction] ctx
+            (Link.migrateWallet @'Byron sourceWallet )
+            Default
+            (Json [json|
+                { passphrase: "not-the-right-passphrase"
+                , addresses: [#{addr1}]
+                }|])
+        verify r0
+            [ expectResponseCode @IO HTTP.status403
+            , expectErrorMessage errMsg403WrongPass
+            ]
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     it "NETWORK_SHELLEY - Wallet has the same tip as network/information" $
         \ctx -> do
             let getNetworkInfo = request @ApiNetworkInformation ctx
@@ -1290,6 +1637,24 @@ spec = do
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
   where
+<<<<<<< HEAD
+=======
+    -- Compute the fee associated with an API transaction.
+    apiTransactionFee :: ApiTransaction -> Word64
+    apiTransactionFee t =
+        inputBalance t - outputBalance t
+      where
+        inputBalance = fromIntegral
+            . sum
+            . fmap (view (#amount . #getQuantity))
+            . mapMaybe ApiTypes.source
+            . view #inputs
+        outputBalance = fromIntegral
+            . sum
+            . fmap (view (#amount . #getQuantity))
+            . view #outputs
+
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     genMnemonics
        :: forall mw ent csz.
            ( ConsistentEntropy ent mw csz
@@ -1301,3 +1666,59 @@ spec = do
        => IO [Text]
     genMnemonics =
         mnemonicToText . entropyToMnemonic @mw <$> genEntropy
+<<<<<<< HEAD
+=======
+
+    testAddressCycling ctx addrNum =
+        forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> do
+            pendingWith "Byron wallets not supported in cardano-node yet."
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureByronWallet ctx
+            let originalBalance =
+                        view (#balance . #available . #getQuantity) sourceWallet
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            addrs <- listAddresses ctx targetWallet
+            let addrIds =
+-- TODO: Why does this compile?
+--                    map (\(ApiTypes.ApiAddressWithState theid _) -> theid) $
+                    take addrNum addrs
+
+            -- Calculate the expected migration fee:
+            r0 <- request @ApiWalletMigrationInfo ctx
+                (Link.getMigrationInfo @'Byron sourceWallet) Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectField #migrationCost (.> Quantity 0)
+                ]
+            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
+
+            -- Perform a migration from the source wallet to the target wallet:
+            r1 <- request @[ApiTransaction] ctx
+                (Link.migrateWallet @'Byron sourceWallet)
+                Default
+                (Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{addrIds}
+                    }|])
+            verify r1
+                [ expectResponseCode @IO HTTP.status202
+                , expectField id (`shouldSatisfy` (not . null))
+                ]
+
+            -- Check that funds become available in the target wallet:
+            let expectedBalance = originalBalance - expectedFee
+            eventually "Wallet has expectedBalance" $ do
+                r2 <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley targetWallet) Default Empty
+                verify r2
+                    [ expectField
+                            (#balance . #getApiT . #available)
+                            (`shouldBe` Quantity expectedBalance)
+                    , expectField
+                            (#balance . #getApiT . #total)
+                            (`shouldBe` Quantity expectedBalance)
+                    ]
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant

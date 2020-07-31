@@ -29,6 +29,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
+<<<<<<< HEAD
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -39,6 +40,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.SyncProgress
+=======
+    , ApiWalletMigrationInfo (..)
+    , WalletStyle (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
+import Cardano.Wallet.Primitive.Types
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     ( SyncProgress (..) )
 import Control.Monad
     ( forM_, void )
@@ -101,12 +110,16 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
+<<<<<<< HEAD
 spec :: forall n t.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
+=======
+spec :: SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 spec = do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyRandomWallet ctx

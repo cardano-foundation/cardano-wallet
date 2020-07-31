@@ -39,6 +39,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , SoftDerivation (..)
     , liftIndex
+    , AddressScheme (..)
 
     -- * Delegation
     , ChimericAccount (..)
@@ -51,16 +52,11 @@ module Cardano.Wallet.Primitive.AddressDerivation
 
     -- * Network Discrimination
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantVal
-    , networkDiscriminantVal
 
     -- * Backends Interoperability
-    , PaymentAddress(..)
-    , DelegationAddress(..)
     , WalletKey(..)
     , PersistPrivateKey(..)
     , PersistPublicKey(..)
-    , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
 
@@ -126,7 +122,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( KnownNat, Nat, Symbol, natVal )
+    ( Symbol )
 import Safe
     ( toEnumMay )
 
@@ -137,6 +133,63 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+-- @AddressScheme@ correlates @key@s with @Addresses@.
+--
+-- In a @SeqState@ we need tell if an @Address@ was created using a given @key@.
+--
+-- A @key@ may corrspond to multiple @Address@es. We cannot* convert
+-- an address into a public key.
+--
+-- To be able to compare @key@s and addresses, we convert them both to
+-- fingerprints, which are hashes of the public keys.
+--
+-- @@
+--
+--            paymentAddress         delegationAddress
+--
+--    Address ◀────────────── Key ──────────────▶ Address
+--        ╲                                         ╱
+--          ╲                  │                  ╱
+--            ╲                │                ╱
+--              ╲              │              ╱
+--                ╲            │            ╱
+--                  ╲          │          ╱
+--                    ╲        │        ╱
+--                      ╲      │      ╱
+--                        ╲    │    ╱
+--                          ╲  │  ╱
+--                            ╲│╱
+--                            ▼▼▼
+--                        Fingerprint
+-- @@
+--
+-- *) Except in jormungandr
+--
+-- TODO: @addressToText@ and @addressFromText@ could /maybe/ be removed if we made
+-- Address an anbstract type. But something entirely differnt could be desired
+-- as well.
+data AddressScheme (key :: Depth -> * -> *) = AddressScheme
+    { addressFromKey
+        :: key 'AddressK XPub -> Address
+    , keyFingerprint
+        :: key 'AddressK XPub -> Either ErrMkKeyFingerprint KeyFingerprint
+    , addressFingerprint
+        :: Address -> Either ErrMkKeyFingerprint KeyFingerprint
+    , addressToText
+        :: Address -> Text
+    , addressFromText
+        :: Text -> Either TextDecodingError Address
+    , addressFromFingerprint
+        :: KeyFingerprint -> Address
+        -- TODO: Can we remove the need for this somehow?
+        -- I think we can, by parameterizing AddressPool over address.
+    } deriving Generic
+
+instance Show (AddressScheme k) where
+    show _ = "<AddressScheme>"
+
+instance NFData (AddressScheme key)
 
 {-------------------------------------------------------------------------------
                                 HD Hierarchy
@@ -495,23 +548,14 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 --              discrimination. Genesis file needs to be passed explicitly when
 --              starting the application.
 --
-data NetworkDiscriminant = Mainnet | Testnet Nat | Staging Nat
-    deriving Typeable
+-- TODO: Use ProtocolMagic instead of Int?
+data NetworkDiscriminant = Mainnet | Testnet Int | Staging Int
+    deriving (Eq, Show)
 
-class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
-    networkDiscriminantVal :: Text
-
-instance NetworkDiscriminantVal 'Mainnet where
-    networkDiscriminantVal =
-        "mainnet"
-
-instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
-    networkDiscriminantVal =
-        "testnet (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
-
-instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
-    networkDiscriminantVal =
-        "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+instance ToText NetworkDiscriminant where
+    toText Mainnet = "mainnet"
+    toText (Testnet pm) = "testnet (" <> T.pack (show pm) <> ")"
+    toText (Staging pm) = "staging (" <> T.pack (show pm) <> ")"
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
@@ -552,56 +596,6 @@ class WalletKey (key :: Depth -> * -> *) where
         :: key depth raw
         -> raw
 
--- | Encoding of addresses for certain key types and backend targets.
-class MkKeyFingerprint key Address
-    => PaymentAddress (network :: NetworkDiscriminant) key where
-    -- | Convert a public key to a payment 'Address' valid for the given
-    -- network discrimination.
-    --
-    -- Note that 'paymentAddress' is ambiguous and requires therefore a type
-    -- application.
-    paymentAddress
-        :: key 'AddressK XPub
-        -> Address
-
-    -- | Lift a payment fingerprint back into a payment address.
-    liftPaymentAddress
-        :: KeyFingerprint "payment" key
-            -- ^ Payment fingerprint
-        -> Address
-
-instance PaymentAddress 'Mainnet k => PaymentAddress ('Staging pm) k where
-    paymentAddress = paymentAddress @'Mainnet
-    liftPaymentAddress = liftPaymentAddress @'Mainnet
-
-class PaymentAddress network key
-    => DelegationAddress (network :: NetworkDiscriminant) key where
-    -- | Convert a public key and a staking key to a delegation 'Address' valid
-    -- for the given network discrimination. Funds sent to this address will be
-    -- delegated according to the delegation settings attached to the delegation
-    -- key.
-    --
-    -- Note that 'delegationAddress' is ambiguous and requires therefore a type
-    -- application.
-    delegationAddress
-        :: key 'AddressK XPub
-            -- ^ Payment key
-        -> key 'AddressK XPub
-            -- ^ Staking key / Reward account
-        -> Address
-
-    -- | Lift a payment fingerprint back into a delegation address.
-    liftDelegationAddress
-        :: KeyFingerprint "payment" key
-            -- ^ Payment fingerprint
-        -> key 'AddressK XPub
-            -- ^ Staking key / Reward account
-        -> Address
-
-instance DelegationAddress 'Mainnet k => DelegationAddress ('Staging pm) k where
-    delegationAddress = delegationAddress @'Mainnet
-    liftDelegationAddress = liftDelegationAddress @'Mainnet
-
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
 class PersistPrivateKey (key :: * -> *) where
@@ -634,35 +628,14 @@ class PersistPublicKey (key :: * -> *) where
 
 -- | Something that uniquely identifies a public key. Typically,
 -- a hash of that key or the key itself.
-newtype KeyFingerprint (s :: Symbol) key = KeyFingerprint ByteString
+newtype KeyFingerprint = KeyFingerprint ByteString
     deriving (Generic, Show, Eq, Ord)
 
-instance NFData (KeyFingerprint s key)
+instance NFData KeyFingerprint
 
--- | Produce 'KeyFingerprint' for existing types. A fingerprint here uniquely
--- identifies part of an address. It can refer to either the payment key or, if
--- any, the delegation key of an address.
---
--- The fingerprint obeys the following rules:
---
--- - If two addresses are the same, then they have the same fingerprints
--- - It is possible to lift the fingerprint back into an address
---
--- This second rule pretty much fixes what can be chosen as a fingerprint for
--- various key types:
---
--- 1. For 'ByronKey', it can only be the address itself!
--- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
---    within a single or grouped address.
-class Show from => MkKeyFingerprint (key :: Depth -> * -> *) from where
-    paymentKeyFingerprint
-        :: from
-        -> Either
-            (ErrMkKeyFingerprint key from)
-            (KeyFingerprint "payment" key)
 
-data ErrMkKeyFingerprint key from
-    = ErrInvalidAddress from (Proxy key) deriving (Show, Eq)
+newtype ErrMkKeyFingerprint
+    = ErrInvalidAddress Address deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                 Helpers

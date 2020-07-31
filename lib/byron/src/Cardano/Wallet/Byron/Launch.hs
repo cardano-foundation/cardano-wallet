@@ -38,8 +38,6 @@ import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId (..) )
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
-import Cardano.Wallet.Byron
-    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( NodeVersionData
     , emptyGenesis
@@ -73,16 +71,15 @@ import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
 import Data.Aeson
     ( toJSON )
-import Data.Function
-    ( (&) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime )
+<<<<<<< HEAD
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Options.Applicative
     ( Parser, flag', help, long, metavar )
 import Ouroboros.Network.Magic
@@ -107,7 +104,7 @@ import qualified Data.Yaml as Yaml
 
 data NetworkConfiguration where
     MainnetConfig
-        :: (SomeNetworkDiscriminant, NodeVersionData)
+        :: NodeVersionData
         -> NetworkConfiguration
 
     TestnetConfig
@@ -146,7 +143,7 @@ networkConfigurationOption =
   where
     -- --mainnet
     mainnetFlag = flag'
-        (MainnetConfig (SomeNetworkDiscriminant $ Proxy @'Mainnet, mainnetVersionData))
+        (MainnetConfig mainnetVersionData)
         (long "mainnet")
 
     customNetworkOption
@@ -157,6 +154,7 @@ networkConfigurationOption =
         <> metavar "FILE"
         <> help "Path to the genesis .json file."
 
+<<<<<<< HEAD
 someCustomDiscriminant
     :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
     -> ProtocolMagic
@@ -170,13 +168,14 @@ someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
         _ -> error "networkDiscriminantFlag: failed to convert \
             \ProtocolMagic to SomeNat."
 
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 parseGenesisData
     :: NetworkConfiguration
-    -> ExceptT String IO
-        (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
+    -> ExceptT String IO (NetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
-    MainnetConfig (discriminant, vData) -> pure
-        ( discriminant
+    MainnetConfig vData -> pure
+        ( Mainnet
         , mainnetNetworkParameters
         , vData
         , emptyGenesis (genesisParameters mainnetNetworkParameters)
@@ -185,6 +184,7 @@ parseGenesisData = \case
         (genesisData, genesisHash) <-
             withExceptT show $ readGenesisData genesisFile
 
+<<<<<<< HEAD
         let mkSomeNetwork
                 :: forall (pm :: Nat). KnownNat pm
                 => Proxy pm
@@ -218,9 +218,13 @@ parseGenesisData = \case
                 & fromProtocolMagicId
                 & someCustomDiscriminant mkSomeNetwork
 
+=======
+        let pm = fromProtocolMagicId $ gdProtocolMagicId genesisData
+        let vData = testnetVersionData pm
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         let (np, outs) = fromGenesisData (genesisData, genesisHash)
         pure
-            ( discriminant
+            ( Testnet $ fromIntegral $ getProtocolMagic pm
             , np
             , vData
             , genesisBlockFromTxOuts (genesisParameters np) outs

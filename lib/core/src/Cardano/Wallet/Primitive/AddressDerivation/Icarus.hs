@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
     , generateKeyFromHardwareLedger
     , unsafeGenerateKeyFromSeed
     , minSeedLengthBytes
+    , icarusScheme
     ) where
 
 import Prelude
@@ -34,7 +35,6 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
-    , XPub
     , deriveXPrv
     , deriveXPub
     , generateNew
@@ -48,17 +48,16 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
+    ( AddressScheme (..)
+    , ChimericAccount (..)
     , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -71,13 +70,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant, testnetMagic )
+    ( Address (..), Hash (..), ProtocolMagic (..), invariant )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( (<=<) )
+    ( guard, (<=<) )
 import Crypto.Error
     ( eitherCryptoError )
 import Crypto.Hash
@@ -86,26 +85,26 @@ import Crypto.Hash.Algorithms
     ( SHA256 (..), SHA512 (..) )
 import Crypto.MAC.HMAC
     ( HMAC, hmac )
-import Data.Bifunctor
-    ( bimap )
 import Data.Bits
     ( clearBit, setBit, testBit )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Either.Extra
+    ( maybeToEither )
 import Data.Function
     ( (&) )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -381,40 +380,80 @@ instance WalletKey IcarusKey where
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet IcarusKey where
-    paymentAddress k = Address
+icarusScheme :: NetworkDiscriminant -> AddressScheme IcarusKey
+icarusScheme net = AddressScheme
+    { addressFromKey = _addressFromKey
+    , addressFingerprint = _addressFingerprint
+    , keyFingerprint = _addressFingerprint . _addressFromKey
+    , addressToText = gEncodeAddress
+    , addressFromFingerprint = \(KeyFingerprint bytes) -> Address bytes
+    , addressFromText = gDecodeAddress $ case net of
+        Mainnet -> decodeLegacyAddress Nothing
+        Testnet pm -> decodeLegacyAddress . Just . ProtocolMagic . fromIntegral $ pm
+        Staging _ -> error "TODO: staging"
+    }
+  where
+    _addressFromKey k = Address
         $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k) []
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
+        $ CBOR.encodeAddress (getKey k) attrs
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey where
-    paymentAddress k = Address
-        $ CBOR.toStrictByteString
-        $ CBOR.encodeAddress (getKey k)
-            [ CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
-            ]
-    liftPaymentAddress (KeyFingerprint bytes) =
-        Address bytes
-
-instance MkKeyFingerprint IcarusKey Address where
-    paymentKeyFingerprint addr@(Address bytes) =
+    _addressFingerprint addr@(Address bytes) =
         case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
             Just _  -> Right $ KeyFingerprint bytes
-            Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
+            Nothing -> Left $ ErrInvalidAddress addr
 
-instance PaymentAddress n IcarusKey
-    => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'AddressK XPub)
-  where
-    paymentKeyFingerprint (proxy, k) =
-        bimap (const err) coerce
-        . paymentKeyFingerprint @IcarusKey
-        . paymentAddress @n
-        $ k
+
+    attrs = case net of
+        Mainnet -> []
+        Testnet magic ->
+            [ CBOR.encodeProtocolMagicAttr $ ProtocolMagic (fromIntegral magic) ]
+        Staging _ -> error "TODO: staging"
+
+    gEncodeAddress :: Address -> Text
+    gEncodeAddress (Address bytes) =
+        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
+
+    gDecodeAddress
+        :: (ByteString -> Maybe Address)
+        -> Text
+        -> Either TextDecodingError Address
+    gDecodeAddress decodeByron text =
+        case tryBase58 of
+            Just bytes ->
+                decodeByron bytes
+                    & maybeToEither (TextDecodingError
+                        "Unable to decode Address: not a well-formed Byron Address.")
+
+            Nothing ->
+                Left $ TextDecodingError
+                    "Unable to decode Address: not a valid Base58 encoded string."
       where
-        err = ErrInvalidAddress (proxy, k) Proxy
+        -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+        tryBase58 :: Maybe ByteString
+        tryBase58 =
+            decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
 
-instance IsOurs (SeqState n IcarusKey) ChimericAccount where
+    -- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
+    -- the underlying bytestring has a "valid" structure / format without doing much
+    -- more.
+    decodeLegacyAddress :: Maybe ProtocolMagic -> ByteString -> Maybe Address
+    decodeLegacyAddress expectedMagic bytes = do
+        payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes
+        decodedMagic <- CBOR.deserialiseCbor CBOR.decodeProtocolMagicAttr payload
+        -- NOTE
+        -- Legacy / Byron addesses on Jörmungandr can have any network
+        -- discrimination. In practice, the genesis file only contains
+        -- Mainnet addresses whereas the network discrimination is set to testnet.
+        --
+        -- This create a very annoying discrepency where it becomes tricky to
+        -- enforce any sort of discrimination on legacy addresses. As a result, for
+        -- Jörmungandr (identified by as being 'Testnet 0'), we simply don't.
+        guard (expectedMagic == itnMagic || decodedMagic == expectedMagic)
+        pure (Address bytes)
+      where
+        itnMagic = Just (ProtocolMagic 0)
+
+instance IsOurs (SeqState IcarusKey) ChimericAccount where
     isOurs _account state = (False, state)
 
 {-------------------------------------------------------------------------------

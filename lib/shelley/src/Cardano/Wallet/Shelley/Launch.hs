@@ -76,6 +76,7 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
+<<<<<<< HEAD
     ( Block (..)
     , Coin (..)
     , EpochLength (..)
@@ -89,6 +90,9 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
+=======
+    ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Unsafe
@@ -118,6 +122,7 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
+<<<<<<< HEAD
     ( FromJSON (..), toJSON, (.:), (.=) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
@@ -137,16 +142,23 @@ import Data.Maybe
     ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
+=======
+    ( eitherDecode, toJSON )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
+<<<<<<< HEAD
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
+=======
+    ( getCurrentTime )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Options.Applicative
     ( Parser, flag', help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
@@ -240,6 +252,7 @@ networkConfigurationOption = mainnet <|> testnet <|> staging
         <> metavar "FILE"
         <> help ("Path to the " <> era <> " genesis data in JSON format.")
 
+<<<<<<< HEAD
 someCustomDiscriminant
     :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
     -> ProtocolMagic
@@ -253,11 +266,14 @@ someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
         _ -> error "networkDiscriminantFlag: failed to convert \
             \ProtocolMagic to SomeNat."
 
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 parseGenesisData
     :: NetworkConfiguration
     -> ExceptT String IO
-        (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
+        (NetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
+<<<<<<< HEAD
     MainnetConfig -> do
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
@@ -304,8 +320,18 @@ parseGenesisData = \case
         let (np, outs) = Byron.fromGenesisData (genesisData, genesisHash)
         let block0 = Byron.genesisBlockFromTxOuts (genesisParameters np) outs
 
+=======
+    TestnetConfig genesisFile -> do
+        (genesis :: ShelleyGenesis TPraosStandardCrypto)
+            <- ExceptT $ eitherDecode <$> BL.readFile genesisFile
+        -- TODO: Protocol magic and testnet magic aint the same ting?
+        let nm = unNetworkMagic $ sgNetworkMagic genesis
+        let pm = ProtocolMagic $ fromIntegral nm
+        let vData = testnetVersionData pm
+        let (np, block0) = fromGenesisData genesis
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         pure
-            ( discriminant
+            ( Testnet (fromIntegral nm)
             , np
             , vData
             , block0

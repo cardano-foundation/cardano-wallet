@@ -8,7 +8,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
@@ -86,6 +85,7 @@ import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
+<<<<<<< HEAD
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -98,32 +98,22 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( decodeLegacyAddress )
 import Cardano.Wallet.Primitive.Slotting
     ( flatSlot, fromFlatSlot )
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
-import Data.ByteString
-    ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Coerce
     ( coerce )
-import Data.Either.Extra
-    ( maybeToEither )
-import Data.Function
-    ( (&) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( TextDecodingError (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
 import GHC.Stack
     ( HasCallStack )
-import GHC.TypeLits
-    ( KnownNat )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Block.Abstract
@@ -165,7 +155,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 
@@ -507,6 +496,7 @@ fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
+<<<<<<< HEAD
 instance {-# OVERLAPS #-} EncodeStakeAddress n where
     encodeStakeAddress = error
         "encodeStakeAddress: there's no such thing as stake address in Byron"
@@ -554,3 +544,5 @@ gDecodeAddress decodeByron text =
     tryBase58 :: Maybe ByteString
     tryBase58 =
         decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant

@@ -31,8 +31,13 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
+<<<<<<< HEAD
     , PaymentAddress (..)
     , WalletKey
+=======
+    , Passphrase (..)
+    , getRawKey
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -138,8 +143,15 @@ spec = do
             Right x
 
     describe "Shelley Addresses" $ do
+<<<<<<< HEAD
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr = paymentAddress @'Mainnet @ShelleyKey k
+=======
+        it "(Mainnet) can be deserialised by shelley ledger spec" $
+            property $ \(k::ShelleyKey 'AddressK XPrv) -> do
+            let AddressScheme{keyToAddress} = shelleyScheme Mainnet Nothing
+            let Address addr = keyToAddress $ publicKey k
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
             case SL.deserialiseAddr @TPraosStandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False

@@ -22,7 +22,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     -- * Abstractions
       IsOurs(..)
     , IsOwned(..)
-    , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
     ) where
@@ -79,20 +78,6 @@ class IsOurs s Address => IsOwned s key where
         -- operation can be costly. Note that the state is discarded from this
         -- function as we do not intend to discover any addresses from this
         -- operation; This is merely a lookup from known addresses.
-
--- | Abstracting over change address generation. In theory, this is only needed
--- for sending transactions on a wallet following a particular scheme. This
--- abstractions allows for defining an heuristic to pick new change address. For
--- instance, in BIP-44, change addresses belong to a particular change chain
--- (also called "Internal Chain").
-class GenChange s where
-    type ArgGenChange s :: *
-    genChange
-        :: ArgGenChange s
-        -> s
-        -> (Address, s)
-        -- ^ Generate a new change address for the given scheme. The rules for
-        -- generating a new change address depends on the underlying scheme.
 
 -- | Ordering addresses by discovery date.
 --

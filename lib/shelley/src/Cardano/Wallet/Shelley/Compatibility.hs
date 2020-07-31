@@ -102,6 +102,7 @@ import Cardano.Binary
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
 import Cardano.Slotting.Slot
+<<<<<<< HEAD
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..)
@@ -146,6 +147,11 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.ByteString.Short
     ( fromShort, toShort )
+=======
+    ( EpochSize (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeDeserialiseCbor )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Data.Coerce
     ( coerce )
 import Data.Foldable
@@ -160,10 +166,13 @@ import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Text
     ( Text )
+<<<<<<< HEAD
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Type.Equality
     ( testEquality )
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import Fmt
@@ -220,8 +229,11 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
+<<<<<<< HEAD
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -894,6 +906,7 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
     pool = SL.KeyHash $ UnsafeHash $ toShort pid
 
 {-------------------------------------------------------------------------------
+<<<<<<< HEAD
                       Address Encoding / Decoding
 -------------------------------------------------------------------------------}
 
@@ -1071,6 +1084,8 @@ instance Buildable LocalAddress where
     build (LocalAddress p) = build p
 
 {-------------------------------------------------------------------------------
+=======
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
                                  Utilities
 -------------------------------------------------------------------------------}
 

@@ -24,7 +24,7 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
+    ( ApiByronWallet, ApiUtxoStatistics )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -89,10 +89,8 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n t.
-    ( DecodeAddress n
-    , KnownCommand t
-    ) => SpecWith (Context t)
+spec :: forall t. KnownCommand t
+     => SpecWith (Context t)
 spec = do
 
     describe "CLI_BYRON_GET_04, CLI_BYRON_DELETE_01, BYRON_RESTORE_02, BYRON_RESTORE_03 -\

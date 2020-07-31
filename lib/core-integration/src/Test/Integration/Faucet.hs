@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -49,10 +50,10 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
+    , AddressScheme (..)
     , DerivationType (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     , deriveRewardAccount
     , liftIndex
@@ -1426,10 +1427,11 @@ genByronFaucets = genFaucet encodeAddress genAddresses
             addrXPrv =
                 Byron.deriveAddressPrivateKey pwd accXPrv
         in
-            [ paymentAddress @'Mainnet
+            [ addressFromKey
                 $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
             | ix <- [minBound..maxBound]
             ]
+    AddressScheme{addressFromKey} = Byron.byronScheme Mainnet
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
@@ -1453,9 +1455,10 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
             addrXPrv =
                 deriveAddressPrivateKey pwd accXPrv UTxOExternal
         in
-            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+            [ addressFromKey $ publicKey $ addrXPrv ix
             | ix <- [minBound..maxBound]
             ]
+    AddressScheme{addressFromKey} = Icarus.icarusScheme Mainnet
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
@@ -1467,6 +1470,7 @@ genShelleyFaucets = genFaucet encodeAddress (genShelleyAddresses . SomeMnemonic)
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ convertToBase Base16 bytes
 
+<<<<<<< HEAD
 genShelleyAddresses :: SomeMnemonic -> [Address]
 genShelleyAddresses mw =
     let
@@ -1494,6 +1498,24 @@ genRewardAccounts mw =
             deriveRewardAccount pwd rootXPrv
     in
         [getRawKey $ publicKey acctXPrv]
+=======
+    genAddresses :: Mnemonic 15 -> [Address]
+    genAddresses mw =
+        let
+            (seed, pwd) =
+                (SomeMnemonic mw, mempty)
+            rootXPrv =
+                Shelley.generateKeyFromSeed (seed, Nothing) pwd
+            accXPrv =
+                deriveAccountPrivateKey pwd rootXPrv minBound
+            addrXPrv =
+                deriveAddressPrivateKey pwd accXPrv UTxOExternal
+        in
+            [ addressFromKey $ publicKey $ addrXPrv ix
+            | ix <- [minBound..maxBound]
+            ]
+    AddressScheme{addressFromKey} = Shelley.shelleyScheme Mainnet Nothing
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
 -- | Abstract function for generating a faucet.
 genFaucet

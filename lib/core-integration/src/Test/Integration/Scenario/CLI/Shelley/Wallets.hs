@@ -16,6 +16,7 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
+<<<<<<< HEAD
     ( ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -24,6 +25,9 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , getApiT
     )
+=======
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -96,12 +100,17 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
+<<<<<<< HEAD
 spec :: forall n t.
     ( KnownCommand t
     , DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
+=======
+spec
+    :: forall t. KnownCommand t => SpecWith (Context t)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 spec = do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
         wid <- emptyRandomWallet' ctx
@@ -199,8 +208,7 @@ spec = do
 
         --send transaction to the wallet
         let amount = 11
-        addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses ctx wDest
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -208,7 +216,7 @@ spec = do
 
         (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
-        _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
+        _ <- expectValidJSON (Proxy @ApiTransaction) op
         cp `shouldBe` ExitSuccess
 
         eventually "Wallet balance is as expected" $ do
@@ -663,7 +671,7 @@ spec = do
         let newPass = "cardano-wallet2"
         let expectTxOK (ec, out, err) = do
                 ec `shouldBe` ExitSuccess
-                _ <- expectValidJSON (Proxy @(ApiTransaction n)) out
+                _ <- expectValidJSON (Proxy @ApiTransaction) out
                 T.unpack err `shouldContain` cmdOk
         let matrix =
                 [ ("Old passphrase -> fail", oldPass
@@ -677,16 +685,15 @@ spec = do
         forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            addr:_ <- listAddresses @n ctx wDest
+            addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses ctx wDest
             let wid = T.unpack $ wSrc ^. walletId
             (c, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
             expect (ExitSuccess, "\n", cmdOk) (c, out, err)
 
-            let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
-                    , "--payment", "1@" <> addrStr
+                    , "--payment", "1@" <> addr
                     ]
 
             (cTx, outTx, errTx) <- postTransactionViaCLI @t ctx pass args
@@ -715,6 +722,7 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
+<<<<<<< HEAD
         let coins = [13, 43, 66, 101, 1339] :: [Word64]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
@@ -742,6 +750,36 @@ spec = do
         e `shouldBe` cmdOk
         utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
         expectWalletUTxO coins (Right utxoStats1)
+=======
+        let coins = [13, 43, 66, 101, 1339] :: [Integer]
+        let matrix = zip coins [1..]
+        addr:_ <- map (view (#id . #apiAddress)) <$> listAddresses ctx wDest
+        forM_ matrix $ \(amount, alreadyAbsorbed) -> do
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", T.pack (show amount) <> "@" <> addr
+                    ]
+            (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            T.unpack ep `shouldContain` cmdOk
+            _ <- expectValidJSON (Proxy @ApiTransaction) op
+            cp `shouldBe` ExitSuccess
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            eventually "Wallet balance is as expected" $ do
+                Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+                jg <- expectValidJSON (Proxy @ApiWallet) og
+                expectCliField (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
+                expectCliField (#balance . #getApiT . #total)
+                    (`shouldBe` Quantity (fromIntegral $ sum coinsSent)) jg
+
+            --verify utxo
+            (Exit c, Stdout o, Stderr e)
+                    <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            c `shouldBe` ExitSuccess
+            e `shouldBe` cmdOk
+            utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
+            expectWalletUTxO coinsSent (Right utxoStats1)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
     describe "WALLETS_UTXO_03 - non-existing wallets" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do

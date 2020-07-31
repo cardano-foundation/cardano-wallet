@@ -23,6 +23,7 @@ import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
     , ErrValidateSelection
+    , addressScheme
     , genesisData
     , networkLayer
     , normalizeDelegationAddress
@@ -88,6 +89,7 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
+<<<<<<< HEAD
     ( ApiErrorCode (..)
     , ApiStakePool
     , ApiT (..)
@@ -95,6 +97,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
+=======
+    ( ApiT (..), SomeByronWalletPostData (..) )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -104,9 +109,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+<<<<<<< HEAD
     ( SeqState )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
+=======
+    ( SeqState, seqGenChange )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
@@ -129,6 +138,7 @@ import Type.Reflection
     ( Typeable )
 
 server
+<<<<<<< HEAD
     :: forall t n.
         ( Buildable (ErrValidateSelection t)
         , PaymentAddress n IcarusKey
@@ -143,6 +153,16 @@ server
     -> NtpClient
     -> Server (Api n ApiStakePool)
 server byron icarus shelley spl ntp =
+=======
+    :: forall t.  ( Buildable (ErrValidateSelection t)
+        )
+    => ApiLayer RndState t ByronKey
+    -> ApiLayer (SeqState IcarusKey) t IcarusKey
+    -> ApiLayer (SeqState ShelleyKey) t ShelleyKey
+    -> NtpClient
+    -> Server Api
+server byron icarus shelley ntp =
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
          wallets
     :<|> addresses
     :<|> coinSelections
@@ -166,27 +186,36 @@ server byron icarus shelley spl ntp =
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
 
+<<<<<<< HEAD
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley
         (normalizeDelegationAddress @_ @ShelleyKey @n)
+=======
+    addresses :: Server Addresses
+    addresses = listAddresses shelley (normalizeDelegationAddress)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
-    coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley (delegationAddress @n)
+    coinSelections :: Server CoinSelections
+    coinSelections = selectCoins shelley (seqGenChange $ shelley ^. addressScheme)
 
-    transactions :: Server (Transactions n)
+    transactions :: Server Transactions
     transactions =
-        postTransaction shelley (delegationAddress @n)
+        postTransaction shelley (seqGenChange $ shelley ^. addressScheme)
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
         :<|> getTransaction shelley
 
-    shelleyMigrations :: Server (ShelleyMigrations n)
+    shelleyMigrations :: Server ShelleyMigrations
     shelleyMigrations =
              getMigrationInfo @_ @_ @_ @n shelley
         :<|> migrateWallet shelley
 
+<<<<<<< HEAD
     stakePools :: Server (StakePools n ApiStakePool)
+=======
+    stakePools :: Server StakePools
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     stakePools =
         listStakePools_
         :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
@@ -211,8 +240,12 @@ server byron icarus shelley spl ntp =
             SomeIcarusWallet x -> postIcarusWallet icarus x
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
+<<<<<<< HEAD
             SomeAccount x ->
                 postAccountWallet icarus (mkLegacyWallet @_ @_ @_ @t) IcarusKey idleWorker x
+=======
+            SomeAccount x -> postAccountWallet icarus (mkLegacyWallet @_ @_ @IcarusKey) IcarusKey x
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -220,6 +253,7 @@ server byron icarus shelley spl ntp =
              )
         :<|> (\wid -> withLegacyLayer' wid
                 ( byron
+<<<<<<< HEAD
                 , fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid
                 , const (fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid)
                 )
@@ -234,6 +268,22 @@ server byron icarus shelley spl ntp =
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron (mkLegacyWallet @_ @_ @_ @t) wid name)
                 (icarus, putWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid name)
+=======
+                , fst <$> getWallet byron  (mkLegacyWallet @_ @_ @ByronKey) wid
+                , const (fst <$> getWallet byron  (mkLegacyWallet @_ @_ @ByronKey) wid)
+                )
+                ( icarus
+                , fst <$> getWallet icarus (mkLegacyWallet @_ @_ @IcarusKey) wid
+                , const (fst <$> getWallet icarus (mkLegacyWallet @_ @_ @IcarusKey) wid)
+                )
+             )
+        :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
+            (listWallets byron  (mkLegacyWallet @_ @_ @ByronKey))
+            (listWallets icarus (mkLegacyWallet @_ @_ @IcarusKey))
+        :<|> (\wid name -> withLegacyLayer wid
+                (byron , putWallet byron (mkLegacyWallet @_ @_ @ByronKey) wid name)
+                (icarus, putWallet icarus (mkLegacyWallet @_ @_ @IcarusKey) wid name)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
              )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getUTxOsStatistics byron wid)
@@ -244,7 +294,7 @@ server byron icarus shelley spl ntp =
                 (icarus, putByronWalletPassphrase icarus wid pwd)
              )
 
-    byronAddresses :: Server (ByronAddresses n)
+    byronAddresses :: Server ByronAddresses
     byronAddresses =
              (\wid s -> withLegacyLayer wid
                 (byron, postRandomAddress byron wid s)
@@ -263,22 +313,27 @@ server byron icarus shelley spl ntp =
                 (icarus, listAddresses icarus (const pure) wid s)
              )
 
-    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections :: Server CoinSelections
     byronCoinSelections wid x = withLegacyLayer wid
         (byron, liftHandler $ throwE ErrNotASequentialWallet)
-        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
+        (icarus, selectCoins icarus (seqGenChange $ icarus ^. addressScheme) wid x)
 
-    byronTransactions :: Server (ByronTransactions n)
+    byronTransactions :: Server ByronTransactions
     byronTransactions =
              (\wid tx -> withLegacyLayer wid
                  (byron , do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
+<<<<<<< HEAD
                     genChange <- rndStateChange byron wid pwd
                     postTransaction byron genChange wid tx
 
+=======
+                    genChange <- rndStateChange @_ @RndState byron wid pwd
+                    postTransaction @_ @RndState byron genChange wid tx
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
                  )
                  (icarus, do
-                    let genChange k _ = paymentAddress @n k
+                    let genChange = seqGenChange (icarus ^. addressScheme)
                     postTransaction icarus genChange wid tx
                  )
              )
@@ -301,7 +356,7 @@ server byron icarus shelley spl ntp =
                 (icarus, getTransaction icarus wid txid)
              )
 
-    byronMigrations :: Server (ByronMigrations n)
+    byronMigrations :: Server ByronMigrations
     byronMigrations =
              (\wid -> withLegacyLayer wid
                 (byron , getMigrationInfo @_ @_ @_ @n byron wid)

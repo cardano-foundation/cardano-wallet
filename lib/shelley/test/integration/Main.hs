@@ -41,12 +41,16 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Coin (..) )
 import Cardano.Wallet.Shelley
+<<<<<<< HEAD
     ( SomeNetworkDiscriminant (..)
     , Tracers
     , serveWallet
     , setupTracers
     , tracerSeverities
     )
+=======
+    ( serveWallet, setupTracers, tracerSeverities )
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley )
 import Cardano.Wallet.Shelley.Faucet
@@ -135,12 +139,18 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 instance KnownCommand Shelley where
     commandName = "cardano-wallet-shelley"
 
+<<<<<<< HEAD
 main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
+=======
+main :: forall t . (t ~ Shelley) => IO ()
+main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
     hSetBuffering stdout LineBuffering
     hspec $ do
         describe "No backend required" $ do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+<<<<<<< HEAD
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
@@ -175,6 +185,22 @@ testPoolConfigs =
       -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
+=======
+            describe "Key CLI tests" $ parallel (KeyCLI.spec @t)
+        describe "API Specifications" $ specWithServer tr $ do
+            Addresses.spec
+            Transactions.spec
+            Wallets.spec
+            HWWallets.spec
+            Network.spec
+        describe "CLI Specifications" $ specWithServer tr $ do
+            AddressesCLI.spec
+            TransactionsCLI.spec
+            WalletsCLI.spec
+            HWWalletsCLI.spec
+            PortCLI.spec @t
+            NetworkCLI.spec
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
@@ -182,6 +208,7 @@ specWithServer
     -> Spec
 specWithServer (tr, tracers) = aroundAll withContext . after tearDown
   where
+    networkDiscriminant = Mainnet
     withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
@@ -201,6 +228,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                     , _faucet = faucet
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
+                    , _network = networkDiscriminant
                     , _target = Proxy
                     }
 
@@ -237,8 +265,13 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
         -- having three callbacks like this might not work well for that.
         withTempDir tr' dir "wallets" $ \db -> do
             serveWallet @(IO Shelley)
+<<<<<<< HEAD
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
+=======
+                networkDiscriminant
+                (setupTracers (tracerSeverities (Just Info)) tr)
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
                 (SyncTolerance 10)
                 (Just db)
                 "127.0.0.1"

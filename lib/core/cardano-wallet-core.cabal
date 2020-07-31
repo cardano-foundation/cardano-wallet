@@ -46,6 +46,7 @@ library
     , cryptonite
     , data-default
     , deepseq
+    , base58-bytestring
     , digest
     , directory
     , exceptions

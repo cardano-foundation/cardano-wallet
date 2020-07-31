@@ -26,12 +26,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     , publicKeySize
     , addrSingleSize
     , addrGroupedSize
-    , KnownNetwork (..)
 
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     , xpubFromText
+    , jormungandrScheme
 
     -- * Address
     , decodeJormungandrAddress
@@ -56,19 +56,16 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , DelegationAddress (..)
+    ( AddressScheme (..)
+    , ChimericAccount (..)
     , Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , NetworkDiscriminantVal
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -77,7 +74,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , fromHex
     , hex
-    , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
@@ -88,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( when, (<=<) )
+    ( (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
 import Data.Binary.Put
@@ -97,8 +93,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Maybe
     ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Word
@@ -290,115 +284,88 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (JormungandrKey prv)
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet JormungandrKey where
-    paymentAddress (JormungandrKey k0) =
-        encodeJormungandrAddress (addrSingle @'Mainnet) [xpubPublicKey k0]
-    liftPaymentAddress (KeyFingerprint k0) =
-        encodeJormungandrAddress (addrSingle @'Mainnet) [k0]
 
-instance PaymentAddress ('Testnet pm) JormungandrKey where
-    paymentAddress (JormungandrKey k0) =
-        encodeJormungandrAddress (addrSingle @('Testnet _)) [xpubPublicKey k0]
-    liftPaymentAddress (KeyFingerprint k0) =
-        encodeJormungandrAddress (addrSingle @('Testnet _)) [k0]
+jormungandrScheme
+    :: NetworkDiscriminant
+    -> Maybe (JormungandrKey 'AddressK XPub)
+    -> AddressScheme JormungandrKey
+jormungandrScheme net rewardKey = AddressScheme
+    { addressFromKey = \(JormungandrKey k0) ->
+        case rewardKey of
+                Nothing -> encodeJormungandrAddress addrSingle [xpubPublicKey k0]
+                Just k1 -> encodeJormungandrAddress addrGrouped (xpubPublicKey <$> [k0, getRawKey k1])
+    , addressFingerprint = \addr@(Address bytes) ->
+        if isAddrSingle addr || isAddrGrouped addr
+        then Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
+        else Left $ ErrInvalidAddress addr
+    , keyFingerprint =
+        Right . KeyFingerprint . xpubPublicKey . getRawKey
+    , addressFromFingerprint = error "todo: jorm addressFromFingerprint"
+    , addressToText = error "todo: jorm addressToText"
+    , addressFromText = error "todo: jormungandr addressFromText"
+    }
 
-instance DelegationAddress 'Mainnet JormungandrKey where
-    delegationAddress (JormungandrKey k0) (JormungandrKey k1) =
-        encodeJormungandrAddress (addrGrouped @'Mainnet) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (JormungandrKey k1) =
-        encodeJormungandrAddress (addrGrouped @'Mainnet) ([k0, xpubPublicKey k1])
-
-instance DelegationAddress ('Testnet pm) JormungandrKey where
-    delegationAddress (JormungandrKey k0) (JormungandrKey k1) =
-        encodeJormungandrAddress (addrGrouped @('Testnet _)) (xpubPublicKey <$> [k0, k1])
-    liftDelegationAddress (KeyFingerprint k0) (JormungandrKey k1) =
-        encodeJormungandrAddress (addrGrouped @('Testnet _)) ([k0, xpubPublicKey k1])
-
--- | Embed some constants into a network type.
-class KnownNetwork (n :: NetworkDiscriminant) where
-    addrSingle :: Word8
-        -- ^ Address discriminant byte for single addresses, this is the first
-        -- byte of every addresses using the Jormungandr format carrying only a
-        -- spending key.
-
-    addrGrouped :: Word8
-        -- ^ Address discriminant byte for grouped addresses, this is the first
-        -- byte of every addresses using the Jormungandr format carrying both a
-        -- spending and an account key.
-
-    addrAccount :: Word8
-        -- ^ Address discriminant byte for account addresses, this is the first
-        -- byte of every addresses using the Jormungandr format carrying only an
-        -- account key.
-
-    knownDiscriminants :: [Word8]
-    knownDiscriminants =
-        [ addrSingle @n
-        , addrGrouped @n
-        , addrAccount @n
-        ]
-
-instance KnownNetwork 'Mainnet where
-    addrSingle = 0x03
-    addrGrouped = 0x04
-    addrAccount = 0x05
-
-instance KnownNetwork ('Testnet pm) where
-    addrSingle = 0x83
-    addrGrouped = 0x84
-    addrAccount = 0x85
-
-isAddrSingle :: Address -> Bool
-isAddrSingle (Address bytes) =
-    firstByte `elem` [[addrSingle @('Testnet _)], [addrSingle @'Mainnet]]
   where
-    firstByte = BS.unpack (BS.take 1 bytes)
+    -- Address discrimininat bytes:
+    -- single: only carrying a spending key
+    -- grouped: carrying spending- and a chimeric account key
+    -- account: special chimeric account address
+    (addrSingle, addrGrouped, addrAccount) = case net of
+        Mainnet   -> (0x03, 0x04, 0x05)
+        Testnet _ -> (0x83, 0x84, 0x85)
+        Staging _ -> error "TODO: Staging doesn't make with jorm?"
+        -- Maybe use different NetworkDiscriminant
 
-isAddrGrouped :: Address -> Bool
-isAddrGrouped (Address bytes) =
-    firstByte `elem` [[addrGrouped @('Testnet _)], [addrGrouped @'Mainnet]]
-  where
-    firstByte = BS.unpack (BS.take 1 bytes)
 
--- | Internal function to encode shelley addresses from key fingerprints.
---
--- We use this to define both instance separately to avoid having to carry a
--- 'KnownNetwork' constraint around.
-encodeJormungandrAddress :: Word8 -> [ByteString] -> Address
-encodeJormungandrAddress discriminant keys =
-    Address $ invariantSize $ BL.toStrict $ runPut $ do
-        putWord8 discriminant
-        mapM_ putByteString keys
-  where
-    invariantSize :: HasCallStack => ByteString -> ByteString
-    invariantSize bytes
-        | BS.length bytes == len = bytes
-        | otherwise = error
-            $ "length was "
-            ++ show (BS.length bytes)
-            ++ ", but expected to be "
-            ++ (show len)
+    isAddrSingle (Address bytes) = [addrSingle] == BS.unpack (BS.take 1 bytes)
+    isAddrGrouped (Address bytes) = [addrGrouped] == BS.unpack (BS.take 1 bytes)
+
+    _knownDiscriminants = [addrSingle, addrGrouped, addrAccount]
+
+    -- | Internal function to encode shelley addresses from key fingerprints.
+    --
+    -- We use this to define both instance separately to avoid having to carry a
+    -- 'KnownNetwork' constraint around.
+    encodeJormungandrAddress :: Word8 -> [ByteString] -> Address
+    encodeJormungandrAddress discriminant keys =
+        Address $ invariantSize $ BL.toStrict $ runPut $ do
+            putWord8 discriminant
+            mapM_ putByteString keys
       where
-        len = 1 + length keys * publicKeySize
+        invariantSize :: HasCallStack => ByteString -> ByteString
+        invariantSize bytes
+            | BS.length bytes == len = bytes
+            | otherwise = error
+                $ "length was "
+                ++ show (BS.length bytes)
+                ++ ", but expected to be "
+                ++ (show len)
+          where
+            len = 1 + length keys * publicKeySize
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeJormungandrAddress
-    :: forall n. (KnownNetwork n, NetworkDiscriminantVal n)
-    => ByteString
+    :: NetworkDiscriminant
+    -> ByteString
     -> Either TextDecodingError Address
-decodeJormungandrAddress bytes = do
+decodeJormungandrAddress net bytes = do
     let firstByte = BS.unpack $ BS.take 1 bytes
 
-    let knownBytes = pure <$>
-            knownDiscriminants @('Testnet _) ++ knownDiscriminants @'Mainnet
-    when (firstByte `notElem` knownBytes) $ Left (invalidAddressType firstByte)
+    -- TODO: Do this more properly
+    --when (firstByte `notElem` knownDiscriminants) $ Left (invalidAddressType firstByte)
 
-    let allowedBytes = pure <$> knownDiscriminants @n
-    when (firstByte `notElem` allowedBytes) $ Left invalidNetwork
+    --let allowedBytes = pure <$> knownDiscriminants
+    --when (firstByte `notElem` allowedBytes) $ Left invalidNetwork
+
+    -- TODO: Don't duplicate
+    let (_addrSingle, addrGrouped, _addrAccount)  :: (Word8, Word8, Word8)= case net of
+            Mainnet   -> (0x03, 0x04, 0x05)
+            Testnet _ -> (0x83, 0x84, 0x85)
+            _ -> error "TODO: jorm staging"
 
     case BS.length bytes of
-        n | n == addrSingleSize  && firstByte /= [addrGrouped @n] -> pure ()
-        n | n == addrGroupedSize && firstByte == [addrGrouped @n] -> pure ()
+        n | n == addrSingleSize  && firstByte /= [addrGrouped] -> pure ()
+        n | n == addrGroupedSize && firstByte == [addrGrouped] -> pure ()
         n -> Left $ invalidAddressLength n
 
     return (Address bytes)
@@ -411,30 +378,20 @@ decodeJormungandrAddress bytes = do
         <> " or "
         <> show addrGroupedSize
         <> " bytes."
-    invalidAddressType byte = TextDecodingError $
+    _invalidAddressType byte = TextDecodingError $
         "This type of address is not supported: "
         <> show byte
         <> "."
-    invalidNetwork = TextDecodingError $
+    _invalidNetwork = TextDecodingError $
         "This address belongs to another network. Network is: "
-        <> show (networkDiscriminantVal @n) <> "."
+        <> show net <> "."
 
-instance MkKeyFingerprint JormungandrKey Address where
-    paymentKeyFingerprint addr@(Address bytes)
-        | isAddrSingle addr || isAddrGrouped addr =
-            Right $ KeyFingerprint $ BS.take publicKeySize $ BS.drop 1 bytes
-        | otherwise =
-            Left $ ErrInvalidAddress addr (Proxy @JormungandrKey)
-
-instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), JormungandrKey 'AddressK XPub) where
-    paymentKeyFingerprint =
-        Right . KeyFingerprint . xpubPublicKey . getRawKey . snd
 
 {-------------------------------------------------------------------------------
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n JormungandrKey) ChimericAccount
+instance IsOurs (SeqState JormungandrKey) ChimericAccount
   where
     isOurs account state =
         (account == ourAccount, state)

@@ -125,14 +125,19 @@ sizeOfCoin = sizeOf . CBOR.encodeWord64 . getCoin
 sizeOf :: CBOR.Encoding -> Int
 sizeOf = fromIntegral . BL.length . CBOR.toLazyByteString
 
-class MaxSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
-    maxSizeOf :: Int
+class MaxSizeOf (t :: *) (k :: Depth -> * -> *) where
+    maxSizeOf :: NetworkDiscriminant -> Int
 
+<<<<<<< HEAD
 instance forall t k pm. (MaxSizeOf t 'Mainnet k) => MaxSizeOf t ('Staging pm) k where
     maxSizeOf = maxSizeOf @t @'Mainnet @k
 
 class MinSizeOf (t :: *) (n :: NetworkDiscriminant) (k :: Depth -> * -> *) where
     minSizeOf :: Int
+=======
+class MinSizeOf (t :: *) (k :: Depth -> * -> *) where
+    minSizeOf :: NetworkDiscriminant -> Int
+>>>>>>> 59d9eb545... Refactor type-level NetworkDiscriminant
 
 instance forall t k pm. (MinSizeOf t 'Mainnet k) => MinSizeOf t ('Staging pm) k where
     minSizeOf = minSizeOf @t @'Mainnet @k
@@ -160,9 +165,9 @@ instance forall t k pm. (MinSizeOf t 'Mainnet k) => MinSizeOf t ('Staging pm) k 
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (Ø)       --     1 byte
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Mainnet IcarusKey where maxSizeOf = 43
-instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 39
-
+--
+--
+--
 -- ADDRESS (TestNet, Icarus)
 --     = CBOR-LIST-LEN (2)    --     1 byte
 --     | 46-50OCTET           -- 46-50 bytes #------*
@@ -186,8 +191,13 @@ instance MinSizeOf Address 'Mainnet IcarusKey where minSizeOf = 39
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (8)       --     8 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address ('Testnet pm) IcarusKey where maxSizeOf = 50
-instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 46
+instance MaxSizeOf Address IcarusKey where
+    maxSizeOf Mainnet     = 43
+    maxSizeOf (Testnet _) = 50
+
+instance MinSizeOf Address IcarusKey where
+    minSizeOf Mainnet     = 39
+    minSizeOf (Testnet _) = 46
 
 -- ADDRESS (MainNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
@@ -212,9 +222,8 @@ instance MinSizeOf Address ('Testnet pm) IcarusKey where minSizeOf = 46
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (34)      -- 30-34 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address 'Mainnet ByronKey where maxSizeOf = 76
-instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 68
-
+--
+--
 -- ADDRESS (TestNet, Random)
 --     = CBOR-LIST-LEN (2)    --     1 byte
 --     | 79-83OCTET           -- 79-83 bytes #------*
@@ -238,5 +247,10 @@ instance MinSizeOf Address 'Mainnet ByronKey where minSizeOf = 68
 --             | 28OCTET              --    28 bytes
 --             | ATTRIBUTES (37-41)   -- 37-41 bytes
 --             | U8                   --     1 bytes
-instance MaxSizeOf Address ('Testnet pm) ByronKey where maxSizeOf = 83
-instance MinSizeOf Address ('Testnet pm) ByronKey where minSizeOf = 75
+
+instance MaxSizeOf Address ByronKey where
+    maxSizeOf Mainnet     = 76
+    maxSizeOf (Testnet _) = 83
+instance MinSizeOf Address ByronKey where
+    minSizeOf Mainnet     = 68
+    minSizeOf (Testnet _) = 75
