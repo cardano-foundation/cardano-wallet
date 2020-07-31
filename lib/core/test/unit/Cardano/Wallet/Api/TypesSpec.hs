@@ -76,6 +76,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWithdrawal (..)
+    , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
@@ -689,6 +690,7 @@ spec = do
                 x' = PostTransactionData
                     { payments = payments (x :: PostTransactionData ('Testnet 0))
                     , passphrase = passphrase (x :: PostTransactionData ('Testnet 0))
+                    , withdrawal = withdrawal (x :: PostTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -696,6 +698,7 @@ spec = do
             let
                 x' = PostTransactionFeeData
                     { payments = payments (x :: PostTransactionFeeData ('Testnet 0))
+                    , withdrawal = withdrawal (x :: PostTransactionFeeData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1229,6 +1232,12 @@ instance Arbitrary a => Arbitrary (AddressAmount a) where
     shrink _ = []
 
 instance Arbitrary (PostTransactionData t) where
+    arbitrary = PostTransactionData
+        <$> arbitrary
+        <*> arbitrary
+        <*> elements [Just SelfWithdrawal, Nothing]
+
+instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1239,8 +1248,9 @@ instance Arbitrary (ApiPutAddressesData t) where
         pure $ ApiPutAddressesData ((, Proxy @t) <$> addrs)
 
 instance Arbitrary (PostTransactionFeeData t) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = PostTransactionFeeData
+        <$> arbitrary
+        <*> elements [Just SelfWithdrawal, Nothing]
 
 instance Arbitrary PostExternalTransactionData where
     arbitrary = do
@@ -1513,8 +1523,7 @@ instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
-    declareNamedSchema _ =
-        declareSchemaForDefinition "ApiPostTransactionFeeData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

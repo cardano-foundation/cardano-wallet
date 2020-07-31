@@ -125,6 +125,8 @@ import Network.Ntp
     ( NtpClient )
 import Servant
     ( (:<|>) (..), Handler (..), Server, err400 )
+import Type.Reflection
+    ( Typeable )
 
 server
     :: forall t n.
@@ -132,6 +134,7 @@ server
         , PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
         , DelegationAddress n ShelleyKey
+        , Typeable n
         )
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
@@ -271,11 +274,12 @@ server byron icarus shelley spl ntp =
                  (byron , do
                     let pwd = coerce (getApiT $ tx ^. #passphrase)
                     genChange <- rndStateChange byron wid pwd
-                    postTransaction byron genChange wid False tx
+                    postTransaction byron genChange wid tx
+
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
-                    postTransaction icarus genChange wid False tx
+                    postTransaction icarus genChange wid tx
                  )
              )
         :<|>
@@ -285,8 +289,8 @@ server byron icarus shelley spl ntp =
              )
         :<|>
             (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid False tx)
-                (icarus, postTransactionFee icarus wid False tx)
+                (byron , postTransactionFee byron wid tx)
+                (icarus, postTransactionFee icarus wid tx)
             )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , deleteTransaction byron wid txid)

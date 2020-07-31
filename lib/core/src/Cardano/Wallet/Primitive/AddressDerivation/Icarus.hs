@@ -31,8 +31,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( xpubPublicKey )
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
     , XPrv
@@ -69,7 +67,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( HasRewardAccount, toChimericAccount )
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
@@ -86,8 +84,6 @@ import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( SHA256 (..), SHA512 (..) )
-import Crypto.Hash.Utils
-    ( blake2b256 )
 import Crypto.MAC.HMAC
     ( HMAC, hmac )
 import Data.Bifunctor
@@ -112,7 +108,6 @@ import GHC.TypeLits
     ( KnownNat )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Wallet.Primitive.AddressDiscovery as Seq
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.ECC.Edwards25519 as Ed25519
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
@@ -419,13 +414,8 @@ instance PaymentAddress n IcarusKey
       where
         err = ErrInvalidAddress (proxy, k) Proxy
 
-{-------------------------------------------------------------------------------
-                          Dealing with Rewards
--------------------------------------------------------------------------------}
-
-instance forall n. HasRewardAccount (SeqState n IcarusKey) IcarusKey where
-    rewardAccountKey  = Seq.rewardAccountKey
-    toChimericAccount = ChimericAccount . blake2b256 . xpubPublicKey . getKey
+instance IsOurs (SeqState n IcarusKey) ChimericAccount where
+    isOurs _account state = (False, state)
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

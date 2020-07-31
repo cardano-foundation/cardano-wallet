@@ -69,14 +69,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
+    , deriveRewardAccount
     , fromHex
     , hex
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( HasRewardAccount (..) )
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState )
+    ( SeqState, rewardAccountKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -106,7 +108,6 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -347,9 +348,20 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance forall n. HasRewardAccount (SeqState n ShelleyKey) ShelleyKey where
-    rewardAccountKey  = Seq.rewardAccountKey
+instance IsOurs (SeqState n ShelleyKey) ChimericAccount
+  where
+    isOurs account state =
+        (account == ourAccount, state)
+      where
+        ourAccount = toChimericAccount $ rewardAccountKey state
+
+instance ToChimericAccount ShelleyKey where
     toChimericAccount = toChimericAccountRaw . getKey
+    someChimericAccount mw =
+        (getRawKey acctK, toChimericAccount (publicKey acctK))
+      where
+        rootK = generateKeyFromSeed (mw, Nothing) mempty
+        acctK = deriveRewardAccount mempty rootK
 
 toChimericAccountRaw :: XPub -> ChimericAccount
 toChimericAccountRaw = ChimericAccount . blake2b224 . xpubPublicKey

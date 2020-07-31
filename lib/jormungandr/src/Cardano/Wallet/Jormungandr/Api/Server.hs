@@ -119,6 +119,8 @@ import Network.Ntp
     ( NtpClient )
 import Servant
     ( (:<|>) (..), Handler, Server, err501, err503, throwError )
+import Type.Reflection
+    ( Typeable )
 
 -- | A Servant server for our wallet API
 server
@@ -129,6 +131,7 @@ server
         , DelegationAddress n JormungandrKey
         , Buildable (ErrValidateSelection t)
         , PaymentAddress n ByronKey
+        , Typeable n
         )
     => byron
     -> icarus

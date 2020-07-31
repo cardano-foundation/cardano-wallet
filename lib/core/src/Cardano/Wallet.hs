@@ -15,6 +15,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -78,6 +79,9 @@ module Cardano.Wallet
     , rollbackBlocks
     , checkWalletIntegrity
     , readNextWithdrawal
+    , readChimericAccount
+    , someChimericAccount
+    , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -85,8 +89,10 @@ module Cardano.Wallet
     , ErrFetchRewards (..)
     , ErrCheckWalletIntegrity (..)
     , ErrWalletNotResponding (..)
+    , ErrReadChimericAccount (..)
 
     -- ** Address
+    , createChangeAddress
     , createRandomAddress
     , importRandomAddresses
     , listAddresses
@@ -108,6 +114,7 @@ module Cardano.Wallet
     , ErrValidateSelection
     , ErrNotASequentialWallet (..)
     , ErrUTxOTooSmall (..)
+    , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
     , selectCoinsForMigration
@@ -203,8 +210,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
+    , NetworkDiscriminant (..)
     , Passphrase
     , PaymentAddress (..)
+    , ToChimericAccount (..)
     , WalletKey (..)
     , checkPassphrase
     , deriveRewardAccount
@@ -216,10 +225,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, unsafeMkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , HasRewardAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -349,7 +359,7 @@ import Data.Foldable
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (^.) )
 import Data.Generics.Labels
@@ -362,6 +372,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
     ( fromJust, isJust, mapMaybe )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -370,6 +382,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, getCurrentTime )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
 import Data.Word
@@ -386,6 +400,8 @@ import Safe
     ( lastMay )
 import Statistics.Quantile
     ( medianUnbiased, quantiles )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -904,61 +920,70 @@ readNextWithdrawal
         )
     => ctx
     -> WalletId
+    -> Quantity "lovelace" Word64
     -> IO (Quantity "lovelace" Word64)
-readNextWithdrawal ctx wid = db & \DBLayer{..} -> do
-    (pp, withdrawal) <- atomically $ (,)
-        <$> readProtocolParameters pk
-        <*> fmap getQuantity (readDelegationRewardBalance pk)
-    case pp of
+readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
+    liftIO (atomically $ readProtocolParameters $ PrimaryKey wid) <&> \case
         -- May happen if done very early, in which case, rewards are probably
         -- not woth considering anyway.
-        Nothing -> pure (Quantity 0)
-
-        Just ProtocolParameters{txParameters} -> do
+        Nothing -> Quantity 0
+        Just ProtocolParameters{txParameters} ->
             let policy = W.getFeePolicy txParameters
 
-            let costOfWithdrawal =
+                costOfWithdrawal =
                     minFee policy (mempty { withdrawal })
                     -
                     minFee policy mempty
 
-            pure $ if toInteger withdrawal < 2 * costOfWithdrawal
+            in
+                if toInteger withdrawal < 2 * costOfWithdrawal
                 then Quantity 0
                 else Quantity withdrawal
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
-    pk = PrimaryKey wid
 
     minFee :: FeePolicy -> CoinSelection -> Integer
     minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
+
+readChimericAccount
+    :: forall ctx s k (n :: NetworkDiscriminant) shelley.
+        ( HasDBLayer s k ctx
+        , shelley ~ SeqState n ShelleyKey
+        , Typeable n
+        , Typeable s
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrReadChimericAccount IO ChimericAccount
+readChimericAccount ctx wid = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrReadChimericAccountNoSuchWallet
+        $ mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+    case testEquality (typeRep @s) (typeRep @shelley) of
+        Nothing -> throwE ErrReadChimericAccountNotAShelleyWallet
+        Just Refl -> pure
+            $ toChimericAccount
+            $ Seq.rewardAccountKey
+            $ getState cp
+  where
+    db = ctx ^. dbLayer @s @k
 
 -- | Query the node for the reward balance of a given wallet.
 --
 -- Rather than force all callers of 'readWallet' to wait for fetching the
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
 queryRewardBalance
-    :: forall ctx s t k.
-        ( HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
-        , HasRewardAccount s k
+    :: forall ctx t.
+        ( HasNetworkLayer t ctx
         )
     => ctx
-    -> WalletId
+    -> ChimericAccount
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
-queryRewardBalance ctx wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrFetchRewardsNoSuchWallet
-        . mapExceptT atomically
-        . withNoSuchWallet wid
-        $ readCheckpoint pk
-    mapExceptT (fmap handleErr)
-        . getAccountBalance nw
-        . toChimericAccount @s @k
-        . rewardAccountKey
-        $ getState cp
+queryRewardBalance ctx acct = do
+    mapExceptT (fmap handleErr) $ getAccountBalance nw acct
   where
-    pk = PrimaryKey wid
-    db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
     handleErr = \case
         Right x -> Right x
@@ -968,20 +993,25 @@ queryRewardBalance ctx wid = db & \DBLayer{..} -> do
             Left $ ErrFetchRewardsNetworkUnreachable e
 
 manageRewardBalance
-    :: forall ctx s t k.
+    :: forall ctx s t k (n :: NetworkDiscriminant).
         ( HasLogger WalletLog ctx
         , HasNetworkLayer t ctx
         , HasDBLayer s k ctx
-        , HasRewardAccount s k
         , ctx ~ WalletLayer s t k
+        , Typeable s
+        , Typeable n
         )
-    => ctx
+    => Proxy n
+    -> ctx
     -> WalletId
     -> IO ()
-manageRewardBalance ctx wid = db & \DBLayer{..} -> do
+manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
-         query <- runExceptT $ queryRewardBalance @ctx @s @t @k ctx wid
+         query <- runExceptT $ do
+            acct <- withExceptT ErrFetchRewardsReadChimericAccount $
+                readChimericAccount @ctx @s @k @n ctx wid
+            queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1045,6 +1075,25 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     primaryKey = PrimaryKey wid
+
+createChangeAddress
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        , GenChange s
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> ExceptT ErrNoSuchWallet IO Address
+createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withNoSuchWallet wid (readCheckpoint pk)
+        let (addr, s') = genChange argGenChange (getState cp)
+        putCheckpoint pk (updateState s' cp)
+        pure addr
+  where
+    db = ctx ^. dbLayer @s @k
+    pk = PrimaryKey wid
 
 createRandomAddress
     :: forall ctx s k n.
@@ -1115,14 +1164,14 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
 normalizeDelegationAddress
     :: forall s k n.
         ( DelegationAddress n k
-        , HasRewardAccount s k
+        , s ~ SeqState n k
         )
     => s
     -> Address
     -> Maybe Address
 normalizeDelegationAddress s addr = do
     fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint (rewardAccountKey @s @k s)
+    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
 
 {-------------------------------------------------------------------------------
                                   Transaction
@@ -1464,16 +1513,16 @@ signPayment
         , HasNetworkLayer t ctx
         , IsOwned s k
         , GenChange s
-        , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
+    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
+       -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
+signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1485,9 +1534,9 @@ signPayment ctx wid argGenChange pwd cs = db & \DBLayer{..} -> do
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = mkRewardAccount (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs'
+                mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) cs'
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' cs'
             return (tx, meta, time, sealedTx)
@@ -1507,6 +1556,7 @@ signTx
         , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , WalletKey k
         )
     => ctx
     -> WalletId
@@ -1523,7 +1573,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
 
             let cs = mempty { inputs = inps, outputs = outs }
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
 
@@ -1592,6 +1642,7 @@ signDelegation
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> WalletId
@@ -1612,7 +1663,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
-            let rewardAcnt = deriveRewardAccount @k pwdP xprv
+            let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
@@ -1813,6 +1864,7 @@ joinStakePool
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> W.EpochNo
@@ -1869,6 +1921,7 @@ quitStakePool
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
         )
     => ctx
     -> WalletId
@@ -2182,7 +2235,7 @@ data ErrQuitStakePool
 -- | Errors that can occur when fetching the reward balance of a wallet
 data ErrFetchRewards
     = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
-    | ErrFetchRewardsNoSuchWallet ErrNoSuchWallet
+    | ErrFetchRewardsReadChimericAccount ErrReadChimericAccount
     deriving (Generic, Eq, Show)
 
 data ErrSelectForMigration
@@ -2228,6 +2281,15 @@ data ErrImportRandomAddress
 
 data ErrNotASequentialWallet
     = ErrNotASequentialWallet
+    deriving (Generic, Eq, Show)
+
+data ErrReadChimericAccount
+    = ErrReadChimericAccountNotAShelleyWallet
+    | ErrReadChimericAccountNoSuchWallet ErrNoSuchWallet
+    deriving (Generic, Eq, Show)
+
+data ErrWithdrawalNotWorth
+    = ErrWithdrawalNotWorth
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

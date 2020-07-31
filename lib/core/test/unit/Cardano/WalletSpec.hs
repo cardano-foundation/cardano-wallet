@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index
     , Passphrase (..)
+    , deriveRewardAccount
+    , getRawKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
@@ -521,11 +523,13 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let wallet = (wid, wname, DummyState st)
         (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-        (_,_,_,txOld) <-
-            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () (coerce pwd) selection
+        let credentials (rootK, pwdP) =
+                (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
+        (_,_,_,txOld) <- unsafeRunExceptT $
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,_,txNew) <-
-            unsafeRunExceptT $ W.signPayment @_ @_ @DummyTarget wl wid () newPwd selection
+        (_,_,_,txNew) <- unsafeRunExceptT $
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd selection
         txOld `shouldBe` txNew
   where
     selection = mempty

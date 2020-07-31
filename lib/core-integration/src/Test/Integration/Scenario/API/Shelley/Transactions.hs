@@ -9,12 +9,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{- HLINT ignore "Use head" -}
+
 module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
     ) where
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiFee (..)
@@ -24,12 +28,16 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
-    , EncodeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     , insertedAt
     , pendingSince
     , time
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), Hash (..), SortOrder (..), TxStatus (..), WalletId )
 import Control.Monad
@@ -77,6 +85,7 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , fixtureIcarusWallet
+    , fixtureIcarusWalletAddrs
     , fixturePassphrase
     , fixtureRandomWallet
     , fixtureWallet
@@ -87,11 +96,13 @@ import Test.Integration.Framework.DSL
     , listAllTransactions
     , listTransactions
     , request
+    , rewardWallet
     , toQueryString
     , unsafeRequest
     , utcIso8601ToText
     , verify
     , walletId
+    , (.>)
     , (.>=)
     )
 import Test.Integration.Framework.Request
@@ -101,7 +112,9 @@ import Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403NoPendingAnymore
+    , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
+    , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -123,6 +136,7 @@ spec :: forall n t.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
+    , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
 spec = do
     it "Regression #1004 -\
@@ -1239,6 +1253,148 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status404
             , expectErrorMessage (errMsg404NoWallet wid)
+            ]
+
+    it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> do
+        (wSrc,_) <- rewardWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals
+                (`shouldSatisfy` (not . null))
+            ]
+
+        eventually "rewards are transferred from self to self" $ do
+            rW <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default payload
+            print rW
+            verify rW
+                [ expectField (#balance . #getApiT . #available)
+                    (.> (wSrc ^. #balance . #getApiT . #available))
+                , expectField (#balance . #getApiT . #reward)
+                    (`shouldBe` Quantity 0)
+                ]
+
+    it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ \ctx -> do
+        (wOther, mw) <- rewardWallet ctx
+        wSelf  <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals
+                (`shouldSatisfy` (not . null))
+            ]
+
+        eventually "rewards disappear from other" $ do
+            rWOther <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wOther) Default payload
+            verify rWOther
+                [ expectField (#balance . #getApiT . #reward)
+                    (`shouldBe` Quantity 0)
+                ]
+
+        eventually "rewards appear on self" $ do
+            rWSelf <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSelf) Default payload
+            verify rWSelf
+                [ expectField (#balance . #getApiT . #available)
+                    (.> (wSelf ^. #balance . #getApiT . #available))
+                ]
+
+    it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards if none left" $ \ctx -> do
+        (wOther, mw) <- rewardWallet ctx
+        wSelf  <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- Withdraw rewards from the other wallet.
+        _ <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        eventually "rewards disappear from other" $ do
+            rWOther <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wOther) Default payload
+            verify rWOther
+                [ expectField (#balance . #getApiT . #reward)
+                    (`shouldBe` Quantity 0)
+                ]
+
+        -- Try withdrawing AGAIN, rewards that aren't there anymore.
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403WithdrawalNotWorth
+            ]
+
+    it "SHELLEY_TX_REDEEM_04 - Can't redeem rewards from unknown key" $ \ctx -> do
+        wSelf  <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        mw <- entropyToMnemonic <$> genEntropy @160
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403WithdrawalNotWorth
+            ]
+
+    it "SHELLEY_TX_REDEEM_05 - Can't redeem rewards using byron wallet" $ \ctx -> do
+        (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
+        let addr = encodeAddress @n (head addrs)
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Byron wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotAShelleyWallet
             ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =

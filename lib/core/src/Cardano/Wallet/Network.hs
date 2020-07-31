@@ -67,7 +67,7 @@ import Control.Exception
 import Control.Monad
     ( when )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
+    ( ExceptT (..), runExceptT )
 import Control.Retry
     ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer

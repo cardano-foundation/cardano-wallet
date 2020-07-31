@@ -465,6 +465,15 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *transactionAmount
 
+x-transactionRedemptionRequest: &transactionRedemptionRequest
+  <<: *walletMnemonicSentence
+  description: Withdraw rewards from an external wallet, if any.
+
+x-transactionWithdrawalRequestSelf: &transactionWithdrawalRequestSelf
+  type: string
+  enum: ["self"]
+  description: Optionally withdraw rewards from **this** wallet, if any.
+
 x-transactionWithdrawals: &transactionWithdrawals
   description: A list of withdrawals from stake addresses.
   type: array
@@ -1257,7 +1266,7 @@ components:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
-    ApiPostTransactionData: &ApiPostTransactionData
+    ApiPostTransactionDataByron: &ApiPostTransactionDataByron
       type: object
       required:
         - payments
@@ -1268,12 +1277,54 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
 
+    ApiPostTransactionData: &ApiPostTransactionData
+      type: object
+      required:
+        - payments
+        - passphrase
+      properties:
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        payments: *transactionOutputs
+        withdrawal: *transactionWithdrawalRequestSelf
+
+    ApiPostRedemptionData: &ApiPostRedemptionData
+      type: object
+      required:
+        - payments
+        - passphrase
+        - withdrawal
+      properties:
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        payments: *transactionOutputs
+        withdrawal: *transactionRedemptionRequest
+
+    ApiPostTransactionFeeDataByron: &ApiPostTransactionFeeDataByron
+      type: object
+      required:
+        - payments
+      properties:
+        payments: *transactionOutputs
+
     ApiPostTransactionFeeData: &ApiPostTransactionFeeData
       type: object
       required:
         - payments
       properties:
         payments: *transactionOutputs
+        withdrawal: *transactionWithdrawalRequestSelf
+
+    ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
+      type: object
+      required:
+        - payments
+        - withdrawal
+      properties:
+        payments: *transactionOutputs
+        withdrawal: *transactionRedemptionRequest
 
     ApiPostRandomAddressData: &ApiPostRandomAddressData
       type: object
@@ -1402,17 +1453,6 @@ x-parametersForceNtpCheck: &parametersForceNtpCheck
     NTP checks are cached for short duration to avoid sending too many queries to the central NTP servers. In some cases however, a client may want to force a new check.
 
     When this flag is set, the request **will block** until NTP server responds or will timeout after a while without any answer from the NTP server.
-  schema:
-    type: boolean
-
-x-parametersWithdrawal: &parametersWithdrawal
-  in: query
-  name: withdrawRewards
-  allowEmptyValue: true
-  description: |
-    Withdraw rewards as change in this transaction, provided they contribute positively towards the balance (i.e. adding them results in at least as much value as their value after fee calculation).
-
-    This is a flag, off by default.
   schema:
     type: boolean
 
@@ -1994,12 +2034,16 @@ paths:
 
       parameters:
         - *parametersWalletId
-        - *parametersWithdrawal
       requestBody:
         required: true
         content:
           application/json:
-            schema: *ApiPostTransactionFeeData
+            schema:
+              oneOf:
+                - <<: *ApiPostTransactionFeeData
+                  title: "payment"
+                - <<: *ApiPostRedemptionFeeData
+                  title: "redemption"
       responses: *responsesPostTransactionFee
 
   /wallets/{walletId}/transactions:
@@ -2013,12 +2057,16 @@ paths:
         Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
-        - *parametersWithdrawal
       requestBody:
         required: true
         content:
           application/json:
-            schema: *ApiPostTransactionData
+            schema:
+              oneOf:
+                - <<: *ApiPostTransactionData
+                  title: "payment"
+                - <<: *ApiPostRedemptionData
+                  title: "redemption"
       responses: *responsesPostTransaction
 
     get:
@@ -2432,7 +2480,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiPostTransactionFeeData
+            schema: *ApiPostTransactionFeeDataByron
       responses: *responsesPostTransactionFee
 
   /byron-wallets/{walletId}/transactions:
@@ -2450,7 +2498,7 @@ paths:
           required: true
           content:
             application/json:
-              schema: *ApiPostTransactionData
+              schema: *ApiPostTransactionDataByron
       responses: *responsesPostTransaction
 
     get:

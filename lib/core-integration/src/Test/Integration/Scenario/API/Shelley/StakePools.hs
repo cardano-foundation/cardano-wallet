@@ -21,7 +21,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiWallet
     , ApiWalletDelegationStatus (..)
-    , ApiWithdrawRewards (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -225,11 +224,23 @@ spec = do
             Default Empty
         verify rw1 [ expectListSize 0 ]
 
-        -- can use rewards with special transaction query param
-        -- (ApiWithdrawRewards True)
+        -- can use rewards with an explicit withdrawal request to self.
+        let payloadWithdrawal = [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+
         rTx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction' @'Shelley src (ApiWithdrawRewards True))
-            Default (Json payload)
+            (Link.createTransaction @'Shelley src)
+            Default (Json payloadWithdrawal)
         verify rTx
             [ expectField #amount (.> (Quantity coin))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)

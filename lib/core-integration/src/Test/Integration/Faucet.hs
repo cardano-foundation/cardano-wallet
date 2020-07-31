@@ -16,6 +16,7 @@ module Test.Integration.Faucet
     , seqMnemonics
     , icaMnemonics
     , rndMnemonics
+    , mirMnemonics
 
       -- * Integration test funds
     , shelleyIntegrationTestFunds
@@ -26,11 +27,14 @@ module Test.Integration.Faucet
     , genShelleyFaucets
     , genMnemonics
     , genShelleyAddresses
+    , genRewardAccounts
     ) where
 
 import Prelude hiding
     ( appendFile )
 
+import Cardano.Address.Derivation
+    ( XPub )
 import Cardano.Mnemonic
     ( EntropySize
     , Mnemonic
@@ -50,6 +54,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey (..)
+    , deriveRewardAccount
     , liftIndex
     )
 import Cardano.Wallet.Primitive.Types
@@ -85,6 +90,7 @@ data Faucet = Faucet
     { shelley :: MVar [Mnemonic 15]
     , icarus  :: MVar [Mnemonic 15]
     , random  :: MVar [Mnemonic 12]
+    , reward  :: MVar [Mnemonic 24]
     , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
 
@@ -92,7 +98,7 @@ data Faucet = Faucet
 -- private key that is owned "externally". Returns a bytes string ready to be
 -- sent to a node.
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ _ mvar) =
+nextTxBuilder (Faucet _ _ _ _ mvar) =
     takeMVar mvar >>= \case
         [] -> fail "nextTxBuilder: Awe crap! No more faucet tx builder available!"
         (h:q) -> h <$ putMVar mvar q
@@ -105,23 +111,30 @@ class NextWallet (scheme :: Symbol) where
 
 instance NextWallet "shelley" where
     type MnemonicSize "shelley" = 15
-    nextWallet (Faucet mvar _ _ _) = do
+    nextWallet (Faucet mvar _ _ _ _) = do
         takeMVar mvar >>= \case
             [] -> fail "nextWallet: Awe crap! No more faucet shelley wallet available!"
             (h:q) -> h <$ putMVar mvar q
 
 instance NextWallet "icarus" where
     type MnemonicSize "icarus" = 15
-    nextWallet (Faucet _ mvar _ _) = do
+    nextWallet (Faucet _ mvar _ _ _) = do
         takeMVar mvar >>= \case
             [] -> fail "nextWallet: Awe crap! No more faucet icarus wallet available!"
             (h:q) -> h <$ putMVar mvar q
 
 instance NextWallet "random" where
     type MnemonicSize "random" = 12
-    nextWallet (Faucet _ _ mvar _) = do
+    nextWallet (Faucet _ _ mvar _ _) = do
         takeMVar mvar >>= \case
             [] -> fail "nextWallet: Awe crap! No more faucet random wallet available!"
+            (h:q) -> h <$ putMVar mvar q
+
+instance NextWallet "reward" where
+    type MnemonicSize "reward" = 24
+    nextWallet (Faucet _ _ _ mvar _) = do
+        takeMVar mvar >>= \case
+            [] -> fail "nextWallet: Awe crap! No more faucet reward wallet available!"
             (h:q) -> h <$ putMVar mvar q
 
 seqMnemonics :: [Mnemonic 15]
@@ -1336,6 +1349,61 @@ rndMnemonics = unsafeMkMnemonic <$>
       ]
     ]
 
+mirMnemonics
+    :: [Mnemonic 24]
+mirMnemonics = unsafeMkMnemonic <$>
+    [ ["ketchup","embody","define","thing","few","tornado"
+      ,"worry","few","wisdom","people","sure","bean"
+      ,"ring","impact","clerk","mirror","antenna","truly"
+      ,"chief","truth","sign","drip","sorry","flush"
+      ]
+    , ["obscure","protect","still","woman","rescue"
+      ,"plunge","lemon","warm","cash","quote","wood"
+      ,"adapt","erase","muffin","blush","diet","noodle"
+      ,"biology","scrap","involve","radar","filter","oval" ,"filter"
+      ]
+    , ["bird","toilet","maid","mule","mercy"
+      ,"album","powder","misery","ozone","fragile","concert"
+      ,"media","inhale","lonely","height","box","enforce"
+      ,"mesh","budget","arch","top","tenant","spoil","drop"
+      ]
+    , ["gadget","rate","fame","nothing","onion"
+      ,"surround","loan","panel","moment","used","fruit"
+      ,"jacket","pretty","replace","pig","stairs","guard"
+      ,"slab","shadow","child","over","win","focus","glue"
+      ]
+    , ["amount","become","cousin","degree","practice"
+      ,"garbage","fall","witness","mushroom","update","this"
+      ,"define","exile","fame","paper","symptom","ride"
+      ,"oil","plate","park","broom","fine","six","coast"
+      ]
+    , ["nasty","abstract","scale","idle","benefit"
+      ,"staff","normal","auto","anchor","balance","measure"
+      ,"action","crucial","virtual","lobster","wave","caution"
+      ,"text","obey","enact","only","nature","illness","gain"
+      ]
+    , ["beyond","rare","pulse","setup","story"
+      ,"side","envelope","illness","warm","doll","snake"
+      ,"turtle","oak","host","horse","where","rate"
+      ,"quantum","notice","allow","monkey","shallow","police" ,"code"
+      ]
+    , ["brief","asset","spell","behave","real"
+      ,"galaxy","dad","solar","animal","wisdom","imitate"
+      ,"arch","abuse","parade","loud","mention","volcano"
+      ,"fall","awake","course","solution","super","guitar","rebel"
+      ]
+    , ["onion","secret","sphere","horror","hint"
+      ,"engine","denial","six","omit","shove","quit"
+      ,"sibling","code","shallow","square","athlete","dog"
+      ,"bleak","cost","axis","alone","nut","frozen","stumble"
+      ]
+    , ["about","magnet","nut","edit","awake"
+      ,"matrix","bamboo","casual","diamond","joke","man"
+      ,"crumble","staff","ten","potato","laptop","off"
+      ,"action","chuckle","medal","bread","blind","peanut","horse"
+      ]
+    ]
+
 -- | Generate faucets addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genByronFaucets "byron-faucets.yaml"
@@ -1393,17 +1461,17 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO ()
-genShelleyFaucets = genFaucet encodeAddress genShelleyAddresses
+genShelleyFaucets = genFaucet encodeAddress (genShelleyAddresses . SomeMnemonic)
   where
     encodeAddress :: Address -> Text
     encodeAddress (Address bytes) =
         T.decodeUtf8 $ convertToBase Base16 bytes
 
-genShelleyAddresses :: Mnemonic 15 -> [Address]
+genShelleyAddresses :: SomeMnemonic -> [Address]
 genShelleyAddresses mw =
     let
         (seed, pwd) =
-            (SomeMnemonic mw, mempty)
+            (mw, mempty)
         rootXPrv =
             Shelley.generateKeyFromSeed (seed, Nothing) pwd
         accXPrv =
@@ -1415,10 +1483,23 @@ genShelleyAddresses mw =
         | ix <- [minBound..maxBound]
         ]
 
+genRewardAccounts :: Mnemonic 24 -> [XPub]
+genRewardAccounts mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Shelley.generateKeyFromSeed (seed, Nothing) pwd
+        acctXPrv =
+            deriveRewardAccount pwd rootXPrv
+    in
+        [getRawKey $ publicKey acctXPrv]
+
 -- | Abstract function for generating a faucet.
 genFaucet
-    :: (Address -> Text)
-    -> (Mnemonic mw -> [Address])
+    :: forall a mw. ()
+    => (a -> Text)
+    -> (Mnemonic mw -> [a])
     -> FilePath
     -> [Mnemonic mw]
     -> IO ()
@@ -1429,7 +1510,7 @@ genFaucet encodeAddress genAddresses file ms = do
             <$> mnemonicToText m
         forM_ addrs (appendFile file . encodeFaucet)
   where
-    encodeFaucet :: Address -> Text
+    encodeFaucet :: a -> Text
     encodeFaucet addr =
         mconcat [ "  ", k, ": ", v ]
       where
@@ -1471,14 +1552,18 @@ bigDustWallet = unsafeMkMnemonic
 
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
-    [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses)
+    [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
 
-    , zip (addresses onlyDustWallet) (map Coin [1,1,5,12,1,5,3,10,2,3])
+    , zip
+        (addresses $ SomeMnemonic onlyDustWallet)
+        (map Coin [1,1,5,12,1,5,3,10,2,3])
 
-    , take 100 (map (, defaultAmt) $ addresses bigDustWallet)
-    , take 100 . drop 100 $ map (,Coin 1) $ addresses bigDustWallet
+    , take 100 (map (, defaultAmt) $ addresses $ SomeMnemonic bigDustWallet)
+    , take 100 . drop 100 $ map (,Coin 1) $ addresses $ SomeMnemonic bigDustWallet
 
     , preregKeyWalletFunds
+
+    , mirWallets
     ]
   where
     defaultAmt = Coin 100000000000
@@ -1497,6 +1582,9 @@ shelleyIntegrationTestFunds = mconcat
         [ "6199a7c32aaa55a628d936b539f01d5415318dec8bcb5e59ec71af695b"
         , "61386c7a86d8844f4085a50241556043c9842d72c315c897a42a8a0510"
         ]
+
+    mirWallets = (,defaultAmt) . head . genShelleyAddresses . SomeMnemonic
+        <$> mirMnemonics
 
 --
 -- Helpers

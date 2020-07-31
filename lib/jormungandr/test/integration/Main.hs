@@ -97,6 +97,8 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
     ( withStaticServer )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Pool.Jormungandr.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
@@ -177,6 +179,7 @@ specWithServer
         , EncodeStakeAddress n
         , DelegationAddress n JormungandrKey
         , PaymentAddress n ByronKey
+        , Typeable n
         )
     => Trace IO Text
     -> SpecWith (Port "node", FeePolicy, Context Jormungandr)

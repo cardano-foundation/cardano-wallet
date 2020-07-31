@@ -60,6 +60,7 @@ module Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , ApiTimeReference (..)
     , ApiTransaction (..)
+    , ApiWithdrawalPostData (..)
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -81,7 +82,6 @@ module Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
-    , ApiWithdrawRewards (..)
     , ApiWithdrawal (..)
 
     -- * API Types (Byron)
@@ -181,11 +181,11 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     )
 import Control.Applicative
-    ( optional )
+    ( optional, (<|>) )
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( (>=>) )
+    ( guard, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -489,10 +489,12 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
-newtype PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
+data PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -556,6 +558,11 @@ data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT ChimericAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+
+data ApiWithdrawalPostData
+    = SelfWithdrawal
+    | ExternalWithdrawal (ApiMnemonicT '[15,18,21,24])
+    deriving (Eq, Generic, Show)
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
@@ -674,6 +681,7 @@ data ApiErrorCode
     | UtxoTooSmall
     | MinWithdrawalWrong
     | AlreadyWithdrawing
+    | WithdrawalNotWorth
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -1143,6 +1151,18 @@ instance DecodeAddress t => FromJSON (PostTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWithdrawalPostData where
+    parseJSON obj =
+        parseSelfWithdrawal <|> fmap ExternalWithdrawal (parseJSON obj)
+      where
+        parseSelfWithdrawal = do
+            str <- parseJSON obj
+            SelfWithdrawal <$ guard (str == ("self" :: String))
+instance ToJSON ApiWithdrawalPostData where
+    toJSON = \case
+        SelfWithdrawal -> toJSON ("self" :: String)
+        ExternalWithdrawal mw -> toJSON mw
 
 instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -141,6 +141,8 @@ import System.Exit
     ( ExitCode (..) )
 import System.IOManager
     ( withIOManager )
+import Type.Reflection
+    ( Typeable )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -160,6 +162,7 @@ data SomeNetworkDiscriminant where
             , EncodeStakeAddress n
             , MaxSizeOf Address n IcarusKey
             , MaxSizeOf Address n ByronKey
+            , Typeable n
             )
         => Proxy n
         -> SomeNetworkDiscriminant
@@ -244,6 +247,7 @@ serveWallet
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n
+            , Typeable n
             )
         => Proxy n
         -> Socket
