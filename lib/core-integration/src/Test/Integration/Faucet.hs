@@ -1402,6 +1402,66 @@ mirMnemonics = unsafeMkMnemonic <$>
       ,"crumble","staff","ten","potato","laptop","off"
       ,"action","chuckle","medal","bread","blind","peanut","horse"
       ]
+    , ["version", "reason", "distance", "cargo", "fancy", "anxiety"
+      , "renew", "grace", "jealous", "brother", "live", "wheel", "lava"
+      , "exercise", "tragic", "foster", "office", "govern", "title", "inquiry"
+      , "fit", "twist", "powder", "subway"
+      ]
+    , ["dentist", "diagram", "eternal", "tuition", "leave", "library"
+      , "coffee", "power", "brief", "syrup", "six", "donkey", "inner"
+      , "valley", "carpet", "drop", "labor", "observe", "decade", "okay"
+      , "play", "stable", "wagon", "blind"
+      ]
+    , ["gallery", "approve", "trophy", "side", "lawn", "soldier", "gentle"
+      , "wire", "enact", "illegal", "chef", "sentence", "nation", "beach"
+      , "glimpse", "term", "unlock", "chalk", "monitor", "panel", "famous"
+      , "alert", "matter", "female"
+      ]
+    , ["reason", "grow", "memory", "spray", "gossip", "middle", "grocery"
+      , "lesson", "poem", "cannon", "dilemma", "elegant", "point", "east"
+      , "evil", "sauce", "exile", "typical", "cram", "ride", "remove"
+      , "phrase", "lecture", "degree"
+      ]
+    , ["else", "normal", "rotate", "flash", "nose", "east", "weasel", "hammer"
+      , "priority", "pig", "seven", "mention", "model", "profit", "oxygen"
+      , "tomato", "foot", "age", "glad", "jazz", "retire", "okay"
+      , "village", "crater"
+      ]
+    , ["negative", "purpose", "outdoor", "slush", "beach", "radar"
+      , "canoe", "course", "donkey", "earn", "bone", "bar", "frost"
+      , "manual", "inhale", "humor", "this", "reflect", "learn", "special"
+      , "horse", "course", "start", "debris"
+      ]
+    , ["wealth", "float", "steak", "oil", "rare", "gift", "put", "stool"
+      , "vault", "give", "gorilla", "indicate", "inside", "comfort"
+      , "lawn", "assault", "urban", "ancient", "identify", "depth", "injury"
+      , "solution", "warrior", "exercise"
+      ]
+    , ["syrup", "shield", "chef", "child", "dwarf", "frog", "hire"
+      , "script", "suit", "jelly", "point", "degree", "brisk", "oak"
+      , "minute", "absurd", "refuse", "iron", "forum", "effort"
+      , "regret", "kidney", "drama", "still"
+      ]
+    , ["moral", "stem", "myth", "awesome", "crime", "slush", "try"
+      , "wood", "coconut", "erase", "patient", "trigger", "crew", "solve"
+      , "element", "million", "nasty", "raven", "innocent", "happy"
+      , "behind", "ankle", "trick", "museum"
+      ]
+    , ["wish", "peasant", "void", "nature", "position", "dial", "grant"
+      , "recycle", "raw", "melody", "equal", "stool", "parent", "category"
+      , "limb", "apart", "indoor", "six", "float", "happy", "insane"
+      , "guide", "burst", "other"
+      ]
+    , ["fury", "possible", "relax", "eyebrow", "supply", "embrace"
+      , "decide", "wolf", "boring", "blossom", "credit", "drill", "theme"
+      , "skate", "focus", "trick", "field", "wrist", "update", "hawk"
+      , "renew", "motor", "learn", "cook"
+      ]
+    , ["gas", "woman", "grief", "story", "evidence", "actor", "filter"
+      , "lion", "pilot", "illness", "abuse", "palm", "hurry", "mail", "equal"
+      , "pen", "element", "nut", "lobster", "enemy", "base", "steel"
+      , "aisle", "lamp"
+      ]
     ]
 
 -- | Generate faucets addresses and mnemonics to a file.
