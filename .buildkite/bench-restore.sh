@@ -21,6 +21,8 @@ echo "--- Build"
 
 nix-build -A benchmarks.cardano-wallet-$target.restore -o bench-$target-restore
 
+export CARDANO_NODE_CONFIGS=$(nix-build -A cardano-node.deployments -o configs)
+
 bench="./bench-$target-restore/bin/restore $network"
 
 echo "--- Run benchmarks - $target - $network"
