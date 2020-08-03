@@ -1997,8 +1997,10 @@ showT = T.pack . show
 instance LiftHandler ErrCurrentEpoch where
     handler = \case
         ErrUnableToDetermineCurrentEpoch ->
-            apiError err500 UnableToDetermineCurrentEpoch
-                "I'm unable to determine the current epoch."
+            apiError err500 UnableToDetermineCurrentEpoch $ mconcat
+                [ "I'm unable to determine the current epoch. "
+                , "Please wait a while for the node to sync and try again."
+                ]
 
 instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
     handler = \case
