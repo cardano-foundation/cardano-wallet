@@ -48,9 +48,7 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "s/{{JORM_TAG}}/$JORM_TAG/g"                 \
     -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
     -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
-    -e "s/{{DOCKER_WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
-    -e "s/{{JORM_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g"  \
-    -e "s/{{BYRON_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g" \
+    -e "s/{{WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
     -e "/{{CHANGELOG}}/r $CHANGELOG"                \
     -e "/{{CHANGELOG}}/d"                           \
     .github/RELEASE_TEMPLATE.md > $OUT
