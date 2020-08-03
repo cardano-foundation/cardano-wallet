@@ -17,11 +17,11 @@ set -euo pipefail
 
 ################################################################################
 # Release-specific parameters (Change when you bump the version)
-GIT_TAG="v2020-07-28"
-CABAL_VERSION="2020.7.28"
+OLD_GIT_TAG="v2020-07-28"
+OLD_CABAL_VERSION="2020.7.28"
 
-OLD_GIT_TAG="v2020-07-06"
-OLD_CABAL_VERSION="2020.7.6"
+GIT_TAG="v2020-08-03"
+CABAL_VERSION="2020.8.3"
 
 JORM_TAG="v0.9.0"
 CARDANO_NODE_TAG="1.18.0"
@@ -48,9 +48,7 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "s/{{JORM_TAG}}/$JORM_TAG/g"                 \
     -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
     -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
-    -e "s/{{DOCKER_WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
-    -e "s/{{JORM_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g"  \
-    -e "s/{{BYRON_CLI_WIKI_COMMIT}}/$WIKI_COMMIT/g" \
+    -e "s/{{WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
     -e "/{{CHANGELOG}}/r $CHANGELOG"                \
     -e "/{{CHANGELOG}}/d"                           \
     .github/RELEASE_TEMPLATE.md > $OUT
