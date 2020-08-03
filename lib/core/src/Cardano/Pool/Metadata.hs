@@ -169,7 +169,7 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
 
     getChunk :: URI -> ExceptT String IO (Maybe ByteString)
     getChunk uri = do
-        req <- requestFromURI uri
+        req <- withExceptT show $ except $ requestFromURI uri
         liftIO $ traceWith tr $ MsgFetchPoolMetadata hash uri
         ExceptT
             $ handle fromIOException
