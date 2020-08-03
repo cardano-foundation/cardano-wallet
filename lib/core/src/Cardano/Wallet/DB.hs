@@ -50,6 +50,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata
     )
+import Control.Monad.Catch
+    ( MonadCatch )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
@@ -111,7 +113,7 @@ data DBFactory m s k = DBFactory
 -- Note that it isn't possible to simply use a @where@ clause or a @let@ binding
 -- here as the semantic for those are slightly different: we really need a
 -- pattern match here!
-data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
+data DBLayer m s k = forall stm. (MonadIO stm, MonadCatch stm, MonadFail stm) => DBLayer
     { initializeWallet
         :: PrimaryKey WalletId
         -> Wallet s

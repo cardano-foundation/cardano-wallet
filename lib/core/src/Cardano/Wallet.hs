@@ -191,6 +191,8 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     , sparseCheckpoints
     )
+import Cardano.Wallet.Logging
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..)
     , ErrGetAccountBalance (..)
@@ -327,6 +329,8 @@ import Control.Exception
     ( Exception )
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
+import Control.Monad.Catch
+    ( MonadCatch )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -345,7 +349,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State.Strict
     ( runStateT, state )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer, contramap, natTracer, traceWith )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -378,6 +382,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -748,19 +754,19 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs (h, ps) = run $ do
-            restoreBlocks @ctx @s @k @t ctx wid bs h
+            observe tr "restoreBlocks" $ restoreBlocks @ctx @s @k @t ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
-    liftIO (follow nw tr cps forward (view #header)) >>= \case
+    liftIO (follow nw (contramap MsgFollow tr) cps forward (view #header)) >>= \case
         FollowInterrupted -> pure ()
         FollowFailure ->
             restoreWallet @ctx @s @t @k ctx wid
         FollowRollback point -> do
-            rollbackBlocks @ctx @s @k ctx wid point
+            observe tr "rollbackBlocks" $ rollbackBlocks @ctx @s @k ctx wid point
             restoreWallet @ctx @s @t @k ctx wid
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
-    tr = contramap MsgFollow (ctx ^. logger @WalletLog)
+    tr = ctx ^. logger @WalletLog
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
     run = fmap (either ExitWith (const Continue)) . runExceptT
@@ -801,8 +807,8 @@ restoreBlocks
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
-    meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
+    cp   <- observe tr "readCheckpoint" $ withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
+    meta <- observe tr "readWalletMeta" $ withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     let gp = blockchainParameters cp
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
@@ -824,10 +830,10 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     let k = gp ^. #getEpochStability
     let localTip = currentTip $ NE.last cps
 
-    putTxHistory (PrimaryKey wid) txs
+    observe tr "putTxHistory" $ putTxHistory (PrimaryKey wid) txs
     forM_ slotPoolDelegations $ \delegation@(slotNo, cert) -> do
         liftIO $ logDelegation delegation
-        putDelegationCertificate (PrimaryKey wid) cert slotNo
+        observe tr "putDelegationCertificate" $ putDelegationCertificate (PrimaryKey wid) cert slotNo
 
     let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
 
@@ -835,14 +841,14 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
         let (Quantity h) = currentTip cp' ^. #blockHeight
         when (fromIntegral h `elem` unstable) $ do
             liftIO $ logCheckpoint cp'
-            putCheckpoint (PrimaryKey wid) cp'
+            observe tr "putCheckpoint (intermediate)" $ putCheckpoint (PrimaryKey wid) cp'
 
     liftIO $ logCheckpoint (NE.last cps)
-    putCheckpoint (PrimaryKey wid) (NE.last cps)
+    observe tr "putCheckpoint (main)" $ putCheckpoint (PrimaryKey wid) (NE.last cps)
 
-    prune (PrimaryKey wid)
+    observe tr "prune" $ prune (PrimaryKey wid)
 
-    liftIO $ do
+    observe tr "logging" $ liftIO $ do
         progress <- walletSyncProgress @ctx @s @t ctx (NE.last cps)
         traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgSyncProgress progress
@@ -2368,6 +2374,11 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
                                     Logging
 -------------------------------------------------------------------------------}
 
+-- A bracket-style observer which generate a log _before_ and _after_ an action.
+observe :: (MonadCatch m, MonadIO m) => Tracer IO WalletLog -> Text -> m a -> m a
+observe tr what =
+    bracketTracer (contramap (MsgObserve what) (natTracer liftIO tr))
+
 data WalletLog
     = MsgTryingRollback SlotNo
     | MsgRolledBack SlotNo
@@ -2392,6 +2403,7 @@ data WalletLog
     | MsgRewardBalanceResult (Either ErrFetchRewards (Quantity "lovelace" Word64))
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
+    | MsgObserve Text BracketLog
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2464,6 +2476,8 @@ instance ToText WalletLog where
             T.pack (show err)
         MsgRewardBalanceExited ->
             "Reward balance worker has exited."
+        MsgObserve what step ->
+            toText step <> " observing " <> what
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2492,3 +2506,4 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceResult (Left _) -> Notice
         MsgRewardBalanceNoSuchWallet{} -> Warning
         MsgRewardBalanceExited -> Notice
+        MsgObserve{} -> Notice -- FIXME: Lower to debug.
