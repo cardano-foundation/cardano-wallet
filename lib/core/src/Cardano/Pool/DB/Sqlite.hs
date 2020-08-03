@@ -268,22 +268,32 @@ newDBLayer trace fp timeInterpreter = do
             let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
             let metadata      = tableName (DBField PoolMetadataHash)
             let query = T.unwords
-                    [ "SELECT"
-                    , metadataUrl, ",", metadataHash
-                    , "FROM", registrations
+                    [ "SELECT", "a." <> metadataUrl, ",", "a." <> metadataHash
+                    , "FROM", registrations, "AS a"
+                    , "LEFT JOIN", fetchAttempts, "AS b"
+                    , "ON"
+                        , "a." <> metadataUrl,  "=", "b." <> metadataUrl, "AND"
+                        , "a." <> metadataHash, "=", "b." <> metadataHash
                     , "WHERE"
-                    , metadataHash, "NOT", "IN" -- Successfully fetched metadata
+                        -- Successfully fetched metadata
+                        , "a." <> metadataHash, "NOT", "IN"
                         , "("
                         , "SELECT", metadataHash
                         , "FROM", metadata
                         , ")"
                     , "AND"
-                    , metadataHash, "NOT", "IN" -- Recently failed urls
+                        -- Discard recent failed attempts
                         , "("
-                        , "SELECT", metadataHash
-                        , "FROM", fetchAttempts
-                        , "WHERE", retryAfter, ">=", "datetime('now')"
+                        , retryAfter, "<", "datetime('now')"
+                        , "OR"
+                        , retryAfter, "IS NULL"
                         , ")"
+                    -- Important, since we have a limit, we order all results by
+                    -- earlist "retry_after", so that we are sure that all
+                    -- metadata gets _eventually_ processed.
+                    --
+                    -- Note that `NULL` is smaller than everything.
+                    , "ORDER BY", retryAfter, "ASC"
                     , "LIMIT", nLimit
                     , ";"
                     ]
