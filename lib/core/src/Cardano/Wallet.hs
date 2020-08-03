@@ -1222,7 +1222,7 @@ selectCoinsForPayment
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal = do
     (utxo, pending, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
-        selectCoinsSetup @ctx @s @k ctx wid
+        observe tr "selectCoinsSetup" $ selectCoinsSetup @ctx @s @k ctx wid
 
     let pendingWithdrawal = Set.lookupMin $ Set.filter hasWithdrawal pending
     when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
@@ -1234,6 +1234,8 @@ selectCoinsForPayment ctx wid recipients withdrawal = do
         guardCoinSelection minUtxo cs
     pure cs
   where
+    tr = ctx ^. logger
+
     hasWithdrawal :: Tx -> Bool
     hasWithdrawal = not . null . withdrawals
 
@@ -1268,13 +1270,13 @@ selectCoinsForPaymentFromUTxO
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
-    (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
+    (sel, utxo') <- observe tr "random-improve" $ withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients withdrawal utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
     let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy) minUtxo
     withExceptT ErrSelectForPaymentFee $ do
-        balancedSel <- adjustForFee feePolicy utxo' sel
+        balancedSel <- observe tr "adjustForFee" $ adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
         pure balancedSel
   where
@@ -1517,6 +1519,7 @@ signPayment
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
+        , HasLogger WalletLog ctx
         , IsOwned s k
         , GenChange s
         )
@@ -1529,7 +1532,8 @@ signPayment
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> do
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
+    observe tr "signPayment"
+    $ withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
@@ -1552,6 +1556,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> d
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
+    tr = ctx ^. logger
 
 -- | Very much like 'signPayment', but doesn't not generate change addresses.
 signTx
@@ -1747,18 +1752,20 @@ submitTx
     :: forall ctx s t k.
         ( HasNetworkLayer t ctx
         , HasDBLayer s k ctx
+        , HasLogger WalletLog ctx
         )
     => ctx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ postTx nw binary
-    mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
+    observe tr "postTx" $ withExceptT ErrSubmitTxNetwork $ postTx nw binary
+    observe tr "putTxHistory (submitTx)" $ mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
+    tr = ctx ^. logger
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
