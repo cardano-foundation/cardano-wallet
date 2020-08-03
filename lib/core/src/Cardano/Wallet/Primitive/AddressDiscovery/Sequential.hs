@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
@@ -152,7 +153,7 @@ instance ToText (AddressPoolGap) where
 
 instance Bounded AddressPoolGap where
     minBound = AddressPoolGap 10
-    maxBound = AddressPoolGap 100
+    maxBound = AddressPoolGap 100_000
 
 instance Enum AddressPoolGap where
     fromEnum (AddressPoolGap g) = fromEnum g
