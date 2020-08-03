@@ -62,6 +62,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
+    , mkUnboundedAddressPoolGap
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
@@ -161,15 +162,15 @@ spec = do
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
-        let err = "An address pool gap must be a natural number between 10 and 100."
+        let err = "An address pool gap must be a natural number between 10 and 100000."
         it "fail fromText @AddressPoolGap \"-10\"" $
             fromText @AddressPoolGap "-10" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"0\"" $
             fromText @AddressPoolGap "0" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"9\"" $
             fromText @AddressPoolGap "9" === Left (TextDecodingError err)
-        it "fail fromText @AddressPoolGap \"101\"" $
-            fromText @AddressPoolGap "101" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"100001\"" $
+            fromText @AddressPoolGap "100001" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"20eiei\"" $
             fromText @AddressPoolGap "20eiei" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"raczej nie\"" $
@@ -596,7 +597,7 @@ deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 instance Arbitrary AddressPoolGap where
     shrink _ = []
-    arbitrary = arbitraryBoundedEnum
+    arbitrary = mkUnboundedAddressPoolGap <$> choose (10, 20)
 
 instance Arbitrary AccountingStyle where
     shrink _ = []

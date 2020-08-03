@@ -328,7 +328,7 @@ x-walletAddressPoolGap: &walletAddressPoolGap
   description: Number of consecutive unused addresses allowed
   type: integer
   minimum: 10
-  maximum: 100
+  maximum: 100000
   example: 20
   default: 20
 
