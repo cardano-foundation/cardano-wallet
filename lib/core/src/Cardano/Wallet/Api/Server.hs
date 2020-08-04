@@ -1238,12 +1238,11 @@ postTransaction ctx genChange (ApiT wid) body = do
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                 let (xprv, acct) = W.someChimericAccount @ShelleyKey mw
-                wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
-                (, const (xprv, mempty))
-                    <$> liftIO (W.readNextWithdrawal @_ @s @t @k wrk wid wdrl)
-
-        when (isJust (body ^. #withdrawal) && wdrl == Quantity 0) $ do
-            liftHandler $ throwE ErrWithdrawalNotWorth
+                wdrl <- liftHandler (W.queryRewardBalance @_ @t wrk acct)
+                    >>= liftIO . W.readNextWithdrawal @_ @s @t @k wrk wid
+                when (wdrl == Quantity 0) $ do
+                    liftHandler $ throwE ErrWithdrawalNotWorth
+                pure (wdrl, const (xprv, mempty))
 
         selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl
         pure (selection, credentials)
