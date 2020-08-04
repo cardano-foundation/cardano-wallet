@@ -8,7 +8,7 @@
 #
 ############################################################################
 
-{ runtimeShell, writeScriptBin, runCommand, dockerTools
+{ runtimeShell, writeScriptBin, writeTextFile, runCommand, dockerTools
 
 # The main contents of the image.
 , exe
@@ -40,11 +40,18 @@ let
     exec ${exe}/bin/cardano-wallet-${backend} "$@"
   '';
 
+  # Config file needed for container/host resolution.
+  nsswitch-conf = writeTextFile {
+    name = "nsswitch.conf";
+    text = "hosts: files dns";
+    destination = "/etc/nsswitch.conf";
+  };
+
   # Layer of tools which aren't going to change much between versions.
   baseImage = dockerTools.buildImage {
     name = "${repoName}-env";
     contents = [
-      glibcLocales iana-etc cacert
+      glibcLocales iana-etc cacert nsswitch-conf
       bashInteractive coreutils utillinux iproute iputils curl socat
     ];
     # set up /tmp (override with TMPDIR variable)
