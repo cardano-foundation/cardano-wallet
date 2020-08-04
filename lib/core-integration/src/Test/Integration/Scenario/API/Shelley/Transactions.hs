@@ -1323,7 +1323,7 @@ spec = do
                     (.> (wSelf ^. #balance . #getApiT . #available))
                 ]
 
-    it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards if none left" $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left" $ \ctx -> do
         (wOther, mw) <- rewardWallet ctx
         wSelf  <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -1356,7 +1356,27 @@ spec = do
             , expectErrorMessage errMsg403WithdrawalNotWorth
             ]
 
-    it "SHELLEY_TX_REDEEM_04 - Can't redeem rewards from unknown key" $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_04 - Can always ask for self redemption" $ \ctx -> do
+        wSelf <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals (`shouldSatisfy` null)
+            ]
+
+    it "SHELLEY_TX_REDEEM_05 - Can't redeem rewards from unknown key" $ \ctx -> do
         wSelf  <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
@@ -1377,7 +1397,7 @@ spec = do
             , expectErrorMessage errMsg403WithdrawalNotWorth
             ]
 
-    it "SHELLEY_TX_REDEEM_05 - Can't redeem rewards using byron wallet" $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_06 - Can't redeem rewards using byron wallet" $ \ctx -> do
         (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
         let addr = encodeAddress @n (head addrs)
 

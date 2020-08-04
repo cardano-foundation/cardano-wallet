@@ -467,12 +467,32 @@ x-transactionOutputs: &transactionOutputs
 
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
-  description: Withdraw rewards from an external wallet, if any.
+  description: |
+    When provided, attempts to withdraw rewards from the default stake address corresponding to the given mnemonic.
+
+    Should the rewards be null or too small to be worth withdrawing (i.e. the cost of adding them into the transaction
+    is more than their own intrinsic value), the server will reject the request with a `withdrawal_not_worth` error.
+
+    withdrawal field    | reward balance | result
+    ---                 | ---            | ---
+    any recovery phrase | too small      | x Error 403 `withdrawal_not_worth`
+    any recovery phrase | big enough     | ✓ withdrawal generated
 
 x-transactionWithdrawalRequestSelf: &transactionWithdrawalRequestSelf
   type: string
   enum: ["self"]
-  description: Optionally withdraw rewards from **this** wallet, if any.
+  description: |
+    When provided, instruments the server to automatically withdraw rewards from the source wallet when they are deemed
+    sufficient (i.e. they contribute to the balance for at least as much as they cost).
+
+    As a consequence, the resulting transaction may or may not have a withdrawal object. Summarizing:
+
+    withdrawal field | reward balance | result
+    ---              | ---            | ---
+    `null`           | too small      | ✓ no withdrawals generated
+    `null`           | big enough     | ✓ no withdrawals generated
+    `"self"`         | too small      | ✓ no withdrawals generated
+    `"self"`         | big enough     | ✓ withdrawal generated
 
 x-transactionWithdrawals: &transactionWithdrawals
   description: A list of withdrawals from stake addresses.
