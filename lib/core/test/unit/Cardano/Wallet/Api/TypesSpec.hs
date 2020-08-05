@@ -1277,10 +1277,17 @@ instance Arbitrary (ApiTransaction t) where
             <*> pure txPendingSince
             <*> arbitrary
             <*> arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+            <*> genInputs
+            <*> genOutputs
+            <*> genWithdrawals
             <*> pure txStatus
+      where
+        genInputs =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        genOutputs =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        genWithdrawals =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawal
