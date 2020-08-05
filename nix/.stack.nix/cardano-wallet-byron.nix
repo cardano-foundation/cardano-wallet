@@ -59,7 +59,6 @@
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-          (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
           (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
@@ -148,36 +147,6 @@
           };
         };
       benchmarks = {
-        "restore" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-            (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
-            (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."cardano-wallet-byron" or (errorHandler.buildDepError "cardano-wallet-byron"))
-            (hsPkgs."cardano-wallet-launcher" or (errorHandler.buildDepError "cardano-wallet-launcher"))
-            (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."criterion-measurement" or (errorHandler.buildDepError "criterion-measurement"))
-            (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
-            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-            (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
-            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
-            (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
-            (hsPkgs."persistent" or (errorHandler.buildDepError "persistent"))
-            (hsPkgs."persistent-template" or (errorHandler.buildDepError "persistent-template"))
-            (hsPkgs."process" or (errorHandler.buildDepError "process"))
-            (hsPkgs."say" or (errorHandler.buildDepError "say"))
-            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
-            ];
-          buildable = true;
-          };
         "latency" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))

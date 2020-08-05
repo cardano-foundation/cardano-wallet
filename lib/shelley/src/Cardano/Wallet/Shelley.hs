@@ -27,6 +27,7 @@
 module Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , serveWallet
+    , HasNetworkId (..)
 
       -- * Tracing
     , Tracers' (..)

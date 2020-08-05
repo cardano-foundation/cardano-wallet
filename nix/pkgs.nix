@@ -40,8 +40,8 @@ in pkgs: super: with pkgs; {
       jq . < ${mkTopology env} > $cfg/topology.json
       jq . < ${__toFile "${name}-config.json" (__toJSON (updateConfig env))} > $cfg/configuration.json
     '' + (if env.consensusProtocol == "Cardano" then ''
-      jq . < ${env.genesisFile} > $cfg/genesis-byron.json
-      cp ${env.genesisFileHfc} $cfg/genesis-shelley.json
+      jq . < ${env.nodeConfig.ByronGenesisFile} > $cfg/genesis-byron.json
+      cp ${env.nodeConfig.ShelleyGenesisFile} $cfg/genesis-shelley.json
     '' else ''
       jq . < ${env.genesisFile} > $cfg/genesis.json
     '')) environments);

@@ -140,7 +140,7 @@ let
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
         # We don't `cd $src` because of that.
-        packages.cardano-wallet-byron.components.benchmarks.restore =
+        packages.cardano-wallet-shelley.components.benchmarks.restore =
           lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
@@ -213,7 +213,7 @@ let
         enableLibraryProfiling = true;
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.enableExecutableProfiling = true;
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron.enableExecutableProfiling = true;
-        packages.cardano-wallet-byron.components.benchmarks.restore.enableExecutableProfiling = true;
+        packages.cardano-wallet-shelley.components.benchmarks.restore.enableExecutableProfiling = true;
         packages.cardano-wallet-byron.components.benchmarks.latency.enableExecutableProfiling = true;
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.enableExecutableProfiling = true;
       })
@@ -231,10 +231,10 @@ let
       in {
         # Apply fully static options to our Haskell executables
         packages.cardano-wallet-byron.components.benchmarks.latency = fullyStaticOptions;
-        packages.cardano-wallet-byron.components.benchmarks.restore = fullyStaticOptions;
         packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
         packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
+        packages.cardano-wallet-shelley.components.benchmarks.restore = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.tests.integration = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.tests.unit = fullyStaticOptions;
