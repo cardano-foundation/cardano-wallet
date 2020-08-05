@@ -1257,59 +1257,47 @@ spec = do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    -- Reward wallets have 100k ADA UTxO and 1M ADA rewards,
-    -- fixtureWalletsWith have 100k ADA UTxO too
-    -- Verifying withdrawals for some boundary values
-    let rewardsMatrix = [ ("redeem sending exactly rewards", oneMillionAda)
-                        , ("redeem sending exactly UTxO", 100 * oneThousandAda)
-                        , ("redeem sending more than UTxO", 100 * oneThousandAda + oneAda)
-                        , ("redeem sending less than UTxO", 100 * oneThousandAda - oneAda)
-                        , ("redeem sending more than rewards", oneMillionAda + oneAda)
-                        , ("redeem sending less than rewards", oneMillionAda - oneAda)
-                        ]
-    describe "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ do
-
-      forM_ rewardsMatrix $ \(name, amt) -> it name $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> do
         (wSrc,_) <- rewardWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
 
         let payload = Json [json|{
-              "withdrawal": "self",
-              "payments": [{
-                  "address": #{addr},
-                  "amount": { "quantity": #{amt}, "unit": "lovelace" }
-              }],
-              "passphrase": #{fixturePassphrase}
-          }|]
+                "withdrawal": "self",
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
         rTx <- request @(ApiTransaction n) ctx
-          (Link.createTransaction @'Shelley wSrc) Default payload
+            (Link.createTransaction @'Shelley wSrc) Default payload
         verify rTx
-          [ expectResponseCode HTTP.status202
-          , expectField #withdrawals
-              (`shouldSatisfy` (not . null))
-          ]
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals
+                (`shouldSatisfy` (not . null))
+            ]
 
         eventually "rewards are transferred from self to self" $ do
-          rW <- request @ApiWallet ctx
-              (Link.getWallet @'Shelley wSrc) Default payload
-          verify rW
-              [ expectField (#balance . #getApiT . #available)
-                  (.> (wSrc ^. #balance . #getApiT . #available))
-              , expectField (#balance . #getApiT . #reward)
-                  (`shouldBe` Quantity 0)
-              ]
+            rW <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default payload
+            print rW
+            verify rW
+                [ expectField (#balance . #getApiT . #available)
+                    (.> (wSrc ^. #balance . #getApiT . #available))
+                , expectField (#balance . #getApiT . #reward)
+                    (`shouldBe` Quantity 0)
+                ]
 
-    describe "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ do
-      forM_ rewardsMatrix $ \(name, amt) -> it name $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ \ctx -> do
         (wOther, mw) <- rewardWallet ctx
-        wSelf  <- fixtureWalletWith @n ctx [100 * oneThousandAda]
+        wSelf  <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
+                    "amount": { "quantity": 1, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1492,7 +1480,7 @@ spec = do
             , expectErrorMessage errMsg403InputsDepleted
             ]
 
-    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if amt = utxo + reward" $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee" $ \ctx -> do
         (_, mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -1515,7 +1503,7 @@ spec = do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if amt > utxo + reward" $ \ctx -> do
+    it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money" $ \ctx -> do
         (_, mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
