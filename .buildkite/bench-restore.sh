@@ -15,7 +15,7 @@ log=restore.log
 results=restore-$target-$network.txt
 total_time=restore-time.txt
 
-node_db=$HOME/node-db-$target-$network
+: "${NODE_DB:=$HOME/node-db-$target-$network}"
 
 echo "--- Build"
 

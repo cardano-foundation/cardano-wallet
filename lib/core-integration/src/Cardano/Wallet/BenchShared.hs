@@ -78,6 +78,8 @@ import Options.Applicative
     )
 import Say
     ( sayErr )
+import System.Directory
+    ( createDirectoryIfMissing )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -118,7 +120,9 @@ withNetworkConfiguration args action = do
     -- Temporary directory for storing socket and node database
     let withNodeDir cb = case argNodeDatabaseDir args of
             Nothing -> withSystemTempDirectory "cw-node" cb
-            Just d -> cb d
+            Just d -> do
+                createDirectoryIfMissing True d
+                cb d
 
     let networkDir = argsNetworkDir args
     port <- fromIntegral <$> getRandomPort
