@@ -46,11 +46,13 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types.Status
     ( Status (..) )
 import Network.TLS
-    ( ClientHooks (..)
+    ( AlertDescription (..)
+    , ClientHooks (..)
     , ClientParams (..)
     , Credentials (..)
     , Shared (..)
     , Supported (..)
+    , TLSError (..)
     , TLSException (..)
     , noSessionManager
     )
@@ -115,7 +117,8 @@ spec = describe "TLS Client Authentication" $ do
             pingHttps tlsCl port `shouldThrow` \case
                 HttpExceptionRequest _ (InternalException e) ->
                     case fromException e of
-                        Just HandshakeFailed{} -> True
+                        Just (Terminated _ _ (Error_Protocol (_,_,alert))) ->
+                            alert == CertificateUnknown
                         _ -> False
                 _ -> False
 
@@ -188,6 +191,7 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = do
         , clientHooks = clientHooks credentials
         , clientSupported = clientSupported
         , clientDebug = def
+        , clientEarlyData = def
         }
 
     clientShared caChain credentials = Shared
