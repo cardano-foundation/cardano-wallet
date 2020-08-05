@@ -455,7 +455,7 @@ x-transactionInputs: &transactionInputs
 x-transactionOutputs: &transactionOutputs
   description: A list of target outputs
   type: array
-  minItems: 0
+  minItems: 1
   items:
     type: object
     required:

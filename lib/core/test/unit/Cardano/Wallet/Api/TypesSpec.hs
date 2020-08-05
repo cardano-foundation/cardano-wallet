@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -168,6 +169,8 @@ import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
     ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -1261,7 +1264,10 @@ instance Arbitrary PostExternalTransactionData where
         PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
 
 instance Arbitrary (ApiTransaction t) where
-    shrink = genericShrink
+    shrink = filter outputsNonEmpty . genericShrink
+      where
+        outputsNonEmpty :: ApiTransaction t -> Bool
+        outputsNonEmpty = (not . null) . view #outputs
     arbitrary = do
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
@@ -1277,10 +1283,24 @@ instance Arbitrary (ApiTransaction t) where
             <*> pure txPendingSince
             <*> arbitrary
             <*> arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+            <*> genInputs
+            <*> genOutputs
+            <*> genWithdrawals
             <*> pure txStatus
+      where
+        genInputs =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        -- Note that the generated list of outputs must be non-empty in order
+        -- to be consistent with the specification.
+        --
+        -- Ideally, we should encode this restriction in the type system.
+        --
+        -- See https://jira.iohk.io/browse/ADP-400.
+        genOutputs = (:)
+            <$> arbitrary
+            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+        genWithdrawals =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawal
