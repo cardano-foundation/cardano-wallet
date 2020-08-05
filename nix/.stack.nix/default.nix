@@ -11,6 +11,7 @@
         "servant-client" = (((hackage.servant-client)."0.17").revisions).default;
         "servant-swagger" = (((hackage.servant-swagger)."1.1.8").revisions).default;
         "zip" = (((hackage.zip)."1.3.0").revisions).default;
+        "tls" = (((hackage.tls)."1.5.4").revisions).default;
         "base16" = (((hackage.base16)."0.1.2.1").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "base64" = (((hackage.base64)."0.4.1").revisions).default;
