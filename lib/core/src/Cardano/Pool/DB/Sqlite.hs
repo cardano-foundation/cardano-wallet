@@ -261,6 +261,7 @@ newDBLayer trace fp timeInterpreter = do
 
         , unfetchedPoolMetadataRefs = \limit -> do
             let nLimit = T.pack (show limit)
+            let poolId        = fieldName (DBField PoolRegistrationPoolId)
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
             let metadataUrl   = fieldName (DBField PoolRegistrationMetadataUrl)
             let retryAfter    = fieldName (DBField PoolFetchAttemptsRetryAfter)
@@ -268,7 +269,10 @@ newDBLayer trace fp timeInterpreter = do
             let fetchAttempts = tableName (DBField PoolFetchAttemptsMetadataHash)
             let metadata      = tableName (DBField PoolMetadataHash)
             let query = T.unwords
-                    [ "SELECT", "a." <> metadataUrl, ",", "a." <> metadataHash
+                    [ "SELECT"
+                        , "a." <> poolId, ","
+                        , "a." <> metadataUrl, ","
+                        , "a." <> metadataHash
                     , "FROM", registrations, "AS a"
                     , "LEFT JOIN", fetchAttempts, "AS b"
                     , "ON"
@@ -298,9 +302,10 @@ newDBLayer trace fp timeInterpreter = do
                     , ";"
                     ]
 
-            let safeCast (Single a, Single b) = (,)
+            let safeCast (Single a, Single b, Single c) = (,,)
                     <$> fromPersistValue a
                     <*> fromPersistValue b
+                    <*> fromPersistValue c
 
             rights . fmap safeCast <$> rawSql query []
 

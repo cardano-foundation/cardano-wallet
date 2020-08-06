@@ -545,7 +545,8 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
 monitorMetadata
     :: Tracer IO StakePoolLog
     -> GenesisParameters
-    -> (   StakePoolMetadataUrl
+    -> (   PoolId
+        -> StakePoolMetadataUrl
         -> StakePoolMetadataHash
         -> IO (Maybe StakePoolMetadata)
        )
@@ -553,8 +554,8 @@ monitorMetadata
     -> IO ()
 monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
     refs <- atomically (unfetchedPoolMetadataRefs 100)
-    successes <- fmap catMaybes $ forM refs $ \(url, hash) -> do
-        fetchMetadata url hash >>= \case
+    successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
+        fetchMetadata pid url hash >>= \case
             Nothing -> Nothing <$ do
                 atomically $ putFetchAttempt (url, hash)
 

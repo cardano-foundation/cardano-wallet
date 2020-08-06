@@ -151,7 +151,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , unfetchedPoolMetadataRefs
         :: Int
-        -> stm [(StakePoolMetadataUrl, StakePoolMetadataHash)]
+        -> stm [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
         -- ^ Read the list of metadata remaining to fetch from remote server,
         -- possibly empty if every pool already has an associated metadata
         -- cached.

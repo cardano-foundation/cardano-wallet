@@ -262,7 +262,7 @@ mListRegisteredPools db@PoolDatabase{registrations} =
 
 mUnfetchedPoolMetadataRefs
     :: Int
-    -> ModelPoolOp [(StakePoolMetadataUrl, StakePoolMetadataHash)]
+    -> ModelPoolOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
 mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     ( Right (toTuple <$> take n (Map.elems unfetched))
     , db
@@ -277,9 +277,9 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
 
     toTuple
         :: PoolRegistrationCertificate
-        -> (StakePoolMetadataUrl, StakePoolMetadataHash)
-    toTuple PoolRegistrationCertificate{poolMetadata} =
-        (metadataUrl, metadataHash)
+        -> (PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)
+    toTuple PoolRegistrationCertificate{poolId,poolMetadata} =
+        (poolId, metadataUrl, metadataHash)
       where
         Just (metadataUrl, metadataHash) = poolMetadata
 
