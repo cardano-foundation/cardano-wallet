@@ -111,9 +111,11 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
+    , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
+    , errMsg403NotEnoughMoney_
     , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -1416,6 +1418,113 @@ spec = do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotAShelleyWallet
             ]
+
+    it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other" $ \ctx -> do
+        (_, mw) <- rewardWallet ctx
+        wSelf  <- emptyWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": 1000000, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- Try withdrawing when no UTxO on a wallet
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
+            ]
+
+    it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self" $ \ctx -> do
+        (wRewards, mw) <- rewardWallet ctx
+        wOther  <- emptyWallet ctx
+
+        -- migrate all utxo from rewards wallet
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wOther
+        let payloadMigr = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "addresses": [#{addr}]
+            }|]
+
+        let ep = Link.migrateWallet @'Shelley wRewards
+        rM <- request @[ApiTransaction n] ctx ep Default payloadMigr
+        expectResponseCode HTTP.status202 rM
+
+        eventually "No UTxO is on rewards wallet" $ do
+            rWOther <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wRewards) Default Empty
+            verify rWOther
+                [ expectField (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity 0)
+                ]
+
+        -- Try withdrawing when no UTxO on a wallet
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": #{oneAda}, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wRewards) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
+            ]
+
+    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee" $ \ctx -> do
+        (_, mw) <- rewardWallet ctx
+        wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        let amt = oneThousandAda + oneMillionAda
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- Try withdrawing when cannot cover fee
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403Fee
+            ]
+
+    it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money" $ \ctx -> do
+        (_, mw) <- rewardWallet ctx
+        wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        let amt = oneThousandAda + oneMillionAda + oneAda
+
+        let payload = Json [json|{
+                "withdrawal": #{mnemonicToText mw},
+                "payments": [{
+                    "address": #{addr},
+                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- Try withdrawing when no not enough money
+        rTx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSelf) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotEnoughMoney_
+            ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> do
@@ -1506,3 +1615,12 @@ spec = do
     plusDelta, minusDelta :: UTCTime -> UTCTime
     plusDelta = addUTCTime (toEnum 1000000000)
     minusDelta = addUTCTime (toEnum (-1000000000))
+
+    oneAda :: Natural
+    oneAda = 1_000_000
+
+    oneThousandAda :: Natural
+    oneThousandAda = 1_000 * oneAda
+
+    oneMillionAda :: Natural
+    oneMillionAda = 1_000 * oneThousandAda
