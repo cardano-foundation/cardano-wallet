@@ -308,6 +308,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , computeUtxoStatistics
+    , distance
     , dlgCertPoolId
     , fromTransactionInfo
     , log10
@@ -1511,6 +1512,7 @@ signPayment
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
+        , IsOurs s ChimericAccount
         , IsOwned s k
         , GenChange s
         )
@@ -1538,7 +1540,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> d
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) cs'
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' cs'
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs'
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1553,6 +1555,7 @@ signTx
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
+        , IsOurs s ChimericAccount
         , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -1577,7 +1580,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) cs
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) tx cs
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1639,6 +1642,7 @@ signDelegation
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -1689,7 +1693,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                             coinSel'
 
             (time, meta) <- liftIO $
-                mkTxMeta ti (currentTip cp) s' coinSel'
+                mkTxMeta ti (currentTip cp) s' tx coinSel'
             return (tx, meta, time, sealedTx)
   where
     ti :: TimeInterpreter IO
@@ -1700,39 +1704,50 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 
 -- | Construct transaction metadata from a current block header and a list
 -- of input and output.
+--
+-- FIXME: There's a logic duplication regarding the calculation of the transaction
+-- amount between right here, and the Primitive.Model (see prefilterBlocks).
 mkTxMeta
-    :: (IsOurs s Address, Monad m)
+    :: (IsOurs s Address, IsOurs s ChimericAccount, Monad m)
     => TimeInterpreter m
     -> BlockHeader
     -> s
+    -> Tx
     -> CoinSelection
     -> m (UTCTime, TxMeta)
-mkTxMeta interpretTime blockHeader wState cs =
+mkTxMeta interpretTime blockHeader wState tx cs =
     let
         amtOuts =
             sum (mapMaybe ourCoins (outputs cs))
 
-        amtInps = fromIntegral $
-            sum (getCoin . coin . snd <$> (inputs cs))
-            + withdrawal cs
-            + reclaim cs
+        amtInps
+            = sum (fromIntegral . getCoin . coin . snd <$> (inputs cs))
+            + sum (mapMaybe ourWithdrawal $ Map.toList $ withdrawals tx)
+            + fromIntegral (reclaim cs)
     in do
         t <- slotStartTime' (blockHeader ^. #slotNo)
         return
             ( t
             , TxMeta
                 { status = Pending
-                , direction = Outgoing
+                , direction = if amtInps > amtOuts then Outgoing else Incoming
                 , slotNo = blockHeader ^. #slotNo
                 , blockHeight = blockHeader ^. #blockHeight
-                , amount = Quantity (amtInps - amtOuts)
+                , amount = Quantity $ distance amtInps amtOuts
                 }
             )
   where
     slotStartTime' = interpretTime . startTime
+
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr (Coin val)) =
         if fst (isOurs addr wState)
+        then Just (fromIntegral val)
+        else Nothing
+
+    ourWithdrawal :: (ChimericAccount, Coin) -> Maybe Natural
+    ourWithdrawal (acct, (Coin val)) =
+        if fst (isOurs acct wState)
         then Just (fromIntegral val)
         else Nothing
 
@@ -1861,6 +1876,7 @@ joinStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -1918,6 +1934,7 @@ quitStakePool
         , HasNetworkLayer t ctx
         , HasTransactionLayer t k ctx
         , IsOwned s k
+        , IsOurs s ChimericAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft

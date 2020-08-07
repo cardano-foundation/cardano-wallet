@@ -72,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , balance
+    , distance
     , dlgCertAccount
     , excluding
     , inputs
@@ -291,18 +292,22 @@ availableBalance pending =
 
 -- | Total balance = 'balance' . 'totalUTxO' +? rewards
 totalBalance
-    :: IsOurs s Address
+    :: (IsOurs s Address, IsOurs s ChimericAccount)
     => Set Tx
     -> Quantity "lovelace" Natural
     -> Wallet s
     -> Natural
-totalBalance pending (Quantity rewards) s =
-    balance (totalUTxO pending s) + if hasPendingWithdrawals then 0 else rewards
+totalBalance pending (Quantity rewards) wallet@(Wallet _ _ s _) =
+    balance (totalUTxO pending wallet) +
+        if hasPendingWithdrawals pending
+        then 0
+        else rewards
   where
     hasPendingWithdrawals =
-        not $ Set.null $ Set.filter
-            (not . Map.null . withdrawals)
-            pending
+        anyS (anyM (\acct _ -> fst (isOurs acct s)) . withdrawals)
+      where
+        anyS predicate = not . Set.null . Set.filter predicate
+        anyM predicate = not . Map.null . Map.filterWithKey predicate
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO
@@ -365,6 +370,14 @@ prefilterBlock b u0 = runState $ do
         state (isOurs $ dlgCertAccount cert) <&> \case
             False -> Nothing
             True -> Just cert
+    ourWithdrawal
+        :: IsOurs s ChimericAccount
+        => (ChimericAccount, Coin)
+        -> State s (Maybe (ChimericAccount, Coin))
+    ourWithdrawal (acct, amt) =
+        state (isOurs acct) <&> \case
+            False -> Nothing
+            True  -> Just (acct, amt)
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -374,7 +387,7 @@ prefilterBlock b u0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: (IsOurs s Address)
+        :: (IsOurs s Address, IsOurs s ChimericAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -382,17 +395,20 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        let wdrls = fromIntegral . getCoin <$> Map.elems (withdrawals tx)
+        ourWithdrawals <- fmap (fromIntegral . getCoin . snd) <$>
+            mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         let received = balance ourU
-        let spent = balance (u `restrictedBy` ourIns) + sum wdrls
+        let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
+        let hasKnownWithdrawal = ourWithdrawals /= mempty
         return $ if hasKnownOutput && not hasKnownInput then
             ( (tx, mkTxMeta received Incoming) : txs
             , u'
             )
-        else if hasKnownInput then
-            ( (tx, mkTxMeta (spent - received) Outgoing) : txs
+        else if hasKnownInput || hasKnownWithdrawal then
+            let dir = if spent > received then Outgoing else Incoming in
+            ( (tx, mkTxMeta (distance spent received) dir) : txs
             , u'
             )
         else
