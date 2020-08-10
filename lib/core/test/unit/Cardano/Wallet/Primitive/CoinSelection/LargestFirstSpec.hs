@@ -33,8 +33,6 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -253,29 +251,28 @@ spec = do
 propDeterministic
     :: CoinSelProp
     -> Property
-propDeterministic (CoinSelProp utxo txOuts) = do
+propDeterministic (CoinSelProp utxo wdrl txOuts) = do
     let opts = CoinSelectionOptions (const 100) noValidation
-    let withdraw = Quantity 0
-    let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts withdraw utxo
-    let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts withdraw utxo
+    let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts wdrl utxo
+    let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts wdrl utxo
     resultOne === resultTwo
 
 propAtLeast
     :: CoinSelProp
     -> Property
-propAtLeast (CoinSelProp utxo txOuts) =
+propAtLeast (CoinSelProp utxo wdrl txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
     prop cs =
         L.length (inputs cs) `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $ do
         let opts = CoinSelectionOptions (const 100) noValidation
-        largestFirst opts txOuts (Quantity 0) utxo
+        largestFirst opts txOuts wdrl utxo
 
 propInputDecreasingOrder
     :: CoinSelProp
     -> Property
-propInputDecreasingOrder (CoinSelProp utxo txOuts) =
+propInputDecreasingOrder (CoinSelProp utxo wdrl txOuts) =
     isRight selection ==> let Right (s,_) = selection in prop s
   where
     prop cs =
@@ -289,4 +286,4 @@ propInputDecreasingOrder (CoinSelProp utxo txOuts) =
     getExtremumValue f = f . map (getCoin . coin . snd)
     selection = runIdentity $ runExceptT $ do
         let opts = CoinSelectionOptions (const 100) noValidation
-        largestFirst opts txOuts (Quantity 0) utxo
+        largestFirst opts txOuts wdrl utxo
