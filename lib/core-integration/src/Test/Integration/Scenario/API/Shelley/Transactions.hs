@@ -1301,13 +1301,20 @@ spec = do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
+        let fee = 143600
+
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSelf) Default payload
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals
                 (`shouldSatisfy` (not . null))
+            , expectField (#direction . #getApiT)
+                (`shouldBe` Incoming)
+            , expectField (#amount . #getQuantity)
+                (`shouldBe` (oneMillionAda - fee))
             ]
+        let tid = getFromResponse Prelude.id rTx
 
         eventually "rewards disappear from other" $ do
             rWOther <- request @ApiWallet ctx
@@ -1317,12 +1324,42 @@ spec = do
                     (`shouldBe` Quantity 0)
                 ]
 
+        eventually "withdrawal transaction is listed on other" $ do
+            rTxOther <- request @(ApiTransaction n) ctx
+                (Link.getTransaction  @'Shelley wOther tid) Default payload
+            verify rTxOther
+                [ expectResponseCode
+                    HTTP.status200
+                , expectField #withdrawals
+                    (`shouldSatisfy` (not . null))
+                , expectField (#direction . #getApiT)
+                    (`shouldBe` Outgoing)
+                , expectField (#amount . #getQuantity)
+                    (`shouldBe` oneMillionAda)
+                ]
+
         eventually "rewards appear on self" $ do
             rWSelf <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSelf) Default payload
             verify rWSelf
                 [ expectField (#balance . #getApiT . #available)
                     (.> (wSelf ^. #balance . #getApiT . #available))
+                ]
+
+        eventually "withdrawal transaction is listed on self" $ do
+            rTxSelf <- request @(ApiTransaction n) ctx
+                (Link.getTransaction  @'Shelley wSelf tid) Default payload
+            verify rTxSelf
+                [ expectResponseCode
+                    HTTP.status200
+                , expectField #withdrawals
+                    (`shouldSatisfy` (not . null))
+                , expectField (#direction . #getApiT)
+                    (`shouldBe` Incoming)
+                , expectField (#amount . #getQuantity)
+                    (`shouldBe` (oneMillionAda - fee))
+                , expectField (#status . #getApiT)
+                    (`shouldBe` InLedger)
                 ]
 
     it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left" $ \ctx -> do

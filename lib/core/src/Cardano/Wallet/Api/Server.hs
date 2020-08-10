@@ -646,6 +646,7 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
@@ -753,6 +754,7 @@ mkLegacyWallet
         , KnownDiscovery s
         , HasNetworkLayer t ctx
         , IsOurs s Address
+        , IsOurs s ChimericAccount
         )
     => ctx
     -> WalletId
@@ -1205,6 +1207,7 @@ postTransaction
         ( Buildable (ErrValidateSelection t)
         , GenChange s
         , HasNetworkLayer t ctx
+        , IsOurs s ChimericAccount
         , IsOwned s k
         , ctx ~ ApiLayer s t k
         , HardDerivation k
@@ -1373,6 +1376,7 @@ joinStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
+        , IsOurs s ChimericAccount
         , IsOwned s k
         , GenChange s
         , HardDerivation k
@@ -1435,6 +1439,7 @@ quitStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
+        , IsOurs s ChimericAccount
         , IsOwned s k
         , GenChange s
         , HasNetworkLayer t ctx
@@ -1499,7 +1504,8 @@ getMigrationInfo ctx (ApiT wid) = do
 
 migrateWallet
     :: forall s t k n p.
-        ( IsOwned s k
+        ( IsOurs s ChimericAccount
+        , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , PaymentAddress n ByronKey
