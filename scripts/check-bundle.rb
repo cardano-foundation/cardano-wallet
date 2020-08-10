@@ -9,7 +9,6 @@ require 'open3'
 
 tests = {
   "cardano-wallet-jormungandr" => [ "jormungandr", "jcli" ],
-  "cardano-wallet-byron" => [ "cardano-node", "cardano-cli", "bech32", "cardano-tx", "cardano-address" ],
   "cardano-wallet-shelley" => [ "cardano-node", "cardano-cli", "bech32", "cardano-tx", "cardano-address" ]
 }
 

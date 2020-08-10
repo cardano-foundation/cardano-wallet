@@ -39,8 +39,6 @@ let
         packages.cardano-wallet-core-integration.src = filterSubDir "lib/core-integration";
         packages.cardano-wallet-cli.src = filterSubDir "lib/cli";
         packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
-        packages.cardano-wallet-byron.src = filterSubDir "lib/byron";
-        packages.cardano-wallet-byron.components.tests.integration.keepSource = true;
         packages.cardano-wallet-shelley.src = filterSubDir "lib/shelley";
         packages.cardano-wallet-shelley.components.tests.integration.keepSource = true;
         packages.cardano-wallet-jormungandr.src = filterSubDir "lib/jormungandr";
@@ -53,7 +51,6 @@ let
 
       # Enable release flag (optimization and -Werror) on all local packages
       {
-        packages.cardano-wallet-byron.flags.release = true;
         packages.cardano-wallet-shelley.flags.release = true;
         packages.cardano-wallet-cli.flags.release = true;
         packages.cardano-wallet-core-integration.flags.release = true;
@@ -66,25 +63,6 @@ let
 
       # Provide configuration and dependencies to cardano-wallet components
       {
-        packages.cardano-wallet-byron.components.tests = {
-          # Only run integration tests on non-PR jobsets. Note that
-          # the master branch jobset will just re-use the cached Bors
-          # staging build and test results.
-          integration.doCheck = !isHydraPRJobset;
-
-          # Running Windows integration tests under Wine is disabled
-          # because ouroboros-network doesn't fully work under Wine.
-          integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
-
-          # cardano-node socket path becomes too long otherwise
-          unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
-          integration.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
-
-          # provide cardano-node command to test suites
-          unit.build-tools = [ pkgs.cardano-node ];
-          integration.build-tools = [ pkgs.cardano-node ];
-          unit.postInstall = libSodiumPostInstall;
-        };
         packages.cardano-wallet-shelley.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
@@ -133,8 +111,6 @@ let
 
         # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench jmPkgs.jormungandr;
-        # Add cardano-node to the PATH of the byron and shelley latency benchmarks
-        packages.cardano-wallet-byron.components.benchmarks.latency = wrapBench pkgs.cardano-node;
         packages.cardano-wallet-shelley.components.benchmarks.latency = wrapBench pkgs.cardano-node;
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
@@ -152,12 +128,10 @@ let
 
 
         # Make sure that libsodium DLLs and shell completions are available .
-        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron.postInstall = optparseCompletionPostInstall;
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall;
 
         # Workaround for Haskell.nix issue
-        packages.cardano-wallet-byron.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
         packages.cardano-wallet-shelley.components.all.postInstall = lib.mkForce "";
       }
@@ -212,9 +186,7 @@ let
       (lib.optionalAttrs profiling {
         enableLibraryProfiling = true;
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley.enableExecutableProfiling = true;
-        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron.enableExecutableProfiling = true;
         packages.cardano-wallet-shelley.components.benchmarks.restore.enableExecutableProfiling = true;
-        packages.cardano-wallet-byron.components.benchmarks.latency.enableExecutableProfiling = true;
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.enableExecutableProfiling = true;
       })
 
@@ -230,10 +202,6 @@ let
         };
       in {
         # Apply fully static options to our Haskell executables
-        packages.cardano-wallet-byron.components.benchmarks.latency = fullyStaticOptions;
-        packages.cardano-wallet-byron.components.exes.cardano-wallet-byron = fullyStaticOptions;
-        packages.cardano-wallet-byron.components.tests.integration = fullyStaticOptions;
-        packages.cardano-wallet-byron.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.benchmarks.restore = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley = fullyStaticOptions;
         packages.cardano-wallet-shelley.components.tests.integration = fullyStaticOptions;
