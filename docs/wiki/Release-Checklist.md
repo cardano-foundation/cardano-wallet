@@ -56,8 +56,8 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 - [ ] Verify that the documentations have been correctly exported on [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
 
 - [ ] Make sure CLI manuals are up to date:
-  - [Command-Line Interface (Jörmungandr)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
-  - [Command-Line Interface (Byron Reboot)](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface-(cardano-wallet-byron))
+  - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
+  - [Command-Line Interface (jormungandr)]( https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface-jormungandr)
 
 
 ## Manual ad-hoc verifications
