@@ -3,8 +3,8 @@
 #
 # To test it out, use:
 #
-#   docker load -i $(nix-build -A dockerImage.byron --no-out-link)
-#   docker run cardano-wallet-byron
+#   docker load -i $(nix-build -A dockerImage --no-out-link)
+#   docker run cardano-wallet-shelley
 #
 ############################################################################
 
@@ -12,7 +12,7 @@
 
 # The main contents of the image.
 , exe
-# Short name of the backend, e.g. jormungandr or byron
+# Short name of the backend, e.g. jormungandr or shelley
 , backend
 
 # Other things to include in the image.

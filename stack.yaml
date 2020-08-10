@@ -8,7 +8,6 @@ packages:
 - lib/text-class
 - lib/test-utils
 - lib/jormungandr
-- lib/byron
 - lib/shelley
 
 extra-deps:
@@ -17,7 +16,7 @@ extra-deps:
 - command-0.1.1
 - wai-extra-3.0.29.1
 
-# Needed because network > 3.1 is needed for cardano-wallet-byron
+# Needed because network > 3.1 is needed
 - servant-0.17
 - servant-server-0.17
 - servant-client-core-0.17

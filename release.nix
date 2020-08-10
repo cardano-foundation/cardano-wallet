@@ -123,7 +123,7 @@ let
   filterJobsWindows = let
       f = path: value: if (isCardanoNodeIntegration path) then {} else value;
       isCardanoNodeIntegration = path: elem path
-        (map (x: ["checks" "cardano-wallet-${x}" "integration"]) ["byron" "shelley"]);
+        (map (x: ["checks" "cardano-wallet-${x}" "integration"]) ["shelley"]);
     in
       js: mapAttrsRecursive f (filterJobsCross js);
 
@@ -148,37 +148,31 @@ let
         jobs.native.shell.x86_64-linux
         # executables for linux
         jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-byron.x86_64-linux
         jobs.native.cardano-wallet-shelley.x86_64-linux
       ] ++
       optionals buildMacOS [
         jobs.native.shell.x86_64-darwin
         # executables for macOS
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.native.cardano-wallet-byron.x86_64-darwin
         jobs.native.cardano-wallet-shelley.x86_64-darwin
 
         # Release packages for macOS
         jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-byron-macos64
         jobs.cardano-wallet-shelley-macos64
       ]) ++
     optionals buildMusl (
       collectTests jobs.musl64.checks ++
       # Release packages for Linux
       [ jobs.cardano-wallet-jormungandr-linux64
-        jobs.cardano-wallet-byron-linux64
         jobs.cardano-wallet-shelley-linux64
       ]) ++
     optionals buildWindows (
       collectTests jobs.x86_64-w64-mingw32.checks ++
       [ jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
-        jobs.x86_64-w64-mingw32.cardano-wallet-byron.x86_64-linux
         jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
 
         # Release packages for Windows
         jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-byron-win64
         jobs.cardano-wallet-shelley-win64
 
         # Windows testing package - is run nightly in CI.
@@ -202,7 +196,6 @@ let
       "cardano-node"
       "cardano-tx"
     ];
-    byron = [ "cardano-wallet-byron" ] ++ cardanoNodeCommon;
     shelley = [ "cardano-wallet-shelley" ] ++ cardanoNodeCommon;
   };
 
@@ -214,12 +207,6 @@ let
     cardano-wallet-jormungandr-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
       exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.jormungandr;
-    };
-
-    # Windows release ZIP archive - byron rewrite
-    cardano-wallet-byron-win64 = import ./nix/windows-release.nix {
-      inherit pkgs;
-      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.byron;
     };
 
     # Windows release ZIP archive - shelley
@@ -234,7 +221,6 @@ let
     in import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = winJobs.cardano-wallet-jormungandr.x86_64-linux;
-      cardano-wallet-byron = winJobs.cardano-wallet-byron.x86_64-linux;
       cardano-wallet-shelley = winJobs.cardano-wallet-shelley.x86_64-linux;
       cardano-node = winJobs.cardano-node.x86_64-linux;
       cardano-cli = winJobs.cardano-cli.x86_64-linux;
@@ -247,10 +233,6 @@ let
       inherit pkgs;
       exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.jormungandr;
     };
-    cardano-wallet-byron-linux64 = import ./nix/linux-release.nix {
-      inherit pkgs;
-      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.byron;
-    };
     cardano-wallet-shelley-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
       exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.shelley;
@@ -260,10 +242,6 @@ let
     cardano-wallet-jormungandr-macos64 = hydraJob' (import ./nix/macos-release.nix {
       inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.jormungandr;
-    });
-    cardano-wallet-byron-macos64 = hydraJob' (import ./nix/macos-release.nix {
-      inherit (pkgsFor "x86_64-darwin") pkgs;
-      exes = selectExes jobs.native "x86_64-darwin" releaseContents.byron;
     });
     cardano-wallet-shelley-macos64 = hydraJob' (import ./nix/macos-release.nix {
       inherit (pkgsFor "x86_64-darwin") pkgs;

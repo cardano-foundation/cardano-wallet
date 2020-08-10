@@ -10,7 +10,6 @@
 { pkgs
 , project
 , cardano-wallet-jormungandr
-, cardano-wallet-byron
 , cardano-wallet-shelley
 , cardano-node
 , cardano-cli
@@ -22,7 +21,6 @@ let
   testData = {
     core = ../lib/core/test/data;
     jormungandr = ../lib/jormungandr/test/data;
-    byron = ../lib/byron/test/data;
     shelley = ../lib/shelley/test/data;
   };
 
@@ -45,12 +43,12 @@ in pkgs.runCommand name {
   cd jm
 
   # Copy in wallet and node EXEs and DLLs.
-  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-byron} ${cardano-wallet-shelley} ${cardano-cli}; do
+  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-shelley} ${cardano-cli}; do
     cp -vf $pkg/bin/* .
   done
 
   # Copy test data to location expected by test suites.
-  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.byron}/* ${testData.shelley}/* test/data
+  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.jormungandr}/* ${testData.shelley}/* test/data
 
   # Set up batch scripts for jormungandr.
   cp -v ${jm-bat} jm.bat
