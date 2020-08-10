@@ -849,14 +849,14 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
         assertWith "fewer unfetchedPoolMetadataRefs than registrations"
             (length refs <= length entries)
         assertWith "all metadata hashes are indeed known"
-            (all ((`elem` hashes) . snd) refs)
+            (all ((`elem` hashes) . (\(_,_,c) -> c)) refs)
         assertWith "no duplicate"
             (L.nub refs == refs)
 
     propInteractionWithPutPoolMetadata = do
         refs <- run . atomically $ unfetchedPoolMetadataRefs 10
         unless (null refs) $ do
-            let [(url, hash)] = take 1 refs
+            let [(_, url, hash)] = take 1 refs
             metadata <- pick $ genStakePoolMetadata url
             run . atomically $ putPoolMetadata hash metadata
             refs' <- run . atomically $ unfetchedPoolMetadataRefs 10
@@ -864,7 +864,7 @@ prop_unfetchedPoolMetadataRefs DBLayer{..} entries =
                 [ "Read from DB (" <> show (length refs') <> "): " <> show refs'
                 ]
             assertWith "fetching metadata removes it from unfetchedPoolMetadataRefs"
-                (hash `notElem` (snd <$> refs'))
+                (hash `notElem` ((\(_,_,c) -> c) <$> refs'))
 
 prop_unfetchedPoolMetadataRefsIgnoring
     :: DBLayer IO
@@ -892,7 +892,7 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
             [ "Read from DB (" <> show (length refs) <> "): " <> show refs
             ]
         assertWith "recently failed URLs are ignored"
-            (recent `notElem` refs)
+            (recent `notElem` ((\(_,b,c) -> (b,c)) <$> refs))
 
 -- | successive readSystemSeed yield the exact same value
 prop_readSystemSeedIdempotent

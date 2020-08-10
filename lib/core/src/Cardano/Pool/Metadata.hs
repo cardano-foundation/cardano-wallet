@@ -35,7 +35,8 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( StakePoolMetadata (..)
+    ( PoolId
+    , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     )
@@ -104,10 +105,11 @@ newManager = HTTPS.newTlsManagerWith
 
 -- | Simply return a pool metadata url, unchanged
 identityUrlBuilder
-    :: StakePoolMetadataUrl
+    :: PoolId
+    -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> Either HttpException URI
-identityUrlBuilder (StakePoolMetadataUrl url) _ =
+identityUrlBuilder _ (StakePoolMetadataUrl url) _ =
     maybe (Left e) Right $ parseURI (T.unpack url)
   where
     e = InvalidUrlException (T.unpack url) "Invalid URL"
@@ -115,24 +117,32 @@ identityUrlBuilder (StakePoolMetadataUrl url) _ =
 -- | Build a URL from a metadata hash compatible with an aggregation registry
 registryUrlBuilder
     :: URI
+    -> PoolId
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> Either HttpException URI
-registryUrlBuilder baseUrl _ (StakePoolMetadataHash bytes) =
+registryUrlBuilder baseUrl pid _ (StakePoolMetadataHash bytes) =
     Right $ baseUrl
-        { uriPath = "/" <> intercalate "/" (pathSegments baseUrl ++ [hash])
+        { uriPath = "/" <> intercalate "/"
+            (pathSegments baseUrl ++ [pidStr,hashStr])
         }
   where
-    hash = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
+    hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
+    pidStr  = T.unpack $ toText pid
 
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog
-    -> [StakePoolMetadataUrl -> StakePoolMetadataHash -> Either HttpException URI]
+    -> [   PoolId
+        -> StakePoolMetadataUrl
+        -> StakePoolMetadataHash
+        -> Either HttpException URI
+       ]
     -> Manager
+    -> PoolId
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> IO (Maybe StakePoolMetadata)
-fetchFromRemote tr builders manager url hash = runExceptTLog $ do
+fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
     chunk <- getChunk `fromFirst` builders
     when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
@@ -159,7 +169,7 @@ fetchFromRemote tr builders manager url hash = runExceptTLog $ do
     fromFirst _ [] =
         throwE "Metadata server(s) didn't reply in a timely manner."
     fromFirst action (builder:rest) = do
-        uri <- withExceptT show $ except $ builder url hash
+        uri <- withExceptT show $ except $ builder pid url hash
         action uri >>= \case
             Nothing -> do
                 liftIO $ traceWith tr $ MsgFetchPoolMetadataFallback uri (null rest)
