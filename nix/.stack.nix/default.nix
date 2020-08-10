@@ -68,7 +68,7 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
-        cardano-wallet-shelley = ./cardano-wallet-shelley.nix;
+        cardano-wallet = ./cardano-wallet.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;

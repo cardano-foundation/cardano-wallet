@@ -133,7 +133,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
 instance KnownCommand Shelley where
-    commandName = "cardano-wallet-shelley"
+    commandName = "cardano-wallet"
 
 main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do

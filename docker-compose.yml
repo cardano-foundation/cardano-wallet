@@ -32,7 +32,7 @@ services:
         ($$CMD --testnet /config/*-$$NETWORK-byron-genesis.json)
       "
     environment:
-      CMD: "cardano-wallet-shelley serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
+      CMD: "cardano-wallet serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
     restart: on-failure
     logging:

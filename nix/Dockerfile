@@ -1,6 +1,6 @@
 ############################################################################
 #
-# Super-minimal Docker image for cardano-wallet-shelley -- everything
+# Super-minimal Docker image for cardano-wallet -- everything
 # except the nixpkgs base is built from source.
 #
 # Make sure you have plenty of time and disk space for this.
@@ -42,7 +42,7 @@ RUN test -n "${USE_IOHK_CACHE}" && ( echo "Note: using IOHK nix cache" > /dev/st
 
 # Make a docker layer with a warm cache (helps re-use compilers for
 # subsequent builds).
-RUN nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz -A cardano-wallet-shelley --no-out-link
+RUN nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz -A cardano-wallet --no-out-link
 
 
 ############################################################################
@@ -61,7 +61,7 @@ WORKDIR cardano-wallet
 # Build
 
 # Build the wallet and node static binaries package, untar to "out" directory
-RUN tar -xzvf $(nix-build release.nix -A cardano-wallet-shelley-linux64 --no-out-link)/*.tar.gz
+RUN tar -xzvf $(nix-build release.nix -A cardano-wallet-linux64 --no-out-link)/*.tar.gz
 RUN mv cardano-wallet-* ../out
 
 # TODO: Alternatively, we could build the dockerImage.shelley
@@ -75,6 +75,6 @@ FROM scratch
 CMD mkdir -p bin
 # It is ok to COPY files from a build container (when using multi-stage builds)
 COPY --from=builder out/cardano-node bin/cardano-node
-COPY --from=builder out/cardano-wallet-shelley bin/cardano-wallet-shelley
-ENTRYPOINT ["cardano-wallet-shelley"]
+COPY --from=builder out/cardano-wallet bin/cardano-wallet
+ENTRYPOINT ["cardano-wallet"]
 CMD []

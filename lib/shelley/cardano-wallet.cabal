@@ -1,4 +1,4 @@
-name:                cardano-wallet-shelley
+name:                cardano-wallet
 version:             2020.8.3
 synopsis:            Wallet backend protocol-specific bits implemented using Shelley nodes
 description:         Please see README.md
@@ -98,7 +98,7 @@ library
       Cardano.Wallet.Shelley.Launch
       Cardano.Wallet.Shelley.Pools
 
-executable cardano-wallet-shelley
+executable cardano-wallet
   default-language:
       Haskell2010
   default-extensions:
@@ -114,7 +114,7 @@ executable cardano-wallet-shelley
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
-    , cardano-wallet-shelley
+    , cardano-wallet
     , contra-tracer
     , iohk-monitoring
     , network
@@ -126,7 +126,7 @@ executable cardano-wallet-shelley
   hs-source-dirs:
       exe
   main-is:
-    cardano-wallet-shelley.hs
+    cardano-wallet.hs
 
 test-suite unit
   default-language:
@@ -150,7 +150,7 @@ test-suite unit
     , cardano-api
     , cardano-crypto-class
     , cardano-wallet-core
-    , cardano-wallet-shelley
+    , cardano-wallet
     , containers
     , contra-tracer
     , iohk-monitoring
@@ -196,7 +196,7 @@ test-suite integration
     , cardano-wallet-core
     , cardano-wallet-core-integration
     , cardano-wallet-launcher
-    , cardano-wallet-shelley
+    , cardano-wallet
     , cardano-wallet-test-utils
     , contra-tracer
     , hspec
@@ -205,7 +205,7 @@ test-suite integration
     , text
     , text-class
   build-tools:
-      cardano-wallet-shelley
+      cardano-wallet
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -232,7 +232,7 @@ benchmark restore
     , cardano-addresses
     , cardano-wallet-core
     , cardano-wallet-core-integration
-    , cardano-wallet-shelley
+    , cardano-wallet
     , contra-tracer
     , containers
     , cryptonite
@@ -276,7 +276,7 @@ benchmark latency
    , cardano-wallet-cli
    , cardano-wallet-core
    , cardano-wallet-core-integration
-   , cardano-wallet-shelley
+   , cardano-wallet
    , cardano-wallet-launcher
    , directory
    , filepath

@@ -1,5 +1,5 @@
 - package:
-  - name: cardano-wallet-shelley
+  - name: cardano-wallet
   - section:
     - name: bench:restore
     - message:

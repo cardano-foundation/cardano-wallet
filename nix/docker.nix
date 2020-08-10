@@ -4,7 +4,7 @@
 # To test it out, use:
 #
 #   docker load -i $(nix-build -A dockerImage --no-out-link)
-#   docker run cardano-wallet-shelley
+#   docker run cardano-wallet
 #
 ############################################################################
 
