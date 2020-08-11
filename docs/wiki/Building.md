@@ -28,7 +28,7 @@ to install Nix and set up the IOHK binary cache.
 To build the wallet for your current platform:
 
 ```
-nix-build -A cardano-wallet-shelley
+nix-build -A cardano-wallet
 ```
 
 If you have no local changes in your git repo, then this will download
@@ -39,7 +39,7 @@ the build from the Hydra cache rather than building locally.
 To build the wallet for Windows, from **Linux**:
 
 ```
-nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
+nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet.x86_64-linux
 ```
 
 If you're using **macOS**, then change `x86_64-linux` to
@@ -50,7 +50,7 @@ by default to reduce the load on CI):
 nix-build \
     release.nix \
     --arg supportedCrossSystems '["x86_64-darwin"]' \
-     -A x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-darwin
+     -A x86_64-w64-mingw32.cardano-wallet.x86_64-darwin
 ```
 
 ### Building straight from GitHub
@@ -58,7 +58,7 @@ nix-build \
 To build another branch (replace `master` with the branch name, tag, or commit hash):
 
 ```
-nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet-shelley
+nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet
 ```
 
 ### Navigating Hydra
@@ -66,8 +66,8 @@ nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.g
 The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
 shows all jobs defined in `release.nix`. Some of the release jobs have a download link.
 
-- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-win64/latest)
-- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-shelley-macos64/latest)
+- [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest)
+- [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest)
 
 
 ### Code generation
