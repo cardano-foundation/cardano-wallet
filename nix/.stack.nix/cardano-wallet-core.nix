@@ -85,6 +85,7 @@
           (hsPkgs."statistics" or (errorHandler.buildDepError "statistics"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."streaming-commons" or (errorHandler.buildDepError "streaming-commons"))
+          (hsPkgs."string-qq" or (errorHandler.buildDepError "string-qq"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))

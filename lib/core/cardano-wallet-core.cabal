@@ -89,6 +89,7 @@ library
     , statistics
     , stm
     , streaming-commons
+    , string-qq
     , template-haskell
     , text
     , text-class
