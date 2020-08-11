@@ -135,6 +135,8 @@ import Test.Integration.Framework.TestData
     , errMsg404CannotFindTx
     , errMsg404MinUTxOValue
     , errMsg404NoWallet
+    , mnemonics15
+    , mnemonics18
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
@@ -742,6 +744,126 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400TxTooLarge r
+
+    it "TRANS_EXTERNAL_01 - Single Output Transaction" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        let amt = (10_000_000 :: Natural)
+
+        let walletPostData = Json [json| {
+                "name": "empty wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": #{fixturePassphrase}
+                } |]
+        r1 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData
+        verify r1
+            [ expectSuccess
+            , expectResponseCode HTTP.status201
+            , expectField
+                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            ]
+        let (_, Right wDest) = r1
+
+        payload1 <- mkTxPayload ctx wDest amt fixturePassphrase
+
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wSrc) payload1
+
+        r2 <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload1
+
+        verify r2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (feeMin + amt, feeMax + amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        r3 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        verify r3
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (faucetAmt - feeMax - amt)
+                    , Quantity (faucetAmt - feeMin - amt)
+                    )
+            , expectField
+                    (#balance . #getApiT . #available)
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
+            ]
+
+        eventually "wSrc and wDest balances are as expected" $ do
+            r4 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amt) r4
+
+            r5 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) r5
+
+        let amt1 = (2_000_000 :: Natural)
+
+        let walletPostData1 = Json [json| {
+                "name": "empty wallet",
+                "mnemonic_sentence": #{mnemonics18},
+                "passphrase": #{fixturePassphrase}
+                } |]
+        r11 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData1
+        verify r11
+            [ expectSuccess
+            , expectResponseCode HTTP.status201
+            , expectField
+                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            ]
+        let (_, Right wDest1) = r11
+
+        --here will come external
+        ------ beginning
+        payload2 <- mkTxPayload ctx wDest1 amt1 fixturePassphrase
+
+        (_, ApiFee (Quantity feeMin1) (Quantity feeMax1)) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wDest) payload2
+
+        r6 <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wDest) Default payload2
+
+        verify r6
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (feeMin1 + amt1, feeMax1 + amt1)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        --- end
+        r7 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
+        verify r7
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (amt - feeMax1 - amt1)
+                    , Quantity (amt - feeMin1 - amt1)
+                    )
+            ]
+
+        eventually "wDest1 and wDest balances are as expected" $ do
+            r8 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest1) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amt1) r8
+
+            r9 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (amt - feeMax1 - amt1)) r9
+>>>>>>> 22b9072ea... add temporary test which part will be replaced with externalTx
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
