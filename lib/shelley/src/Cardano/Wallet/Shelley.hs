@@ -221,7 +221,7 @@ instance HasNetworkId ('Staging protocolMagic) where
 
 deriving instance Show SomeNetworkDiscriminant
 
--- | The @cardano-wallet-shelley@ main function. It takes the configuration
+-- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet

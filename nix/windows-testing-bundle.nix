@@ -10,7 +10,7 @@
 { pkgs
 , project
 , cardano-wallet-jormungandr
-, cardano-wallet-shelley
+, cardano-wallet
 , cardano-node
 , cardano-cli
 , tests ? []
@@ -43,7 +43,7 @@ in pkgs.runCommand name {
   cd jm
 
   # Copy in wallet and node EXEs and DLLs.
-  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet-shelley} ${cardano-cli}; do
+  for pkg in ${cardano-wallet-jormungandr} ${cardano-wallet} ${cardano-cli}; do
     cp -vf $pkg/bin/* .
   done
 

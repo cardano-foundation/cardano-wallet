@@ -148,32 +148,32 @@ let
         jobs.native.shell.x86_64-linux
         # executables for linux
         jobs.native.cardano-wallet-jormungandr.x86_64-linux
-        jobs.native.cardano-wallet-shelley.x86_64-linux
+        jobs.native.cardano-wallet.x86_64-linux
       ] ++
       optionals buildMacOS [
         jobs.native.shell.x86_64-darwin
         # executables for macOS
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
-        jobs.native.cardano-wallet-shelley.x86_64-darwin
+        jobs.native.cardano-wallet.x86_64-darwin
 
         # Release packages for macOS
         jobs.cardano-wallet-jormungandr-macos64
-        jobs.cardano-wallet-shelley-macos64
+        jobs.cardano-wallet-macos64
       ]) ++
     optionals buildMusl (
       collectTests jobs.musl64.checks ++
       # Release packages for Linux
       [ jobs.cardano-wallet-jormungandr-linux64
-        jobs.cardano-wallet-shelley-linux64
+        jobs.cardano-wallet-linux64
       ]) ++
     optionals buildWindows (
       collectTests jobs.x86_64-w64-mingw32.checks ++
       [ jobs.x86_64-w64-mingw32.cardano-wallet-jormungandr.x86_64-linux
-        jobs.x86_64-w64-mingw32.cardano-wallet-shelley.x86_64-linux
+        jobs.x86_64-w64-mingw32.cardano-wallet.x86_64-linux
 
         # Release packages for Windows
         jobs.cardano-wallet-jormungandr-win64
-        jobs.cardano-wallet-shelley-win64
+        jobs.cardano-wallet-win64
 
         # Windows testing package - is run nightly in CI.
         jobs.cardano-wallet-tests-win64
@@ -196,7 +196,7 @@ let
       "cardano-node"
       "cardano-tx"
     ];
-    shelley = [ "cardano-wallet-shelley" ] ++ cardanoNodeCommon;
+    shelley = [ "cardano-wallet" ] ++ cardanoNodeCommon;
   };
 
   # function to take a list of jobs by name from a jobset.
@@ -210,7 +210,7 @@ let
     };
 
     # Windows release ZIP archive - shelley
-    cardano-wallet-shelley-win64 = import ./nix/windows-release.nix {
+    cardano-wallet-win64 = import ./nix/windows-release.nix {
       inherit pkgs;
       exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.shelley;
     };
@@ -221,7 +221,7 @@ let
     in import ./nix/windows-testing-bundle.nix {
       inherit pkgs project;
       cardano-wallet-jormungandr = winJobs.cardano-wallet-jormungandr.x86_64-linux;
-      cardano-wallet-shelley = winJobs.cardano-wallet-shelley.x86_64-linux;
+      cardano-wallet = winJobs.cardano-wallet.x86_64-linux;
       cardano-node = winJobs.cardano-node.x86_64-linux;
       cardano-cli = winJobs.cardano-cli.x86_64-linux;
       tests = collectTests winJobs.tests;
@@ -233,7 +233,7 @@ let
       inherit pkgs;
       exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.jormungandr;
     };
-    cardano-wallet-shelley-linux64 = import ./nix/linux-release.nix {
+    cardano-wallet-linux64 = import ./nix/linux-release.nix {
       inherit pkgs;
       exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.shelley;
     };
@@ -243,7 +243,7 @@ let
       inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.jormungandr;
     });
-    cardano-wallet-shelley-macos64 = hydraJob' (import ./nix/macos-release.nix {
+    cardano-wallet-macos64 = hydraJob' (import ./nix/macos-release.nix {
       inherit (pkgsFor "x86_64-darwin") pkgs;
       exes = selectExes jobs.native "x86_64-darwin" releaseContents.shelley;
     });

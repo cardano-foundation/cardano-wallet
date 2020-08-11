@@ -35,8 +35,6 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Test.Hspec
     ( Spec, before, describe, it, shouldSatisfy )
 import Test.QuickCheck
@@ -346,7 +344,7 @@ propFragmentation
     :: SystemDRG
     -> CoinSelProp
     -> Property
-propFragmentation drg (CoinSelProp utxo txOuts) = do
+propFragmentation drg (CoinSelProp utxo wdrl txOuts) = do
     isRight selection1 && isRight selection2 ==>
         let (Right (s1,_), Right (s2,_)) =
                 (selection1, selection2)
@@ -355,16 +353,16 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
     prop (cs1, cs2) =
         L.length (inputs cs1) `shouldSatisfy` (>= L.length (inputs cs2))
     (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts (Quantity 0) utxo)
+        (runExceptT $ random opt txOuts wdrl utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts (Quantity 0) utxo
+        largestFirst opt txOuts wdrl utxo
     opt = CoinSelectionOptions (const 100) noValidation
 
 propErrors
     :: SystemDRG
     -> CoinSelProp
     -> Property
-propErrors drg (CoinSelProp utxo txOuts) = do
+propErrors drg (CoinSelProp utxo wdrl txOuts) = do
     isLeft selection1 && isLeft selection2 ==>
         let (Left s1, Left s2) = (selection1, selection2)
         in prop (s1, s2)
@@ -372,7 +370,7 @@ propErrors drg (CoinSelProp utxo txOuts) = do
     prop (err1, err2) =
         err1 === err2
     (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts (Quantity 0) utxo)
+        (runExceptT $ random opt txOuts wdrl utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts (Quantity 0) utxo
+        largestFirst opt txOuts wdrl utxo
     opt = (CoinSelectionOptions (const 1) noValidation)

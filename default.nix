@@ -8,7 +8,7 @@
 # Interesting top-level attributes:
 #
 #   - cardano-wallet-jormungandr - cli executable
-#   - cardano-wallet-shelley - cli executable
+#   - cardano-wallet - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
 #     - cardano-wallet-jormungandr.jormungandr-integration
@@ -93,10 +93,10 @@ let
       haskellBuildUtils = haskellBuildUtils.package;
     };
 
-    cardano-wallet-shelley = import ./nix/package-cardano-node.nix {
+    cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
-      exe = haskellPackages.cardano-wallet-shelley.components.exes.cardano-wallet-shelley;
+      exe = haskellPackages.cardano-wallet.components.exes.cardano-wallet;
       inherit (self) cardano-node;
     };
 
@@ -111,7 +111,7 @@ let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
     in recurseIntoAttrs (mapAttrs mkDockerImage {
       jormungandr = self.cardano-wallet-jormungandr;
-      shelley = self.cardano-wallet-shelley;
+      shelley = self.cardano-wallet;
     });
 
     shell = haskellPackages.shellFor {

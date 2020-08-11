@@ -68,6 +68,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
+    , frequency
     , generate
     , scale
     , vector
@@ -82,6 +83,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Test.QuickCheck.Monadic as QC
+
+{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
 spec :: Spec
 spec = do
@@ -227,14 +230,17 @@ data CoinSelectionsSetup = CoinSelectionsSetup
 data CoinSelProp = CoinSelProp
     { csUtxO :: UTxO
         -- ^ Available UTxO for the selection
+    , csWithdrawal :: Quantity "lovelace" Word64
+    -- ^ Available Withdrawal
     , csOuts :: NonEmpty TxOut
         -- ^ Requested outputs for the payment
     } deriving Show
 
 instance Buildable CoinSelProp where
-    build (CoinSelProp utxo outs) = mempty
+    build (CoinSelProp utxo wdrl outs) = mempty
         <> build utxo
         <> nameF "outs" (blockListF outs)
+        <> nameF "withdrawal" (build wdrl)
 
 -- | A fixture for testing the coin selection
 data CoinSelectionFixture = CoinSelectionFixture
@@ -339,9 +345,17 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
         NE.fromList <$> vector n
 
 instance Arbitrary CoinSelProp where
-    shrink (CoinSelProp utxo outs) = uncurry CoinSelProp
-        <$> zip (shrink utxo) (shrink outs)
-    arbitrary = applyArbitrary2 CoinSelProp
+    shrink (CoinSelProp utxo wdrl outs) =
+        [ CoinSelProp utxo' wdrl outs | utxo' <- shrink utxo ]
+        ++ [ CoinSelProp utxo wdrl' outs | wdrl' <- shrinkWdrl wdrl ]
+        ++ [ CoinSelProp utxo wdrl outs' | outs' <- shrink outs ]
+      where
+        shrinkWdrl = map Quantity . shrink . getQuantity
+    arbitrary = do
+        utxo <- arbitrary
+        wdrl <- Quantity <$> frequency [(65, return 0), (35, arbitrary)]
+        outs <- arbitrary
+        return $ CoinSelProp utxo wdrl outs
 
 instance Arbitrary CoinSelectionForMigration where
     arbitrary = do
