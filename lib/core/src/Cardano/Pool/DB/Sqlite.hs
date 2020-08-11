@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -25,6 +26,7 @@ module Cardano.Pool.DB.Sqlite
     ( newDBLayer
     , withDBLayer
     , defaultFilePath
+    , DatabaseView (..)
     ) where
 
 import Prelude
@@ -81,6 +83,10 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.String.QQ
+    ( s )
+import Data.Text
+    ( Text )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -116,6 +122,7 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Database.Sqlite as Sqlite
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
 -- parent directory.
@@ -166,7 +173,7 @@ newDBLayer
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer trace fp timeInterpreter = do
     let io = startSqliteBackend
-            (ManualMigration mempty)
+            (migrateManually trace)
             migrateAll
             trace
             fp
@@ -445,6 +452,74 @@ newDBLayer trace fp timeInterpreter = do
                 let cert = PoolRetirementCertificate {poolId, retiredIn}
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
+
+migrateManually
+    :: Tracer IO DBLog
+    -> ManualMigration
+migrateManually _tr =
+    ManualMigration $ \conn ->
+        createView conn activePoolRetirements
+
+-- | Represents a database view.
+--
+data DatabaseView = DatabaseView
+    { databaseViewName :: Text
+      -- ^ A name for the view.
+    , databaseViewDefinition :: Text
+      -- ^ A select query to generate the view.
+    }
+
+-- | Creates the specified database view, if it does not already exist.
+--
+createView :: Sqlite.Connection -> DatabaseView -> IO ()
+createView conn (DatabaseView name definition) = do
+    query <- Sqlite.prepare conn queryString
+    Sqlite.step query *> Sqlite.finalize query
+  where
+    queryString = T.unlines
+        [ "CREATE VIEW IF NOT EXISTS"
+        , name
+        , "AS"
+        , definition
+        ]
+
+-- | Views the set of pool retirements that are currently active.
+--
+-- This view includes all pools for which there are published retirement
+-- certificates that have not been revoked or superseded.
+--
+-- This view does NOT include:
+--
+--    - pools for which there are no published retirement certificates.
+--
+--    - pools that have had their most-recently-published retirement
+--      certificates revoked by subsequent re-registration certificates.
+--
+activePoolRetirements :: DatabaseView
+activePoolRetirements = DatabaseView "active_pool_retirements" [s|
+    SELECT * FROM (
+        SELECT
+            pool_id,
+            retirement_epoch
+        FROM (
+            SELECT row_number() OVER w AS r, *
+            FROM (
+                SELECT
+                    pool_id, slot, slot_internal_index,
+                    NULL as retirement_epoch
+                    FROM pool_registration
+                UNION
+                SELECT
+                    pool_id, slot, slot_internal_index,
+                    epoch as retirement_epoch
+                    FROM pool_retirement
+            )
+            WINDOW w AS (ORDER BY pool_id, slot desc, slot_internal_index desc)
+        )
+        GROUP BY pool_id
+    )
+    WHERE retirement_epoch IS NOT NULL;
+|]
 
 -- | 'Temporary', catches migration error from previous versions and if any,
 -- _removes_ the database file completely before retrying to start the database.
