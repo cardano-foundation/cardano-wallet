@@ -122,6 +122,7 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Class as T
 import qualified Database.Sqlite as Sqlite
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
@@ -354,7 +355,19 @@ newDBLayer trace fp timeInterpreter = do
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        , listRetiredPools = \_epochNo -> pure []
+        , listRetiredPools = \epochNo -> do
+            let query = T.unwords
+                    [ "SELECT * FROM "
+                    , databaseViewName activePoolRetirements
+                    , "WHERE retirement_epoch <="
+                    , T.toText epochNo
+                    , ";"
+                    ]
+            let safeCast (Single poolId, Single retirementEpoch) =
+                    PoolRetirementCertificate
+                        <$> fromPersistValue poolId
+                        <*> fromPersistValue retirementEpoch
+            rights . fmap safeCast <$> rawSql query []
 
         , rollbackTo = \point -> do
             -- TODO(ADP-356): What if the conversion blocks or fails?
