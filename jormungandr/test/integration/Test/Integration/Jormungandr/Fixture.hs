@@ -160,7 +160,7 @@ faucetAmt :: Int
 faucetAmt = 10000
 
 -- | corresponds with metadata stored in:
--- lib/jormungandr/test/data/jormungandr/stake_pools/registry/test-integration-registry.zip
+-- jormungandr/test/data/jormungandr/stake_pools/registry/test-integration-registry.zip
 {-# NOINLINE faucetWithMetadata #-}
 faucetWithMetadata :: MVar [(String, String, String)]
 faucetWithMetadata = unsafePerformIO $ newMVar

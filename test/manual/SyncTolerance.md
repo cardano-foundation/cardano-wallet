@@ -8,12 +8,12 @@ Windows, MacOS, Linux
 
 ```bash
 $ jormungandr \
-     --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin \
+     --genesis-block jormungandr/test/data/jormungandr/block0.bin \
      --rest-listen 127.0.0.1:8080 \
-     --secret lib/jormungandr/test/data/jormungandr/secret.yaml
+     --secret jormungandr/test/data/jormungandr/secret.yaml
 
 $ cardano-wallet-jormungandr serve \
-     --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
+     --genesis-block-hash $(jcli genesis hash --input jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080
 ```
 
@@ -33,7 +33,7 @@ Ok.
 
 ```bash
 $ cardano-wallet-jormungandr serve \
-     --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
+     --genesis-block-hash $(jcli genesis hash --input jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080 \
      --sync-tolerance 1s
 ```
@@ -55,7 +55,7 @@ Ok.
 
 ```bash
 $ cardano-wallet-jormungandr serve \
-     --genesis-block-hash $(jcli genesis hash --input lib/jormungandr/test/data/jormungandr/block0.bin) \
+     --genesis-block-hash $(jcli genesis hash --input jormungandr/test/data/jormungandr/block0.bin) \
      --node-port 8080
      --sync-tolerance 90s
 ```

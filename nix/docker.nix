@@ -36,7 +36,7 @@ let
     mkdir -p ${dataDir}
     ln -s ${dataDir} /cardano-wallet
 
-    export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
+    export LOCALE_ARCHIVE="${glibcLocales}/locale/locale-archive"
     exec ${exe}/bin/cardano-wallet-${backend} "$@"
   '';
 

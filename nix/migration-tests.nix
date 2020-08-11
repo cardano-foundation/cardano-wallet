@@ -114,8 +114,8 @@ let
           pkgs.coreutils
           pkgs.python3
         ]}
-        export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
-        export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
+        export genesisDataDir=${latestRelease.src}/jormungandr/test/data/jormungandr
+        export configFile=${targetRelease.src}/jormungandr/test/data/jormungandr/config.yaml
 
         exec ${./launch-migration-test.sh} "$@"
       '' // { inherit (latestRelease) cardano-wallet-jormungandr; };
@@ -213,7 +213,7 @@ let
       mkdir -p $out/${test.name}/data
       cp ${test.cardano-wallet-jormungandr}/bin/* $out/${test.name}
       cp ${test.runner} $out/${test.name}/${test.runner.name}
-      cp ${latest.src}/lib/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
+      cp ${latest.src}/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
 
       # append test to the run all script
       echo "${test.name}\${test.runner.name}" >> $out/runall.bat

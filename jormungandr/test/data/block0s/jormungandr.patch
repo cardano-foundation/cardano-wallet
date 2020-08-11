@@ -12,7 +12,7 @@ index c341a385..797ff044 100644
 +    // $ cargo test write_arbitrary_block0s_to_disk
 +    //
 +    // Then the blocks can be moved to cardano-wallet:
-+    // $ mv arbitrary-block0-*.bin ../../cardano-wallet/lib/jormungandr/test/data/block0s/
++    // $ mv arbitrary-block0-*.bin ../../cardano-wallet/jormungandr/test/data/block0s/
 +    // here assuming jormungandr and cardano-wallet live in the same directory.
 +    fn write_arbitrary_block0s_to_disk() {
 +        use std::fs::File;

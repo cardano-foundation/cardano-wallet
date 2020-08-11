@@ -1,14 +1,14 @@
 resolver: cardano-1.18.x.yaml
 
 packages:
-- lib/core
-- lib/core-integration
-- lib/cli
-- lib/launcher
-- lib/text-class
-- lib/test-utils
-- lib/jormungandr
-- lib/shelley
+- core
+- core-integration
+- cli
+- launcher
+- text-class
+- test-utils
+- jormungandr
+- shelley
 
 extra-deps:
 # Miscellaneous

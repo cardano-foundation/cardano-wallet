@@ -1416,7 +1416,7 @@ specification =
     unsafeDecode bytes
   where
     bytes = $(
-        let swaggerYaml = "../../specifications/api/swagger.yaml"
+        let swaggerYaml = "../specifications/api/swagger.yaml"
         in liftIO (lookupEnv "SWAGGER_YAML") >>=
         maybe (makeRelativeToProject swaggerYaml) pure >>=
         embedFile

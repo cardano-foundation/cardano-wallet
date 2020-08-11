@@ -53,4 +53,4 @@
         buildable = true;
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/test-utils; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././test-utils; }

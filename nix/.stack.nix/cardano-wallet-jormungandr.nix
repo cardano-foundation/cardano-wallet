@@ -251,4 +251,4 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/jormungandr; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././jormungandr; }

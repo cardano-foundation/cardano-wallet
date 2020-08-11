@@ -75,7 +75,7 @@ in pkgs.stdenv.mkDerivation {
     ruby ${../scripts/check-bundle.rb} ${getName exe.name} wine64
   '';
 } // optionalAttrs (pkgs.stdenv.buildPlatform.libc == "glibc") {
-  LOCALE_ARCHIVE = "${pkgs.buildPackages.glibcLocales}/lib/locale/locale-archive";
+  LOCALE_ARCHIVE = "${pkgs.buildPackages.glibcLocales}/locale/locale-archive";
   LANG = "en_US.UTF-8";
   LC_ALL = "en_US.UTF-8";
 }

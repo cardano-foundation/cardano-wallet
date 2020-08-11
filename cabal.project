@@ -1,2 +1,2 @@
 packages:
-  lib/*/*.cabal
+  */*.cabal

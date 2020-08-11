@@ -15,8 +15,8 @@ nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o bench-latency-jorm
 
 echo "+++ Run benchmark - shelley"
 
-( cd lib/shelley && ../../bench-latency-shelley/bin/latency )
+( cd shelley && ../bench-latency-shelley/bin/latency )
 
 echo "+++ Run benchmark - jormungandr"
 
-( cd lib/jormungandr && ../../bench-latency-jormungandr/bin/latency )
+( cd jormungandr && ../bench-latency-jormungandr/bin/latency )

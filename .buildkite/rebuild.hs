@@ -150,7 +150,7 @@ buildStep dryRun bk nightly = do
       titled "Test"
         (timeout 45 (test Fast Serial cabalFlags .&&. test Fast Parallel cabalFlags)) .&&.
       titled "Checking golden test files"
-        (checkUnclean dryRun "lib/core/test/data")
+        (checkUnclean dryRun "core/test/data")
   where
     build opt args =
         run dryRun "stack" $ concat

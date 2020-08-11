@@ -34,18 +34,18 @@ let
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet-core.src = filterSubDir "lib/core";
+        packages.cardano-wallet-core.src = filterSubDir "core";
         packages.cardano-wallet-core.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-core-integration.src = filterSubDir "lib/core-integration";
-        packages.cardano-wallet-cli.src = filterSubDir "lib/cli";
-        packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
-        packages.cardano-wallet.src = filterSubDir "lib/shelley";
+        packages.cardano-wallet-core-integration.src = filterSubDir "core-integration";
+        packages.cardano-wallet-cli.src = filterSubDir "cli";
+        packages.cardano-wallet-launcher.src = filterSubDir "launcher";
+        packages.cardano-wallet.src = filterSubDir "shelley";
         packages.cardano-wallet.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-jormungandr.src = filterSubDir "lib/jormungandr";
+        packages.cardano-wallet-jormungandr.src = filterSubDir "jormungandr";
         packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
         packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
-        packages.cardano-wallet-test-utils.src = filterSubDir "lib/test-utils";
-        packages.text-class.src = filterSubDir "lib/text-class";
+        packages.cardano-wallet-test-utils.src = filterSubDir "test-utils";
+        packages.text-class.src = filterSubDir "text-class";
         packages.text-class.components.tests.unit.keepSource = true;
       }
 

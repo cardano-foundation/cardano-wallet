@@ -10,7 +10,7 @@ fi
 
 systemStart=$($gnu_date --iso-8601=s --date="5 seconds")
 
-config_dir=lib/shelley/test/data/cardano-node-shelley
+config_dir=shelley/test/data/cardano-node-shelley
 
 mkdir -p ${state_dir:=bft-node}
 
@@ -22,7 +22,7 @@ set -x
 
 exec cardano-node run --port 40000 \
      --config $state_dir/node.config \
-     --topology lib/byron/test/data/cardano-node-byron/node.topology \
+     --topology byron/test/data/cardano-node-byron/node.topology \
      --database-path $state_dir/node.db \
      --socket-path $state_dir/node.socket \
      --shelley-vrf-key $config_dir/node-vrf.skey \

@@ -52,4 +52,4 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/text-class; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././text-class; }

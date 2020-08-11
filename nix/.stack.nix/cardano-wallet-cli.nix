@@ -70,4 +70,4 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././lib/cli; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././cli; }
