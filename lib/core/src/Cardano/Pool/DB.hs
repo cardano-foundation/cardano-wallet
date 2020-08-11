@@ -171,6 +171,12 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- map we would get from 'readPoolProduction' because not all registered
         -- pools have necessarily produced any block yet!
 
+    , listRetiredPools
+        :: EpochNo
+        -> stm [PoolRetirementCertificate]
+        -- ^ List all pools with an active retirement epoch that is earlier
+        -- than or equal to the specified epoch.
+
     , putPoolMetadata
         :: StakePoolMetadataHash
         -> StakePoolMetadata

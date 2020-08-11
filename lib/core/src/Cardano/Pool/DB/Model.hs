@@ -47,6 +47,7 @@ module Cardano.Pool.DB.Model
     , mPutFetchAttempt
     , mPutPoolMetadata
     , mListRegisteredPools
+    , mListRetiredPools
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -259,6 +260,12 @@ mReadPoolRetirement poolId db =
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
 mListRegisteredPools db@PoolDatabase{registrations} =
     ( snd <$> Map.keys registrations, db )
+
+mListRetiredPools
+    :: EpochNo
+    -> PoolDatabase
+    -> ([PoolRetirementCertificate], PoolDatabase)
+mListRetiredPools _epochNo db = ([], db)
 
 mUnfetchedPoolMetadataRefs
     :: Int

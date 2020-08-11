@@ -354,6 +354,8 @@ newDBLayer trace fp timeInterpreter = do
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
+        , listRetiredPools = \_epochNo -> pure []
+
         , rollbackTo = \point -> do
             -- TODO(ADP-356): What if the conversion blocks or fails?
             --
