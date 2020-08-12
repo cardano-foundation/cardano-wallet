@@ -7,8 +7,10 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Arbitrary
-    ( StakePoolsFixture (..)
+    ( SinglePoolCertificateSequence (..)
+    , StakePoolsFixture (..)
     , genStakePoolMetadata
+    , isValidSinglePoolCertificateSequence
     ) where
 
 import Prelude
@@ -34,11 +36,15 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
+    , getPoolCertificatePoolId
+    , setPoolCertificatePoolId
     )
 import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Ord
@@ -58,6 +64,7 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , frequency
     , genericShrink
     , listOf
     , oneof
@@ -168,6 +175,53 @@ instance Arbitrary PoolCertificate where
             <$> arbitrary
         ]
     shrink = const []
+
+-- | Represents a valid sequence of registration and retirement certificates
+--   for a single pool.
+--
+data SinglePoolCertificateSequence = SinglePoolCertificateSequence
+    { getSinglePoolId :: PoolId
+    , getSinglePoolCertificateSequence :: [PoolCertificate]
+    }
+    deriving (Eq, Show)
+
+isValidSinglePoolCertificateSequence :: SinglePoolCertificateSequence -> Bool
+isValidSinglePoolCertificateSequence
+    (SinglePoolCertificateSequence sharedPoolId certificates) =
+        allCertificatesReferToSamePool &&
+        firstCertificateIsRegistration
+  where
+    allCertificatesReferToSamePool =
+        all (== sharedPoolId) (getPoolCertificatePoolId <$> certificates)
+    firstCertificateIsRegistration = case certificates of
+        Registration _ : _ -> True
+        Retirement _ : _ -> False
+        [] -> True
+
+instance Arbitrary SinglePoolCertificateSequence where
+
+    arbitrary = do
+        sharedPoolId <- arbitrary
+        frequency
+            [ (1, genEmptySequence    sharedPoolId)
+            , (9, genNonEmptySequence sharedPoolId)
+            ]
+      where
+        genEmptySequence sharedPoolId =
+            pure $ SinglePoolCertificateSequence sharedPoolId []
+        genNonEmptySequence sharedPoolId = do
+            -- We must start with a registration certificate:
+            certificates <- (:)
+                <$> (Registration <$> arbitrary)
+                <*> arbitrary
+            pure $ SinglePoolCertificateSequence sharedPoolId $
+                setPoolCertificatePoolId sharedPoolId <$> certificates
+
+    shrink (SinglePoolCertificateSequence sharedPoolId certificates) =
+        genericShrink certificates
+            & fmap (fmap (setPoolCertificatePoolId sharedPoolId))
+            & fmap (SinglePoolCertificateSequence sharedPoolId)
+            & filter isValidSinglePoolCertificateSequence
 
 instance Arbitrary StakePoolMetadataHash where
     arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)
