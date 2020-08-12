@@ -760,9 +760,10 @@ prop_rollbackRetirement DBLayer{..} certificates =
             , "\nRetrieved certificate publications: "
             , unlines (("\n" <>) . show <$> retrievedPublications)
             ]
-        assert $ (==)
-            retrievedPublications
-            expectedPublications
+        assertWith "retrieved publications match expectations" $
+            (==)
+                retrievedPublications
+                expectedPublications
 
     poolIds :: [PoolId]
     poolIds = view #poolId <$> certificates
