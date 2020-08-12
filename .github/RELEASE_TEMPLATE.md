@@ -36,7 +36,7 @@ the moment of releasing. -->
 
 1. Install [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
-2. Download the provided `cardano-wallet-shelley` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
+2. Download the provided `cardano-wallet` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
 
 4. Start `cardano-wallet --help` and see available parameters.
 

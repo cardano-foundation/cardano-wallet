@@ -6,7 +6,7 @@ set -euo pipefail
 cd `dirname $0`/..
 
 echo "--- Build"
-nix-build -A benchmarks.cardano-wallet-shelley.latency -o bench-latency-shelley
+nix-build -A benchmarks.cardano-wallet.latency -o bench-latency-shelley
 nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o bench-latency-jormungandr
 
 # Note: the tracing will not work if program output is piped

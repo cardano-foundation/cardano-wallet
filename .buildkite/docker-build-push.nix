@@ -23,8 +23,6 @@
 #
 #    - "inputoutput/cardano-wallet:latest" should point to the most
 #      recent VERSION-shelley tag build.
-#    - "inputoutput/cardano-wallet:byron" should point to the most
-#      recent VERSION-byron tag build.
 #    - "inputoutput/cardano-wallet:shelley" should point to the most
 #      recent VERSION-shelley tag build.
 #    - "inputoutput/cardano-wallet:jormungandr" should point to the most
