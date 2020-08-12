@@ -533,7 +533,7 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
             ]
-        assert $ (==)
+        assertWith "retrieved certificate matches expectations" $ (==)
             mRetrievedCertificatePublication
             mExpectedCertificatePublication
 
