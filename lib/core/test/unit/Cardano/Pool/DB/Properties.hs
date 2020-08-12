@@ -472,14 +472,20 @@ prop_poolRegistration DBLayer {..} entries =
             mapM_ (uncurry putPoolRegistration) entriesIn
         entriesOut <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . view #poolId . snd) entries
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "Written into DB: "
             , show entriesIn
             , "Read from DB: "
             , show entriesOut
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
         assertWith "entriesIn == entriesOut"
             $ entriesIn == entriesOut
+        assertWith "no pools are marked to retire"
+            $ null poolsMarkedToRetire
 
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRetirement
@@ -496,14 +502,22 @@ prop_poolRetirement DBLayer {..} entries =
             mapM_ (uncurry putPoolRetirement) entriesIn
         entriesOut <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRetirement . view #poolId . snd) entries
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "Written into DB: "
             , show entriesIn
             , "Read from DB: "
             , show entriesOut
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
         assertWith "entriesIn == entriesOut"
             $ entriesIn == entriesOut
+        assertWith "all pools are marked to retire"
+            $ (==)
+                (Set.fromList $ snd <$> entriesIn)
+                (Set.fromList poolsMarkedToRetire)
 
 -- For the same pool, write /multiple/ pool registration certificates to the
 -- database and then read back the current registration certificate, verifying
