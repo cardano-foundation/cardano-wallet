@@ -478,7 +478,8 @@ prop_poolRegistration DBLayer {..} entries =
             , "Read from DB: "
             , show entriesOut
             ]
-        assert (entriesIn == entriesOut)
+        assertWith "entriesIn == entriesOut"
+            $ entriesIn == entriesOut
 
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRetirement
@@ -501,7 +502,8 @@ prop_poolRetirement DBLayer {..} entries =
             , "Read from DB: "
             , show entriesOut
             ]
-        assert (entriesIn == entriesOut)
+        assertWith "entriesIn == entriesOut"
+            $ entriesIn == entriesOut
 
 -- For the same pool, write /multiple/ pool registration certificates to the
 -- database and then read back the current registration certificate, verifying
