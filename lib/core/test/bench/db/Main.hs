@@ -49,7 +49,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Trace
     ( Trace )
 import Cardano.BM.Data.Tracer
-    ( Tracer )
+    ( Tracer, filterSeverity )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
@@ -65,7 +65,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyProtocolParameters, mkTxId )
 import Cardano.Wallet.Logging
-    ( filterTraceSeverity, trMessageText )
+    ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -191,7 +191,7 @@ import qualified Data.Map.Strict as Map
 
 main :: IO ()
 main = withUtf8Encoding $ withLogging $ \trace -> do
-    let tr = trMessageText $ filterTraceSeverity Error trace
+    let tr = filterSeverity (pure . const Error) $ trMessageText trace
     defaultMain
         [ withDB tr bgroupWriteUTxO
         , withDB tr bgroupReadUTxO
