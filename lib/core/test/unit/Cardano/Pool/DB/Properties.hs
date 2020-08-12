@@ -27,7 +27,11 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( StakePoolsFixture (..), genStakePoolMetadata )
+    ( SinglePoolCertificateSequence (..)
+    , StakePoolsFixture (..)
+    , genStakePoolMetadata
+    , isValidSinglePoolCertificateSequence
+    )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -102,6 +106,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , property
+    , shrink
     , withMaxSuccess
     , (==>)
     )
@@ -201,6 +206,8 @@ properties = do
         it "prop_determinePoolLifeCycleStatus_differentPools"
             (property . const
                 prop_determinePoolLifeCycleStatus_differentPools)
+        it "SinglePoolCertificateSequence coverage is adequate"
+            (property . const prop_SinglePoolCertificateSequence_coverage)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -991,6 +998,51 @@ prop_determinePoolLifeCycleStatus_differentPools regData retData =
     result = determinePoolLifeCycleStatus
         (pure (regTime, regCert))
         (pure (retTime, retCert))
+
+prop_SinglePoolCertificateSequence_coverage
+    :: SinglePoolCertificateSequence
+    -> Property
+prop_SinglePoolCertificateSequence_coverage
+    s@(SinglePoolCertificateSequence _sharedPoolId certificates) =
+        checkCoverage
+            $ cover 2 (null certificates)
+                "length (all certificates) = 0"
+            $ cover 2 (length certificates == 1)
+                "length (all certificates) = 1"
+            $ cover 2 (length certificates > 1)
+                "length (all certificates) > 1"
+
+            $ cover 2 (null registrationCertificates)
+                "length (registration certificates) = 0"
+            $ cover 2 (length registrationCertificates == 1)
+                "length (registration certificates) = 1"
+            $ cover 2 (length registrationCertificates > 1)
+                "length (registration certificates) > 1"
+
+            $ cover 2 (null retirementCertificates)
+                "length (retirement certificates) = 0"
+            $ cover 2 (length retirementCertificates == 1)
+                "length (retirement certificates) = 1"
+            $ cover 2 (length retirementCertificates > 1)
+                "length (retirement certificates) > 1"
+
+            $ cover 50 (not (null shrunkenSequences))
+                "length (shrunken sequences) > 0"
+
+            $ all isValidSinglePoolCertificateSequence $ s : shrunkenSequences
+  where
+    shrunkenSequences = shrink s
+
+    registrationCertificates = catMaybes
+        (getRegistrationCertificate <$> certificates)
+    retirementCertificates = catMaybes
+        (getRetirementCertificate <$> certificates)
+    getRegistrationCertificate = \case
+        Registration cert -> Just cert
+        Retirement _ -> Nothing
+    getRetirementCertificate = \case
+        Registration _ -> Nothing
+        Retirement cert -> Just cert
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
