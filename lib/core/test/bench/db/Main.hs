@@ -42,10 +42,18 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubFromBytes )
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Trace
+    ( Trace )
 import Cardano.BM.Data.Tracer
-    ( nullTracer )
+    ( Tracer )
+import Cardano.BM.Setup
+    ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
-    ( SqliteContext, destroyDBLayer )
+    ( DBLog, SqliteContext, destroyDBLayer )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
@@ -56,16 +64,20 @@ import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState, newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyProtocolParameters, mkTxId )
+import Cardano.Wallet.Logging
+    ( filterTraceSeverity, trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
-    ( ByronKey )
+    ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -144,6 +156,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Time.Clock.System
@@ -167,24 +181,28 @@ import System.IO.Unsafe
 import System.Random
     ( mkStdGen, randoms )
 
+import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 
 main :: IO ()
-main = withUtf8Encoding $ do
+main = withUtf8Encoding $ withLogging $ \trace -> do
+    let tr = trMessageText $ filterTraceSeverity Error trace
     defaultMain
-        [ withDB bgroupWriteUTxO
-        , withDB bgroupReadUTxO
-        , withDB bgroupWriteSeqState
-        , withDB bgroupWriteRndState
-        , withDB bgroupWriteTxHistory
-        , withDB bgroupReadTxHistory
+        [ withDB tr bgroupWriteUTxO
+        , withDB tr bgroupReadUTxO
+        , withDB tr bgroupWriteSeqState
+        , withDB tr bgroupWriteRndState
+        , withDB tr bgroupWriteTxHistory
+        , withDB tr bgroupReadTxHistory
         ]
     putStrLn "\n--"
-    utxoDiskSpaceTests
-    txHistoryDiskSpaceTests
+    utxoDiskSpaceTests tr
+    txHistoryDiskSpaceTests tr
 
 ----------------------------------------------------------------------------
 -- UTxO Benchmarks
@@ -555,19 +573,21 @@ withDB
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => (DBLayer IO s k -> Benchmark)
+    => Tracer IO DBLog
+    -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
-withDB bm = envWithCleanup setupDB cleanupDB (\ ~(_, _, db) -> bm db)
+withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\ ~(_, _, db) -> bm db)
 
 setupDB
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
         )
-    => IO (FilePath, SqliteContext, DBLayer IO s k)
-setupDB = do
+    => Tracer IO DBLog
+    -> IO (FilePath, SqliteContext, DBLayer IO s k)
+setupDB tr = do
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer nullTracer defaultFieldValues (Just f) ti
+    (ctx, db) <- newDBLayer tr defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
     ti = pure . runIdentity . singleEraInterpreter (GenesisParameters
@@ -635,8 +655,8 @@ walletFixtureByron db@DBLayer{..} = do
 -- These are not proper criterion benchmarks but use the benchmark test data to
 -- measure size on disk of the database and its temporary files.
 
-utxoDiskSpaceTests :: IO ()
-utxoDiskSpaceTests = do
+utxoDiskSpaceTests :: Tracer IO DBLog -> IO ()
+utxoDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for UTxO\n"
     sequence_
         --      #Checkpoints   UTxO Size
@@ -653,13 +673,13 @@ utxoDiskSpaceTests = do
         , bUTxO         1000        1000
         ]
   where
-    bUTxO n s = benchDiskSize $ \db -> do
+    bUTxO n s = benchDiskSize tr $ \db -> do
         putStrLn ("File size /"+|n|+" CP x "+|s|+" UTxO")
         walletFixture db
         benchPutUTxO n s db
 
-txHistoryDiskSpaceTests :: IO ()
-txHistoryDiskSpaceTests = do
+txHistoryDiskSpaceTests :: Tracer IO DBLog -> IO ()
+txHistoryDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for TxHistory\n"
     sequence_
         --       #NTransactions  #NInputs #NOutputs
@@ -673,13 +693,13 @@ txHistoryDiskSpaceTests = do
         , bTxs          100000         50       100
         ]
   where
-    bTxs n i o = benchDiskSize $ \db -> do
+    bTxs n i o = benchDiskSize tr $ \db -> do
         putStrLn ("File size /"+|n|+" w/ "+|i|+"i + "+|o|+"o")
         walletFixture db
         benchPutTxHistory n i o [1..100] db
 
-benchDiskSize :: (DBLayerBench -> IO ()) -> IO ()
-benchDiskSize action = bracket setupDB cleanupDB $ \(f, ctx, db) -> do
+benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
+benchDiskSize tr action = bracket (setupDB tr) cleanupDB $ \(f, ctx, db) -> do
     action db
     mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
     destroyDBLayer ctx
@@ -808,3 +828,26 @@ mkByronAddress i j =
     g = mkStdGen $ 1459*i + 1153*j
     unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
     [acctIx, addrIx] = take 2 $ randoms g
+
+-- | Run an action with logging available and configured. When the action is
+-- finished (normally or otherwise), log messages are flushed.
+withLogging
+    :: (Trace IO Text -> IO a)
+    -- ^ The action to run with logging configured.
+    -> IO a
+withLogging action = bracket before after between
+  where
+    before = do
+        cfg <- do
+            c <- defaultConfigStdout
+            CM.setMinSeverity c Debug
+            CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+            pure c
+        (tr, sb) <- setupTrace_ cfg "bench-db"
+        pure (sb, tr)
+
+    after =
+        shutdown . fst
+
+    between =
+        action . snd
