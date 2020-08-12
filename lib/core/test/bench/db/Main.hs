@@ -317,21 +317,24 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
 ----------------------------------------------------------------------------
 -- Wallet State (Random Scheme) Benchmarks
 --
+
+
+
 bgroupWriteRndState :: DBLayerBenchByron -> Benchmark
 bgroupWriteRndState db = bgroup "RndState"
-    --      #Checkpoints  #Addresses
-    [ bRndState        1          10
-    , bRndState        1         100
-    , bRndState        1        1000
-    , bRndState        1       10000
-    , bRndState        1      100000
-    , bRndState       10        1000
-    , bRndState      100        1000
+    --      #Checkpoints  #Addresses  #Pending
+    [ bRndState        1          10        10
+    , bRndState        1         100       100
+    , bRndState        1        1000      1000
+    , bRndState        1       10000     10000
+    , bRndState        1      100000    100000
+    , bRndState       10        1000      1000
+    , bRndState      100        1000      1000
     ]
   where
-    bRndState n a = bench lbl $ withCleanDB db fixture (uncurry benchPutRndState)
+    bRndState n a p = bench lbl $ withCleanDB db fixture (uncurry benchPutRndState)
       where
-        lbl = n|+" CP x "+|a|+" addr"
+        lbl = n|+" CP x "+|a|+" addr x "+|p|+" pending"
         fixture db_ = do
             walletFixtureByron db_
             pure cps
@@ -342,7 +345,7 @@ bgroupWriteRndState db = bgroup "RndState"
                     { hdPassphrase = dummyPassphrase
                     , accountIndex = minBound
                     , addresses = mkRndAddresses a i
-                    , pendingAddresses = mempty
+                    , pendingAddresses = mkRndAddresses p (-i)
                     , gen = mkStdGen 42
                     }
             | i <- [1..n]
@@ -360,7 +363,7 @@ mkRndAddresses
 mkRndAddresses numAddrs i =
     Map.fromList addrs
   where
-    addrs = [ force ((toEnum i, toEnum j), mkAddress i j) | j <- [1..numAddrs] ]
+    addrs = [ force ((toEnum i, toEnum j), mkByronAddress i j) | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Tx history Benchmarks
@@ -790,3 +793,18 @@ mkAddress i j =
     -- lead to a satisfactory entropy.
     seed = 1459*i + 1153*j
     unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
+
+mkByronAddress :: Int -> Int -> Address
+mkByronAddress i j =
+    paymentAddress @'Mainnet
+        (ByronKey
+            (unsafeXPub (B8.pack $ take 64 $ randoms g))
+            (Index acctIx, Index addrIx)
+            (Passphrase $ BA.convert $ BS.pack $ replicate 32 0)
+        )
+  where
+    -- Generate a seed using two prime numbers and a pair of index. This should
+    -- lead to a satisfactory entropy.
+    g = mkStdGen $ 1459*i + 1153*j
+    unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
+    [acctIx, addrIx] = take 2 $ randoms g
