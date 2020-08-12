@@ -650,15 +650,10 @@ prop_readPoolLifeCycleStatus
   where
     setup = run $ atomically cleanDB
 
-    expectedStatus = determinePoolLifeCycleStatus
-        mFinalRegistration
-        mFinalRetirement
-
     prop = do
-        actualStatus <-
-            run $ atomically $ do
-                mapM_ (uncurry putCertificate) certificatePublications
-                readPoolLifeCycleStatus sharedPoolId
+        actualStatus <- run $ atomically $ do
+            mapM_ (uncurry putCertificate) certificatePublications
+            readPoolLifeCycleStatus sharedPoolId
         poolsMarkedToRetire <-
             run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
@@ -688,34 +683,35 @@ prop_readPoolLifeCycleStatus
                 PoolRegisteredAndRetired _regCert retCert ->
                     poolsMarkedToRetire == [retCert]
 
+    expectedStatus = determinePoolLifeCycleStatus
+        mFinalRegistration
+        mFinalRetirement
+
+    mFinalRegistration = lookupFinalCertificateMatching $ \case
+        Registration c -> Just c
+        _ -> Nothing
+
+    mFinalRetirement = lookupFinalCertificateMatching $ \case
+        Retirement c -> Just c
+        _ -> Nothing
+
+    lookupFinalCertificateMatching
+        :: (PoolCertificate -> Maybe certificate)
+        -> Maybe (CertificatePublicationTime, certificate)
+    lookupFinalCertificateMatching match = certificatePublications
+        & reverse
+        & fmap (traverse match)
+        & catMaybes
+        & listToMaybe
+
     certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
     certificatePublications = publicationTimes `zip` certificates
-
-    mFinalRegistration = certificatePublications
-        & reverse
-        & fmap (traverse toRegistrationCertificate)
-        & catMaybes
-        & listToMaybe
-
-    mFinalRetirement = certificatePublications
-        & reverse
-        & fmap (traverse toRetirementCertificate)
-        & catMaybes
-        & listToMaybe
 
     publicationTimes =
         [ CertificatePublicationTime (SlotNo sn) ii
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
-
-    toRegistrationCertificate = \case
-        Registration cert -> Just cert
-        Retirement _ -> Nothing
-
-    toRetirementCertificate = \case
-        Retirement cert -> Just cert
-        Registration _ -> Nothing
 
     putCertificate cpt = \case
         Registration cert ->
