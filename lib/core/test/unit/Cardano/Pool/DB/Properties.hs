@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
-    , EpochNo
+    , EpochNo (..)
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
@@ -659,6 +659,8 @@ prop_readPoolLifeCycleStatus
             run $ atomically $ do
                 mapM_ (uncurry putCertificate) certificatePublications
                 readPoolLifeCycleStatus sharedPoolId
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nFinal registration: "
             , show mFinalRegistration
@@ -672,9 +674,19 @@ prop_readPoolLifeCycleStatus
             , show (length certificatePublications)
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
+            , "\nAll pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
         assertWith "actualStatus == expectedStatus"
             (actualStatus == expectedStatus)
+        assertWith "pool is marked to retire only when appropriate" $
+            case actualStatus of
+                PoolNotRegistered ->
+                    null poolsMarkedToRetire
+                PoolRegistered _regCert ->
+                    null poolsMarkedToRetire
+                PoolRegisteredAndRetired _regCert retCert ->
+                    poolsMarkedToRetire == [retCert]
 
     certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
     certificatePublications = publicationTimes `zip` certificates
