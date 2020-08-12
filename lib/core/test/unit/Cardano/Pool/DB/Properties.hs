@@ -174,7 +174,7 @@ properties = do
         it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
             (property .
                 prop_multiple_putPoolRetirement_single_readPoolRetirement)
-        it "readPoolLifeCycleStatus should respect registration order"
+        it "readPoolLifeCycleStatus respects certificate publication order"
             (property . prop_readPoolLifeCycleStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
