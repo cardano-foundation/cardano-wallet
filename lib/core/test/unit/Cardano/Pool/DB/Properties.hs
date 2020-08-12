@@ -645,7 +645,8 @@ prop_readPoolLifeCycleStatus
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
             ]
-        assert (actualStatus == expectedStatus)
+        assertWith "actualStatus == expectedStatus"
+            (actualStatus == expectedStatus)
 
     certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
     certificatePublications = publicationTimes `zip` certificates
