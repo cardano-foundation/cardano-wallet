@@ -776,6 +776,8 @@ prop_rollbackRetirement DBLayer{..} certificates =
         run $ atomically $ rollbackTo rollbackPoint
         retrievedPublications <- catMaybes <$>
             run (atomically $ mapM readPoolRetirement poolIds)
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nRollback point: "
             , show rollbackPoint
@@ -785,11 +787,17 @@ prop_rollbackRetirement DBLayer{..} certificates =
             , unlines (("\n" <>) . show <$> expectedPublications)
             , "\nRetrieved certificate publications: "
             , unlines (("\n" <>) . show <$> retrievedPublications)
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
         assertWith "retrieved publications match expectations" $
             (==)
                 retrievedPublications
                 expectedPublications
+        assertWith "only the correct retirements are listed" $
+            (==)
+                (Set.fromList $ snd <$> expectedPublications)
+                (Set.fromList poolsMarkedToRetire)
 
     poolIds :: [PoolId]
     poolIds = view #poolId <$> certificates
