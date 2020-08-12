@@ -66,6 +66,8 @@ module Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , PoolCertificate (..)
+    , getPoolCertificatePoolId
+    , setPoolCertificatePoolId
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
 
@@ -197,7 +199,7 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( set, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Int
@@ -1622,6 +1624,20 @@ data PoolCertificate
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolCertificate
+
+getPoolCertificatePoolId :: PoolCertificate -> PoolId
+getPoolCertificatePoolId = \case
+    Registration cert ->
+        view #poolId cert
+    Retirement cert ->
+        view #poolId cert
+
+setPoolCertificatePoolId :: PoolId -> PoolCertificate -> PoolCertificate
+setPoolCertificatePoolId newPoolId = \case
+    Registration cert -> Registration
+        $ set #poolId newPoolId cert
+    Retirement cert -> Retirement
+        $ set #poolId newPoolId cert
 
 -- | Pool ownership data from the stake pool registration certificate.
 data PoolRegistrationCertificate = PoolRegistrationCertificate
