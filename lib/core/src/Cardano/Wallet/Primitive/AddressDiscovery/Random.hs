@@ -59,7 +59,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount )
+    ( Address (..), AddressState (..), ChimericAccount )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -88,7 +88,7 @@ data RndState (network :: NetworkDiscriminant) = RndState
     -- ^ The account index used for address _generation_ in this wallet. Note
     -- that addresses will be _discovered_ from any and all account indices,
     -- regardless of this value.
-    , addresses :: Map DerivationPath Address
+    , addresses :: Map DerivationPath (Address, AddressState)
     -- ^ The addresses which have so far been discovered, and their
     -- derivation paths.
     , pendingAddresses :: Map DerivationPath Address
@@ -113,7 +113,7 @@ instance Buildable (RndState network) where
     build (RndState _ ix addrs pending g) = "RndState:\n"
         <> indentF 4 ("Account ix:       " <> build ix)
         <> indentF 4 ("Random Generator: " <> build (show g))
-        <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF build addrs)
+        <> indentF 4 ("Known addresses:  " <> blockMapF' tupleF tupleF addrs)
         <> indentF 4 ("Change addresses: " <> blockMapF' tupleF build pending)
 
 -- | Shortcut type alias for HD random address derivation path.
@@ -124,7 +124,7 @@ type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'Address
 -- to decrypt the address derivation path.
 instance IsOurs (RndState n) Address where
     isOurs addr st =
-        (isJust path, maybe id (addDiscoveredAddress addr) path st)
+        (isJust path, maybe id (addDiscoveredAddress addr Used) path st)
       where
         path = addressToPath addr (hdPassphrase st)
 
@@ -160,10 +160,16 @@ mkRndState key seed = RndState
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set
 -- (i.e. it was a newly generated change address), then it is removed from
 -- there.
-addDiscoveredAddress :: Address -> DerivationPath -> RndState n -> RndState n
-addDiscoveredAddress addr path st =
-    st { addresses = Map.insert path addr (addresses st)
-       , pendingAddresses = Map.delete path (pendingAddresses st) }
+addDiscoveredAddress
+    :: Address
+    -> AddressState
+    -> DerivationPath
+    -> RndState n
+    -> RndState n
+addDiscoveredAddress addr status path st = st
+    { addresses = Map.insert path (addr, status) (addresses st)
+    , pendingAddresses = Map.delete path (pendingAddresses st)
+    }
 
 instance PaymentAddress n ByronKey => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
@@ -180,7 +186,8 @@ instance PaymentAddress n ByronKey => GenChange (RndState n) where
 -- | Returns the set of derivation paths that should not be used for new address
 -- generation because they are already in use.
 unavailablePaths :: RndState n -> Set DerivationPath
-unavailablePaths st = Map.keysSet $ addresses st <> pendingAddresses st
+unavailablePaths st =
+    Map.keysSet (addresses st) <> Map.keysSet (pendingAddresses st)
 
 -- | Randomly generates an address derivation path for a given account. If the
 -- path is already in the "blacklist", it will try generating another.

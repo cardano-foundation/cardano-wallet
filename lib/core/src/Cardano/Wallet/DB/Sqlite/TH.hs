@@ -239,10 +239,11 @@ SeqState
 -- Mapping of pool addresses to indices, and the slot
 -- when they were discovered.
 SeqStateAddress
-    seqStateAddressWalletId         W.WalletId     sql=wallet_id
-    seqStateAddressSlot             SlotNo         sql=slot
-    seqStateAddressAddress          W.Address      sql=address
-    seqStateAddressIndex            Word32         sql=address_ix
+    seqStateAddressWalletId         W.WalletId         sql=wallet_id
+    seqStateAddressSlot             SlotNo             sql=slot
+    seqStateAddressAddress          W.Address          sql=address
+    seqStateAddressStatus           W.AddressState     sql=status
+    seqStateAddressIndex            Word32             sql=address_ix
     seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
 
     Primary
@@ -282,6 +283,7 @@ RndStateAddress
     rndStateAddressAccountIndex  Word32            sql=account_ix
     rndStateAddressIndex         Word32            sql=address_ix
     rndStateAddressAddress       W.Address         sql=address
+    rndStateAddressStatus        W.AddressState    sql=status
 
     Primary
         rndStateAddressWalletId

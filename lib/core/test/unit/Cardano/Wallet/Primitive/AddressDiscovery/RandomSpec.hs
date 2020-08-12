@@ -316,14 +316,15 @@ prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))
     , (Set.member changeAddr (forbidden changeSt))
-    , (addr `elem` knownAddresses isOursSt)
-    , (changeAddr `notElem` knownAddresses changeSt)
+    , (addr `elem` (fst <$> knownAddresses isOursSt))
+    , (changeAddr `notElem` (fst <$> knownAddresses changeSt))
     ]
   where
     (_ours, isOursSt) = isOurs addr st
     (changeAddr, changeSt) = genChange (rk, pwd) isOursSt
 
-    forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
+    forbidden s =
+        Set.fromList $ Map.elems $ (fst <$> addresses s) <> pendingAddresses s
 
     addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)

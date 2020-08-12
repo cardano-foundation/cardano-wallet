@@ -601,7 +601,7 @@ fileModeSpec =  do
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
                             [ Tx (dummyHash "tx1")
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                                [ TxOut (head ourAddrs) (Coin 4) ]
+                                [ TxOut (fst $ head ourAddrs) (Coin 4) ]
                                 mempty
                             ]
 
@@ -615,7 +615,7 @@ fileModeSpec =  do
                                 (dummyHash "tx2a")
                                 [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
                                 [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
-                                , TxOut (ourAddrs !! 1) (Coin 2)
+                                , TxOut (fst $ ourAddrs !! 1) (Coin 2)
                                 ]
                                 mempty
                             ]

@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , ActiveSlotCoefficient (..)
     , Address (..)
+    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
@@ -330,7 +331,7 @@ mkPool
     => Int -> Int -> AddressPool c JormungandrKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
-    addrs = [ force (mkAddress i j) | j <- [1..numAddrs] ]
+    addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Wallet State (Random Scheme) Benchmarks
@@ -362,7 +363,7 @@ bgroupWriteRndState db = bgroup "RndState"
                 RndState
                     { hdPassphrase = dummyPassphrase
                     , accountIndex = minBound
-                    , addresses = mkRndAddresses a i
+                    , addresses = (,Used) <$> mkRndAddresses a i
                     , pendingAddresses = mkRndAddresses p (-i)
                     , gen = mkStdGen 42
                     }

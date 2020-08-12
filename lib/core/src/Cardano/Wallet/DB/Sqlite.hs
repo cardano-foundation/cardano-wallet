@@ -1496,8 +1496,9 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c)
-        | (ix, addr) <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
+        [ SeqStateAddress wid sl addr state ix (Seq.accountingStyle @c)
+        | (ix, (addr, state))
+        <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
 
 selectAddressPool
@@ -1523,8 +1524,9 @@ selectAddressPool wid sl gap xpub = do
     addressPoolFromEntity
         :: [SeqStateAddress]
         -> Seq.AddressPool c k
-    addressPoolFromEntity addrs =
-        Seq.mkAddressPool @n @c @k xpub gap (map seqStateAddressAddress addrs)
+    addressPoolFromEntity addrs
+        = Seq.mkAddressPool @n @c @k xpub gap
+        $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
@@ -1541,12 +1543,6 @@ selectSeqStatePendingIxs wid =
 {-------------------------------------------------------------------------------
                           HD Random address discovery
 -------------------------------------------------------------------------------}
-
--- | Type alias for the index -> address map so that lines do not exceed 80
--- characters in width.
-type RndStateAddresses = Map
-    (W.Index 'W.WholeDomain 'W.AccountK, W.Index 'W.WholeDomain 'W.AddressK)
-    W.Address
 
 -- Persisting 'RndState' requires that the wallet root key has already been
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
@@ -1593,17 +1589,17 @@ instance PersistState (Rnd.RndState t) where
 insertRndStateAddresses
     :: W.WalletId
     -> W.SlotNo
-    -> RndStateAddresses
+    -> Map Rnd.DerivationPath (W.Address, W.AddressState)
     -> SqlPersistT IO ()
 insertRndStateAddresses wid sl addresses = do
     dbChunked insertMany_
-        [ RndStateAddress wid sl accIx addrIx addr
-        | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
+        [ RndStateAddress wid sl accIx addrIx addr st
+        | ((W.Index accIx, W.Index addrIx), (addr, st)) <- Map.assocs addresses
         ]
 
 insertRndStatePending
     :: W.WalletId
-    -> RndStateAddresses
+    -> Map Rnd.DerivationPath W.Address
     -> SqlPersistT IO ()
 insertRndStatePending wid addresses = do
     deleteWhere [RndStatePendingAddressWalletId ==. wid]
@@ -1615,7 +1611,7 @@ insertRndStatePending wid addresses = do
 selectRndStateAddresses
     :: W.WalletId
     -> W.SlotNo
-    -> SqlPersistT IO RndStateAddresses
+    -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
 selectRndStateAddresses wid sl = do
     addrs <- fmap entityVal <$> selectList
         [ RndStateAddressWalletId ==. wid
@@ -1623,12 +1619,12 @@ selectRndStateAddresses wid sl = do
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
   where
-    assocFromEntity (RndStateAddress _ _ accIx addrIx addr) =
-        ((W.Index accIx, W.Index addrIx), addr)
+    assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
+        ((W.Index accIx, W.Index addrIx), (addr, st))
 
 selectRndStatePending
     :: W.WalletId
-    -> SqlPersistT IO RndStateAddresses
+    -> SqlPersistT IO (Map Rnd.DerivationPath W.Address)
 selectRndStatePending wid = do
     addrs <- fmap entityVal <$> selectList
         [ RndStatePendingAddressWalletId ==. wid

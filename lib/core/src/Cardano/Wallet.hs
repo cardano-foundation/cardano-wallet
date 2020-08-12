@@ -13,6 +13,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -752,7 +753,8 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
             restoreBlocks @ctx @s @k @t ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
-        FollowInterrupted -> pure ()
+        FollowInterrupted ->
+            pure ()
         FollowFailure ->
             restoreWallet @ctx @s @t @k ctx wid
         FollowRollback point -> do
@@ -1044,7 +1046,6 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 listAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -1057,25 +1058,19 @@ listAddresses
         -- Use 'Just' for wallet without delegation settings.
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
-    (s, txs) <- mapExceptT atomically $ (,)
-        <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
-        <*> lift (readTxHistory primaryKey Nothing Descending wholeRange Nothing)
-    let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
-            then normalize s a
-            else Nothing
-    let usedAddrs
-            = Set.fromList
-            $ concatMap
-                (mapMaybe maybeIsOurs . W.outputs)
-                (fromTransactionInfo <$> txs)
-    let knownAddrs =
-            L.sortBy (compareDiscovery s) (mapMaybe (normalize s) $ knownAddresses s)
-    let withAddressState addr =
-            (addr, if addr `Set.member` usedAddrs then Used else Unused)
-    return $ withAddressState <$> knownAddrs
+    cp <- mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+    let s = getState cp
+
+    -- FIXME
+    -- Stream this instead of returning it as a single block.
+    return
+        $ L.sortBy (\(a,_) (b,_) -> compareDiscovery s a b)
+        $ mapMaybe (\(addr, st) -> (,st) <$> normalize s addr)
+        $ knownAddresses s
   where
     db = ctx ^. dbLayer @s @k
-    primaryKey = PrimaryKey wid
 
 createChangeAddress
     :: forall ctx s k.
@@ -1126,7 +1121,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
 
             let prepared = preparePassphrase scheme pwd
             let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
+            let s' = (Rnd.addDiscoveredAddress addr Unused path s) { Rnd.gen = gen' }
             withExceptT ErrCreateAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             pure addr

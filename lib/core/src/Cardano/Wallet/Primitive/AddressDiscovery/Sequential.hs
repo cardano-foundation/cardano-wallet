@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, invariant )
+    ( Address, AddressState (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -212,7 +212,10 @@ data AddressPool
         :: !AddressPoolGap
         -- ^ The actual gap for the pool. This can't change for a given pool.
     , indexedKeys
-        :: !(Map (KeyFingerprint "payment" key) (Index 'Soft 'AddressK))
+        :: !(Map
+                (KeyFingerprint "payment" key)
+                (Index 'Soft 'AddressK, AddressState)
+            )
     } deriving (Generic)
 
 deriving instance (Show (key 'AccountK XPub))
@@ -262,10 +265,10 @@ addresses
     :: forall c k. ()
     => (KeyFingerprint "payment" k -> Address)
     -> AddressPool c k
-    -> [Address]
+    -> [(Address, AddressState)]
 addresses mkAddress =
-    map (mkAddress . fst)
-    . L.sortOn snd
+    map (\(k, (_, st)) -> (mkAddress k, st))
+    . L.sortOn (fst . snd)
     . Map.toList
     . indexedKeys
 
@@ -286,7 +289,7 @@ mkAddressPool
         )
     => k 'AccountK XPub
     -> AddressPoolGap
-    -> [Address]
+    -> [(Address, AddressState)]
     -> AddressPool c k
 mkAddressPool key g addrs = AddressPool
     { accountPubKey = key
@@ -298,8 +301,8 @@ mkAddressPool key g addrs = AddressPool
             (accountingStyle @c)
             minBound
           <>
-            Map.fromList (zip
-                (unsafePaymentKeyFingerprint @k <$> addrs)
+            Map.fromList (zipWith (\(addr, status) ix -> (addr, (ix, status)))
+                (first (unsafePaymentKeyFingerprint @k) <$> addrs)
                 [minBound..maxBound]
             )
     }
@@ -329,15 +332,23 @@ shrinkPool
 shrinkPool mkAddress knownAddrs newGap pool =
     let
         keys  = indexedKeys pool
-        maxV  = maximumValue (unsafePaymentKeyFingerprint <$> knownAddrs) keys
-        addrs = map (mkAddress . fst)
-            . L.sortOn snd
+        maxV  = maximumValue
+            (unsafePaymentKeyFingerprint <$> knownAddrs)
+            (Map.map fst keys)
+        addrs = map (withAddressState . fst)
+            . L.sortOn (fst . snd)
             . Map.toList
-            . Map.filter (\v -> Just v <= maxV)
+            . Map.filter (\(v, _) -> Just v <= maxV)
             $ keys
     in
         mkAddressPool @n (accountPubKey pool) newGap addrs
   where
+    withAddressState :: KeyFingerprint "payment" key -> (Address, AddressState)
+    withAddressState fingerprint =
+        (addr, if addr `elem` knownAddrs then Used else Unused)
+      where
+        addr = mkAddress fingerprint
+
     maximumValue
         :: (Ord k, Ord v)
         => [k]
@@ -359,17 +370,28 @@ lookupAddress
         , SoftDerivation k
         , Typeable c
         )
-    => Address
+    => (AddressState -> AddressState)
+    -> Address
     -> AddressPool c k
     -> (Maybe (Index 'Soft 'AddressK), AddressPool c k)
-lookupAddress !target !pool =
+lookupAddress alterSt !target !pool =
     case paymentKeyFingerprint @k target of
-        Left _ -> (Nothing, pool)
-        Right fingerprint -> case Map.lookup fingerprint  (indexedKeys pool) of
-            Just ix ->
-                (Just ix, extendAddressPool @n ix pool)
-            Nothing ->
-                (Nothing, pool)
+        Left _ ->
+            (Nothing, pool)
+        Right fingerprint ->
+            case Map.alterF lookupF fingerprint (indexedKeys pool) of
+                (Just ix, keys') ->
+                    ( Just ix
+                    , extendAddressPool @n ix (pool { indexedKeys = keys'})
+                    )
+                (Nothing, _) ->
+                    ( Nothing
+                    , pool
+                    )
+  where
+    lookupF = \case
+        Nothing -> (Nothing, Nothing)
+        Just (ix, st) -> (Just ix, Just (ix, alterSt st))
 
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
@@ -404,10 +426,10 @@ nextAddresses
     -> AddressPoolGap
     -> AccountingStyle
     -> Index 'Soft 'AddressK
-    -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK)
+    -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK, AddressState)
 nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
     [fromIx .. min maxBound toIx]
-        & map (\ix -> (newPaymentKey ix, ix))
+        & map (\ix -> (newPaymentKey ix, (ix, Unused)))
         & Map.fromList
   where
     toIx = invariant
@@ -605,8 +627,8 @@ instance
     ) => IsOurs (SeqState n k) Address where
     isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
         let
-            (internal, !s1') = lookupAddress @n addr s1
-            (external, !s2') = lookupAddress @n addr s2
+            (internal, !s1') = lookupAddress @n (const Used) addr s1
+            (external, !s2') = lookupAddress @n (const Used) addr s2
             !ixs' = case internal of
                 Nothing -> ixs
                 Just ix -> updatePendingIxs ix ixs
@@ -658,7 +680,7 @@ instance
             let
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
-                (addrIx, _) = lookupAddress @n addr pool
+                (addrIx, _) = lookupAddress @n (const Used) addr pool
                 cc = accountingStyle @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
@@ -676,7 +698,7 @@ instance
             (Just i1, Just i2) -> compare i1 i2
       where
         ix :: Typeable c => Address -> AddressPool c k -> Maybe (Index 'Soft 'AddressK)
-        ix a = fst . lookupAddress @n a
+        ix a = fst . lookupAddress @n id a
 
 instance
     ( PaymentAddress n k

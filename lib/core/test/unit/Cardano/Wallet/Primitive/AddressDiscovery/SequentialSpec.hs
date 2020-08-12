@@ -65,7 +65,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ShowFmt (..) )
+    ( Address (..), AddressState (..), ShowFmt (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Monad
@@ -90,6 +90,7 @@ import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , Positive (..)
     , Property
     , arbitraryBoundedEnum
@@ -110,6 +111,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Text.Roundtrip
@@ -269,7 +272,7 @@ prop_poolGrowWithinGap
 prop_poolGrowWithinGap _proxy (pool, addr) =
     cover 7.5 (isJust $ fst res) "pool hit" prop
   where
-    res = lookupAddress @'Mainnet addr pool
+    res = lookupAddress @'Mainnet id addr pool
     prop = case res of
         (Nothing, pool') -> pool === pool'
         (Just _, pool') ->
@@ -327,13 +330,13 @@ prop_poolEventuallyDiscoverOurs
     -> Property
 prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
     if addr `elem` ours then property $
-        (fromEnum <$> fst (lookupAddress @'Mainnet addr pool)) === elemIndex addr ours
+        (fromEnum <$> fst (lookupAddress @'Mainnet id addr pool)) === elemIndex addr ours
     else
         label "address not ours" (property True)
   where
     ours = take 25 (ourAddresses (Proxy @k) (accountingStyle @chain))
     pool = flip execState (mkAddressPool @'Mainnet @chain @k ourAccount g mempty) $
-        forM ours (state . lookupAddress @'Mainnet)
+        forM ours (state . lookupAddress @'Mainnet id)
 
 {-------------------------------------------------------------------------------
                     Properties for AddressScheme & PendingIxs
@@ -438,9 +441,9 @@ prop_knownAddressesAreOurs
     :: SeqState 'Mainnet JormungandrKey
     -> Property
 prop_knownAddressesAreOurs s =
-    map (\x -> (ShowFmt x, fst (isOurs x s))) (knownAddresses s)
+    map (\x -> (ShowFmt x, fst (isOurs x s))) (fst <$> knownAddresses s)
     ===
-    map (\x -> (ShowFmt x, True)) (knownAddresses s)
+    map (\x -> (ShowFmt x, True)) (fst <$> knownAddresses s)
 
 prop_atLeastKnownAddresses
     :: SeqState 'Mainnet JormungandrKey
@@ -459,16 +462,16 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         s0 :: SeqState 'Mainnet JormungandrKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
-        addrs0 = knownAddresses s0
+        addrs0 = fst <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
-        addrs1 = knownAddresses s1
+        addrs1 = fst <$> knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0
         , prop_changeAddressIsKnown change addrs1
         ]
   where
     prop_addrsNotInInternalPool addrs =
-        map (\x -> (ShowFmt x, isNothing $ fst $ lookupAddress x intPool)) addrs
+        map (\x -> (ShowFmt x, isNothing $ fst $ lookupAddress id x intPool)) addrs
         ===
         map (\x -> (ShowFmt x, True)) addrs
     prop_changeAddressIsKnown addr addrs =
@@ -500,8 +503,8 @@ prop_shrinkPreserveKnown _proxy (Positive size) pool =
         $ all (`elem` addrs') cut
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = addresses liftAddress pool
-    addrs' = addresses liftAddress pool'
+    addrs  = fst <$> addresses liftAddress pool
+    addrs' = fst <$> addresses liftAddress pool'
     cut    = take size addrs
 
 -- There's no address after the address from the cut with the highest index
@@ -521,8 +524,8 @@ prop_shrinkMaxIndex _proxy (Positive size) pool =
     fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = addresses liftAddress pool
-    addrs' = addresses liftAddress pool'
+    addrs  = fst <$> addresses liftAddress pool
+    addrs' = fst <$> addresses liftAddress pool'
     cut    = take size addrs
 
 {-------------------------------------------------------------------------------
@@ -602,6 +605,10 @@ instance Arbitrary AccountingStyle where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
+instance Arbitrary AddressState where
+    shrink _ = []
+    arbitrary = genericArbitrary
+
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
 -- that are unknown to us.
@@ -644,7 +651,8 @@ instance
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (Proxy @k) (accountingStyle @chain))
-        return $ mkAddressPool @'Mainnet ourAccount g addrs
+        InfiniteList statuses _ <- arbitrary
+        return $ mkAddressPool @'Mainnet ourAccount g (zip addrs statuses)
 
 instance Arbitrary (SeqState 'Mainnet JormungandrKey) where
     shrink (SeqState intPool extPool ixs rwd) =

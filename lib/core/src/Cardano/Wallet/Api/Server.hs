@@ -1177,7 +1177,6 @@ putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
 listAddresses
     :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
         )
