@@ -614,11 +614,10 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
 --
 prop_readPoolLifeCycleStatus
     :: DBLayer IO
-    -> PoolId
-    -> [PoolCertificate]
+    -> SinglePoolCertificateSequence
     -> Property
 prop_readPoolLifeCycleStatus
-    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+    DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -669,8 +668,6 @@ prop_readPoolLifeCycleStatus
         , ii <- [0 .. 3]
         ]
 
-    certificates = setPoolId sharedPoolId <$> certificatesManyPoolIds
-
     toRegistrationCertificate = \case
         Registration cert -> Just cert
         Retirement _ -> Nothing
@@ -684,12 +681,6 @@ prop_readPoolLifeCycleStatus
             putPoolRegistration cpt cert
         Retirement cert ->
             putPoolRetirement cpt cert
-
-    setPoolId newPoolId = \case
-        Registration cert -> Registration
-            $ set #poolId newPoolId cert
-        Retirement cert -> Retirement
-            $ set #poolId newPoolId cert
 
 prop_rollbackRegistration
     :: DBLayer IO
