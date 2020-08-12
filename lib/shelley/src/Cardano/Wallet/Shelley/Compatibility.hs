@@ -51,6 +51,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
     , toStakeCredential
+    , fromStakeCredential
     , toShelleyCoin
     , fromShelleyCoin
     , toHDPayloadAddress
