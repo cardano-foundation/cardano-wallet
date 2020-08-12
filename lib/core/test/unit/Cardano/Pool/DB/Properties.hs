@@ -525,6 +525,8 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
             mapM_ (uncurry putPoolRegistration) certificatePublications
         mRetrievedCertificatePublication <-
             run $ atomically $ readPoolRegistration sharedPoolId
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nExpected certificate publication: "
             , show mExpectedCertificatePublication
@@ -538,6 +540,8 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
         assertWith "retrieved certificate matches expectations" $ (==)
             mRetrievedCertificatePublication
             mExpectedCertificatePublication
+        assertWith "pool is not marked to retire" $
+            null poolsMarkedToRetire
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
