@@ -13,7 +13,7 @@ tests = {
 }
 
 if ARGV.length < 1 || ARGV.length > 2 || tests[ARGV[0]] == nil
-  STDERR.puts "Usage: check-bundle cardano-wallet-(jormungandr|byron|shelley) [RUNNER]"
+  STDERR.puts "Usage: check-bundle (cardano-wallet|cardano-wallet-jormungandr) [RUNNER]"
   exit 1
 end
 

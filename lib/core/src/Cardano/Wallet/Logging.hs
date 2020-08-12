@@ -18,7 +18,6 @@ module Cardano.Wallet.Logging
     , fromLogObject
     , trMessage
     , trMessageText
-    , filterTraceSeverity
     , stdoutTextTracer
     , BracketLog (..)
     , bracketTracer
@@ -27,9 +26,7 @@ module Cardano.Wallet.Logging
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LOMeta (..), LogObject (..), LoggerName, mkLOMeta )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
+    ( LOContent (..), LogObject (..), LoggerName, mkLOMeta )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
@@ -108,16 +105,6 @@ trMessage tr = Tracer $ \arg -> do
 
 instance forall m a. (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a) => Transformable Text m a where
     trTransformer _verb = Tracer . traceWith . trMessageText
-
--- | Tracer transformer which removes tracing below the qgiven severity limit.
-filterTraceSeverity
-    :: forall m a. (Monad m)
-    => Severity
-    -> Trace m a
-    -> Trace m a
-filterTraceSeverity sevlimit tr = Tracer $ \arg -> do
-    when (severity (loMeta (snd arg)) >= sevlimit) $
-        traceWith tr arg
 
 -- | Trace transformer which removes empty traces.
 filterNonEmpty

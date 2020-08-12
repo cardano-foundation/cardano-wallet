@@ -52,7 +52,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), filterSeverity )
 import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.CLI
@@ -96,7 +96,7 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Logging
-    ( filterTraceSeverity, trMessageText )
+    ( trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -505,24 +505,24 @@ tracerSeverities sev = Tracers
 -- | Set up tracing with textual log messages.
 setupTracers :: TracerSeverities -> Trace IO Text -> Tracers IO
 setupTracers sev tr = Tracers
-    { applicationTracer     = mkTrace applicationTracer     $ onoff applicationTracer tr
-    , apiServerTracer       = mkTrace apiServerTracer       $ onoff apiServerTracer tr
-    , walletEngineTracer    = mkTrace walletEngineTracer    $ onoff walletEngineTracer tr
-    , walletDbTracer        = mkTrace walletDbTracer        $ onoff walletDbTracer tr
-    , stakePoolEngineTracer = mkTrace stakePoolEngineTracer $ onoff stakePoolEngineTracer tr
-    , stakePoolDbTracer     = mkTrace stakePoolDbTracer     $ onoff stakePoolDbTracer tr
-    , networkTracer         = mkTrace networkTracer         $ onoff networkTracer tr
-    , ntpClientTracer       = mkTrace ntpClientTracer       $ onoff ntpClientTracer tr
+    { applicationTracer     = onoff applicationTracer     $ mkTrace applicationTracer     tr
+    , apiServerTracer       = onoff apiServerTracer       $ mkTrace apiServerTracer       tr
+    , walletEngineTracer    = onoff walletEngineTracer    $ mkTrace walletEngineTracer    tr
+    , walletDbTracer        = onoff walletDbTracer        $ mkTrace walletDbTracer        tr
+    , stakePoolEngineTracer = onoff stakePoolEngineTracer $ mkTrace stakePoolEngineTracer tr
+    , stakePoolDbTracer     = onoff stakePoolDbTracer     $ mkTrace stakePoolDbTracer     tr
+    , networkTracer         = onoff networkTracer         $ mkTrace networkTracer         tr
+    , ntpClientTracer       = onoff ntpClientTracer       $ mkTrace ntpClientTracer       tr
     }
   where
     onoff
-        :: Monad m
+        :: forall m a b. (Monad m, HasSeverityAnnotation b)
         => (TracerSeverities -> Const (Maybe Severity) a)
-        -> Trace m b
-        -> Trace m b
+        -> Tracer m b
+        -> Tracer m b
     onoff f = case getConst (f sev) of
         Nothing -> const nullTracer
-        Just s -> filterTraceSeverity s
+        Just s -> filterSeverity (const $ pure s)
 
     mkTrace
         :: (HasPrivacyAnnotation a, HasSeverityAnnotation a, ToText a)
