@@ -1019,3 +1019,13 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
         [ [ (view #slotNo h, p) | h <- hs ]
         | (p, hs) <- concatMap Map.assocs ms
         ]
+
+-- Interleaves the given list of lists together in a fair way.
+--
+-- Example:
+--
+-- >>> interleave [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
+-- ["a1", "b1", "c1", "a2", "b2", "c3", "a3", "b3", "c3"]
+--
+interleave :: [[a]] -> [a]
+interleave = concat . L.transpose
