@@ -100,6 +100,7 @@ module Cardano.Wallet
     , normalizeDelegationAddress
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
+    , ErrImportAddress(..)
 
     -- ** Payment
     , selectCoinsExternal
@@ -236,7 +237,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
+    ( ErrImportAddress (..), RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -1143,12 +1144,13 @@ importRandomAddresses
 importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrImportAddrNoSuchWallet
         $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
-    let s = getState cp
-        ours = scanl' (\(_, t) addr -> isOurs addr t) (True, s) addrs
-        s' = snd (last ours)
-    if (not . any fst) ours
-        then throwE ErrImportAddrDoesNotBelong
-        else withExceptT ErrImportAddrNoSuchWallet $
+    let s0 = getState cp
+        ours = scanl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
+    case last ours of
+        Left err ->
+            throwE $ ErrImportAddr err
+        Right s' ->
+            withExceptT ErrImportAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
     db = ctx ^. dbLayer @s @k
@@ -2287,7 +2289,7 @@ data ErrCreateRandomAddress
 
 data ErrImportRandomAddress
     = ErrImportAddrNoSuchWallet ErrNoSuchWallet
-    | ErrImportAddrDoesNotBelong
+    | ErrImportAddr ErrImportAddress
     | ErrImportAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 

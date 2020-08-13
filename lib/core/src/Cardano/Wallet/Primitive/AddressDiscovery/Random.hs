@@ -28,6 +28,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     , DerivationPath
 
     -- ** Low-level API
+    , importAddress
+    , ErrImportAddress(..)
     , addDiscoveredAddress
     , deriveRndStateAddress
     , findUnusedPath
@@ -155,6 +157,25 @@ mkRndState key seed = RndState
     , pendingAddresses = mempty
     , gen = mkStdGen seed
     }
+
+newtype ErrImportAddress
+    = ErrAddrDoesNotBelong Address
+    deriving (Generic, Eq, Show)
+
+-- | Import an address into the state. This fails if the address does not belong
+-- to the wallet. Import an address that is already known is a no-op.
+importAddress
+    :: Address
+    -> RndState n
+    -> Either ErrImportAddress (RndState n)
+importAddress addr s = do
+    case addressToPath addr (hdPassphrase s) of
+        Nothing ->
+            Left (ErrAddrDoesNotBelong addr)
+        Just path | Map.member path (addresses s) ->
+            Right s
+        Just path ->
+            Right (addDiscoveredAddress addr Unused path s)
 
 -- | Updates a 'RndState' by adding an address and its derivation path to the
 -- set of discovered addresses. If the address was in the 'pendingAddresses' set
