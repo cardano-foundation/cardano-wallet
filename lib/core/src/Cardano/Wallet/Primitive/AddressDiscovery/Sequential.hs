@@ -294,17 +294,16 @@ mkAddressPool
 mkAddressPool key g addrs = AddressPool
     { accountPubKey = key
     , gap = g
-    , indexedKeys =
-        nextAddresses @n
+    , indexedKeys = mconcat
+        [ Map.fromList $ zipWith (\(addr, status) ix -> (addr, (ix, status)))
+            (first (unsafePaymentKeyFingerprint @k) <$> addrs)
+            [minBound..maxBound]
+        , nextAddresses @n
             key
             g
             (accountingStyle @c)
             minBound
-          <>
-            Map.fromList (zipWith (\(addr, status) ix -> (addr, (ix, status)))
-                (first (unsafePaymentKeyFingerprint @k) <$> addrs)
-                [minBound..maxBound]
-            )
+        ]
     }
 
 -- When discovering sequential wallets from a snapshot, we have to use

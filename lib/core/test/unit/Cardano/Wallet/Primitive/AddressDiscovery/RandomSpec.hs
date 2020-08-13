@@ -44,13 +44,17 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
+    ( Address (..), AddressState (..) )
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
+import Data.List
+    ( find )
 import Data.Word
     ( Word32 )
 import System.Random
@@ -64,6 +68,7 @@ import Test.QuickCheck
     , Property
     , choose
     , conjoin
+    , counterexample
     , property
     , (.&&.)
     , (===)
@@ -257,6 +262,8 @@ propSpec = describe "Random Address Discovery Properties" $ do
         property prop_changeAddressesBelongToUs
     it "each address discovered by isOurs is in forbiden addresses and different than change address" $ do
         property prop_forbiddenAddreses
+    it "address that are discovered via isOurs are marked as 'Used'" $ do
+        property prop_oursAreUsed
 
 -- | A pair of random address discovery state, and the encryption passphrase for
 -- the RndState root key.
@@ -271,38 +278,30 @@ prop_derivedKeysAreOurs
     -> Rnd
     -> Index 'WholeDomain 'AddressK
     -> Property
-prop_derivedKeysAreOurs
-    (Rnd st@(RndState _ accIx _ _ _) rk pwd) (Rnd st' _ _) addrIx =
+prop_derivedKeysAreOurs rnd@(Rnd st _ _) (Rnd st' _ _) addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    addr = paymentAddress @'Mainnet addrKey
-    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
-    addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
+    addr = mkAddress rnd addrIx
 
 prop_derivedKeysAreOwned
     :: Rnd
     -> Rnd
     -> Index 'WholeDomain 'AddressK
     -> Property
-prop_derivedKeysAreOwned
-    (Rnd st@(RndState _ accIx _ _ _) rk pwd)
-    (Rnd st' rk' pwd')
-    addrIx =
-    isOwned st (rk, pwd) addr === Just (addrKeyPrv, pwd)
+prop_derivedKeysAreOwned (Rnd st rk pwd) (Rnd st' rk' pwd') addrIx =
+    isOwned st (rk, pwd) addr === Just (addrKey, pwd)
     .&&.
     isOwned st' (rk', pwd') addr === Nothing
   where
-    addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
-    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
-    addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
+    addr = paymentAddress @'Mainnet (publicKey addrKey)
+    addrKey = deriveAddressPrivateKey pwd acctKey addrIx
+    acctKey = deriveAccountPrivateKey pwd rk (liftIndex $ accountIndex st)
 
 prop_changeAddressesBelongToUs
     :: Rnd
     -> Rnd
     -> Property
-prop_changeAddressesBelongToUs
-    (Rnd st rk pwd)
-    (Rnd st' _ _) =
+prop_changeAddressesBelongToUs (Rnd st rk pwd) (Rnd st' _ _) =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
     (addr, _) = genChange (rk, pwd) st
@@ -311,7 +310,7 @@ prop_forbiddenAddreses
     :: Rnd
     -> Index 'WholeDomain 'AddressK
     -> Property
-prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
+prop_forbiddenAddreses rnd@(Rnd st rk pwd) addrIx = conjoin
     [ (Set.notMember addr (forbidden st))
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))
@@ -322,13 +321,22 @@ prop_forbiddenAddreses (Rnd st@(RndState _ accIx _ _ _) rk pwd) addrIx = conjoin
   where
     (_ours, isOursSt) = isOurs addr st
     (changeAddr, changeSt) = genChange (rk, pwd) isOursSt
-
+    addr = mkAddress rnd addrIx
     forbidden s =
         Set.fromList $ Map.elems $ (fst <$> addresses s) <> pendingAddresses s
 
-    addr = paymentAddress @'Mainnet (publicKey addrKeyPrv)
-    accKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
-    addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
+prop_oursAreUsed
+    :: Rnd
+    -> Index 'WholeDomain 'AddressK
+    -> Property
+prop_oursAreUsed rnd@(Rnd st _ _) addrIx = do
+    case find ((== addr) . fst) $ knownAddresses $ snd $ isOurs addr st of
+        Nothing ->
+            property False & counterexample "address not is known addresses"
+        Just (_, status) ->
+            status === Used
+  where
+    addr = mkAddress rnd addrIx
 
 {-------------------------------------------------------------------------------
                     Instances
@@ -351,3 +359,14 @@ instance Arbitrary Rnd where
             n <- choose range
             InfiniteList bytes _ <- arbitrary
             return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+mkAddress
+    :: Rnd
+    -> Index 'WholeDomain 'AddressK
+    -> Address
+mkAddress (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
+    let
+        acctKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
+        addrKey = deriveAddressPrivateKey pwd acctKey addrIx
+    in
+        paymentAddress @'Mainnet (publicKey addrKey)

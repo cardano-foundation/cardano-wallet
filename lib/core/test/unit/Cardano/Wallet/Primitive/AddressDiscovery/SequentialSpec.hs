@@ -74,6 +74,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.State.Strict
     ( execState, state )
+import Data.Function
+    ( (&) )
 import Data.List
     ( elemIndex, (\\) )
 import Data.Maybe
@@ -209,6 +211,8 @@ spec = do
             (property prop_atLeastKnownAddresses)
         it "Change is only known after generation" $ do
             (property prop_changeIsOnlyKnownAfterGeneration)
+        it "address that are discovered via isOurs are marked as 'Used'" $ do
+            (property prop_oursAreUsed)
 
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
@@ -478,6 +482,19 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         counterexample
             (show (ShowFmt addr) <> " not in " <> show (ShowFmt <$> addrs))
             (property (addr `elem` addrs))
+
+prop_oursAreUsed
+    :: SeqState 'Mainnet JormungandrKey
+    -> Property
+prop_oursAreUsed s =
+    let
+        (addr, status) = head $ knownAddresses s
+        (True, s') = isOurs addr s
+        (addr', status') = head $ knownAddresses s'
+    in
+        (status' == Used .&&. addr === addr')
+        & label (show status)
+        & counterexample (show (ShowFmt addr') <> ": " <> show status')
 
 {-------------------------------------------------------------------------------
                         Properties for shrinkPool
