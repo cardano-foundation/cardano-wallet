@@ -35,7 +35,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( PaymentAddress, fromHex )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -51,6 +51,8 @@ import Control.Monad
     ( forM_ )
 import Data.Aeson
     ( (.=) )
+import Data.ByteArray.Encoding
+    ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
@@ -144,8 +146,10 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 data TestCase a = TestCase
@@ -823,7 +827,32 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (_, Right wDest1) = r11
 
         --here will come external
+        let blob = "\131\164\NUL\129\130X F\186$\232\GS\239\151\221p\151\ESC\208\226\189\147\ETBm\239cJQ@(\n\SYNg\223W\192\182\254W\NUL\SOH\130\130X9\SOH\197\221\141\232G\205\143\&6\DC3\187\\\144\188(-\251\138<X+\134\139\209\ESCq\183D\248\211\227qg\164L\205c]\DLE\139\DC4\\\ETB0\164\191\204\191I\220\199\136\183\EMLM\136\SUB\NUL\150\155\220\130X9\SOH\USE\149\EOT[\232C\229\236\160\204;\229uz\237l\159\231}\151\182L\DC3\234P\NUL^@\216\227P\161\&9g\r]\195\224\173z\192\ACKF\217n\229\DC3d\a\t\161p\143\152v\SUB\NUL\RS\132\128\STX\SUB\NUL\SOH\250\164\ETX\EM\RSF\161\NUL\129\130X \197\179\DC4x\206\216\194\SO\163\&4\159H3\209-\178\ACK\132\131\169n=w\213\204\217B\EOTl\190\236\162X@\247\171\225\143\175H\v\n:m\149\186=\204\161\246A\212\RS\221\246\156-\230\RS\218TN\203\143\158\140\SOHV6\DC2\v\f\139\207\a\170\229\&5\171\SYN\244\149HN|\137\146\217\219=\133Z\227\157g\169\144\r\246" :: BS.ByteString
+            {--
+                "83a4008182582046ba24e81def97dd70971bd0e2bd93176def634a5140280a1\
+                \667df57c0b6fe5700018282583901c5dd8de847cd8f3613bb5c90bc282dfb8a\
+                \3c582b868bd11b71b744f8d3e37167a44ccd635d108b145c1730a4bfccbf49d\
+                \cc788b7194c4d881a00969bdc825839011f4595045be843e5eca0cc3be5757a\
+                \ed6c9fe77d97b64c13ea50005e40d8e350a139670d5dc3e0ad7ac00646d96ee\
+                \513640709a1708f98761a001e8480021a0001faa403191e46a10081825820c5\
+                \b31478ced8c20ea3349f4833d12db2068483a96e3d77d5ccd942046cbeeca25\
+                \840f7abe18faf480b0a3a6d95ba3dcca1f641d41eddf69c2de61eda544ecb8f\
+                \9e8c015636120b0c8bcf07aae535ab16f495484e7c8992d9db3d855ae39d67a\
+                \9900df6" :: Text--}
+        --let (Right bin) = fromHex $ T.encodeUtf8 blob
+        let baseOk = Base64
+        let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+        let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        r <- request
+            @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
         ------ beginning
+{--
         payload2 <- mkTxPayload ctx wDest1 amt1 fixturePassphrase
 
         (_, ApiFee (Quantity feeMin1) (Quantity feeMax1)) <- unsafeRequest ctx
@@ -840,14 +869,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
+--}
         --- end
         r7 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
         verify r7
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
                 between
-                    ( Quantity (amt - feeMax1 - amt1)
-                    , Quantity (amt - feeMin1 - amt1)
+                    ( Quantity (amt - feeMax - amt1)
+                    , Quantity (amt - feeMin - amt1)
                     )
             ]
 
@@ -862,8 +892,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (amt - feeMax1 - amt1)) r9
->>>>>>> 22b9072ea... add temporary test which part will be replaced with externalTx
+                (`shouldBe` Quantity (amt - feeMax - amt1)) r9
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
@@ -2020,3 +2049,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     oneMillionAda :: Natural
     oneMillionAda = 1_000 * oneThousandAda
+
+    toRawBytes base bs = case convertFromBase base (T.encodeUtf8 bs) of
+        Left err -> error err
+        Right res -> res
