@@ -27,8 +27,10 @@ import Cardano.Wallet.Primitive.Types
     ( NetworkParameters )
 import Cardano.Wallet.Transaction
     ( DelegationAction )
+import Control.Applicative
+    ( (<|>) )
 import Control.Monad.Catch
-    ( Exception (..), MonadCatch (..), throwM )
+    ( Exception (..), MonadCatch (..), finally, throwM )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Aeson
@@ -50,12 +52,14 @@ import Network.HTTP.Client
     , HttpExceptionContent
     , Manager
     , RequestBody (..)
-    , httpLbs
+    , brConsume
     , method
     , parseRequest
     , requestBody
     , requestHeaders
     , responseBody
+    , responseClose
+    , responseOpen
     , responseStatus
     )
 import Network.HTTP.Types.Header
@@ -70,6 +74,7 @@ import Test.Integration.Faucet
     ( Faucet )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
@@ -154,7 +159,9 @@ request
 request ctx (verb, path) reqHeaders body = do
     let (base, manager) = ctx ^. typed @(Text, Manager)
     req <- parseRequest $ T.unpack $ base <> path
-    let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+    let io = do
+            res <- liftIO $ responseOpen (prepareReq req) manager
+            liftIO (handleResponse res `finally` responseClose res)
     catch io handleException
   where
     prepareReq :: HTTP.Request -> HTTP.Request
@@ -176,14 +183,29 @@ request ctx (verb, path) reqHeaders body = do
                 NonJson x -> RequestBodyLBS x
                 Empty -> mempty
 
-    handleResponse res = case responseStatus res of
-        s | s < status500 -> either
-            (\err -> (s, Left $ DecodeFailure $ BL8.pack $ err <> ": " <> show res))
-            ((s,) . Right)
-            (Aeson.eitherDecode $ responseBody res)
+    handleResponse res = do
+        chunks <- brConsume (responseBody res)
+        pure $ case responseStatus res of
+            s | s < status500 ->
+                case decodeOne chunks <|> decodeStream chunks of
+                    Nothing -> decodeFailure s chunks
+                    Just a  -> (s, Right a)
+            -- TODO: decode API error responses into ClientError
+            s -> decodeFailure s chunks
 
-        -- TODO: decode API error responses into ClientError
-        s -> (s, Left $ decodeFailure res)
+    -- NOTE
+    -- The API now returns responses either as one chunk, or, as a list of chunks
+    -- in case it's streaming responses. In practice, a smart client would process
+    -- chunk one by one, but within our integration framework, it is easier to
+    -- consider streams as a list.
+    --
+    -- Therefore, in case where the response is stream, we simply decode each
+    -- chunk as a generic JSON, re-encode them as a list (trimming the '\n'
+    -- separator), and decoding them as a JSON list.
+    decodeOne = Aeson.decodeStrict . mconcat
+    decodeStream chunks = do
+        xs <- traverse (Aeson.decodeStrict @Aeson.Value . B8.init) chunks
+        Aeson.decode (Aeson.encode xs)
 
     handleException = \case
         e@InvalidUrlException{} ->
@@ -191,8 +213,8 @@ request ctx (verb, path) reqHeaders body = do
         HttpExceptionRequest _ e ->
             return (status500, Left (HttpException e))
 
-    decodeFailure :: HTTP.Response ByteString -> RequestException
-    decodeFailure res = DecodeFailure $ responseBody res
+    decodeFailure s chunks =
+        (s, Left $ DecodeFailure $ BL8.fromStrict $ mconcat chunks)
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest

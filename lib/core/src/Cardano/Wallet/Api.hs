@@ -175,6 +175,8 @@ import Servant.API
     , QueryParam
     , ReqBody
     )
+import Servant.API.Stream
+    ( NewlineFraming, SourceIO, Stream )
 import Servant.API.Verbs
     ( DeleteAccepted
     , DeleteNoContent
@@ -185,6 +187,7 @@ import Servant.API.Verbs
     , Put
     , PutAccepted
     , PutNoContent
+    , StdMethod (..)
     )
 
 type ApiV2 n apiPool = "v2" :> Api n apiPool
@@ -275,7 +278,7 @@ type ListAddresses n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddressT n]
+    :> Stream 'GET 200 NewlineFraming JSON (SourceIO (ApiAddressT n))
 
 {-------------------------------------------------------------------------------
                                Coin Selections
@@ -501,7 +504,7 @@ type ListByronAddresses n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddressT n]
+    :> Stream 'GET 200 NewlineFraming JSON (SourceIO (ApiAddressT n))
 
 {-------------------------------------------------------------------------------
                                Coin Selections

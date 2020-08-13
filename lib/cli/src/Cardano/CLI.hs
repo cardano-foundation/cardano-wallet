@@ -156,6 +156,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, Coin (..), Hash, SortOrder, WalletId, WalletName )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -241,10 +243,12 @@ import Options.Applicative.Help.Pretty
     ( string, vsep )
 import Options.Applicative.Types
     ( ReadM (..), readerAsk )
-import Servant.Client
-    ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, runClientM )
 import Servant.Client.Core
     ( ClientError (..), responseBody )
+import Servant.Client.Streaming
+    ( BaseUrl (..), ClientM, Scheme (..), mkClientEnv, withClientM )
+import Servant.Types.SourceT
+    ( runSourceT )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -374,7 +378,7 @@ cmdWalletList mkClient =
     cmd = fmap exec $ WalletListArgs
         <$> portOption
     exec (WalletListArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ listWallets mkClient
+        runClient wPort (pure . Aeson.encodePretty) $ listWallets mkClient
 
 cmdWalletCreate
     :: WalletClient ApiWallet
@@ -421,7 +425,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Random) . T.words
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+            runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
                 RandomWalletFromMnemonic $ ByronWalletPostData
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
@@ -433,7 +437,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Icarus) . T.words
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+            runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
                 SomeIcarusWallet $ ByronWalletPostData
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
@@ -445,7 +449,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Trezor) . T.words
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+            runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
                 SomeTrezorWallet $ ByronWalletPostData
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
@@ -457,7 +461,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Ledger) . T.words
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-            runClient wPort Aeson.encodePretty $ postWallet mkClient $
+            runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
                 SomeLedgerWallet $ ByronWalletPostData
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
@@ -495,7 +499,7 @@ cmdWalletCreateFromMnemonic mkClient =
                     optionalE (mkSomeMnemonic @'[9,12]) . T.words
             fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
-        runClient wPort Aeson.encodePretty $ postWallet mkClient $
+        runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
             WalletOrAccountPostData $ Left $ WalletPostData
                 (Just $ ApiT wGap)
                 (ApiMnemonicT wSeed)
@@ -524,7 +528,7 @@ cmdWalletCreateFromPublicKey mkClient =
         <*> poolGapOption
         <*> accPubKeyArgument
     exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
-        runClient wPort Aeson.encodePretty $ postWallet mkClient $
+        runClient wPort (pure . Aeson.encodePretty) $ postWallet mkClient $
             WalletOrAccountPostData $ Right $ AccountPostData
                 (ApiT wName)
                 wAccPubKey
@@ -548,7 +552,7 @@ cmdWalletGet mkClient =
         <$> portOption
         <*> walletIdArgument
     exec (WalletGetArgs wPort wId) = do
-        runClient wPort Aeson.encodePretty $ getWallet mkClient $
+        runClient wPort (pure . Aeson.encodePretty) $ getWallet mkClient $
             ApiT wId
 
 cmdWalletUpdate
@@ -583,7 +587,7 @@ cmdWalletUpdateName mkClient =
         <*> walletIdArgument
         <*> walletNameArgument
     exec (WalletUpdateNameArgs wPort wId wName) = do
-        runClient wPort Aeson.encodePretty $ putWallet mkClient
+        runClient wPort (pure . Aeson.encodePretty) $ putWallet mkClient
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
 
@@ -605,8 +609,7 @@ cmdWalletUpdatePassphrase mkClient =
         <$> portOption
         <*> walletIdArgument
     exec (WalletUpdatePassphraseArgs wPort wId) = do
-        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
-        case res of
+        sendRequest wPort (getWallet mkClient (ApiT wId)) $ \case
             Right _ -> do
                 wPassphraseOld <- getPassphrase
                     "Please enter your current passphrase: "
@@ -617,8 +620,8 @@ cmdWalletUpdatePassphrase mkClient =
                         WalletPutPassphraseData
                             (ApiT wPassphraseOld)
                             (ApiT wPassphraseNew)
-            Left _ ->
-                handleResponse Aeson.encodePretty res
+            res@(Left _) ->
+                handleResponse (pure . Aeson.encodePretty) res
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
@@ -637,7 +640,7 @@ cmdWalletDelete mkClient =
         <$> portOption
         <*> walletIdArgument
     exec (WalletDeleteArgs wPort wId) = do
-        runClient wPort (const "") $ deleteWallet mkClient $
+        runClient wPort (pure . const "") $ deleteWallet mkClient $
             ApiT wId
 
 cmdWalletGetUtxoStatistics
@@ -652,13 +655,12 @@ cmdWalletGetUtxoStatistics mkClient =
         <$> portOption
         <*> walletIdArgument
     exec (WalletGetArgs wPort wId) = do
-        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
-        case res of
+        sendRequest wPort (getWallet mkClient (ApiT wId)) $ \case
             Right _ -> do
-                runClient wPort Aeson.encodePretty $
+                runClient wPort (pure . Aeson.encodePretty) $
                     getWalletUtxoStatistics mkClient (ApiT wId)
-            Left _ ->
-                handleResponse Aeson.encodePretty res
+            res@(Left _) ->
+                handleResponse (pure . Aeson.encodePretty) res
 
 {-------------------------------------------------------------------------------
                             Commands - 'transaction'
@@ -705,11 +707,10 @@ cmdTransactionCreate mkTxClient mkWalletClient =
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
-        res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
-        case res of
+        sendRequest wPort (getWallet mkWalletClient (ApiT wId)) $ \case
             Right _ -> do
                 wPwd <- getPassphrase @"raw" "Please enter your passphrase: "
-                runClient wPort Aeson.encodePretty $ postTransaction
+                runClient wPort (pure . Aeson.encodePretty) $ postTransaction
                     mkTxClient
                     (ApiT wId)
                     (Aeson.object
@@ -717,8 +718,8 @@ cmdTransactionCreate mkTxClient mkWalletClient =
                         , "passphrase" .= ApiT wPwd
                         ]
                     )
-            Left _ ->
-                handleResponse Aeson.encodePretty res
+            res@(Left _) ->
+                handleResponse (pure . Aeson.encodePretty) res
 
 cmdTransactionFees
     :: ToJSON wallet
@@ -736,15 +737,14 @@ cmdTransactionFees mkTxClient mkWalletClient =
     exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
-        res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
-        case res of
+        sendRequest wPort (getWallet mkWalletClient (ApiT wId)) $ \case
             Right _ -> do
-                runClient wPort Aeson.encodePretty $ postTransactionFee
+                runClient wPort (pure . Aeson.encodePretty) $ postTransactionFee
                     mkTxClient
                     (ApiT wId)
                     (Aeson.object [ "payments" .= wPayments ])
-            Left _ ->
-                handleResponse Aeson.encodePretty res
+            res@(Left _) ->
+                handleResponse (pure . Aeson.encodePretty) res
 
 -- | Arguments for 'transaction list' command.
 data TransactionListArgs = TransactionListArgs
@@ -769,7 +769,7 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
     exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
-        runClient wPort Aeson.encodePretty $ listTransactions
+        runClient wPort (pure . Aeson.encodePretty) $ listTransactions
             mkTxClient
             (ApiT wId)
             mTimeRangeStart
@@ -793,7 +793,7 @@ cmdTransactionSubmit mkTxClient =
         <$> portOption
         <*> transactionSubmitPayloadArgument
     exec (TransactionSubmitArgs wPort wPayload) = do
-        runClient wPort Aeson.encodePretty $
+        runClient wPort (pure . Aeson.encodePretty) $
             postExternalTransaction mkTxClient wPayload
 
 -- | Arguments for 'transaction forget' command
@@ -838,7 +838,7 @@ cmdTransactionGet mkClient =
         <*> walletIdArgument
         <*> transactionIdArgument
     exec (TransactionGetArgs wPort wId txId) = do
-        runClient wPort Aeson.encodePretty $ getTransaction mkClient
+        runClient wPort (pure . Aeson.encodePretty) $ getTransaction mkClient
             (ApiT wId)
             (ApiTxId $ ApiT $ getTxId txId)
 
@@ -877,7 +877,8 @@ cmdAddressList mkClient =
         <*> optional addressStateOption
         <*> walletIdArgument
     exec (AddressListArgs wPort wState wId) = do
-        runClient wPort Aeson.encodePretty $ listAddresses mkClient
+        let runStream = fmap Aeson.encodePretty . unsafeRunExceptT . runSourceT
+        runClient wPort runStream $ listAddresses mkClient
             (ApiT wId)
             (ApiT <$> wState)
 
@@ -903,7 +904,7 @@ cmdAddressCreate mkClient =
         <*> walletIdArgument
     exec (AddressCreateArgs wPort wIx wId) = do
         pwd <- getPassphrase "Please enter your passphrase: "
-        runClient wPort Aeson.encodePretty $ postRandomAddress mkClient
+        runClient wPort (pure . Aeson.encodePretty) $ postRandomAddress mkClient
             (ApiT wId)
             (ApiPostRandomAddressData (ApiT pwd) (ApiT <$> wIx))
 
@@ -927,7 +928,7 @@ cmdAddressImport mkClient =
         <*> walletIdArgument
         <*> addressIdArgument
     exec (AddressImportArgs wPort wId addr) = do
-        runClient wPort (const "") $ putRandomAddress mkClient (ApiT wId) addr
+        runClient wPort (pure . const "") $ putRandomAddress mkClient (ApiT wId) addr
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
@@ -974,7 +975,7 @@ cmdStakePoolList mkClient =
     cmd = fmap exec $ StakePoolListArgs
         <$> portOption <*> stakeOption
     exec (StakePoolListArgs wPort stake) = do
-        runClient wPort Aeson.encodePretty $ listPools mkClient (ApiT <$> stake)
+        runClient wPort (pure . Aeson.encodePretty) $ listPools mkClient (ApiT <$> stake)
 
 {-------------------------------------------------------------------------------
                             Commands - 'network'
@@ -1007,7 +1008,7 @@ cmdNetworkInformation mkClient =
     cmd = fmap exec $ NetworkInformationArgs
         <$> portOption
     exec (NetworkInformationArgs wPort) = do
-        runClient wPort Aeson.encodePretty (networkInformation mkClient)
+        runClient wPort (pure . Aeson.encodePretty) (networkInformation mkClient)
 
 -- | Arguments for 'network parameters' command
 newtype NetworkParametersArgs = NetworkParametersArgs
@@ -1024,7 +1025,7 @@ cmdNetworkParameters mkClient =
     cmd = fmap exec $ NetworkParametersArgs
         <$> portOption
     exec (NetworkParametersArgs wPort) = do
-        runClient wPort Aeson.encodePretty $ networkParameters mkClient
+        runClient wPort (pure . Aeson.encodePretty) $ networkParameters mkClient
 
 -- | Arguments for 'network clock' command
 data NetworkClockArgs = NetworkClockArgs
@@ -1043,7 +1044,7 @@ cmdNetworkClock mkClient =
         <$> portOption
         <*> forceNtpCheckOption
     exec (NetworkClockArgs wPort forceNtpCheck) = do
-        runClient wPort Aeson.encodePretty $ networkClock mkClient forceNtpCheck
+        runClient wPort (pure . Aeson.encodePretty) $ networkClock mkClient forceNtpCheck
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
@@ -1368,34 +1369,34 @@ fromTextS = left getTextDecodingError . fromText . T.pack
 runClient
     :: forall a. ()
     => Port "Wallet"
-    -> (a -> BL.ByteString)
+    -> (a -> IO BL.ByteString)
     -> ClientM a
     -> IO ()
 runClient p encode cmd = do
-    res <- sendRequest p cmd
-    handleResponse encode res
+    sendRequest p cmd (handleResponse encode)
 
 sendRequest
     :: forall a. ()
     => Port "Wallet"
     -> ClientM a
-    -> IO (Either ClientError a)
-sendRequest (Port p) cmd = do
+    -> (Either ClientError a -> IO ())
+    -> IO ()
+sendRequest (Port p) cmd handle = do
     manager <- newManager $ defaultManagerSettings
         { managerResponseTimeout = responseTimeoutNone }
     let env = mkClientEnv manager (BaseUrl Http "localhost" p "")
-    runClientM cmd env
+    withClientM cmd env handle
 
 handleResponse
     :: forall a. ()
-    => (a -> BL.ByteString)
+    => (a -> IO BL.ByteString)
     -> Either ClientError a
     -> IO ()
 handleResponse encode res = do
     case res of
         Right a -> do
             TIO.hPutStrLn stderr "Ok."
-            BL8.putStrLn (encode a)
+            BL8.putStrLn =<< encode a
         Left e -> do
             let msg = case e of
                     FailureResponse _ r -> fromMaybe

@@ -115,6 +115,8 @@ import Servant
     ( Accept (..), Application, ReqBody, Server, StdMethod (..), Verb, serve )
 import Servant.API
     ( (:<|>) (..), (:>), Capture )
+import Servant.API.Stream
+    ( Stream )
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
@@ -426,6 +428,34 @@ instance
         req { requestMethod = reflectMethod (Proxy @m) }
 
     type MkHeaderRequest (Verb m s '[ct] a) = Header "Accept" ct -> Request
+    gEveryHeader _ req (Header h) =
+        req { requestMethod = reflectMethod $ Proxy @m
+            , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]
+            }
+
+instance
+    ( ReflectMethod m
+    , Accept ct
+    ) => GEveryEndpoints (Stream (m :: StdMethod) s f ct a)
+  where
+    gEveryEndpoint _ =
+        [ defaultRequest
+            { requestMethod = reflectMethod $ Proxy @m
+            , requestHeaders =
+                [ (hAccept, renderHeader $ contentType $ Proxy @ct)
+                ]
+            }
+        ]
+
+    type MkPathRequest (Stream m s f ct a) = Request
+    gEveryPathParam _ req =
+        req { requestMethod = reflectMethod (Proxy @m) }
+
+    type MkBodyRequest (Stream m s f ct a) = Request
+    gEveryBodyParam _ req =
+        req { requestMethod = reflectMethod (Proxy @m) }
+
+    type MkHeaderRequest (Stream m s f ct a) = Header "Accept" ct -> Request
     gEveryHeader _ req (Header h) =
         req { requestMethod = reflectMethod $ Proxy @m
             , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]

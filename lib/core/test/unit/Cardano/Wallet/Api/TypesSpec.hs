@@ -222,6 +222,8 @@ import Servant
     , StdMethod (..)
     , Verb
     )
+import Servant.API.Stream
+    ( Stream )
 import Servant.API.Verbs
     ( NoContentVerb )
 import Servant.Swagger.Test
@@ -1619,6 +1621,9 @@ instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|>
 -- | Extract the path of a given endpoint, in a format that is swagger-friendly
 class HasPath api where
     getPath :: Proxy api -> (StdMethod, String)
+
+instance (Method m) => HasPath (Stream m s f ct a) where
+    getPath _ = (method (Proxy @m), "")
 
 instance (Method m) => HasPath (Verb m s ct a) where
     getPath _ = (method (Proxy @m), "")

@@ -43,6 +43,7 @@ library
     , http-client
     , iohk-monitoring
     , network-uri
+    , servant
     , servant-client
     , servant-client-core
     , text

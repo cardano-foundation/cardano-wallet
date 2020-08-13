@@ -402,6 +402,8 @@ import Servant
     , err503
     , serve
     )
+import Servant.API.Stream
+    ( SourceIO, toSourceIO )
 import Servant.Server
     ( Handler (..), ServerError (..), runHandler )
 import System.IO.Error
@@ -1185,11 +1187,11 @@ listAddresses
     -> (s -> Address -> Maybe Address)
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> Handler [ApiAddress n]
+    -> Handler (SourceIO (ApiAddress n))
 listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listAddresses @_ @s @k wrk wid normalize
-    return $ coerceAddress <$> filter filterCondition addrs
+    return $ toSourceIO $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
     filterCondition = case stateFilter of

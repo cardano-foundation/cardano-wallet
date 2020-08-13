@@ -125,6 +125,7 @@ import Servant.API
     , QueryParam
     , ReflectMethod (..)
     , ReqBody
+    , Stream
     , Verb
     )
 import Servant.Links
@@ -568,6 +569,9 @@ instance (ReflectMethod m) => HasVerb (NoContentVerb m) where
     method _ = reflectMethod (Proxy @m)
 
 instance (ReflectMethod m) => HasVerb (Verb m s ct a) where
+    method _ = reflectMethod (Proxy @m)
+
+instance (ReflectMethod m) => HasVerb (Stream m s f ct a) where
     method _ = reflectMethod (Proxy @m)
 
 instance HasVerb sub => HasVerb ((path :: Symbol) :> sub) where

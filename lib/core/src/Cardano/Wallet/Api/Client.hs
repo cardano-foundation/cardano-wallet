@@ -99,7 +99,9 @@ import Data.Text
     ( Text )
 import Servant
     ( (:<|>) (..), (:>), NoContent )
-import Servant.Client
+import Servant.API.Stream
+    ( SourceIO )
+import Servant.Client.Streaming
     ( ClientM, client )
 
 import qualified Data.Aeson as Aeson
@@ -167,7 +169,7 @@ data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
-        -> ClientM [Aeson.Value]
+        -> ClientM (SourceIO Aeson.Value)
     , postRandomAddress
         :: ApiT WalletId
         -> ApiPostRandomAddressData
