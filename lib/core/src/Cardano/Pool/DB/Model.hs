@@ -51,6 +51,7 @@ module Cardano.Pool.DB.Model
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
+    , mRemovePools
     ) where
 
 import Prelude
@@ -83,7 +84,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -414,3 +415,21 @@ mRollbackTo timeInterpreter point PoolDatabase { pools
     discardBy get point' v
         | point' <= get point = Just v
         | otherwise = Nothing
+
+mRemovePools :: [PoolId] -> PoolDatabase -> (Either PoolErr (), PoolDatabase)
+mRemovePools poolsToRemove db =
+    (pure (), dbFiltered)
+  where
+    dbFiltered = db
+        & over #distributions
+            (Map.map $ L.filter $ \(p, _) -> retain p)
+        & over #pools
+            (Map.filterWithKey $ \p _ -> retain p)
+        & over #owners
+            (Map.filterWithKey $ \p _ -> retain p)
+        & over #registrations
+            (Map.filterWithKey $ \(_, p) _ -> retain p)
+        & over #retirements
+            (Map.filterWithKey $ \(_, p) _ -> retain p)
+    retain p = p `Set.notMember` poolsToRemoveSet
+    poolsToRemoveSet = Set.fromList poolsToRemove

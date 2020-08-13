@@ -40,6 +40,7 @@ import Cardano.Pool.DB.Model
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
+    , mRemovePools
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -128,7 +129,8 @@ newDBLayer timeInterpreter = do
         , rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo timeInterpreter
 
-        , removePools = \_pools -> pure ()
+        , removePools =
+            void . alterPoolDB (const Nothing) db . mRemovePools
 
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
