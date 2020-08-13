@@ -200,6 +200,7 @@
             (hsPkgs."persistent-sqlite" or (errorHandler.buildDepError "persistent-sqlite"))
             (hsPkgs."random" or (errorHandler.buildDepError "random"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             ];

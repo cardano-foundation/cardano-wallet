@@ -28,6 +28,7 @@
 module Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( -- * Types
       ByronKey(..)
+    , DerivationPath
 
       -- * Generation
     , unsafeGenerateKeyFromSeed
