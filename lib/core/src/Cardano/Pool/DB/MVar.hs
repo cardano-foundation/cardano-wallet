@@ -128,6 +128,8 @@ newDBLayer timeInterpreter = do
         , rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo timeInterpreter
 
+        , removePools = \_pools -> pure ()
+
         , cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
 

@@ -198,6 +198,11 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
+    , removePools
+        :: [PoolId]
+        -> stm ()
+        -- ^ Remove all data relating to the specified pools.
+
     , cleanDB
         :: stm ()
         -- ^ Clean a database
