@@ -372,6 +372,7 @@ data DBLog
     | MsgWaitingForDatabase Text (Maybe Int)
     | MsgRemovingInUse Text Int
     | MsgRemoving Text
+    | MsgRemovingDatabaseEntity Text
     | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
@@ -448,6 +449,7 @@ instance HasSeverityAnnotation DBLog where
         MsgWaitingForDatabase _ _ -> Info
         MsgRemovingInUse _ _ -> Notice
         MsgRemoving _ -> Info
+        MsgRemovingDatabaseEntity _ -> Notice
         MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
@@ -484,6 +486,8 @@ instance ToText DBLog where
             "Attempting to remove the database anyway."
         MsgRemoving wid ->
             "Removing wallet's database. Wallet id was " <> wid
+        MsgRemovingDatabaseEntity msg ->
+            "Removing the following entity from the database: " <> msg
         MsgRemovingDatabaseFile wid msg ->
             "Removing " <> wid <> ": " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
