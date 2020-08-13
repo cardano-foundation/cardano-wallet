@@ -381,7 +381,12 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
-        , removePools = \_pools -> pure ()
+        , removePools = mapM_ $ \pool -> do
+            deleteWhere [ PoolProductionPoolId ==. pool ]
+            deleteWhere [ PoolOwnerPoolId ==. pool ]
+            deleteWhere [ PoolRegistrationPoolId ==. pool ]
+            deleteWhere [ PoolRetirementPoolId ==. pool ]
+            deleteWhere [ StakeDistributionPoolId ==. pool ]
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
