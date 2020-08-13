@@ -194,7 +194,7 @@ instance Arbitrary PoolCertificate where
         , Retirement
             <$> arbitrary
         ]
-    shrink = const []
+    shrink = genericShrink
 
 -- | Represents a valid sequence of registration and retirement certificates
 --   for a single pool.
