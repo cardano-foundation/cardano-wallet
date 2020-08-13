@@ -22,7 +22,7 @@ Use the Nix build if:
    Hydra cache, without needing to build it yourself.
 
 Follow the instructions in
-[iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md)
+[iohk-nix/docs/nix.md](https://github.com/input-output-hk/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix)
 to install Nix and set up the IOHK binary cache.
 
 To build the wallet for your current platform:
