@@ -87,6 +87,8 @@ import Data.String.QQ
     ( s )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -382,6 +384,10 @@ newDBLayer trace fp timeInterpreter = do
             -- TODO: remove dangling metadata no longer attached to a pool
 
         , removePools = mapM_ $ \pool -> do
+            liftIO
+                $ traceWith trace
+                $ MsgRemovingDatabaseEntity
+                $ T.unwords [ "pool", toText pool ]
             deleteWhere [ PoolProductionPoolId ==. pool ]
             deleteWhere [ PoolOwnerPoolId ==. pool ]
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
