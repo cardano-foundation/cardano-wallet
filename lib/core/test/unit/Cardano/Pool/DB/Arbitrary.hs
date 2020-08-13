@@ -160,8 +160,9 @@ instance Arbitrary PoolOwner where
 
 instance Arbitrary PoolRegistrationCertificate where
     shrink (PoolRegistrationCertificate p xs m c pl md) =
-        (\xs' -> PoolRegistrationCertificate p xs' m c pl md)
-            <$> shrinkList (const []) xs
+        (\p' xs' -> PoolRegistrationCertificate p' xs' m c pl md)
+            <$> shrink p
+            <*> shrinkList (const []) xs
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> scale (`mod` 8) (listOf arbitrary)
