@@ -45,7 +45,6 @@ import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( Cursor
-    , ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , GetStakeDistribution
@@ -81,7 +80,7 @@ import Control.Concurrent.Chan
 import Control.Exception
     ( IOException, throwIO )
 import Control.Monad
-    ( forever, join, unless, void, (>=>) )
+    ( forever, unless, void, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -95,6 +94,7 @@ import Control.Monad.Class.MonadSTM
     , TVar
     , atomically
     , isEmptyTMVar
+    , modifyTVar'
     , newEmptyTMVar
     , newTMVarM
     , newTQueue
@@ -136,6 +136,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -147,7 +149,7 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), listF', mapF, pretty )
+    ( Buildable (..), fmt, listF, listF', mapF, pretty )
 import GHC.Stack
     ( HasCallStack, prettyCallStack )
 import Network.Mux
@@ -291,17 +293,21 @@ withNetworkLayer tr np addrInfo versionData action = do
     -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
 
-    accountBalancesVar <- atomically $ newTVar Map.empty
     queryRewardQ <- connectDelegationRewardsClient handlers
 
     (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ) <-
-        connectNodeTipClient handlers accountBalancesVar queryRewardQ
+        connectNodeTipClient handlers
 
-
+    (rewardsObserver,refreshRewards) <- newRewardBalanceFetcher tr gp queryRewardQ
 
     nodeTipVar <- atomically $ newTVar TipGenesis
-    let updateNodeTip = readChan nodeTipChan >>= (atomically . writeTVar nodeTipVar)
+    let updateNodeTip = do
+            tip <- readChan nodeTipChan
+            atomically $ writeTVar nodeTipVar tip
+            refreshRewards tip
+
     link =<< async (forever updateNodeTip)
+
 
     action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
@@ -313,26 +319,16 @@ withNetworkLayer tr np addrInfo versionData action = do
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postSealedTx localTxSubmissionQ
             , stakeDistribution = _stakeDistribution queryRewardQ
-            , getAccountBalance = getCachedAccountBalances accountBalancesVar --_getAccountBalance nodeTipVar queryRewardQ
+            , getAccountBalance = \k -> liftIO $ do
+                -- TODO(#2042): Make wallets call manually, with matching
+                -- stopObserving.
+                startObserving rewardsObserver k
+                coinToQuantity . fromMaybe (W.Coin 0)
+                    <$> query rewardsObserver k
             , timeInterpreter = _timeInterpreterQuery interpreterVar
             }
   where
-    -- | Sending multiple getAccountBalance queries at the same time is slow, so
-    -- we cache/batch the requests.
-    getCachedAccountBalances
-        :: TVar IO (Map W.ChimericAccount (Maybe W.Coin))
-        -> W.ChimericAccount
-        -> ExceptT ErrGetAccountBalance IO (Quantity "lovelace" Word64)
-    getCachedAccountBalances var acc = do
-        liftIO $ atomically $ do
-            cached <- readTVar var
-            let (res, cached') = case Map.lookup acc cached of
-                  Nothing -> (Nothing, Map.insert acc Nothing cached)
-                  Just balance -> (Just balance, cached)
-            writeTVar var cached'
-            pure $ coinToQuantity $ fromMaybe (W.Coin 0) $ join res
-      where
-        coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
+    coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
 
     gp@W.GenesisParameters
         { getGenesisBlockHash
@@ -349,8 +345,6 @@ withNetworkLayer tr np addrInfo versionData action = do
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
-        -> TVar IO (Map W.ChimericAccount (Maybe W.Coin))
-        -> TQueue IO (LocalStateQueryCmd (CardanoBlock sc) IO)
         -> IO ( Chan (Tip (CardanoBlock TPraosStandardCrypto))
               , TVar IO W.ProtocolParameters
               , TMVar IO (CardanoInterpreter TPraosStandardCrypto)
@@ -359,47 +353,18 @@ withNetworkLayer tr np addrInfo versionData action = do
                   (CardanoApplyTxErr TPraosStandardCrypto)
                   IO)
               )
-    connectNodeTipClient handlers rewardsVar queryRewardQ = do
+    connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
         protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
         interpreterVar <- atomically newEmptyTMVar
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
-            (\tip -> writeChan nodeTipChan tip >> fetchRewards tip)
+            (writeChan nodeTipChan)
             (atomically . writeTVar protocolParamsVar)
             (atomically . repsertTMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
         pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
-      where
-        fetchRewards tip = do
-            --let bh = fromTip' gp tip
-            --liftIO $ traceWith tr $ MsgGetRewardAccountBalance bh acct
-            -- TODO: We can easily avoid race condition
-            accounts <- fmap Map.keys . atomically $ readTVar rewardsVar
-            let creds = Set.fromList $ map toStakeCredential accounts
-            let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
-            let cmd = CmdQueryLocalState (getTipPoint tip) q
-
-            res <- liftIO . timeQryAndLog "getAccountBalance" tr $
-                queryRewardQ `send` cmd
-            case res of
-                Right (Right (deleg, rewardAccounts)) -> do
-                    liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
-                    atomically
-                        $ writeTVar rewardsVar
-                        $ Map.mapKeys fromStakeCredential
-                        $ Map.map (Just . fromShelleyCoin) rewardAccounts
-
-                Right (Left _) -> pure minBound -- wrong era
-                Left acqFail -> do
-                    -- NOTE: this could possibly happen in rare circumstances when
-                    -- the chain is switched and the local state query is made
-                    -- before the node tip variable is updated.
-                    liftIO $ traceWith tr $
-                        MsgLocalStateQueryError DelegationRewardsClient $
-                        show acqFail
-                    pure ()
 
     connectDelegationRewardsClient
         :: HasCallStack
@@ -796,6 +761,92 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
         NodeToClientV_3
 
 
+-- Reward Account Balances
+
+-- | Monitors values for keys, and allows clients to @query@ them.
+--
+-- Designed to be used for observing reward balances, where we want to query the
+-- balances of /all/ the wallets' accounts on tip change, and allow wallet
+-- workers to @query@ the value.
+--
+-- One could imagine replacing @query@ with a push-based approach.
+data Observer m key value = Observer
+    { startObserving :: key -> m ()
+    , stopObserving :: key -> m ()
+    , query :: key -> m (Maybe value)
+    }
+
+newRewardBalanceFetcher
+    :: forall sc. Tracer IO (NetworkLayerLog sc)
+    -> W.GenesisParameters
+    -- ^ Used to convert tips for logging
+    -> TQueue IO (LocalStateQueryCmd (CardanoBlock sc) IO)
+    -> IO ( Observer IO W.ChimericAccount W.Coin
+          , Tip (CardanoBlock sc) -> IO ()
+            -- Call on tip-change to refresh
+          )
+newRewardBalanceFetcher tr gp queryRewardQ = do
+    cacheVar <- atomically $ newTVar Map.empty
+    toBeObservedVar <- atomically $ newTVar Set.empty
+    return (observer cacheVar toBeObservedVar, refresh cacheVar toBeObservedVar)
+  where
+    observer
+        :: TVar IO (Map W.ChimericAccount W.Coin)
+        -> TVar IO (Set W.ChimericAccount)
+        -> Observer IO W.ChimericAccount W.Coin
+    observer cacheVar toBeObservedVar =
+        Observer
+            { startObserving = \k ->
+                atomically $ do
+                    modifyTVar' toBeObservedVar (Set.insert k)
+            , stopObserving = \k ->
+                atomically $ do
+                    modifyTVar' toBeObservedVar (Set.delete k)
+                    modifyTVar' cacheVar (Map.delete k)
+            , query = \k -> do
+                m <- atomically (readTVar cacheVar)
+                return $ Map.lookup k m
+            }
+
+    refresh
+        :: TVar IO (Map W.ChimericAccount W.Coin)
+        -> TVar IO (Set W.ChimericAccount)
+        -> Tip (CardanoBlock sc)
+        -> IO ()
+    refresh cacheVar toBeObservedVar tip = do
+        accounts <- atomically $ do
+            old <- Set.fromList . Map.keys <$> readTVar cacheVar
+            new <- readTVar toBeObservedVar
+            writeTVar toBeObservedVar Set.empty
+            return $ old <> new
+        liftIO $ traceWith tr $
+            MsgGetRewardAccountBalance (fromTip' gp tip) accounts
+        let creds = Set.map toStakeCredential accounts
+        let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+        let cmd = CmdQueryLocalState (getTipPoint tip) q
+
+        res <- liftIO . timeQryAndLog "getAccountBalance" tr $
+            queryRewardQ `send` cmd
+        case res of
+            Right (Right (deleg, rewardAccounts)) -> do
+                liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
+                atomically
+                    $ writeTVar cacheVar
+                    $ Map.mapKeys fromStakeCredential
+                    $ Map.map fromShelleyCoin rewardAccounts
+
+            Right (Left _) -> pure minBound -- wrong era
+            Left acqFail -> do
+                -- NOTE: this could possibly happen in rare circumstances when
+                -- the chain is switched and the local state query is made
+                -- before the node tip variable is updated.
+                liftIO $ traceWith tr $
+                    MsgLocalStateQueryError DelegationRewardsClient $
+                    show acqFail
+                pure ()
+
+
+
 -- | Return a function to run an action only if its single parameter has changed
 -- since the previous time it was called.
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
@@ -963,7 +1014,10 @@ data NetworkLayerLog sc where
     MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog sc
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog sc
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras sc) -> NetworkLayerLog sc
-    MsgGetRewardAccountBalance :: W.BlockHeader -> W.ChimericAccount -> NetworkLayerLog sc
+    MsgGetRewardAccountBalance
+        :: W.BlockHeader
+        -> Set W.ChimericAccount
+        -> NetworkLayerLog sc
     MsgAccountDelegationAndRewards
         :: (Map (SL.Credential 'SL.Staking sc) (SL.KeyHash 'SL.StakePool sc))
         -> SL.RewardAccounts sc
@@ -1038,11 +1092,11 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
         MsgLocalStateQueryEraMismatch mismatch ->
             "Local state query for the wrong era - this is fine. " <>
             T.pack (show mismatch)
-        MsgGetRewardAccountBalance bh acct -> T.unwords
+        MsgGetRewardAccountBalance tip accts -> T.unwords
             [ "Querying the reward account balance for"
-            , pretty acct
+            , fmt $ listF accts
             , "at"
-            , pretty bh
+            , pretty tip
             ]
         MsgAccountDelegationAndRewards delegations rewards -> T.unlines
             [ "  delegations = " <> T.pack (show delegations)
