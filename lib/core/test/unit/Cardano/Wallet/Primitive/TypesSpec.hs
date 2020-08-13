@@ -65,6 +65,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , Hash (..)
     , HistogramBar (..)
+    , PoolId (..)
     , PoolOwner (..)
     , Range (..)
     , RangeBound (..)
@@ -218,6 +219,7 @@ spec = do
         textRoundtrip $ Proxy @(Hash "Block")
         textRoundtrip $ Proxy @(Hash "BlockHeader")
         textRoundtrip $ Proxy @SyncTolerance
+        textRoundtrip $ Proxy @PoolId
         textRoundtrip $ Proxy @PoolOwner
 
         -- Extra hand-crafted tests
@@ -1356,6 +1358,9 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
+
+instance Arbitrary PoolId where
+    arbitrary = PoolId . BS.pack <$> vector 32
 
 instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . BS.pack <$> vector 32
