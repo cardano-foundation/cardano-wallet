@@ -48,6 +48,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotNo (..)
+    , getPoolRetirementCertificate
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -191,6 +192,8 @@ properties = do
             (property . prop_readSystemSeedIdempotent)
         it "putPoolRegistration . listRegisteredPools yield pools"
             (property . prop_listRegisteredPools)
+        it "prop_listRetiredPools_multiplePools_multipleCerts"
+            (property . prop_listRetiredPools_multiplePools_multipleCerts)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
@@ -865,6 +868,90 @@ prop_listRegisteredPools DBLayer {..} entries =
             [ "Read from DB: " <> show pools
             ]
         assert (pools == (view #poolId <$> reverse entries))
+
+-- | Test that `listRetiredPools` returns the correct set of retirements for
+--   any given epoch.
+--
+-- This property tests `listRetiredPools` in conditions where:
+--
+--   - there are multiple pools;
+--   - there are multiple registrations and retirements for each pool;
+--   - certificates affecting different pools are interleaved in time.
+--
+prop_listRetiredPools_multiplePools_multipleCerts
+    :: DBLayer IO
+    -> [SinglePoolCertificateSequence]
+    -> Property
+prop_listRetiredPools_multiplePools_multipleCerts
+    DBLayer {..} certificateSequences = checkCoverage
+        -- Check the number of certificates:
+        $ cover 2 (certificateCount == 0)
+            "number of certificates: = 0"
+        $ cover 2 (certificateCount > 0 && certificateCount <= 10)
+            "number of certificates: > 0 && <= 10"
+        $ cover 2 (certificateCount > 10 && certificateCount <= 100)
+            "number of certificates: > 10 && <= 100"
+        $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
+            "number of certificates: > 100 && <= 1000"
+        -- Check the number of pools:
+        $ cover 2 (poolCount == 0)
+            "number of pools: = 0"
+        $ cover 2 (poolCount > 0 && poolCount <= 10)
+            "number of pools: > 0 && <= 10"
+        $ cover 2 (poolCount > 10 && poolCount <= 100)
+            "number of pools: > 10 && <= 100"
+        $ monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $ do
+            mapM_ (uncurry putCertificate) allPublicationsInterleaved
+        lifeCycleStatuses <- run $ atomically $ do
+            mapM readPoolLifeCycleStatus allPoolIds
+        let poolsMarkedToRetire = catMaybes $
+                getPoolRetirementCertificate <$> lifeCycleStatuses
+        let epochsToTest =
+                EpochNo minBound :
+                EpochNo maxBound :
+                L.nub (view #retiredIn <$> poolsMarkedToRetire)
+        forM_ epochsToTest $ \currentEpoch -> do
+            let retiredPoolsExpected = filter
+                    ((<= currentEpoch) . view #retiredIn)
+                    (poolsMarkedToRetire)
+            retiredPoolsActual <-
+                run $ atomically $ listRetiredPools currentEpoch
+            assert $ (==)
+                (Set.fromList retiredPoolsActual)
+                (Set.fromList retiredPoolsExpected)
+
+    certificateCount = length allCertificatesInterleaved
+    poolCount = length certificateSequences
+
+    allCertificatesInterleaved :: [PoolCertificate]
+    allCertificatesInterleaved =
+        interleave (getSinglePoolCertificateSequence <$> certificateSequences)
+
+    allPublicationsInterleaved
+        :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublicationsInterleaved =
+        publicationTimes `zip` allCertificatesInterleaved
+
+    allPoolIds :: [PoolId]
+    allPoolIds = getSinglePoolId <$> certificateSequences
+
+    publicationTimes :: [CertificatePublicationTime]
+    publicationTimes =
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    putCertificate cpt = \case
+        Registration cert ->
+            putPoolRegistration cpt cert
+        Retirement cert ->
+            putPoolRetirement cpt cert
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
