@@ -50,6 +50,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotNo (..)
+    , getPoolCertificatePoolId
     , getPoolRetirementCertificate
     )
 import Cardano.Wallet.Unsafe
@@ -64,6 +65,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Bifunctor
+    ( bimap )
 import Data.Function
     ( on, (&) )
 import Data.Functor
@@ -82,6 +85,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( toText )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -188,6 +193,8 @@ properties = do
             (property . prop_rollbackRegistration)
         it "rollback of PoolRetirement"
             (property . prop_rollbackRetirement)
+        it "removePools"
+            (property . prop_removePools)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -843,6 +850,90 @@ prop_rollbackRetirement DBLayer{..} certificates =
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
+
+-- When we remove pools, check that:
+--
+-- 1. We only remove data relating to the specified pools.
+-- 2. We do not remove data relating to other pools.
+--
+prop_removePools
+    :: DBLayer IO
+    -> [PoolCertificate]
+    -> Property
+prop_removePools
+    DBLayer {..} certificates =
+        monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        -- Firstly, publish an arbitrary set of pool certificates:
+        run $ atomically $ do
+            mapM_ (uncurry putCertificate) certificatePublications
+        -- Next, read the latest certificates for all pools:
+        poolIdsWithRegCertsAtStart <- run poolIdsWithRegCerts
+        poolIdsWithRetCertsAtStart <- run poolIdsWithRetCerts
+        -- Next, remove a subset of the pools:
+        run $ atomically $ removePools $ Set.toList poolsToRemove
+        -- Finally, see which certificates remain:
+        poolIdsWithRegCertsAtEnd <- run poolIdsWithRegCerts
+        poolIdsWithRetCertsAtEnd <- run poolIdsWithRetCerts
+        monitor $ counterexample $ T.unpack $ T.unlines
+            [ "All pools: "
+            , T.unlines (toText <$> Set.toList pools)
+            , "Pools to remove:"
+            , T.unlines (toText <$> Set.toList poolsToRemove)
+            , "Pools to retain:"
+            , T.unlines (toText <$> Set.toList poolsToRetain)
+            ]
+        assertWith "subset rule for registrations" $
+            poolIdsWithRegCertsAtEnd `Set.isSubsetOf` poolsToRetain
+        assertWith "subset rule for retirements" $
+            poolIdsWithRetCertsAtEnd `Set.isSubsetOf` poolsToRetain
+        assertWith "disjoint rule for registrations" $
+            poolIdsWithRegCertsAtEnd `Set.disjoint` poolsToRemove
+        assertWith "disjoint rule for retirements" $
+            poolIdsWithRetCertsAtEnd `Set.disjoint` poolsToRemove
+        assertWith "difference rule for registrations" $
+            poolIdsWithRegCertsAtStart `Set.difference` poolsToRemove
+                == poolIdsWithRegCertsAtEnd
+        assertWith "difference rule for retirements" $
+            poolIdsWithRetCertsAtStart `Set.difference` poolsToRemove
+                == poolIdsWithRetCertsAtEnd
+
+    -- The complete set of all pools.
+    pools = Set.fromList $ getPoolCertificatePoolId <$> certificates
+
+    -- Divide the set of pools into two sets of approximately the same size.
+    (poolsToRetain, poolsToRemove) = pools
+        & Set.toList
+        & L.splitAt (length pools `div` 2)
+        & bimap Set.fromList Set.fromList
+
+    certificatePublications
+        :: [(CertificatePublicationTime, PoolCertificate)]
+    certificatePublications = publicationTimes `zip` certificates
+
+    publicationTimes :: [CertificatePublicationTime]
+    publicationTimes =
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    putCertificate cpt = \case
+        Registration cert ->
+            putPoolRegistration cpt cert
+        Retirement cert ->
+            putPoolRetirement cpt cert
+
+    poolIdsWithRegCerts =
+        fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
+            <$> atomically $ mapM readPoolRegistration $ Set.toList pools
+
+    poolIdsWithRetCerts =
+        fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
+            <$> atomically $ mapM readPoolRetirement $ Set.toList pools
 
 prop_listRegisteredPools
     :: DBLayer IO
