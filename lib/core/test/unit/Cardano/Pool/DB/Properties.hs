@@ -27,10 +27,12 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( SinglePoolCertificateSequence (..)
+    ( ListSerializationMethod
+    , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
     , isValidSinglePoolCertificateSequence
+    , serializeLists
     )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
@@ -881,9 +883,10 @@ prop_listRegisteredPools DBLayer {..} entries =
 prop_listRetiredPools_multiplePools_multipleCerts
     :: DBLayer IO
     -> [SinglePoolCertificateSequence]
+    -> ListSerializationMethod
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    DBLayer {..} certificateSequences = checkCoverage
+    DBLayer {..} certificateSequences serializationMethod = checkCoverage
         -- Check the number of certificates:
         $ cover 2 (certificateCount == 0)
             "number of certificates: = 0"
@@ -906,7 +909,7 @@ prop_listRetiredPools_multiplePools_multipleCerts
 
     prop = do
         run $ atomically $ do
-            mapM_ (uncurry putCertificate) allPublicationsInterleaved
+            mapM_ (uncurry putCertificate) allPublicationsSerialized
         lifeCycleStatuses <- run $ atomically $ do
             mapM readPoolLifeCycleStatus allPoolIds
         let poolsMarkedToRetire = catMaybes $
@@ -925,17 +928,17 @@ prop_listRetiredPools_multiplePools_multipleCerts
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
 
-    certificateCount = length allCertificatesInterleaved
+    certificateCount = length allCertificatesSerialized
     poolCount = length certificateSequences
 
-    allCertificatesInterleaved :: [PoolCertificate]
-    allCertificatesInterleaved =
-        interleave (getSinglePoolCertificateSequence <$> certificateSequences)
+    allCertificatesSerialized :: [PoolCertificate]
+    allCertificatesSerialized = serializeLists serializationMethod
+        (getSinglePoolCertificateSequence <$> certificateSequences)
 
-    allPublicationsInterleaved
+    allPublicationsSerialized
         :: [(CertificatePublicationTime, PoolCertificate)]
-    allPublicationsInterleaved =
-        publicationTimes `zip` allCertificatesInterleaved
+    allPublicationsSerialized =
+        publicationTimes `zip` allCertificatesSerialized
 
     allPoolIds :: [PoolId]
     allPoolIds = getSinglePoolId <$> certificateSequences
@@ -1195,13 +1198,3 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
         [ [ (view #slotNo h, p) | h <- hs ]
         | (p, hs) <- concatMap Map.assocs ms
         ]
-
--- Interleaves the given list of lists together in a fair way.
---
--- Example:
---
--- >>> interleave [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
--- ["a1", "b1", "c1", "a2", "b2", "c3", "a3", "b3", "c3"]
---
-interleave :: [[a]] -> [a]
-interleave = concat . L.transpose

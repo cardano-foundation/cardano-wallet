@@ -2,15 +2,18 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Arbitrary
-    ( SinglePoolCertificateSequence (..)
+    ( ListSerializationMethod
+    , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
     , isValidSinglePoolCertificateSequence
+    , serializeLists
     ) where
 
 import Prelude
@@ -61,6 +64,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , PrintableString (..)
+    , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
@@ -222,6 +226,34 @@ instance Arbitrary SinglePoolCertificateSequence where
             & fmap (fmap (setPoolCertificatePoolId sharedPoolId))
             & fmap (SinglePoolCertificateSequence sharedPoolId)
             & filter isValidSinglePoolCertificateSequence
+
+-- | Indicates a way to serialize a list of lists into a single list.
+--
+data ListSerializationMethod
+    = Interleave
+    | Concatenate
+    deriving (Bounded, Enum, Eq, Show)
+
+-- | Serializes a list of lists into a single list using the given
+--   serialization method.
+serializeLists :: ListSerializationMethod -> [[a]] -> [a]
+serializeLists = \case
+    Interleave -> interleave
+    Concatenate -> concat
+
+-- Interleaves the given list of lists together in a fair way.
+--
+-- Example:
+--
+-- >>> interleave [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
+-- ["a1", "b1", "c1", "a2", "b2", "c3", "a3", "b3", "c3"]
+--
+interleave :: [[a]] -> [a]
+interleave = concat . L.transpose
+
+instance Arbitrary ListSerializationMethod where
+    arbitrary = arbitraryBoundedEnum
+    shrink = const []
 
 instance Arbitrary StakePoolMetadataHash where
     arbitrary = fmap (StakePoolMetadataHash . BS.pack) (vector 32)
