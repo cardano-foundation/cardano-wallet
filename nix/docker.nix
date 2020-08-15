@@ -27,7 +27,9 @@ let
   defaultPort = "8090";
   dataDir = "/data";
 
-  startScript = writeScriptBin "start-cardano-wallet-${backend}" ''
+  suffix = if backend == "shelley" then "" else "-" + backend;
+  walletExeName = "cardano-wallet" + suffix;
+  startScript = writeScriptBin "start-wallet" ''
     #!${runtimeShell}
     set -euo pipefail
 
@@ -37,7 +39,7 @@ let
     ln -s ${dataDir} /cardano-wallet
 
     export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
-    exec ${exe}/bin/cardano-wallet-${backend} "$@"
+    exec ${exe}/bin/${walletExeName} "$@"
   '';
 
   # Config file needed for container/host resolution.
@@ -68,7 +70,7 @@ in
       startScript
     ];
     config = {
-      EntryPoint = [ "start-cardano-wallet-${backend}" ];
+      EntryPoint = [ "start-wallet" ];
       ExposedPorts = {
         "${defaultPort}/tcp" = {}; # wallet api
       };
