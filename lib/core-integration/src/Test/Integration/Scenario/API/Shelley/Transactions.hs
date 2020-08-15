@@ -20,7 +20,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( AddressAmount (..)
+    , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -35,7 +36,7 @@ import Cardano.Wallet.Api.Types
     , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress, fromHex )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -53,10 +54,16 @@ import Data.Aeson
     ( (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
+import Data.Either.Extra
+    ( eitherToMaybe )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
     ( HasType )
+import Data.Maybe
+    ( fromJust, fromMaybe )
 import Data.Maybe
     ( isJust )
 import Data.Quantity
@@ -69,6 +76,8 @@ import Data.Time.Clock
     ( UTCTime, addUTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
+import Data.Word
+    ( Word32 )
 import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
@@ -144,12 +153,15 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.UTxO.Transaction as CardanoTransactions
+import qualified Data.UTxO.Transaction.Cardano.Shelley as CardanoTransactions
 import qualified Network.HTTP.Types.Status as HTTP
 
 data TestCase a = TestCase
@@ -750,7 +762,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectErrorMessage errMsg400TxTooLarge r
 
     it "TRANS_EXTERNAL_01 - Single Output Transaction" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wFaucet <- fixtureWallet ctx
         let amt = (10_000_000 :: Natural)
 
         let walletPostData = Json [json| {
@@ -765,15 +777,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField
                 (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
-        let (_, Right wDest) = r1
+        let (_, Right wSrc) = r1
 
-        payload1 <- mkTxPayload ctx wDest amt fixturePassphrase
+        payload1 <- mkTxPayload ctx wSrc amt fixturePassphrase
 
         (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
-            (Link.getTransactionFee @'Shelley wSrc) payload1
+            (Link.getTransactionFee @'Shelley wFaucet) payload1
 
         r2 <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload1
+            (Link.createTransaction @'Shelley wFaucet) Default payload1
 
         verify r2
             [ expectSuccess
@@ -784,7 +796,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        r3 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        let (Hash txid) = getApiT $ getFromResponse #id r2
+        let txix = case getFromResponse #outputs r2 of
+                [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))] ->
+                    if out1 == amt then 0
+                    else if out2 == amt then 1
+                    else error "this should not happen"
+                _ -> error "this should not happen"
+
+        r3 <- request @ApiWallet ctx (Link.getWallet @'Shelley wFaucet) Default Empty
         verify r3
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
@@ -797,15 +817,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (.>= Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
-        eventually "wSrc and wDest balances are as expected" $ do
+        eventually "wFaucet and wSrc balances are as expected" $ do
             r4 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wDest) Default Empty
+                (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amt) r4
 
             r5 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wSrc) Default Empty
+                (Link.getWallet @'Shelley wFaucet) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMax - amt)) r5
@@ -824,22 +844,56 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField
                 (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
-        let (_, Right wDest1) = r11
+        let (_, Right wDest) = r11
 
-        --here will come external
-        let blob = "\131\164\NUL\129\130X F\186$\232\GS\239\151\221p\151\ESC\208\226\189\147\ETBm\239cJQ@(\n\SYNg\223W\192\182\254W\NUL\SOH\130\130X9\SOH\197\221\141\232G\205\143\&6\DC3\187\\\144\188(-\251\138<X+\134\139\209\ESCq\183D\248\211\227qg\164L\205c]\DLE\139\DC4\\\ETB0\164\191\204\191I\220\199\136\183\EMLM\136\SUB\NUL\150\155\220\130X9\SOH\USE\149\EOT[\232C\229\236\160\204;\229uz\237l\159\231}\151\182L\DC3\234P\NUL^@\216\227P\161\&9g\r]\195\224\173z\192\ACKF\217n\229\DC3d\a\t\161p\143\152v\SUB\NUL\RS\132\128\STX\SUB\NUL\SOH\250\164\ETX\EM\RSF\161\NUL\129\130X \197\179\DC4x\206\216\194\SO\163\&4\159H3\209-\178\ACK\132\131\169n=w\213\204\217B\EOTl\190\236\162X@\247\171\225\143\175H\v\n:m\149\186=\204\161\246A\212\RS\221\246\156-\230\RS\218TN\203\143\158\140\SOHV6\DC2\v\f\139\207\a\170\229\&5\171\SYN\244\149HN|\137\146\217\219=\133Z\227\157g\169\144\r\246" :: BS.ByteString
-            {--
-                "83a4008182582046ba24e81def97dd70971bd0e2bd93176def634a5140280a1\
-                \667df57c0b6fe5700018282583901c5dd8de847cd8f3613bb5c90bc282dfb8a\
-                \3c582b868bd11b71b744f8d3e37167a44ccd635d108b145c1730a4bfccbf49d\
-                \cc788b7194c4d881a00969bdc825839011f4595045be843e5eca0cc3be5757a\
-                \ed6c9fe77d97b64c13ea50005e40d8e350a139670d5dc3e0ad7ac00646d96ee\
-                \513640709a1708f98761a001e8480021a0001faa403191e46a10081825820c5\
-                \b31478ced8c20ea3349f4833d12db2068483a96e3d77d5ccd942046cbeeca25\
-                \840f7abe18faf480b0a3a6d95ba3dcca1f641d41eddf69c2de61eda544ecb8f\
-                \9e8c015636120b0c8bcf07aae535ab16f495484e7c8992d9db3d855ae39d67a\
-                \9900df6" :: Text--}
-        --let (Right bin) = fromHex $ T.encodeUtf8 blob
+        --here comes construction of external tx
+        -- (a) fee which was estimated using cardano-wallet endpoint
+        payload2 <- mkTxPayload ctx wDest amt1 fixturePassphrase
+        (_, ApiFee (Quantity feeMin1) _) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wSrc) payload2
+        -- (b) the change output of mnemonic15 wallet
+        let addr1 =
+                "addr1q8zamr0gglxc7dsnhdwfp0pg9hac50zc9wrgh5gmwxm5f7xnudck0fzve\
+                \4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyquaaj4r"
+        let out1 = amt - feeMin1 - amt1
+        -- (c) the output of mnemonic18 wallet, it is expected to receive amt1
+        let addr2 =
+                "addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfev\
+                \ux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2"
+        -- 1. have a mnemonic phrases: recovery-phrase.prv
+        -- --> network empty cause mean expire private finger accident session problem absurd banner stage void what
+        -- 2. produce root key:
+        --- cat recovery-phrase.prv | cardano-address key from-recovery-phrase Shelley > root.prv
+        -- --> xprv1dqjlgjd6n9n63guasjpp0q0p93v3lgwenwf2s8z6erzzqxgqv4qnsyk4mrh8z5nz3fesun538g3epe4l8j8rezfdvmns78sp796rsflp980qp6gqgh0uzyxtad0smxd88wt8a9djhkvq8zsvp2gzzycmpq927903
+        -- 3. produce staking private key:
+        --- cat root.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake.prv
+        -- --> xprv1uz7ghz6969v3ns0veeddflaj9hr0q5dwnzgep7rznt72cvcqv4qa2l9kfqsrzsg72zl89wyty42jq4a6n6l2mnuj4zfv578jvh8tm8pa439z46e6qmhhqrwy40deer2dkcyr44u5ze4awfnhykgf5j94u59rcpdg
+        -- 4. produce delegation address (here second address of index 1 and for network tag 1):
+        --- root.prv \
+        --- | cardano-address key child 1852H/1815H/0H/0/1 \
+        --- | cardano-address key public \
+        --- | cardano-address address payment --network-tag 1 \
+        --- | cardano-address address delegation $(cat stake.prv | cardano-address key public)
+        --- --> addr1q9wteuqmnkywcz9zefjyp0wn3tctz9xgxm8fpcmyzn9uypknudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyq75lt2a
+        -- 5. produce corresponding private key (used for witnesses):
+        --- cat root.prv | cardano-address key child 1852H/1815H/0H/0/1 --base16
+        -- --> 400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f006541c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752acfa81d028f8516adad09a8efe3a0209e7e75d6bc61265f48d7471acdd2bf7ee7b23d
+        -- 6. produce change address:
+        --- root.prv \
+        --- | cardano-address key child 1852H/1815H/0H/1/0 \
+        --- | cardano-address key public \
+        --- | cardano-address address payment --network-tag 1 \
+        --- | cardano-address address delegation $(cat stake.prv | cardano-address key public)
+        -- --> addr1q8zamr0gglxc7dsnhdwfp0pg9hac50zc9wrgh5gmwxm5f7xnudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyquaaj4r
+        -- (d) mnemonic15 wallet received during the first transaction 10 ada to address
+        -- and here is its witness (details of getting it above)
+        let wit =
+                "400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f0065\
+                \41c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752a\
+                \cfa81d028f8516adad09a8efe3a0209e7e75d6bc61265f48d7471acdd2bf7e\
+                \e7b23d"
+        let (Right blob) =
+                constructTxFromCardanoTransactions (fromIntegral feeMin1) txid txix out1 addr1 amt1 addr2 wit
         let baseOk = Base64
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
         let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
@@ -851,15 +905,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        ------ beginning
+        ------ beginning of conventional submitting of tx - to be removed in later commits
 {--
-        payload2 <- mkTxPayload ctx wDest1 amt1 fixturePassphrase
-
-        (_, ApiFee (Quantity feeMin1) (Quantity feeMax1)) <- unsafeRequest ctx
-            (Link.getTransactionFee @'Shelley wDest) payload2
 
         r6 <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wDest) Default payload2
+            (Link.createTransaction @'Shelley wSrc) Default payload2
 
         verify r6
             [ expectSuccess
@@ -870,8 +920,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 --}
+{--
         --- end
-        r7 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
+        r7 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r7
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
@@ -879,21 +930,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     ( Quantity (amt - feeMax - amt1)
                     , Quantity (amt - feeMin - amt1)
                     )
-            ]
+            ]<
 
-        eventually "wDest1 and wDest balances are as expected" $ do
+        eventually "wDest and wSrc balances are as expected" $ do
             r8 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wDest1) Default Empty
+                (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amt1) r8
 
             r9 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wDest) Default Empty
+                (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (amt - feeMax - amt1)) r9
-
+--}
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
                 [ ( "empty payload", NonJson "" )
@@ -2053,3 +2104,42 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     toRawBytes base bs = case convertFromBase base (T.encodeUtf8 bs) of
         Left err -> error err
         Right res -> res
+
+    constructTxFromCardanoTransactions fee txid txix out1 addr1 out2 addr2 wit =
+        CardanoTransactions.empty initTx
+        & CardanoTransactions.addInput (unsafeMkInput txix txid)
+        & CardanoTransactions.addOutput (unsafeMkOutput out1 addr1)
+        & CardanoTransactions.addOutput (unsafeMkOutput out2 addr2)
+        & CardanoTransactions.lock
+        & CardanoTransactions.signWith (unsafeMkShelleySignKey wit)
+        & CardanoTransactions.serialize
+      where
+        initTx = CardanoTransactions.mkInit CardanoTransactions.Mainnet 7750 fee
+        unsafeMkInput
+            :: Word32
+            -> BS.ByteString
+            -> CardanoTransactions.Input CardanoTransactions.Shelley
+        unsafeMkInput ix bs = fromJust $ CardanoTransactions.mkInput ix bs
+        unsafeMkOutput
+            :: Natural
+            -> Text
+            -> CardanoTransactions.Output CardanoTransactions.Shelley
+        unsafeMkOutput n str =
+            fromJust $ CardanoTransactions.mkOutput n (unsafeBech32 str)
+        fromBech32 :: Text -> Maybe BS.ByteString
+        fromBech32 txt = do
+            (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
+            Bech32.dataPartToBytes dp
+        unsafeBech32 :: Text -> BS.ByteString
+        unsafeBech32 = fromMaybe (error msg) . fromBech32
+            where msg = "unable to decode bech32 string."
+        fromBase16 :: Text -> Maybe BS.ByteString
+        fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
+        unsafeB16 :: Text -> BS.ByteString
+        unsafeB16 = fromMaybe (error msg) . fromBase16
+            where msg = "unable to decode base16 string."
+        unsafeMkShelleySignKey
+            :: Text
+            -> CardanoTransactions.SignKey CardanoTransactions.Shelley
+        unsafeMkShelleySignKey str =
+            fromJust $ CardanoTransactions.mkShelleySignKey (unsafeB16 str)

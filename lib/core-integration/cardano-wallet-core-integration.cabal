@@ -35,8 +35,10 @@ library
     , async
     , base
     , base58-bytestring
+    , bech32
     , bytestring
     , cardano-addresses
+    , cardano-transactions
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher
