@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -36,10 +37,13 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
+import Cardano.Wallet.Logging
+    ( stdoutTextTracer )
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
@@ -62,7 +66,17 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( singleNodeParams, withBFTNode, withSystemTempDir )
+    ( PoolConfig (..)
+    , RunningNode (..)
+    , moveInstantaneousRewardsTo
+    , oneMillionAda
+    , sendFaucetFundsTo
+    , withCluster
+    , withSystemTempDir
+    , withTempDir
+    )
+import Control.Arrow
+    ( first )
 import Control.Concurrent.Async
     ( race_ )
 import Control.Concurrent.MVar
@@ -70,7 +84,7 @@ import Control.Concurrent.MVar
 import Control.Concurrent.STM.TVar
     ( TVar )
 import Control.Monad
-    ( mapM_, replicateM, replicateM_, void )
+    ( mapM_, replicateM, replicateM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -87,10 +101,14 @@ import Numeric.Natural
     ( Natural )
 import System.Directory
     ( createDirectory )
+import System.Environment
+    ( lookupEnv )
 import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( shouldBe )
+import Test.Integration.Faucet
+    ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -135,16 +153,16 @@ walletApiBench capture benchWithServer = do
 
     fmtTitle "Latencies for 2 fixture wallets scenario"
     runScenario (nFixtureWallet 2)
-
+{--
     fmtTitle "Latencies for 10 fixture wallets scenario"
     runScenario (nFixtureWallet 10)
 
     fmtTitle "Latencies for 100 fixture wallets scenario"
     runScenario (nFixtureWallet 100)
-
+--}
     fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 10)
-
+{--
     fmtTitle "Latencies for 2 fixture wallets with 20 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 20)
 
@@ -159,10 +177,10 @@ walletApiBench capture benchWithServer = do
 
     fmtTitle "Latencies for 10 fixture wallets with 100 txs scenario"
     runScenario (nFixtureWalletWithTxs 10 100)
-
+--}
     fmtTitle "Latencies for 2 fixture wallets with 100 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 100)
-
+{--
     fmtTitle "Latencies for 2 fixture wallets with 200 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 200)
 
@@ -171,6 +189,7 @@ walletApiBench capture benchWithServer = do
 
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 1000)
+--}
   where
 
     -- Creates n fixture wallets and return two of them
@@ -345,11 +364,31 @@ benchWithShelleyServer tracers action = do
 
   where
     withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
-        params <- singleNodeParams Error
-        let db = dir </> "wallets"
-        createDirectory db
-        withBFTNode nullTracer dir params $ \socketPath block0 (gp, vData) ->
-            void $ serveWallet
+            testPoolConfigs' <- poolConfigsFromEnv
+            let db = dir </> "wallets"
+            createDirectory db
+            withCluster
+                nullTracer
+                Error
+                testPoolConfigs'
+                dir
+                onByron
+                (afterFork dir)
+                (onClusterStart act dir)
+    onByron _ = pure ()
+    afterFork dir _ = do
+        let encodeAddr = T.unpack . encodeAddress @'Mainnet
+        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        sendFaucetFundsTo stdoutTextTracer dir addresses
+        let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
+                concatMap genRewardAccounts mirMnemonics
+        moveInstantaneousRewardsTo stdoutTextTracer dir rewards
+
+    onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
+        -- NOTE: We may want to keep a wallet running across the fork, but
+        -- having three callbacks like this might not work well for that.
+        withTempDir nullTracer dir "wallets" $ \db -> do
+            serveWallet @(IO Shelley)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)
@@ -362,3 +401,19 @@ benchWithShelleyServer tracers action = do
                 block0
                 (gp, vData)
                 (act gp)
+
+    poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
+        Nothing -> pure testPoolConfigs
+        Just "" -> pure testPoolConfigs
+        Just _ -> pure []
+
+    testPoolConfigs =
+        [ -- This pool should never retire:
+          PoolConfig {retirementEpoch = Nothing}
+        -- This pool should retire almost immediately:
+        , PoolConfig {retirementEpoch = Just 3}
+        -- This pool should retire, but not within the duration of a test run:
+        , PoolConfig {retirementEpoch = Just 100_000}
+        -- This pool should retire, but not within the duration of a test run:
+        , PoolConfig {retirementEpoch = Just 1_000_000}
+        ]
