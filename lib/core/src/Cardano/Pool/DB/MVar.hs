@@ -25,6 +25,7 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanPoolProduction
     , mListRegisteredPools
+    , mListRetiredPools
     , mPutFetchAttempt
     , mPutPoolMetadata
     , mPutPoolProduction
@@ -114,6 +115,9 @@ newDBLayer timeInterpreter = do
 
         , listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)
+
+        , listRetiredPools = \epochNo ->
+            modifyMVar db (pure . swap . mListRetiredPools epochNo)
 
         , putPoolMetadata = \a0 a1 ->
             void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)

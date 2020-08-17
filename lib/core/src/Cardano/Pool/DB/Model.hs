@@ -47,6 +47,7 @@ module Cardano.Pool.DB.Model
     , mPutFetchAttempt
     , mPutPoolMetadata
     , mListRegisteredPools
+    , mListRetiredPools
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -54,6 +55,8 @@ module Cardano.Pool.DB.Model
 
 import Prelude
 
+import Cardano.Pool.DB
+    ( determinePoolLifeCycleStatus )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf )
 import Cardano.Wallet.Primitive.Types
@@ -61,6 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -68,17 +72,22 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , getPoolRetirementCertificate
     )
 import Data.Bifunctor
     ( first )
 import Data.Foldable
     ( fold )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -259,6 +268,44 @@ mReadPoolRetirement poolId db =
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
 mListRegisteredPools db@PoolDatabase{registrations} =
     ( snd <$> Map.keys registrations, db )
+
+mListRetiredPools
+    :: EpochNo
+    -> PoolDatabase
+    -> ([PoolRetirementCertificate], PoolDatabase)
+mListRetiredPools epochNo db = (retiredPools, db)
+  where
+    allKnownPoolIds :: [PoolId]
+    allKnownPoolIds =
+        L.nub $ snd <$> Map.keys registrations
+
+    retiredPools :: [PoolRetirementCertificate]
+    retiredPools = activeRetirementCertificates
+        & filter ((<= epochNo) . view #retiredIn)
+
+    activeRetirementCertificates :: [PoolRetirementCertificate]
+    activeRetirementCertificates =
+        allKnownPoolIds
+        & fmap lookupLifeCycleStatus
+        & fmap getPoolRetirementCertificate
+        & catMaybes
+
+    lookupLifeCycleStatus :: PoolId -> PoolLifeCycleStatus
+    lookupLifeCycleStatus poolId =
+        determinePoolLifeCycleStatus
+            (lookupLatestCertificate poolId registrations)
+            (lookupLatestCertificate poolId retirements)
+
+    lookupLatestCertificate
+        :: PoolId
+        -> Map (publicationTime, PoolId) certificate
+        -> Maybe (publicationTime, certificate)
+    lookupLatestCertificate poolId certMap =
+        fmap (first fst)
+        $ Map.lookupMax
+        $ Map.filterWithKey (\(_, k) _ -> k == poolId) certMap
+
+    PoolDatabase {registrations, retirements} = db
 
 mUnfetchedPoolMetadataRefs
     :: Int

@@ -27,7 +27,13 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( StakePoolsFixture (..), genStakePoolMetadata )
+    ( ListSerializationMethod
+    , SinglePoolCertificateSequence (..)
+    , StakePoolsFixture (..)
+    , genStakePoolMetadata
+    , isValidSinglePoolCertificateSequence
+    , serializeLists
+    )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -37,13 +43,14 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
-    , EpochNo
+    , EpochNo (..)
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotNo (..)
+    , getPoolRetirementCertificate
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -102,6 +109,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , property
+    , shrink
     , withMaxSuccess
     , (==>)
     )
@@ -174,7 +182,7 @@ properties = do
         it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
             (property .
                 prop_multiple_putPoolRetirement_single_readPoolRetirement)
-        it "readPoolLifeCycleStatus should respect registration order"
+        it "readPoolLifeCycleStatus respects certificate publication order"
             (property . prop_readPoolLifeCycleStatus)
         it "rollback of PoolRegistration"
             (property . prop_rollbackRegistration)
@@ -186,6 +194,8 @@ properties = do
             (property . prop_readSystemSeedIdempotent)
         it "putPoolRegistration . listRegisteredPools yield pools"
             (property . prop_listRegisteredPools)
+        it "prop_listRetiredPools_multiplePools_multipleCerts"
+            (property . prop_listRetiredPools_multiplePools_multipleCerts)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
@@ -201,6 +211,8 @@ properties = do
         it "prop_determinePoolLifeCycleStatus_differentPools"
             (property . const
                 prop_determinePoolLifeCycleStatus_differentPools)
+        it "SinglePoolCertificateSequence coverage is adequate"
+            (property . const prop_SinglePoolCertificateSequence_coverage)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -465,13 +477,20 @@ prop_poolRegistration DBLayer {..} entries =
             mapM_ (uncurry putPoolRegistration) entriesIn
         entriesOut <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRegistration . view #poolId . snd) entries
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "Written into DB: "
             , show entriesIn
             , "Read from DB: "
             , show entriesOut
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
-        assert (entriesIn == entriesOut)
+        assertWith "entriesIn == entriesOut"
+            $ entriesIn == entriesOut
+        assertWith "no pools are marked to retire"
+            $ null poolsMarkedToRetire
 
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRetirement
@@ -488,13 +507,22 @@ prop_poolRetirement DBLayer {..} entries =
             mapM_ (uncurry putPoolRetirement) entriesIn
         entriesOut <- run . atomically $ L.sort . catMaybes
             <$> mapM (readPoolRetirement . view #poolId . snd) entries
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "Written into DB: "
             , show entriesIn
             , "Read from DB: "
             , show entriesOut
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
-        assert (entriesIn == entriesOut)
+        assertWith "entriesIn == entriesOut"
+            $ entriesIn == entriesOut
+        assertWith "all pools are marked to retire"
+            $ (==)
+                (Set.fromList $ snd <$> entriesIn)
+                (Set.fromList poolsMarkedToRetire)
 
 -- For the same pool, write /multiple/ pool registration certificates to the
 -- database and then read back the current registration certificate, verifying
@@ -516,6 +544,8 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
             mapM_ (uncurry putPoolRegistration) certificatePublications
         mRetrievedCertificatePublication <-
             run $ atomically $ readPoolRegistration sharedPoolId
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nExpected certificate publication: "
             , show mExpectedCertificatePublication
@@ -526,9 +556,11 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
             ]
-        assert $ (==)
+        assertWith "retrieved certificate matches expectations" $ (==)
             mRetrievedCertificatePublication
             mExpectedCertificatePublication
+        assertWith "pool is not marked to retire" $
+            null poolsMarkedToRetire
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
@@ -566,6 +598,8 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
             mapM_ (uncurry putPoolRetirement) certificatePublications
         mRetrievedCertificatePublication <-
             run $ atomically $ readPoolRetirement sharedPoolId
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nExpected certificate publication: "
             , show mExpectedCertificatePublication
@@ -576,9 +610,15 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
             ]
-        assert $ (==)
+        assertWith "retrieved certificate matches expectations" $ (==)
             mRetrievedCertificatePublication
             mExpectedCertificatePublication
+        assertWith "pool is marked to retire at the correct epoch" $
+            case mRetrievedCertificatePublication of
+                Nothing ->
+                    null poolsMarkedToRetire
+                Just (_publicationTime, retirementCert) ->
+                    poolsMarkedToRetire == [retirementCert]
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
@@ -607,24 +647,20 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
 --
 prop_readPoolLifeCycleStatus
     :: DBLayer IO
-    -> PoolId
-    -> [PoolCertificate]
+    -> SinglePoolCertificateSequence
     -> Property
 prop_readPoolLifeCycleStatus
-    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+    DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
-    expectedStatus = determinePoolLifeCycleStatus
-        mFinalRegistration
-        mFinalRetirement
-
     prop = do
-        actualStatus <-
-            run $ atomically $ do
-                mapM_ (uncurry putCertificate) certificatePublications
-                readPoolLifeCycleStatus sharedPoolId
+        actualStatus <- run $ atomically $ do
+            mapM_ (uncurry putCertificate) certificatePublications
+            readPoolLifeCycleStatus sharedPoolId
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nFinal registration: "
             , show mFinalRegistration
@@ -638,23 +674,43 @@ prop_readPoolLifeCycleStatus
             , show (length certificatePublications)
             , "\nAll certificate publications: "
             , unlines (("\n" <>) . show <$> certificatePublications)
+            , "\nAll pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
-        assert (actualStatus == expectedStatus)
+        assertWith "actualStatus == expectedStatus"
+            (actualStatus == expectedStatus)
+        assertWith "pool is marked to retire only when appropriate" $
+            case actualStatus of
+                PoolNotRegistered ->
+                    null poolsMarkedToRetire
+                PoolRegistered _regCert ->
+                    null poolsMarkedToRetire
+                PoolRegisteredAndRetired _regCert retCert ->
+                    poolsMarkedToRetire == [retCert]
+
+    expectedStatus = determinePoolLifeCycleStatus
+        mFinalRegistration
+        mFinalRetirement
+
+    mFinalRegistration = lookupFinalCertificateMatching $ \case
+        Registration c -> Just c
+        _ -> Nothing
+
+    mFinalRetirement = lookupFinalCertificateMatching $ \case
+        Retirement c -> Just c
+        _ -> Nothing
+
+    lookupFinalCertificateMatching
+        :: (PoolCertificate -> Maybe certificate)
+        -> Maybe (CertificatePublicationTime, certificate)
+    lookupFinalCertificateMatching match = certificatePublications
+        & reverse
+        & fmap (traverse match)
+        & catMaybes
+        & listToMaybe
 
     certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
     certificatePublications = publicationTimes `zip` certificates
-
-    mFinalRegistration = certificatePublications
-        & reverse
-        & fmap (traverse toRegistrationCertificate)
-        & catMaybes
-        & listToMaybe
-
-    mFinalRetirement = certificatePublications
-        & reverse
-        & fmap (traverse toRetirementCertificate)
-        & catMaybes
-        & listToMaybe
 
     publicationTimes =
         [ CertificatePublicationTime (SlotNo sn) ii
@@ -662,27 +718,11 @@ prop_readPoolLifeCycleStatus
         , ii <- [0 .. 3]
         ]
 
-    certificates = setPoolId sharedPoolId <$> certificatesManyPoolIds
-
-    toRegistrationCertificate = \case
-        Registration cert -> Just cert
-        Retirement _ -> Nothing
-
-    toRetirementCertificate = \case
-        Retirement cert -> Just cert
-        Registration _ -> Nothing
-
     putCertificate cpt = \case
         Registration cert ->
             putPoolRegistration cpt cert
         Retirement cert ->
             putPoolRetirement cpt cert
-
-    setPoolId newPoolId = \case
-        Registration cert -> Registration
-            $ set #poolId newPoolId cert
-        Retirement cert -> Retirement
-            $ set #poolId newPoolId cert
 
 prop_rollbackRegistration
     :: DBLayer IO
@@ -749,6 +789,8 @@ prop_rollbackRetirement DBLayer{..} certificates =
         run $ atomically $ rollbackTo rollbackPoint
         retrievedPublications <- catMaybes <$>
             run (atomically $ mapM readPoolRetirement poolIds)
+        poolsMarkedToRetire <-
+            run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
             [ "\nRollback point: "
             , show rollbackPoint
@@ -758,10 +800,17 @@ prop_rollbackRetirement DBLayer{..} certificates =
             , unlines (("\n" <>) . show <$> expectedPublications)
             , "\nRetrieved certificate publications: "
             , unlines (("\n" <>) . show <$> retrievedPublications)
+            , "All pools that are marked to retire: "
+            , unlines (("\n" <>) . show <$> poolsMarkedToRetire)
             ]
-        assert $ (==)
-            retrievedPublications
-            expectedPublications
+        assertWith "retrieved publications match expectations" $
+            (==)
+                retrievedPublications
+                expectedPublications
+        assertWith "only the correct retirements are listed" $
+            (==)
+                (Set.fromList $ snd <$> expectedPublications)
+                (Set.fromList poolsMarkedToRetire)
 
     poolIds :: [PoolId]
     poolIds = view #poolId <$> certificates
@@ -821,6 +870,91 @@ prop_listRegisteredPools DBLayer {..} entries =
             [ "Read from DB: " <> show pools
             ]
         assert (pools == (view #poolId <$> reverse entries))
+
+-- | Test that `listRetiredPools` returns the correct set of retirements for
+--   any given epoch.
+--
+-- This property tests `listRetiredPools` in conditions where:
+--
+--   - there are multiple pools;
+--   - there are multiple registrations and retirements for each pool;
+--   - certificates affecting different pools are interleaved in time.
+--
+prop_listRetiredPools_multiplePools_multipleCerts
+    :: DBLayer IO
+    -> [SinglePoolCertificateSequence]
+    -> ListSerializationMethod
+    -> Property
+prop_listRetiredPools_multiplePools_multipleCerts
+    DBLayer {..} certificateSequences serializationMethod = checkCoverage
+        -- Check the number of certificates:
+        $ cover 2 (certificateCount == 0)
+            "number of certificates: = 0"
+        $ cover 2 (certificateCount > 0 && certificateCount <= 10)
+            "number of certificates: > 0 && <= 10"
+        $ cover 2 (certificateCount > 10 && certificateCount <= 100)
+            "number of certificates: > 10 && <= 100"
+        $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
+            "number of certificates: > 100 && <= 1000"
+        -- Check the number of pools:
+        $ cover 2 (poolCount == 0)
+            "number of pools: = 0"
+        $ cover 2 (poolCount > 0 && poolCount <= 10)
+            "number of pools: > 0 && <= 10"
+        $ cover 2 (poolCount > 10 && poolCount <= 100)
+            "number of pools: > 10 && <= 100"
+        $ monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $ do
+            mapM_ (uncurry putCertificate) allPublicationsSerialized
+        lifeCycleStatuses <- run $ atomically $ do
+            mapM readPoolLifeCycleStatus allPoolIds
+        let poolsMarkedToRetire = catMaybes $
+                getPoolRetirementCertificate <$> lifeCycleStatuses
+        let epochsToTest =
+                EpochNo minBound :
+                EpochNo maxBound :
+                L.nub (view #retiredIn <$> poolsMarkedToRetire)
+        forM_ epochsToTest $ \currentEpoch -> do
+            let retiredPoolsExpected = filter
+                    ((<= currentEpoch) . view #retiredIn)
+                    (poolsMarkedToRetire)
+            retiredPoolsActual <-
+                run $ atomically $ listRetiredPools currentEpoch
+            assert $ (==)
+                (Set.fromList retiredPoolsActual)
+                (Set.fromList retiredPoolsExpected)
+
+    certificateCount = length allCertificatesSerialized
+    poolCount = length certificateSequences
+
+    allCertificatesSerialized :: [PoolCertificate]
+    allCertificatesSerialized = serializeLists serializationMethod
+        (getSinglePoolCertificateSequence <$> certificateSequences)
+
+    allPublicationsSerialized
+        :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublicationsSerialized =
+        publicationTimes `zip` allCertificatesSerialized
+
+    allPoolIds :: [PoolId]
+    allPoolIds = getSinglePoolId <$> certificateSequences
+
+    publicationTimes :: [CertificatePublicationTime]
+    publicationTimes =
+        [ CertificatePublicationTime (SlotNo sn) ii
+        | sn <- [0 .. 3]
+        , ii <- [0 .. 3]
+        ]
+
+    putCertificate cpt = \case
+        Registration cert ->
+            putPoolRegistration cpt cert
+        Retirement cert ->
+            putPoolRetirement cpt cert
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
@@ -991,6 +1125,51 @@ prop_determinePoolLifeCycleStatus_differentPools regData retData =
     result = determinePoolLifeCycleStatus
         (pure (regTime, regCert))
         (pure (retTime, retCert))
+
+prop_SinglePoolCertificateSequence_coverage
+    :: SinglePoolCertificateSequence
+    -> Property
+prop_SinglePoolCertificateSequence_coverage
+    s@(SinglePoolCertificateSequence _sharedPoolId certificates) =
+        checkCoverage
+            $ cover 2 (null certificates)
+                "length (all certificates) = 0"
+            $ cover 2 (length certificates == 1)
+                "length (all certificates) = 1"
+            $ cover 2 (length certificates > 1)
+                "length (all certificates) > 1"
+
+            $ cover 2 (null registrationCertificates)
+                "length (registration certificates) = 0"
+            $ cover 2 (length registrationCertificates == 1)
+                "length (registration certificates) = 1"
+            $ cover 2 (length registrationCertificates > 1)
+                "length (registration certificates) > 1"
+
+            $ cover 2 (null retirementCertificates)
+                "length (retirement certificates) = 0"
+            $ cover 2 (length retirementCertificates == 1)
+                "length (retirement certificates) = 1"
+            $ cover 2 (length retirementCertificates > 1)
+                "length (retirement certificates) > 1"
+
+            $ cover 50 (not (null shrunkenSequences))
+                "length (shrunken sequences) > 0"
+
+            $ all isValidSinglePoolCertificateSequence $ s : shrunkenSequences
+  where
+    shrunkenSequences = shrink s
+
+    registrationCertificates = catMaybes
+        (getRegistrationCertificate <$> certificates)
+    retirementCertificates = catMaybes
+        (getRetirementCertificate <$> certificates)
+    getRegistrationCertificate = \case
+        Registration cert -> Just cert
+        Retirement _ -> Nothing
+    getRetirementCertificate = \case
+        Registration _ -> Nothing
+        Retirement cert -> Just cert
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do

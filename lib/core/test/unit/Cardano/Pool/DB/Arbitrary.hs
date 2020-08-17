@@ -2,13 +2,18 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Arbitrary
-    ( StakePoolsFixture (..)
+    ( ListSerializationMethod
+    , SinglePoolCertificateSequence (..)
+    , StakePoolsFixture (..)
     , genStakePoolMetadata
+    , isValidSinglePoolCertificateSequence
+    , serializeLists
     ) where
 
 import Prelude
@@ -34,11 +39,15 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
+    , getPoolCertificatePoolId
+    , setPoolCertificatePoolId
     )
 import Control.Arrow
     ( second )
 import Control.Monad
     ( foldM )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Ord
@@ -55,9 +64,11 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , PrintableString (..)
+    , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
     , elements
+    , frequency
     , genericShrink
     , listOf
     , oneof
@@ -167,6 +178,81 @@ instance Arbitrary PoolCertificate where
         , Retirement
             <$> arbitrary
         ]
+    shrink = const []
+
+-- | Represents a valid sequence of registration and retirement certificates
+--   for a single pool.
+--
+data SinglePoolCertificateSequence = SinglePoolCertificateSequence
+    { getSinglePoolId :: PoolId
+    , getSinglePoolCertificateSequence :: [PoolCertificate]
+    }
+    deriving (Eq, Show)
+
+isValidSinglePoolCertificateSequence :: SinglePoolCertificateSequence -> Bool
+isValidSinglePoolCertificateSequence
+    (SinglePoolCertificateSequence sharedPoolId certificates) =
+        allCertificatesReferToSamePool &&
+        firstCertificateIsRegistration
+  where
+    allCertificatesReferToSamePool =
+        all (== sharedPoolId) (getPoolCertificatePoolId <$> certificates)
+    firstCertificateIsRegistration = case certificates of
+        Registration _ : _ -> True
+        Retirement _ : _ -> False
+        [] -> True
+
+instance Arbitrary SinglePoolCertificateSequence where
+
+    arbitrary = do
+        sharedPoolId <- arbitrary
+        frequency
+            [ (1, genEmptySequence    sharedPoolId)
+            , (9, genNonEmptySequence sharedPoolId)
+            ]
+      where
+        genEmptySequence sharedPoolId =
+            pure $ SinglePoolCertificateSequence sharedPoolId []
+        genNonEmptySequence sharedPoolId = do
+            -- We must start with a registration certificate:
+            certificates <- (:)
+                <$> (Registration <$> arbitrary)
+                <*> arbitrary
+            pure $ SinglePoolCertificateSequence sharedPoolId $
+                setPoolCertificatePoolId sharedPoolId <$> certificates
+
+    shrink (SinglePoolCertificateSequence sharedPoolId certificates) =
+        genericShrink certificates
+            & fmap (fmap (setPoolCertificatePoolId sharedPoolId))
+            & fmap (SinglePoolCertificateSequence sharedPoolId)
+            & filter isValidSinglePoolCertificateSequence
+
+-- | Indicates a way to serialize a list of lists into a single list.
+--
+data ListSerializationMethod
+    = Interleave
+    | Concatenate
+    deriving (Bounded, Enum, Eq, Show)
+
+-- | Serializes a list of lists into a single list using the given
+--   serialization method.
+serializeLists :: ListSerializationMethod -> [[a]] -> [a]
+serializeLists = \case
+    Interleave -> interleave
+    Concatenate -> concat
+
+-- Interleaves the given list of lists together in a fair way.
+--
+-- Example:
+--
+-- >>> interleave [["a1", "a2", "a3"], ["b1", "b2", "b3"], ["c1", "c2", "c3"]]
+-- ["a1", "b1", "c1", "a2", "b2", "c3", "a3", "b3", "c3"]
+--
+interleave :: [[a]] -> [a]
+interleave = concat . L.transpose
+
+instance Arbitrary ListSerializationMethod where
+    arbitrary = arbitraryBoundedEnum
     shrink = const []
 
 instance Arbitrary StakePoolMetadataHash where
