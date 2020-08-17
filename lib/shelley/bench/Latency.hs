@@ -66,10 +66,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( PoolConfig (..)
-    , RunningNode (..)
-    , moveInstantaneousRewardsTo
-    , oneMillionAda
+    ( RunningNode (..)
     , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
@@ -101,14 +98,12 @@ import Numeric.Natural
     ( Natural )
 import System.Directory
     ( createDirectory )
-import System.Environment
-    ( lookupEnv )
 import System.FilePath
     ( (</>) )
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Faucet
-    ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
+    ( shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -364,13 +359,12 @@ benchWithShelleyServer tracers action = do
 
   where
     withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
-            testPoolConfigs' <- poolConfigsFromEnv
             let db = dir </> "wallets"
             createDirectory db
             withCluster
                 nullTracer
                 Error
-                testPoolConfigs'
+                []
                 dir
                 onByron
                 (afterFork dir)
@@ -380,9 +374,6 @@ benchWithShelleyServer tracers action = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         sendFaucetFundsTo stdoutTextTracer dir addresses
-        let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
-                concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo stdoutTextTracer dir rewards
 
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
@@ -401,19 +392,3 @@ benchWithShelleyServer tracers action = do
                 block0
                 (gp, vData)
                 (act gp)
-
-    poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
-        Nothing -> pure testPoolConfigs
-        Just "" -> pure testPoolConfigs
-        Just _ -> pure []
-
-    testPoolConfigs =
-        [ -- This pool should never retire:
-          PoolConfig {retirementEpoch = Nothing}
-        -- This pool should retire almost immediately:
-        , PoolConfig {retirementEpoch = Just 3}
-        -- This pool should retire, but not within the duration of a test run:
-        , PoolConfig {retirementEpoch = Just 100_000}
-        -- This pool should retire, but not within the duration of a test run:
-        , PoolConfig {retirementEpoch = Just 1_000_000}
-        ]
