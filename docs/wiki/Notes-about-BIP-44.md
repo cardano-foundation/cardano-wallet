@@ -1,5 +1,3 @@
-# Notes about BIP-44
-
 ## Abstract
 
 This document gives a semi-technical overview of multi-account hierarchy for deterministic wallets, their trade-offs and limitations. 
