@@ -49,4 +49,4 @@ waitUntil futureTime = liftIO $ do
     currentTime <- getCurrentTime
     threadDelay
         $ nominalDiffTimeToMicroseconds
-        $ futureTime `diffUTCTime` currentTime
+        $ max 0 (futureTime `diffUTCTime` currentTime)
