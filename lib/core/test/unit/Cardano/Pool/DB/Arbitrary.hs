@@ -148,7 +148,7 @@ instance Arbitrary PoolId where
             , take 16 s <> replicate 8 z <> drop 24 s
             , take 24 s <> replicate 8 z
             ]
-        if result == s then [] else [PoolId $ BS.pack result]
+        [PoolId $ BS.pack result | result /= s]
       where
         z = toEnum 0
 
