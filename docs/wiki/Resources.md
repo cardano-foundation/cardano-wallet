@@ -10,6 +10,25 @@ Wallet
 - [HD Chimeric wallets](https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md)
 - [About Transactions Lifecyle](https://github.com/input-output-hk/cardano-wallet/wiki/About-Transactions-Lifecycle)
 
+Cardano Node
+------
+
+- [User Guide](https://docs.cardano.org/en/latest/)
+- [Engineering Design Specification for Delegation and Incentives](https://hydra.iohk.io/build/902246/download/1/delegation_design_spec.pdf) 
+- [A Formal Specification of the Cardano Ledger](https://hydra.iohk.io/build/1224753/download/1/ledger-spec.pdf)
+- [Data Diffusion and Peer Networking](https://hydra.iohk.io/build/1070091/download/1/network.pdf)
+- Low-Level Specifications
+  - [[Byron] On-Chain Binary Formats](https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl)
+  - [[Shelley] Network Binary Formats - Draft](https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl)
+  - [[Shelley] On chain Binary formats - Draft](https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32)
+
+Plutus
+------
+
+- [Plutus Book](plutus-book.surge.sh)
+- [Multi-assets Ledger Specs extension](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/specs.shelley-mc/latest/download/1/multi-asset.pdf)
+
+
 Jörmungandr
 ------
 
@@ -22,17 +41,6 @@ Jörmungandr
   - [Address](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/address.md)
   - [Multisig](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/multisig.md)
   - [Update Semantics](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/update.md)
-
-Haskell Node
-------
-
-- [Engineering Design Specification for Delegation and Incentives](https://hydra.iohk.io/build/902246/download/1/delegation_design_spec.pdf) 
-- [A Formal Specification of the Cardano Ledger](https://hydra.iohk.io/build/1224753/download/1/ledger-spec.pdf)
-- [Data Diffusion and Peer Networking](https://hydra.iohk.io/build/1070091/download/1/network.pdf)
-- Low-Level Specifications
-  - [[Byron] On-Chain Binary Formats](https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl)
-  - [[Shelley] Network Binary Formats - Draft](https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl)
-  - [[Shelley] On chain Binary formats - Draft](https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32)
 
 Emurgo
 ------
