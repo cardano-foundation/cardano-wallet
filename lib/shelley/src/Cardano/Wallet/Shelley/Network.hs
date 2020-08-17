@@ -109,7 +109,7 @@ import Control.Monad.Class.MonadThrow
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
@@ -138,6 +138,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Data.Void
     ( Void )
 import Data.Word
@@ -401,7 +403,9 @@ withNetworkLayer tr np addrInfo versionData action = do
         let cred = toStakeCredential acct
         let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts (Set.singleton cred))
         let cmd = CmdQueryLocalState (getTipPoint tip) q
-        liftIO (queryRewardQ `send` cmd) >>= \case
+        res <- liftIO . timeQryAndLog "getAccountBalance" tr $
+            queryRewardQ `send` cmd
+        case res of
             Right (Right (deleg, rewardAccounts)) -> do
                 liftIO $ traceWith tr $
                     MsgAccountDelegationAndRewards acct deleg rewardAccounts
@@ -641,7 +645,7 @@ type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 --  * Tracking the latest protocol parameters state.
 --  * Querying the history interpreter as necessary.
 mkTipSyncClient
-    :: forall sc m. (HasCallStack, MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
+    :: forall sc m. (HasCallStack, MonadIO m, MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
     => Tracer m (NetworkLayerLog sc)
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
@@ -672,16 +676,16 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             :: Point (CardanoBlock sc)
             -> m ()
         queryLocalState pt = do
-            mb <- localStateQueryQ `send`
+            mb <- timeQryAndLog "GetEraStart" tr $ localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
 
-            pp <- localStateQueryQ `send`
+            pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
 
             sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
                 >>= handleAcquireFailure
 
-            st <- localStateQueryQ `send`
+            st <- timeQryAndLog "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
                 CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
 
             sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
@@ -776,6 +780,31 @@ debounce action = do
         prev <- atomically $ takeTMVar mvar
         unless (Just cur == prev) $ action cur
         atomically $ putTMVar mvar (Just cur)
+
+-- | Convenience function to measure the time of a LSQ query,
+-- and trace the result.
+--
+-- Such that we can get logs like:
+-- >>> Query getAccountBalance took 51.664463s
+--
+-- Failures that stop the >>= continuation will cause the corresponding
+-- measuremens /not/ to be logged.
+timeQryAndLog
+    :: MonadIO m
+    => String
+    -- ^ Label to identify the query
+    -> Tracer m (NetworkLayerLog sc)
+    -- ^ Tracer to which the measurement will be logged
+    -> m a
+    -- ^ The action that submits the query.
+    -> m a
+timeQryAndLog label tr act = do
+    t0 <- liftIO getCurrentTime
+    a <- act
+    t1 <- liftIO getCurrentTime
+    let diff = t1 `diffUTCTime` t0
+    traceWith tr $ MsgQueryTime label diff
+    return a
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
@@ -925,6 +954,7 @@ data NetworkLayerLog sc where
     MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog sc
     MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
     MsgInterpreterPastHorizon :: Text -> PastHorizonException -> NetworkLayerLog sc
+    MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog sc
 
 data QueryClientName
     = TipSyncClient
@@ -1013,6 +1043,8 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: " <> pretty tip <>
             ". Callback " <> toText b <> "."
+        MsgQueryTime qry diffTime ->
+            "Query " <> T.pack qry <> " took " <> T.pack (show diffTime)
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
@@ -1051,4 +1083,5 @@ instance HasSeverityAnnotation (NetworkLayerLog b) where
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
+        MsgQueryTime{}                     -> Info
         MsgInterpreterPastHorizon{}        -> Error
