@@ -203,6 +203,19 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove all data relating to the specified pools.
 
+    , removeRetiredPools
+        :: EpochNo
+        -> stm [PoolRetirementCertificate]
+        -- ^ Remove all pools with an active retirement epoch that is earlier
+        -- than or equal to the specified epoch.
+        --
+        -- Returns the retirement certificates of the pools that were removed.
+        --
+        -- See also:
+        --
+        --    - 'listRetiredPools'.
+        --    - 'removePools'.
+
     , cleanDB
         :: stm ()
         -- ^ Clean a database
