@@ -130,10 +130,6 @@ let
         # Make sure that libsodium DLLs and shell completions are available .
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
         packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall;
-
-        # Workaround for Haskell.nix issue
-        packages.cardano-wallet-jormungandr.components.all.postInstall = lib.mkForce "";
-        packages.cardano-wallet.components.all.postInstall = lib.mkForce "";
       }
 
       {
@@ -143,11 +139,6 @@ let
         packages.cardano-addresses.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
         packages.cardano-transactions.components.exes.cardano-tx.postInstall = optparseCompletionPostInstall;
         packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
-        # Workaround for Haskell.nix issue
-        packages.cardano-node.components.all.postInstall = lib.mkForce "";
-        packages.cardano-addresses.components.all.postInstall = lib.mkForce "";
-        packages.cardano-transactions.components.all.postInstall = lib.mkForce "";
-        packages.bech32.components.all.postInstall = lib.mkForce "";
       }
 
       # Provide the swagger file in an environment variable for
@@ -160,9 +151,6 @@ let
       in {
         packages.cardano-wallet-core.components.tests.unit.preBuild = swaggerYamlPreBuild;
         packages.cardano-wallet-jormungandr.components.tests.unit.preBuild = swaggerYamlPreBuild;
-        # Workaround for Haskell.nix issue
-        packages.cardano-wallet-core.components.all.preBuild = lib.mkForce "";
-        packages.cardano-wallet-jormungandr.components.all.preBuild = lib.mkForce "";
       })
 
       # Build fixes for library dependencies
@@ -240,14 +228,6 @@ let
           # "stm" "terminfo"
         ];
       }
-    ];
-    pkg-def-extras = [
-      # Workaround for https://github.com/input-output-hk/haskell.nix/issues/214
-      (hackage: {
-        packages = {
-          "hsc2hs" = (((hackage.hsc2hs)."0.68.4").revisions).default;
-        };
-      })
     ];
   };
 
