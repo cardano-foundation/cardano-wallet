@@ -21,7 +21,7 @@ let
   testData = {
     core = ../core/test/data;
     jormungandr = ../jormungandr/test/data;
-    shelley = ../shelley/test/data;
+    shelley = ../cardano-wallet/test/data;
   };
 
   name = "cardano-wallet-${project.version}-tests-win64";

@@ -214,4 +214,4 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../.././shelley; }
+    } // rec { src = (pkgs.lib).mkDefault ../.././cardano-wallet; }
