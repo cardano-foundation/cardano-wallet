@@ -1896,7 +1896,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
             $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
                   <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
 
-        let mRetirementEpoch = view #retiredIn <$>
+        let mRetirementEpoch = view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
         let retirementInfo =
                 PoolRetirementEpochInfo currentEpoch <$> mRetirementEpoch

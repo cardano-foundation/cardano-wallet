@@ -325,8 +325,8 @@ combineDbAndLsqData ti nOpt lsqData =
         -> PoolDbData
         -> m Api.ApiStakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
-        let mRetiredIn = retiredIn <$> retirementCert dbData
-        retirementEpochInfo <- traverse toApiEpochInfo mRetiredIn
+        let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
+        retirementEpochInfo <- traverse toApiEpochInfo mRetirementEpoch
         pure $ Api.ApiStakePool
             { Api.id = (ApiT pid)
             , Api.metrics = Api.ApiStakePoolMetrics

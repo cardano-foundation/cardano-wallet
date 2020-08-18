@@ -261,10 +261,7 @@ newDBLayer trace fp timeInterpreter = do
         , putPoolRetirement = \cpt cert -> do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let PoolRetirementCertificate
-                    { poolId
-                    , retiredIn
-                    } = cert
-            let EpochNo retirementEpoch = retiredIn
+                    poolId (EpochNo retirementEpoch) = cert
             repsert (PoolRetirementKey poolId slotNo slotInternalIndex) $
                 PoolRetirement
                     poolId
@@ -476,9 +473,9 @@ newDBLayer trace fp timeInterpreter = do
                         _poolId
                         slotNo
                         slotInternalIndex
-                        retirementEpoch = entityVal meta
-                let retiredIn = EpochNo (fromIntegral retirementEpoch)
-                let cert = PoolRetirementCertificate {poolId, retiredIn}
+                        retirementEpochNo = entityVal meta
+                let retirementEpoch = EpochNo (fromIntegral retirementEpochNo)
+                let cert = PoolRetirementCertificate {poolId, retirementEpoch}
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
