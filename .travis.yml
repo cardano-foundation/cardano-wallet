@@ -54,7 +54,7 @@ jobs:
     ############################
 
     # Fetch the linux archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-linux64/latest/download/1 | --output cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
+    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-linux64/latest/download/1 --output cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
     # Fetch the MacOS archive
     - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest/download/1 --output cardano-wallet-$TRAVIS_TAG-macos64.tar.gz
     # Fetch the Windows archive
