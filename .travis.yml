@@ -49,6 +49,10 @@ jobs:
     if: type != pull_request AND (tag =~ ^v OR commit_message =~ /TRAVIS_TRIGGER_RELEASE/)
     name: "Executables"
     script:
+    # Fetch the builds from Hydra
+    - npm install --no-save axios lodash
+    - node scripts/travis-download-builds.js
+
     ############################
     # cardano-node
     ############################
