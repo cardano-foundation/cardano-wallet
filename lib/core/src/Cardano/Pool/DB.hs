@@ -309,7 +309,7 @@ removeRetiredPools
     -> IO [PoolRetirementCertificate]
 removeRetiredPools DBLayer {atomically, listRetiredPools, removePools}
     trace epoch = do
-        let report = liftIO . traceWith trace . MsgGarbageCollection
+        let report = liftIO . traceWith trace . MsgGarbageCollectionStep
         report $ T.concat
             [ "Looking for pools that retired in or before epoch "
             , toText epoch
