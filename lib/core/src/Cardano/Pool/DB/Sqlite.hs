@@ -119,8 +119,6 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Fmt
-    ( pretty )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -393,26 +391,6 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
-
-        , removeRetiredPools = \epoch -> do
-            let report = liftIO . traceWith trace . MsgGarbageCollection
-            report $ T.concat
-                [ "Looking for pools that retired in or before epoch "
-                , toText epoch
-                , "."
-                ]
-            listRetiredPools_ epoch >>= \case
-                [] -> do
-                    report "Found no retired pools."
-                    pure []
-                retirementCerts -> do
-                    report $ T.unlines
-                        [ "Removing the following retired pools:"
-                        , T.unlines (pretty <$> retirementCerts)
-                        ]
-                    removePools_ (view #poolId <$> retirementCerts)
-                    report "Finished removing retired pools."
-                    pure retirementCerts
 
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
