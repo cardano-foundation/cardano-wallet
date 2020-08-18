@@ -140,9 +140,9 @@ spec = do
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -300,7 +300,7 @@ spec = do
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
 
-            let amount = Quantity 1
+            let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
             selectCoins @n @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200

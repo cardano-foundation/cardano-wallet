@@ -90,7 +90,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "HW_WALLETS_CLI" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -173,9 +173,10 @@ spec = do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+
             let args = T.unpack <$>
                     [ wRestored ^. walletId
-                    , "--payment", "1@" <> addr
+                    , "--payment", T.pack (show minUTxOValue) <> "@" <> addr
                     ]
 
             (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args

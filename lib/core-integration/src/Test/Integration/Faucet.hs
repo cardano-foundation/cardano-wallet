@@ -1614,7 +1614,7 @@ shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
     [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
 
-    , zip (addresses SomeMnemonic onlyDustWallet) (map Coin [ 1_000_000
+    , zip (addresses $ SomeMnemonic onlyDustWallet) (map Coin [ 1_000_000
                                                , 1_000_000
                                                , 5_000_000
                                                , 12_000_000

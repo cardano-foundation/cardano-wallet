@@ -1104,8 +1104,8 @@ moveInstantaneousRewardsTo tr dir targets = do
         [ "shelley", "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--ttl", "600"
-        , "--fee", show (faucetAmt - 1 - totalDeposit)
-        , "--tx-out", sink <> "+" <> "1"
+        , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
+        , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
@@ -1166,9 +1166,9 @@ prepareKeyRegistration tr dir = do
     void $ cli tr
         [ "shelley", "transaction", "build-raw"
         , "--tx-in", faucetInput
-        , "--tx-out", sink <> "+" <> "1"
+        , "--tx-out", sink <> "+" <> "1000000"
         , "--ttl", "400"
-        , "--fee", show (faucetAmt - depositAmt - 1)
+        , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
         ]

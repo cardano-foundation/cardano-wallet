@@ -645,7 +645,7 @@ eventuallyUsingDelay delay desc io = do
         Left () -> do
             lastError <- readIORef lastErrorRef
             fail $ mconcat
-                [ "Waited longer than 2 minutes for an action to resolve. "
+                [ "Waited longer than 90s (more than 2 epochs) for an action to resolve. "
                 , "Action: "
                 , show desc
                 , ". Error condition: "
