@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -27,6 +28,8 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.Wallet.Logging
+    ( bracketTracer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , CertificatePublicationTime (..)
@@ -43,11 +46,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Map.Strict
@@ -307,28 +310,27 @@ removeRetiredPools
     -> Tracer IO DBLog
     -> EpochNo
     -> IO [PoolRetirementCertificate]
-removeRetiredPools DBLayer {atomically, listRetiredPools, removePools}
-    trace epoch = do
-        let report = liftIO . traceWith trace . MsgGarbageCollectionStep
-        report $ T.concat
-            [ "Looking for pools that retired in or before epoch "
-            , toText epoch
-            , "."
-            ]
-        retiredPools <- liftIO $ atomically $ listRetiredPools epoch
-        case retiredPools of
-            [] -> do
-                report "Found no retired pools."
-                pure []
-            retirementCerts -> do
-                report $ T.unlines
-                    [ "Removing the following retired pools:"
-                    , T.unlines (pretty <$> retirementCerts)
-                    ]
-                liftIO $ atomically $
-                    removePools (view #poolId <$> retirementCerts)
-                report "Finished removing retired pools."
-                pure retirementCerts
+removeRetiredPools
+    DBLayer {atomically, listRetiredPools, removePools} trace epoch =
+        bracketTracer (contramap actionDescription trace) action
+  where
+    actionDescription = MsgGarbageCollection $ T.concat
+        [ "Removing pools that retired in or before epoch "
+        , toText epoch
+        , "."
+        ]
+
+    action = atomically (listRetiredPools epoch) >>= \case
+        [] -> do
+            traceWith trace $ MsgGarbageCollectionStep "Found no retired pools."
+            pure []
+        retirementCerts -> do
+            traceWith trace $ MsgGarbageCollectionStep $ T.unlines
+                [ "Removing the following retired pools:"
+                , T.unlines (pretty <$> retirementCerts)
+                ]
+            atomically $ removePools (view #poolId <$> retirementCerts)
+            pure retirementCerts
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists
