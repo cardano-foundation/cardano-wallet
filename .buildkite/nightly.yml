@@ -7,7 +7,7 @@ env:
 
 steps:
   - label: 'Restore benchmark - cardano mainnet'
-    command: "./.buildkite/bench-restore.sh shelley mainnet"
+    command: "./.buildkite/bench-restore.sh mainnet"
     env:
       HOME: "/cache/cardano-wallet.home"
     timeout_in_minutes: 600
@@ -16,7 +16,7 @@ steps:
       queue: benchmark
 
   - label: 'Restore benchmark - cardano testnet'
-    command: "./.buildkite/bench-restore.sh shelley testnet"
+    command: "./.buildkite/bench-restore.sh testnet"
     env:
       HOME: "/cache/cardano-wallet.home"
     timeout_in_minutes: 600
