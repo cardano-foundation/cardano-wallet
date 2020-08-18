@@ -16,7 +16,12 @@ in pkgs: super: with pkgs; {
     deployments = let
       environments = {
         inherit (pkgs.commonLib.cardanoLib.environments)
-          mainnet mainnet_candidate shelley_qa shelley_testnet testnet;
+          mainnet
+          mainnet_candidate_4
+          staging
+          testnet
+          shelley_qa
+          ;
       };
       updateConfig = env: env.nodeConfig // {
         minSeverity = "Notice";
