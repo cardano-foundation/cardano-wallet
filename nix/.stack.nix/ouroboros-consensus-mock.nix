@@ -32,7 +32,6 @@
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
@@ -73,8 +72,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "ec74d1c463b6d18bdca2b714abe730c1d237cc32";
-      sha256 = "0y0kpad63fppynhvyqva2mh44nbd4rbkrrvdc82zg6qcw8b5rm6p";
+      rev = "aecfe77de784e6c75108172802ee59d2d7087eaf";
+      sha256 = "1pdanljh5v1w038fc0s945h1gnrkipnfbj2cqqzwgpnv7zm14swh";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus/ouroboros-consensus-mock; echo source root reset to \$sourceRoot";
     }
