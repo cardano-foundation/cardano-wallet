@@ -118,7 +118,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] @IO ctx
             (Link.listStakePools stake) Default Empty
 

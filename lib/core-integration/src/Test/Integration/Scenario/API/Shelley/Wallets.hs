@@ -139,7 +139,7 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
                 "name": "1st Wallet",

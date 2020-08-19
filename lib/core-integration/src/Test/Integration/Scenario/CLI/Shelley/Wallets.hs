@@ -103,7 +103,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx wid

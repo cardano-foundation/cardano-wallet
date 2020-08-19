@@ -157,7 +157,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $ \ctx -> do
       wSrc <- fixtureWallet ctx
       wDest <- emptyWallet ctx

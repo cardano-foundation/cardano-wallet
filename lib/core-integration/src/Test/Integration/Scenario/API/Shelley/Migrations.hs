@@ -97,7 +97,7 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> do
@@ -121,7 +121,7 @@ spec = do
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
-    it "SHELLEY_CALCULATE_02 - \
+    Hspec.it "SHELLEY_CALCULATE_02 - \
         \Cannot calculate fee for wallet with dust, that cannot be migrated."
         $ \ctx -> do
             -- NOTE

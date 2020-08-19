@@ -16,7 +16,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( SpecWith, it, shouldBe )
+    ( SpecWith, describe, it, shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -31,7 +31,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
-spec = do
+spec = describe "BYRON_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r

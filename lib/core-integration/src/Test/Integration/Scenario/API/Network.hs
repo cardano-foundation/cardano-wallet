@@ -33,7 +33,7 @@ import Data.Maybe
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( SpecWith, pendingWith, shouldBe )
+    ( SpecWith, describe, pendingWith, shouldBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -56,7 +56,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
-spec = do
+spec = describe "COMMON_NETWORK" $ do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime

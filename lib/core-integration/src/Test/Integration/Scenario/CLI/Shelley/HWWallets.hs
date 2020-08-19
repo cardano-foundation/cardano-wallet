@@ -90,7 +90,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = describe "HW_WALLETS_CLI" $ do
+spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx

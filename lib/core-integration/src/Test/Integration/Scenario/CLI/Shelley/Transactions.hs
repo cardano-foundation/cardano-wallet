@@ -104,7 +104,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx

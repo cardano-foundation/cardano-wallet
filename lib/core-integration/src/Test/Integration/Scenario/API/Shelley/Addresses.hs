@@ -69,7 +69,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> do
         w <- emptyRandomWallet ctx
         let wid = w ^. walletId

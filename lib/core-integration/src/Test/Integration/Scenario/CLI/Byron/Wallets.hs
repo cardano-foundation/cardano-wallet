@@ -93,7 +93,7 @@ spec :: forall n t.
     ( DecodeAddress n
     , KnownCommand t
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_CLI_WALLETS" $ do
 
     describe "CLI_BYRON_GET_04, CLI_BYRON_DELETE_01, BYRON_RESTORE_02, BYRON_RESTORE_03 -\
         \ Deleted wallet is not available, but can be restored" $ do

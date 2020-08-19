@@ -66,7 +66,7 @@ spec :: forall n t.
     , DecodeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap

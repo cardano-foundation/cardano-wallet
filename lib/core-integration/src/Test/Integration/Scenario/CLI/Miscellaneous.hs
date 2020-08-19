@@ -27,7 +27,7 @@ import Test.Integration.Framework.DSL
 import qualified Data.List as L
 
 spec :: forall t. KnownCommand t => SpecWith ()
-spec = do
+spec = describe "COMMON_CLI_MISC" $ do
     it "CLI_VERSION - cardano-wallet shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI @t ["version"]
         let v = L.dropWhileEnd (== '\n') out

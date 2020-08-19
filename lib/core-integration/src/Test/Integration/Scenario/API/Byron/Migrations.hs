@@ -100,7 +100,7 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]

@@ -16,7 +16,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( SpecWith, shouldBe, shouldNotBe )
+    ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -35,7 +35,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx ->
         eventually "hardfork is detected in network parameters " $ do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty

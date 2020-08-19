@@ -72,7 +72,7 @@ spec :: forall n t.
     ( DecodeAddress n
     , DecodeStakeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_MIGRATIONS" $ do
 
     it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
         -- NOTE
