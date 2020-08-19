@@ -8,6 +8,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -785,15 +786,61 @@ newRewardBalanceFetcher
           , Tip (CardanoBlock sc) -> IO ()
             -- Call on tip-change to refresh
           )
-newRewardBalanceFetcher tr gp queryRewardQ = do
+newRewardBalanceFetcher tr gp queryRewardQ = newObserver fetch
+  where
+    fetch
+        :: Tip (CardanoBlock sc)
+        -> Set W.ChimericAccount
+        -> IO (Maybe (Map W.ChimericAccount W.Coin))
+    fetch tip accounts = do
+        liftIO $ traceWith tr $
+            MsgGetRewardAccountBalance (fromTip' gp tip) accounts
+        let creds = Set.map toStakeCredential accounts
+        let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+        let cmd = CmdQueryLocalState (getTipPoint tip) q
+
+        res <- liftIO . timeQryAndLog "getAccountBalance" tr $
+            queryRewardQ `send` cmd
+        case res of
+            Right (Right (deleg, rewardAccounts)) -> do
+                liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
+                return $ Just $ Map.mapKeys fromStakeCredential
+                    $ Map.map fromShelleyCoin rewardAccounts
+
+            Right (Left _) -> -- wrong era
+                return
+                    . Just
+                    . Map.fromList
+                    . map (, minBound)
+                    $ Set.toList accounts
+            Left acqFail -> do
+                -- NOTE: this could possibly happen in rare circumstances when
+                -- the chain is switched and the local state query is made
+                -- before the node tip variable is updated.
+                liftIO $ traceWith tr $
+                    MsgLocalStateQueryError DelegationRewardsClient $
+                    show acqFail
+                return Nothing
+
+-- | Given a way to fetch values for a set of keys, create:
+-- 1. An @Observer@ for consuming values
+-- 2. A refresh action
+--
+-- The @env@ parameter can be used to pass in information needed for refreshing,
+-- like the current tip when fetching rewards.
+newObserver
+    :: forall m key value env. (MonadSTM m, Ord key)
+    => (env -> Set key -> m (Maybe (Map key value)))
+    -> m (Observer m key value, env -> m ())
+newObserver fetch = do
     cacheVar <- atomically $ newTVar Map.empty
     toBeObservedVar <- atomically $ newTVar Set.empty
     return (observer cacheVar toBeObservedVar, refresh cacheVar toBeObservedVar)
   where
     observer
-        :: TVar IO (Map W.ChimericAccount W.Coin)
-        -> TVar IO (Set W.ChimericAccount)
-        -> Observer IO W.ChimericAccount W.Coin
+        :: TVar m (Map key value)
+        -> TVar m (Set key)
+        -> Observer m key value
     observer cacheVar toBeObservedVar =
         Observer
             { startObserving = \k ->
@@ -809,43 +856,20 @@ newRewardBalanceFetcher tr gp queryRewardQ = do
             }
 
     refresh
-        :: TVar IO (Map W.ChimericAccount W.Coin)
-        -> TVar IO (Set W.ChimericAccount)
-        -> Tip (CardanoBlock sc)
-        -> IO ()
-    refresh cacheVar toBeObservedVar tip = do
-        accounts <- atomically $ do
+        :: TVar m (Map key value)
+        -> TVar m (Set key)
+        -> env
+        -> m ()
+    refresh cacheVar toBeObservedVar env = do
+        keys <- atomically $ do
             old <- Set.fromList . Map.keys <$> readTVar cacheVar
             new <- readTVar toBeObservedVar
             writeTVar toBeObservedVar Set.empty
             return $ old <> new
-        liftIO $ traceWith tr $
-            MsgGetRewardAccountBalance (fromTip' gp tip) accounts
-        let creds = Set.map toStakeCredential accounts
-        let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
-        let cmd = CmdQueryLocalState (getTipPoint tip) q
-
-        res <- liftIO . timeQryAndLog "getAccountBalance" tr $
-            queryRewardQ `send` cmd
-        case res of
-            Right (Right (deleg, rewardAccounts)) -> do
-                liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
-                atomically
-                    $ writeTVar cacheVar
-                    $ Map.mapKeys fromStakeCredential
-                    $ Map.map fromShelleyCoin rewardAccounts
-
-            Right (Left _) -> pure minBound -- wrong era
-            Left acqFail -> do
-                -- NOTE: this could possibly happen in rare circumstances when
-                -- the chain is switched and the local state query is made
-                -- before the node tip variable is updated.
-                liftIO $ traceWith tr $
-                    MsgLocalStateQueryError DelegationRewardsClient $
-                    show acqFail
-                pure ()
-
-
+        mvalues <- fetch env keys
+        case mvalues of
+            Nothing -> pure ()
+            Just values -> atomically $ writeTVar cacheVar values
 
 -- | Return a function to run an action only if its single parameter has changed
 -- since the previous time it was called.
