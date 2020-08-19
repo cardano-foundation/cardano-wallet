@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -20,7 +22,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog, singleNodeParams, withBFTNode, withSystemTempDir )
 import Cardano.Wallet.Shelley.Network
-    ( withNetworkLayer )
+    ( Observer (..), newObserver, withNetworkLayer )
 import Control.Concurrent.Async
     ( async, race_, waitAnyCancel )
 import Control.Concurrent.MVar
@@ -30,7 +32,12 @@ import Control.Monad
 import Control.Tracer
     ( Tracer )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
+
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+
+{-# ANN module ("HLint: use isNothing" :: String) #-}
 
 {-------------------------------------------------------------------------------
                                       Spec
@@ -46,6 +53,54 @@ spec = describe "NetworkLayer regression test #1708" $ do
                     waiter <- newEmptyMVar
                     race_ (watchNodeTip nl (putMVar waiter)) (takeMVar waiter)
             void $ waitAnyCancel tasks
+
+    describe "Observer" $ do
+        describe "(query k) with typical use" $ beforeAll mockObserver $ do
+            -- Using monadic-property tests /just/ for the sake of testing with
+            -- multiple keys seem worthless.
+            let k = ("k"::String)
+            let v = length k
+            it "returns Nothing before registration"
+                $ \(observer, refresh) -> do
+                    (query observer k) `shouldReturn` Nothing
+                    refresh True
+                    (query observer k) `shouldReturn` Nothing
+
+            it "returns v after (startObserving k >> refresh)"
+                $ \(observer, refresh) -> do
+                    startObserving observer k
+                    refresh True
+                    v' <- query observer k
+                    let expectedValue = length k
+                    v' `shouldBe` Just expectedValue
+
+            it "returns the same v after a failed refresh attempt"
+                $ \(observer, refresh) -> do
+                    refresh False
+                    v' <- query observer k
+                    v' `shouldBe` Just v
+
+            it "returns Nothing after (stopObserving k >> refresh)"
+                $ \(observer, refresh) -> do
+                    stopObserving observer k
+                    refresh True
+                    v' <- query observer k
+                    v' `shouldBe` Nothing
+  where
+    mockObserver
+        :: IO ( Observer IO String Int
+              , Bool -> IO ()
+              )
+    mockObserver = newObserver nullTracer fetch
+        -- We /could/ use traceInTVarIO, and test that we see the expected
+        -- traces.
+      where
+        fetch True keys = pure
+            $ Just
+            $ Map.fromList
+            $ map (\x -> (x,length x))
+            $ Set.toList keys
+        fetch False _ = pure $ Nothing
 
 withTestNode
     :: Tracer IO ClusterLog

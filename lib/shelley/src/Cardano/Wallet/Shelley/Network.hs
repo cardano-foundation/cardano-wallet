@@ -30,6 +30,10 @@ module Cardano.Wallet.Shelley.Network
 
     , NodePoolLsqData (..)
 
+    , Observer (query,startObserving,stopObserving)
+    , newObserver
+    , ObserverLog (..)
+
       -- * Logging
     , NetworkLayerLog (..)
     ) where
@@ -786,7 +790,7 @@ newRewardBalanceFetcher
           , Tip (CardanoBlock sc) -> IO ()
             -- Call on tip-change to refresh
           )
-newRewardBalanceFetcher tr gp queryRewardQ = newObserver fetch
+newRewardBalanceFetcher tr gp queryRewardQ = newObserver nullTracer fetch
   where
     fetch
         :: Tip (CardanoBlock sc)
@@ -822,6 +826,13 @@ newRewardBalanceFetcher tr gp queryRewardQ = newObserver fetch
                     show acqFail
                 return Nothing
 
+
+data ObserverLog key value
+    = MsgWillFetch (Set key)
+    | MsgDidFetch (Map key value)
+    | MsgAddedObserver key
+    | MsgRemovedObserver key
+
 -- | Given a way to fetch values for a set of keys, create:
 -- 1. An @Observer@ for consuming values
 -- 2. A refresh action
@@ -830,9 +841,10 @@ newRewardBalanceFetcher tr gp queryRewardQ = newObserver fetch
 -- like the current tip when fetching rewards.
 newObserver
     :: forall m key value env. (MonadSTM m, Ord key)
-    => (env -> Set key -> m (Maybe (Map key value)))
+    => Tracer m (ObserverLog key value)
+    -> (env -> Set key -> m (Maybe (Map key value)))
     -> m (Observer m key value, env -> m ())
-newObserver fetch = do
+newObserver tr fetch = do
     cacheVar <- atomically $ newTVar Map.empty
     toBeObservedVar <- atomically $ newTVar Set.empty
     return (observer cacheVar toBeObservedVar, refresh cacheVar toBeObservedVar)
@@ -843,13 +855,15 @@ newObserver fetch = do
         -> Observer m key value
     observer cacheVar toBeObservedVar =
         Observer
-            { startObserving = \k ->
+            { startObserving = \k -> do
                 atomically $ do
                     modifyTVar' toBeObservedVar (Set.insert k)
-            , stopObserving = \k ->
+                traceWith tr $ MsgAddedObserver k
+            , stopObserving = \k -> do
                 atomically $ do
                     modifyTVar' toBeObservedVar (Set.delete k)
                     modifyTVar' cacheVar (Map.delete k)
+                traceWith tr $ MsgRemovedObserver k
             , query = \k -> do
                 m <- atomically (readTVar cacheVar)
                 return $ Map.lookup k m
