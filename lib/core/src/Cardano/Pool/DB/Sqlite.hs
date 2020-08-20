@@ -119,6 +119,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import Fmt
+    ( pretty )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -675,6 +677,7 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
 data PoolDbLog
     = MsgGeneric DBLog
     | MsgRemovingPool PoolId
+    | MsgRemovingRetiredPools [PoolId]
     deriving (Eq, Show)
 
 instance HasPrivacyAnnotation PoolDbLog
@@ -683,6 +686,7 @@ instance HasSeverityAnnotation PoolDbLog where
     getSeverityAnnotation = \case
         MsgGeneric e -> getSeverityAnnotation e
         MsgRemovingPool {} -> Notice
+        MsgRemovingRetiredPools {} -> Notice
 
 instance ToText PoolDbLog where
     toText = \case
@@ -691,4 +695,10 @@ instance ToText PoolDbLog where
             [ "Removing the following pool from the database: "
             , toText p
             , "."
+            ]
+        MsgRemovingRetiredPools [] ->
+            "There are no retired pools to remove."
+        MsgRemovingRetiredPools poolRetirementCerts -> T.unlines
+            [ "Removing the following retired pools:"
+            , T.unlines (pretty <$> poolRetirementCerts)
             ]
