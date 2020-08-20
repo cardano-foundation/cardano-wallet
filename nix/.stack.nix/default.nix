@@ -45,6 +45,7 @@
         "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
         "network" = (((hackage.network)."3.1.1.1").revisions).default;
+        "primitive" = (((hackage.primitive)."0.7.1.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "quickcheck-instances" = (((hackage.quickcheck-instances)."0.3.19").revisions).default;
         "QuickCheck" = (((hackage.QuickCheck)."2.12.6.1").revisions).default;

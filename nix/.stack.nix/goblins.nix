@@ -33,7 +33,9 @@
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+          (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
+          (hsPkgs."microlens-mtl" or (errorHandler.buildDepError "microlens-mtl"))
+          (hsPkgs."microlens-th" or (errorHandler.buildDepError "microlens-th"))
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
           (hsPkgs."monad-control" or (errorHandler.buildDepError "monad-control"))
           (hsPkgs."moo" or (errorHandler.buildDepError "moo"))
@@ -61,7 +63,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/goblins";
-      rev = "26d35ad52fe9ade3391532dbfeb2f416f07650bc";
-      sha256 = "17p5x0hj6c67jkdqx0cysqlwq2zs2l87azihn1alzajy9ak6ii0b";
+      rev = "312198a1523736181ef7ddab15958bb32a9d9052";
+      sha256 = "1w1b3g1s64rv4glrj416v1jmwnqhlz1zcqmz2y813jgs4d32m27k";
       });
     }
