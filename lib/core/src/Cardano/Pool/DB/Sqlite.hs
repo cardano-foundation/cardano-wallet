@@ -32,6 +32,8 @@ module Cardano.Pool.DB.Sqlite
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
@@ -678,8 +680,9 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
                                    Logging
 -------------------------------------------------------------------------------}
 
-newtype PoolDbLog
+data PoolDbLog
     = MsgGeneric DBLog
+    | MsgRemovingPool PoolId
     deriving (Eq, Show)
 
 instance HasPrivacyAnnotation PoolDbLog
@@ -687,7 +690,13 @@ instance HasPrivacyAnnotation PoolDbLog
 instance HasSeverityAnnotation PoolDbLog where
     getSeverityAnnotation = \case
         MsgGeneric e -> getSeverityAnnotation e
+        MsgRemovingPool {} -> Notice
 
 instance ToText PoolDbLog where
     toText = \case
         MsgGeneric e -> toText e
+        MsgRemovingPool p -> mconcat
+            [ "Removing the following pool from the database: "
+            , toText p
+            , "."
+            ]
