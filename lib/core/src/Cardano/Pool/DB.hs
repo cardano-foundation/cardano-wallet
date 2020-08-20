@@ -63,8 +63,6 @@ import Data.Text.Class
     ( toText )
 import Data.Word
     ( Word64 )
-import Fmt
-    ( pretty )
 import System.Random
     ( StdGen )
 
@@ -322,16 +320,9 @@ removeRetiredPools
         , "."
         ])
 
-    action = atomically (listRetiredPools epoch) >>= \case
-        [] -> do
-            traceWith trace $ MsgGeneric $
-                MsgGarbageCollectionStep "Found no retired pools."
-            pure []
-        retirementCerts -> do
-            traceWith trace $ MsgGeneric $ MsgGarbageCollectionStep $ T.unlines
-                [ "Removing the following retired pools:"
-                , T.unlines (pretty <$> retirementCerts)
-                ]
+    action = atomically (listRetiredPools epoch) >>=
+        \retirementCerts -> do
+            traceWith trace $ MsgRemovingRetiredPools retirementCerts
             atomically $ removePools (view #poolId <$> retirementCerts)
             pure retirementCerts
 
