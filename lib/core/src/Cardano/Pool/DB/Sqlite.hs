@@ -389,11 +389,7 @@ newDBLayer trace fp timeInterpreter = do
             -- TODO: remove dangling metadata no longer attached to a pool
 
         , removePools = mapM_ $ \pool -> do
-            liftIO
-                $ traceWith trace
-                $ MsgGeneric
-                $ MsgRemovingDatabaseEntity
-                $ T.unwords [ "pool", toText pool ]
+            liftIO $ traceWith trace $ MsgRemovingPool pool
             deleteWhere [ PoolProductionPoolId ==. pool ]
             deleteWhere [ PoolOwnerPoolId ==. pool ]
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
