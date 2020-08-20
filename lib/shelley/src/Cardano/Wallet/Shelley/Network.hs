@@ -313,7 +313,6 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     link =<< async (forever updateNodeTip)
 
-
     action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
             , watchNodeTip = _watchNodeTip nodeTipChan
@@ -765,7 +764,6 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
         })
         NodeToClientV_3
 
-
 -- Reward Account Balances
 
 -- | Monitors values for keys, and allows clients to @query@ them.
@@ -825,7 +823,6 @@ newRewardBalanceFetcher tr gp queryRewardQ = newObserver nullTracer fetch
                     MsgLocalStateQueryError DelegationRewardsClient $
                     show acqFail
                 return Nothing
-
 
 data ObserverLog key value
     = MsgWillFetch (Set key)
