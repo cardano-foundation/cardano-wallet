@@ -147,7 +147,7 @@ import Data.Word
 import Fmt
     ( Buildable (..), listF', mapF, pretty )
 import GHC.Stack
-    ( HasCallStack, prettyCallStack )
+    ( HasCallStack )
 import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
 import Ouroboros.Consensus.Cardano
@@ -165,9 +165,9 @@ import Ouroboros.Consensus.HardFork.Combinator
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
-    ( Interpreter )
+    ( Interpreter, PastHorizonException (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
-    ( Bound (..), PastHorizonException (..) )
+    ( Bound (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -490,7 +490,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         case mkTimeInterpreter getGenesisBlockDate interpreter query of
             Right r -> pure r
             Left e -> do
-                liftIO $ traceWith tr $ MsgInterpreterPastHorizon (pretty query) e
+                liftIO $ traceWith tr $ MsgInterpreterPastHorizon e
                 throwIO e
 
 type instance GetStakeDistribution (IO Shelley) m =
@@ -953,7 +953,7 @@ data NetworkLayerLog sc where
     MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog sc
     MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog sc
     MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
-    MsgInterpreterPastHorizon :: Text -> PastHorizonException -> NetworkLayerLog sc
+    MsgInterpreterPastHorizon :: PastHorizonException -> NetworkLayerLog sc
     MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog sc
 
 data QueryClientName
@@ -1048,12 +1048,8 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
-        MsgInterpreterPastHorizon query (PastHorizon callstack eras) ->
-            "Time interpreter queried past the horizon. " <>
-            "Query is:\n" <> query <> "\n" <>
-            "Eras are:\n" <>
-            T.unlines (map (T.pack . show) eras) <> "\n" <>
-            T.pack (prettyCallStack callstack)
+        MsgInterpreterPastHorizon e ->
+            "Time interpreter queried past the horizon: " <> T.pack (show e)
 
 instance HasPrivacyAnnotation (NetworkLayerLog b)
 instance HasSeverityAnnotation (NetworkLayerLog b) where
