@@ -626,7 +626,7 @@ fromPoolDistr
     :: SL.PoolDistr crypto
     -> Map W.PoolId Percentage
 fromPoolDistr =
-    Map.map (unsafeMkPercentage . fst)
+    Map.map (unsafeMkPercentage . SL.individualPoolStake)
     . Map.mapKeys fromPoolId
     . SL.unPoolDistr
 
