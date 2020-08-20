@@ -111,6 +111,7 @@ import Database.Persist.Sql
     , repsert
     , selectFirst
     , selectList
+    , toPersistValue
     , (<.)
     , (==.)
     , (>.)
@@ -364,17 +365,16 @@ newDBLayer trace fp timeInterpreter = do
 
         , listRetiredPools = \epochNo -> do
             let query = T.unwords
-                    [ "SELECT * FROM "
-                    , databaseViewName activePoolRetirements
-                    , "WHERE retirement_epoch <="
-                    , T.toText epochNo
-                    , ";"
+                    [ "SELECT *"
+                    , "FROM active_pool_retirements"
+                    , "WHERE retirement_epoch <= ?;"
                     ]
+            let parameters = [ toPersistValue epochNo ]
             let safeCast (Single poolId, Single retirementEpoch) =
                     PoolRetirementCertificate
                         <$> fromPersistValue poolId
                         <*> fromPersistValue retirementEpoch
-            rights . fmap safeCast <$> rawSql query []
+            rights . fmap safeCast <$> rawSql query parameters
 
         , rollbackTo = \point -> do
             -- TODO(ADP-356): What if the conversion blocks or fails?
