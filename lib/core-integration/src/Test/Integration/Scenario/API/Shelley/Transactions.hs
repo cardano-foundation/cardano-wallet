@@ -181,29 +181,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
       expectResponseCode HTTP.status403 r
       expectErrorMessage (errMsg404MinUTxOValue minUTxOValue) r
 
-    it "TRANS_MIN_UTXO_02 - I cannot leave less than minUTxOValue" $ \ctx -> do
-      wSrc <- fixtureWalletWith @n ctx [3 * minUTxOValue]
-      wDest <- emptyWallet ctx
-
-      let amt = (2 * minUTxOValue) - 1
-      addrs <- listAddresses @n ctx wDest
-      let destination = (addrs !! 1) ^. #id
-      let payload = Json [json|{
-              "payments": [{
-                  "address": #{destination},
-                  "amount": {
-                      "quantity": #{amt},
-                      "unit": "lovelace"
-                  }
-              }],
-              "passphrase": #{fixturePassphrase}
-          }|]
-
-      let ep = Link.createTransaction @'Shelley
-      r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
-      expectResponseCode HTTP.status403 r
-      expectErrorMessage (errMsg404MinUTxOValue minUTxOValue) r
-
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
         \ while both, pending and in_ledger" $ \ctx -> do
@@ -599,7 +576,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (1 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -672,7 +649,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let amt = (1_000_000 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -687,7 +664,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_03 - Transaction with too much metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (1_000_000 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -706,7 +683,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (1_000_000 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -734,7 +711,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_02 - fee estimation with invalid metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (1_000_000 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -749,7 +726,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (1_000_000 :: Natural)
+        let amt = (minUTxOValue :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1519,7 +1496,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1551,11 +1528,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        let fee = 143600
+        (_, ApiFee (Quantity _) (Quantity fee)) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSelf) Default payload
@@ -1625,7 +1603,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1657,7 +1635,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1678,7 +1656,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1698,7 +1676,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1719,7 +1697,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": 1000000, "unit": "lovelace" }
+                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]

@@ -88,6 +88,7 @@ import Test.Integration.Framework.DSL
     , joinStakePool
     , json
     , listAddresses
+    , minUTxOValue
     , notDelegating
     , quitStakePool
     , request
@@ -184,7 +185,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         -- Try to use rewards
         addrs <- listAddresses @n ctx dest
-        let coin = 1 :: Natural
+        let coin = minUTxOValue :: Natural
         let addr = (addrs !! 1) ^. #id
         let payload = [json|
                 { "payments":
@@ -546,12 +547,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
 
-        it "STAKE_POOLS_QUIT_01x - \
+        it "STAKE_POOLS_QUIT_01xx - \
             \I can quit if I have enough to cover fee" $ \ctx -> do
+            -- change needed to satisfy minUTxOValue
+            let change = minUTxOValue - costOfQuitting ctx
             let initBalance =
                     [ costOfJoining ctx
                     + depositAmt ctx
                     + costOfQuitting ctx
+                    + change
                     + costOfChange ctx
                     ]
             w <- fixtureWalletWith @n ctx initBalance
@@ -581,10 +585,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     , expectField
                         (#balance . #getApiT . #total)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx))))
+                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     , expectField
                         (#balance . #getApiT . #available)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx))))
+                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -685,7 +686,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
-                    , "--payment", "1@" <> addrStr
+                    , "--payment", T.pack (show minUTxOValue) <> "@" <> addrStr
                     ]
 
             (cTx, outTx, errTx) <- postTransactionViaCLI @t ctx pass args
@@ -714,7 +715,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
-        let coins = [13, 43, 66, 101, 1339] :: [Word64]
+        let coins = [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000] :: [Word64]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
 
