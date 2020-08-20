@@ -97,6 +97,11 @@ spec = describe "NetworkLayer regression test #1708" $ do
             -- NOTE: We make sure to test conditions both before and after
             -- calling @refresh@, as it can be called arbitrarily without our
             -- (the observers') knowledge.
+            --
+            -- NOTE: These tests are stateful.
+            -- They also use smaller @it@ blocks, with more @describe@ nesting,
+            -- than much of the rest of the wallet tests. This is done for
+            -- concise and readable test output.
             let k = ("k"::String)
             let v = length k
             describe "startObserving" $ do
@@ -118,6 +123,7 @@ spec = describe "NetworkLayer regression test #1708" $ do
                         let expectedValue = length k
                         (query observer k)`shouldReturn` Just expectedValue
 
+                -- NOTE: Depends on the @refresh@ call from the previous test.
                 it "traced MsgAddedObserver, MsgWillFetch, MsgDidFetch"
                     $ \(_, _, trVar) -> do
                         trVar `shouldHaveTraced`
@@ -214,7 +220,6 @@ spec = describe "NetworkLayer regression test #1708" $ do
                 , build $ show b
                 ]
         assert condition
-
 
 withTestNode
     :: Tracer IO ClusterLog
