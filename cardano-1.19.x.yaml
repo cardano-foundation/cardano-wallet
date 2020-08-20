@@ -36,6 +36,7 @@ packages:
 - micro-recursion-schemes-5.0.2.2
 - moo-1.2
 - network-3.1.1.1
+- primitive-0.7.1.0
 - prometheus-2.1.2
 - quickcheck-instances-0.3.19
 - QuickCheck-2.12.6.1
