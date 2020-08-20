@@ -1529,7 +1529,7 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr state ix (Seq.accountingStyle @c)
+        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c) state
         | (ix, (addr, state))
         <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]

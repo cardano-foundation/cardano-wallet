@@ -242,9 +242,9 @@ SeqStateAddress
     seqStateAddressWalletId         W.WalletId         sql=wallet_id
     seqStateAddressSlot             SlotNo             sql=slot
     seqStateAddressAddress          W.Address          sql=address
-    seqStateAddressStatus           W.AddressState     sql=status
     seqStateAddressIndex            Word32             sql=address_ix
     seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
+    seqStateAddressStatus           W.AddressState     sql=status
 
     Primary
         seqStateAddressWalletId
