@@ -130,7 +130,6 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Data.Text.Class as T
 import qualified Database.Sqlite as Sqlite
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
