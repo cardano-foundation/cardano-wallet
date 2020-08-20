@@ -50,45 +50,55 @@ jobs:
     name: "Executables"
     script:
     # Fetch the builds from Hydra
-    - npm install --no-save axios lodash
+    - npm install --no-save axios@0.19.2 lodash@4.17.20
     - node scripts/travis-download-builds.js
 
     ############################
     # cardano-node
     ############################
 
-    # Fetch the linux archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-linux64/latest/download/1 --output cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
-    # Fetch the MacOS archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest/download/1 --output cardano-wallet-$TRAVIS_TAG-macos64.tar.gz
-    # Fetch the Windows archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest/download/1 --output cardano-wallet-$TRAVIS_TAG-win64.zip
+    # Unpack and rename stuff for the Linux archive
+    - "tar xzf cardano-wallet-20*-linux64.tar.gz"
+    - "mv cardano-wallet-20*/ cardano-wallet-linux64"
+    - "./cardano-wallet-linux64/cardano-wallet version | grep -q $TRAVIS_COMMIT"
+    - "tar czf cardano-wallet-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-linux64"
+    - "rm -rf cardano-wallet-linux64 cardano-wallet-20*-linux64.tar.gz"
+
+    # Unpack and rename stuff for the MacOS archive
+    - "tar xzf cardano-wallet-20*-macos64.tar.gz"
+    - "mv cardano-wallet-20*/ cardano-wallet-macos64"
+    - "tar czf cardano-wallet-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-macos64"
+    - "rm -rf cardano-wallet-macos64 cardano-wallet-20*-macos64.tar.gz"
+
+    # Unpack and rename stuff for the Windows archive
+    - "unzip -d cardano-wallet-win64 cardano-wallet-20*-win64.zip"
+    - "zip -r cardano-wallet-$TRAVIS_TAG-win64.zip cardano-wallet-win64"
+    - "rm -rf cardano-wallet-win64 cardano-wallet-win64.zip"
 
     ############################
     # jörmungandr
     ############################
 
-    # Fetch the linux archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-linux64/latest/download/1 | tar xz
-    - find . -maxdepth 1 -type d -name "cardano-wallet-jormungandr-*" -exec mv \{} cardano-wallet-jormungandr-linux64 \;
-    - mv cardano-wallet-jormungandr-linux64/cardano-wallet-jormungandr cardano-wallet-jormungandr-linux64/cardano-wallet
-    - tar czf cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-jormungandr-linux64
-    - rm -rf cardano-wallet-jormungandr-linux64
+    # Unpack and rename stuff for the Linux archive
+    - "tar xzf cardano-wallet-jormungandr-*-linux64.tar.gz"
+    - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-linux64"
+    - "mv cardano-wallet-jormungandr-linux64/cardano-wallet-jormungandr cardano-wallet-jormungandr-linux64/cardano-wallet"
+    - "./cardano-wallet-jormungandr-linux64/cardano-wallet version | grep -q $TRAVIS_COMMIT"
+    - "tar czf cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-jormungandr-linux64"
+    - "rm -rf cardano-wallet-jormungandr-linux64 cardano-wallet-jormungandr-*-linux64.tar.gz"
 
-    # Fetch the MacOS archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-macos64/latest/download/1 | tar xz
-    - find . -maxdepth 1 -type d -name "cardano-wallet-jormungandr-*" -exec mv \{} cardano-wallet-jormungandr-macos64 \;
-    - mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet
-    - tar czf cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-jormungandr-macos64
-    - rm -rf cardano-wallet-jormungandr-macos64
+    # Unpack and rename stuff for the MacOS archive
+    - "tar xzf cardano-wallet-jormungandr-*-macos64.tar.gz"
+    - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-macos64"
+    - "mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet"
+    - "tar czf cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-jormungandr-macos64"
+    - "rm -rf cardano-wallet-jormungandr-macos64 cardano-wallet-jormungandr-*-macos64.tar.gz"
 
-    # Fetch the Windows archive
-    - travis_retry curl -L https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-jormungandr-win64/latest/download/1 --output cardano-wallet-jormungandr-win64.zip
-    - unzip -d cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-win64.zip
-    - mv cardano-wallet-jormungandr-win64/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-win64/cardano-wallet.exe
-    - zip -r cardano-wallet-itn-$TRAVIS_TAG-win64.zip cardano-wallet-jormungandr-win64
-    - rm -rf cardano-wallet-jormungandr-win64
-    - rm cardano-wallet-jormungandr-win64.zip
+    # Unpack and rename stuff for the Windows archive
+    - "unzip -d cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-*-win64.zip"
+    - "mv cardano-wallet-jormungandr-win64/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-win64/cardano-wallet.exe"
+    - "zip -r cardano-wallet-itn-$TRAVIS_TAG-win64.zip cardano-wallet-jormungandr-win64"
+    - "rm -rf cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-*-win64.zip"
 
     # Deploy documentation snapshot
     - mkdir -p api/$TRAVIS_TAG
