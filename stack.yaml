@@ -1,4 +1,4 @@
-resolver: cardano-1.18.x.yaml
+resolver: cardano-1.19.x.yaml
 
 packages:
 - lib/core

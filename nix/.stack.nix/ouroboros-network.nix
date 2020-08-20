@@ -41,6 +41,7 @@
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -125,6 +126,7 @@
             (hsPkgs."pipes" or (errorHandler.buildDepError "pipes"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
             (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
+            (hsPkgs."random" or (errorHandler.buildDepError "random"))
             (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             (hsPkgs."splitmix" or (errorHandler.buildDepError "splitmix"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
@@ -187,8 +189,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "ec74d1c463b6d18bdca2b714abe730c1d237cc32";
-      sha256 = "0y0kpad63fppynhvyqva2mh44nbd4rbkrrvdc82zg6qcw8b5rm6p";
+      rev = "aecfe77de784e6c75108172802ee59d2d7087eaf";
+      sha256 = "1pdanljh5v1w038fc0s945h1gnrkipnfbj2cqqzwgpnv7zm14swh";
       });
     postUnpack = "sourceRoot+=/ouroboros-network; echo source root reset to \$sourceRoot";
     }

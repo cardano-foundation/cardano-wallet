@@ -93,8 +93,6 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime, getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
-import Fmt
-    ( Buildable (..), (+||), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -111,7 +109,6 @@ import Ouroboros.Consensus.HardFork.History.Summary
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 -- -----------------------------------------------------------------------------
 -- New Api using ouroboros-consensus. With the right interpreter, the
@@ -155,8 +152,8 @@ endTimeOfEpoch :: EpochNo -> Qry UTCTime
 endTimeOfEpoch epoch = do
     ref <- firstSlotInEpoch epoch
     refTime <- startTime ref
-    el <- HardForkQry $ HF.QEpochSize $ toCardanoEpochNo epoch
-    sl <- HardForkQry $ HF.QSlotLength ref
+    el <- HardForkQry $ HF.qryFromExpr $ HF.EEpochSize $ HF.ELit $ toCardanoEpochNo epoch
+    sl <- HardForkQry $ HF.qryFromExpr $ HF.ESlotLength $ HF.ELit ref
 
     let convert = fromRational . toRational
     let el' = convert $ Cardano.unEpochSize el
@@ -313,14 +310,6 @@ instance Applicative Qry where
 instance Monad Qry where
   return = pure
   (>>=)  = QBind
-
-instance Buildable (Qry a) where
-    build = \case
-        HardForkQry qry -> build qry
-        RelToUTCTime t -> "RelToUTCTime "+||t||+""
-        UTCTimeToRel t -> "UTCTimeToRel "+||t||+""
-        QPure _ -> "qPure"
-        QBind q _ -> "qBind " <> build q
 
 runQuery
     :: HasCallStack

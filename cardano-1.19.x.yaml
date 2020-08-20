@@ -1,17 +1,18 @@
-name: cardano-1.17.x
+name: cardano-1.19.x
 
 resolver: lts-14.25
 
 packages:
 - base16-0.1.2.1
 - base58-bytestring-0.1.0
-- base64-0.4.1
+- base64-0.4.2
 - bech32-1.1.0
 - bech32-th-1.0.2
-- bimap-0.4.0
-- binary-0.8.7.0
 - brick-0.47
+- binary-0.8.7.0
+- bimap-0.4.0
 - canonical-json-0.6.0.0
+- cborg-0.2.4.0
 - clock-0.8
 - config-ini-0.2.4.0
 - connection-0.3.1
@@ -20,8 +21,11 @@ packages:
 - dns-3.0.4
 - generic-monoid-0.1.0.0
 - generics-sop-0.5.1.0
+- ghc-byteorder-4.11.0.0.10
 - gray-code-0.3.1
 - hedgehog-1.0.2
+- hedgehog-corpus-0.2.0
+- hedgehog-quickcheck-0.1.1
 - hspec-2.7.0
 - hspec-core-2.7.0
 - hspec-discover-2.7.0
@@ -32,6 +36,7 @@ packages:
 - micro-recursion-schemes-5.0.2.2
 - moo-1.2
 - network-3.1.1.1
+- primitive-0.7.1.0
 - prometheus-2.1.2
 - quickcheck-instances-0.3.19
 - QuickCheck-2.12.6.1
@@ -44,17 +49,18 @@ packages:
 - systemd-2.3.0
 - tasty-hedgehog-1.0.0.2
 - text-1.2.4.0
+- text-ansi-0.1.0
 - text-zipper-0.10.1
 - th-lift-instances-0.1.14
 - time-units-1.0.0
 - transformers-except-0.1.1
 - Unique-0.4.7.6
+- word-wrap-0.4.1
 - websockets-0.12.6.1
 - Win32-2.6.2.0
-- word-wrap-0.4.1
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 7d795c3040ea7785812efa1c97864bbb41b15d3e
+  commit: df8687488449f71dce3d881800c21e41fe1b7fc1
   subdirs:
   - binary
   - binary/test
@@ -66,7 +72,7 @@ packages:
   commit: 2547ad1e80aeabca2899951601079408becbc92c
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: 183a70c001587d9b1977541deae28c3e44713907
+  commit: 460ee17d22cacb3ac4d90536ebe90500a356a1c9
   subdirs:
   - byron/ledger/impl
   - byron/crypto
@@ -78,10 +84,10 @@ packages:
   - semantics/small-steps-test
   - shelley/chain-and-ledger/dependencies/non-integer
   - shelley/chain-and-ledger/executable-spec
-  - shelley/chain-and-ledger/executable-spec/test
+  - shelley/chain-and-ledger/shelley-spec-ledger-test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: ba0f96b1a9fc9232ed211e57835fd5018093069d
+  commit: 4814003f14340d5a1fc02f3ac15437387a7ada9f
   subdirs:
   - cardano-api
   - cardano-cli
@@ -89,7 +95,7 @@ packages:
   - cardano-node
 
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: 316c854d1d3089f480708ad5cd5ecf8a74423ddd
+  commit: 71ea865408f2e03e6d6832359423546699730849
   subdirs:
   - .
   - test
@@ -98,10 +104,10 @@ packages:
   commit: 43a036c5bbe68ca2e9cbe611eab7982e2348fe49
 
 - git: https://github.com/input-output-hk/goblins
-  commit: 26d35ad52fe9ade3391532dbfeb2f416f07650bc
+  commit: 312198a1523736181ef7ddab15958bb32a9d9052
 
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: efa4b5ecd7f0a13124616b12679cd42517cd905a
+  commit: 8190b00d6930927a812baff97d02566176b6bd3b
   subdirs:
   - contra-tracer
   - iohk-monitoring
@@ -113,7 +119,7 @@ packages:
   - plugins/backend-trace-forwarder
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: ec74d1c463b6d18bdca2b714abe730c1d237cc32
+  commit: aecfe77de784e6c75108172802ee59d2d7087eaf
   subdirs:
   - io-sim
   - io-sim-classes
@@ -132,11 +138,6 @@ packages:
   - ouroboros-network-testing
   - typed-protocols
   - typed-protocols-examples
-
-- git: https://github.com/well-typed/cborg
-  commit: 42a83192749774268337258f4f94c97584b80ca6
-  subdirs:
-  - cborg
 
 - git: https://github.com/snoyberg/http-client.git
   commit: 1a75bdfca014723dd5d40760fad854b3f0f37156
