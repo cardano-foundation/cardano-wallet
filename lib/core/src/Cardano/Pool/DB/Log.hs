@@ -19,7 +19,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.DB.Sqlite
     ( DBLog (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId )
+    ( PoolId, PoolRetirementCertificate )
 import Data.Text.Class
     ( ToText (..), toText )
 import Fmt
@@ -30,7 +30,7 @@ import qualified Data.Text as T
 data PoolDbLog
     = MsgGeneric DBLog
     | MsgRemovingPool PoolId
-    | MsgRemovingRetiredPools [PoolId]
+    | MsgRemovingRetiredPools [PoolRetirementCertificate]
     deriving (Eq, Show)
 
 instance HasPrivacyAnnotation PoolDbLog
