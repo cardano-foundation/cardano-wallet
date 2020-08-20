@@ -85,7 +85,7 @@ import Control.Concurrent.Chan
 import Control.Exception
     ( IOException, throwIO )
 import Control.Monad
-    ( forever, unless, void, (>=>) )
+    ( forever, unless, void, when, (>=>) )
 import Control.Monad.Catch
     ( Handler (..) )
 import Control.Monad.Class.MonadAsync
@@ -788,7 +788,8 @@ newRewardBalanceFetcher
           , Tip (CardanoBlock sc) -> IO ()
             -- Call on tip-change to refresh
           )
-newRewardBalanceFetcher tr gp queryRewardQ = newObserver nullTracer fetch
+newRewardBalanceFetcher tr gp queryRewardQ =
+    newObserver (contramap MsgObserverLog tr) fetch
   where
     fetch
         :: Tip (CardanoBlock sc)
@@ -829,6 +830,26 @@ data ObserverLog key value
     | MsgDidFetch (Map key value)
     | MsgAddedObserver key
     | MsgRemovedObserver key
+    deriving (Eq, Show)
+
+instance (Ord key, Buildable key, Buildable value)
+    => ToText (ObserverLog key value) where
+    toText (MsgWillFetch keys) = mconcat
+        [ "Will fetch values for keys "
+        , fmt $ listF keys
+        ]
+    toText (MsgDidFetch m) = mconcat
+        [ "Did fetch values "
+        , fmt $ mapF m
+        ]
+    toText (MsgAddedObserver key) = mconcat
+        [ "Started observing values for key "
+        , pretty key
+        ]
+    toText (MsgRemovedObserver key) = mconcat
+        [ "Stopped observing values for key "
+        , pretty key
+        ]
 
 -- | Given a way to fetch values for a set of keys, create:
 -- 1. An @Observer@ for consuming values
@@ -853,9 +874,11 @@ newObserver tr fetch = do
     observer cacheVar observedKeysVar =
         Observer
             { startObserving = \k -> do
-                atomically $ do
+                wasAdded <- atomically $ do
+                    notAlreadyThere <- Set.notMember k <$> readTVar observedKeysVar
                     modifyTVar' observedKeysVar (Set.insert k)
-                traceWith tr $ MsgAddedObserver k
+                    return notAlreadyThere
+                when wasAdded $ traceWith tr $ MsgAddedObserver k
             , stopObserving = \k -> do
                 atomically $ do
                     modifyTVar' observedKeysVar (Set.delete k)
@@ -873,10 +896,14 @@ newObserver tr fetch = do
         -> m ()
     refresh cacheVar observedKeysVar env = do
         keys <- atomically $ readTVar observedKeysVar
+        traceWith tr $ MsgWillFetch keys
         mvalues <- fetch env keys
+
         case mvalues of
             Nothing -> pure ()
-            Just values -> atomically $ writeTVar cacheVar values
+            Just values -> do
+                traceWith tr $ MsgDidFetch values
+                atomically $ writeTVar cacheVar values
 
 -- | Return a function to run an action only if its single parameter has changed
 -- since the previous time it was called.
@@ -1064,6 +1091,9 @@ data NetworkLayerLog sc where
     MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
     MsgInterpreterPastHorizon :: Text -> PastHorizonException -> NetworkLayerLog sc
     MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog sc
+    MsgObserverLog
+        :: ObserverLog W.ChimericAccount W.Coin
+        -> NetworkLayerLog sc
 
 data QueryClientName
     = TipSyncClient
@@ -1163,6 +1193,8 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
             T.unlines (map (T.pack . show) eras) <> "\n" <>
             T.pack (prettyCallStack callstack)
 
+        MsgObserverLog msg -> toText msg
+
 instance HasPrivacyAnnotation (NetworkLayerLog b)
 instance HasSeverityAnnotation (NetworkLayerLog b) where
     getSeverityAnnotation = \case
@@ -1193,3 +1225,4 @@ instance HasSeverityAnnotation (NetworkLayerLog b) where
         MsgInterpreter{}                   -> Debug
         MsgQueryTime{}                     -> Info
         MsgInterpreterPastHorizon{}        -> Error
+        MsgObserverLog{}                   -> Debug
