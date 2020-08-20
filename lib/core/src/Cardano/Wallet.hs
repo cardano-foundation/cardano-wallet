@@ -13,6 +13,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -99,6 +100,7 @@ module Cardano.Wallet
     , normalizeDelegationAddress
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
+    , ErrImportAddress(..)
 
     -- ** Payment
     , selectCoinsExternal
@@ -235,7 +237,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState )
+    ( ErrImportAddress (..), RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -752,7 +754,8 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
             restoreBlocks @ctx @s @k @t ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
-        FollowInterrupted -> pure ()
+        FollowInterrupted ->
+            pure ()
         FollowFailure ->
             restoreWallet @ctx @s @t @k ctx wid
         FollowRollback point -> do
@@ -1044,7 +1047,6 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 listAddresses
     :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -1057,25 +1059,19 @@ listAddresses
         -- Use 'Just' for wallet without delegation settings.
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
-    (s, txs) <- mapExceptT atomically $ (,)
-        <$> (getState <$> withNoSuchWallet wid (readCheckpoint primaryKey))
-        <*> lift (readTxHistory primaryKey Nothing Descending wholeRange Nothing)
-    let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
-            then normalize s a
-            else Nothing
-    let usedAddrs
-            = Set.fromList
-            $ concatMap
-                (mapMaybe maybeIsOurs . W.outputs)
-                (fromTransactionInfo <$> txs)
-    let knownAddrs =
-            L.sortBy (compareDiscovery s) (mapMaybe (normalize s) $ knownAddresses s)
-    let withAddressState addr =
-            (addr, if addr `Set.member` usedAddrs then Used else Unused)
-    return $ withAddressState <$> knownAddrs
+    cp <- mapExceptT atomically
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+    let s = getState cp
+
+    -- FIXME
+    -- Stream this instead of returning it as a single block.
+    return
+        $ L.sortBy (\(a,_) (b,_) -> compareDiscovery s a b)
+        $ mapMaybe (\(addr, st) -> (,st) <$> normalize s addr)
+        $ knownAddresses s
   where
     db = ctx ^. dbLayer @s @k
-    primaryKey = PrimaryKey wid
 
 createChangeAddress
     :: forall ctx s k.
@@ -1126,7 +1122,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
 
             let prepared = preparePassphrase scheme pwd
             let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let s' = (Rnd.addDiscoveredAddress addr path s) { Rnd.gen = gen' }
+            let s' = (Rnd.addDiscoveredAddress addr Unused path s) { Rnd.gen = gen' }
             withExceptT ErrCreateAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
             pure addr
@@ -1148,12 +1144,13 @@ importRandomAddresses
 importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp <- withExceptT ErrImportAddrNoSuchWallet
         $ withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
-    let s = getState cp
-        ours = scanl' (\(_, t) addr -> isOurs addr t) (True, s) addrs
-        s' = snd (last ours)
-    if (not . any fst) ours
-        then throwE ErrImportAddrDoesNotBelong
-        else withExceptT ErrImportAddrNoSuchWallet $
+    let s0 = getState cp
+        ours = scanl' (\s addr -> s >>= Rnd.importAddress addr) (Right s0) addrs
+    case last ours of
+        Left err ->
+            throwE $ ErrImportAddr err
+        Right s' ->
+            withExceptT ErrImportAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
     db = ctx ^. dbLayer @s @k
@@ -2292,7 +2289,7 @@ data ErrCreateRandomAddress
 
 data ErrImportRandomAddress
     = ErrImportAddrNoSuchWallet ErrNoSuchWallet
-    | ErrImportAddrDoesNotBelong
+    | ErrImportAddr ErrImportAddress
     | ErrImportAddressNotAByronWallet
     deriving (Generic, Eq, Show)
 

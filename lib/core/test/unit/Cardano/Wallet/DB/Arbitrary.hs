@@ -74,6 +74,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
@@ -637,6 +638,9 @@ instance Arbitrary DelegationCertificate where
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
+
+instance Arbitrary AddressState where
+    arbitrary = genericArbitrary
 
 {-------------------------------------------------------------------------------
                                    Buildable

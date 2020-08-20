@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
     , Direction (..)
@@ -536,7 +537,6 @@ instance PathPiece StakePoolMetadataUrl where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 
-
 ----------------------------------------------------------------------------
 -- ChimericAccount
 
@@ -565,3 +565,13 @@ instance FromJSON ChimericAccount where
 instance PathPiece ChimericAccount where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
+
+----------------------------------------------------------------------------
+-- AddressState
+
+instance PersistField AddressState where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql AddressState where
+    sqlType _ = sqlType (Proxy @Text)

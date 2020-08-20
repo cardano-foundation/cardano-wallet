@@ -106,6 +106,7 @@ import Cardano.Wallet
     , ErrDecodeSignedTx (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
+    , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
     , ErrJoinStakePool (..)
     , ErrListTransactions (..)
@@ -1177,7 +1178,6 @@ putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
 listAddresses
     :: forall ctx s t k n.
         ( ctx ~ ApiLayer s t k
-        , IsOurs s Address
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -2446,7 +2446,7 @@ instance LiftHandler ErrImportRandomAddress where
                 [ "I cannot derive new address for this wallet type."
                 , " Make sure to use Byron random wallet id."
                 ]
-        ErrImportAddrDoesNotBelong ->
+        ErrImportAddr ErrAddrDoesNotBelong{} ->
             apiError err403 KeyNotFoundForAddress $ mconcat
                 [ "I couldn't identify this address as one of mine. It likely "
                 , "belongs to another wallet and I will therefore not import it."

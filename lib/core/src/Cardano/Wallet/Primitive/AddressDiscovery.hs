@@ -34,7 +34,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
+    ( Address (..), AddressState (..) )
 
 -- | Checks whether or not a given entity belongs to us.
 --
@@ -125,4 +125,4 @@ class CompareDiscovery s where
 class KnownAddresses s where
     knownAddresses
         :: s
-        -> [Address]
+        -> [(Address, AddressState)]

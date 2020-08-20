@@ -325,6 +325,7 @@ data SqlColumnStatus
     = TableMissing
     | ColumnMissing
     | ColumnPresent
+    deriving Eq
 
 -- | Executes any manual database migration steps that may be required on
 --   startup.
@@ -352,6 +353,8 @@ migrateManually tr defaultFieldValues =
         removeSoftRndAddresses conn
 
         removeOldTxParametersTable conn
+
+        addAddressStateIfMissing conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -436,7 +439,7 @@ migrateManually tr defaultFieldValues =
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn =
-        addColumn conn True (DBField CheckpointActiveSlotCoeff) value
+        addColumn_ conn True (DBField CheckpointActiveSlotCoeff) value
       where
         value = toText
             $ W.unActiveSlotCoefficient
@@ -447,7 +450,7 @@ migrateManually tr defaultFieldValues =
     --
     addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
     addDesiredPoolNumberIfMissing conn = do
-        addColumn conn True (DBField ProtocolParametersDesiredNumberOfPools) value
+        addColumn_ conn True (DBField ProtocolParametersDesiredNumberOfPools) value
       where
         value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
 
@@ -456,7 +459,7 @@ migrateManually tr defaultFieldValues =
     --
     addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
     addMinimumUTxOValueIfMissing conn = do
-        addColumn conn True (DBField ProtocolParametersMinimumUtxoValue) value
+        addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
         value = T.pack $ show $ W.getCoin $ defaultMinimumUTxOValue defaultFieldValues
 
@@ -465,7 +468,7 @@ migrateManually tr defaultFieldValues =
     --
     addHardforkEpochIfMissing :: Sqlite.Connection -> IO ()
     addHardforkEpochIfMissing conn = do
-        addColumn conn False (DBField ProtocolParametersHardforkEpoch) value
+        addColumn_ conn False (DBField ProtocolParametersHardforkEpoch) value
       where
         value = case defaultHardforkEpoch defaultFieldValues of
             Nothing -> "NULL"
@@ -477,6 +480,27 @@ migrateManually tr defaultFieldValues =
         dropTable <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
         void $ Sqlite.stepConn conn dropTable
         Sqlite.finalize dropTable
+
+    -- | In order to make listing addresses bearable for large wallet, we
+    -- altered the discovery process to mark addresses as used as they are
+    -- discovered. Existing databases don't have that pre-computed field.
+    addAddressStateIfMissing :: Sqlite.Connection -> IO ()
+    addAddressStateIfMissing conn = do
+        _  <- addColumn conn False (DBField SeqStateAddressStatus) (toText W.Unused)
+        st <- addColumn conn False (DBField RndStateAddressStatus) (toText W.Unused)
+        when (st == ColumnMissing) $ do
+            markAddressesAsUsed (DBField SeqStateAddressStatus)
+            markAddressesAsUsed (DBField RndStateAddressStatus)
+      where
+        markAddressesAsUsed field = do
+            query <- Sqlite.prepare conn $ T.unwords
+                [ "UPDATE", tableName field
+                , "SET status = '" <> toText W.Used <> "'"
+                , "WHERE", tableName field <> ".address", "IN"
+                , "(SELECT DISTINCT(address) FROM tx_out)"
+                ]
+            _ <- Sqlite.step query
+            Sqlite.finalize query
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
@@ -495,6 +519,15 @@ migrateManually tr defaultFieldValues =
                 | otherwise                       -> ColumnMissing
             _ -> TableMissing
 
+    addColumn_
+        :: Sqlite.Connection
+        -> Bool
+        -> DBField
+        -> Text
+        -> IO ()
+    addColumn_ a b c =
+        void . addColumn a b c
+
     -- | A migration for adding a non-existing column to a table. Factor out as
     -- it's a common use-case.
     addColumn
@@ -502,9 +535,9 @@ migrateManually tr defaultFieldValues =
         -> Bool
         -> DBField
         -> Text
-        -> IO ()
+        -> IO SqlColumnStatus
     addColumn conn notNull field value = do
-        isFieldPresent conn field >>= \case
+        isFieldPresent conn field >>= \st -> st <$ case st of
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnMissing -> do
@@ -1496,8 +1529,9 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c)
-        | (ix, addr) <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
+        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c) state
+        | (ix, (addr, state))
+        <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
 
 selectAddressPool
@@ -1523,8 +1557,9 @@ selectAddressPool wid sl gap xpub = do
     addressPoolFromEntity
         :: [SeqStateAddress]
         -> Seq.AddressPool c k
-    addressPoolFromEntity addrs =
-        Seq.mkAddressPool @n @c @k xpub gap (map seqStateAddressAddress addrs)
+    addressPoolFromEntity addrs
+        = Seq.mkAddressPool @n @c @k xpub gap
+        $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
@@ -1541,12 +1576,6 @@ selectSeqStatePendingIxs wid =
 {-------------------------------------------------------------------------------
                           HD Random address discovery
 -------------------------------------------------------------------------------}
-
--- | Type alias for the index -> address map so that lines do not exceed 80
--- characters in width.
-type RndStateAddresses = Map
-    (W.Index 'W.WholeDomain 'W.AccountK, W.Index 'W.WholeDomain 'W.AddressK)
-    W.Address
 
 -- Persisting 'RndState' requires that the wallet root key has already been
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
@@ -1593,17 +1622,17 @@ instance PersistState (Rnd.RndState t) where
 insertRndStateAddresses
     :: W.WalletId
     -> W.SlotNo
-    -> RndStateAddresses
+    -> Map Rnd.DerivationPath (W.Address, W.AddressState)
     -> SqlPersistT IO ()
 insertRndStateAddresses wid sl addresses = do
     dbChunked insertMany_
-        [ RndStateAddress wid sl accIx addrIx addr
-        | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
+        [ RndStateAddress wid sl accIx addrIx addr st
+        | ((W.Index accIx, W.Index addrIx), (addr, st)) <- Map.assocs addresses
         ]
 
 insertRndStatePending
     :: W.WalletId
-    -> RndStateAddresses
+    -> Map Rnd.DerivationPath W.Address
     -> SqlPersistT IO ()
 insertRndStatePending wid addresses = do
     deleteWhere [RndStatePendingAddressWalletId ==. wid]
@@ -1615,7 +1644,7 @@ insertRndStatePending wid addresses = do
 selectRndStateAddresses
     :: W.WalletId
     -> W.SlotNo
-    -> SqlPersistT IO RndStateAddresses
+    -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
 selectRndStateAddresses wid sl = do
     addrs <- fmap entityVal <$> selectList
         [ RndStateAddressWalletId ==. wid
@@ -1623,12 +1652,12 @@ selectRndStateAddresses wid sl = do
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
   where
-    assocFromEntity (RndStateAddress _ _ accIx addrIx addr) =
-        ((W.Index accIx, W.Index addrIx), addr)
+    assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
+        ((W.Index accIx, W.Index addrIx), (addr, st))
 
 selectRndStatePending
     :: W.WalletId
-    -> SqlPersistT IO RndStateAddresses
+    -> SqlPersistT IO (Map Rnd.DerivationPath W.Address)
 selectRndStatePending wid = do
     addrs <- fmap entityVal <$> selectList
         [ RndStatePendingAddressWalletId ==. wid
