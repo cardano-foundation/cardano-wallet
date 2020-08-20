@@ -27,15 +27,10 @@ module Cardano.Pool.DB.Sqlite
     , withDBLayer
     , defaultFilePath
     , DatabaseView (..)
-    , PoolDbLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -50,6 +45,8 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -92,8 +89,6 @@ import Data.String.QQ
     ( s )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( ToText (..), toText )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -119,8 +114,6 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Fmt
-    ( pretty )
 import System.Directory
     ( removeFile )
 import System.FilePath
@@ -669,36 +662,3 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
         }
-
-{-------------------------------------------------------------------------------
-                                   Logging
--------------------------------------------------------------------------------}
-
-data PoolDbLog
-    = MsgGeneric DBLog
-    | MsgRemovingPool PoolId
-    | MsgRemovingRetiredPools [PoolId]
-    deriving (Eq, Show)
-
-instance HasPrivacyAnnotation PoolDbLog
-
-instance HasSeverityAnnotation PoolDbLog where
-    getSeverityAnnotation = \case
-        MsgGeneric e -> getSeverityAnnotation e
-        MsgRemovingPool {} -> Notice
-        MsgRemovingRetiredPools {} -> Notice
-
-instance ToText PoolDbLog where
-    toText = \case
-        MsgGeneric e -> toText e
-        MsgRemovingPool p -> mconcat
-            [ "Removing the following pool from the database: "
-            , toText p
-            , "."
-            ]
-        MsgRemovingRetiredPools [] ->
-            "There are no retired pools to remove."
-        MsgRemovingRetiredPools poolRetirementCerts -> T.unlines
-            [ "Removing the following retired pools:"
-            , T.unlines (pretty <$> poolRetirementCerts)
-            ]

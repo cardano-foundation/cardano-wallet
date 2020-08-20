@@ -34,8 +34,10 @@ import Cardano.Pool.DB.Arbitrary
     , isValidSinglePoolCertificateSequence
     , serializeLists
     )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog )
 import Cardano.Pool.DB.Sqlite
-    ( PoolDbLog, newDBLayer )
+    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Slotting
