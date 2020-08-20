@@ -28,6 +28,8 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog (..) )
 import Cardano.Wallet.Logging
     ( bracketTracer )
 import Cardano.Wallet.Primitive.Types
@@ -307,25 +309,26 @@ determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
 --
 removeRetiredPools
     :: DBLayer IO
-    -> Tracer IO DBLog
+    -> Tracer IO PoolDbLog
     -> EpochNo
     -> IO [PoolRetirementCertificate]
 removeRetiredPools
     DBLayer {atomically, listRetiredPools, removePools} trace epoch =
         bracketTracer (contramap actionDescription trace) action
   where
-    actionDescription = MsgGarbageCollection $ T.concat
+    actionDescription = MsgGeneric . (MsgGarbageCollection $ T.concat
         [ "Removing pools that retired in or before epoch "
         , toText epoch
         , "."
-        ]
+        ])
 
     action = atomically (listRetiredPools epoch) >>= \case
         [] -> do
-            traceWith trace $ MsgGarbageCollectionStep "Found no retired pools."
+            traceWith trace $ MsgGeneric $
+                MsgGarbageCollectionStep "Found no retired pools."
             pure []
         retirementCerts -> do
-            traceWith trace $ MsgGarbageCollectionStep $ T.unlines
+            traceWith trace $ MsgGeneric $ MsgGarbageCollectionStep $ T.unlines
                 [ "Removing the following retired pools:"
                 , T.unlines (pretty <$> retirementCerts)
                 ]
