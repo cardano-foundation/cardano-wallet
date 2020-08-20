@@ -18,8 +18,10 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.Wallet.Logging
+    ( BracketLog )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, PoolRetirementCertificate )
+    ( EpochNo, PoolId, PoolRetirementCertificate )
 import Data.Text.Class
     ( ToText (..), toText )
 import Fmt
@@ -31,6 +33,7 @@ data PoolDbLog
     = MsgGeneric DBLog
     | MsgRemovingPool PoolId
     | MsgRemovingRetiredPools [PoolRetirementCertificate]
+    | MsgRemovingRetiredPoolsForEpoch EpochNo BracketLog
     deriving (Eq, Show)
 
 instance HasPrivacyAnnotation PoolDbLog
@@ -40,6 +43,7 @@ instance HasSeverityAnnotation PoolDbLog where
         MsgGeneric e -> getSeverityAnnotation e
         MsgRemovingPool {} -> Notice
         MsgRemovingRetiredPools {} -> Notice
+        MsgRemovingRetiredPoolsForEpoch {} -> Notice
 
 instance ToText PoolDbLog where
     toText = \case
@@ -54,4 +58,10 @@ instance ToText PoolDbLog where
         MsgRemovingRetiredPools poolRetirementCerts -> T.unlines
             [ "Removing the following retired pools:"
             , T.unlines (pretty <$> poolRetirementCerts)
+            ]
+        MsgRemovingRetiredPoolsForEpoch epoch nestedMessage -> T.concat
+            [ "Removing pools that retired in or before epoch "
+            , toText epoch
+            , ": "
+            , toText nestedMessage
             ]
