@@ -853,15 +853,15 @@ newObserver tr fetch = do
         :: TVar m (Map key value)
         -> TVar m (Set key)
         -> Observer m key value
-    observer cacheVar toBeObservedVar =
+    observer cacheVar observedKeysVar =
         Observer
             { startObserving = \k -> do
                 atomically $ do
-                    modifyTVar' toBeObservedVar (Set.insert k)
+                    modifyTVar' observedKeysVar (Set.insert k)
                 traceWith tr $ MsgAddedObserver k
             , stopObserving = \k -> do
                 atomically $ do
-                    modifyTVar' toBeObservedVar (Set.delete k)
+                    modifyTVar' observedKeysVar (Set.delete k)
                     modifyTVar' cacheVar (Map.delete k)
                 traceWith tr $ MsgRemovedObserver k
             , query = \k -> do
@@ -874,12 +874,8 @@ newObserver tr fetch = do
         -> TVar m (Set key)
         -> env
         -> m ()
-    refresh cacheVar toBeObservedVar env = do
-        keys <- atomically $ do
-            old <- Set.fromList . Map.keys <$> readTVar cacheVar
-            new <- readTVar toBeObservedVar
-            writeTVar toBeObservedVar Set.empty
-            return $ old <> new
+    refresh cacheVar observedKeysVar env = do
+        keys <- atomically $ readTVar observedKeysVar
         mvalues <- fetch env keys
         case mvalues of
             Nothing -> pure ()
