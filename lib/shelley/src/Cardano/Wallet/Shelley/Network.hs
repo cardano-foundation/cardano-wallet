@@ -768,11 +768,11 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
 
 -- | Monitors values for keys, and allows clients to @query@ them.
 --
--- Designed to be used for observing reward balances, where we want to query the
+-- Designed to be used for observing reward balances, where we want to cache the
 -- balances of /all/ the wallets' accounts on tip change, and allow wallet
--- workers to @query@ the value.
+-- workers to @query@ the cache later, often, and whenever they want.
 --
--- One could imagine replacing @query@ with a push-based approach.
+-- NOTE: One could imagine replacing @query@ getter with a push-based approach.
 data Observer m key value = Observer
     { startObserving :: key -> m ()
     , stopObserving :: key -> m ()
@@ -857,6 +857,11 @@ instance (Ord key, Buildable key, Buildable value)
 --
 -- The @env@ parameter can be used to pass in information needed for refreshing,
 -- like the current tip when fetching rewards.
+--
+-- If the given @fetch@ function returns @Nothing@ the the cache will not be
+-- updated.
+--
+-- If it returns @Just values@, the cache will be set to @values@.
 newObserver
     :: forall m key value env. (MonadSTM m, Ord key)
     => Tracer m (ObserverLog key value)
