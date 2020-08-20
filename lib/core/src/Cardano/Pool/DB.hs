@@ -26,8 +26,6 @@ module Cardano.Pool.DB
 
 import Prelude
 
-import Cardano.DB.Sqlite
-    ( DBLog (..) )
 import Cardano.Pool.DB.Log
     ( PoolDbLog (..) )
 import Cardano.Wallet.Logging
@@ -59,14 +57,10 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( toText )
 import Data.Word
     ( Word64 )
 import System.Random
     ( StdGen )
-
-import qualified Data.Text as T
 
 -- | A Database interface for storing pool production in DB.
 --
@@ -312,13 +306,9 @@ removeRetiredPools
     -> IO [PoolRetirementCertificate]
 removeRetiredPools
     DBLayer {atomically, listRetiredPools, removePools} trace epoch =
-        bracketTracer (contramap actionDescription trace) action
+        bracketTracer (contramap actionMessage trace) action
   where
-    actionDescription = MsgGeneric . (MsgGarbageCollection $ T.concat
-        [ "Removing pools that retired in or before epoch "
-        , toText epoch
-        , "."
-        ])
+    actionMessage = MsgRemovingRetiredPoolsForEpoch epoch
 
     action = atomically (listRetiredPools epoch) >>=
         \retirementCerts -> do
