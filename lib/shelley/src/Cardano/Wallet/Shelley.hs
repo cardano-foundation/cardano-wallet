@@ -55,6 +55,8 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
+import Cardano.Pool.DB.Sqlite
+    ( PoolDbLog )
 import Cardano.Pool.Metadata
     ( defaultManagerSettings
     , fetchFromRemote
@@ -464,7 +466,7 @@ data Tracers' f = Tracers
     , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
     , walletDbTracer     :: f DBLog
     , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
-    , poolsDbTracer      :: f DBLog
+    , poolsDbTracer      :: f PoolDbLog
     , ntpClientTracer    :: f NtpTrace
     , networkTracer      :: f (NetworkLayerLog TPraosStandardCrypto)
     }

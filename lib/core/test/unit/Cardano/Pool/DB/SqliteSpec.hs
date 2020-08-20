@@ -18,7 +18,7 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB.Properties
     ( newMemoryDBLayer, properties, withDB )
 import Cardano.Pool.DB.Sqlite
-    ( withDBLayer )
+    ( PoolDbLog (..), withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import System.Directory
@@ -56,7 +56,7 @@ test_migrationFromv20191216 =
                 withDBLayer tr (Just path) ti $ \_ -> pure ()
 
             let databaseConnMsg  = filter isMsgConnStr logs
-            let databaseResetMsg = filter (== MsgDatabaseReset) logs
+            let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
             let migrationErrMsg  = filter isMsgMigrationError logs
 
             length databaseConnMsg  `shouldBe` 3
@@ -64,10 +64,10 @@ test_migrationFromv20191216 =
             length migrationErrMsg  `shouldBe` 1
 
 
-isMsgConnStr :: DBLog -> Bool
-isMsgConnStr (MsgConnStr _) = True
+isMsgConnStr :: PoolDbLog -> Bool
+isMsgConnStr (MsgGeneric (MsgConnStr _)) = True
 isMsgConnStr _ = False
 
-isMsgMigrationError :: DBLog -> Bool
-isMsgMigrationError (MsgMigrations (Left _)) = True
+isMsgMigrationError :: PoolDbLog -> Bool
+isMsgMigrationError (MsgGeneric (MsgMigrations (Left _))) = True
 isMsgMigrationError _ = False

@@ -19,7 +19,7 @@ import Prelude
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.DB.Sqlite
-    ( DBLog (..), SqliteContext )
+    ( SqliteContext )
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
@@ -35,7 +35,7 @@ import Cardano.Pool.DB.Arbitrary
     , serializeLists
     )
 import Cardano.Pool.DB.Sqlite
-    ( newDBLayer )
+    ( PoolDbLog, newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Slotting
@@ -138,7 +138,7 @@ withDB create = beforeAll create . beforeWith
 newMemoryDBLayer :: IO (DBLayer IO)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 
-newMemoryDBLayer' :: IO (TVar [DBLog], (SqliteContext, DBLayer IO))
+newMemoryDBLayer' :: IO (TVar [PoolDbLog], (SqliteContext, DBLayer IO))
 newMemoryDBLayer' = do
     logVar <- newTVarIO []
     (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing ti

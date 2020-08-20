@@ -27,10 +27,13 @@ module Cardano.Pool.DB.Sqlite
     , withDBLayer
     , defaultFilePath
     , DatabaseView (..)
+    , PoolDbLog (..)
     ) where
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -70,7 +73,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer (..), traceWith )
 import Data.Either
     ( rights )
 import Data.Generics.Internal.VL.Lens
@@ -88,7 +91,7 @@ import Data.String.QQ
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( ToText (..), toText )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -142,7 +145,7 @@ defaultFilePath = (</> "stake-pools.sqlite")
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -151,7 +154,7 @@ withDBLayer
        -- ^ Action to run.
     -> IO a
 withDBLayer trace fp timeInterpreter action = do
-    traceWith trace (MsgWillOpenDB fp)
+    traceWith trace (MsgGeneric $ MsgWillOpenDB fp)
     bracket before after (action . snd)
   where
     before = newDBLayer trace fp timeInterpreter
@@ -168,7 +171,7 @@ withDBLayer trace fp timeInterpreter action = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -178,7 +181,7 @@ newDBLayer trace fp timeInterpreter = do
     let io = startSqliteBackend
             (migrateManually trace)
             migrateAll
-            trace
+            (Tracer $ traceWith trace . MsgGeneric)
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
     return (ctx, DBLayer
@@ -386,6 +389,7 @@ newDBLayer trace fp timeInterpreter = do
         , removePools = mapM_ $ \pool -> do
             liftIO
                 $ traceWith trace
+                $ MsgGeneric
                 $ MsgRemovingDatabaseEntity
                 $ T.unwords [ "pool", toText pool ]
             deleteWhere [ PoolProductionPoolId ==. pool ]
@@ -482,7 +486,7 @@ newDBLayer trace fp timeInterpreter = do
                 pure (cpt, cert)
 
 migrateManually
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
     -> ManualMigration
 migrateManually _tr =
     ManualMigration $ \conn ->
@@ -558,7 +562,7 @@ activePoolRetirements = DatabaseView "active_pool_retirements" [s|
 -- with ugly work-around we can, at least for now, reset it semi-manually when
 -- needed to keep things tidy here.
 handlingPersistError
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -568,7 +572,7 @@ handlingPersistError
 handlingPersistError trace fp action = action >>= \case
     Right ctx -> pure ctx
     Left _ -> do
-        traceWith trace MsgDatabaseReset
+        traceWith trace $ MsgGeneric MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
 
@@ -669,3 +673,21 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
         }
+
+{-------------------------------------------------------------------------------
+                                   Logging
+-------------------------------------------------------------------------------}
+
+newtype PoolDbLog
+    = MsgGeneric DBLog
+    deriving (Eq, Show)
+
+instance HasPrivacyAnnotation PoolDbLog
+
+instance HasSeverityAnnotation PoolDbLog where
+    getSeverityAnnotation = \case
+        MsgGeneric e -> getSeverityAnnotation e
+
+instance ToText PoolDbLog where
+    toText = \case
+        MsgGeneric e -> toText e
