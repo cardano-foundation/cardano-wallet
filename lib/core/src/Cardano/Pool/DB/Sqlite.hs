@@ -111,6 +111,7 @@ import Database.Persist.Sql
     , repsert
     , selectFirst
     , selectList
+    , toPersistValue
     , (<.)
     , (==.)
     , (>.)
@@ -129,7 +130,6 @@ import Cardano.Pool.DB.Sqlite.TH
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Data.Text.Class as T
 import qualified Database.Sqlite as Sqlite
 
 -- | Return the preferred @FilePath@ for the stake pool .sqlite file, given a
@@ -364,17 +364,16 @@ newDBLayer trace fp timeInterpreter = do
 
         , listRetiredPools = \epochNo -> do
             let query = T.unwords
-                    [ "SELECT * FROM "
-                    , databaseViewName activePoolRetirements
-                    , "WHERE retirement_epoch <="
-                    , T.toText epochNo
-                    , ";"
+                    [ "SELECT *"
+                    , "FROM active_pool_retirements"
+                    , "WHERE retirement_epoch <= ?;"
                     ]
+            let parameters = [ toPersistValue epochNo ]
             let safeCast (Single poolId, Single retirementEpoch) =
                     PoolRetirementCertificate
                         <$> fromPersistValue poolId
                         <*> fromPersistValue retirementEpoch
-            rights . fmap safeCast <$> rawSql query []
+            rights . fmap safeCast <$> rawSql query parameters
 
         , rollbackTo = \point -> do
             -- TODO(ADP-356): What if the conversion blocks or fails?
