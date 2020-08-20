@@ -61,6 +61,8 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
+import Cardano.Pool.DB.Sqlite
+    ( PoolDbLog )
 import Cardano.Pool.Jormungandr.Metadata
     ( ApiStakePool )
 import Cardano.Pool.Jormungandr.Metrics
@@ -473,7 +475,7 @@ data Tracers' f = Tracers
     , walletEngineTracer    :: f (WorkerLog WalletId WalletLog)
     , walletDbTracer        :: f DBLog
     , stakePoolEngineTracer :: f (WorkerLog Text StakePoolLog)
-    , stakePoolDbTracer     :: f DBLog
+    , stakePoolDbTracer     :: f PoolDbLog
     , networkTracer         :: f NetworkLayerLog
     , ntpClientTracer       :: f NtpTrace
     }

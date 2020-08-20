@@ -133,9 +133,24 @@ arbitraryChainLength = 10
 
 -- NOTE Expected to have a high entropy
 instance Arbitrary PoolId where
-    arbitrary = do
-        bytes <- vector 32
-        return $ PoolId $ B8.pack bytes
+    arbitrary = PoolId . BS.pack <$> vector 32
+    shrink (PoolId p) = do
+        let s = BS.unpack p
+        result <-
+            [ -- Zero out everything:
+              replicate 32 z
+              -- Zero out different halves:
+            ,              replicate 16 z <> drop 16 s
+            , take 16 s <> replicate 16 z
+              -- Zero out different quarters:
+            ,              replicate 8 z <> drop  8 s
+            , take  8 s <> replicate 8 z <> drop 16 s
+            , take 16 s <> replicate 8 z <> drop 24 s
+            , take 24 s <> replicate 8 z
+            ]
+        [PoolId $ BS.pack result | result /= s]
+      where
+        z = toEnum 0
 
 -- NOTE Excepted to have a reasonnably small entropy
 instance Arbitrary PoolOwner where
@@ -145,8 +160,9 @@ instance Arbitrary PoolOwner where
 
 instance Arbitrary PoolRegistrationCertificate where
     shrink (PoolRegistrationCertificate p xs m c pl md) =
-        (\xs' -> PoolRegistrationCertificate p xs' m c pl md)
-            <$> shrinkList (const []) xs
+        (\p' xs' -> PoolRegistrationCertificate p' xs' m c pl md)
+            <$> shrink p
+            <*> shrinkList (const []) xs
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
         <*> scale (`mod` 8) (listOf arbitrary)
@@ -178,7 +194,7 @@ instance Arbitrary PoolCertificate where
         , Retirement
             <$> arbitrary
         ]
-    shrink = const []
+    shrink = genericShrink
 
 -- | Represents a valid sequence of registration and retirement certificates
 --   for a single pool.

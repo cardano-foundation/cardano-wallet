@@ -27,10 +27,15 @@ module Cardano.Pool.DB.Sqlite
     , withDBLayer
     , defaultFilePath
     , DatabaseView (..)
+    , PoolDbLog (..)
     ) where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -70,7 +75,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Either
     ( rights )
 import Data.Generics.Internal.VL.Lens
@@ -87,6 +92,8 @@ import Data.String.QQ
     ( s )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..), toText )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -140,7 +147,7 @@ defaultFilePath = (</> "stake-pools.sqlite")
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -149,7 +156,7 @@ withDBLayer
        -- ^ Action to run.
     -> IO a
 withDBLayer trace fp timeInterpreter action = do
-    traceWith trace (MsgWillOpenDB fp)
+    traceWith trace (MsgGeneric $ MsgWillOpenDB fp)
     bracket before after (action . snd)
   where
     before = newDBLayer trace fp timeInterpreter
@@ -166,7 +173,7 @@ withDBLayer trace fp timeInterpreter action = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -176,7 +183,7 @@ newDBLayer trace fp timeInterpreter = do
     let io = startSqliteBackend
             (migrateManually trace)
             migrateAll
-            trace
+            (contramap MsgGeneric trace)
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
     return (ctx, DBLayer
@@ -381,6 +388,14 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
+        , removePools = mapM_ $ \pool -> do
+            liftIO $ traceWith trace $ MsgRemovingPool pool
+            deleteWhere [ PoolProductionPoolId ==. pool ]
+            deleteWhere [ PoolOwnerPoolId ==. pool ]
+            deleteWhere [ PoolRegistrationPoolId ==. pool ]
+            deleteWhere [ PoolRetirementPoolId ==. pool ]
+            deleteWhere [ StakeDistributionPoolId ==. pool ]
+
         , readPoolProductionCursor = \k -> do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
@@ -469,7 +484,7 @@ newDBLayer trace fp timeInterpreter = do
                 pure (cpt, cert)
 
 migrateManually
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
     -> ManualMigration
 migrateManually _tr =
     ManualMigration $ \conn ->
@@ -545,7 +560,7 @@ activePoolRetirements = DatabaseView "active_pool_retirements" [s|
 -- with ugly work-around we can, at least for now, reset it semi-manually when
 -- needed to keep things tidy here.
 handlingPersistError
-    :: Tracer IO DBLog
+    :: Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
@@ -555,7 +570,7 @@ handlingPersistError
 handlingPersistError trace fp action = action >>= \case
     Right ctx -> pure ctx
     Left _ -> do
-        traceWith trace MsgDatabaseReset
+        traceWith trace $ MsgGeneric MsgDatabaseReset
         maybe (pure ()) removeFile fp
         action >>= either throwIO pure
 
@@ -656,3 +671,28 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
         }
+
+{-------------------------------------------------------------------------------
+                                   Logging
+-------------------------------------------------------------------------------}
+
+data PoolDbLog
+    = MsgGeneric DBLog
+    | MsgRemovingPool PoolId
+    deriving (Eq, Show)
+
+instance HasPrivacyAnnotation PoolDbLog
+
+instance HasSeverityAnnotation PoolDbLog where
+    getSeverityAnnotation = \case
+        MsgGeneric e -> getSeverityAnnotation e
+        MsgRemovingPool {} -> Notice
+
+instance ToText PoolDbLog where
+    toText = \case
+        MsgGeneric e -> toText e
+        MsgRemovingPool p -> mconcat
+            [ "Removing the following pool from the database: "
+            , toText p
+            , "."
+            ]
