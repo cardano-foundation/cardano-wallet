@@ -75,7 +75,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer (..), traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Either
     ( rights )
 import Data.Generics.Internal.VL.Lens
@@ -183,7 +183,7 @@ newDBLayer trace fp timeInterpreter = do
     let io = startSqliteBackend
             (migrateManually trace)
             migrateAll
-            (Tracer $ traceWith trace . MsgGeneric)
+            (contramap MsgGeneric trace)
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
     return (ctx, DBLayer
