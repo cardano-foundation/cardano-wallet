@@ -218,7 +218,7 @@ x-amount: &amount
 x-stakeAddress: &stakeAddress
   type: string
   format: bech32
-  example: stake_addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2x
+  example: stake1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2x
 
 x-addressId: &addressId
   type: string

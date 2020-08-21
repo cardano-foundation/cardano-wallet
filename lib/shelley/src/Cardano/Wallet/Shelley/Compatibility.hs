@@ -926,7 +926,9 @@ _encodeStakeAddress
 _encodeStakeAddress network (W.ChimericAccount acct) =
     Bech32.encodeLenient hrp (dataPartFromBytes bytes)
   where
-    hrp = [Bech32.humanReadablePart|stake_addr|]
+    hrp = case network of
+            SL.Testnet -> [Bech32.humanReadablePart|stake_test|]
+            SL.Mainnet -> [Bech32.humanReadablePart|stake|]
     bytes = BL.toStrict $ runPut $ do
         putWord8 $ (networkIdMask .&. toNetworkId network) .|. stakeAddressPrefix
         putByteString acct
