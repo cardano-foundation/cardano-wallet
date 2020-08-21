@@ -233,10 +233,8 @@ x-addressState: &addressState
 
 x-stakePoolId: &stakePoolId
   type: string
-  format: hex
-  minLength: 56
-  maxLength: 64
-  example: 42bf330e9653fef8a47a5aab2f2e74db8a5b947e
+  format: hex|bech32
+  example: pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: A unique identifier for the pool.
 
 x-walletAccountPubkey: &walletAccountPubkey

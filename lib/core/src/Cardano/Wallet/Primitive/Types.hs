@@ -130,6 +130,8 @@ module Cardano.Wallet.Primitive.Types
     , PoolOwner(..)
     , StakeDistribution (..)
     , poolIdBytesLength
+    , decodePoolIdBech32
+    , encodePoolIdBech32
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -692,6 +694,28 @@ instance FromText PoolId where
             [ "Invalid stake pool id: expecting a hex-encoded value that is"
             , intercalate " or " (show <$> poolIdBytesLength)
             , "bytes in length."
+            ]
+
+-- | Encode 'PoolId' as Bech32 with "pool" hrp.
+encodePoolIdBech32 :: PoolId -> T.Text
+encodePoolIdBech32 =
+    Bech32.encodeLenient hrp
+        . Bech32.dataPartFromBytes
+        . getPoolId
+  where
+    hrp = [Bech32.humanReadablePart|pool|]
+
+-- | Decode a Bech32 encoded 'PoolId'.
+decodePoolIdBech32 :: T.Text -> Either TextDecodingError PoolId
+decodePoolIdBech32 t =
+    case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
+        Left _ -> Left textDecodingError
+        Right (_, Just bytes) ->
+            Right $ PoolId bytes
+        Right _ -> Left textDecodingError
+      where
+        textDecodingError = TextDecodingError $ unwords
+            [ "Invalid stake pool id: expecting a Bech32 encoded value with human readable part of 'pool'."
             ]
 
 -- | A stake pool owner, which is a public key encoded in bech32 with prefix

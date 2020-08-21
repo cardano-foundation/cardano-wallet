@@ -159,7 +159,7 @@ instance Malformed (PathParam ApiPoolId) where
         , (T.replicate 65 "1", msg)
         ]
       where
-        msg = "Invalid stake pool id: expecting a hex-encoded value that is 28 or 32 bytes in length."
+        msg = "Invalid stake pool id: expecting a Bech32 encoded value with human readable part of 'pool'."
 
 instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
     wellformed = PathParam

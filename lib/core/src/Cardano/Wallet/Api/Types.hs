@@ -177,6 +177,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
+    , decodePoolIdBech32
+    , encodePoolIdBech32
     , isValidCoin
     , unsafeEpochNo
     )
@@ -1096,9 +1098,11 @@ instance ToJSON ApiByronWalletBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT PoolId) where
-    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+    parseJSON = parseJSON >=> eitherToParser
+           . bimap ShowFmt ApiT
+           . decodePoolIdBech32
 instance ToJSON (ApiT PoolId) where
-    toJSON = toJSON . toText . getApiT
+    toJSON = toJSON . encodePoolIdBech32 . getApiT
 
 instance FromJSON ApiWalletDelegationStatus where
     parseJSON = genericParseJSON defaultSumTypeOptions
@@ -1453,12 +1457,16 @@ instance FromHttpApiData ApiPoolId where
         | t == "*" =
             Right ApiPoolIdPlaceholder
         | otherwise =
-            bimap pretty ApiPoolId (fromText t)
+            ApiPoolId <$> case fromText t of
+                Left _ ->
+                    left (T.pack . show . ShowFmt) $ decodePoolIdBech32 t
+                Right r ->
+                    Right r
 
 instance ToHttpApiData ApiPoolId where
     toUrlPiece = \case
         ApiPoolIdPlaceholder -> "*"
-        ApiPoolId pid -> toText pid
+        ApiPoolId pid -> encodePoolIdBech32 pid
 
 {-------------------------------------------------------------------------------
                                 Aeson Options
