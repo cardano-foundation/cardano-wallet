@@ -93,7 +93,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
-    ( forM, forM_, forever, when, (<=<) )
+    ( forM, forM_, forever, unless, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -525,7 +525,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                             liftIO $ traceWith tr $ MsgErrProduction e
                         Right () ->
                             pure ()
-                when (not $ null certificates) $ do
+                unless (null certificates) $ do
                     -- Before adding new pool certificates to the database, we
                     -- first attempt to garbage collect pools that have already
                     -- retired. By only performing garbage collection when we
