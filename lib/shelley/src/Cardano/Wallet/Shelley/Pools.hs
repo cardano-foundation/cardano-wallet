@@ -46,7 +46,7 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog )
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
@@ -544,8 +544,13 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         garbageCollectPools currentSlot = liftIO $ do
             currentEpoch <- timeInterpreter nl (epochOf currentSlot)
             let subtractTwoEpochs = epochPred <=< epochPred
-            forM_ (subtractTwoEpochs currentEpoch) $ \safeRetirementEpoch ->
-                removeRetiredPools db (contramap MsgDb tr) safeRetirementEpoch
+            forM_ (subtractTwoEpochs currentEpoch) $ \removalEpoch -> do
+                let logMessage = MsgStakePoolGarbageCollection $
+                        PoolGarbageCollectionInfo
+                            currentEpoch
+                            removalEpoch
+                bracketTracer (contramap logMessage tr) $
+                    removeRetiredPools db (contramap MsgDb tr) removalEpoch
 
         putPoolCertificates slot certificates = do
             -- A single block can contain multiple certificates relating to the
