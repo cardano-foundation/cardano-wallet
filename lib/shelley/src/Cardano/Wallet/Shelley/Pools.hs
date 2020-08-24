@@ -552,20 +552,16 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                 bracketTracer (contramap logMessage tr) $
                     removeRetiredPools db (contramap MsgDb tr) removalEpoch
 
+        -- For each pool certificate in the given list, add an entry to the
+        -- database that associates the certificate with the specified slot
+        -- number and the relative position of the certificate in the list.
+        --
+        -- The order of certificates within a slot is significant: certificates
+        -- that appear later take precedence over those that appear earlier on.
+        --
+        -- Precedence is determined by the 'readPoolLifeCycleStatus' function.
+        --
         putPoolCertificates slot certificates = do
-            -- A single block can contain multiple certificates relating to the
-            -- same pool.
-            --
-            -- The /order/ in which certificates appear is /significant/:
-            -- certificates that appear later in a block /generally/ take
-            -- precedence over certificates that appear earlier on.
-            --
-            -- We record /all/ certificates within the database, together with
-            -- the order in which they appeared.
-            --
-            -- Precedence is determined by the 'readPoolLifeCycleStatus'
-            -- function.
-            --
             let publicationTimes =
                     CertificatePublicationTime slot <$> [minBound ..]
             forM_ (publicationTimes `zip` certificates) $ \case
