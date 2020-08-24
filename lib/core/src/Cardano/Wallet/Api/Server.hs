@@ -2324,10 +2324,12 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         ]
 
 instance LiftHandler PastHorizonException where
-    handler _ = apiError err400 PastHorizon $ mconcat
+    handler _ = apiError err503 PastHorizon $ mconcat
         [ "Tried to convert something that is past the horizon"
         , " (due to uncertainty about the next hard fork)."
         , " Wait for the node to finish syncing to the hard fork."
+        , " Depending on the blockchain, this process can take an"
+        , " unknown amount of time."
         ]
 
 instance LiftHandler ErrGetTransaction where
