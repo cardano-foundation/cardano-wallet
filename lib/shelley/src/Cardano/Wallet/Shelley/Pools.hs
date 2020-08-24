@@ -517,30 +517,32 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                             liftIO $ traceWith tr $ MsgErrProduction e
                         Right () ->
                             pure ()
-
-                -- A single block can contain multiple certificates relating to the
-                -- same pool.
-                --
-                -- The /order/ in which certificates appear is /significant/:
-                -- certificates that appear later in a block /generally/ take
-                -- precedence over certificates that appear earlier on.
-                --
-                -- We record /all/ certificates within the database, together with
-                -- the order in which they appeared.
-                --
-                -- Precedence is determined by the 'readPoolLifeCycleStatus'
-                -- function.
-                --
-                let publicationTimes =
-                        CertificatePublicationTime slot <$> [minBound ..]
-                forM_ (publicationTimes `zip` certificates) $ \case
-                    (publicationTime, Registration cert) -> do
-                        liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                        putPoolRegistration publicationTime cert
-                    (publicationTime, Retirement cert) -> do
-                        liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                        putPoolRetirement publicationTime cert
+                putPoolCertificates slot certificates
         pure Continue
+      where
+        putPoolCertificates slot certificates = do
+            -- A single block can contain multiple certificates relating to the
+            -- same pool.
+            --
+            -- The /order/ in which certificates appear is /significant/:
+            -- certificates that appear later in a block /generally/ take
+            -- precedence over certificates that appear earlier on.
+            --
+            -- We record /all/ certificates within the database, together with
+            -- the order in which they appeared.
+            --
+            -- Precedence is determined by the 'readPoolLifeCycleStatus'
+            -- function.
+            --
+            let publicationTimes =
+                    CertificatePublicationTime slot <$> [minBound ..]
+            forM_ (publicationTimes `zip` certificates) $ \case
+                (publicationTime, Registration cert) -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRegistration cert
+                    putPoolRegistration publicationTime cert
+                (publicationTime, Retirement cert) -> do
+                    liftIO $ traceWith tr $ MsgStakePoolRetirement cert
+                    putPoolRetirement publicationTime cert
 
 monitorMetadata
     :: Tracer IO StakePoolLog
