@@ -153,12 +153,14 @@ test-suite unit
     , cardano-wallet
     , containers
     , contra-tracer
+    , fmt
     , iohk-monitoring
     , hspec
     , memory
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
+    , stm
     , text
     , text-class
     , transformers
