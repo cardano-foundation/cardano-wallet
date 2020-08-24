@@ -523,8 +523,14 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                             liftIO $ traceWith tr $ MsgErrProduction e
                         Right () ->
                             pure ()
-                garbageCollectPools slot
-                putPoolCertificates slot certificates
+                when (not $ null certificates) $ do
+                    -- Before adding new pool certificates to the database, we
+                    -- first attempt to garbage collect pools that have already
+                    -- retired. By only performing garbage collection when we
+                    -- actually have new certificates to add, we avoid paying
+                    -- the cost of garbage collection in every single slot.
+                    garbageCollectPools slot
+                    putPoolCertificates slot certificates
         pure Continue
       where
         -- Perform garbage collection for pools that have retired.
