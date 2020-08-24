@@ -43,9 +43,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
-    ( stdoutTextTracer )
-import Cardano.Wallet.Logging
-    ( trMessage )
+    ( stdoutTextTracer, trMessage )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
