@@ -325,10 +325,17 @@ x-walletEncryptedRootPrivateKey: &walletEncryptedRootPrivateKey
   maxLength: 256
 
 x-walletAddressPoolGap: &walletAddressPoolGap
-  description: Number of consecutive unused addresses allowed
+  description: |
+    Number of consecutive unused addresses allowed.
+
+    **IMPORTANT DISCLAIMER:** Using values other than `20` automatically makes your wallet invalid with regards to BIP-44 address discovery. It means that you **will not** be able to fully restore
+    your wallet in a different software which is strictly following BIP-44.
+
+    Beside, using large gaps is **not recommended** as it may induce important performance degradations. Use at your own risks.
+
   type: integer
   minimum: 10
-  maximum: 100
+  maximum: 100000
   example: 20
   default: 20
 
