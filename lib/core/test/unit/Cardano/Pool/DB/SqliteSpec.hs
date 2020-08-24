@@ -15,10 +15,12 @@ import Prelude
 
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog (..) )
 import Cardano.Pool.DB.Properties
     ( newMemoryDBLayer, properties, withDB )
 import Cardano.Pool.DB.Sqlite
-    ( PoolDbLog (..), withDBLayer )
+    ( withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import System.Directory

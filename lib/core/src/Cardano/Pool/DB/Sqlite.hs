@@ -27,15 +27,10 @@ module Cardano.Pool.DB.Sqlite
     , withDBLayer
     , defaultFilePath
     , DatabaseView (..)
-    , PoolDbLog (..)
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -50,6 +45,8 @@ import Cardano.DB.Sqlite
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -92,8 +89,6 @@ import Data.String.QQ
     ( s )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( ToText (..), toText )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
@@ -261,10 +256,7 @@ newDBLayer trace fp timeInterpreter = do
         , putPoolRetirement = \cpt cert -> do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let PoolRetirementCertificate
-                    { poolId
-                    , retiredIn
-                    } = cert
-            let EpochNo retirementEpoch = retiredIn
+                    poolId (EpochNo retirementEpoch) = cert
             repsert (PoolRetirementKey poolId slotNo slotInternalIndex) $
                 PoolRetirement
                     poolId
@@ -476,9 +468,9 @@ newDBLayer trace fp timeInterpreter = do
                         _poolId
                         slotNo
                         slotInternalIndex
-                        retirementEpoch = entityVal meta
-                let retiredIn = EpochNo (fromIntegral retirementEpoch)
-                let cert = PoolRetirementCertificate {poolId, retiredIn}
+                        retirementEpochNo = entityVal meta
+                let retirementEpoch = EpochNo (fromIntegral retirementEpochNo)
+                let cert = PoolRetirementCertificate {poolId, retirementEpoch}
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
@@ -670,28 +662,3 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
         }
-
-{-------------------------------------------------------------------------------
-                                   Logging
--------------------------------------------------------------------------------}
-
-data PoolDbLog
-    = MsgGeneric DBLog
-    | MsgRemovingPool PoolId
-    deriving (Eq, Show)
-
-instance HasPrivacyAnnotation PoolDbLog
-
-instance HasSeverityAnnotation PoolDbLog where
-    getSeverityAnnotation = \case
-        MsgGeneric e -> getSeverityAnnotation e
-        MsgRemovingPool {} -> Notice
-
-instance ToText PoolDbLog where
-    toText = \case
-        MsgGeneric e -> toText e
-        MsgRemovingPool p -> mconcat
-            [ "Removing the following pool from the database: "
-            , toText p
-            , "."
-            ]

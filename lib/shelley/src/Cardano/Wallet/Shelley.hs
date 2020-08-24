@@ -55,7 +55,7 @@ import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.DB.Sqlite
     ( DBLog )
-import Cardano.Pool.DB.Sqlite
+import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Metadata
     ( defaultManagerSettings

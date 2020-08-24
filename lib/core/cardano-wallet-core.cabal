@@ -114,6 +114,7 @@ library
       Cardano.DB.Sqlite
       Cardano.DB.Sqlite.Delete
       Cardano.Pool.DB
+      Cardano.Pool.DB.Log
       Cardano.Pool.DB.MVar
       Cardano.Pool.DB.Model
       Cardano.Pool.DB.Sqlite

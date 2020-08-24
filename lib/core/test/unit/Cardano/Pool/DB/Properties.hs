@@ -34,8 +34,10 @@ import Cardano.Pool.DB.Arbitrary
     , isValidSinglePoolCertificateSequence
     , serializeLists
     )
+import Cardano.Pool.DB.Log
+    ( PoolDbLog )
 import Cardano.Pool.DB.Sqlite
-    ( PoolDbLog, newDBLayer )
+    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Slotting
@@ -1008,10 +1010,10 @@ prop_listRetiredPools_multiplePools_multipleCerts
         let epochsToTest =
                 EpochNo minBound :
                 EpochNo maxBound :
-                L.nub (view #retiredIn <$> poolsMarkedToRetire)
+                L.nub (view #retirementEpoch <$> poolsMarkedToRetire)
         forM_ epochsToTest $ \currentEpoch -> do
             let retiredPoolsExpected = filter
-                    ((<= currentEpoch) . view #retiredIn)
+                    ((<= currentEpoch) . view #retirementEpoch)
                     (poolsMarkedToRetire)
             retiredPoolsActual <-
                 run $ atomically $ listRetiredPools currentEpoch

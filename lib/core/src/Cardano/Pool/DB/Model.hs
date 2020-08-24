@@ -249,7 +249,7 @@ mPutPoolRetirement cpt cert db =
     )
   where
     PoolDatabase {retirements} = db
-    PoolRetirementCertificate poolId _retiredIn = cert
+    PoolRetirementCertificate poolId _retirementEpoch = cert
 
 mReadPoolRetirement
     :: PoolId
@@ -282,7 +282,7 @@ mListRetiredPools epochNo db = (retiredPools, db)
 
     retiredPools :: [PoolRetirementCertificate]
     retiredPools = activeRetirementCertificates
-        & filter ((<= epochNo) . view #retiredIn)
+        & filter ((<= epochNo) . view #retirementEpoch)
 
     activeRetirementCertificates :: [PoolRetirementCertificate]
     activeRetirementCertificates =

@@ -61,7 +61,7 @@ import Cardano.DB.Sqlite
     ( DBLog )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Pool.DB.Sqlite
+import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Jormungandr.Metadata
     ( ApiStakePool )
