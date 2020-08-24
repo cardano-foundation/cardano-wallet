@@ -16,6 +16,7 @@ mkShell rec {
       cardano-node
       cardano-cli
     ]) ++ [
+      nix
       zlib
       gmp
       ncurses
@@ -39,4 +40,5 @@ mkShell rec {
   GIT_SSL_CAINFO = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
   LANG = "en_US.UTF-8";
+  STACK_IN_NIX_SHELL = "true";
 }
