@@ -402,9 +402,7 @@ spec = do
                     ++ show addrPoolMax ++ "."
 
         let matrix =
-                [ ( "Gap max", show addrPoolMax, expectsOk )
-                , ( "Gap min", show addrPoolMin, expectsOk )
-                , ( "Gap max - 1", show (addrPoolMax - 1), expectsOk )
+                [ ( "Gap min", show addrPoolMin, expectsOk )
                 , ( "Gap min + 1", show (addrPoolMin + 1), expectsOk )
                 , ( "Gap max + 1 -> fail", show (addrPoolMax + 1), expectsErr )
                 , ( "Gap min - 1 -> fail", show (addrPoolMin - 1), expectsErr )

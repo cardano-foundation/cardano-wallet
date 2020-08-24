@@ -374,7 +374,7 @@ spec = do
                 c `shouldBe` ExitFailure 1
                 e `shouldContain`
                     "option --address-pool-gap: An address pool gap must be a\
-                    \ natural number between 10 and 100."
+                    \ natural number between 10 and 100000."
                 o `shouldBe` mempty
 
 emptyWalletFromPubKeyViaCLI

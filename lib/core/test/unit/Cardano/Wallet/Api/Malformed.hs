@@ -556,7 +556,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "passphrase" : #{wPassphrase}
                 , "address_pool_gap" : 0
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -564,7 +564,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "passphrase" : #{wPassphrase}
                 , "address_pool_gap" : -1000
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -572,7 +572,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "passphrase" : #{wPassphrase}
                 , "address_pool_gap" : -132323000
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -580,23 +580,15 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "passphrase" : #{wPassphrase}
                 , "address_pool_gap" : 9
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
                 , "mnemonic_sentence": #{mnemonics15}
                 , "passphrase" : #{wPassphrase}
-                , "address_pool_gap" : 101
+                , "address_pool_gap" : 100001
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
-              )
-            , ( [aesonQQ|
-                { "name": #{wName}
-                , "mnemonic_sentence": #{mnemonics15}
-                , "passphrase" : #{wPassphrase}
-                , "address_pool_gap" : 1000
-                }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -604,7 +596,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "passphrase" : #{wPassphrase}
                 , "address_pool_gap" : 132323000
                 }|]
-              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100."
+              , "Error in $['address_pool_gap']: An address pool gap must be a natural number between 10 and 100000."
               )
             -- passphrase
             , ( [aesonQQ|
