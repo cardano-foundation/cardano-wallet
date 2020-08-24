@@ -42,8 +42,8 @@ instance HasSeverityAnnotation PoolDbLog where
     getSeverityAnnotation = \case
         MsgGeneric e -> getSeverityAnnotation e
         MsgRemovingPool {} -> Notice
-        MsgRemovingRetiredPools {} -> Notice
-        MsgRemovingRetiredPoolsForEpoch {} -> Notice
+        MsgRemovingRetiredPools {} -> Debug
+        MsgRemovingRetiredPoolsForEpoch {} -> Debug
 
 instance ToText PoolDbLog where
     toText = \case
