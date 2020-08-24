@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Control.Tracer
@@ -309,10 +309,10 @@ removeRetiredPools
   where
     actionMessage = MsgRemovingRetiredPoolsForEpoch epoch
 
-    action = atomically (listRetiredPools epoch) >>=
-        \retirementCerts -> do
-            traceWith trace $ MsgRemovingRetiredPools retirementCerts
-            atomically $ removePools (view #poolId <$> retirementCerts)
+    action = atomically $
+        listRetiredPools epoch >>= \retirementCerts -> do
+            liftIO $ traceWith trace $ MsgRemovingRetiredPools retirementCerts
+            removePools (view #poolId <$> retirementCerts)
             pure retirementCerts
 
 -- | Forbidden operation was executed on an already existing slot
