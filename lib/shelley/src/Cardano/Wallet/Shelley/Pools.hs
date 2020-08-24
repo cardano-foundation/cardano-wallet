@@ -45,6 +45,8 @@ import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
+import Cardano.Wallet.Logging
+    ( BracketLog )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
@@ -610,12 +612,23 @@ data StakePoolLog
     | MsgHaltMonitoring
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotNo
+    | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo BracketLog
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
     deriving (Show, Eq)
+
+data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
+    { poolGarbageCollectionCurrentEpoch :: EpochNo
+        -- ^ The current epoch at the point in time the garbage collector
+        -- was invoked.
+    , poolGarbageCollectionRemovalEpoch :: EpochNo
+        -- ^ The removal epoch: the garbage collector will remove all pools
+        -- that retired on or before this epoch.
+    }
+    deriving (Eq, Show)
 
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where
@@ -626,6 +639,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgHaltMonitoring{} -> Info
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
+        MsgStakePoolGarbageCollection{} -> Info
         MsgStakePoolRegistration{} -> Info
         MsgStakePoolRetirement{} -> Info
         MsgErrProduction{} -> Error
@@ -652,6 +666,15 @@ instance ToText StakePoolLog where
             ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
+        MsgStakePoolGarbageCollection info bkt -> mconcat
+            [ "Performing garbage collection of retired stake pools. "
+            , "Currently in epoch "
+            , toText (poolGarbageCollectionCurrentEpoch info)
+            , ". Removing all pools that retired in or before epoch "
+            , toText (poolGarbageCollectionRemovalEpoch info)
+            , ". "
+            , toText bkt
+            ]
         MsgStakePoolRegistration cert ->
             "Discovered stake pool registration: " <> pretty cert
         MsgStakePoolRetirement cert ->
