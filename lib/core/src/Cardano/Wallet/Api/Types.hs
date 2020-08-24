@@ -685,6 +685,7 @@ data ApiErrorCode
     | MinWithdrawalWrong
     | AlreadyWithdrawing
     | WithdrawalNotWorth
+    | PastHorizon
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
