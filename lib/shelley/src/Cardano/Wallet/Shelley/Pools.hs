@@ -34,7 +34,11 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
+    ( DBLayer (..)
+    , ErrPointAlreadyExists (..)
+    , readPoolLifeCycleStatus
+    , removeRetiredPools
+    )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Metadata
@@ -51,7 +55,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, startTime )
+    ( TimeInterpreter, epochOf, epochPred, firstSlotInEpoch, startTime )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
@@ -87,7 +91,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
-    ( forM, forM_, forever, when )
+    ( forM, forM_, forever, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -519,9 +523,22 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                             liftIO $ traceWith tr $ MsgErrProduction e
                         Right () ->
                             pure ()
+                garbageCollectPools slot
                 putPoolCertificates slot certificates
         pure Continue
       where
+        -- Perform garbage collection for pools that have retired.
+        --
+        -- To avoid any issues with rollback, we err on the side of caution and
+        -- only garbage collect pools that retired /at least/ two epochs before
+        -- the current epoch.
+        --
+        garbageCollectPools currentSlot = liftIO $ do
+            currentEpoch <- timeInterpreter nl (epochOf currentSlot)
+            let subtractTwoEpochs = epochPred <=< epochPred
+            forM_ (subtractTwoEpochs currentEpoch) $ \safeRetirementEpoch ->
+                removeRetiredPools db (contramap MsgDb tr) safeRetirementEpoch
+
         putPoolCertificates slot certificates = do
             -- A single block can contain multiple certificates relating to the
             -- same pool.
