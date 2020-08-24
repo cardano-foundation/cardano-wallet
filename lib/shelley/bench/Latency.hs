@@ -128,8 +128,8 @@ import qualified Network.HTTP.Types.Status as HTTP
 main :: forall t n. (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $
     withLatencyLogging setupTracers $ \tracers capture ->
-        walletApiBench @t @n capture (benchWithShelleyServer tracers)
-
+        withShelleyServer tracers $ \ctx -> do
+            walletApiBench @t @n capture ctx
   where
     setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
     setupTracers tvar = nullTracers
@@ -138,24 +138,27 @@ main = withUtf8Encoding $
 walletApiBench
     :: forall t (n :: NetworkDiscriminant). (t ~ Shelley, n ~ 'Mainnet)
     => LogCaptureFunc ApiLog ()
-    -> ((Context t -> IO ()) -> IO ())
+    -> Context t
     -> IO ()
-walletApiBench capture benchWithServer = do
+walletApiBench capture ctx = do
     fmtTitle "Non-cached run"
     runWarmUpScenario
 
     fmtTitle "Latencies for 2 fixture wallets scenario"
     runScenario (nFixtureWallet 2)
-{--
+
     fmtTitle "Latencies for 10 fixture wallets scenario"
     runScenario (nFixtureWallet 10)
 
+    {-- PENDING: We currently have a limited amount of available fixture
+       wallets, so we can't just run a benchmark with 100 wallets in parallel.
     fmtTitle "Latencies for 100 fixture wallets scenario"
     runScenario (nFixtureWallet 100)
---}
+    --}
+
     fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 10)
-{--
+
     fmtTitle "Latencies for 2 fixture wallets with 20 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 20)
 
@@ -170,23 +173,30 @@ walletApiBench capture benchWithServer = do
 
     fmtTitle "Latencies for 10 fixture wallets with 100 txs scenario"
     runScenario (nFixtureWalletWithTxs 10 100)
---}
+
     fmtTitle "Latencies for 2 fixture wallets with 100 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 100)
-{--
+
     fmtTitle "Latencies for 2 fixture wallets with 200 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 200)
 
     fmtTitle "Latencies for 2 fixture wallets with 500 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 500)
 
+    {-- PENDING: Fee estimation is taking way longer than it should and this
+       scenario is not resolving in a timely manner.
+
+    To be re-enabled once #2006 & #2051 are fixed.
+
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 1000)
---}
+    --}
+    fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
+    fmtTitle "CURRENTLY DISABLED. SEE #2006 & #2051"
   where
 
     -- Creates n fixture wallets and return two of them
-    nFixtureWallet n ctx = do
+    nFixtureWallet n = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         pure (wal1, wal2)
 
@@ -195,8 +205,8 @@ walletApiBench capture benchWithServer = do
     -- additionally created source fixture wallet. Then we wait for the money
     -- to be accommodated in recipient wallet. After that the source fixture
     -- wallet is removed.
-    nFixtureWalletWithTxs n m ctx = do
-        (wal1, wal2) <- nFixtureWallet n ctx
+    nFixtureWalletWithTxs n m = do
+        (wal1, wal2) <- nFixtureWallet n
 
         let amt = (1 :: Natural)
         let batchSize = 10
@@ -210,13 +220,13 @@ walletApiBench capture benchWithServer = do
                     [lastBit]
         let expInflows' = filter (/=0) expInflows
 
-        mapM_ (repeatPostTx ctx wal1 amt batchSize . amtExp) expInflows'
+        mapM_ (repeatPostTx wal1 amt batchSize . amtExp) expInflows'
         pure (wal1, wal2)
 
-    nFixtureWalletWithUTxOs n utxoNumber ctx = do
+    nFixtureWalletWithUTxOs n utxoNumber = do
         let utxoExp = replicate utxoNumber 1
         wal1 <- fixtureWalletWith @n ctx utxoExp
-        (_, wal2) <- nFixtureWallet n ctx
+        (_, wal2) <- nFixtureWallet n
 
         eventually "Wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
@@ -234,10 +244,10 @@ walletApiBench capture benchWithServer = do
         expectWalletUTxO (fromIntegral <$> utxoExp) (snd rStat)
         pure (wal1, wal2)
 
-    repeatPostTx ctx wDest amtToSend batchSize amtExp = do
+    repeatPostTx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
         replicateM_ batchSize
-            (postTx ctx (wSrc, Link.createTransaction @'Shelley, fixturePassphrase) wDest amtToSend)
+            (postTx (wSrc, Link.createTransaction @'Shelley, fixturePassphrase) wDest amtToSend)
         eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet  ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
@@ -250,9 +260,9 @@ walletApiBench capture benchWithServer = do
         expectResponseCode @IO HTTP.status204 rDel
         pure ()
 
-    postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+    postTx (wSrc, postTxEndp, pass) wDest amt = do
         (_, addrs) <- unsafeRequest @[ApiAddress n] ctx
-                      (Link.listAddresses @'Shelley wDest) Empty
+            (Link.listAddresses @'Shelley wDest) Empty
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -268,8 +278,8 @@ walletApiBench capture benchWithServer = do
         expectResponseCode HTTP.status202 r
         return r
 
-    runScenario scenario = benchWithServer $ \ctx -> do
-        (wal1, wal2) <- scenario ctx
+    runScenario scenario = do
+        (wal1, wal2) <- scenario
 
         t1 <- measureApiLogs capture
             (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
@@ -318,11 +328,11 @@ walletApiBench capture benchWithServer = do
 
         pure ()
      where
-       arbitraryStake :: Maybe Coin
-       arbitraryStake = Just $ ada 10000
-         where ada = Coin . (1000*1000*)
+        arbitraryStake :: Maybe Coin
+        arbitraryStake = Just $ ada 10000
+            where ada = Coin . (1000*1000*)
 
-    runWarmUpScenario = benchWithServer $ \ctx -> do
+    runWarmUpScenario = do
         -- this one is to have comparable results from first to last measurement
         -- in runScenario
         t <- measureApiLogs capture $ request @ApiNetworkInformation ctx
@@ -330,11 +340,11 @@ walletApiBench capture benchWithServer = do
         fmtResult "getNetworkInfo     " t
         pure ()
 
-benchWithShelleyServer
+withShelleyServer
     :: Tracers IO
     -> (Context Shelley -> IO ())
     -> IO ()
-benchWithShelleyServer tracers action = do
+withShelleyServer tracers action = do
     ctx <- newEmptyMVar
     let setupContext np wAddr = do
             let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
