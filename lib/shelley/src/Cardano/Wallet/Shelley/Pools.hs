@@ -665,14 +665,13 @@ instance ToText StakePoolLog where
             ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
-        MsgStakePoolGarbageCollection info bkt -> mconcat
+        MsgStakePoolGarbageCollection info _ -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "
             , toText (currentEpoch info)
             , ". Removing all pools that retired in or before epoch "
             , toText (removalEpoch info)
-            , ". "
-            , toText bkt
+            , "."
             ]
         MsgStakePoolRegistration cert ->
             "Discovered stake pool registration: " <> pretty cert
