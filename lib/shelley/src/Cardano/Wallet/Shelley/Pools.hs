@@ -546,9 +546,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
             let subtractTwoEpochs = epochPred <=< epochPred
             forM_ (subtractTwoEpochs currentEpoch) $ \removalEpoch -> do
                 let logMessage = MsgStakePoolGarbageCollection $
-                        PoolGarbageCollectionInfo
-                            currentEpoch
-                            removalEpoch
+                        PoolGarbageCollectionInfo {currentEpoch, removalEpoch}
                 bracketTracer (contramap logMessage tr) $
                     removeRetiredPools db (contramap MsgDb tr) removalEpoch
 
@@ -622,10 +620,10 @@ data StakePoolLog
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
-    { poolGarbageCollectionCurrentEpoch :: EpochNo
+    { currentEpoch :: EpochNo
         -- ^ The current epoch at the point in time the garbage collector
         -- was invoked.
-    , poolGarbageCollectionRemovalEpoch :: EpochNo
+    , removalEpoch :: EpochNo
         -- ^ The removal epoch: the garbage collector will remove all pools
         -- that retired on or before this epoch.
     }
@@ -670,9 +668,9 @@ instance ToText StakePoolLog where
         MsgStakePoolGarbageCollection info bkt -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "
-            , toText (poolGarbageCollectionCurrentEpoch info)
+            , toText (currentEpoch info)
             , ". Removing all pools that retired in or before epoch "
-            , toText (poolGarbageCollectionRemovalEpoch info)
+            , toText (removalEpoch info)
             , ". "
             , toText bkt
             ]
