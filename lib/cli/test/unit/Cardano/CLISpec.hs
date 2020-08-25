@@ -139,7 +139,7 @@ spec = do
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --size INT               Number of mnemonic words to generate."
-            , "                           Must be a multiple of 3. (default: 15)"
+            , "                           Must be a multiple of 3. (default: 24)"
             ]
 
         ["wallet", "--help"] `shouldShowUsage`
