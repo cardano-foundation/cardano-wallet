@@ -534,41 +534,41 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                     garbageCollectPools slot
                     putPoolCertificates slot certificates
         pure Continue
-      where
-        -- Perform garbage collection for pools that have retired.
-        --
-        -- To avoid any issues with rollback, we err on the side of caution and
-        -- only garbage collect pools that retired /at least/ two epochs before
-        -- the current epoch.
-        --
-        garbageCollectPools currentSlot = liftIO $ do
-            currentEpoch <- timeInterpreter nl (epochOf currentSlot)
-            let subtractTwoEpochs = epochPred <=< epochPred
-            forM_ (subtractTwoEpochs currentEpoch) $ \removalEpoch -> do
-                let logMessage = MsgStakePoolGarbageCollection $
-                        PoolGarbageCollectionInfo {currentEpoch, removalEpoch}
-                bracketTracer (contramap logMessage tr) $
-                    removeRetiredPools db (contramap MsgDb tr) removalEpoch
 
-        -- For each pool certificate in the given list, add an entry to the
-        -- database that associates the certificate with the specified slot
-        -- number and the relative position of the certificate in the list.
-        --
-        -- The order of certificates within a slot is significant: certificates
-        -- that appear later take precedence over those that appear earlier on.
-        --
-        -- Precedence is determined by the 'readPoolLifeCycleStatus' function.
-        --
-        putPoolCertificates slot certificates = do
-            let publicationTimes =
-                    CertificatePublicationTime slot <$> [minBound ..]
-            forM_ (publicationTimes `zip` certificates) $ \case
-                (publicationTime, Registration cert) -> do
-                    liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                    putPoolRegistration publicationTime cert
-                (publicationTime, Retirement cert) -> do
-                    liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                    putPoolRetirement publicationTime cert
+    -- Perform garbage collection for pools that have retired.
+    --
+    -- To avoid any issues with rollback, we err on the side of caution and
+    -- only garbage collect pools that retired /at least/ two epochs before
+    -- the current epoch.
+    --
+    garbageCollectPools currentSlot = liftIO $ do
+        currentEpoch <- timeInterpreter nl (epochOf currentSlot)
+        let subtractTwoEpochs = epochPred <=< epochPred
+        forM_ (subtractTwoEpochs currentEpoch) $ \removalEpoch -> do
+            let logMessage = MsgStakePoolGarbageCollection $
+                    PoolGarbageCollectionInfo {currentEpoch, removalEpoch}
+            bracketTracer (contramap logMessage tr) $
+                removeRetiredPools db (contramap MsgDb tr) removalEpoch
+
+    -- For each pool certificate in the given list, add an entry to the
+    -- database that associates the certificate with the specified slot
+    -- number and the relative position of the certificate in the list.
+    --
+    -- The order of certificates within a slot is significant: certificates
+    -- that appear later take precedence over those that appear earlier on.
+    --
+    -- Precedence is determined by the 'readPoolLifeCycleStatus' function.
+    --
+    putPoolCertificates slot certificates = do
+        let publicationTimes =
+                CertificatePublicationTime slot <$> [minBound ..]
+        forM_ (publicationTimes `zip` certificates) $ \case
+            (publicationTime, Registration cert) -> do
+                liftIO $ traceWith tr $ MsgStakePoolRegistration cert
+                putPoolRegistration publicationTime cert
+            (publicationTime, Retirement cert) -> do
+                liftIO $ traceWith tr $ MsgStakePoolRetirement cert
+                putPoolRetirement publicationTime cert
 
 monitorMetadata
     :: Tracer IO StakePoolLog
