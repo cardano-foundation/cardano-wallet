@@ -72,7 +72,7 @@ packages:
   commit: 2547ad1e80aeabca2899951601079408becbc92c
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: 460ee17d22cacb3ac4d90536ebe90500a356a1c9
+  commit: 0715d2047b3d23e8b75b8430bddf391799c4669d
   subdirs:
   - byron/ledger/impl
   - byron/crypto
