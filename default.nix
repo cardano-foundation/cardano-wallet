@@ -83,7 +83,7 @@ let
     inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
     # adrestia tool belt
     inherit (haskellPackages.bech32.components.exes) bech32;
-    inherit (haskellPackages.cardano-addresses.components.exes) cardano-address;
+    inherit (haskellPackages.cardano-addresses-cli.components.exes) cardano-address;
     inherit (haskellPackages.cardano-transactions.components.exes) cardano-tx;
 
     cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
