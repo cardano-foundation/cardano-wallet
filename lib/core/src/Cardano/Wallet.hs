@@ -1844,7 +1844,8 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
         _ -> do
             liftIO (try $ ti $ slotRangeFromTimeRange $ Range mStart mEnd) >>=
                 \case
-                    Left e@(PastHorizon{}) -> throwE (ErrListTransactionsPastHorizonException e)
+                    Left e@(PastHorizon{}) ->
+                        throwE (ErrListTransactionsPastHorizonException e)
                     Right r -> pure r
 
 
