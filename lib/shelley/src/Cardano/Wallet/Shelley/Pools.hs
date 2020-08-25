@@ -544,11 +544,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     garbageCollectPools currentSlot = liftIO $ do
         currentEpoch <- timeInterpreter nl (epochOf currentSlot)
         let subtractTwoEpochs = epochPred <=< epochPred
-        forM_ (subtractTwoEpochs currentEpoch) $ \removalEpoch -> do
+        forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
             let logMessage = MsgStakePoolGarbageCollection $
-                    PoolGarbageCollectionInfo {currentEpoch, removalEpoch}
+                    PoolGarbageCollectionInfo
+                        {currentEpoch, latestRetirementEpoch}
             bracketTracer (contramap logMessage tr) $
-                removeRetiredPools db (contramap MsgDb tr) removalEpoch
+                removeRetiredPools db (contramap MsgDb tr) latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot
@@ -623,9 +624,10 @@ data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
     { currentEpoch :: EpochNo
         -- ^ The current epoch at the point in time the garbage collector
         -- was invoked.
-    , removalEpoch :: EpochNo
-        -- ^ The removal epoch: the garbage collector will remove all pools
-        -- that retired on or before this epoch.
+    , latestRetirementEpoch :: EpochNo
+        -- ^ The latest retirement epoch for which garbage collection will be
+        -- performed. The garbage collector will remove all pools that have an
+        -- active retirement epoch equal to or earlier than this epoch.
     }
     deriving (Eq, Show)
 
@@ -670,7 +672,7 @@ instance ToText StakePoolLog where
             , "Currently in epoch "
             , toText (currentEpoch info)
             , ". Removing all pools that retired in or before epoch "
-            , toText (removalEpoch info)
+            , toText (latestRetirementEpoch info)
             , "."
             ]
         MsgStakePoolRegistration cert ->
