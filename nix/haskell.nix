@@ -111,7 +111,19 @@ let
 
         # Add jormungandr to the PATH of the latency benchmark
         packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench jmPkgs.jormungandr;
-        packages.cardano-wallet.components.benchmarks.latency = wrapBench pkgs.cardano-node;
+        packages.cardano-wallet.components.benchmarks.latency =
+          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
+            build-tools = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/* \
+                --run "cd $src" \
+                --prefix PATH : ${pkgs.cardano-node}/bin
+
+              wrapProgram $out/bin/* \
+                --run "cd $src" \
+                --prefix PATH : ${pkgs.cardano-cli}/bin
+            '';
+          };
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
