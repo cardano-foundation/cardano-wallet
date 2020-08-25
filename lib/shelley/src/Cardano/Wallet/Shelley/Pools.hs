@@ -638,7 +638,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgHaltMonitoring{} -> Info
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
-        MsgStakePoolGarbageCollection{} -> Info
+        MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Info
         MsgStakePoolRetirement{} -> Info
         MsgErrProduction{} -> Error
