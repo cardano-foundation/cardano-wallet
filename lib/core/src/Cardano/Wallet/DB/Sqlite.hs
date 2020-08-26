@@ -193,7 +193,6 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -1379,21 +1378,21 @@ selectTxHistory ti wid minWithdrawal order conditions = do
     selectLatestCheckpoint wid >>= \case
         Nothing -> pure []
         Just cp -> do
-            minWithdrawalPred <- case minWithdrawal of
-                Nothing -> pure (const True)
+            minWithdrawalFilter <- case minWithdrawal of
+                Nothing  -> pure []
                 Just inf -> do
-                    -- Tests whether a given TxMeta matches a reward withdrawal
-                    -- above the given minimum. This filtering is done outside
-                    -- of sqlite because joins are not possible with persistent.
                     let coin = W.Coin $ fromIntegral $ getQuantity inf
-                    wdrls <- fmap entityVal <$> selectList
-                        [ TxWithdrawalAmount >=. coin ]
-                        [ Asc TxWithdrawalTxId ]
-                    let txids = Set.fromAscList $ map txWithdrawalTxId wdrls
-                    pure ((`Set.member` txids) . txMetaTxId)
+                    wdrls <- fmap entityVal
+                        <$> selectList [ TxWithdrawalAmount >=. coin ] []
+                    pure [ TxMetaTxId <-. (txWithdrawalTxId <$> wdrls) ]
 
-            metas <- filter minWithdrawalPred . fmap entityVal
-                <$> selectList ((TxMetaWalletId ==. wid):conditions) sortOpt
+            metas <- fmap entityVal <$> selectList
+                ( mconcat
+                    [ [ TxMetaWalletId ==. wid ]
+                    , minWithdrawalFilter
+                    , conditions
+                    ]
+                ) sortOpt
 
             let txids = map txMetaTxId metas
             (ins, outs, ws) <- selectTxs txids
