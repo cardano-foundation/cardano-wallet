@@ -1722,7 +1722,7 @@ pubKeyFromMnemonics mnemonics =
     T.decodeUtf8 $ serializeXPub $ publicKey
        $ deriveAccountPrivateKey mempty rootXPrv minBound
  where
-     (Right seed) = mkSomeMnemonic @'[15] mnemonics
+     seed = either (error . show) id $ mkSomeMnemonic @'[15,24] mnemonics
      rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
 
 --
