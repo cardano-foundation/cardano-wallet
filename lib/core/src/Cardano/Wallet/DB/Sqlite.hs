@@ -1132,6 +1132,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
             , W.txInfoDepth =
                 Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
             , W.txInfoTime = t
+            , W.txInfoMetadata = Nothing -- fixme: implement in #2072
             }
       where
         txH  = getQuantity (meta ^. #blockHeight)

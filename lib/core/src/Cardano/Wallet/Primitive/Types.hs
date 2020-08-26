@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.Types
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
+    , TxMetadata(..)
     , Direction(..)
     , TxStatus(..)
     , SealedTx (..)
@@ -174,6 +175,8 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
+import Cardano.Api.Typed
+    ( TxMetadata (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
@@ -248,6 +251,7 @@ import Fmt
     , fmt
     , indentF
     , listF'
+    , nameF
     , ordinalF
     , padRightF
     , prefixF
@@ -843,18 +847,27 @@ data Tx = Tx
         :: !(Map ChimericAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
         -- a transaction. The order does not matter.
+    , metadata
+        :: !(Maybe TxMetadata)
+        -- ^ Semi-structured application-specific extension data stored in the
+        -- transaction on chain.
+        --
+        -- This is not to be confused with 'TxMeta', which is information about
+        -- a transaction derived from the ledger.
+        --
+        -- See Appendix E of <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
     } deriving (Show, Generic, Ord, Eq)
-
 
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx tid ins outs ws) = mempty
+    build (Tx tid ins outs ws md) = mempty
         <> build tid
         <> build ("\n" :: String)
         <> blockListF' "inputs" build (fst <$> ins)
         <> blockListF' "outputs" build outs
         <> blockListF' "withdrawals" tupleF (Map.toList ws)
+        <> nameF "metadata" (maybe "" build md)
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -989,7 +1002,9 @@ data TransactionInfo = TransactionInfo
     -- ^ Number of slots since the transaction slot.
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
-    } deriving (Generic, Show, Eq, Ord)
+    , txInfoMetadata :: !(Maybe TxMetadata)
+    -- ^ Application-specific extension data.
+    } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
 
@@ -1000,6 +1015,7 @@ fromTransactionInfo info = Tx
     , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
+    , metadata = txInfoMetadata info
     }
 
 -- | Drop time-specific information

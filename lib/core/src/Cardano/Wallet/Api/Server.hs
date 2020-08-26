@@ -1326,7 +1326,8 @@ mkApiTransactionFromInfo
     => TimeInterpreter m
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime) = do
+mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime _txmeta) = do
+    -- fixme: include _txmeta in API transaction #2074
     apiTx <- mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) $
         case meta ^. #status of
             Pending  -> #pendingSince

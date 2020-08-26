@@ -365,18 +365,20 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid ins outs wdrls) = mconcat
-        [ [ mkTx ins' outs  wdrls
+    shrink (Tx _tid ins outs wdrls md) = mconcat
+        [ [ mkTx ins' outs  wdrls md
           | ins' <- shrinkList' ins
           ]
 
-        , [ mkTx ins  outs' wdrls
+        , [ mkTx ins  outs' wdrls md
           | outs' <- shrinkList' outs
           ]
 
-        , [ mkTx ins outs (Map.fromList wdrls')
+        , [ mkTx ins outs (Map.fromList wdrls') md
           | wdrls' <- shrinkList' (Map.toList wdrls)
           ]
+
+        -- fixme: #2072 shrink md
         ]
       where
         shrinkList' xs  = filter (not . null)
@@ -386,7 +388,9 @@ instance Arbitrary Tx where
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
-        return $ mkTx ins outs wdrls
+        -- fixme: #2072 generate md
+        let md = Nothing
+        return $ mkTx ins outs wdrls md
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

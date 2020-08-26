@@ -43,7 +43,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, shrinkSlotNo )
+    ( genMnemonic, genSlotNo, genTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -90,6 +90,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMetadata
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -705,8 +706,8 @@ dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ keyFrom _slot cs -> do
         let inps' = map (second coin) (CS.inputs cs)
-        let tid = mkTxId inps' (CS.outputs cs) mempty
-        let tx = Tx tid inps' (CS.outputs cs) mempty
+        let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
+        let tx = Tx tid inps' (CS.outputs cs) mempty Nothing
         wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
@@ -834,10 +835,6 @@ instance {-# OVERLAPS #-} Arbitrary (JormungandrKey 'RootK XPrv, Passphrase "enc
         let key = generateKeyFromSeed (mw, Nothing) pwd
         return (key, pwd)
 
-instance Arbitrary SlotNo where
-    arbitrary = genSlotNo
-    shrink = shrinkSlotNo
-
 instance Arbitrary EpochNo where
     shrink (EpochNo x) = EpochNo <$> shrink x
     arbitrary = EpochNo <$> arbitrary
@@ -863,17 +860,21 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> arbitrary
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs wdrls) = mconcat
-        [ [ Tx tid ins' outs  wdrls
+    shrink (Tx tid ins outs wdrls md) = mconcat
+        [ [ Tx tid ins' outs  wdrls md
           | ins' <- shrinkList' ins
           ]
 
-        , [ Tx tid ins  outs' wdrls
+        , [ Tx tid ins  outs' wdrls md
           | outs' <- shrinkList' outs
           ]
 
-        , [ Tx tid ins  outs (Map.fromList wdrls')
+        , [ Tx tid ins  outs (Map.fromList wdrls') md
           | wdrls' <- shrinkList' (Map.toList wdrls)
+          ]
+
+        , [ Tx tid ins  outs wdrls md'
+          | md' <- shrink md
           ]
         ]
       where
@@ -884,6 +885,7 @@ instance Arbitrary Tx where
         <*> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         <*> fmap (L.take 5 . getNonEmpty) arbitrary
         <*> fmap (Map.fromList . L.take 5) arbitrary
+        <*> arbitrary
 
 instance Arbitrary ChimericAccount where
     arbitrary = ChimericAccount . BS.pack <$> vector 28
@@ -904,3 +906,7 @@ instance Arbitrary TxMeta where
         <*> genSlotNo
         <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+
+instance Arbitrary TxMetadata where
+    shrink = shrinkTxMetadata
+    arbitrary = genTxMetadata

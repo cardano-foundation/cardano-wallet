@@ -38,6 +38,7 @@ library
     , binary
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
     , cardano-slotting
     , cborg
@@ -85,6 +86,7 @@ library
     , servant
     , servant-client
     , servant-server
+    , shelley-spec-ledger
     , split
     , statistics
     , stm
@@ -193,6 +195,7 @@ test-suite unit
     , async
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
     , cardano-wallet-core
     , ouroboros-consensus
@@ -235,6 +238,7 @@ test-suite unit
     , servant
     , servant-server
     , servant-swagger
+    , shelley-spec-ledger
     , stm
     , swagger2
     , temporary

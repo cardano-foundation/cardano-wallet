@@ -21,8 +21,10 @@ import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
     , genSlotNo
+    , genTxMetadata
     , shrinkActiveSlotCoefficient
     , shrinkSlotNo
+    , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
@@ -78,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMetadata (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -197,9 +200,11 @@ import Test.Utils.Time
     ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
 import qualified Data.ByteString as BS
+import qualified Data.Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -259,6 +264,34 @@ spec = do
                     , amount = Quantity 13371442
                     }
             "+13.371442 in ledger since 140#1" === pretty @_ @Text txMeta
+
+        it "TxMetadata" $ do
+            let md = TxMetadata $ MD.MetaData $ Data.Map.fromList
+                    [ (1, MD.I 1)
+                    , (2, MD.S "cześć")
+                    , (3, MD.B (BS.pack [222,173,190,239]))
+                    , (10, MD.List [ MD.S "a", MD.I 65 ])
+                    , (20, MD.Map
+                        [ ( MD.S "key", MD.List [MD.S "v0", MD.S "v1"] )
+                        , ( MD.I 0, MD.S "value" ) ])
+                    ]
+            pretty md `shouldBe` unlines
+                [ "element 1: 1"
+                , "element 2: \"cze\\347\\263\""
+                , "element 3: deadbeef"
+                , "element 10:"
+                , "  list:"
+                , "    - \"a\""
+                , "    - 65"
+                , "element 20:"
+                , "  - key: \"key\""
+                , "  - val:"
+                , "      list:"
+                , "        - \"v0\""
+                , "        - \"v1\""
+                , "  - key: 0"
+                , "  - val: \"value\""
+                ]
 
         it "UTxOStatistics" $ do
             let txin h = TxIn (Hash h) 0
@@ -1205,23 +1238,28 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs wdrls) = mconcat
-        [ (\ins' -> Tx tid ins' outs wdrls) <$> shrink ins
-        , (\outs' -> Tx tid ins  outs' wdrls) <$> shrink outs
-        , (Tx tid ins outs . Map.fromList) <$> shrink (Map.toList wdrls)
+    shrink (Tx tid ins outs wdrls md) = mconcat
+        [ (\ins' -> Tx tid ins' outs wdrls md) <$> shrink ins
+        , (\outs' -> Tx tid ins outs' wdrls md) <$> shrink outs
+        , (\wdrls' -> Tx tid ins outs (Map.fromList wdrls') md) <$> shrink (Map.toList wdrls)
+        , Tx tid ins outs wdrls <$> shrink md
         ]
     arbitrary = do
         ins <- choose (1, 3) >>= vector
         outs <- choose (1, 3) >>= vector
         wdrls <- choose (1,3) >>= vector
         tid <- genHash
-        return $ Tx tid ins outs (Map.fromList wdrls)
+        Tx tid ins outs (Map.fromList wdrls) <$> arbitrary
       where
         genHash = elements
           [ Hash "Tx1"
           , Hash "Tx2"
           , Hash "Tx3"
           ]
+
+instance Arbitrary TxMetadata where
+    shrink = shrinkTxMetadata
+    arbitrary = genTxMetadata
 
 instance Arbitrary ChimericAccount where
     arbitrary = ChimericAccount . BS.pack <$> vector 28
