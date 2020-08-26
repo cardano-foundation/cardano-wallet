@@ -1,6 +1,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 
+-- |
+-- Copyright: © 2018-2020 IOHK
+-- License: Apache-2.0
+--
+-- Functions for mocking the pool database layer.
+--
+-- This module is meant to be imported in a qualified fashion. For example:
+--
+-- >>> import qualified Cardano.Pool.DB.Mock as Mock
+--
 module Cardano.Pool.DB.Mock
     ( DBLayer (..)
     , dbLayer
