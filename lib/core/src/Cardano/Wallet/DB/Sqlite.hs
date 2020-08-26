@@ -1577,6 +1577,11 @@ selectSeqStatePendingIxs wid =
                           HD Random address discovery
 -------------------------------------------------------------------------------}
 
+-- piggy-back on RndState existing instance, to simulate the same behavior.
+instance PersistState (Rnd.RndAnyState n p) where
+    insertState (wid, sl) = insertState (wid, sl) . Rnd.innerState
+    selectState (wid, sl) = fmap Rnd.RndAnyState <$> selectState (wid, sl)
+
 -- Persisting 'RndState' requires that the wallet root key has already been
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
 -- address discovery requires a root key to recognize addresses.

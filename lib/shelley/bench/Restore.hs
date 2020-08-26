@@ -29,6 +29,8 @@ module Main where
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPrv )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.DB.Sqlite
@@ -63,8 +65,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -74,7 +74,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
     ( migrateAll )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState, mkRndState )
+    ( mkRndAnyState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), mkAddressPoolGap, mkSeqStateFromRootXPrv )
 import Cardano.Wallet.Primitive.Model
@@ -187,6 +187,7 @@ cardanoRestoreBench tr c socketFile = do
                 vData
                 "seq.timelog"
                 (walletSeq networkProxy))
+
         , bench ("restore " <> network <> " rnd")
             (bench_restoration @_ @ByronKey
                 networkProxy
@@ -195,43 +196,65 @@ cardanoRestoreBench tr c socketFile = do
                 np
                 vData
                 "rnd.timelog"
-                walletRnd)
+                (walletRnd mkRndState))
 
-        , bench ("restore " <> network <> " 1% ownership")
-            (bench_restoration @_ @IcarusKey
+        , bench ("restore " <> network <> " 1% rnd")
+            (bench_restoration @_ @ByronKey
                 networkProxy
                 tr
                 socketFile
                 np
                 vData
-                "1-percent.timelog"
-                (initAnyState "Benchmark 1% Wallet" 0.01))
+                "1-percent-rnd.timelog"
+                (walletRnd $ mkRndAnyState @1))
 
-        , bench ("restore " <> network <> " 2% ownership")
-            (bench_restoration @_ @IcarusKey
-                networkProxy
-                tr
-                socketFile
-                np
-                vData
-                "2-percent.timelog"
-                (initAnyState "Benchmark 2% Wallet" 0.02))
+        , bench ("restore " <> network <> " 0.1% any")
+             (bench_restoration @_ @ShelleyKey
+                 networkProxy
+                 tr
+                 socketFile
+                 np
+                 vData
+                 "0.1-percent-any.timelog"
+                 (initAnyState "Benchmark 0.1% Wallet" 0.001))
+
+        , bench ("restore " <> network <> " 0.5% any")
+             (bench_restoration @_ @ShelleyKey
+                 networkProxy
+                 tr
+                 socketFile
+                 np
+                 vData
+                 "0.5-percent-any.timelog"
+                 (initAnyState "Benchmark 0.5% Wallet" 0.005))
+
+        , bench ("restore " <> network <> " 1% any")
+             (bench_restoration @_ @ShelleyKey
+                 networkProxy
+                 tr
+                 socketFile
+                 np
+                 vData
+                 "1-percent-any.timelog"
+                 (initAnyState "Benchmark 1% Wallet" 0.01))
         ]
   where
     walletRnd
-        :: (WalletId, WalletName, RndState n)
-    walletRnd =
+        :: (ByronKey 'RootK XPrv -> Int -> s)
+        -> (WalletId, WalletName, s)
+    walletRnd mk =
         let
             seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
                 "involve key curtain arrest fortune custom lens marine before \
                 \material wheel glide cause weapon wrap"
             xprv = Byron.generateKeyFromSeed seed mempty
             wid = WalletId $ digest $ publicKey xprv
-            wname = WalletName "Benchmark Sequential Wallet"
+            wname = WalletName "Benchmark Random Wallet"
             rngSeed = 0
-            s = mkRndState xprv rngSeed
+            s = mk xprv rngSeed
         in
             (wid, wname, s)
+
     walletSeq
         :: forall n. Proxy n
         -> (WalletId, WalletName, SeqState n ShelleyKey)
