@@ -65,8 +65,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -211,7 +209,7 @@ cardanoRestoreBench tr c socketFile = do
                 (walletRnd $ mkRndAnyState @1))
 
         , bench ("restore " <> network <> " 1% naked")
-             (bench_restoration @_ @IcarusKey
+             (bench_restoration @_ @ShelleyKey
                  networkProxy
                  tr
                  socketFile
