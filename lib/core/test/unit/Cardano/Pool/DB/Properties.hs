@@ -25,6 +25,7 @@ import Cardano.Pool.DB
     , ErrPointAlreadyExists (..)
     , determinePoolLifeCycleStatus
     , readPoolLifeCycleStatus
+    , removeRetiredPools
     )
 import Cardano.Pool.DB.Arbitrary
     ( ListSerializationMethod
@@ -67,6 +68,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Control.Tracer
+    ( nullTracer )
 import Data.Bifunctor
     ( bimap )
 import Data.Function
@@ -77,6 +80,8 @@ import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( set, view )
+import Data.IORef
+    ( modifyIORef, newIORef, readIORef )
 import Data.List.Extra
     ( nubOrd )
 import Data.Map.Strict
@@ -123,6 +128,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
 
+import qualified Cardano.Pool.DB.Mock as Mock
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -197,6 +203,8 @@ properties = do
             (property . prop_rollbackRetirement)
         it "removePools"
             (property . prop_removePools)
+        it "removeRetiredPools"
+            (property . const prop_removeRetiredPools)
         it "readStake . putStake a1 . putStake s0 == pure a1"
             (property . prop_putStakePutStake)
         it "readSystemSeed is idempotent"
@@ -936,6 +944,28 @@ prop_removePools
     poolIdsWithRetCerts =
         fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
             <$> atomically $ mapM readPoolRetirement $ Set.toList pools
+
+-- Tests that the 'removeRetiredPools' operation does not do anything other
+-- than removing the pools that the DB layer indicates as having retired.
+--
+prop_removeRetiredPools
+    :: [PoolRetirementCertificate]
+    -> Property
+prop_removeRetiredPools activeRetirementCerts = monadicIO $ do
+    removedPoolsRef <- liftIO $ newIORef []
+    let db = Mock.toReal $ Mock.dbLayer
+            { Mock.listRetiredPools =
+                const $ pure activeRetirementCerts
+            , Mock.removePools = \poolsToRemove ->
+                modifyIORef removedPoolsRef (poolsToRemove <>)
+            }
+    removedRetirementCerts <-
+        liftIO $ removeRetiredPools db nullTracer minBound
+    removedPools <- liftIO $ readIORef removedPoolsRef
+    assertWith "only removes pools that have retired"
+        $ removedPools == (view #poolId <$> activeRetirementCerts)
+    assertWith "only returns certificates for pools that have retired"
+        $ removedRetirementCerts == activeRetirementCerts
 
 prop_listRegisteredPools
     :: DBLayer IO
