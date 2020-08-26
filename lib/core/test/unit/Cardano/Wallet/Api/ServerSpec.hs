@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -25,8 +26,14 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotNo (..), StartTime (..) )
+import Control.Concurrent
+    ( threadDelay )
+import Control.Concurrent.Async
+    ( concurrently_, race_ )
 import Control.Exception
     ( throwIO )
+import Control.Monad
+    ( void )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
@@ -34,7 +41,16 @@ import Data.Quantity
 import Data.Time.Clock
     ( addUTCTime, getCurrentTime )
 import Network.Socket
-    ( SockAddr (..), getSocketName, tupleToHostAddress )
+    ( Family (..)
+    , SockAddr (..)
+    , SocketType (..)
+    , accept
+    , connect
+    , defaultProtocol
+    , getSocketName
+    , socket
+    , tupleToHostAddress
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam
@@ -60,19 +76,39 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 spec :: Spec
 spec = describe "API Server" $ do
-    it "listens on the local interface" $ do
+    let lo = tupleToHostAddress (0x7f, 0, 0, 1)
+
+    it "binds to the local interface" $ do
         withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
-            Right (port, socket) -> do
-                let lo = tupleToHostAddress (0x7f, 0, 0, 1)
-                getSocketName socket `shouldReturn`
+            Right (port, sock) -> do
+                getSocketName sock `shouldReturn`
                     SockAddrInet (fromIntegral port) lo
             Left e -> fail (show e)
 
-    it "can listen on any interface" $ do
+    it "can bind on any interface" $ do
         withListeningSocket "0.0.0.0" ListenOnRandomPort $ \case
-            Right (port, socket) -> do
-                getSocketName socket `shouldReturn`
+            Right (port, sock) -> do
+                getSocketName sock `shouldReturn`
                     SockAddrInet (fromIntegral port) 0
+            Left e -> fail (show e)
+
+    it "listens on the local interface" $ do
+        let
+            client port = do
+                sock <- socket AF_INET Stream defaultProtocol
+                connect sock $ SockAddrInet (fromIntegral port) lo
+
+            server sock = do
+                threadDelay 1_000_000
+                void $ accept sock
+
+            timeout = do
+                threadDelay 2_000_000
+                fail "test case timed out"
+
+        withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
+            Right (port, sock) -> race_ timeout $
+                concurrently_ (client port) (server sock)
             Left e -> fail (show e)
 
     -- assuming there is no host "patate"
