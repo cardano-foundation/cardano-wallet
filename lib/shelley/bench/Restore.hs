@@ -208,34 +208,14 @@ cardanoRestoreBench tr c socketFile = do
                 "1-percent-rnd.timelog"
                 (walletRnd $ mkRndAnyState @1))
 
-        , bench ("restore " <> network <> " 0.1% any")
-             (bench_restoration @_ @ShelleyKey
+        , bench ("restore " <> network <> " 1% naked")
+             (bench_restoration @_ @IcarusKey
                  networkProxy
                  tr
                  socketFile
                  np
                  vData
-                 "0.1-percent-any.timelog"
-                 (initAnyState "Benchmark 0.1% Wallet" 0.001))
-
-        , bench ("restore " <> network <> " 0.5% any")
-             (bench_restoration @_ @ShelleyKey
-                 networkProxy
-                 tr
-                 socketFile
-                 np
-                 vData
-                 "0.5-percent-any.timelog"
-                 (initAnyState "Benchmark 0.5% Wallet" 0.005))
-
-        , bench ("restore " <> network <> " 1% any")
-             (bench_restoration @_ @ShelleyKey
-                 networkProxy
-                 tr
-                 socketFile
-                 np
-                 vData
-                 "1-percent-any.timelog"
+                 "1-percent-naked.timelog"
                  (initAnyState "Benchmark 1% Wallet" 0.01))
         ]
   where

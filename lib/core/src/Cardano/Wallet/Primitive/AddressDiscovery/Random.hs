@@ -292,9 +292,9 @@ instance KnownAddresses (RndState n) where
 -- it discover addresses based on an arbitrary ratio instead of decrypting the
 -- derivation path.
 --
--- The proportion is stored as a type-level parameter so that we don't have to
--- alter the database schema to store it. It simply exists and depends on the
--- caller creating the wallet to define it.
+-- The type parameter is expected to be a ratio (between 0 and 100) of addresses
+-- we ought to simply recognize as ours. So, giving @5 means that 5% of the
+-- entire address space of the network will be considered ours, picked randomly.
 newtype RndAnyState (network :: NetworkDiscriminant) (p :: Nat) = RndAnyState
     { innerState :: RndState network
     } deriving (Generic, Show)
@@ -304,8 +304,8 @@ instance NFData (RndAnyState n p)
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
 --
--- The type parameter is expected to be a ratio (between 0 and 100) of addresses
--- we ought to simply recognize as ours. So, giving @5 means that 5% of the
+-- The first argument is expected to be a ratio (between 0 and 1) of addresses
+-- we ought to simply recognize as ours. So, giving .5 means that 50% of the
 -- entire address space of the network will be considered ours, picked randomly.
 mkRndAnyState
     :: forall (p :: Nat) n. ()
