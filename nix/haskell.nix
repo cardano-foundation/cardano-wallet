@@ -109,21 +109,9 @@ let
           unit.build-tools = [ jmPkgs.jormungandr ];
         };
 
-        # Add jormungandr to the PATH of the latency benchmark
-        packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench jmPkgs.jormungandr;
-        packages.cardano-wallet.components.benchmarks.latency =
-          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper ];
-            postInstall = ''
-              wrapProgram $out/bin/* \
-                --run "cd $src" \
-                --prefix PATH : ${pkgs.cardano-node}/bin
-
-              wrapProgram $out/bin/* \
-                --run "cd $src" \
-                --prefix PATH : ${pkgs.cardano-cli}/bin
-            '';
-          };
+        # Add node backend to the PATH of the latency benchmarks
+        packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench [ jmPkgs.jormungandr ];
+        packages.cardano-wallet.components.benchmarks.latency = wrapBench [ pkgs.cardano-node pkgs.cardano-cli ];
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
@@ -270,13 +258,13 @@ let
   # Add component options to wrap a benchmark exe, so that it has the
   # backend executable on its path, and the source tree as its working
   # directory.
-  wrapBench = backend:
+  wrapBench = progs:
     lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
       build-tools = [ pkgs.makeWrapper ];
       postInstall = ''
         wrapProgram $out/bin/* \
           --run "cd $src" \
-          --prefix PATH : ${backend}/bin
+          --prefix PATH : ${lib.makeBinPath progs}
       '';
     };
 
