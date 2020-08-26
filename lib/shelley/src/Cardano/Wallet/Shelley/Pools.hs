@@ -541,6 +541,24 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     -- only garbage collect pools that retired /at least/ two epochs before
     -- the current epoch.
     --
+    -- Rationale:
+    --
+    -- When crossing an epoch boundary, there is a period of time during which
+    -- blocks from the previous epoch are still within the rollback window.
+    --
+    -- If we've only just crossed the boundary from epoch e into epoch e + 1,
+    -- this means that blocks from epoch e are still within the rollback
+    -- window. If the chain we've just been following gets replaced with
+    -- another chain in which the retirement certificate for some pool p is
+    -- revoked (with a registration certificate that appears before the end
+    -- of epoch e), then the retirement for pool p will have been cancelled.
+    --
+    -- However, assuming the rollback window is always guaranteed to be less
+    -- than one epoch in length, retirements that occurred two epochs ago can
+    -- no longer be affected by rollbacks. Therefore, if we see a retirement
+    -- that occurred two epochs ago that has not subsquently been superseded,
+    -- it should be safe to garbage collect that pool.
+    --
     garbageCollectPools currentSlot = liftIO $ do
         currentEpoch <- timeInterpreter nl (epochOf currentSlot)
         let subtractTwoEpochs = epochPred <=< epochPred
