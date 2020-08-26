@@ -482,7 +482,10 @@ withListeningSocket
     -> IO a
 withListeningSocket hostPreference portOpt = bracket acquire release
   where
-    acquire = tryJust handleErr $ case portOpt of
+    acquire = tryJust handleErr bindAndListen
+    -- Note: These Data.Streaming.Network functions also listen on the socket,
+    -- even though their name just says "bind".
+    bindAndListen = case portOpt of
         ListenOnPort port -> (port,) <$> bindPortTCP port hostPreference
         ListenOnRandomPort -> bindRandomPortTCP hostPreference
     release (Right (_, socket)) = liftIO $ close socket
