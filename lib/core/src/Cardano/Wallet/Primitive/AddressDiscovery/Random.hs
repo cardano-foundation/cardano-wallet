@@ -34,6 +34,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     , deriveRndStateAddress
     , findUnusedPath
     , unavailablePaths
+
+    -- ** Benchmarking
+    , RndAnyState (..)
+    , mkRndAnyState
     ) where
 import Prelude
 
@@ -66,16 +70,24 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( join )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Map
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable (..), blockMapF', indentF, tupleF )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownNat, Nat, natVal )
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
@@ -268,3 +280,90 @@ instance CompareDiscovery (RndState n) where
 
 instance KnownAddresses (RndState n) where
     knownAddresses s = Map.elems (addresses s)
+
+--------------------------------------------------------------------------------
+--
+-- RndAnyState
+--
+-- For benchmarking and testing arbitrary large random wallets.
+
+-- | An "unsound" alternative that can be used for benchmarking and stress
+-- testing. It re-uses the same underlying structure as the `RndState` but
+-- it discover addresses based on an arbitrary ratio instead of decrypting the
+-- derivation path.
+--
+-- The proportion is stored as a type-level parameter so that we don't have to
+-- alter the database schema to store it. It simply exists and depends on the
+-- caller creating the wallet to define it.
+newtype RndAnyState (network :: NetworkDiscriminant) (p :: Nat) = RndAnyState
+    { innerState :: RndState network
+    } deriving (Generic, Show)
+
+instance NFData (RndAnyState n p)
+
+-- | Initialize the HD random address discovery state from a root key and RNG
+-- seed.
+--
+-- The type parameter is expected to be a ratio (between 0 and 100) of addresses
+-- we ought to simply recognize as ours. So, giving @5 means that 5% of the
+-- entire address space of the network will be considered ours, picked randomly.
+mkRndAnyState
+    :: forall (p :: Nat) n. ()
+    => ByronKey 'RootK XPrv
+    -> Int
+    -> RndAnyState n p
+mkRndAnyState key seed = RndAnyState
+    { innerState = RndState
+        { hdPassphrase = payloadPassphrase key
+        , accountIndex = minBound
+        , addresses = mempty
+        , pendingAddresses = mempty
+        , gen = mkStdGen seed
+        }
+    }
+
+instance KnownNat p => IsOurs (RndAnyState n p) Address where
+    isOurs addr@(Address bytes) st@(RndAnyState inner) =
+        case isOurs addr inner of
+            (True, inner') ->
+                (True, RndAnyState inner')
+
+            (False, _) | crc32 bytes < p ->
+                let
+                    (path, gen') = findUnusedPath
+                        (gen inner) (accountIndex inner) (unavailablePaths inner)
+
+                    inner' = addDiscoveredAddress
+                        addr Used path (inner { gen = gen' })
+                in
+                (True, RndAnyState inner')
+
+            (False, _) ->
+                (False, st)
+      where
+        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 100)
+
+        double :: Integral a => a -> Double
+        double = fromIntegral
+
+instance IsOurs (RndAnyState n p) ChimericAccount where
+    isOurs _account state = (False, state)
+
+instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
+    isOwned _ _ _ = Nothing
+
+instance GenChange (RndAnyState n p) where
+    type ArgGenChange (RndAnyState n p) = ()
+    genChange _ = error
+        "GenChange.genChange: trying to generate change for \
+        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+
+instance CompareDiscovery (RndAnyState n p) where
+    compareDiscovery _ _ _ = error
+        "CompareDiscovery.compareDiscovery: trying to generate change for \
+        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+
+instance KnownAddresses (RndAnyState n p) where
+    knownAddresses _ = error
+        "KnownAddresses.knownAddresses: trying to generate change for \
+        \an incompatible scheme '(RndAnyState n p)'. Please don't."
