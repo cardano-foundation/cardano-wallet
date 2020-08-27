@@ -102,6 +102,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.<=)
     , (.>)
     , (.>=)
     )
@@ -555,7 +556,7 @@ spec = do
                 (Link.getTransactionFee @'Shelley w) Default payload
             expectResponseCode @IO HTTP.status400 r
 
-    it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
+    it "TRANS_ESTIMATE_03a - we see result when we can't cover fee" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         payload <- mkTxPayload ctx wSrc faucetAmt fixturePassphrase
         r <- request @ApiFee ctx
@@ -563,6 +564,27 @@ spec = do
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#estimatedMin . #getQuantity) (.>= 0)
+            , expectField (#estimatedMax . #getQuantity) (.<= oneAda)
+            ]
+
+    it "TRANS_ESTIMATE_03b - we see result when we can't cover fee (with withdrawal)" $ \ctx -> do
+        (wSrc, _) <- rewardWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
+        let totalBalance = wSrc ^. #balance . #getApiT . #total
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "payments": [{
+                    "address": #{addr},
+                    "amount": #{totalBalance}
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity) (.>= 0)
+            , expectField (#estimatedMax . #getQuantity) (.<= oneAda)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
