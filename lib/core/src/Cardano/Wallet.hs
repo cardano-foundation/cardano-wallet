@@ -1460,7 +1460,7 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
         guardCoinSelection minUtxo cs
 
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
-        `catchE` handleCannotCover utxo recipients
+        `catchE` handleCannotCover utxo withdrawal recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
 -- whereas clients are just asking for an estimation. Therefore, we convert
@@ -1469,13 +1469,19 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
 handleCannotCover
     :: Monad m
     => UTxO
+    -> Quantity "lovelace" Word64
     -> NonEmpty TxOut
     -> ErrSelectForPayment e
     -> ExceptT (ErrSelectForPayment e) m Fee
-handleCannotCover utxo outs = \case
+handleCannotCover utxo (Quantity withdrawal) outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
-        let available = fromIntegral (W.balance utxo) - sum (getCoin . coin <$> outs)
-        pure $ Fee $ available + missing
+        let available
+                = fromIntegral (W.balance utxo)
+                + fromIntegral withdrawal
+        let payment
+                = sum (getCoin . coin <$> outs)
+        pure $ Fee $
+            available + missing - payment
     e ->
         throwE e
 
