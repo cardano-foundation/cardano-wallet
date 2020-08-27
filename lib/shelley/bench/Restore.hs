@@ -82,6 +82,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndAnyState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap
+    , SeqAnyState (..)
     , SeqState (..)
     , mkAddressPoolGap
     , mkSeqAnyState
@@ -151,6 +152,8 @@ import Fmt
     ( Buildable, build, fmt, genericF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( Nat )
 import Say
     ( sayErr )
 import System.FilePath
@@ -202,7 +205,7 @@ cardanoRestoreBench tr c socketFile = do
             np
             vData
             "seq.timelog"
-            (walletSeq "Seq Empty Wallet" networkProxy mkSeqStateFromRootXPrv)
+            (walletSeq "Seq Empty Wallet" $ mkSeqState networkProxy)
 
         , bench_restoration @_ @ByronKey
             networkProxy
@@ -229,7 +232,7 @@ cardanoRestoreBench tr c socketFile = do
              np
              vData
              "1-percent-seq.timelog"
-             (walletSeq "Seq 1% Wallet" networkProxy $ mkSeqAnyState @1)
+             (walletSeq "Seq 1% Wallet" $ mkSeqAnyState' @1 networkProxy)
         ]
   where
     walletRnd
@@ -263,6 +266,22 @@ cardanoRestoreBench tr c socketFile = do
             s = mkState (xprv, mempty) gap
         in
             (wid, WalletName wname, s)
+
+    mkSeqState
+        :: forall (n :: NetworkDiscriminant). ()
+        => Proxy n
+        -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+        -> AddressPoolGap
+        -> SeqState n ShelleyKey
+    mkSeqState _ = mkSeqStateFromRootXPrv @n
+
+    mkSeqAnyState'
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). ()
+        => Proxy n
+        -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+        -> AddressPoolGap
+        -> SeqAnyState n ShelleyKey p
+    mkSeqAnyState' _ = mkSeqAnyState @p @n
 
     networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
     networkDescription _ = networkDiscriminantVal @n
