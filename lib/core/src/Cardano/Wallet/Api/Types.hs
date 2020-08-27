@@ -64,6 +64,7 @@ module Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxMetadata (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
@@ -127,6 +128,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubToBytes )
+import Cardano.Api.MetaData
+    ( jsonFromMetadata, jsonToMetadata )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -173,6 +176,7 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata
     , StartTime (..)
     , TxIn (..)
+    , TxMetadata
     , TxStatus (..)
     , WalletBalance (..)
     , WalletId (..)
@@ -180,6 +184,7 @@ import Cardano.Wallet.Primitive.Types
     , decodePoolIdBech32
     , encodePoolIdBech32
     , isValidCoin
+    , txMetadataIsNull
     , unsafeEpochNo
     )
 import Control.Applicative
@@ -492,11 +497,13 @@ data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , metadata :: !(Maybe (ApiT TxMetadata))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , metadata :: !(Maybe (ApiT TxMetadata))
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData
@@ -557,6 +564,11 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
+    , metadata :: !ApiTxMetadata
+    } deriving (Eq, Generic, Show)
+
+newtype ApiTxMetadata = ApiTxMetadata
+    { getApiTxMetadata :: Maybe (ApiT TxMetadata)
     } deriving (Eq, Generic, Show)
 
 data ApiWithdrawal n = ApiWithdrawal
@@ -1227,6 +1239,20 @@ instance
     ) => ToJSON (ApiTransaction n)
   where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT TxMetadata) where
+    parseJSON = fmap ApiT . eitherToParser . jsonToMetadata
+instance ToJSON (ApiT TxMetadata) where
+    toJSON = jsonFromMetadata . getApiT
+
+instance FromJSON ApiTxMetadata where
+    parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing
+    parseJSON v = ApiTxMetadata . Just <$> parseJSON v
+instance ToJSON ApiTxMetadata where
+    toJSON (ApiTxMetadata x) = case x of
+        Nothing -> Aeson.Null
+        Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
+        Just md -> toJSON md
 
 instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
   where

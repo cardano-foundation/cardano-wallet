@@ -66,6 +66,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
@@ -99,7 +100,12 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genPercentage, shrinkPercentage )
+    ( genMnemonic
+    , genPercentage
+    , genTxMetadata
+    , shrinkPercentage
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( HardDerivation (..)
     , NetworkDiscriminant (..)
@@ -137,6 +143,8 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , TxIn (..)
     , TxIn (..)
+    , TxMetadata (..)
+    , TxMetadata (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -334,6 +342,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
+            jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
@@ -342,6 +351,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
+            jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -698,6 +708,7 @@ spec = do
                     { payments = payments (x :: PostTransactionData ('Testnet 0))
                     , passphrase = passphrase (x :: PostTransactionData ('Testnet 0))
                     , withdrawal = withdrawal (x :: PostTransactionData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -706,6 +717,7 @@ spec = do
                 x' = PostTransactionFeeData
                     { payments = payments (x :: PostTransactionFeeData ('Testnet 0))
                     , withdrawal = withdrawal (x :: PostTransactionFeeData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionFeeData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -729,6 +741,7 @@ spec = do
                     , outputs = outputs (x :: ApiTransaction ('Testnet 0))
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
+                    , metadata = metadata (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1243,6 +1256,7 @@ instance Arbitrary (PostTransactionData t) where
         <$> arbitrary
         <*> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
+        <*> arbitrary
 
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
@@ -1258,6 +1272,7 @@ instance Arbitrary (PostTransactionFeeData t) where
     arbitrary = PostTransactionFeeData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
+        <*> arbitrary
 
 instance Arbitrary PostExternalTransactionData where
     arbitrary = do
@@ -1266,6 +1281,14 @@ instance Arbitrary PostExternalTransactionData where
         return $ PostExternalTransactionData bytes
     shrink (PostExternalTransactionData bytes) =
         PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
+
+instance Arbitrary TxMetadata where
+    arbitrary = genTxMetadata
+    shrink = shrinkTxMetadata
+
+instance Arbitrary ApiTxMetadata where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary (ApiTransaction t) where
     shrink = filter outputsNonEmpty . genericShrink
@@ -1291,6 +1314,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> genOutputs
             <*> genWithdrawals
             <*> pure txStatus
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
