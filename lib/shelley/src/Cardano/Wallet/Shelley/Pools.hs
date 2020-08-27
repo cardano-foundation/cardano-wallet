@@ -35,8 +35,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
-import Cardano.Pool.DB.Log
-    ( PoolDbLog )
 import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog )
 import Cardano.Wallet.Api.Types
@@ -620,8 +618,7 @@ monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
         f = unActiveSlotCoefficient (getActiveSlotCoefficient gp)
 
 data StakePoolLog
-    = MsgDb PoolDbLog
-    | MsgFollow FollowLog
+    = MsgFollow FollowLog
     | MsgStartMonitoring [BlockHeader]
     | MsgHaltMonitoring
     | MsgCrashMonitoring
@@ -648,7 +645,6 @@ data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where
     getSeverityAnnotation = \case
-        MsgDb e -> getSeverityAnnotation e
         MsgFollow e -> getSeverityAnnotation e
         MsgStartMonitoring{} -> Info
         MsgHaltMonitoring{} -> Info
@@ -663,8 +659,6 @@ instance HasSeverityAnnotation StakePoolLog where
 
 instance ToText StakePoolLog where
     toText = \case
-        MsgDb e ->
-            toText e
         MsgFollow e ->
             toText e
         MsgStartMonitoring cursor -> mconcat
