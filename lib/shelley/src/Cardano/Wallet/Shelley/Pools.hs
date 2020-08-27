@@ -34,11 +34,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
-    ( DBLayer (..)
-    , ErrPointAlreadyExists (..)
-    , readPoolLifeCycleStatus
-    , removeRetiredPools
-    )
+    ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
 import Cardano.Pool.Metadata
@@ -567,7 +563,7 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                     PoolGarbageCollectionInfo
                         {currentEpoch, latestRetirementEpoch}
             bracketTracer (contramap logMessage tr) $
-                removeRetiredPools db (contramap MsgDb tr) latestRetirementEpoch
+                atomically $ removeRetiredPools latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot

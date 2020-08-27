@@ -50,6 +50,8 @@ import Cardano.Pool.DB.Log
     ( PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
+import Cardano.Wallet.Logging
+    ( bracketTracer )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch )
 import Cardano.Wallet.Primitive.Types
@@ -73,9 +75,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer (..), contramap, natTracer, traceWith )
 import Data.Either
     ( rights )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -387,6 +391,20 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
+
+        removeRetiredPools epoch =
+            bracketTracer traceOuter action
+          where
+            action = listRetiredPools epoch >>= \retirementCerts -> do
+                traceInner retirementCerts
+                removePools (view #poolId <$> retirementCerts)
+                pure retirementCerts
+            traceOuter = trace
+                & natTracer liftIO
+                & contramap (MsgRemovingRetiredPoolsForEpoch epoch)
+            traceInner = liftIO
+                . traceWith trace
+                . MsgRemovingRetiredPools
 
         readPoolProductionCursor k = do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList

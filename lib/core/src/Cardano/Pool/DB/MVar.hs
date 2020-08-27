@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -59,6 +60,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
     ( Identity )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Tuple
     ( swap )
 
@@ -132,6 +135,11 @@ newDBLayer timeInterpreter = do
 
         removePools =
             void . alterPoolDB (const Nothing) db . mRemovePools
+
+        removeRetiredPools epoch =
+            listRetiredPools epoch >>= \retirementCerts -> do
+                removePools (view #poolId <$> retirementCerts)
+                pure retirementCerts
 
         cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
