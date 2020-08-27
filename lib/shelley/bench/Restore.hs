@@ -37,7 +37,7 @@ import Cardano.Address.Derivation
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.DB.Sqlite
-    ( destroyDBLayer, unsafeRunQuery )
+    ( destroyDBLayer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
@@ -74,10 +74,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery, IsOurs, IsOwned, KnownAddresses )
-import Cardano.Wallet.Primitive.AddressDiscovery.Any
-    ( initAnyState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
-    ( migrateAll )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndAnyState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -146,8 +142,6 @@ import Data.Text
     ( Text )
 import Data.Time.Clock.POSIX
     ( getCurrentTime, utcTimeToPOSIXSeconds )
-import Database.Persist.Sql
-    ( runMigrationSilent )
 import Fmt
     ( Buildable, build, fmt, genericF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
@@ -222,8 +216,26 @@ cardanoRestoreBench tr c socketFile = do
             socketFile
             np
             vData
-            "1-percent-rnd.timelog"
-            (walletRnd "Rnd 1% Wallet" $ mkRndAnyState @1)
+            "0.1-percent-rnd.timelog"
+            (walletRnd "Rnd 0.1% Wallet" $ mkRndAnyState @1)
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            tr
+            socketFile
+            np
+            vData
+            "0.2-percent-rnd.timelog"
+            (walletRnd "Rnd 0.2% Wallet" $ mkRndAnyState @2)
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            tr
+            socketFile
+            np
+            vData
+            "0.4-percent-rnd.timelog"
+            (walletRnd "Rnd 0.4% Wallet" $ mkRndAnyState @4)
 
          , bench_restoration @_ @ShelleyKey
              networkProxy
@@ -231,8 +243,26 @@ cardanoRestoreBench tr c socketFile = do
              socketFile
              np
              vData
-             "1-percent-seq.timelog"
-             (walletSeq "Seq 1% Wallet" $ mkSeqAnyState' @1 networkProxy)
+             "0.1-percent-seq.timelog"
+             (walletSeq "Seq 0.1% Wallet" $ mkSeqAnyState' @1 networkProxy)
+
+         , bench_restoration @_ @ShelleyKey
+             networkProxy
+             tr
+             socketFile
+             np
+             vData
+             "0.2-percent-seq.timelog"
+             (walletSeq "Seq 0.2% Wallet" $ mkSeqAnyState' @2 networkProxy)
+
+         , bench_restoration @_ @ShelleyKey
+             networkProxy
+             tr
+             socketFile
+             np
+             vData
+             "0.4-percent-seq.timelog"
+             (walletSeq "Seq 0.4% Wallet" $ mkSeqAnyState' @4 networkProxy)
         ]
   where
     walletRnd
@@ -414,9 +444,7 @@ withBenchDBLayer tr ti action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
         let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
         let after = destroyDBLayer . fst
-        bracket before after $ \(ctx, db) -> do
-            migrateDB ctx
-            action db
+        bracket before after $ \(_ctx, db) -> action db
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
@@ -424,10 +452,6 @@ withBenchDBLayer tr ti action =
         , Sqlite.defaultMinimumUTxOValue = Coin 0
         , Sqlite.defaultHardforkEpoch = Nothing
         }
-
-    -- This tweaks the DB support the AnyAddressState.
-    migrateDB ctx = unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
-
 
 logChunk :: SlotNo -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
