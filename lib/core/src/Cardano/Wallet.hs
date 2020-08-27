@@ -271,7 +271,11 @@ import Cardano.Wallet.Primitive.Model
     , updateState
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, slotRangeFromTimeRange, startTime )
+    ( PastHorizonException (..)
+    , TimeInterpreter
+    , slotRangeFromTimeRange
+    , startTime
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
@@ -327,7 +331,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
 import Control.Exception
-    ( Exception )
+    ( Exception, try )
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
@@ -1838,7 +1842,12 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             let err = ErrStartTimeLaterThanEndTime start end
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
         _ -> do
-            liftIO $ ti $ slotRangeFromTimeRange $ Range mStart mEnd
+            liftIO (try $ ti $ slotRangeFromTimeRange $ Range mStart mEnd) >>=
+                \case
+                    Left e@(PastHorizon{}) ->
+                        throwE (ErrListTransactionsPastHorizonException e)
+                    Right r -> pure r
+
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
@@ -2196,7 +2205,8 @@ data ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
     | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     | ErrListTransactionsMinWithdrawalWrong
-    deriving (Show, Eq)
+    | ErrListTransactionsPastHorizonException PastHorizonException
+    deriving (Show)
 
 -- | Errors that can occur when trying to get transaction.
 data ErrGetTransaction

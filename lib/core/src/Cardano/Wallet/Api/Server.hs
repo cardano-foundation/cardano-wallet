@@ -2312,6 +2312,7 @@ instance LiftHandler ErrListTransactions where
         ErrListTransactionsMinWithdrawalWrong ->
             apiError err400 MinWithdrawalWrong
             "The minimum withdrawal value must be at least 1 Lovelace."
+        ErrListTransactionsPastHorizonException e -> handler e
 
 instance LiftHandler ErrStartTimeLaterThanEndTime where
     handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
@@ -2320,6 +2321,15 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "' is later than the specified end time '"
         , toText $ Iso8601Time $ errEndTime err
         , "'."
+        ]
+
+instance LiftHandler PastHorizonException where
+    handler _ = apiError err503 PastHorizon $ mconcat
+        [ "Tried to convert something that is past the horizon"
+        , " (due to uncertainty about the next hard fork)."
+        , " Wait for the node to finish syncing to the hard fork."
+        , " Depending on the blockchain, this process can take an"
+        , " unknown amount of time."
         ]
 
 instance LiftHandler ErrGetTransaction where
