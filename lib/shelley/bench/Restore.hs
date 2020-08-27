@@ -1,13 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Benchmark measuring how long restoration takes for different wallets.
@@ -41,6 +44,7 @@ import Cardano.Wallet
     ( WalletLayer (..), WalletLog (..) )
 import Cardano.Wallet.BenchShared
     ( RestoreBenchArgs (..)
+    , Time
     , argsNetworkDir
     , bench
     , execBenchWithNode
@@ -58,6 +62,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
+    , Passphrase (..)
     , PersistPrivateKey
     , WalletKey
     , digest
@@ -68,7 +73,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs, IsOwned )
+    ( CompareDiscovery, IsOurs, IsOwned, KnownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( initAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
@@ -76,7 +81,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndAnyState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), mkAddressPoolGap, mkSeqStateFromRootXPrv )
+    ( AddressPoolGap
+    , SeqState (..)
+    , mkAddressPoolGap
+    , mkSeqAnyState
+    , mkSeqStateFromRootXPrv
+    )
 import Cardano.Wallet.Primitive.Model
     ( currentTip, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -84,7 +94,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address
+    ( Address (..)
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount
@@ -92,6 +102,8 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotNo (..)
+    , TxOut (..)
+    , UTxOStatistics
     , WalletId (..)
     , WalletName (..)
     , computeUtxoStatistics
@@ -120,9 +132,11 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT, withExceptT )
 import Control.Tracer
     ( Tracer (..), traceWith )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -134,7 +148,9 @@ import Data.Time.Clock.POSIX
 import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
-    ( build, fmt, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, build, fmt, genericF, pretty, (+|), (+||), (|+), (||+) )
+import GHC.Generics
+    ( Generic )
 import Say
     ( sayErr )
 import System.FilePath
@@ -148,6 +164,7 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -178,78 +195,74 @@ cardanoRestoreBench tr c socketFile = do
 
     prepareNode networkProxy socketFile np vData
     runBenchmarks
-        [ bench ("restore " <> network <> " seq")
-            (bench_restoration @_ @ShelleyKey
-                networkProxy
-                tr
-                socketFile
-                np
-                vData
-                "seq.timelog"
-                (walletSeq networkProxy))
+        [ bench_restoration @_ @ShelleyKey
+            networkProxy
+            tr
+            socketFile
+            np
+            vData
+            "seq.timelog"
+            (walletSeq "Seq Empty Wallet" networkProxy mkSeqStateFromRootXPrv)
 
-        , bench ("restore " <> network <> " rnd")
-            (bench_restoration @_ @ByronKey
-                networkProxy
-                tr
-                socketFile
-                np
-                vData
-                "rnd.timelog"
-                (walletRnd mkRndState))
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            tr
+            socketFile
+            np
+            vData
+            "rnd.timelog"
+            (walletRnd "Rnd Empty Wallet" mkRndState)
 
-        , bench ("restore " <> network <> " 1% rnd")
-            (bench_restoration @_ @ByronKey
-                networkProxy
-                tr
-                socketFile
-                np
-                vData
-                "1-percent-rnd.timelog"
-                (walletRnd $ mkRndAnyState @1))
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            tr
+            socketFile
+            np
+            vData
+            "1-percent-rnd.timelog"
+            (walletRnd "Rnd 1% Wallet" $ mkRndAnyState @1)
 
-        , bench ("restore " <> network <> " 1% naked")
-             (bench_restoration @_ @IcarusKey
-                 networkProxy
-                 tr
-                 socketFile
-                 np
-                 vData
-                 "1-percent-naked.timelog"
-                 (initAnyState "Benchmark 1% Wallet" 0.01))
+         , bench_restoration @_ @ShelleyKey
+             networkProxy
+             tr
+             socketFile
+             np
+             vData
+             "1-percent-seq.timelog"
+             (walletSeq "Seq 1% Wallet" networkProxy $ mkSeqAnyState @1)
         ]
   where
     walletRnd
-        :: (ByronKey 'RootK XPrv -> Int -> s)
+        :: Text
+        -> (ByronKey 'RootK XPrv -> Int -> s)
         -> (WalletId, WalletName, s)
-    walletRnd mk =
+    walletRnd wname mkState =
         let
             seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
                 "involve key curtain arrest fortune custom lens marine before \
                 \material wheel glide cause weapon wrap"
             xprv = Byron.generateKeyFromSeed seed mempty
             wid = WalletId $ digest $ publicKey xprv
-            wname = WalletName "Benchmark Random Wallet"
             rngSeed = 0
-            s = mk xprv rngSeed
+            s = mkState xprv rngSeed
         in
-            (wid, wname, s)
+            (wid, WalletName wname, s)
 
     walletSeq
-        :: forall n. Proxy n
-        -> (WalletId, WalletName, SeqState n ShelleyKey)
-    walletSeq _ =
+        :: Text
+        -> ((ShelleyKey 'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> s)
+        -> (WalletId, WalletName, s)
+    walletSeq wname mkState =
         let
             seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
                 "involve key curtain arrest fortune custom lens marine before \
                 \material wheel glide cause weapon wrap"
             xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
             wid = WalletId $ digest $ publicKey xprv
-            wname = WalletName "Benchmark Sequential Wallet"
             Right gap = mkAddressPoolGap 20
-            s = mkSeqStateFromRootXPrv (xprv, mempty) gap
+            s = mkState (xprv, mempty) gap
         in
-            (wid, wname, s)
+            (wid, WalletName wname, s)
 
     networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
     networkDescription _ = networkDiscriminantVal @n
@@ -257,6 +270,17 @@ cardanoRestoreBench tr c socketFile = do
 {-------------------------------------------------------------------------------
                                   Benchmarks
 -------------------------------------------------------------------------------}
+
+data BenchResults = BenchResults
+    { qualifier :: Text
+    , restorationTime :: Time
+    , listingAddressesTime :: Time
+    , estimatingFeesTime :: Time
+    , utxoStatistics :: UTxOStatistics
+    } deriving (Show, Generic)
+
+instance Buildable BenchResults where
+    build = genericF
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
@@ -268,6 +292,8 @@ bench_restoration
         , NFData s
         , Show s
         , PersistState s
+        , CompareDiscovery s
+        , KnownAddresses s
         , PersistPrivateKey (k 'RootK)
         , NetworkDiscriminantVal n
         , HasNetworkId n
@@ -283,7 +309,7 @@ bench_restoration
     -> FilePath
        -- ^ Log output
     -> (WalletId, WalletName, s)
-    -> IO ()
+    -> IO BenchResults
 bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, s) = do
     let networkText = networkDiscriminantVal @n
     let networkId = networkIdVal proxy
@@ -310,12 +336,38 @@ bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, 
                         db
                 wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
                 void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @t @k w wid
-                waitForWalletSync w wallet gp vData
-                (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
-                sayErr "Wallet restored!"
-                sayErr . fmt . build $
-                    computeUtxoStatistics log10 (totalUTxO pending wallet')
+                (_, restorationTime) <- bench "restoration" $ do
+                    waitForWalletSync w wallet gp vData
+
+                (utxoStatistics, _) <- bench "utxo statistics" $ do
+                    (wallet', _, pending) <- unsafeRunExceptT $ W.readWallet w wid
+                    pure $ computeUtxoStatistics log10 (totalUTxO pending wallet')
+
+                (_, listingAddressesTime) <- bench "list addresses" $
+                    unsafeRunExceptT $ W.listAddresses w wid (const pure)
+
+                (_, estimatingFeesTime) <- bench "estimate tx fee" $ do
+                    let out = TxOut (dummyAddress @n) (Coin 1)
+                    runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
+                        w wid (out :| []) (Quantity 0)
+
                 unsafeRunExceptT $ W.deleteWallet w wid
+                pure BenchResults
+                    { qualifier = getWalletName wname
+                    , restorationTime
+                    , listingAddressesTime
+                    , estimatingFeesTime
+                    , utxoStatistics
+                    }
+
+dummyAddress
+    :: forall (n :: NetworkDiscriminant). NetworkDiscriminantVal n
+    => Address
+dummyAddress
+    | networkDiscriminantVal @n == networkDiscriminantVal @'Mainnet =
+        Address $ BS.pack $ 0 : replicate 56 0
+    | otherwise =
+        Address $ BS.pack $ 1 : replicate 56 0
 
 traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletLog
 traceProgressForPlotting tr = Tracer $ \case

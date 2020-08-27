@@ -331,6 +331,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
     ( Exception, try )
 import Control.Monad
@@ -1988,7 +1990,9 @@ data FeeEstimation = FeeEstimation
     -- ^ Most coin selections will result in a fee higher than this.
     , estMaxFee :: Word64
     -- ^ Most coin selections will result in a fee lower than this.
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
+
+instance NFData FeeEstimation
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
 -- repeatedly running it (100 times) and collecting the results. In the returned

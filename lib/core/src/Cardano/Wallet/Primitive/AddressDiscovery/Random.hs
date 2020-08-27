@@ -352,18 +352,12 @@ instance IsOurs (RndAnyState n p) ChimericAccount where
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
     isOwned _ _ _ = Nothing
 
-instance GenChange (RndAnyState n p) where
-    type ArgGenChange (RndAnyState n p) = ()
-    genChange _ = error
-        "GenChange.genChange: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+instance PaymentAddress n ByronKey => GenChange (RndAnyState n p) where
+    type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
+    genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 
 instance CompareDiscovery (RndAnyState n p) where
-    compareDiscovery _ _ _ = error
-        "CompareDiscovery.compareDiscovery: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+    compareDiscovery (RndAnyState s) = compareDiscovery s
 
 instance KnownAddresses (RndAnyState n p) where
-    knownAddresses _ = error
-        "KnownAddresses.knownAddresses: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+    knownAddresses (RndAnyState s) = knownAddresses s

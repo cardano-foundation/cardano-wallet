@@ -1253,6 +1253,8 @@ data UTxOStatistics = UTxOStatistics
     , boundType :: BoundType
     } deriving (Show, Generic, Ord)
 
+instance NFData UTxOStatistics
+
 -- Example output:
 --
 -- @
@@ -1308,11 +1310,15 @@ data HistogramBar = HistogramBar
     , bucketCount      :: !Word64
     } deriving (Show, Eq, Ord, Generic)
 
+instance NFData HistogramBar
+
 instance Buildable HistogramBar where
     build (HistogramBar k v) = tupleF (k, v)
 
 --  Buckets boundaries can be constructed in different ways
 data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
+
+instance NFData BoundType
 
 -- | Smart-constructor to create bounds using a log-10 scale
 log10 :: BoundType
