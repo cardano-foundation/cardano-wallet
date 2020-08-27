@@ -489,15 +489,17 @@ spec = do
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "ApiT PoolId" $ do
-            let msg = "Error in $: Invalid stake pool id: expecting a \
-                      \hex-encoded value that is 28 or 32 bytes in length."
+            let msg =
+                    "Error in $: Invalid stake pool id: expecting a Bech32 \
+                    \encoded value with human readable part of 'pool'."
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)
 
         it "ApiT PoolId" $ do
-            let msg = "Error in $: Invalid stake pool id: expecting a \
-                      \hex-encoded value that is 28 or 32 bytes in length."
+            let msg =
+                    "Error in $: Invalid stake pool id: expecting a Bech32 \
+                    \encoded value with human readable part of 'pool'."
             Aeson.parseEither parseJSON [aesonQQ|
                 "4c43d68b21921034519c36d2475f5adba989bb4465ec"
             |] `shouldBe` (Left @String @(ApiT PoolId) msg)

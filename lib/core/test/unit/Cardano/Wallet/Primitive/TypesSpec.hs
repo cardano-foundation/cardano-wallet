@@ -86,6 +86,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , balance
     , computeUtxoStatistics
+    , decodePoolIdBech32
+    , encodePoolIdBech32
     , excluding
     , isAfterRange
     , isBeforeRange
@@ -227,6 +229,10 @@ spec = do
             forM_ testAccountIdTexts $ \text ->
                 toText <$> fromText @(Hash "Account") text
                     `shouldBe` Right text
+
+        it "Can roundtrip {decode,encode}PoolIdBech32" $
+            withMaxSuccess 1000 $ property $ \(pid :: PoolId) ->
+                decodePoolIdBech32 (encodePoolIdBech32 pid) === Right pid
 
     describe "Buildable" $ do
         it "WalletId" $ do
