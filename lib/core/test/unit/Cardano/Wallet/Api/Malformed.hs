@@ -117,7 +117,7 @@ newtype Header (headerName :: Symbol) (contentType :: *) =
 --
 
 class Wellformed t where
-    wellformed :: t
+    wellformed :: [t]
 
 class Malformed t where
     malformed :: [(t, ExpectedError)]
@@ -126,7 +126,7 @@ class Malformed t where
 -- Class instances (PathParam)
 --
 instance Wellformed (PathParam (ApiT WalletId)) where
-    wellformed = PathParam $ T.replicate 40 "0"
+    wellformed = [PathParam $ T.replicate 40 "0"]
 
 instance Malformed (PathParam (ApiT WalletId)) where
     malformed = first PathParam <$>
@@ -138,7 +138,7 @@ instance Malformed (PathParam (ApiT WalletId)) where
         msg = "wallet id should be a hex-encoded string of 40 characters"
 
 instance Wellformed (PathParam ApiTxId) where
-    wellformed = PathParam $ T.replicate 64 "0"
+    wellformed = [PathParam $ T.replicate 64 "0"]
 
 instance Malformed (PathParam ApiTxId) where
     malformed = first PathParam <$>
@@ -150,7 +150,9 @@ instance Malformed (PathParam ApiTxId) where
         msg = "Invalid tx hash: expecting a hex-encoded value that is 32 bytes in length."
 
 instance Wellformed (PathParam ApiPoolId) where
-    wellformed = PathParam $ T.replicate 64 "0"
+    wellformed = PathParam <$>
+        [ T.replicate 64 "0"
+        ]
 
 instance Malformed (PathParam ApiPoolId) where
     malformed = first PathParam <$>
@@ -162,8 +164,8 @@ instance Malformed (PathParam ApiPoolId) where
         msg = "Invalid stake pool id: expecting a hex-encoded value that is 28 or 32 bytes in length."
 
 instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
-    wellformed = PathParam
-        "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"
+    wellformed = [PathParam
+        "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"]
 
 instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
     malformed = []
@@ -994,7 +996,7 @@ instance Malformed (BodyParam ApiPostRandomAddressData) where
 --
 instance Wellformed (Header "Content-Type" JSON) where
     wellformed =
-        Header "application/json"
+        [Header "application/json"]
 
 instance Malformed (Header "Content-Type" JSON) where
     malformed = first Header <$>
@@ -1005,7 +1007,7 @@ instance Malformed (Header "Content-Type" JSON) where
 
 instance Wellformed (Header "Content-Type" OctetStream) where
     wellformed =
-        Header "application/octet-stream"
+        [Header "application/octet-stream"]
 
 instance Malformed (Header "Content-Type" OctetStream) where
     malformed = first Header <$>
@@ -1016,7 +1018,7 @@ instance Malformed (Header "Content-Type" OctetStream) where
 
 instance Wellformed (Header "Accept" JSON) where
     wellformed =
-        Header "application/json"
+        [Header "application/json"]
 
 instance Malformed (Header "Accept" JSON) where
     malformed = first Header <$>
