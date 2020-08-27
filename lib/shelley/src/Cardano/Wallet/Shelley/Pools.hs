@@ -39,8 +39,6 @@ import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
-import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network
     ( ErrCurrentNodeTip (..)
     , ErrNetworkUnavailable (..)
@@ -553,15 +551,16 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     -- that occurred two epochs ago that has not subsquently been superseded,
     -- it should be safe to garbage collect that pool.
     --
-    garbageCollectPools currentSlot = liftIO $ do
-        currentEpoch <- timeInterpreter nl (epochOf currentSlot)
+    garbageCollectPools currentSlot = do
+        currentEpoch <- liftIO $ timeInterpreter nl (epochOf currentSlot)
         let subtractTwoEpochs = epochPred <=< epochPred
         forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
-            let logMessage = MsgStakePoolGarbageCollection $
-                    PoolGarbageCollectionInfo
-                        {currentEpoch, latestRetirementEpoch}
-            bracketTracer (contramap logMessage tr) $
-                atomically $ removeRetiredPools latestRetirementEpoch
+            liftIO
+                $ traceWith tr
+                $ MsgStakePoolGarbageCollection
+                $ PoolGarbageCollectionInfo
+                    {currentEpoch, latestRetirementEpoch}
+            removeRetiredPools latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot
@@ -623,7 +622,7 @@ data StakePoolLog
     | MsgHaltMonitoring
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotNo
-    | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo BracketLog
+    | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
@@ -675,7 +674,7 @@ instance ToText StakePoolLog where
             ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
-        MsgStakePoolGarbageCollection info _ -> mconcat
+        MsgStakePoolGarbageCollection info -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "
             , toText (currentEpoch info)
