@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -36,7 +37,12 @@ module Cardano.Wallet.Primitive.Fee
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), changeBalance, inputBalance, outputBalance )
+    ( CoinSelection (..)
+    , changeBalance
+    , feeBalance
+    , inputBalance
+    , outputBalance
+    )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , FeePolicy (..)
@@ -48,6 +54,8 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , pickRandom
     )
+import Control.Monad
+    ( when )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -58,8 +66,12 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Word
     ( Word64 )
+import Fmt
+    ( Buildable (..), fixedF, nameF, pretty, unlinesF, (+|) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 
 import qualified Data.List as L
 
@@ -70,6 +82,16 @@ import qualified Data.List as L
 -- | A 'Fee', isomorph to 'Coin' but ease type-signatures and readability.
 newtype Fee = Fee { getFee :: Word64 }
     deriving (Eq, Ord, Show)
+
+instance Buildable Fee where
+    build (Fee fee)
+        | fee > oneAda = fixedF 3 (double fee / double oneAda) +| " Ada"
+        | otherwise    = build fee +| " Lovelace"
+      where
+        oneAda = 1_000_000
+
+        double :: Integral a => a -> Double
+        double = fromIntegral
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment
@@ -82,6 +104,7 @@ data FeeOptions = FeeOptions
       -- Some pointers / order of magnitude from the current configuration:
       --     a: 155381 # absolute minimal fees per transaction
       --     b: 43.946 # additional minimal fees per byte of transaction size
+
     , dustThreshold
       :: Coin
       -- ^ Change addresses below the given threshold will be evicted
@@ -92,6 +115,12 @@ data FeeOptions = FeeOptions
       :: OnDanglingChange
       -- ^ What do to when we encouter a dangling change output.
       -- See 'OnDanglingChange'
+
+    , feeUpperBound
+      :: Fee
+      -- ^ An extra upper-bound computed from the transaction max size. This is
+      -- used to construct an invariant after balancing a transaction to
+      -- make sure that the resultant fee is not unexpectedly high.
     } deriving (Generic)
 
 -- | We call 'dangling' a change output that would be too expensive to add. This
@@ -140,15 +169,22 @@ newtype ErrAdjustForFee
 -- percentage of the fee (depending on how many change outputs the
 -- algorithm happened to choose).
 adjustForFee
-    :: MonadRandom m
+    :: (HasCallStack, MonadRandom m)
     => FeeOptions
     -> UTxO
     -> CoinSelection
     -> ExceptT ErrAdjustForFee m CoinSelection
 adjustForFee unsafeOpt utxo coinSel = do
-    let opt = invariant
-            "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
-    senderPaysFee opt utxo coinSel
+    let opt = invariant "fee must be non-null" unsafeOpt (not . nullFee)
+    cs <- senderPaysFee opt utxo coinSel
+    let actualFee = Fee (feeBalance cs)
+    when (actualFee > feeUpperBound opt) $
+        error $ pretty $ unlinesF
+            [ "generated a coin selection with an excessively large fee."
+            , nameF "actual fee" (build actualFee)
+            , nameF "coin selection" (build cs)
+            ]
+    pure cs
   where
     nullFee opt = estimateFee opt coinSel == Fee 0
 

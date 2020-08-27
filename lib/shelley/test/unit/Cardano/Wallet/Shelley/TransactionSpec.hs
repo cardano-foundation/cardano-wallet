@@ -45,6 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMetadata (..)
     , TxOut (..)
+    , TxParameters (..)
     , UTxO (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -149,9 +150,11 @@ spec = do
                 [ TxOut dummyAddress (Coin 4834720)
                 ]
 
-        let selectCoins = flip catchE (handleCannotCover utxo recipients) $ do
+        let wdrl = Quantity 0
+
+        let selectCoins = flip catchE (handleCannotCover utxo wdrl recipients) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-                    CS.random testCoinSelOpts recipients (Quantity 0) utxo
+                    CS.random testCoinSelOpts recipients wdrl utxo
                 withExceptT ErrSelectForPaymentFee $
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
@@ -246,9 +249,11 @@ testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts testTxLayer Nothing feePolicy (Coin 0)
+testFeeOpts = feeOpts testTxLayer Nothing txParams (Coin 0)
   where
+    txParams  = TxParameters feePolicy txMaxSize
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
+    txMaxSize = Quantity maxBound
 
 testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
