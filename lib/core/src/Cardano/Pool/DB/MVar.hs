@@ -71,9 +71,10 @@ newDBLayer timeInterpreter = do
   where
     mkDBLayer db = DBLayer {..}
       where
-        readPoolRegistration_ =
+        readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
-        readPoolRetirement_ =
+
+        readPoolRetirement =
             readPoolDB db . mReadPoolRetirement
 
         putPoolProduction sl pool = ExceptT $
@@ -101,16 +102,12 @@ newDBLayer timeInterpreter = do
 
         readPoolLifeCycleStatus poolId =
             determinePoolLifeCycleStatus
-                <$> readPoolRegistration_ poolId
-                <*> readPoolRetirement_ poolId
-
-        readPoolRegistration = readPoolRegistration_
+                <$> readPoolRegistration poolId
+                <*> readPoolRetirement poolId
 
         putPoolRetirement cpt cert = void
             $ alterPoolDB (const Nothing) db
             $ mPutPoolRetirement cpt cert
-
-        readPoolRetirement = readPoolRetirement_
 
         unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs

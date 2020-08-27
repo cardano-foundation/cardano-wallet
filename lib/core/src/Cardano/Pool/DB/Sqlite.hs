@@ -224,8 +224,8 @@ newDBLayer trace fp timeInterpreter = do
 
         readPoolLifeCycleStatus poolId =
             determinePoolLifeCycleStatus
-                <$> readPoolRegistration_ poolId
-                <*> readPoolRetirement_ poolId
+                <$> readPoolRegistration poolId
+                <*> readPoolRetirement poolId
 
         putPoolRegistration cpt cert = do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
@@ -256,8 +256,6 @@ newDBLayer trace fp timeInterpreter = do
                     (poolOwners cert)
                     [0..]
 
-        readPoolRegistration = readPoolRegistration_
-
         putPoolRetirement cpt cert = do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let PoolRetirementCertificate
@@ -268,8 +266,6 @@ newDBLayer trace fp timeInterpreter = do
                     slotNo
                     slotInternalIndex
                     (fromIntegral retirementEpoch)
-
-        readPoolRetirement = readPoolRetirement_
 
         unfetchedPoolMetadataRefs limit = do
             let nLimit = T.pack (show limit)
@@ -419,7 +415,7 @@ newDBLayer trace fp timeInterpreter = do
         atomically :: forall a. (SqlPersistT IO a -> IO a)
         atomically = runQuery
 
-        readPoolRegistration_ poolId = do
+        readPoolRegistration poolId = do
             result <- selectFirst
                 [ PoolRegistrationPoolId ==. poolId ]
                 [ Desc PoolRegistrationSlot
@@ -462,7 +458,7 @@ newDBLayer trace fp timeInterpreter = do
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
-        readPoolRetirement_ poolId = do
+        readPoolRetirement poolId = do
             result <- selectFirst
                 [ PoolRetirementPoolId ==. poolId ]
                 [ Desc PoolRetirementSlot
