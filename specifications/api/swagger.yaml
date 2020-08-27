@@ -559,6 +559,25 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
 
+
+x-transactionMetadata: &transactionMetadata
+  description: |
+    Extra application data attached to the transaction.
+
+    Cardano allows users and developers to embed their own
+    authenticated metadata when submitting transactions.
+
+    The metadata format is similar to JSON. String values are limited
+    in length, and metadata is included in the overall transaction
+    size limit.
+
+  type: object
+  minProperties: 1
+  propertyNames:
+    pattern: '^[0-9]+$'
+  additionalProperties:
+    $ref: '#/components/schemas/TransactionMetadatum'
+
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
     Apparent performance of the stake pool over past epochs. This indicator is computed
@@ -981,6 +1000,7 @@ components:
         outputs: *transactionOutputs
         withdrawals: *transactionWithdrawals
         status: *transactionStatus
+        metadata: *transactionMetadata
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
@@ -1313,6 +1333,7 @@ components:
           description: The wallet's master passphrase.
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
 
     ApiPostRedemptionData: &ApiPostRedemptionData
       type: object
@@ -1341,6 +1362,7 @@ components:
       properties:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
 
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
       type: object
@@ -1358,6 +1380,31 @@ components:
       properties:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
+
+    TransactionMetadatum:
+      oneOf:
+        - type: string
+        - type: number
+        - title: bytestring
+          type: object
+          required:
+          - hex
+          properties:
+            hex:
+              type: string
+              pattern: '^[0-9a-fA-F]$'
+        - title: list
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionMetadatum'
+        - title: map
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              $ref: '#/components/schemas/TransactionMetadatum'
 
 #############################################################################
 #                                                                           #
