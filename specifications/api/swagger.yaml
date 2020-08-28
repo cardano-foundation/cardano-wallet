@@ -559,7 +559,6 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
 
-
 x-transactionMetadata: &transactionMetadata
   description: |
     Extra application data attached to the transaction.
@@ -571,7 +570,7 @@ x-transactionMetadata: &transactionMetadata
     in length, and metadata is included in the overall transaction
     size limit.
 
-    Note that metadata top-level keys have to be integers, and only a subset of JSON
+    Note that metadata top-level keys must be integers, and only a subset of JSON
     is accepted as values. See the example on the right to get an overview and the equivalence
     table below to understand how metadata are mapped to on-chain data types.
 
@@ -585,10 +584,11 @@ x-transactionMetadata: &transactionMetadata
 
   type: object
   minProperties: 1
-  propertyNames:
-    pattern: '^[0-9]+$'
   additionalProperties:
-    $ref: '#/components/schemas/TransactionMetadatum'
+    $ref: "#/components/schemas/TransactionMetadatum"
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^[0-9]+$'
   example:
     0: "cardano"
     1: 14
@@ -1414,7 +1414,7 @@ components:
         - title: list
           type: array
           items:
-            $ref: '#/components/schemas/TransactionMetadatum'
+            $ref: "#/components/schemas/TransactionMetadatum"
         - title: map
           type: array
           items:
@@ -1422,7 +1422,7 @@ components:
             minItems: 2
             maxItems: 2
             items:
-              $ref: '#/components/schemas/TransactionMetadatum'
+              $ref: "#/components/schemas/TransactionMetadatum"
 
 #############################################################################
 #                                                                           #
