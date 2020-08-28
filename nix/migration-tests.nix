@@ -34,44 +34,28 @@ with pkgs.lib;
 
 let
 
-  # From nixpkgs 19.09 onwards we use `x86_64-w64-mingw32` instead of
-  # the legacy `x86_64-pc-mingw32` that nixpkgs incorrectly used. Thus
-  # to test migration paths for releases that have been build with nixpkgs
-  # prior to 19.09, we'll need to rewrite the crossSystem.config.
-  # This is controlled by the `needsRewrite` flags int he releases.
-  rewriteCrossSystem = crossSystem: if crossSystem != null && crossSystem.config == "x86_64-w64-mingw32" then crossSystem // { config = "x86_64-pc-mingw32"; } else crossSystem;
   # List of git revisions to test against.
   releases = [
     { rev = "v2020-03-11";
-      sha256 = "05ijr9nbc9qngw2xsgmwdacnlq70mjgr4innkaw2d4c3sa29x3ai";
-      needsRewrite = true;  }
+      sha256 = "05ijr9nbc9qngw2xsgmwdacnlq70mjgr4innkaw2d4c3sa29x3ai"; }
     { rev = "v2020-03-16";
-      sha256 = "15gbghal6s1b9jdns117fllhz81ahz7hjhikp6lr09zim8jsisjc";
-      needsRewrite = true;  }
+      sha256 = "15gbghal6s1b9jdns117fllhz81ahz7hjhikp6lr09zim8jsisjc"; }
     { rev = "v2020-04-01";
-      sha256 = "0hjdz4bbhq7g9cc1hfxpnwypd42n3rx0ci91n8i7ahnjhv93bhhy";
-      needsRewrite = true;  }
+      sha256 = "0hjdz4bbhq7g9cc1hfxpnwypd42n3rx0ci91n8i7ahnjhv93bhhy"; }
     { rev = "v2020-04-07";
-      sha256 = "10m91l6r4ghhqddk5c0a4ffjl0z3h4nmk7cjhz2b0jhxdkmz6qg5";
-      needsRewrite = true;  }
+      sha256 = "10m91l6r4ghhqddk5c0a4ffjl0z3h4nmk7cjhz2b0jhxdkmz6qg5"; }
     { rev = "v2020-04-28";
-      sha256 = "0iw5gn3d2i1f99mx293zn8l72i7lidmdlrfyzblhdvx6f358iyki";
-      needsRewrite = true;  }
+      sha256 = "0iw5gn3d2i1f99mx293zn8l72i7lidmdlrfyzblhdvx6f358iyki"; }
     { rev = "v2020-05-06";
-      sha256 = "1ksy2i7a19zb45bxznkgbbmrammqjmg3xprcdnvfl3vfinil9xb3";
-      needsRewrite = true;  }
+      sha256 = "1ksy2i7a19zb45bxznkgbbmrammqjmg3xprcdnvfl3vfinil9xb3"; }
     { rev = "v2020-06-05";
-      sha256 = "062l3i61074vlak44335mffr3xzpbs9nhsiis0rwlrn4w4wiwzx3";
-      needsRewrite = true;  }
+      sha256 = "062l3i61074vlak44335mffr3xzpbs9nhsiis0rwlrn4w4wiwzx3"; }
     { rev = "v2020-07-06";
-      sha256 = "1pl1vqmdyjx8ly3vy48j211hh59w7ikksmzv7r4y1cpjyi0ajjsa";
-      needsRewrite = true;  }
+      sha256 = "1pl1vqmdyjx8ly3vy48j211hh59w7ikksmzv7r4y1cpjyi0ajjsa"; }
     { rev = "v2020-07-28";
-      sha256 = "1mnnlg1x3y9cf3sqmxpqjdiwlay58pdci4cjxfvlwlyqqlsy5d1i";
-      needsRewrite = true;  }
+      sha256 = "1mnnlg1x3y9cf3sqmxpqjdiwlay58pdci4cjxfvlwlyqqlsy5d1i"; }
     { rev = "v2020-08-03";
-      sha256 = "1bh6mwlzc77x7ka2kihfbdgg1lwvrdb26280kvdznwxcf4nbjgmk";
-      needsRewrite = true;  }
+      sha256 = "1bh6mwlzc77x7ka2kihfbdgg1lwvrdb26280kvdznwxcf4nbjgmk"; }
   ];
 
   # Download the sources for a release.
@@ -88,11 +72,8 @@ let
     if rel == null
       then import ../default.nix { inherit system crossSystem config; }
       else let src = fetchRelease rel; in import src {
-        inherit system config;
+        inherit system crossSystem config;
         gitrev = src.rev;
-        crossSystem = if rel.needsRewrite
-                      then rewriteCrossSystem crossSystem
-                      else crossSystem;
       };
 
   # Grab the migration test from the current version.
