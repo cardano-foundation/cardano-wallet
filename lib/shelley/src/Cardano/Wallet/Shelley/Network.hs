@@ -441,13 +441,13 @@ withNetworkLayer tr np addrInfo versionData action = do
 
     _stakeDistribution queue bh coin = do
         let pt = toPoint getGenesisBlockHash bh
-        stakeMap <- handleQueryFailure
+        stakeMap <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
             (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution))
         let toStake = Set.singleton $ Left $ toShelleyCoin coin
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
-        rewardsPerAccount <- handleQueryFailure
+        rewardsPerAccount <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
             (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley (Shelley.GetNonMyopicMemberRewards toStake)))
-        pparams <- handleQueryFailure
+        pparams <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
             (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
 
         let fromJustRewards = fromMaybe (error "stakeDistribution: requested rewards not included in response")
