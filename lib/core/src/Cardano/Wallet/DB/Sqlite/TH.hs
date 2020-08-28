@@ -100,6 +100,16 @@ TxMeta
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE
     deriving Show Generic
 
+-- Maps a transaction ID to its on-chain metadata.
+-- The metadata map is encoded in JSON with the same schema
+-- as what is used in the API.
+TxMetadata
+    txMetadataTxId    TxId          sql=tx_id
+    txMetadataValue   W.TxMetadata  sql=value
+
+    Primary txMetadataTxId
+    deriving Show Generic
+
 -- A transaction input associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,

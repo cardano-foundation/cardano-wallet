@@ -454,7 +454,7 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
         , txInfoTime =
             slotStartTime' (meta ^. #slotNo)
         , txInfoMetadata =
-            Nothing -- fixme: #2072 store in database
+            (tx ^. #metadata)
         }
       where
         txH  = getQuantity
