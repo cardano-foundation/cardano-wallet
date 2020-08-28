@@ -506,7 +506,7 @@ goldenTestStdTx
 goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let cs = mempty { inputs = inps, outputs = outs }
     let rewardAcnt = error "unused"
-    let tx = mkStdTx tl rewardAcnt keystore (SlotNo 0) cs
+    let tx = mkStdTx tl rewardAcnt keystore (SlotNo 0) Nothing cs
     let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
@@ -575,7 +575,7 @@ unknownInputTest
 unknownInputTest _ block0 = it title $ do
     let addr = paymentAddress @n $ publicKey $ fst $
             xprvSeqFromSeed "address-number-0"
-    let res = mkStdTx tl rewardAcnt keyFrom (SlotNo 0) cs
+    let res = mkStdTx tl rewardAcnt keyFrom (SlotNo 0) Nothing cs
           where
             tl = newTransactionLayer @JormungandrKey block0
             rewardAcnt = error "unused"

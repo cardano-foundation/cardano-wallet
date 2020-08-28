@@ -1523,9 +1523,10 @@ signPayment
     -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
+    -> Maybe W.TxMetadata
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> do
+signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1539,7 +1540,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd cs = db & \DBLayer{..} -> d
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRewardAccount (xprv, pwdP)
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) cs'
+                mkStdTx tl rewardAcnt keyFrom (nodeTip ^. #slotNo) md cs'
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs'
             return (tx, meta, time, sealedTx)
@@ -1579,7 +1580,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) cs
+                mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) (getState cp) tx cs
             return (tx, meta, time, sealedTx)
@@ -1591,6 +1592,7 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     nl = ctx ^. networkLayer @t
     inps = NE.toList inpsNE
     outs = NE.toList outsNE
+    md = Nothing -- no metadata
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal

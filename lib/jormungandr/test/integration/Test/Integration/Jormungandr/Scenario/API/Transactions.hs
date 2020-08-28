@@ -529,7 +529,7 @@ fixtureExternalTx ctx toSend = do
     tl <- newTransactionLayer <$> getBlock0H
     let rewardAcnt = error "rewardAcnt unused"
     let curSlot = error "current slot not needed in jormungandr mkStdTx"
-    let (Right (tx, bin)) = mkStdTx tl rewardAcnt keystore curSlot cs
+    let (Right (tx, bin)) = mkStdTx tl rewardAcnt keystore curSlot Nothing cs
 
     return ExternalTxFixture
         { srcWallet = wSrc
