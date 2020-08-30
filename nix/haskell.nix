@@ -136,7 +136,7 @@ let
         # Add shell completions for tools.
         packages.cardano-node.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
         packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
-        packages.cardano-addresses.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
+        packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
         packages.cardano-transactions.components.exes.cardano-tx.postInstall = optparseCompletionPostInstall;
         packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
       }

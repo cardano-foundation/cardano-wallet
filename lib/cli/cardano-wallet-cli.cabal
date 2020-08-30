@@ -35,6 +35,7 @@ library
     , base
     , bytestring
     , cardano-addresses
+    , cardano-addresses-cli
     , cardano-wallet-core
     , contra-tracer
     , directory
