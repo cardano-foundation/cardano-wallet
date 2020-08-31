@@ -302,6 +302,7 @@ import Cardano.Wallet.Primitive.Types
     , TransactionInfo (..)
     , Tx
     , TxMeta (..)
+    , TxMetadata
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -1566,9 +1567,10 @@ signTx
     => ctx
     -> WalletId
     -> Passphrase "raw"
+    -> Maybe TxMetadata
     -> UnsignedTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
+signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1592,7 +1594,6 @@ signTx ctx wid pwd (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     nl = ctx ^. networkLayer @t
     inps = NE.toList inpsNE
     outs = NE.toList outsNE
-    md = Nothing -- no metadata
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
