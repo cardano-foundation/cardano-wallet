@@ -1,4 +1,4 @@
-name: cardano-1.19.x
+name: cardano-1.19.dev1
 
 resolver: lts-14.25
 
@@ -60,7 +60,7 @@ packages:
 - Win32-2.6.2.0
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: df8687488449f71dce3d881800c21e41fe1b7fc1
+  commit: 3e2d92b25c675fd923a07237eb1d0859b29a79d3
   subdirs:
   - binary
   - binary/test
