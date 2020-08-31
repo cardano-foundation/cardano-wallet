@@ -231,22 +231,20 @@ instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
            <$> L.sortOn (\(k,cp) -> (k, view #slotNo (currentTip cp))) pairs
 
 instance Arbitrary GenTxHistory where
-    shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
+    shrink (GenTxHistory txs) = GenTxHistory <$> shrinkList shrinkOne txs
       where
-        shrinkOneTx
-            :: (Tx, TxMeta)
-            -> [(Tx, TxMeta)]
-        shrinkOneTx (tx, meta) =
-            [(tx', meta) | tx' <- shrink tx]
+        shrinkOne (tx,meta)
+            | length txs < 10 =
+                [(tx', meta) | tx' <- shrink tx]
+            | otherwise =
+                []
 
-    -- Ensure unique transaction IDs within a given batch of transactions to add
-    -- to the history.
     arbitrary = GenTxHistory . sortTxHistory <$> do
         -- NOTE
         -- We discard pending transaction from any 'GenTxHistory since,
         -- inserting a pending transaction actually has an effect on the
         -- checkpoint's pending transactions of the same wallet.
-        filter (not . isPending . snd) <$> arbitrary
+        filter (not . isPending . snd) <$> scale (`mod` 100) arbitrary
       where
         sortTxHistory = filterTxHistory Nothing Descending wholeRange
 
@@ -376,7 +374,7 @@ instance Arbitrary Tx where
           | outs' <- shrinkList' outs
           ]
 
-        , [ mkTx ins  outs  (Map.fromList wdrls')
+        , [ mkTx ins outs (Map.fromList wdrls')
           | wdrls' <- shrinkList' (Map.toList wdrls)
           ]
         ]

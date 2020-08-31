@@ -559,6 +559,48 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
 
+x-transactionMetadata: &transactionMetadata
+  description: |
+    Extra application data attached to the transaction.
+
+    Cardano allows users and developers to embed their own
+    authenticated metadata when submitting transactions.
+
+    The transaction metadata can be `null`, or a mapping from natural
+    numbers to metadata entries. These top-level keys can be any
+    number between `0` and `2^64 - 1`.
+
+    Note that metadata is not free-form JSON. Only a subset of JSON is
+    accepted as values. String values are limited in length, and
+    metadata is included in the overall transaction size limit.
+
+    See the example on the right to get an overview and the
+    equivalence table below to understand how metadata are mapped to
+    on-chain data types.
+
+    | On-chain type | JSON type                                                 |
+    | ---           | ---                                                       |
+    | string        | JSON string                                               |
+    | number        | JSON number                                               |
+    | bytestring    | JSON singleton with a field `"hex"` and a value in base16 |
+    | array         | JSON monomorphic array                                    |
+    | map           | JSON array of 2-element ([key, value]) monomorphic arrays |
+
+  type: object
+  nullable: true
+  minProperties: 1
+  additionalProperties:
+    $ref: "#/components/schemas/TransactionMetadatum"
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^[0-9]+$'
+  example:
+    0: "cardano"
+    1: 14
+    2: { "hex": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
+    3: [14, 42, 1337]
+    4: [["k1", "v1"], ["k2", "v2"]]
+
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
     Apparent performance of the stake pool over past epochs. This indicator is computed
@@ -981,6 +1023,7 @@ components:
         outputs: *transactionOutputs
         withdrawals: *transactionWithdrawals
         status: *transactionStatus
+        metadata: *transactionMetadata
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
@@ -1313,6 +1356,7 @@ components:
           description: The wallet's master passphrase.
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
 
     ApiPostRedemptionData: &ApiPostRedemptionData
       type: object
@@ -1341,6 +1385,7 @@ components:
       properties:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
 
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
       type: object
@@ -1358,6 +1403,31 @@ components:
       properties:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
+
+    TransactionMetadatum: &TransactionMetadatum
+      oneOf:
+        - type: string
+        - type: number
+        - title: bytestring
+          type: object
+          required:
+          - hex
+          properties:
+            hex:
+              type: string
+              pattern: '^[0-9a-fA-F]$'
+        - title: list
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionMetadatum"
+        - title: map
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              $ref: "#/components/schemas/TransactionMetadatum"
 
 #############################################################################
 #                                                                           #

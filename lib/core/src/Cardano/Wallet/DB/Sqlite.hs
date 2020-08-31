@@ -128,13 +128,15 @@ import Data.Either
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List
-    ( unzip3 )
+    ( nub, sortOn, unzip3 )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( catMaybes )
+import Data.Ord
+    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1361,11 +1363,11 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
     concatUnzip :: [([a], [b], [c])] -> ([a], [b], [c])
     concatUnzip = (\(a, b, c) -> (concat a, concat b, concat c)) . unzip3
 
-    -- Split a query's input values into chunks, run multiple smaller queries,
-    -- and then concatenate the results afterwards. Used to avoid "too many SQL
-    -- variables" errors for "SELECT IN" queries.
-    combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
-    combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
+-- | Split a query's input values into chunks, run multiple smaller queries,
+-- and then concatenate the results afterwards. Used to avoid "too many SQL
+-- variables" errors for "SELECT IN" queries.
+combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
+combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 
 selectTxHistory
     :: TimeInterpreter IO
@@ -1378,21 +1380,22 @@ selectTxHistory ti wid minWithdrawal order conditions = do
     selectLatestCheckpoint wid >>= \case
         Nothing -> pure []
         Just cp -> do
-            minWithdrawalFilter <- case minWithdrawal of
-                Nothing  -> pure []
+            let txMetaFilter = (TxMetaWalletId ==. wid):conditions
+            metas <- case minWithdrawal of
+                Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
                 Just inf -> do
                     let coin = W.Coin $ fromIntegral $ getQuantity inf
-                    wdrls <- fmap entityVal
+                    txids <- fmap (txWithdrawalTxId . entityVal)
                         <$> selectList [ TxWithdrawalAmount >=. coin ] []
-                    pure [ TxMetaTxId <-. (txWithdrawalTxId <$> wdrls) ]
-
-            metas <- fmap entityVal <$> selectList
-                ( mconcat
-                    [ [ TxMetaWalletId ==. wid ]
-                    , minWithdrawalFilter
-                    , conditions
-                    ]
-                ) sortOpt
+                    ms <- combineChunked (nub txids) (\chunk -> selectList
+                      ((TxMetaTxId <-. chunk):txMetaFilter) [])
+                    let sortTxId = case order of
+                            W.Ascending -> sortOn (Down . txMetaTxId)
+                            W.Descending -> sortOn txMetaTxId
+                    let sortSlot = case order of
+                            W.Ascending -> sortOn txMetaSlot
+                            W.Descending -> sortOn (Down . txMetaSlot)
+                    pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
             let txids = map txMetaTxId metas
             (ins, outs, ws) <- selectTxs txids

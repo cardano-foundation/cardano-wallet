@@ -134,7 +134,7 @@ import Data.Functor
 import Data.List
     ( isInfixOf, nub, permutations, sort )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -1267,7 +1267,12 @@ takeFaucet = do
     i <- modifyMVar faucetIndex (\i -> pure (i+1, i))
     let basename = source </> "faucet-addrs" </> "faucet" <> show i
     base58Addr <- BS.readFile $ basename <> ".addr"
-    let Just addr = decodeBase58 bitcoinAlphabet $ BS.init base58Addr
+    let addr = fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
+            . decodeBase58 bitcoinAlphabet
+            . T.encodeUtf8
+            . T.strip
+            $ T.decodeUtf8 base58Addr
+
     let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
     let signingKey = basename <> ".shelley.key"
     pure (txin, signingKey)
