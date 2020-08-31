@@ -1012,7 +1012,6 @@ components:
         - outputs
         - withdrawals
         - status
-        - metadata
       properties:
         id: *transactionId
         amount: *transactionAmount
@@ -1405,7 +1404,7 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
-    TransactionMetadatum:
+    TransactionMetadatum: &TransactionMetadatum
       oneOf:
         - type: string
         - type: number

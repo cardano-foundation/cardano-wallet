@@ -274,6 +274,8 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
@@ -1582,11 +1584,18 @@ instance ToSchema ApiPostRandomAddressData where
 declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
 declareSchemaForDefinition ref = do
     let json = foldl' unsafeLookupKey specification ["components","schemas",ref]
-    case Aeson.eitherDecode' (Aeson.encode json) of
+    case Aeson.eitherDecode' $ replaceRefs  $ Aeson.encode json of
         Left err -> error $
             "unable to decode schema for definition '" <> T.unpack ref <> "': " <> show err
         Right schema ->
             return $ NamedSchema (Just ref) schema
+  where
+    -- FIXME: another little hack to work-around the Haskell swagger2 library
+    -- expecting schemas in the '2.0' format whereas our spec is written
+    -- according to OpenAPI '3.0'.
+    replaceRefs = TL.encodeUtf8 . replace . TL.decodeUtf8
+      where
+        replace = TL.replace "components/schemas" "definitions"
 
 unsafeLookupKey :: Aeson.Value -> Text -> Aeson.Value
 unsafeLookupKey json k = case json of
