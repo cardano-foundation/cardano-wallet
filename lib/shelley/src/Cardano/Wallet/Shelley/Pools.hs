@@ -448,11 +448,6 @@ combineChainData registrationMap retirementMap prodMap metaMap =
 --
 --    See: https://jira.iohk.io/browse/ADP-383
 --
--- Additionally, we can consider performing garbage collection of retired pools
--- from the database:
---
---    See: https://jira.iohk.io/browse/ADP-376
---
 readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
