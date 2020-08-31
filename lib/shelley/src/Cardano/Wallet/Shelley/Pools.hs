@@ -85,7 +85,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
-    ( forM, forM_, forever, unless, when, (<=<) )
+    ( forM, forM_, forever, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -98,6 +98,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.IORef
+    ( IORef, newIORef, readIORef, writeIORef )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -474,9 +476,11 @@ monitorStakePools
     -> DBLayer IO
     -> IO ()
 monitorStakePools tr gp nl db@DBLayer{..} = do
+    latestGarbageCollectionEpochRef <- mkLatestGarbageCollectionEpochRef
+    let forwardHandler = forward latestGarbageCollectionEpochRef
     cursor <- initCursor
     traceWith tr $ MsgStartMonitoring cursor
-    follow nl (contramap MsgFollow tr) cursor forward getHeader >>= \case
+    follow nl (contramap MsgFollow tr) cursor forwardHandler getHeader >>= \case
         FollowInterrupted -> traceWith tr MsgHaltMonitoring
         FollowFailure -> traceWith tr MsgCrashMonitoring
         FollowRollback point -> do
@@ -489,6 +493,18 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         , getEpochStability
         } = gp
 
+    -- In order to prevent the pool database from growing too large over time,
+    -- we regularly perform garbage collection by removing retired pools from
+    -- the database.
+    --
+    -- However, there is no benefit to be gained from collecting garbage more
+    -- than once per epoch. In order to avoid invoking the garbage collector
+    -- too frequently, we keep a reference to the latest epoch for which
+    -- garbage collection was performed.
+    --
+    mkLatestGarbageCollectionEpochRef :: IO (IORef EpochNo)
+    mkLatestGarbageCollectionEpochRef = newIORef minBound
+
     initCursor :: IO [BlockHeader]
     initCursor = atomically $ readPoolProductionCursor (max 100 k)
       where k = fromIntegral $ getQuantity getEpochStability
@@ -497,10 +513,11 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     getHeader = toCardanoBlockHeader gp
 
     forward
-        :: NonEmpty (CardanoBlock sc)
+        :: IORef EpochNo
+        -> NonEmpty (CardanoBlock sc)
         -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ())
-    forward blocks (_nodeTip, _pparams) = do
+    forward latestGarbageCollectionEpochRef blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \case
             BlockByron _ -> pure ()
             BlockShelley blk -> do
@@ -515,10 +532,8 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                 unless (null certificates) $ do
                     -- Before adding new pool certificates to the database, we
                     -- first attempt to garbage collect pools that have already
-                    -- retired. By only performing garbage collection when we
-                    -- actually have new certificates to add, we avoid paying
-                    -- the cost of garbage collection in every single slot.
-                    garbageCollectPools slot
+                    -- retired.
+                    garbageCollectPools slot latestGarbageCollectionEpochRef
                     putPoolCertificates slot certificates
         pure Continue
 
@@ -546,16 +561,23 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     -- that occurred two epochs ago that has not subsquently been superseded,
     -- it should be safe to garbage collect that pool.
     --
-    garbageCollectPools currentSlot = do
+    garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
         currentEpoch <- liftIO $ timeInterpreter nl (epochOf currentSlot)
         let subtractTwoEpochs = epochPred <=< epochPred
         forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
-            liftIO
-                $ traceWith tr
-                $ MsgStakePoolGarbageCollection
-                $ PoolGarbageCollectionInfo
-                    {currentEpoch, latestRetirementEpoch}
-            removeRetiredPools latestRetirementEpoch
+            latestGarbageCollectionEpoch <-
+                liftIO $ readIORef latestGarbageCollectionEpochRef
+            -- Only perform garbage collection once per epoch:
+            when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
+                liftIO $ do
+                    writeIORef
+                        latestGarbageCollectionEpochRef
+                        latestRetirementEpoch
+                    traceWith tr $
+                        MsgStakePoolGarbageCollection $
+                        PoolGarbageCollectionInfo
+                            {currentEpoch, latestRetirementEpoch}
+                void $ removeRetiredPools latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot
