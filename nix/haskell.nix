@@ -127,9 +127,13 @@ let
           };
 
 
-        # Make sure that libsodium DLLs and shell completions are available .
+        # Make sure that libsodium DLLs for all windows executables,
+        # and add shell completions for main executables.
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall;
+        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
+        packages.cardano-wallet-jormungandr.components.tests.unit.postInstall = libSodiumPostInstall;
+        packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
+        packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
       }
 
       {
