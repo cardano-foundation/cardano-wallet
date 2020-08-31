@@ -109,6 +109,7 @@ import Cardano.Wallet
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
     , ErrJoinStakePool (..)
+    , ErrListPools (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
@@ -314,7 +315,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( race_ )
 import Control.Exception
-    ( IOException, bracket, throwIO, tryJust )
+    ( IOException, bracket, throwIO, try, tryJust )
 import Control.Monad
     ( forM, forever, void, when, (>=>) )
 import Control.Monad.Catch
@@ -422,6 +423,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -1587,17 +1589,20 @@ assignMigrationAddresses addrs selections =
                                     Network
 -------------------------------------------------------------------------------}
 
-data ErrCurrentEpoch = ErrUnableToDetermineCurrentEpoch
+data ErrCurrentEpoch
+    = ErrUnableToDetermineCurrentEpoch
+    | ErrCurrentEpochPastHorizonException PastHorizonException
 
 getCurrentEpoch
     :: forall ctx s t k . (ctx ~ ApiLayer s t k)
     => ctx
     -> Handler W.EpochNo
 getCurrentEpoch ctx = do
-    res <- liftIO $ currentEpoch ti
+    res <- liftIO $ try $ currentEpoch ti
     case res of
-        Nothing -> liftE ErrUnableToDetermineCurrentEpoch
-        Just x  -> pure x
+        Right Nothing  -> liftE ErrUnableToDetermineCurrentEpoch
+        Right (Just x) -> pure x
+        Left e@(S.PastHorizon{}) -> liftE (ErrCurrentEpochPastHorizonException e)
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
@@ -2019,6 +2024,7 @@ instance LiftHandler ErrCurrentEpoch where
                 [ "I'm unable to determine the current epoch. "
                 , "Please wait a while for the node to sync and try again."
                 ]
+        ErrCurrentEpochPastHorizonException e -> handler e
 
 instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
     handler = \case
@@ -2503,6 +2509,11 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "enough to deserve being withdrawn. I won't proceed with that "
                 , "request."
                 ]
+
+instance LiftHandler ErrListPools where
+    handler = \case
+        ErrListPoolsNetworkError e -> handler e
+        ErrListPoolsPastHorizonException e -> handler e
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
