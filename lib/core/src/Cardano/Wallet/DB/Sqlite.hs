@@ -123,8 +123,6 @@ import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Coerce
     ( coerce )
-import Data.Ord
-    ( Down (..) )
 import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
@@ -137,6 +135,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( catMaybes )
+import Data.Ord
+    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
