@@ -1404,9 +1404,7 @@ x-parametersStakePoolId: &parametersStakePoolId
   required: true
   schema:
     type: string
-    format: hex
-    maxLength: 56
-    minLength: 64
+    format: hex|bech32
 
 x-parametersAddressId:  &parametersAddressId
   in: path
@@ -2226,6 +2224,9 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Delegate all (current and future) addresses from the given wallet to the given stake pool.
+
+        <strong>Note:</strong> Bech32-encoded stake pool identifiers can vary in length.
+
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
