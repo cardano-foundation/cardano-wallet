@@ -130,7 +130,7 @@ import Data.Either
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List
-    ( sortOn, unzip3 )
+    ( nub, sortOn, unzip3 )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
@@ -1385,19 +1385,17 @@ selectTxHistory ti wid minWithdrawal order conditions = do
                 Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
                 Just inf -> do
                     let coin = W.Coin $ fromIntegral $ getQuantity inf
+                    txids <- fmap (txWithdrawalTxId . entityVal)
+                        <$> selectList [ TxWithdrawalAmount >=. coin ] []
+                    ms <- combineChunked (nub txids) (\chunk -> selectList
+                      ((TxMetaTxId <-. chunk):txMetaFilter) [])
                     let sortTxId = case order of
-                            W.Ascending -> Desc TxWithdrawalTxId
-                            W.Descending -> Asc TxWithdrawalTxId
+                            W.Ascending -> sortOn (Down . txMetaTxId)
+                            W.Descending -> sortOn txMetaTxId
                     let sortSlot = case order of
                             W.Ascending -> sortOn txMetaSlot
                             W.Descending -> sortOn (Down . txMetaSlot)
-                    txids <- fmap (txWithdrawalTxId . entityVal)
-                        <$> selectList [ TxWithdrawalAmount >=. coin ] [sortTxId]
-
-                    ms <- combineChunked txids (\chunk -> selectList
-                       ((TxMetaTxId <-. chunk):txMetaFilter) sortOpt)
-
-                    pure $ sortSlot $ fmap entityVal ms
+                    pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
             let txids = map txMetaTxId metas
             (ins, outs, ws) <- selectTxs txids
