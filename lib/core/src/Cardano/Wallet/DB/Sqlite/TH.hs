@@ -88,26 +88,17 @@ PrivateKey                             sql=private_key
 -- transaction with different metadata values. The associated inputs and outputs
 -- of the transaction are in the TxIn and TxOut tables.
 TxMeta
-    txMetaTxId         TxId         sql=tx_id
-    txMetaWalletId     W.WalletId   sql=wallet_id
-    txMetaStatus       W.TxStatus   sql=status
-    txMetaDirection    W.Direction  sql=direction
-    txMetaSlot         SlotNo       sql=slot
-    txMetaBlockHeight  Word32       sql=block_height
-    txMetaAmount       Natural      sql=amount
+    txMetaTxId         TxId               sql=tx_id
+    txMetaWalletId     W.WalletId         sql=wallet_id
+    txMetaStatus       W.TxStatus         sql=status
+    txMetaDirection    W.Direction        sql=direction
+    txMetaSlot         SlotNo             sql=slot
+    txMetaBlockHeight  Word32             sql=block_height
+    txMetaAmount       Natural            sql=amount
+    txMetaData         W.TxMetadata Maybe sql=data
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE
-    deriving Show Generic
-
--- Maps a transaction ID to its on-chain metadata.
--- The metadata map is encoded in JSON with the same schema
--- as what is used in the API.
-TxMetadata
-    txMetadataTxId    TxId          sql=tx_id
-    txMetadataValue   W.TxMetadata  sql=value
-
-    Primary txMetadataTxId
     deriving Show Generic
 
 -- A transaction input associated with TxMeta.
