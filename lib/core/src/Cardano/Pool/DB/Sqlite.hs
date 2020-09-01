@@ -498,6 +498,7 @@ migrateManually
     -> ManualMigration
 migrateManually _tr =
     ManualMigration $ \conn -> do
+        createView conn activePoolLifeCycleData
         createView conn activePoolOwners
         createView conn activePoolRegistrations
         createView conn activePoolRetirements
@@ -524,6 +525,36 @@ createView conn (DatabaseView name definition) = do
         , "AS"
         , definition
         ]
+
+-- | Views active lifecycle data for every pool in the set of known pools.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen registration certificate,
+-- retirement certificate, and set of owners for that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolLifeCycleData :: DatabaseView
+activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
+    SELECT
+        active_pool_registrations.pool_id as pool_id,
+        active_pool_retirements.retirement_epoch as retirement_epoch,
+        active_pool_owners.pool_owners as pool_owners,
+        cost,
+        pledge,
+        margin_numerator,
+        margin_denominator,
+        metadata_hash,
+        metadata_url
+    FROM
+        active_pool_registrations
+    LEFT JOIN
+        active_pool_retirements
+    ON active_pool_registrations.pool_id = active_pool_retirements.pool_id
+    LEFT JOIN
+        active_pool_owners
+    ON active_pool_registrations.pool_id = active_pool_owners.pool_id;
+|]
 
 -- | Views the set of active owners for all pools.
 --
