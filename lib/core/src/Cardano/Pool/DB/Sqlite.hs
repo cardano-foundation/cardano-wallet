@@ -497,7 +497,8 @@ migrateManually
     :: Tracer IO PoolDbLog
     -> ManualMigration
 migrateManually _tr =
-    ManualMigration $ \conn ->
+    ManualMigration $ \conn -> do
+        createView conn activePoolRegistrations
         createView conn activePoolRetirements
 
 -- | Represents a database view.
@@ -522,6 +523,32 @@ createView conn (DatabaseView name definition) = do
         , "AS"
         , definition
         ]
+
+-- | Views the set of pool registrations that are currently active.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen registration certificate for
+-- that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolRegistrations :: DatabaseView
+activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
+    SELECT
+        pool_id,
+        cost,
+        pledge,
+        margin_numerator,
+        margin_denominator,
+        metadata_hash,
+        metadata_url
+    FROM (
+        SELECT row_number() OVER w AS r, *
+        FROM pool_registration
+        WINDOW w AS (ORDER BY pool_id, slot desc, slot_internal_index desc)
+    )
+    GROUP BY pool_id;
+|]
 
 -- | Views the set of pool retirements that are currently active.
 --
