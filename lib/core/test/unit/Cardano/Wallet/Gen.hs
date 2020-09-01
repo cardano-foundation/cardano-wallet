@@ -26,10 +26,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
-import Cardano.Api.MetaData
-    ( jsonFromMetadataValue, jsonToMetadataValue )
 import Cardano.Api.Typed
-    ( TxMetadata (..), makeTransactionMetadata )
+    ( TxMetadata (..) )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -42,6 +40,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
+import Data.List
+    ( sortOn )
 import Data.List.Extra
     ( nubOn )
 import Data.Proxy
@@ -50,6 +50,8 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word32 )
 import GHC.TypeLits
@@ -59,9 +61,11 @@ import Shelley.Spec.Ledger.MetaData
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , PrintableString (..)
     , choose
     , elements
     , listOf
+    , listOf1
     , oneof
     , resize
     , shrinkList
@@ -162,18 +166,28 @@ sizedMetaDatum 0 =
     oneof
         [ MD.I <$> arbitrary
         , MD.B <$> genByteString
-        , MD.S <$> (T.pack <$> arbitrary)
+        , MD.S <$> genCappedString 32
         ]
 sizedMetaDatum n =
     oneof
-        [ MD.Map <$>
-            (zip
-                <$> (resize maxMetaDatumListLens (listOf (sizedMetaDatum (n-1))))
-                <*> (listOf (sizedMetaDatum (n-1))))
-        , MD.List <$> resize maxMetaDatumListLens (listOf (sizedMetaDatum (n-1)))
-        , MD.I <$> arbitrary
-        , MD.B <$> genByteString
-        , MD.S <$> (T.pack <$> arbitrary)
+        [ sizedMetaDatum 0
+        , oneof
+            -- FIXME: #2098
+            --
+            -- Allow empty maps and lists once fixed.
+            [ MD.Map . sortOn fst . nubOn fst <$>
+                resize maxMetaDatumListLens
+                    (listOf1 $ (,)
+                        <$> genMetaDatumJSONKey
+                        <*> sizedMetaDatum (n-1)
+                    )
+            -- FIXME: #2098
+            --
+            -- jsonToMetadata does an implicit conversion of list of pairs to map,
+            -- which fails to roundtrip back to the same value. Until this is
+            -- fixed in #2098, we only allow list to contains non-ambiguous values.
+            , MD.List <$> resize maxMetaDatumListLens (listOf1 (sizedMetaDatum 0))
+            ]
         ]
 
 genByteString :: Gen BS.ByteString
@@ -182,16 +196,30 @@ genByteString = BS.pack <$> arbitrary
 shrinkByteString :: BS.ByteString -> [BS.ByteString]
 shrinkByteString = shrinkMap BS.pack BS.unpack
 
+genCappedString :: Int -> Gen Text
+genCappedString sup = T.take sup . T.pack . getPrintableString <$> arbitrary
+
 genMetaDatum :: Gen MetaDatum
-genMetaDatum = normaliseTxMetaDatum <$> sizedMetaDatum maxMetaDatumDepth
+genMetaDatum = sizedMetaDatum maxMetaDatumDepth
+
+-- FIXME: #2098
+-- We only expect metadata to roundtrip when coming from valid JSON.
+-- JSON only allows keys as strings.
+--
+-- This is only necessary until #2098 is addressed and because the conversion
+-- functions from cardano-api are doing some implicit conversions.
+genMetaDatumJSONKey :: Gen MetaDatum
+genMetaDatumJSONKey = MD.S <$> genCappedString 32
 
 shrinkMetaDatum :: MetaDatum -> [MetaDatum]
-shrinkMetaDatum (MD.Map xs) = normaliseTxMetaDatum . MD.Map . nubOn fst <$> shrinkList shrinkPair xs
+shrinkMetaDatum (MD.Map xs) =
+    MD.Map . sortOn fst . nubOn fst <$> shrinkList shrinkPair xs
   where
     shrinkPair (k,v) =
         ((k,) <$> shrinkMetaDatum v) ++
         ((,v) <$> shrinkMetaDatum k)
-shrinkMetaDatum (MD.List xs) = normaliseTxMetaDatum . MD.List <$> shrinkList shrinkMetaDatum xs
+shrinkMetaDatum (MD.List xs) =
+    MD.List <$> filter ((>= 1) . length) (shrinkList shrinkMetaDatum xs)
 shrinkMetaDatum (MD.I i) = MD.I <$> shrink i
 shrinkMetaDatum (MD.B b) = MD.B <$> shrinkByteString b
 shrinkMetaDatum (MD.S s) = MD.S <$> shrinkMap T.pack T.unpack s
@@ -213,15 +241,3 @@ genTxMetadata = TxMetadata <$> genMetaData
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
 shrinkTxMetadata (TxMetadata m) = TxMetadata <$> shrinkMetaData m
-
--- | Two distinct CBOR metadata can be encoded as the same JSON. In particular,
--- some maps can be interpreted as lists, and vice versa. This causes problems
--- with round-trip unit tests. So we "normalise" all generated metadata.
-normaliseTxMetaDatum :: MetaDatum -> MetaDatum
-normaliseTxMetaDatum = munge . jsonToMetadataValue . jsonFromMetadataValue
-  where
-    munge = either impossible unTxMetadataValue
-    impossible e = error ("normaliseTxMetaDatum: " <> show e)
-    unTxMetadataValue = unwrap . makeTransactionMetadata . wrap
-    wrap = Map.singleton 0
-    unwrap (TxMetadata (MD.MetaData m)) = (Map.!) m 0

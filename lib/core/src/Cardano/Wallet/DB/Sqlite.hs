@@ -1280,7 +1280,6 @@ deleteLooseTransactions = do
     deleteLoose "tx_in"
     deleteLoose "tx_out"
     deleteLoose "tx_withdrawal"
-    deleteLoose "tx_metadata"
   where
     -- Deletes all TxIn/TxOuts/TxWithdrawal returned by the sub-select.
     -- The sub-select outer joins TxMeta with TxIn/TxOut/TxWithdrawal.
