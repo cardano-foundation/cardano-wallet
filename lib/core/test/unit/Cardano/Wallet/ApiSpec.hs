@@ -72,7 +72,7 @@ import Data.Function
 import Data.IORef
     ( atomicModifyIORef, newIORef )
 import Data.List
-    ( foldl', (\\) )
+    ( (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -249,7 +249,7 @@ instance
     gSpec toRequest toSpec = do
         let tests :: [(IO [Request], ExpectedError)]
             tests = first toRequest <$> malformed @(BodyParam a)
-        toSpec . SomeTest (Proxy @a) . insideOut =<< traverseLeft runIO tests
+        toSpec . SomeTest (Proxy @a) . distributeFirst =<< traverseLeft runIO tests
       where
         -- e.g. [IO Request, ExpectedError] -> IO [Request, ExpectedError]
         traverseLeft
@@ -258,9 +258,6 @@ instance
         traverseLeft fn xs =
             fmap swap <$> traverse (traverse fn) (swap <$> xs)
 
-        insideOut :: [([x], y)] -> [(x, y)]
-        insideOut zs = [(x, y) | (xs, y) <- zs, x <- xs]
-
 instance
     ( KnownSymbol h
     , Typeable ct
@@ -268,9 +265,9 @@ instance
     ) => GenericApiSpec (Header h ct -> [Request])
   where
     gSpec toRequest toSpec = do
-        let tests = fmap (\(xs, e) -> fmap (,e) xs)
-                (first toRequest <$> malformed @(Header h ct))
-        forM_ tests (toSpec . SomeTest (Proxy @h))
+        let tests :: [([Request], ExpectedError)]
+            tests = first toRequest <$> malformed @(Header h ct)
+        toSpec . SomeTest (Proxy @h) . distributeFirst $ tests
 
 instance
     ( Typeable ct0
@@ -443,7 +440,10 @@ instance
     gEveryHeader _ req (Header h) =
         [req { requestMethod = reflectMethod $ Proxy @m
              , requestHeaders = requestHeaders req ++ [ (hAccept, h) ]
-             }]
+             }
+        ]
+
+
 instance
     ( ReflectMethod m
     ) => GEveryEndpoints (NoContentVerb (m :: StdMethod))
@@ -463,7 +463,6 @@ instance
     gEveryHeader _ req =
         [req { requestMethod = reflectMethod (Proxy @m) }]
 
-
 instance
     ( Wellformed (PathParam t)
     , GEveryEndpoints sub
@@ -480,15 +479,15 @@ instance
 
     type MkBodyRequest (Capture p t :> sub) = [MkBodyRequest sub]
     gEveryBodyParam _ req =
-        fmap (\t' -> gEveryBodyParam (Proxy @sub) (addPathFragment t' req)) t
+        gEveryBodyParam (Proxy @sub) . (`addPathFragment` req) <$> ts
       where
-        t = wellformed :: [PathParam t]
+        ts = wellformed :: [PathParam t]
 
     type MkHeaderRequest (Capture p t :> sub) = [MkHeaderRequest sub]
     gEveryHeader _ req =
-        fmap (\t' -> gEveryHeader (Proxy @sub) (addPathFragment t' req)) t
+        gEveryHeader (Proxy @sub) . (`addPathFragment` req) <$> ts
       where
-        t = wellformed :: [PathParam t]
+        ts = wellformed :: [PathParam t]
 
 instance
     ( KnownSymbol s
@@ -579,6 +578,9 @@ instance
 --
 -- Helpers
 --
+
+distributeFirst :: [([x], y)] -> [(x, y)]
+distributeFirst zs = [(x, y) | (xs, y) <- zs, x <- xs]
 
 addPathFragment :: PathParam t -> Request -> Request
 addPathFragment (PathParam fragment) req = req
