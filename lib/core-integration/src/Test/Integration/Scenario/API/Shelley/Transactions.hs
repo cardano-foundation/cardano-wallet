@@ -39,9 +39,17 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), Hash (..), SortOrder (..), TxStatus (..), WalletId )
+    ( Direction (..)
+    , Hash (..)
+    , SortOrder (..)
+    , TxMetadata (..)
+    , TxStatus (..)
+    , WalletId
+    )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( (.=) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Product.Typed
@@ -102,6 +110,7 @@ import Test.Integration.Framework.DSL
     , utcIso8601ToText
     , verify
     , walletId
+    , (.<)
     , (.<=)
     , (.>)
     , (.>=)
@@ -111,6 +120,7 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
+    , errMsg400TxMetadataStringTooLong
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
@@ -126,9 +136,12 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Shelley.Spec.Ledger.MetaData as MD
 
 data TestCase a = TestCase
     { query :: T.Text
@@ -230,6 +243,7 @@ spec = do
                 between (feeMin + amt, feeMax + amt)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
@@ -533,6 +547,106 @@ spec = do
             expectField
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+
+    it "TRANS_CREATE_10 - Transaction with metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = (1 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = [json|{
+                "1": "hello"
+            }|]
+        let expected = TxMetadata (MD.MetaData (Map.singleton 1 (MD.S "hello")))
+        let payload = addTxMetadata txMeta basePayload
+
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField
+                (#metadata . #getApiTxMetadata)
+                (`shouldBe` Just (ApiT expected))
+            ]
+
+        eventually "metadata is confirmed in transaction list" $ do
+            let link = Link.listTransactions @'Shelley wa
+            rb <- request @([ApiTransaction n]) ctx link Default Empty
+            verify rb
+                [ expectResponseCode HTTP.status200
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT expected))
+                ]
+
+    it "TRANS_CREATE_11 - Transaction with invalid metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = (1 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = Aeson.object ["1" .= T.replicate 65 "a"]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxMetadataStringTooLong r
+
+    it "TRANS_CREATE_12 - Transaction with too much metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = (1 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        -- This will encode to at least 8k of CBOR. The max tx size for the
+        -- integration tests cluster is 4k.
+        let txMeta = Aeson.object
+                [ (toText @Int i, Aeson.String (T.replicate 64 "a"))
+                | i <- [0..127] ]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        -- TODO: implement nice error messages when transactions are too big
+        -- expectResponseCode @IO HTTP.status400 r
+        -- expectErrorMessage "Transaction exceeds the maximum size" r
+        expectResponseCode @IO HTTP.status500 r
+        expectErrorMessage "MaxTxSizeUTxO" r
+
+    it "TRANS_ESTIMATE_xxx - fee estimation includes metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = (1 :: Natural)
+
+        payload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = [json|{ "1": "hello" }|]
+        let payloadWithMetadata = addTxMetadata txMeta payload
+
+        ra <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payloadWithMetadata
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin ra
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax ra
+
+        -- check that it's estimated to have less fees for transactions without
+        -- metadata.
+        rb <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payload
+        verify rb
+            [ expectResponseCode HTTP.status202
+            , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
+            , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
+            ]
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
@@ -1662,6 +1776,11 @@ spec = do
                 }],
                 "passphrase": #{passphrase}
             }|]
+
+    addTxMetadata :: Aeson.Value -> Payload -> Payload
+    addTxMetadata md (Json (Aeson.Object o)) =
+        Json (Aeson.Object (o <> ("metadata" .= md)))
+    addTxMetadata _ _ = error "can't do that"
 
     unsafeGetTransactionTime
         :: [ApiTransaction n]

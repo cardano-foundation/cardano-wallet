@@ -39,6 +39,7 @@ module Test.Integration.Framework.DSL
     , (.>=)
     , (.<=)
     , (.>)
+    , (.<)
     , verify
     , Headers(..)
     , Payload(..)
@@ -567,6 +568,18 @@ x .> bound
         = fail $ mconcat
             [ show x
             , " does not satisfy (> "
+            , show bound
+            , ")"
+            ]
+
+(.<) :: (Ord a, Show a) => a -> a -> Expectation
+x .< bound
+    | x < bound
+        = return ()
+    | otherwise
+        = fail $ mconcat
+            [ show x
+            , " does not satisfy (< "
             , show bound
             , ")"
             ]

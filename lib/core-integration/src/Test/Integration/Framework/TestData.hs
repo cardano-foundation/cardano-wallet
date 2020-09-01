@@ -63,6 +63,7 @@ module Test.Integration.Framework.TestData
     , errMsg409WalletExists
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
+    , errMsg400TxMetadataStringTooLong
     , errMsg400WronglyEncodedTxPayload
     , errMsg400ParseError
     , errMsg403ZeroAmtOutput
@@ -320,6 +321,10 @@ errMsg400MalformedTxPayload =
 errMsg400WronglyEncodedTxPayload :: String
 errMsg400WronglyEncodedTxPayload =
     "Parse error. Expecting hex-encoded format."
+
+errMsg400TxMetadataStringTooLong :: String
+errMsg400TxMetadataStringTooLong =
+    "Error in $.metadata: ConversionErrLongerThan64Bytes"
 
 errMsg400ParseError :: String
 errMsg400ParseError = mconcat
