@@ -83,7 +83,7 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t k
 newTransactionLayer block0H = TransactionLayer
-    { mkStdTx = \_rewardAcnt keyFrom _ cs ->
+    { mkStdTx = \_rewardAcnt keyFrom _ _ cs ->
         mkFragment
             ( MkFragmentSimpleTransaction (txWitnessTagFor @k)
             ) keyFrom (CS.inputs cs) (CS.outputs cs)

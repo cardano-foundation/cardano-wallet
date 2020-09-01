@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
+    , TxMetadata
     , TxOut (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -127,7 +128,11 @@ import qualified Shelley.Spec.Ledger.Tx as SL
 -- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
 -- include certificates or not.
 data TxPayload era = TxPayload
-    { _certificates :: [Cardano.Certificate]
+    { _metadata :: Maybe Cardano.TxMetadata
+      -- ^ User or application-defined metadata to be included in the
+      -- transaction.
+
+    , _certificates :: [Cardano.Certificate]
       -- ^ Certificates to be included in the transactions.
 
     , _extraWitnesses :: Cardano.TxBody era -> [Cardano.Witness era]
@@ -138,7 +143,10 @@ data TxPayload era = TxPayload
     }
 
 emptyTxPayload :: TxPayload c
-emptyTxPayload = TxPayload mempty mempty
+emptyTxPayload = TxPayload Nothing mempty mempty
+
+stdTxPayload :: Maybe TxMetadata -> TxPayload c
+stdTxPayload md = TxPayload md mempty mempty
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle
@@ -176,13 +184,13 @@ mkTx
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx networkId (TxPayload certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
+mkTx networkId (TxPayload md certs mkExtraWits) timeToLive (rewardAcnt, pwdAcnt) keyFrom cs = do
     let wdrls = mkWithdrawals
             networkId
             (toChimericAccountRaw . toXPub $ rewardAcnt)
             (withdrawal cs)
 
-    let unsigned = mkUnsignedTx timeToLive cs wdrls certs
+    let unsigned = mkUnsignedTx timeToLive cs md wdrls certs
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -215,8 +223,8 @@ newTransactionLayer
     => NetworkId
     -> TransactionLayer t k
 newTransactionLayer networkId = TransactionLayer
-    { mkStdTx = \acc ks tip ->
-        mkTx networkId emptyTxPayload (defaultTTL tip) acc ks
+    { mkStdTx = \acc ks tip md ->
+        mkTx networkId (stdTxPayload md) (defaultTTL tip) acc ks
     , initDelegationSelection = _initDelegationSelection
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
@@ -267,7 +275,7 @@ newTransactionLayer networkId = TransactionLayer
                 [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
-        let payload = TxPayload certs mkWits
+        let payload = TxPayload Nothing certs mkWits
         let ttl = defaultTTL tip
         mkTx networkId payload ttl acc keyFrom cs
 
@@ -289,7 +297,7 @@ newTransactionLayer networkId = TransactionLayer
                 [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
-        let payload = TxPayload certs mkWits
+        let payload = TxPayload Nothing certs mkWits
         let ttl = defaultTTL tip
         mkTx networkId payload ttl acc keyFrom cs
 
@@ -322,7 +330,7 @@ _estimateMaxNumberOfInputs networkId (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize networkId (txWitnessTagFor @k) Nothing sel
+        size = computeTxSize networkId (txWitnessTagFor @k) Nothing Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -354,8 +362,10 @@ _minimumFee
     -> CoinSelection
     -> Fee
 _minimumFee networkId policy action cs =
-    computeFee $ computeTxSize networkId (txWitnessTagFor @k) action cs
+    computeFee $ computeTxSize networkId (txWitnessTagFor @k) md action cs
   where
+    md = Nothing -- fixme: #2075 include metadata in fee calculations
+
     computeFee :: Integer -> Fee
     computeFee size =
         Fee $ ceiling (a + b*fromIntegral size)
@@ -367,10 +377,11 @@ _minimumFee networkId policy action cs =
 computeTxSize
     :: Cardano.NetworkId
     -> TxWitnessTag
+    -> Maybe Cardano.TxMetadata
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize networkId witTag action cs =
+computeTxSize networkId witTag md action cs =
     withUnderlyingShelleyTx SL.txsize signed + outputCorrection
  where
     withUnderlyingShelleyTx
@@ -410,7 +421,7 @@ computeTxSize networkId witTag action cs =
             maxSizeOfIcarusMainAddr = 43
             maxSizeOfIcarusTestAddr = 50
 
-    unsigned = mkUnsignedTx maxBound cs' wdrls certs
+    unsigned = mkUnsignedTx maxBound cs' md wdrls certs
       where
         cs' :: CoinSelection
         cs' = cs
@@ -544,13 +555,14 @@ lookupPrivateKey keyFrom addr =
 mkUnsignedTx
     :: Cardano.SlotNo
     -> CoinSelection
+    -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.TxBody Cardano.Shelley
-mkUnsignedTx ttl cs wdrls certs =
+mkUnsignedTx ttl cs md wdrls certs =
         Cardano.makeShelleyTransaction
             TxExtraContent
-                { txMetadata = Nothing
+                { txMetadata = md
                 , txWithdrawals = wdrls
                 , txCertificates = certs
                 , txUpdateProposal = Nothing

@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), PoolId, SealedTx (..), SlotNo (..), Tx (..) )
+    ( Address (..), PoolId, SealedTx (..), SlotNo (..), Tx (..), TxMetadata )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -54,6 +54,8 @@ data TransactionLayer t k = TransactionLayer
             -- Key store
         -> SlotNo
             -- Tip of the chain, for TTL
+        -> Maybe TxMetadata
+            -- User or application-defined metadata to embed in the transaction.
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
             -- assigned.

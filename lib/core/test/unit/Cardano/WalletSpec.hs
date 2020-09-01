@@ -527,10 +527,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let credentials (rootK, pwdP) =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         (_,_,_,txOld) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) selection
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) Nothing selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd selection
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd Nothing selection
         txOld `shouldBe` txNew
   where
     selection = mempty
@@ -704,7 +704,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \_ keyFrom _slot cs -> do
+    { mkStdTx = \_ keyFrom _slot _md cs -> do
         let inps' = map (second coin) (CS.inputs cs)
         let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
         let tx = Tx tid inps' (CS.outputs cs) mempty Nothing

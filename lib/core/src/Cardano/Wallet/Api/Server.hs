@@ -1224,6 +1224,7 @@ postTransaction
 postTransaction ctx genChange (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let outs = coerceCoin <$> (body ^. #payments)
+    let md = Nothing -- fixme: implement in #2073
 
     let selfRewardCredentials (rootK, pwdP) =
             (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
@@ -1251,7 +1252,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         pure (selection, credentials)
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.signPayment @_ @s @t @k wrk wid genChange credentials pwd selection
+        W.signPayment @_ @s @t @k wrk wid genChange credentials pwd md selection
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -1528,7 +1529,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 
     forM migration $ \cs -> do
         (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
-            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd cs
+            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd Nothing cs
         withWorkerCtx ctx wid liftE liftE
             $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk wid (tx, meta, wit)
         liftIO $ mkApiTransaction

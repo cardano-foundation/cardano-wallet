@@ -39,7 +39,14 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , TxIn (..)
+    , TxMetadata (..)
+    , TxOut (..)
+    , UTxO (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
@@ -97,6 +104,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -172,10 +180,10 @@ estimateMaxInputsTests net =
 prop_decodeSignedShelleyTxRoundtrip
     :: DecodeShelleySetup
     -> Property
-prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs slotNo pairs) = do
+prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let unsigned = mkUnsignedTx slotNo cs mempty []
+    let unsigned = mkUnsignedTx slotNo cs md mempty []
     let addrWits = map (mkShelleyWitness unsigned) pairs
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
@@ -188,7 +196,7 @@ prop_decodeSignedByronTxRoundtrip
 prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo network pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let unsigned = mkUnsignedTx slotNo cs mempty []
+    let unsigned = mkUnsignedTx slotNo cs Nothing mempty []
     let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
     let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
@@ -248,6 +256,7 @@ testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO
     , outputs :: [TxOut]
+    , metadata :: Maybe TxMetadata
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
@@ -265,10 +274,11 @@ instance Arbitrary DecodeShelleySetup where
         utxo <- arbitrary
         n <- choose (1,10)
         outs <- vectorOf n arbitrary
+        md <- arbitrary
         slot <- arbitrary
         let numInps = Map.size $ getUTxO utxo
         pairs <- vectorOf numInps arbitrary
-        pure $ DecodeShelleySetup utxo outs slot pairs
+        pure $ DecodeShelleySetup utxo outs md slot pairs
 
 instance Arbitrary Cardano.NetworkId where
     arbitrary = elements
@@ -309,6 +319,13 @@ instance Arbitrary TxOut where
     arbitrary = do
         let addr = Address $ BS.pack (1:replicate 64 0)
         TxOut addr <$> arbitrary
+
+instance Arbitrary TxMetadata where
+    arbitrary = TxMetadata . MD.MetaData <$> arbitrary
+    shrink (TxMetadata (MD.MetaData md)) = TxMetadata . MD.MetaData <$> shrink md
+
+instance Arbitrary MD.MetaDatum where
+    arbitrary = MD.I <$> arbitrary
 
 instance Arbitrary UTxO where
     arbitrary = do
