@@ -1073,6 +1073,7 @@ spec = do
         eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
+            print rGet
             verify rGet
                 [ expectField
                         (#balance . #getApiT . #total)

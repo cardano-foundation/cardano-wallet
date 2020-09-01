@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Control.Concurrent (threadDelay)
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
 import Control.Monad
@@ -713,25 +714,29 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
-        let coins = [13, 43, 66, 101, 1339] :: [Word64]
+        let coins = [13, 43, 66, 101, 2, 4] :: [Word64]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
 
         let payments = flip map coins $ \c ->
                 ["--payment", show c <> "@" <> T.unpack addr ]
         let args = T.unpack (wSrc ^. walletId) : mconcat payments
-
+        putStrLn "about to postTransactionViaCLI"
         (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        putStrLn "did postTransactionViaCLI"
         T.unpack ep `shouldContain` cmdOk
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
-        eventually "Wallet balance is as expected" $ do
-            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
-            expectCliField (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
-            expectCliField (#balance . #getApiT . #total)
-                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+        threadDelay 5000000
+        putStrLn "about to getWalletViaCLI"
+        r <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+        let Stdout og = r
+        jg <- expectValidJSON (Proxy @ApiWallet) og
+        print jg
+        expectCliField (#balance . #getApiT . #available)
+            (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+        expectCliField (#balance . #getApiT . #total)
+            (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
 
         --verify utxo
         (Exit c, Stdout o, Stderr e) <-

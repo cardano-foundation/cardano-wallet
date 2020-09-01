@@ -1617,12 +1617,17 @@ postTransactionViaCLI ctx passphrase args = do
             ["--port", show (ctx ^. typed @(Port "wallet"))]
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
+    putStrLn $ "postTransactionViaCLI args: " ++ show args
     let process = proc' (commandName @t) fullArgs
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin (passphrase ++ "\n")
+            putStrLn "entered withCreateProcess"
+            hPutStr stdin (passphrase ++ "\r\n")
+            putStrLn "ran hPutStr"
             hFlush stdin
+            putStrLn "ran hFlush"
             hClose stdin
+            putStrLn "ran hClose"
             c <- waitForProcess h
             out <- TIO.hGetContents stdout
             err <- TIO.hGetContents stderr
