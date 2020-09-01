@@ -63,9 +63,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Product.Typed
     ( HasType )
 import Data.Maybe
-    ( fromJust, fromMaybe )
-import Data.Maybe
-    ( isJust )
+    ( fromJust, fromMaybe, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -798,10 +796,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let (Hash txid) = getApiT $ getFromResponse #id r2
         let txix = case getFromResponse #outputs r2 of
-                [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))] ->
-                    if out1 == amt then 0
-                    else if out2 == amt then 1
-                    else error "this should not happen"
+                [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                    | out1 == amt -> 0
+                    | out2 == amt -> 1
+                    | otherwise -> error "this should not happen"
                 _ -> error "this should not happen"
 
         r3 <- request @ApiWallet ctx (Link.getWallet @'Shelley wFaucet) Default Empty
@@ -837,14 +835,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "mnemonic_sentence": #{mnemonics18},
                 "passphrase": #{fixturePassphrase}
                 } |]
-        r11 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData1
-        verify r11
+        r6 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData1
+        verify r6
             [ expectSuccess
             , expectResponseCode HTTP.status201
             , expectField
                 (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
-        let (_, Right wDest) = r11
+        let (_, Right wDest) = r6
 
         --here comes construction of external tx
         -- (a) fee which was estimated using cardano-wallet endpoint
@@ -898,39 +896,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
         let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        r <- request
+        r7 <- request
             @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
-        verify r
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        ------ beginning of conventional submitting of tx - to be removed in later commits
-{--
-
-        r6 <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload2
-
-        verify r6
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
-                between (feeMin1 + amt1, feeMax1 + amt1)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            ]
---}
-{--
-        --- end
-        r7 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r7
             [ expectSuccess
-            , expectField (#balance . #getApiT . #total) $
-                between
-                    ( Quantity (amt - feeMax - amt1)
-                    , Quantity (amt - feeMin - amt1)
-                    )
-            ]<
+            , expectResponseCode HTTP.status202
+            ]
 
         eventually "wDest and wSrc balances are as expected" $ do
             r8 <- request @ApiWallet ctx
@@ -938,7 +909,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amt1) r8
-
+{--
             r9 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
