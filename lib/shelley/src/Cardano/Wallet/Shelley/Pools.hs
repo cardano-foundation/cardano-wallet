@@ -49,7 +49,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, firstSlotInEpoch, startTime )
+    ( TimeInterpreter, epochOf, epochPred, firstSlotInEpoch, startTime )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
@@ -85,7 +85,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
-    ( forM, forM_, forever, when )
+    ( forM, forM_, forever, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -98,6 +98,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.IORef
+    ( IORef, newIORef, readIORef, writeIORef )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -448,11 +450,6 @@ combineChainData registrationMap retirementMap prodMap metaMap =
 --
 --    See: https://jira.iohk.io/browse/ADP-383
 --
--- Additionally, we can consider performing garbage collection of retired pools
--- from the database:
---
---    See: https://jira.iohk.io/browse/ADP-376
---
 readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
     pools <- listRegisteredPools
@@ -479,9 +476,11 @@ monitorStakePools
     -> DBLayer IO
     -> IO ()
 monitorStakePools tr gp nl db@DBLayer{..} = do
+    latestGarbageCollectionEpochRef <- mkLatestGarbageCollectionEpochRef
+    let forwardHandler = forward latestGarbageCollectionEpochRef
     cursor <- initCursor
     traceWith tr $ MsgStartMonitoring cursor
-    follow nl (contramap MsgFollow tr) cursor forward getHeader >>= \case
+    follow nl (contramap MsgFollow tr) cursor forwardHandler getHeader >>= \case
         FollowInterrupted -> traceWith tr MsgHaltMonitoring
         FollowFailure -> traceWith tr MsgCrashMonitoring
         FollowRollback point -> do
@@ -494,6 +493,18 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
         , getEpochStability
         } = gp
 
+    -- In order to prevent the pool database from growing too large over time,
+    -- we regularly perform garbage collection by removing retired pools from
+    -- the database.
+    --
+    -- However, there is no benefit to be gained from collecting garbage more
+    -- than once per epoch. In order to avoid invoking the garbage collector
+    -- too frequently, we keep a reference to the latest epoch for which
+    -- garbage collection was performed.
+    --
+    mkLatestGarbageCollectionEpochRef :: IO (IORef EpochNo)
+    mkLatestGarbageCollectionEpochRef = newIORef minBound
+
     initCursor :: IO [BlockHeader]
     initCursor = atomically $ readPoolProductionCursor (max 100 k)
       where k = fromIntegral $ getQuantity getEpochStability
@@ -502,10 +513,11 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     getHeader = toCardanoBlockHeader gp
 
     forward
-        :: NonEmpty (CardanoBlock sc)
+        :: IORef EpochNo
+        -> NonEmpty (CardanoBlock sc)
         -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ())
-    forward blocks (_nodeTip, _pparams) = do
+    forward latestGarbageCollectionEpochRef blocks (_nodeTip, _pparams) = do
         atomically $ forM_ blocks $ \case
             BlockByron _ -> pure ()
             BlockShelley blk -> do
@@ -517,30 +529,75 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
                             liftIO $ traceWith tr $ MsgErrProduction e
                         Right () ->
                             pure ()
-
-                -- A single block can contain multiple certificates relating to the
-                -- same pool.
-                --
-                -- The /order/ in which certificates appear is /significant/:
-                -- certificates that appear later in a block /generally/ take
-                -- precedence over certificates that appear earlier on.
-                --
-                -- We record /all/ certificates within the database, together with
-                -- the order in which they appeared.
-                --
-                -- Precedence is determined by the 'readPoolLifeCycleStatus'
-                -- function.
-                --
-                let publicationTimes =
-                        CertificatePublicationTime slot <$> [minBound ..]
-                forM_ (publicationTimes `zip` certificates) $ \case
-                    (publicationTime, Registration cert) -> do
-                        liftIO $ traceWith tr $ MsgStakePoolRegistration cert
-                        putPoolRegistration publicationTime cert
-                    (publicationTime, Retirement cert) -> do
-                        liftIO $ traceWith tr $ MsgStakePoolRetirement cert
-                        putPoolRetirement publicationTime cert
+                unless (null certificates) $ do
+                    -- Before adding new pool certificates to the database, we
+                    -- first attempt to garbage collect pools that have already
+                    -- retired.
+                    garbageCollectPools slot latestGarbageCollectionEpochRef
+                    putPoolCertificates slot certificates
         pure Continue
+
+    -- Perform garbage collection for pools that have retired.
+    --
+    -- To avoid any issues with rollback, we err on the side of caution and
+    -- only garbage collect pools that retired /at least/ two epochs before
+    -- the current epoch.
+    --
+    -- Rationale:
+    --
+    -- When crossing an epoch boundary, there is a period of time during which
+    -- blocks from the previous epoch are still within the rollback window.
+    --
+    -- If we've only just crossed the boundary from epoch e into epoch e + 1,
+    -- this means that blocks from epoch e are still within the rollback
+    -- window. If the chain we've just been following gets replaced with
+    -- another chain in which the retirement certificate for some pool p is
+    -- revoked (with a registration certificate that appears before the end
+    -- of epoch e), then the retirement for pool p will have been cancelled.
+    --
+    -- However, assuming the rollback window is always guaranteed to be less
+    -- than one epoch in length, retirements that occurred two epochs ago can
+    -- no longer be affected by rollbacks. Therefore, if we see a retirement
+    -- that occurred two epochs ago that has not subsquently been superseded,
+    -- it should be safe to garbage collect that pool.
+    --
+    garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
+        currentEpoch <- liftIO $ timeInterpreter nl (epochOf currentSlot)
+        let subtractTwoEpochs = epochPred <=< epochPred
+        forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
+            latestGarbageCollectionEpoch <-
+                liftIO $ readIORef latestGarbageCollectionEpochRef
+            -- Only perform garbage collection once per epoch:
+            when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
+                liftIO $ do
+                    writeIORef
+                        latestGarbageCollectionEpochRef
+                        latestRetirementEpoch
+                    traceWith tr $
+                        MsgStakePoolGarbageCollection $
+                        PoolGarbageCollectionInfo
+                            {currentEpoch, latestRetirementEpoch}
+                void $ removeRetiredPools latestRetirementEpoch
+
+    -- For each pool certificate in the given list, add an entry to the
+    -- database that associates the certificate with the specified slot
+    -- number and the relative position of the certificate in the list.
+    --
+    -- The order of certificates within a slot is significant: certificates
+    -- that appear later take precedence over those that appear earlier on.
+    --
+    -- Precedence is determined by the 'readPoolLifeCycleStatus' function.
+    --
+    putPoolCertificates slot certificates = do
+        let publicationTimes =
+                CertificatePublicationTime slot <$> [minBound ..]
+        forM_ (publicationTimes `zip` certificates) $ \case
+            (publicationTime, Registration cert) -> do
+                liftIO $ traceWith tr $ MsgStakePoolRegistration cert
+                putPoolRegistration publicationTime cert
+            (publicationTime, Retirement cert) -> do
+                liftIO $ traceWith tr $ MsgStakePoolRetirement cert
+                putPoolRetirement publicationTime cert
 
 monitorMetadata
     :: Tracer IO StakePoolLog
@@ -582,12 +639,24 @@ data StakePoolLog
     | MsgHaltMonitoring
     | MsgCrashMonitoring
     | MsgRollingBackTo SlotNo
+    | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
     deriving (Show, Eq)
+
+data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
+    { currentEpoch :: EpochNo
+        -- ^ The current epoch at the point in time the garbage collector
+        -- was invoked.
+    , latestRetirementEpoch :: EpochNo
+        -- ^ The latest retirement epoch for which garbage collection will be
+        -- performed. The garbage collector will remove all pools that have an
+        -- active retirement epoch equal to or earlier than this epoch.
+    }
+    deriving (Eq, Show)
 
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where
@@ -597,6 +666,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgHaltMonitoring{} -> Info
         MsgCrashMonitoring{} -> Error
         MsgRollingBackTo{} -> Info
+        MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Info
         MsgStakePoolRetirement{} -> Info
         MsgErrProduction{} -> Error
@@ -621,6 +691,14 @@ instance ToText StakePoolLog where
             ]
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
+        MsgStakePoolGarbageCollection info -> mconcat
+            [ "Performing garbage collection of retired stake pools. "
+            , "Currently in epoch "
+            , toText (currentEpoch info)
+            , ". Removing all pools that retired in or before epoch "
+            , toText (latestRetirementEpoch info)
+            , "."
+            ]
         MsgStakePoolRegistration cert ->
             "Discovered stake pool registration: " <> pretty cert
         MsgStakePoolRetirement cert ->

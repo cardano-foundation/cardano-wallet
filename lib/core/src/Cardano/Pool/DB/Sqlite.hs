@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -49,6 +50,8 @@ import Cardano.Pool.DB.Log
     ( PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
+import Cardano.Wallet.Logging
+    ( bracketTracer )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch )
 import Cardano.Wallet.Primitive.Types
@@ -72,9 +75,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer (..), contramap, natTracer, traceWith )
 import Data.Either
     ( rights )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -181,12 +186,16 @@ newDBLayer trace fp timeInterpreter = do
             (contramap MsgGeneric trace)
             fp
     ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
-    return (ctx, DBLayer
-        { putPoolProduction = \point pool -> ExceptT $
+    pure (ctx, mkDBLayer runQuery)
+  where
+    mkDBLayer :: (forall a. SqlPersistT IO a -> IO a) -> DBLayer IO
+    mkDBLayer runQuery = DBLayer {..}
+      where
+        putPoolProduction point pool = ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
                 insert_ (mkPoolProduction pool point)
 
-        , readPoolProduction = \epoch -> do
+        readPoolProduction epoch = do
             production <- fmap fromPoolProduction
                 <$> selectPoolProduction timeInterpreter epoch
 
@@ -199,7 +208,7 @@ newDBLayer trace fp timeInterpreter = do
 
             pure (foldl' toMap Map.empty production)
 
-        , readTotalProduction = do
+        readTotalProduction = do
             production <- fmap entityVal <$>
                 selectList ([] :: [Filter PoolProduction]) []
 
@@ -208,21 +217,21 @@ newDBLayer trace fp timeInterpreter = do
 
             pure $ Map.map Quantity $ foldl' toMap Map.empty production
 
-        , putStakeDistribution = \epoch@(EpochNo ep) distribution -> do
+        putStakeDistribution epoch@(EpochNo ep) distribution = do
             deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
             insertMany_ (mkStakeDistribution epoch distribution)
 
-        , readStakeDistribution = \(EpochNo epoch) -> do
+        readStakeDistribution (EpochNo epoch) = do
             fmap (fromStakeDistribution . entityVal) <$> selectList
                 [ StakeDistributionEpoch ==. fromIntegral epoch ]
                 []
 
-        , readPoolLifeCycleStatus = \poolId ->
+        readPoolLifeCycleStatus poolId =
             determinePoolLifeCycleStatus
-                <$> readPoolRegistration_ poolId
-                <*> readPoolRetirement_ poolId
+                <$> readPoolRegistration poolId
+                <*> readPoolRetirement poolId
 
-        , putPoolRegistration = \cpt cert -> do
+        putPoolRegistration cpt cert = do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let poolId = view #poolId cert
             deleteWhere
@@ -251,9 +260,7 @@ newDBLayer trace fp timeInterpreter = do
                     (poolOwners cert)
                     [0..]
 
-        , readPoolRegistration = readPoolRegistration_
-
-        , putPoolRetirement = \cpt cert -> do
+        putPoolRetirement cpt cert = do
             let CertificatePublicationTime {slotNo, slotInternalIndex} = cpt
             let PoolRetirementCertificate
                     poolId (EpochNo retirementEpoch) = cert
@@ -264,9 +271,7 @@ newDBLayer trace fp timeInterpreter = do
                     slotInternalIndex
                     (fromIntegral retirementEpoch)
 
-        , readPoolRetirement = readPoolRetirement_
-
-        , unfetchedPoolMetadataRefs = \limit -> do
+        unfetchedPoolMetadataRefs limit = do
             let nLimit = T.pack (show limit)
             let poolId        = fieldName (DBField PoolRegistrationPoolId)
             let metadataHash  = fieldName (DBField PoolRegistrationMetadataHash)
@@ -316,7 +321,7 @@ newDBLayer trace fp timeInterpreter = do
 
             rights . fmap safeCast <$> rawSql query []
 
-        , putFetchAttempt = \(url, hash) -> do
+        putFetchAttempt (url, hash) = do
             -- NOTE
             -- assuming SQLite has the same notion of "now" that the host system.
             now <- liftIO getCurrentTime
@@ -337,24 +342,24 @@ newDBLayer trace fp timeInterpreter = do
                         (PoolMetadataFetchAttemptsKey hash url)
                         (PoolMetadataFetchAttempts hash url retryAfter $ retryCount + 1)
 
-        , putPoolMetadata = \hash metadata -> do
+        putPoolMetadata hash metadata = do
             let StakePoolMetadata{ticker,name,description,homepage} = metadata
             repsert
                 (PoolMetadataKey hash)
                 (PoolMetadata hash name ticker description homepage)
             deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
-        , readPoolMetadata = do
+        readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
                 <$> selectList [] []
 
-        , listRegisteredPools = do
+        listRegisteredPools = do
             fmap (poolRegistrationPoolId . entityVal) <$> selectList [ ]
                 [ Desc PoolRegistrationSlot
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        , listRetiredPools = \epochNo -> do
+        listRetiredPools epochNo = do
             let query = T.unwords
                     [ "SELECT *"
                     , "FROM active_pool_retirements"
@@ -367,7 +372,7 @@ newDBLayer trace fp timeInterpreter = do
                         <*> fromPersistValue retirementEpoch
             rights . fmap safeCast <$> rawSql query parameters
 
-        , rollbackTo = \point -> do
+        rollbackTo point = do
             -- TODO(ADP-356): What if the conversion blocks or fails?
             --
             -- Missing a rollback would be bad.
@@ -379,7 +384,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRetirementSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
-        , removePools = mapM_ $ \pool -> do
+        removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
             deleteWhere [ PoolProductionPoolId ==. pool ]
             deleteWhere [ PoolOwnerPoolId ==. pool ]
@@ -387,12 +392,26 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
 
-        , readPoolProductionCursor = \k -> do
+        removeRetiredPools epoch =
+            bracketTracer traceOuter action
+          where
+            action = listRetiredPools epoch >>= \retirementCerts -> do
+                traceInner retirementCerts
+                removePools (view #poolId <$> retirementCerts)
+                pure retirementCerts
+            traceOuter = trace
+                & natTracer liftIO
+                & contramap (MsgRemovingRetiredPoolsForEpoch epoch)
+            traceInner = liftIO
+                . traceWith trace
+                . MsgRemovingRetiredPools
+
+        readPoolProductionCursor k = do
             reverse . map (snd . fromPoolProduction . entityVal) <$> selectList
                 []
                 [Desc PoolProductionSlot, LimitTo k]
 
-        , readSystemSeed = do
+        readSystemSeed = do
             mseed <- selectFirst [] []
             case mseed of
                 Nothing -> do
@@ -402,7 +421,7 @@ newDBLayer trace fp timeInterpreter = do
                 Just seed ->
                     return $ seedSeed $ entityVal seed
 
-        , cleanDB = do
+        cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
@@ -411,10 +430,10 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
 
-        , atomically = runQuery
-        })
-    where
-        readPoolRegistration_ poolId = do
+        atomically :: forall a. (SqlPersistT IO a -> IO a)
+        atomically = runQuery
+
+        readPoolRegistration poolId = do
             result <- selectFirst
                 [ PoolRegistrationPoolId ==. poolId ]
                 [ Desc PoolRegistrationSlot
@@ -457,7 +476,7 @@ newDBLayer trace fp timeInterpreter = do
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
-        readPoolRetirement_ poolId = do
+        readPoolRetirement poolId = do
             result <- selectFirst
                 [ PoolRetirementPoolId ==. poolId ]
                 [ Desc PoolRetirementSlot

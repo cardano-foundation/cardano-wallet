@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -17,7 +16,6 @@ module Cardano.Pool.DB
 
       -- * Utilities
     , determinePoolLifeCycleStatus
-    , removeRetiredPools
 
       -- * Errors
     , ErrPointAlreadyExists (..)
@@ -25,10 +23,6 @@ module Cardano.Pool.DB
 
 import Prelude
 
-import Cardano.Pool.DB.Log
-    ( PoolDbLog (..) )
-import Cardano.Wallet.Logging
-    ( bracketTracer )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , CertificatePublicationTime (..)
@@ -45,11 +39,9 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Map.Strict
@@ -211,6 +203,19 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove all data relating to the specified pools.
 
+    , removeRetiredPools
+        :: EpochNo
+        -> stm [PoolRetirementCertificate]
+        -- ^ Remove all pools with an active retirement epoch that is earlier
+        --   than or equal to the specified epoch.
+        --
+        -- Returns the retirement certificates of the pools that were removed.
+        --
+        -- See also:
+        --
+        --    - 'listRetiredPools'.
+        --    - 'removePools'.
+
     , cleanDB
         :: stm ()
         -- ^ Clean a database
@@ -287,33 +292,6 @@ determinePoolLifeCycleStatus mReg mRet = case (mReg, mRet) of
             , " publication time of retirement certificate: "
             , show retTime
             ]
-
--- | Removes all pools with an active retirement epoch that is earlier than
---   or equal to the specified epoch.
---
--- Returns the retirement certificates of the pools that were removed.
---
--- See also:
---
---    - 'listRetiredPools'.
---    - 'removePools'.
---
-removeRetiredPools
-    :: DBLayer IO
-    -> Tracer IO PoolDbLog
-    -> EpochNo
-    -> IO [PoolRetirementCertificate]
-removeRetiredPools
-    DBLayer {atomically, listRetiredPools, removePools} trace epoch =
-        bracketTracer (contramap actionMessage trace) action
-  where
-    actionMessage = MsgRemovingRetiredPoolsForEpoch epoch
-
-    action = atomically $
-        listRetiredPools epoch >>= \retirementCerts -> do
-            liftIO $ traceWith trace $ MsgRemovingRetiredPools retirementCerts
-            removePools (view #poolId <$> retirementCerts)
-            pure retirementCerts
 
 -- | Forbidden operation was executed on an already existing slot
 newtype ErrPointAlreadyExists

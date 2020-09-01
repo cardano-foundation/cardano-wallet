@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -58,6 +60,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
     ( Identity )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Tuple
     ( swap )
 
@@ -66,79 +70,83 @@ import Data.Tuple
 newDBLayer :: TimeInterpreter Identity -> IO (DBLayer IO)
 newDBLayer timeInterpreter = do
     db <- newMVar emptyPoolDatabase
-    let readPoolRegistration_ =
+    pure $ mkDBLayer db
+  where
+    mkDBLayer db = DBLayer {..}
+      where
+        readPoolRegistration =
             readPoolDB db . mReadPoolRegistration
-    let readPoolRetirement_ =
-            readPoolDB db . mReadPoolRetirement
-    return $ DBLayer
 
-        { putPoolProduction = \sl pool -> ExceptT $ do
+        readPoolRetirement =
+            readPoolDB db . mReadPoolRetirement
+
+        putPoolProduction sl pool = ExceptT $
             pool `deepseq`
                 alterPoolDB errPointAlreadyExists db (mPutPoolProduction sl pool)
 
-        , readPoolProduction =
+        readPoolProduction =
             readPoolDB db . mReadPoolProduction timeInterpreter
 
-        , readTotalProduction =
+        readTotalProduction =
             readPoolDB db mReadTotalProduction
 
-        , putStakeDistribution = \a0 a1 ->
+        putStakeDistribution a0 a1 =
             void $ alterPoolDB (const Nothing) db (mPutStakeDistribution a0 a1)
 
-        , readStakeDistribution =
+        readStakeDistribution =
             readPoolDB db . mReadStakeDistribution
 
-        , readPoolProductionCursor =
+        readPoolProductionCursor =
             readPoolDB db . mReadCursor
 
-        , putPoolRegistration = \cpt cert -> void
+        putPoolRegistration cpt cert = void
               $ alterPoolDB (const Nothing) db
               $ mPutPoolRegistration cpt cert
 
-        , readPoolLifeCycleStatus = \poolId ->
+        readPoolLifeCycleStatus poolId =
             determinePoolLifeCycleStatus
-                <$> readPoolRegistration_ poolId
-                <*> readPoolRetirement_ poolId
+                <$> readPoolRegistration poolId
+                <*> readPoolRetirement poolId
 
-        , readPoolRegistration = readPoolRegistration_
-
-        , putPoolRetirement = \cpt cert -> void
+        putPoolRetirement cpt cert = void
             $ alterPoolDB (const Nothing) db
             $ mPutPoolRetirement cpt cert
 
-        , readPoolRetirement = readPoolRetirement_
-
-        , unfetchedPoolMetadataRefs =
+        unfetchedPoolMetadataRefs =
             readPoolDB db . mUnfetchedPoolMetadataRefs
 
-        , putFetchAttempt =
+        putFetchAttempt =
             void . alterPoolDB (const Nothing) db . mPutFetchAttempt
 
-        , listRegisteredPools =
+        listRegisteredPools =
             modifyMVar db (pure . swap . mListRegisteredPools)
 
-        , listRetiredPools = \epochNo ->
+        listRetiredPools epochNo =
             modifyMVar db (pure . swap . mListRetiredPools epochNo)
 
-        , putPoolMetadata = \a0 a1 ->
+        putPoolMetadata a0 a1 =
             void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)
 
-        , readSystemSeed =
+        readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)
 
-        , rollbackTo =
+        rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo timeInterpreter
 
-        , removePools =
+        removePools =
             void . alterPoolDB (const Nothing) db . mRemovePools
 
-        , cleanDB =
+        removeRetiredPools epoch =
+            listRetiredPools epoch >>= \retirementCerts -> do
+                removePools (view #poolId <$> retirementCerts)
+                pure retirementCerts
+
+        cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanPoolProduction
 
-        , readPoolMetadata = readPoolDB db mReadPoolMetadata
+        readPoolMetadata = readPoolDB db mReadPoolMetadata
 
-        , atomically = id
-        }
+        atomically = id
 
 alterPoolDB
     :: (PoolErr -> Maybe err)
