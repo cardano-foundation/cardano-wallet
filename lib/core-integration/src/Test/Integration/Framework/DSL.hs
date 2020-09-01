@@ -1622,7 +1622,7 @@ postTransactionViaCLI ctx passphrase args = do
     withCreateProcess process $
         \(Just stdin) (Just stdout) (Just stderr) h -> do
             putStrLn "entered withCreateProcess"
-            hPutStr stdin (passphrase ++ "\r\n")
+            hPutStr stdin (passphrase ++ "\n")
             putStrLn "ran hPutStr"
             hFlush stdin
             putStrLn "ran hFlush"
