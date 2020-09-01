@@ -172,19 +172,19 @@ spec = do
             monitor (counterexample $ show fragment')
 
             case fragment' of
-                Transaction (Tx _ inps outs _) -> do
+                Transaction (Tx _ inps outs _ _) -> do
                     monitor (QC.label "Transaction")
                     assert (inps == fragmentInputs test)
                     assert (outs == fragmentOutputs test)
 
-                StakeDelegation (DlgFull poolId, accountId, (Tx _ inps outs _)) -> do
+                StakeDelegation (DlgFull poolId, accountId, (Tx _ inps outs _ _)) -> do
                     monitor (QC.label "StakeDelegation (Full)")
                     assert (inps == fragmentInputs test)
                     assert (outs == fragmentOutputs test)
                     assert (Just accountId == fragmentAccountId test)
                     assert (Just poolId == fragmentPoolId test)
 
-                StakeDelegation (DlgNone, accountId, (Tx _ inps outs _)) -> do
+                StakeDelegation (DlgNone, accountId, (Tx _ inps outs _ _)) -> do
                     monitor (QC.label "StakeDelegation (None)")
                     assert (inps == fragmentInputs test)
                     assert (outs == fragmentOutputs test)
@@ -213,7 +213,7 @@ spec = do
 
             runGet getFragment (BL.fromStrict tx)
                 `shouldBe`
-                PoolRegistration (poolId', [owner], taxes, Tx txId' [] [] mempty)
+                PoolRegistration (poolId', [owner], taxes, Tx txId' [] [] mempty Nothing)
 
     describe "Decode External Tx" $ do
         let tl = newTransactionLayer @JormungandrKey (Hash "genesis")
@@ -234,7 +234,7 @@ spec = do
                         case decodeSignedTx tl bytes of
                             Left err ->
                                 run $ expectationFailure $ show err
-                            Right (tx@(Tx _ inps outs _), SealedTx bytes') -> do
+                            Right (tx@(Tx _ inps outs _ _), SealedTx bytes') -> do
                                 monitor (counterexample $ show tx)
                                 assert (inps == fragmentInputs test)
                                 assert (outs == fragmentOutputs test)

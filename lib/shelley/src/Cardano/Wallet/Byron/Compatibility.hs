@@ -246,7 +246,7 @@ genesisBlockFromTxOuts gp outs = W.Block
     }
   where
     mkTx out@(W.TxOut (W.Address bytes) _) =
-        W.Tx (W.Hash $ blake2b256 bytes) [] [out] mempty
+        W.Tx (W.Hash $ blake2b256 bytes) [] [out] mempty Nothing
 
 --------------------------------------------------------------------------------
 --
@@ -370,6 +370,9 @@ fromTxAux txAux = case taTx txAux of
 
         , withdrawals =
             mempty
+
+        , metadata =
+            Nothing
         }
 
 fromTxIn :: TxIn -> W.TxIn

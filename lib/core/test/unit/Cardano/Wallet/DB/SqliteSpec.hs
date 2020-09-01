@@ -603,6 +603,7 @@ fileModeSpec =  do
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
                                 [ TxOut (fst $ head ourAddrs) (Coin 4) ]
                                 mempty
+                                Nothing
                             ]
 
                 -- Slot 1 0
@@ -618,6 +619,7 @@ fileModeSpec =  do
                                 , TxOut (fst $ ourAddrs !! 1) (Coin 2)
                                 ]
                                 mempty
+                                Nothing
                             ]
 
                 -- Slot 300
@@ -856,6 +858,7 @@ testTxs =
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (Coin 1) ]
         mempty
+        Nothing
       , TxMeta InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144)
       )
     ]

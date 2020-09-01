@@ -132,6 +132,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMetadata
     , TxOut (..)
     , TxParameters (..)
     , TxStatus
@@ -840,6 +841,9 @@ instance ToExpr Tx where
 
 instance ToExpr TxIn where
     toExpr = genericToExpr
+
+instance ToExpr TxMetadata where
+    toExpr = defaultExprViaShow
 
 instance ToExpr Coin where
     toExpr = genericToExpr

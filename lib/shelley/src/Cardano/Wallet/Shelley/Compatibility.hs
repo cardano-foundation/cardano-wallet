@@ -608,6 +608,7 @@ fromGenesisData g initialFunds =
             []
             [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
             mempty
+            Nothing
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
                 SL.initialFundsPseudoTxIn @crypto addr
@@ -690,12 +691,13 @@ fromShelleyTx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
        )
-fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ _) =
+fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd) =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
+        (Cardano.TxMetadata <$> SL.strictMaybeToMaybe mmd)
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )

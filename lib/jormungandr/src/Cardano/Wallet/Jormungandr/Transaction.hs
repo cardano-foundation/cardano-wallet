@@ -147,6 +147,7 @@ newTransactionLayer block0H = TransactionLayer
                 , resolvedInputs = inps
                 , outputs = outs
                 , withdrawals = mempty
+                , metadata = Nothing
                 }
             , finalizeFragment fragment
             )
