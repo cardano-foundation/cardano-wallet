@@ -1,3 +1,5 @@
+# How to build
+
 ## Stack build (recommended)
 
 Use [Haskell Stack](https://haskellstack.org/) to build this project:
@@ -135,3 +137,20 @@ Enable the `release` Cabal flag to disallow compiler warnings and get build opti
 ```
 cabal new-configure -frelease --enable-tests --enable-benchmarks
 ```
+
+# Build system maintenance
+
+Stack, nix and cabal need to be in sync. The primary source of truth is the stack configuration.
+
+## Syncing cabal with stack
+
+1. Run [stack2cabal](http://hackage.haskell.org/package/stack2cabal)
+2. Disable tests and benchmarks of local packages
+   (those specified via source-repository-package...
+   this won't be needed with cabal-3.4 anymore, because it won't treat
+   them as local anymore)
+3. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
+   in `stack.yaml`, which are specified as git repositories might
+   have different versions than the stack resolver. `stack2cabal`
+   cannot pick these up, so these must be adjusted manually (or deleted) in
+   `cabal.project.freeze` (at the time of writing: http-client and persistent).
