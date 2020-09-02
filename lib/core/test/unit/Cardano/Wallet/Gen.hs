@@ -219,7 +219,7 @@ shrinkMetaDatum (MD.Map xs) =
         ((k,) <$> shrinkMetaDatum v) ++
         ((,v) <$> shrinkMetaDatum k)
 shrinkMetaDatum (MD.List xs) =
-    MD.List <$> filter ((>= 1) . length) (shrinkList shrinkMetaDatum xs)
+    MD.List <$> filter (not . null) (shrinkList shrinkMetaDatum xs)
 shrinkMetaDatum (MD.I i) = MD.I <$> shrink i
 shrinkMetaDatum (MD.B b) = MD.B <$> shrinkByteString b
 shrinkMetaDatum (MD.S s) = MD.S <$> shrinkMap T.pack T.unpack s
