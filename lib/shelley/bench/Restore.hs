@@ -199,7 +199,7 @@ cardanoRestoreBench tr c socketFile = do
             np
             vData
             "seq.timelog"
-            (walletSeq "Seq Empty Wallet" $ mkSeqState networkProxy)
+            (walletSeq "Seq 0% Wallet" $ mkSeqState networkProxy)
 
         , bench_restoration @_ @ByronKey
             networkProxy
@@ -208,7 +208,7 @@ cardanoRestoreBench tr c socketFile = do
             np
             vData
             "rnd.timelog"
-            (walletRnd "Rnd Empty Wallet" mkRndState)
+            (walletRnd "Rnd 0% Wallet" mkRndState)
 
         , bench_restoration @_ @ByronKey
             networkProxy
@@ -321,7 +321,7 @@ cardanoRestoreBench tr c socketFile = do
 -------------------------------------------------------------------------------}
 
 data BenchResults = BenchResults
-    { qualifier :: Text
+    { benchName :: Text
     , restorationTime :: Time
     , listingAddressesTime :: Time
     , estimatingFeesTime :: Time
@@ -402,7 +402,7 @@ bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, 
 
                 unsafeRunExceptT $ W.deleteWallet w wid
                 pure BenchResults
-                    { qualifier = getWalletName wname
+                    { benchName = getWalletName wname
                     , restorationTime
                     , listingAddressesTime
                     , estimatingFeesTime
