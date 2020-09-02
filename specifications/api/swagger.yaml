@@ -583,7 +583,6 @@ x-transactionMetadata: &transactionMetadata
 
   type: object
   nullable: true
-  minProperties: 1
   additionalProperties:
     $ref: "#/components/schemas/TransactionMetadatum"
   # Note: propertyNames pattern not supported in current OpenAPI version.
