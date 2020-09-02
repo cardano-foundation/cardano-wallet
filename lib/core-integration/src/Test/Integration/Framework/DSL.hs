@@ -1636,9 +1636,15 @@ postTransactionViaCLI ctx passphrase args = do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
             hClose stdin
-            c <- waitForProcess h
             out <- TIO.hGetContents stdout
             err <- TIO.hGetContents stderr
+            -- For some reason, when 
+            -- - waitForProcess is called before hGetContents 
+            -- - os is windows
+            -- - postTransactionViaCLI was called with >= 5 outputs
+            -- waitForProcess blocks indefinetely. Hence we call waitForProcess
+            -- last. 
+            c <- waitForProcess h
             return (c, T.unpack out, err)
 
 postTransactionFeeViaCLI
