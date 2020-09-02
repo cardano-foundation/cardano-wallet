@@ -129,7 +129,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubToBytes )
 import Cardano.Api.MetaData
-    ( jsonFromMetadata, jsonToMetadata )
+    ( jsonFromMetadata, jsonToMetadata, renderMetaDataJsonConversionError )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -700,6 +700,7 @@ data ApiErrorCode
     | AlreadyWithdrawing
     | WithdrawalNotWorth
     | PastHorizon
+    | TransactionTooLarge
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -1241,7 +1242,10 @@ instance
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT TxMetadata) where
-    parseJSON = fmap ApiT . eitherToParser . jsonToMetadata
+    parseJSON = fmap ApiT . either (fail . prettyError) pure . jsonToMetadata
+      where
+        prettyError = T.unpack . renderMetaDataJsonConversionError
+
 instance ToJSON (ApiT TxMetadata) where
     toJSON = jsonFromMetadata . getApiT
 

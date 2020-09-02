@@ -63,6 +63,7 @@ module Test.Integration.Framework.TestData
     , errMsg409WalletExists
     , errMsg403TxTooBig
     , errMsg400MalformedTxPayload
+    , errMsg400TxMetadataStringTooLong
     , errMsg400WronglyEncodedTxPayload
     , errMsg400ParseError
     , errMsg403ZeroAmtOutput
@@ -78,6 +79,7 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
     , errMsg403InputsDepleted
+    , errMsg400TxTooLarge
     ) where
 
 import Prelude
@@ -320,6 +322,14 @@ errMsg400MalformedTxPayload =
 errMsg400WronglyEncodedTxPayload :: String
 errMsg400WronglyEncodedTxPayload =
     "Parse error. Expecting hex-encoded format."
+
+errMsg400TxMetadataStringTooLong :: String
+errMsg400TxMetadataStringTooLong =
+    "Error in $.metadata: JSON string is longer than 64 bytes"
+
+errMsg400TxTooLarge :: String
+errMsg400TxTooLarge =
+    "I am afraid that the transaction you're trying to submit is too large!"
 
 errMsg400ParseError :: String
 errMsg400ParseError = mconcat

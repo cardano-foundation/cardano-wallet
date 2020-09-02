@@ -155,6 +155,7 @@ module Cardano.Wallet
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
+    , ErrTxTooLarge (..)
     , ErrRemovePendingTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
@@ -297,7 +298,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
-    , SealedTx
+    , SealedTx (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
@@ -955,7 +956,8 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
     tl = ctx ^. transactionLayer @t @k
 
     minFee :: FeePolicy -> CoinSelection -> Integer
-    minFee policy = fromIntegral . getFee . minimumFee tl policy Nothing
+    minFee policy =
+        fromIntegral . getFee . minimumFee tl policy Nothing Nothing
 
 readChimericAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1194,11 +1196,12 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 feeOpts
     :: TransactionLayer t k
     -> Maybe DelegationAction
+    -> Maybe TxMetadata
     -> W.TxParameters
     -> W.Coin
     -> FeeOptions
-feeOpts tl action txp minUtxo = FeeOptions
-    { estimateFee = minimumFee tl feePolicy action
+feeOpts tl action md txp minUtxo = FeeOptions
+    { estimateFee = minimumFee tl feePolicy action md
     , dustThreshold = minUtxo
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     , feeUpperBound = Fee
@@ -1225,8 +1228,9 @@ selectCoinsForPayment
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
+    -> Maybe TxMetadata
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPayment ctx wid recipients withdrawal = do
+selectCoinsForPayment ctx wid recipients withdrawal md = do
     (utxo, pending, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
@@ -1235,7 +1239,7 @@ selectCoinsForPayment ctx wid recipients withdrawal = do
         ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
 
     cs <-
-        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
     pure cs
@@ -1271,14 +1275,15 @@ selectCoinsForPaymentFromUTxO
     -> W.Coin
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
+    -> Maybe TxMetadata
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
-selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal = do
+selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients withdrawal utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing txp minUtxo
+    let feePolicy = feeOpts tl Nothing md txp minUtxo
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1316,7 +1321,7 @@ selectCoinsForDelegationFromUTxO
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
-    let feePolicy = feeOpts tl (Just action) txp minUtxo
+    let feePolicy = feeOpts tl (Just action) Nothing txp minUtxo
     let sel = initDelegationSelection tl (txp ^. #getFeePolicy) action
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
@@ -1396,8 +1401,8 @@ selectCoinsForMigrationFromUTxO
         )
 selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl Nothing txp minBound)
-            { estimateFee = minimumFee tl feePolicy Nothing . worstCase
+    let feeOptions = (feeOpts tl Nothing Nothing txp minBound)
+            { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
             , dustThreshold = max (Coin $ ceiling a) minUtxo
             }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
@@ -1453,13 +1458,13 @@ estimateFeeForPayment
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
+    -> Maybe TxMetadata
     -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
-estimateFeeForPayment ctx wid recipients withdrawal = do
+estimateFeeForPayment ctx wid recipients withdrawal md = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    let selectCoins =
-            selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal
+    let selectCoins = selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
 
     cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
@@ -1621,10 +1626,11 @@ selectCoinsExternal
     -> ArgGenChange s
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
+    -> Maybe TxMetadata
     -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
-selectCoinsExternal ctx wid argGenChange payments withdrawal = do
+selectCoinsExternal ctx wid argGenChange payments withdrawal md = do
     cs <- withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
-        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments withdrawal
+        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments withdrawal md
     cs' <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
@@ -1778,12 +1784,31 @@ submitTx
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ postTx nw binary
+    txp <- withExceptT ErrSubmitTxNoSuchWallet $
+        txParameters <$> readWalletProtocolParameters @ctx @s @k ctx wid
+    withExceptT ErrSubmitTxTooLarge $
+        guardTransactionSize txp binary
+    withExceptT ErrSubmitTxNetwork  $
+        postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
+
+guardTransactionSize
+    :: Monad m
+    => W.TxParameters
+    -> SealedTx
+    -> ExceptT ErrTxTooLarge m ()
+guardTransactionSize txp (SealedTx bytes) = do
+    let currentSize = Quantity $ BS.length bytes
+    let maxSize = fromIntegral <$> W.getTxMaxSize txp
+    when (currentSize > maxSize) $
+        throwE $ ErrTxTooLarge
+            { tooLargeCurrentSize = currentSize
+            , tooLargeMaximumSize = maxSize
+            }
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
@@ -2195,7 +2220,13 @@ data ErrSignPayment
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    | ErrSubmitTxTooLarge ErrTxTooLarge
     deriving (Show, Eq)
+
+data ErrTxTooLarge = ErrTxTooLarge
+    { tooLargeCurrentSize :: Quantity "byte" Int
+    , tooLargeMaximumSize :: Quantity "byte" Int
+    } deriving (Show, Eq)
 
 -- | Errors that can occur when submitting an externally-signed transaction
 --   to the network.

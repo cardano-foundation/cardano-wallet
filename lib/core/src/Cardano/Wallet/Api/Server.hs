@@ -128,6 +128,7 @@ import Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
+    , ErrTxTooLarge (..)
     , ErrUTxOTooSmall (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -1118,7 +1119,7 @@ selectCoins ctx gen (ApiT wid) body =
         -- Allow representing withdrawals as part of external coin selections.
         let withdrawal = Quantity 0
         let outs = coerceCoin <$> body ^. #payments
-        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
+        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal Nothing
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1249,7 +1250,7 @@ postTransaction ctx genChange (ApiT wid) body = do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (wdrl, const (xprv, mempty))
 
-        selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl
+        selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl md
         pure (selection, credentials)
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1357,8 +1358,7 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> body ^. #payments
-    -- fixme: #2075 include metadata in fee calculation
-    let _md = getApiT <$> body ^. #metadata
+    let md = getApiT <$> body ^. #metadata
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wdrl <- case body ^. #withdrawal of
@@ -1375,7 +1375,7 @@ postTransactionFee ctx (ApiT wid) body = do
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid wdrl
 
-        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs wdrl
+        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs wdrl md
         pure $ apiFee fee
 
 joinStakePool
@@ -2296,6 +2296,7 @@ instance LiftHandler ErrPostTx where
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> handler e
+        ErrSubmitTxTooLarge e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -2492,6 +2493,17 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "account that is either empty or doesn't have a balance big "
                 , "enough to deserve being withdrawn. I won't proceed with that "
                 , "request."
+                ]
+
+instance LiftHandler ErrTxTooLarge where
+    handler = \case
+        ErrTxTooLarge {tooLargeCurrentSize, tooLargeMaximumSize}  ->
+            apiError err400 TransactionTooLarge $ mconcat
+                [ "I am afraid that the transaction you're trying to submit is "
+                , "too large! It weights ", pretty tooLargeCurrentSize, "s "
+                , "but the network currently allows only ", pretty tooLargeMaximumSize
+                , "s! Likely, this is because you've added some metadata that "
+                , "are too large."
                 ]
 
 instance LiftHandler (Request, ServerError) where
