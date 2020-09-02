@@ -114,12 +114,20 @@ data TransactionLayer t k = TransactionLayer
         -- accordingly.
 
     , minimumFee
-        :: FeePolicy -> Maybe DelegationAction -> CoinSelection -> Fee
+        :: FeePolicy
+        -> Maybe DelegationAction
+        -> Maybe TxMetadata
+        -> CoinSelection
+        -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
         -- coin-selection.
 
     , estimateMaxNumberOfInputs
-        :: Quantity "byte" Word16 -> Word8 -> Word8
+        :: Quantity "byte" Word16
+            -- Max tx size
+        -> Word8
+            -- desired number of outputs
+        -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
         -- transaction size and desired number of outputs.
         --
