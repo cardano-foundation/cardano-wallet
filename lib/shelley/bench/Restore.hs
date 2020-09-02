@@ -398,7 +398,7 @@ bench_restoration proxy tracer socketPath np vData progressLogFile (wid, wname, 
                 (_, estimatingFeesTime) <- bench "estimate tx fee" $ do
                     let out = TxOut (dummyAddress @n) (Coin 1)
                     runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
-                        w wid (out :| []) (Quantity 0)
+                        w wid (out :| []) (Quantity 0) Nothing
 
                 unsafeRunExceptT $ W.deleteWallet w wid
                 pure BenchResults
