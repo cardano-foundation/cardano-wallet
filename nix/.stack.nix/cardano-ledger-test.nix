@@ -39,7 +39,6 @@
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."byron-spec-chain" or (errorHandler.buildDepError "byron-spec-chain"))
           (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
@@ -48,8 +47,6 @@
           (hsPkgs."generic-monoid" or (errorHandler.buildDepError "generic-monoid"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
           (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
           (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."small-steps-test" or (errorHandler.buildDepError "small-steps-test"))
@@ -66,8 +63,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "0715d2047b3d23e8b75b8430bddf391799c4669d";
-      sha256 = "0l2xlgqix9r376z11rsiws0990b64iw9hvmx94c5p7x9jsyz858q";
+      rev = "74188f62ff743c690bdf287f7fa18eaa2ee354d4";
+      sha256 = "1asc4pgkspqlrg67jykz7h1i9wqf4ms1q1gxllcr3dpa566zdc5q";
       });
     postUnpack = "sourceRoot+=/byron/ledger/impl/test; echo source root reset to \$sourceRoot";
     }

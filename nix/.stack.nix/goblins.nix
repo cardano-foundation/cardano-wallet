@@ -11,7 +11,7 @@
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "goblins"; version = "0.1.0.0"; };
+      identifier = { name = "goblins"; version = "0.2.0.0"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "nick@topos.org.uk";
@@ -63,7 +63,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/goblins";
-      rev = "312198a1523736181ef7ddab15958bb32a9d9052";
-      sha256 = "1w1b3g1s64rv4glrj416v1jmwnqhlz1zcqmz2y813jgs4d32m27k";
+      rev = "cde90a2b27f79187ca8310b6549331e59595e7ba";
+      sha256 = "17c88rbva3iw82yg9srlxjv2ia5wjb9cyqw44hik565f5v9svnyg";
       });
     }
