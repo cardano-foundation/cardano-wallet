@@ -331,6 +331,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
     ( Exception, try )
 import Control.Monad
@@ -1192,14 +1194,21 @@ coinSelOpts tl txMaxSize = CoinSelectionOptions
 feeOpts
     :: TransactionLayer t k
     -> Maybe DelegationAction
-    -> FeePolicy
+    -> W.TxParameters
     -> W.Coin
     -> FeeOptions
-feeOpts tl action feePolicy minUtxo = FeeOptions
+feeOpts tl action txp minUtxo = FeeOptions
     { estimateFee = minimumFee tl feePolicy action
     , dustThreshold = minUtxo
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
+    , feeUpperBound = Fee
+        $ ceiling a
+        + ceiling b * fromIntegral txMaxSize
+        + getCoin minUtxo
     }
+  where
+    feePolicy@(LinearFee (Quantity a) (Quantity b) _) = W.getFeePolicy txp
+    Quantity txMaxSize = W.getTxMaxSize txp
 
 -- | Prepare a transaction and automatically select inputs from the
 -- wallet to cover the requested outputs. Note that this only runs
@@ -1269,7 +1278,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal = do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
         CoinSelection.random opts recipients withdrawal utxo
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing (txp ^. #getFeePolicy) minUtxo
+    let feePolicy = feeOpts tl Nothing txp minUtxo
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1307,7 +1316,7 @@ selectCoinsForDelegationFromUTxO
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
-    let feePolicy = feeOpts tl (Just action) (txp ^. #getFeePolicy) minUtxo
+    let feePolicy = feeOpts tl (Just action) txp minUtxo
     let sel = initDelegationSelection tl (txp ^. #getFeePolicy) action
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
@@ -1387,12 +1396,9 @@ selectCoinsForMigrationFromUTxO
         )
 selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = FeeOptions
+    let feeOptions = (feeOpts tl Nothing txp minBound)
             { estimateFee = minimumFee tl feePolicy Nothing . worstCase
             , dustThreshold = max (Coin $ ceiling a) minUtxo
-            , onDanglingChange = if allowUnbalancedTx tl
-                then SaveMoney
-                else PayAndBalance
             }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
     let previousDistribution = W.computeUtxoStatistics W.log10 utxo
@@ -1460,7 +1466,7 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
         guardCoinSelection minUtxo cs
 
     estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
-        `catchE` handleCannotCover utxo recipients
+        `catchE` handleCannotCover utxo withdrawal recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
 -- whereas clients are just asking for an estimation. Therefore, we convert
@@ -1469,13 +1475,19 @@ estimateFeeForPayment ctx wid recipients withdrawal = do
 handleCannotCover
     :: Monad m
     => UTxO
+    -> Quantity "lovelace" Word64
     -> NonEmpty TxOut
     -> ErrSelectForPayment e
     -> ExceptT (ErrSelectForPayment e) m Fee
-handleCannotCover utxo outs = \case
+handleCannotCover utxo (Quantity withdrawal) outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
-        let available = fromIntegral (W.balance utxo) - sum (getCoin . coin <$> outs)
-        pure $ Fee $ available + missing
+        let available
+                = fromIntegral (W.balance utxo)
+                + fromIntegral withdrawal
+        let payment
+                = sum (getCoin . coin <$> outs)
+        pure $ Fee $
+            available + missing - payment
     e ->
         throwE e
 
@@ -1988,7 +2000,9 @@ data FeeEstimation = FeeEstimation
     -- ^ Most coin selections will result in a fee higher than this.
     , estMaxFee :: Word64
     -- ^ Most coin selections will result in a fee lower than this.
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
+
+instance NFData FeeEstimation
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
 -- repeatedly running it (100 times) and collecting the results. In the returned

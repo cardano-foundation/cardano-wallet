@@ -57,6 +57,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , SeqState (..)
     , mkSeqStateFromRootXPrv
     , mkSeqStateFromAccountXPub
+
+    -- ** Benchmarking
+    , SeqAnyState (..)
+    , mkSeqAnyState
     ) where
 
 import Prelude
@@ -87,7 +91,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, AddressState (..), invariant )
+    ( Address (..), AddressState (..), ChimericAccount (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -96,6 +100,8 @@ import Control.Monad
     ( unless )
 import Data.Bifunctor
     ( first )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Function
     ( (&) )
 import Data.Map.Strict
@@ -118,6 +124,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import GHC.TypeLits
+    ( KnownNat, Nat, natVal )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -718,3 +726,113 @@ instance
                 addresses (liftPaymentAddress @n @k) (externalPool s)
         in
             nonChangeAddresses <> changeAddresses
+
+--------------------------------------------------------------------------------
+--
+-- SeqAnyState
+--
+-- For benchmarking and testing arbitrary large sequential wallets.
+
+-- | An "unsound" alternative that can be used for benchmarking and stress
+-- testing. It re-uses the same underlying structure as the `SeqState` but
+-- it discovers addresses based on an arbitrary ratio instead of respecting
+-- BIP-44 discovery.
+--
+-- The proportion is stored as a type-level parameter so that we don't have to
+-- alter the database schema to store it. It simply exists and depends on the
+-- caller creating the wallet to define it.
+newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) = SeqAnyState
+    { innerState :: SeqState network key
+    } deriving (Generic)
+
+deriving instance
+    ( Show (k 'AccountK XPub)
+    , Show (k 'AddressK XPub)
+    , Show (KeyFingerprint "payment" k)
+    ) => Show (SeqAnyState n k p)
+
+instance
+    ( NFData (k 'AccountK XPub)
+    , NFData (k 'AddressK XPub)
+    , NFData (KeyFingerprint "payment" k)
+    )
+    => NFData (SeqAnyState n k p)
+
+-- | Initialize the HD random address discovery state from a root key and RNG
+-- seed.
+--
+-- The type parameter is expected to be a ratio of addresses we ought to simply
+-- recognize as ours. It is expressed in tenths of percent, so "1" means 0.1%,
+-- "10" means 1% and 1000 means 100%.
+mkSeqAnyState
+    :: forall (p :: Nat) n k.
+        ( SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        )
+    => (k 'RootK XPrv, Passphrase "encryption")
+    -> AddressPoolGap
+    -> SeqAnyState n k p
+mkSeqAnyState credentials poolGap = SeqAnyState
+    { innerState = mkSeqStateFromRootXPrv credentials poolGap
+    }
+
+instance
+    ( SoftDerivation k
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , KnownNat p
+    ) => IsOurs (SeqAnyState n k p) Address
+  where
+    isOurs (Address bytes) st@(SeqAnyState inner)
+        | crc32 bytes < p =
+            let
+                edge = Map.size (indexedKeys $ externalPool inner)
+                ix = toEnum (edge - fromEnum (gap $ externalPool inner))
+                pool' = extendAddressPool @n ix (externalPool inner)
+            in
+                (True, SeqAnyState (inner { externalPool = pool' }))
+        | otherwise =
+            (False, st)
+      where
+        p = floor (double sup * double (natVal (Proxy @p)) / 1000)
+          where
+            sup = maxBound :: Word32
+
+        double :: Integral a => a -> Double
+        double = fromIntegral
+
+instance IsOurs (SeqAnyState n k p) ChimericAccount
+  where
+    isOurs _account state = (False, state)
+
+instance
+    ( SoftDerivation k
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , AddressIndexDerivationType k ~ 'Soft
+    , KnownNat p
+    ) => IsOwned (SeqAnyState n k p) k
+  where
+    isOwned _ _ _ = Nothing
+
+instance
+    ( SoftDerivation k
+    ) => GenChange (SeqAnyState n k p)
+  where
+    type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
+    genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
+
+instance
+    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , SoftDerivation k
+    ) => CompareDiscovery (SeqAnyState n k p)
+  where
+    compareDiscovery (SeqAnyState s) = compareDiscovery s
+
+instance
+    ( PaymentAddress n k
+    ) => KnownAddresses (SeqAnyState n k p)
+  where
+    knownAddresses (SeqAnyState s) = knownAddresses s

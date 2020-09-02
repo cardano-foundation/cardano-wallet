@@ -598,6 +598,7 @@ prop_rebalanceSelection sel onDangling threshold = do
 
         , dustThreshold = threshold'
         , onDanglingChange = onDangling
+        , feeUpperBound = Fee maxBound
         }
 
     reserveNonNull =
@@ -622,6 +623,8 @@ feeOptions fee dust = FeeOptions
         Coin dust
     , onDanglingChange =
         PayAndBalance
+    , feeUpperBound =
+        Fee maxBound
     }
 
 feeUnitTest
@@ -847,7 +850,8 @@ instance Arbitrary FeeOptions where
                     $ c + a * (length (inputs s) + length (outputs s))
             , dustThreshold = Coin t
             , onDanglingChange = PayAndBalance
+            , feeUpperBound = Fee maxBound
             }
 
 instance Show FeeOptions where
-    show (FeeOptions _ dust onDangling) = show (dust, onDangling)
+    show (FeeOptions _ dust onDangling maxFee) = show (dust, onDangling, maxFee)

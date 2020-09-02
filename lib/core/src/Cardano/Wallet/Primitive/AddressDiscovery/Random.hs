@@ -304,9 +304,9 @@ instance NFData (RndAnyState n p)
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
 --
--- The type parameter is expected to be a ratio (between 0 and 100) of addresses
--- we ought to simply recognize as ours. So, giving @5 means that 5% of the
--- entire address space of the network will be considered ours, picked randomly.
+-- The type parameter is expected to be a ratio of addresses we ought to simply
+-- recognize as ours. It is expressed in tenths of percent, so "1" means 0.1%,
+-- "10" means 1% and 1000 means 100%.
 mkRndAnyState
     :: forall (p :: Nat) n. ()
     => ByronKey 'RootK XPrv
@@ -341,7 +341,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
             (False, _) ->
                 (False, st)
       where
-        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 100)
+        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 1000)
 
         double :: Integral a => a -> Double
         double = fromIntegral
@@ -352,18 +352,12 @@ instance IsOurs (RndAnyState n p) ChimericAccount where
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
     isOwned _ _ _ = Nothing
 
-instance GenChange (RndAnyState n p) where
-    type ArgGenChange (RndAnyState n p) = ()
-    genChange _ = error
-        "GenChange.genChange: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+instance PaymentAddress n ByronKey => GenChange (RndAnyState n p) where
+    type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
+    genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 
 instance CompareDiscovery (RndAnyState n p) where
-    compareDiscovery _ _ _ = error
-        "CompareDiscovery.compareDiscovery: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+    compareDiscovery (RndAnyState s) = compareDiscovery s
 
 instance KnownAddresses (RndAnyState n p) where
-    knownAddresses _ = error
-        "KnownAddresses.knownAddresses: trying to generate change for \
-        \an incompatible scheme '(RndAnyState n p)'. Please don't."
+    knownAddresses (RndAnyState s) = knownAddresses s

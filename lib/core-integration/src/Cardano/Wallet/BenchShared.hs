@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- |
@@ -19,6 +20,7 @@ module Cardano.Wallet.BenchShared
     -- * Benchmark runner
     , runBenchmarks
     , bench
+    , Time
     ) where
 
 import Prelude
@@ -46,7 +48,7 @@ import Cardano.Wallet.Network.Ports
 import Control.Concurrent
     ( threadDelay )
 import Control.DeepSeq
-    ( rnf )
+    ( NFData, rnf )
 import Control.Exception
     ( evaluate )
 import Control.Monad
@@ -58,7 +60,9 @@ import Data.Functor
 import Data.Text
     ( Text )
 import Fmt
-    ( fmt, (+|), (|+) )
+    ( Buildable (..), nameF, pretty )
+import GHC.Generics
+    ( Generic )
 import Options.Applicative
     ( HasValue
     , Mod
@@ -204,28 +208,31 @@ getRestoreBenchArgs = do
                                 Benchmark runner
 -------------------------------------------------------------------------------}
 
-runBenchmarks :: [IO (Text, Double)] -> IO ()
+newtype Time = Time
+    { unTime :: Double
+    } deriving (Show, Generic)
+
+instance Buildable Time where
+    build = build . secs . unTime
+
+runBenchmarks :: Buildable a => [IO a] -> IO ()
 runBenchmarks bs = do
     initializeTime
     -- NOTE: Adding an artificial delay between successive runs to get a better
     -- output for the heap profiling.
     rs <- forM bs $ \io -> io <* let _2s = 2000000 in threadDelay _2s
     sayErr "\n\nAll results:"
-    mapM_ (uncurry printResult) rs
+    mapM_ (sayErr . pretty) rs
 
-bench :: Text -> IO () -> IO (Text, Double)
+bench :: NFData a => Text -> IO a -> IO (a, Time)
 bench benchName action = do
     sayErr $ "Running " <> benchName
     start <- getTime
     res <- action
     evaluate (rnf res)
     finish <- getTime
-    let dur = finish - start
-    printResult benchName dur
-    pure (benchName, dur)
-
-printResult :: Text -> Double -> IO ()
-printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
+    let t = Time $ finish - start
+    (res, t) <$ sayErr (pretty $ nameF (build benchName) (build t))
 
 initBenchmarkLogging :: Severity -> IO (CM.Configuration, Trace IO Text)
 initBenchmarkLogging minSeverity = do

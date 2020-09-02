@@ -236,15 +236,10 @@ benchmark restore
     , cardano-wallet-core-integration
     , cardano-wallet
     , contra-tracer
-    , containers
-    , cryptonite
     , deepseq
-    , digest
     , filepath
     , fmt
     , iohk-monitoring
-    , persistent
-    , persistent-template
     , say
     , temporary
     , text
@@ -256,9 +251,6 @@ benchmark restore
       bench
   main-is:
       Restore.hs
-  other-modules:
-      Cardano.Wallet.Primitive.AddressDiscovery.Any
-      Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 
 benchmark latency
   default-language:

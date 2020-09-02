@@ -1493,6 +1493,12 @@ class PersistState s where
                           Sequential address discovery
 -------------------------------------------------------------------------------}
 
+-- piggy-back on SeqState existing instance, to simulate the same behavior.
+instance PersistState (Seq.SeqState n k) => PersistState (Seq.SeqAnyState n k p)
+  where
+    insertState (wid, sl) = insertState (wid, sl) . Seq.innerState
+    selectState (wid, sl) = fmap Seq.SeqAnyState <$> selectState (wid, sl)
+
 instance
     ( Eq (k 'AccountK XPub)
     , PersistPublicKey (k 'AccountK)
