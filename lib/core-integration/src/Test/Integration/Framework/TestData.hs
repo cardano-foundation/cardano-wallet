@@ -80,6 +80,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotAShelleyWallet
     , errMsg403InputsDepleted
     , errMsg400TxTooLarge
+    , errMsg403CouldntIdentifyAddrAsMine
     ) where
 
 import Prelude
@@ -457,3 +458,8 @@ errMsg403NotAShelleyWallet =
     "It is regrettable but you've just attempted an operation that is invalid \
     \for this type of wallet. Only new 'Shelley' wallets can do something with \
     \rewards and this one isn't."
+
+errMsg403CouldntIdentifyAddrAsMine :: String
+errMsg403CouldntIdentifyAddrAsMine = "I \
+    \couldn't identify this address as one of mine. It likely belongs to another wallet and I \
+    \will therefore not import it."
