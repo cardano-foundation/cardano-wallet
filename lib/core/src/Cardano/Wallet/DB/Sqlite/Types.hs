@@ -22,6 +22,8 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
+import Cardano.Api.MetaData
+    ( jsonFromMetadata, jsonToMetadata )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -43,6 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker
+    , TxMetadata
     , TxStatus (..)
     , WalletId (..)
     , isValidCoin
@@ -52,7 +55,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( (>=>) )
+    ( (<=<), (>=>) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), Value (..), withText )
 import Data.Aeson.Types
@@ -76,6 +79,8 @@ import Data.Text.Class
     , fromTextMaybe
     , getTextDecodingError
     )
+import Data.Text.Encoding
+    ( decodeUtf8, encodeUtf8 )
 import Data.Word
     ( Word32, Word64, Word8 )
 import Data.Word.Odd
@@ -95,6 +100,8 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -332,6 +339,24 @@ instance PersistField TxStatus where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql TxStatus where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- TxMetadata
+
+instance PersistField TxMetadata where
+    toPersistValue =
+        toPersistValue .
+        decodeUtf8 .
+        BL.toStrict .
+        Aeson.encode .
+        jsonFromMetadata
+    fromPersistValue =
+        (left (T.pack . show) . jsonToMetadata) <=<
+        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
+        fromPersistValue
+
+instance PersistFieldSql TxMetadata where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

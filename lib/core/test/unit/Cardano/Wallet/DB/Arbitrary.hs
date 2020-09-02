@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, dummyGenesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic, shrinkSlotNo )
+    ( genMnemonic, genTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -96,6 +96,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
+    , TxMetadata
     , TxOut (..)
     , TxParameters (..)
     , TxStatus (..)
@@ -378,7 +379,9 @@ instance Arbitrary Tx where
           | wdrls' <- shrinkList' (Map.toList wdrls)
           ]
 
-        -- fixme: #2072 shrink md
+        , [ mkTx ins  outs  wdrls md'
+          | md' <- shrink md
+          ]
         ]
       where
         shrinkList' xs  = filter (not . null)
@@ -388,9 +391,7 @@ instance Arbitrary Tx where
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
-        -- fixme: #2072 generate md
-        let md = Nothing
-        return $ mkTx ins outs wdrls md
+        mkTx ins outs wdrls <$> arbitrary
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
@@ -412,6 +413,10 @@ instance Arbitrary TxMeta where
 
 instance Arbitrary TxStatus where
     arbitrary = elements [Pending, InLedger]
+
+instance Arbitrary TxMetadata where
+    arbitrary = genTxMetadata
+    shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
     arbitrary = Coin <$> choose (1, 100000)

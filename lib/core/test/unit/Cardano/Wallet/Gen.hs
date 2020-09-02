@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -39,12 +40,18 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
+import Data.List
+    ( sortOn )
+import Data.List.Extra
+    ( nubOn )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word32 )
 import GHC.TypeLits
@@ -54,11 +61,15 @@ import Shelley.Spec.Ledger.MetaData
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , PrintableString (..)
     , choose
     , elements
     , listOf
+    , listOf1
     , oneof
     , resize
+    , shrinkList
+    , shrinkMap
     , vector
     , vectorOf
     )
@@ -155,25 +166,63 @@ sizedMetaDatum 0 =
     oneof
         [ MD.I <$> arbitrary
         , MD.B <$> genByteString
-        , MD.S <$> (T.pack <$> arbitrary)
+        , MD.S <$> genCappedString 32
         ]
 sizedMetaDatum n =
     oneof
-        [ MD.Map <$>
-            (zip
-                <$> (resize maxMetaDatumListLens (listOf (sizedMetaDatum (n-1))))
-                <*> (listOf (sizedMetaDatum (n-1))))
-        , MD.List <$> resize maxMetaDatumListLens (listOf (sizedMetaDatum (n-1)))
-        , MD.I <$> arbitrary
-        , MD.B <$> genByteString
-        , MD.S <$> (T.pack <$> arbitrary)
+        [ sizedMetaDatum 0
+        , oneof
+            -- FIXME: #2098
+            --
+            -- Allow empty maps and lists once fixed.
+            [ MD.Map . sortOn fst . nubOn fst <$>
+                resize maxMetaDatumListLens
+                    (listOf1 $ (,)
+                        <$> genMetaDatumJSONKey
+                        <*> sizedMetaDatum (n-1)
+                    )
+            -- FIXME: #2098
+            --
+            -- jsonToMetadata does an implicit conversion of list of pairs to map,
+            -- which fails to roundtrip back to the same value. Until this is
+            -- fixed in #2098, we only allow list to contains non-ambiguous values.
+            , MD.List <$> resize maxMetaDatumListLens (listOf1 (sizedMetaDatum 0))
+            ]
         ]
 
 genByteString :: Gen BS.ByteString
 genByteString = BS.pack <$> arbitrary
 
+shrinkByteString :: BS.ByteString -> [BS.ByteString]
+shrinkByteString = shrinkMap BS.pack BS.unpack
+
+genCappedString :: Int -> Gen Text
+genCappedString sup = T.take sup . T.pack . getPrintableString <$> arbitrary
+
 genMetaDatum :: Gen MetaDatum
 genMetaDatum = sizedMetaDatum maxMetaDatumDepth
+
+-- FIXME: #2098
+-- We only expect metadata to roundtrip when coming from valid JSON.
+-- JSON only allows keys as strings.
+--
+-- This is only necessary until #2098 is addressed and because the conversion
+-- functions from cardano-api are doing some implicit conversions.
+genMetaDatumJSONKey :: Gen MetaDatum
+genMetaDatumJSONKey = MD.S <$> genCappedString 32
+
+shrinkMetaDatum :: MetaDatum -> [MetaDatum]
+shrinkMetaDatum (MD.Map xs) =
+    MD.Map . sortOn fst . nubOn fst <$> shrinkList shrinkPair xs
+  where
+    shrinkPair (k,v) =
+        ((k,) <$> shrinkMetaDatum v) ++
+        ((,v) <$> shrinkMetaDatum k)
+shrinkMetaDatum (MD.List xs) =
+    MD.List <$> filter (not . null) (shrinkList shrinkMetaDatum xs)
+shrinkMetaDatum (MD.I i) = MD.I <$> shrink i
+shrinkMetaDatum (MD.B b) = MD.B <$> shrinkByteString b
+shrinkMetaDatum (MD.S s) = MD.S <$> shrinkMap T.pack T.unpack s
 
 genMetaData :: Gen MetaData
 genMetaData = do
@@ -182,8 +231,10 @@ genMetaData = do
     pure $ MD.MetaData $ Map.fromList $ zip i d
 
 shrinkMetaData :: MetaData -> [MetaData]
--- shrinkMetaData (MD.MetaData m) = MD.MetaData <$> shrinkMetaDatum m
-shrinkMetaData _ = [] -- fixme: shrinking would be useful
+shrinkMetaData (MD.MetaData m) = MD.MetaData . Map.fromList
+    <$> shrinkList shrinkMetaDataEntry (Map.toList m)
+  where
+    shrinkMetaDataEntry (k, v) = (k,) <$> shrinkMetaDatum v
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata = TxMetadata <$> genMetaData
