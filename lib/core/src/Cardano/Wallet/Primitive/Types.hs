@@ -52,6 +52,7 @@ module Cardano.Wallet.Primitive.Types
     , inputs
     , fromTransactionInfo
     , toTxHistory
+    , txMetadataIsNull
 
     -- * Address
     , Address (..)
@@ -280,6 +281,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Builder as Builder
+import qualified Shelley.Spec.Ledger.MetaData as MD
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata
@@ -1017,6 +1019,10 @@ fromTransactionInfo info = Tx
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     }
+
+-- | Test whether the given metadata map is empty.
+txMetadataIsNull :: TxMetadata -> Bool
+txMetadataIsNull (TxMetadata (MD.MetaData md)) = Map.null md
 
 -- | Drop time-specific information
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)

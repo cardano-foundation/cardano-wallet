@@ -180,6 +180,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
@@ -1224,7 +1225,7 @@ postTransaction
 postTransaction ctx genChange (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let outs = coerceCoin <$> (body ^. #payments)
-    let md = Nothing -- fixme: implement in #2073
+    let md = getApiT <$> body ^. #metadata
 
     let selfRewardCredentials (rootK, pwdP) =
             (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
@@ -1264,6 +1265,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (meta, time)
+        (tx ^. #metadata)
         #pendingSince
   where
     ti :: TimeInterpreter IO
@@ -1327,9 +1329,8 @@ mkApiTransactionFromInfo
     => TimeInterpreter m
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime _txmeta) = do
-    -- fixme: include _txmeta in API transaction #2074
-    apiTx <- mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) $
+mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime txmeta) = do
+    apiTx <- mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
         case meta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
@@ -1355,7 +1356,10 @@ postTransactionFee
     -> PostTransactionFeeData n
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
-    let outs = coerceCoin <$> (body ^. #payments)
+    let outs = coerceCoin <$> body ^. #payments
+    -- fixme: #2075 include metadata in fee calculation
+    let _md = getApiT <$> body ^. #metadata
+
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wdrl <- case body ^. #withdrawal of
             Nothing ->
@@ -1419,6 +1423,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
+        Nothing
         #pendingSince
   where
     -- Not forecasting into the future. Should be safe.
@@ -1467,6 +1472,7 @@ quitStakePool ctx (ApiT wid) body = do
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
+        Nothing
         #pendingSince
   where
     -- Not forecasting into the future. Should be safe.
@@ -1539,6 +1545,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
             (NE.toList (W.unsignedOutputs cs))
             (tx ^. #withdrawals)
             (meta, time)
+            Nothing
             #pendingSince
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
@@ -1787,9 +1794,10 @@ mkApiTransaction
     -> [TxOut]
     -> Map ChimericAccount Coin
     -> (W.TxMeta, UTCTime)
+    -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiTimeReference)
     -> m (ApiTransaction n)
-mkApiTransaction ti txid ins outs ws (meta, timestamp) setTimeReference = do
+mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
     timeRef <- timeReference
     return $ tx & setTimeReference .~ Just timeRef
   where
@@ -1805,6 +1813,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) setTimeReference = do
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
+        , metadata = apiTxMetadata txMeta
         }
 
     timeReference :: m ApiTimeReference
@@ -1827,6 +1836,9 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) setTimeReference = do
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr c) =
         AddressAmount (ApiT addr, Proxy @n) (mkApiCoin c)
+
+    apiTxMetadata :: Maybe W.TxMetadata -> ApiTxMetadata
+    apiTxMetadata = ApiTxMetadata . fmap ApiT
 
 mkApiCoin
     :: Coin

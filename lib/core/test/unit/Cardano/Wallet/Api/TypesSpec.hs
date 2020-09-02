@@ -66,6 +66,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
@@ -99,7 +100,12 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genPercentage, shrinkPercentage )
+    ( genMnemonic
+    , genPercentage
+    , genTxMetadata
+    , shrinkPercentage
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( HardDerivation (..)
     , NetworkDiscriminant (..)
@@ -137,6 +143,8 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , TxIn (..)
     , TxIn (..)
+    , TxMetadata (..)
+    , TxMetadata (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -152,7 +160,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
-    ( at, (.~), (^.) )
+    ( at, (.~), (?~), (^.) )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.IO.Class
@@ -182,19 +190,21 @@ import Data.Proxy
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
-    ( Definitions
+    ( AdditionalProperties (..)
+    , Definitions
     , NamedSchema (..)
     , Referenced (..)
     , Schema
     , SwaggerType (..)
     , ToSchema (..)
+    , additionalProperties
     , enum_
     , properties
     , required
     , type_
     )
 import Data.Swagger.Declare
-    ( Declare )
+    ( Declare, MonadDeclare (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -334,6 +344,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
+            jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
@@ -342,6 +353,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
+            jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -698,6 +710,7 @@ spec = do
                     { payments = payments (x :: PostTransactionData ('Testnet 0))
                     , passphrase = passphrase (x :: PostTransactionData ('Testnet 0))
                     , withdrawal = withdrawal (x :: PostTransactionData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -706,6 +719,7 @@ spec = do
                 x' = PostTransactionFeeData
                     { payments = payments (x :: PostTransactionFeeData ('Testnet 0))
                     , withdrawal = withdrawal (x :: PostTransactionFeeData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionFeeData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -729,6 +743,7 @@ spec = do
                     , outputs = outputs (x :: ApiTransaction ('Testnet 0))
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
+                    , metadata = metadata (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1243,6 +1258,7 @@ instance Arbitrary (PostTransactionData t) where
         <$> arbitrary
         <*> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
+        <*> arbitrary
 
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
@@ -1258,6 +1274,7 @@ instance Arbitrary (PostTransactionFeeData t) where
     arbitrary = PostTransactionFeeData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
+        <*> arbitrary
 
 instance Arbitrary PostExternalTransactionData where
     arbitrary = do
@@ -1266,6 +1283,14 @@ instance Arbitrary PostExternalTransactionData where
         return $ PostExternalTransactionData bytes
     shrink (PostExternalTransactionData bytes) =
         PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
+
+instance Arbitrary TxMetadata where
+    arbitrary = genTxMetadata
+    shrink = shrinkTxMetadata
+
+instance Arbitrary ApiTxMetadata where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary (ApiTransaction t) where
     shrink = filter outputsNonEmpty . genericShrink
@@ -1291,6 +1316,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> genOutputs
             <*> genWithdrawals
             <*> pure txStatus
+            <*> arbitrary
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
@@ -1544,13 +1570,19 @@ instance ToSchema ByronWalletPutPassphraseData where
         declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
 
 instance ToSchema (PostTransactionData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
+    declareNamedSchema _ = do
+        addDefinition transactionMetadatumSchema
+        declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
+    declareNamedSchema _ = do
+        addDefinition transactionMetadatumSchema
+        declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
+    declareNamedSchema _ = do
+        addDefinition transactionMetadatumSchema
+        declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletUTxOsStatistics"
@@ -1579,6 +1611,19 @@ instance ToSchema ApiWalletDelegation where
 instance ToSchema ApiPostRandomAddressData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"
 
+-- FIXME: #ADP-417
+--
+-- OpenAPI 2.0 does not support sum-types and the 'oneOf' combinator. When we
+-- switched to a library that supports OpenAPI 3.0, we can remove this empty
+-- schema and use instead something like:
+--
+--     addDefinition =<< declareSchemaForDefinition "TransactionMetadatum"
+--
+transactionMetadatumSchema :: NamedSchema
+transactionMetadatumSchema =
+    NamedSchema (Just "TransactionMetadatum") $ mempty
+        & additionalProperties ?~ AdditionalPropertiesAllowed True
+
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
 declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
@@ -1596,6 +1641,17 @@ declareSchemaForDefinition ref = do
     replaceRefs = TL.encodeUtf8 . replace . TL.decodeUtf8
       where
         replace = TL.replace "components/schemas" "definitions"
+
+-- | Add a known definition to the set of definitions, this may be necessary
+-- when we can't inline a definition because it is recursive or, when a
+-- definition is only used in an existing schema but has no top-level type for
+-- which to define a 'ToSchema' instance.
+addDefinition :: NamedSchema -> Declare (Definitions Schema) ()
+addDefinition (NamedSchema Nothing _) =
+    error "Trying to add definition for an unnamed NamedSchema!"
+addDefinition (NamedSchema (Just k) s) = do
+    defs <- look
+    declare $ defs & at k ?~ s
 
 unsafeLookupKey :: Aeson.Value -> Text -> Aeson.Value
 unsafeLookupKey json k = case json of

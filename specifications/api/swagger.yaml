@@ -564,31 +564,25 @@ x-transactionMetadata: &transactionMetadata
     Extra application data attached to the transaction.
 
     Cardano allows users and developers to embed their own
-    authenticated metadata when submitting transactions.
+    authenticated metadata when submitting transactions. Metadata can
+    be expressed as a JSON object with some restrictions:
 
-    The transaction metadata can be `null`, or a mapping from natural
-    numbers to metadata entries. These top-level keys can be any
-    number between `0` and `2^64 - 1`.
+    1. All top-level keys must be integers between `0` and `2^64 - 1`.
 
-    Note that metadata is not free-form JSON. Only a subset of JSON is
-    accepted as values. String values are limited in length, and
-    metadata is included in the overall transaction size limit.
+    2. Strings must be at most 64 characters
 
-    See the example on the right to get an overview and the
-    equivalence table below to understand how metadata are mapped to
-    on-chain data types.
+    3. Bytestrings may be encoded as hex-encoded strings prefix with `0x`
 
-    | On-chain type | JSON type                                                 |
-    | ---           | ---                                                       |
-    | string        | JSON string                                               |
-    | number        | JSON number                                               |
-    | bytestring    | JSON singleton with a field `"hex"` and a value in base16 |
-    | array         | JSON monomorphic array                                    |
-    | map           | JSON array of 2-element ([key, value]) monomorphic arrays |
+    Metadata aren't stored as JSON on the Cardano blockchain but stored using
+    another structured encoding called CBOR which is better suited for binary
+    encoding. JSON can be fully expressed in CBOR but the reciprocal isn't
+    true. So, in order to leverage some of the CBOR optimization, we rely on
+    conventions from JSON. In particular, strings starting with `0x` and that
+    are otherwise encoded as base16 will be decoded and stored as plain byte
+    strings on-chain (saving space and therefore, lowering fees).
 
   type: object
   nullable: true
-  minProperties: 1
   additionalProperties:
     $ref: "#/components/schemas/TransactionMetadatum"
   # Note: propertyNames pattern not supported in current OpenAPI version.
@@ -597,9 +591,9 @@ x-transactionMetadata: &transactionMetadata
   example:
     0: "cardano"
     1: 14
-    2: { "hex": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
+    2: "0x2512a00e9653fe49a44a5886202e24d77eeb998f"
     3: [14, 42, 1337]
-    4: [["k1", "v1"], ["k2", "v2"]]
+    4: { "key": "value", "14": 42 }
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
@@ -1408,26 +1402,14 @@ components:
       oneOf:
         - type: string
         - type: number
-        - title: bytestring
-          type: object
-          required:
-          - hex
-          properties:
-            hex:
-              type: string
-              pattern: '^[0-9a-fA-F]$'
         - title: list
           type: array
           items:
             $ref: "#/components/schemas/TransactionMetadatum"
         - title: map
-          type: array
-          items:
-            type: array
-            minItems: 2
-            maxItems: 2
-            items:
-              $ref: "#/components/schemas/TransactionMetadatum"
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/TransactionMetadatum"
 
 #############################################################################
 #                                                                           #
