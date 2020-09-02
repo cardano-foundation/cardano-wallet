@@ -152,6 +152,7 @@ instance Malformed (PathParam ApiTxId) where
 instance Wellformed (PathParam ApiPoolId) where
     wellformed = PathParam <$>
         [ T.replicate 64 "0"
+        , "pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm"
         ]
 
 instance Malformed (PathParam ApiPoolId) where
