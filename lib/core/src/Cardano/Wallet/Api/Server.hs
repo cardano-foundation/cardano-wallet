@@ -1118,7 +1118,7 @@ selectCoins ctx gen (ApiT wid) body =
         -- Allow representing withdrawals as part of external coin selections.
         let withdrawal = Quantity 0
         let outs = coerceCoin <$> body ^. #payments
-        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal
+        liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal Nothing
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1249,7 +1249,7 @@ postTransaction ctx genChange (ApiT wid) body = do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (wdrl, const (xprv, mempty))
 
-        selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl
+        selection <- liftHandler $ W.selectCoinsForPayment @_ @s @t wrk wid outs wdrl md
         pure (selection, credentials)
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1357,8 +1357,7 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> body ^. #payments
-    -- fixme: #2075 include metadata in fee calculation
-    let _md = getApiT <$> body ^. #metadata
+    let md = getApiT <$> body ^. #metadata
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wdrl <- case body ^. #withdrawal of
@@ -1375,7 +1374,7 @@ postTransactionFee ctx (ApiT wid) body = do
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid wdrl
 
-        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs wdrl
+        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @t @k wrk wid outs wdrl md
         pure $ apiFee fee
 
 joinStakePool

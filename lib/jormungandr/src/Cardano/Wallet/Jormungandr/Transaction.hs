@@ -46,7 +46,13 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount (..), Hash (..), SealedTx (..), Tx (..), TxOut (..) )
+    ( ChimericAccount (..)
+    , Hash (..)
+    , SealedTx (..)
+    , Tx (..)
+    , TxMetadata
+    , TxOut (..)
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -158,9 +164,10 @@ newTransactionLayer block0H = TransactionLayer
     _minimumFee
         :: FeePolicy
         -> Maybe DelegationAction
+        -> Maybe TxMetadata
         -> CoinSelection
         -> Fee
-    _minimumFee policy action cs =
+    _minimumFee policy action _ cs =
         Fee $ ceiling (a + b*fromIntegral ios + c*certs)
       where
         LinearFee (Quantity a) (Quantity b) (Quantity c) = policy

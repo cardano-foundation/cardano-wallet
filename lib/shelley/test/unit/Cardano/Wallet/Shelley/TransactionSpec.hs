@@ -122,7 +122,7 @@ spec = do
                 policy = LinearFee (Quantity 100000) (Quantity 100) (Quantity 0)
 
                 minFee :: CoinSelection -> Integer
-                minFee = fromIntegral . getFee . minimumFee tl policy Nothing
+                minFee = fromIntegral . getFee . minimumFee tl policy Nothing Nothing
                   where tl = testTxLayer
 
                 costWith = minFee (mempty { withdrawal })
@@ -246,7 +246,7 @@ testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts testTxLayer Nothing feePolicy (Coin 0)
+testFeeOpts = feeOpts testTxLayer Nothing Nothing feePolicy (Coin 0)
   where
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
 

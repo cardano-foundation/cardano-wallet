@@ -359,13 +359,12 @@ _minimumFee
     => NetworkId
     -> FeePolicy
     -> Maybe DelegationAction
+    -> Maybe TxMetadata
     -> CoinSelection
     -> Fee
-_minimumFee networkId policy action cs =
+_minimumFee networkId policy action md cs =
     computeFee $ computeTxSize networkId (txWitnessTagFor @k) md action cs
   where
-    md = Nothing -- fixme: #2075 include metadata in fee calculations
-
     computeFee :: Integer -> Fee
     computeFee size =
         Fee $ ceiling (a + b*fromIntegral size)
