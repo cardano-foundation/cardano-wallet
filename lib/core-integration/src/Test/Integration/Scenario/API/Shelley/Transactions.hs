@@ -777,6 +777,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
         let (_, Right wSrc) = r1
 
+        -- 1. mnemonic15 phrase: recovery-phrase-src.prv
+        -- --> network empty cause mean expire private finger accident session problem absurd banner stage void what
+        -- 2. corresponding root key:
+        --- $ cat recovery-phrase-src.prv | cardano-address key from-recovery-phrase Shelley > root-src.prv
+        -- --> xprv1dqjlgjd6n9n63guasjpp0q0p93v3lgwenwf2s8z6erzzqxgqv4qnsyk4mrh8z5nz3fesun538g3epe4l8j8rezfdvmns78sp796rsflp980qp6gqgh0uzyxtad0smxd88wt8a9djhkvq8zsvp2gzzycmpq927903
+        -- 3. staking private key:
+        --- $ cat root-src.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-src.prv
+        -- --> xprv1uz7ghz6969v3ns0veeddflaj9hr0q5dwnzgep7rznt72cvcqv4qa2l9kfqsrzsg72zl89wyty42jq4a6n6l2mnuj4zfv578jvh8tm8pa439z46e6qmhhqrwy40deer2dkcyr44u5ze4awfnhykgf5j94u59rcpdg
+        -- 4. delegation address to which we send 10 ada (index 1 and for network tag 1):
+        --- $ cat root-src.prv \
+        --- | cardano-address key child 1852H/1815H/0H/0/1 \
+        --- | cardano-address key public \
+        --- | cardano-address address payment --network-tag 1 \
+        --- | cardano-address address delegation $(cat stake-src.prv | cardano-address key public)
+        --- --> addr1q9wteuqmnkywcz9zefjyp0wn3tctz9xgxm8fpcmyzn9uypknudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyq75lt2a
         payload1 <- mkTxPayload ctx wSrc amt fixturePassphrase
 
         (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
@@ -844,47 +859,47 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
         let (_, Right wDest) = r6
 
-        --here comes construction of external tx
+        -- The construction of external tx
         -- (a) fee which was estimated using cardano-wallet endpoint
         payload2 <- mkTxPayload ctx wDest amt1 fixturePassphrase
         (_, ApiFee (Quantity feeMin1) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload2
+
         -- (b) the change output of mnemonic15 wallet
+        --- $ cat root-src.prv \
+        ---  > | cardano-address key child 1852H/1815H/0H/1/0 \
+        ---  > | cardano-address key public \
+        ---  > | cardano-address address payment --network-tag 1 \
+        ---  > | cardano-address address delegation $(cat stake-src.prv | cardano-address key public)
+        -- --> addr1qxwnlf2zq2zpuwfmknec0522felspg7w8qgg7xeuywhyd8xnudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyqj7tm03
         let addr1 =
-                "addr1q8zamr0gglxc7dsnhdwfp0pg9hac50zc9wrgh5gmwxm5f7xnudck0fzve\
-                \4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyquaaj4r"
+               "addr1qxwnlf2zq2zpuwfmknec0522felspg7w8qgg7xeuywhyd8xnudck0fzve4\
+               \346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyqj7tm03"
         let out1 = amt - feeMin1 - amt1
         -- (c) the output of mnemonic18 wallet, it is expected to receive amt1
-        let addr2 =
-                "addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfev\
-                \ux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2"
-        -- 1. have a mnemonic phrases: recovery-phrase.prv
-        -- --> network empty cause mean expire private finger accident session problem absurd banner stage void what
-        -- 2. produce root key:
-        --- cat recovery-phrase.prv | cardano-address key from-recovery-phrase Shelley > root.prv
-        -- --> xprv1dqjlgjd6n9n63guasjpp0q0p93v3lgwenwf2s8z6erzzqxgqv4qnsyk4mrh8z5nz3fesun538g3epe4l8j8rezfdvmns78sp796rsflp980qp6gqgh0uzyxtad0smxd88wt8a9djhkvq8zsvp2gzzycmpq927903
-        -- 3. produce staking private key:
-        --- cat root.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake.prv
-        -- --> xprv1uz7ghz6969v3ns0veeddflaj9hr0q5dwnzgep7rznt72cvcqv4qa2l9kfqsrzsg72zl89wyty42jq4a6n6l2mnuj4zfv578jvh8tm8pa439z46e6qmhhqrwy40deer2dkcyr44u5ze4awfnhykgf5j94u59rcpdg
-        -- 4. produce delegation address (here second address of index 1 and for network tag 1):
-        --- root.prv \
+        -- 1. mnemonic18 phrase: recovery-phrase-dest.prv
+        -- --> whisper control diary solid cattle salmon whale slender spread ice shock solve panel caution upon scatter broken tonight
+        -- 2. corresponding root key:
+        --- $ cat recovery-phrase-dest.prv | cardano-address key from-recovery-phrase Shelley > root-dest.prv
+        -- --> xprv1kra0jaflzzgtwu5mxl3qsv0gga05fyd3g0yslf3q0kgsq7ctep2wq9yjg4sgq2rwnpcuk2dw8czw9qde5f9ank5vr080fn4z9vzk8zdkvgj7qt6lmlxyn6hm2ne0ymg2srpxfu6cqxxzz75wh93u6klenqd3sg0r
+        -- 3. staking private key:
+        --- $ cat root-dest.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-dest.prv
+        -- --> xprv1szgf7fs2lm9w0dgka58d8nqa2yklu8jplktzq9469edmrzstep2xgepmyhvllfxfrksh8qce5dnk2nlmaz0ye8qrph3rxlsnh55ntl0ze68996d4v3qlh9pyp3jreanaxlh0pklk2aq9nl4scheqk6a7l568sfj2
+        -- 4. delegation address (index 1 and for network tag 1):
+        --- $ cat root-dest.prv \
         --- | cardano-address key child 1852H/1815H/0H/0/1 \
         --- | cardano-address key public \
         --- | cardano-address address payment --network-tag 1 \
-        --- | cardano-address address delegation $(cat stake.prv | cardano-address key public)
-        --- --> addr1q9wteuqmnkywcz9zefjyp0wn3tctz9xgxm8fpcmyzn9uypknudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyq75lt2a
-        -- 5. produce corresponding private key (used for witnesses):
-        --- cat root.prv | cardano-address key child 1852H/1815H/0H/0/1 --base16
+        --- | cardano-address address delegation $(cat stake-dest.prv | cardano-address key public)
+        --- --> addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfevux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2
+        let addr2 =
+                "addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfev\
+                \ux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2"
+
+        -- Produce corresponding private key (witness) for input address
+        -- selected in the faucet->src wallet transaction (see above):
+        --- cat root-src.prv | cardano-address key child 1852H/1815H/0H/0/1 --base16
         -- --> 400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f006541c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752acfa81d028f8516adad09a8efe3a0209e7e75d6bc61265f48d7471acdd2bf7ee7b23d
-        -- 6. produce change address:
-        --- root.prv \
-        --- | cardano-address key child 1852H/1815H/0H/1/0 \
-        --- | cardano-address key public \
-        --- | cardano-address address payment --network-tag 1 \
-        --- | cardano-address address delegation $(cat stake.prv | cardano-address key public)
-        -- --> addr1q8zamr0gglxc7dsnhdwfp0pg9hac50zc9wrgh5gmwxm5f7xnudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyquaaj4r
-        -- (d) mnemonic15 wallet received during the first transaction 10 ada to address
-        -- and here is its witness (details of getting it above)
         let wit =
                 "400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f0065\
                 \41c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752a\
@@ -909,13 +924,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amt1) r8
-{--
+
             r9 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (amt - feeMax - amt1)) r9
---}
+                (`shouldBe` Quantity out1) r9
+
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
                 [ ( "empty payload", NonJson "" )
