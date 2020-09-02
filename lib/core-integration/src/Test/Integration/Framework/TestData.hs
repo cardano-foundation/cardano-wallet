@@ -79,6 +79,7 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
     , errMsg403InputsDepleted
+    , errMsg400TxTooLarge
     ) where
 
 import Prelude
@@ -324,7 +325,11 @@ errMsg400WronglyEncodedTxPayload =
 
 errMsg400TxMetadataStringTooLong :: String
 errMsg400TxMetadataStringTooLong =
-    "Error in $.metadata: ConversionErrLongerThan64Bytes"
+    "Error in $.metadata: JSON string is longer than 64 bytes"
+
+errMsg400TxTooLarge :: String
+errMsg400TxTooLarge =
+    "I am afraid that the transaction you're trying to submit is too large!"
 
 errMsg400ParseError :: String
 errMsg400ParseError = mconcat

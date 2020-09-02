@@ -155,6 +155,7 @@ module Cardano.Wallet
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
+    , ErrTxTooLarge (..)
     , ErrRemovePendingTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
@@ -297,7 +298,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
-    , SealedTx
+    , SealedTx (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
@@ -1783,12 +1784,31 @@ submitTx
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ postTx nw binary
+    txp <- withExceptT ErrSubmitTxNoSuchWallet $
+        txParameters <$> readWalletProtocolParameters @ctx @s @k ctx wid
+    withExceptT ErrSubmitTxTooLarge $
+        guardTransactionSize txp binary
+    withExceptT ErrSubmitTxNetwork  $
+        postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
+
+guardTransactionSize
+    :: Monad m
+    => W.TxParameters
+    -> SealedTx
+    -> ExceptT ErrTxTooLarge m ()
+guardTransactionSize txp (SealedTx bytes) = do
+    let currentSize = Quantity $ BS.length bytes
+    let maxSize = fromIntegral <$> W.getTxMaxSize txp
+    when (currentSize > maxSize) $
+        throwE $ ErrTxTooLarge
+            { tooLargeCurrentSize = currentSize
+            , tooLargeMaximumSize = maxSize
+            }
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
@@ -2200,7 +2220,13 @@ data ErrSignPayment
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    | ErrSubmitTxTooLarge ErrTxTooLarge
     deriving (Show, Eq)
+
+data ErrTxTooLarge = ErrTxTooLarge
+    { tooLargeCurrentSize :: Quantity "byte" Int
+    , tooLargeMaximumSize :: Quantity "byte" Int
+    } deriving (Show, Eq)
 
 -- | Errors that can occur when submitting an externally-signed transaction
 --   to the network.

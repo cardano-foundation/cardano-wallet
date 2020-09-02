@@ -128,6 +128,7 @@ import Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
+    , ErrTxTooLarge (..)
     , ErrUTxOTooSmall (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -2295,6 +2296,7 @@ instance LiftHandler ErrPostTx where
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> handler e
+        ErrSubmitTxTooLarge e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -2491,6 +2493,17 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "account that is either empty or doesn't have a balance big "
                 , "enough to deserve being withdrawn. I won't proceed with that "
                 , "request."
+                ]
+
+instance LiftHandler ErrTxTooLarge where
+    handler = \case
+        ErrTxTooLarge {tooLargeCurrentSize, tooLargeMaximumSize}  ->
+            apiError err400 TransactionTooLarge $ mconcat
+                [ "I am afraid that the transaction you're trying to submit is "
+                , "too large! It weights ", pretty tooLargeCurrentSize, "s "
+                , "but the network currently allows only ", pretty tooLargeMaximumSize
+                , "s! Likely, this is because you've added some metadata that "
+                , "are too large."
                 ]
 
 instance LiftHandler (Request, ServerError) where

@@ -121,6 +121,7 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
+    , errMsg400TxTooLarge
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
@@ -614,11 +615,8 @@ spec = do
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
 
-        -- TODO: implement nice error messages when transactions are too big
-        -- expectResponseCode @IO HTTP.status400 r
-        -- expectErrorMessage "Transaction exceeds the maximum size" r
-        expectResponseCode @IO HTTP.status500 r
-        expectErrorMessage "MaxTxSizeUTxO" r
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxTooLarge r
 
     it "TRANS_ESTIMATE_xxx - fee estimation includes metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
