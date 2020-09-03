@@ -21,6 +21,7 @@ import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAddress
     , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
@@ -91,6 +92,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -1087,6 +1089,123 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity out1) r''
+
+    describe "TRANS_EXTERNAL_03 - Single Output Transaction with Byron witness" $
+        it "Byron wallet" $ \ctx -> do
+
+        wFaucet <- fixtureRandomWallet ctx
+
+        let byronMnemonics =
+               [ "ghost", "casino", "minor", "vast", "filter", "flip"
+               , "polar", "alarm", "purchase", "curtain", "dry", "wisdom"]
+        wByron <- emptyByronWalletWith ctx "random"
+                  ("Random Wallet", byronMnemonics, fixturePassphrase)
+
+        -- 1. 12-word mnemonic: recovery-phrase-src.prv
+        --- --> ghost casino minor vast filter flip polar alarm purchase curtain dry wisdom
+        -- 2. prv root key:
+        --- $ cat recovery-phrase-src.prv | cardano-address key from-recovery-phrase Byron > root-src.prv
+        --- --> xprv1wqk3jtxymg2mjst56sede5a53n8wlpnjkmptywyhyxxycrv2letemsd6ulamrexmgq4427g2wl80exune2c035fa08hen44at825u9nrcyl27za26waa2vgztmvl39esu6ucsa9m8r742czjnqhgyzcd8cea3fw5
+        -- 3. cat root-src.prv | cardano-address key public > root-src.pub
+        --- --> xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc
+        -- 4. create child address (for 2147483662-2^31=2147483662-2147483648=14)
+        --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H --base16
+        --- --> c323bec83ccf2e39ee42d499acd5ee7ade10e822270b4479f8e98c8c8e8abf0842dc7de2c0e69e52982743c73a75ea06ef87c80b94d380c83a9a99060488438f06c552df3d16013201a44025f79b7eae1cd697b3fb173f31110b97935c6ba600
+        -- 5. produce address
+        --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H \
+        --- | cardano-address key public | cardano-address address bootstrap \
+        --- | xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc \
+        --- --path 0H/14H --network-tag 764824073
+        --- --> DdzFFzCqrhsfRTAFKYtEMjB1vy5fTth3QEitVbMBuk5r9Um6Uf2bWYj8cSYfbad9MLKokM2Y5FhybrJqCgUDVPNPkgG6oa33VLQ6jugc
+        let payload1 = Json [json|
+                { "passphrase": #{fixturePassphrase}
+                , "address_index": 2147483662
+                }|]
+        r1 <- request @(ApiAddress n) ctx (Link.postRandomAddress wByron) Default payload1
+        verify r1
+            [ expectResponseCode @IO HTTP.status201
+            ]
+        let destination = getFromResponse #id r1
+        let amt = (10_000_000 :: Natural)
+        let payload2 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        tx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Byron wFaucet) Default payload2
+        expectResponseCode HTTP.status202 tx
+        eventually "wByron received money" $ do
+            r' <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity amt) r'
+
+        let shelleyMnemonics =
+              [ "broken", "pass", "shrug", "pause", "crush"
+              , "caught", "honey", "lonely", "dose", "rabbit"
+              , "olympic", "honey", "hair", "panther", "stage"] :: [Text]
+
+        let walletPostData = Json [json| {
+                "name": "empty Shelley wallet",
+                "mnemonic_sentence": #{shelleyMnemonics},
+                "passphrase": #{fixturePassphrase}
+                } |]
+        r2 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData
+        expectResponseCode @IO HTTP.status201 r2
+
+        let wShelley = getFromResponse Prelude.id r2
+        addrs <- listAddresses @n ctx wShelley
+
+        let amt1 = (1_000_000 :: Natural)
+        let destination1 = (addrs !! 1) ^. #id
+        let payload3 = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt1},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rFeeEst <- request @ApiFee ctx
+            (Link.getTransactionFee @'Byron wByron) Default payload3
+        verify rFeeEst
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+
+        r <- postTx ctx
+            (wByron, Link.createTransaction @'Byron, fixturePassphrase)
+            wShelley
+            amt1
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "wByron and wShelley balances are as expected" $ do
+            r' <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity amt1) r'
+
+            r'' <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (amt - feeEstMax - amt1)) r''
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
