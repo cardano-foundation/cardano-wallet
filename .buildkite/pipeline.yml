@@ -59,3 +59,8 @@ steps:
       system: x86_64-linux
     soft_fail:
       - exit_status: '*'
+
+  - label: 'TODO list'
+    command: 'nix-shell --run scripts/todo-list.sh'
+    agents:
+      system: x86_64-linux
