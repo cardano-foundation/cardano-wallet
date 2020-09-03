@@ -155,7 +155,6 @@ module Cardano.Wallet
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
-    , ErrTxTooLarge (..)
     , ErrRemovePendingTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
@@ -1187,9 +1186,10 @@ normalizeDelegationAddress s addr = do
 coinSelOpts
     :: TransactionLayer t k
     -> Quantity "byte" Word16
+    -> Maybe TxMetadata
     -> CoinSelectionOptions (ErrValidateSelection t)
-coinSelOpts tl txMaxSize = CoinSelectionOptions
-    { maximumNumberOfInputs = estimateMaxNumberOfInputs tl txMaxSize
+coinSelOpts tl txMaxSize md = CoinSelectionOptions
+    { maximumNumberOfInputs = estimateMaxNumberOfInputs tl txMaxSize md
     , validate = validateSelection tl
     }
 
@@ -1279,9 +1279,10 @@ selectCoinsForPaymentFromUTxO
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
-    (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-        let opts = coinSelOpts tl (txp ^. #getTxMaxSize)
+    (sel, utxo') <- withExceptT handleCoinSelError $ do
+        let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md
         CoinSelection.random opts recipients withdrawal utxo
+
     lift . traceWith tr $ MsgPaymentCoinSelection sel
     let feePolicy = feeOpts tl Nothing md txp minUtxo
     withExceptT ErrSelectForPaymentFee $ do
@@ -1291,6 +1292,10 @@ selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
   where
     tl = ctx ^. transactionLayer @t @k
     tr = ctx ^. logger @WalletLog
+    handleCoinSelError = \case
+        ErrMaximumInputsReached maxN ->
+            ErrSelectForPaymentTxTooLarge (W.getTxMaxSize txp) maxN
+        e -> ErrSelectForPaymentCoinSelection e
 
 -- | Select necessary coins to cover for a single delegation request (including
 -- one certificate).
@@ -1405,7 +1410,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
             { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
             , dustThreshold = max (Coin $ ceiling a) minUtxo
             }
-    let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize)
+    let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize) Nothing
     let previousDistribution = W.computeUtxoStatistics W.log10 utxo
     liftIO $ traceWith tr $ MsgMigrationUTxOBefore previousDistribution
     case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
@@ -1784,10 +1789,6 @@ submitTx
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    txp <- withExceptT ErrSubmitTxNoSuchWallet $
-        txParameters <$> readWalletProtocolParameters @ctx @s @k ctx wid
-    withExceptT ErrSubmitTxTooLarge $
-        guardTransactionSize txp binary
     withExceptT ErrSubmitTxNetwork  $
         postTx nw binary
     mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
@@ -1795,20 +1796,6 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer @t
-
-guardTransactionSize
-    :: Monad m
-    => W.TxParameters
-    -> SealedTx
-    -> ExceptT ErrTxTooLarge m ()
-guardTransactionSize txp (SealedTx bytes) = do
-    let currentSize = Quantity $ BS.length bytes
-    let maxSize = fromIntegral <$> W.getTxMaxSize txp
-    when (currentSize > maxSize) $
-        throwE $ ErrTxTooLarge
-            { tooLargeCurrentSize = currentSize
-            , tooLargeMaximumSize = maxSize
-            }
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
@@ -2201,6 +2188,7 @@ data ErrSelectForPayment e
     | ErrSelectForPaymentFee ErrAdjustForFee
     | ErrSelectForPaymentMinimumUTxOValue ErrUTxOTooSmall
     | ErrSelectForPaymentAlreadyWithdrawing Tx
+    | ErrSelectForPaymentTxTooLarge (Quantity "byte" Word16) Word64
     deriving (Show, Eq)
 
 -- | Errors that can occur when listing UTxO statistics.
@@ -2220,13 +2208,7 @@ data ErrSignPayment
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
-    | ErrSubmitTxTooLarge ErrTxTooLarge
     deriving (Show, Eq)
-
-data ErrTxTooLarge = ErrTxTooLarge
-    { tooLargeCurrentSize :: Quantity "byte" Int
-    , tooLargeMaximumSize :: Quantity "byte" Int
-    } deriving (Show, Eq)
 
 -- | Errors that can occur when submitting an externally-signed transaction
 --   to the network.

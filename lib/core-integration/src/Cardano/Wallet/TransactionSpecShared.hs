@@ -48,7 +48,7 @@ propMaxNumberOfInputsEstimation tl qa@(Quantity ma) qb@(Quantity mb) oa ob =
     isIncreasingFunction = if ma < mb then estAA <= estBA else estAA >= estBA
     moreOutputsLessInputs = if oa < ob then estAA >= estAB else estAA <= estAB
     estIsSmallerThanSize = (estAA < ma || ma == 0) .&&. (estBA < mb || mb == 0)
-    est no = fromIntegral . estimateMaxNumberOfInputs tl no
+    est no = fromIntegral . estimateMaxNumberOfInputs tl no Nothing
     debug = unlines
         [ "sizeA = " <> show ma, "sizeB = " <> show mb
         , "numOutputsA = " <> show oa, "numOutputsB = " <> show ob
