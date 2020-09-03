@@ -1139,7 +1139,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         stakeCert <- issueStakeCert tr dir pub stakeVK
         void $ cli tr
             [ "shelley", "governance", "create-mir-certificate"
-            , "--treasury"
+            , "--reserves"
             , "--reward", show reward
             , "--stake-verification-key-file", stakeVK
             , "--out-file", mirCert
