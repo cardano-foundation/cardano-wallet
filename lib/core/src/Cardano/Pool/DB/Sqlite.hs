@@ -498,6 +498,7 @@ migrateManually
     -> ManualMigration
 migrateManually _tr =
     ManualMigration $ \conn -> do
+        createView conn activePoolOwners
         createView conn activePoolRegistrations
         createView conn activePoolRetirements
 
@@ -523,6 +524,33 @@ createView conn (DatabaseView name definition) = do
         , "AS"
         , definition
         ]
+
+-- | Views the set of active owners for all pools.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen set of owners for that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolOwners :: DatabaseView
+activePoolOwners = DatabaseView "active_pool_owners" [s|
+    SELECT pool_id, pool_owners FROM (
+        SELECT row_number() OVER w AS r, *
+        FROM (
+            SELECT
+                pool_id,
+                slot,
+                slot_internal_index,
+                group_concat(pool_owner, ' ') as pool_owners
+            FROM (
+                SELECT * FROM pool_owner ORDER BY pool_owner_index
+            )
+            GROUP BY pool_id, slot, slot_internal_index
+        )
+        WINDOW w AS (ORDER BY pool_id, slot desc, slot_internal_index desc)
+    )
+    GROUP BY pool_id;
+|]
 
 -- | Views the set of pool registrations that are currently active.
 --
