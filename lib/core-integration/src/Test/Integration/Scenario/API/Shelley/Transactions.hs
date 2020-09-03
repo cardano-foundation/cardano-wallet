@@ -549,7 +549,7 @@ spec = do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
-    it "TRANS_CREATE_M01 - Transaction with metadata" $ \ctx -> do
+    it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (1 :: Natural)
 
@@ -622,7 +622,7 @@ spec = do
                     (`shouldBe` Just (ApiT expected))
                 ]
 
-    it "TRANS_CREATE_M02 - Transaction with invalid metadata" $ \ctx -> do
+    it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let amt = (1_000_000 :: Natural)
 
@@ -637,7 +637,7 @@ spec = do
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it "TRANS_CREATE_M03 - Transaction with too much metadata" $ \ctx -> do
+    it "TRANSMETA_CREATE_03 - Transaction with too much metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (1_000_000 :: Natural)
 
@@ -656,7 +656,7 @@ spec = do
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400TxTooLarge r
 
-    it "TRANS_ESTIMATE_M01 - fee estimation includes metadata" $ \ctx -> do
+    it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (1_000_000 :: Natural)
 
@@ -683,6 +683,40 @@ spec = do
             , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
             , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
             ]
+
+    it "TRANSMETA_ESTIMATE_02 - fee estimation with invalid metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = Aeson.object ["1" .= T.replicate 65 "a"]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payload
+
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxMetadataStringTooLong r
+
+    it "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        -- This will encode to at least 8k of CBOR. The max tx size for the
+        -- integration tests cluster is 4k.
+        let txMeta = Aeson.object
+                [ (toText @Int i, Aeson.String (T.replicate 64 "a"))
+                | i <- [0..127] ]
+        let payload = addTxMetadata txMeta basePayload
+        print payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payload
+
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxTooLarge r
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
