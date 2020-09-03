@@ -47,6 +47,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxParameters (..)
     , UTxO (..)
+    , txMetadataIsNull
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, sealShelleyTx )
@@ -116,27 +117,41 @@ spec = do
     estimateMaxInputsTests Cardano.Mainnet
     estimateMaxInputsTests (Cardano.Testnet (Cardano.NetworkMagic 0))
 
-    describe "cost of withdrawal" $ do
-        it "one can measure the cost of withdrawal" $ property $ \withdrawal ->
+    describe "fee calculations" $ do
+        let policy :: FeePolicy
+            policy = LinearFee (Quantity 100000) (Quantity 100) (Quantity 0)
+
+            minFee :: Maybe TxMetadata -> CoinSelection -> Integer
+            minFee md = fromIntegral . getFee . minimumFee tl policy Nothing md
+              where tl = testTxLayer
+
+        it "withdrawals incur fees" $ property $ \withdrawal ->
             let
-                policy :: FeePolicy
-                policy = LinearFee (Quantity 100000) (Quantity 100) (Quantity 0)
+                costWith = minFee Nothing (mempty { withdrawal })
+                costWithout = minFee Nothing mempty
 
-                minFee :: CoinSelection -> Integer
-                minFee = fromIntegral . getFee . minimumFee tl policy Nothing Nothing
-                  where tl = testTxLayer
-
-                costWith = minFee (mempty { withdrawal })
-                costWithout = minFee mempty
-
-                costOfWithdrawal :: Integer
-                costOfWithdrawal = costWith - costWithout
+                marginalCost :: Integer
+                marginalCost = costWith - costWithout
             in
                 (if withdrawal == 0
-                    then property $ costOfWithdrawal == 0
-                    else property $ costOfWithdrawal > 0
+                    then property $ marginalCost == 0
+                    else property $ marginalCost > 0
                 ) & classify (withdrawal == 0) "null withdrawal"
-                & counterexample ("cost of withdrawal: " <> show costOfWithdrawal)
+                & counterexample ("cost of withdrawal: " <> show marginalCost)
+                & counterexample ("cost with: " <> show costWith)
+                & counterexample ("cost without: " <> show costWithout)
+
+        it "metadata incurs fees" $ property $ \md ->
+            let
+                costWith = minFee (Just md) mempty
+                costWithout = minFee Nothing mempty
+
+                marginalCost :: Integer
+                marginalCost = costWith - costWithout
+            in
+                property (marginalCost > 0)
+                & classify (txMetadataIsNull md) "null metadata"
+                & counterexample ("cost of metadata: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
