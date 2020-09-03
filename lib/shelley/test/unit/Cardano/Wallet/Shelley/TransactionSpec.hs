@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -119,7 +120,7 @@ spec = do
 
     describe "fee calculations" $ do
         let policy :: FeePolicy
-            policy = LinearFee (Quantity 100000) (Quantity 100) (Quantity 0)
+            policy = LinearFee (Quantity 100_000) (Quantity 100) (Quantity 0)
 
             minFee :: Maybe TxMetadata -> CoinSelection -> Integer
             minFee md = fromIntegral . getFee . minimumFee tl policy Nothing md
@@ -137,7 +138,7 @@ spec = do
                     then property $ marginalCost == 0
                     else property $ marginalCost > 0
                 ) & classify (withdrawal == 0) "null withdrawal"
-                & counterexample ("cost of withdrawal: " <> show marginalCost)
+                & counterexample ("marginal cost: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
