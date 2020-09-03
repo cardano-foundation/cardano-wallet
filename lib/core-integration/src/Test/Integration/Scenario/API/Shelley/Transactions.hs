@@ -2277,47 +2277,54 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         Left err -> error err
         Right res -> res
 
+    initTx = CardanoTransactions.mkInit CardanoTransactions.Mainnet 7750
+
+    unsafeMkInput
+        :: Word32
+        -> BS.ByteString
+        -> CardanoTransactions.Input CardanoTransactions.Shelley
+    unsafeMkInput ix bs = fromJust $ CardanoTransactions.mkInput ix bs
+
+    unsafeMkOutput
+        :: Natural
+        -> Text
+        -> CardanoTransactions.Output CardanoTransactions.Shelley
+    unsafeMkOutput n str =
+        fromJust $ CardanoTransactions.mkOutput n (unsafeBech32 str)
+
+    fromBech32 :: Text -> Maybe BS.ByteString
+    fromBech32 txt = do
+        (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
+        Bech32.dataPartToBytes dp
+
+    unsafeBech32 :: Text -> BS.ByteString
+    unsafeBech32 = fromMaybe (error msg) . fromBech32
+        where msg = "unable to decode bech32 string."
+
+    fromBase16 :: Text -> Maybe BS.ByteString
+    fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
+
+    unsafeB16 :: Text -> BS.ByteString
+    unsafeB16 = fromMaybe (error msg) . fromBase16
+        where msg = "unable to decode base16 string."
+
+    unsafeMkShelleySignKey
+        :: Text
+        -> CardanoTransactions.SignKey CardanoTransactions.Shelley
+    unsafeMkShelleySignKey str =
+        fromJust $ CardanoTransactions.mkShelleySignKey (unsafeB16 str)
+
     constructTxFromCardanoTransactions fee txid txix out1 addr1 out2 addr2 wit =
-        CardanoTransactions.empty initTx
+        CardanoTransactions.empty (initTx fee)
         & CardanoTransactions.addInput (unsafeMkInput txix txid)
         & CardanoTransactions.addOutput (unsafeMkOutput out1 addr1)
         & CardanoTransactions.addOutput (unsafeMkOutput out2 addr2)
         & CardanoTransactions.lock
         & CardanoTransactions.signWith (unsafeMkShelleySignKey wit)
         & CardanoTransactions.serialize
-      where
-        initTx = CardanoTransactions.mkInit CardanoTransactions.Mainnet 7750 fee
-        unsafeMkInput
-            :: Word32
-            -> BS.ByteString
-            -> CardanoTransactions.Input CardanoTransactions.Shelley
-        unsafeMkInput ix bs = fromJust $ CardanoTransactions.mkInput ix bs
-        unsafeMkOutput
-            :: Natural
-            -> Text
-            -> CardanoTransactions.Output CardanoTransactions.Shelley
-        unsafeMkOutput n str =
-            fromJust $ CardanoTransactions.mkOutput n (unsafeBech32 str)
-        fromBech32 :: Text -> Maybe BS.ByteString
-        fromBech32 txt = do
-            (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
-            Bech32.dataPartToBytes dp
-        unsafeBech32 :: Text -> BS.ByteString
-        unsafeBech32 = fromMaybe (error msg) . fromBech32
-            where msg = "unable to decode bech32 string."
-        fromBase16 :: Text -> Maybe BS.ByteString
-        fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
-        unsafeB16 :: Text -> BS.ByteString
-        unsafeB16 = fromMaybe (error msg) . fromBase16
-            where msg = "unable to decode base16 string."
-        unsafeMkShelleySignKey
-            :: Text
-            -> CardanoTransactions.SignKey CardanoTransactions.Shelley
-        unsafeMkShelleySignKey str =
-            fromJust $ CardanoTransactions.mkShelleySignKey (unsafeB16 str)
 
     constructMultiTxFromCardanoTransactions fee txid (txix1, txix2) out1 addr1 out2 addr2 wit1 wit2 =
-        CardanoTransactions.empty initTx
+        CardanoTransactions.empty (initTx fee)
         & CardanoTransactions.addInput (unsafeMkInput txix1 txid)
         & CardanoTransactions.addInput (unsafeMkInput txix2 txid)
         & CardanoTransactions.addOutput (unsafeMkOutput out1 addr1)
@@ -2326,33 +2333,3 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         & CardanoTransactions.signWith (unsafeMkShelleySignKey wit1)
         & CardanoTransactions.signWith (unsafeMkShelleySignKey wit2)
         & CardanoTransactions.serialize
-      where
-        initTx = CardanoTransactions.mkInit CardanoTransactions.Mainnet 7750 fee
-        unsafeMkInput
-            :: Word32
-            -> BS.ByteString
-            -> CardanoTransactions.Input CardanoTransactions.Shelley
-        unsafeMkInput ix bs = fromJust $ CardanoTransactions.mkInput ix bs
-        unsafeMkOutput
-            :: Natural
-            -> Text
-            -> CardanoTransactions.Output CardanoTransactions.Shelley
-        unsafeMkOutput n str =
-            fromJust $ CardanoTransactions.mkOutput n (unsafeBech32 str)
-        fromBech32 :: Text -> Maybe BS.ByteString
-        fromBech32 txt = do
-            (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient txt)
-            Bech32.dataPartToBytes dp
-        unsafeBech32 :: Text -> BS.ByteString
-        unsafeBech32 = fromMaybe (error msg) . fromBech32
-            where msg = "unable to decode bech32 string."
-        fromBase16 :: Text -> Maybe BS.ByteString
-        fromBase16 = eitherToMaybe . convertFromBase Base16 . T.encodeUtf8
-        unsafeB16 :: Text -> BS.ByteString
-        unsafeB16 = fromMaybe (error msg) . fromBase16
-            where msg = "unable to decode base16 string."
-        unsafeMkShelleySignKey
-            :: Text
-            -> CardanoTransactions.SignKey CardanoTransactions.Shelley
-        unsafeMkShelleySignKey str =
-            fromJust $ CardanoTransactions.mkShelleySignKey (unsafeB16 str)
