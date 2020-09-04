@@ -1204,10 +1204,18 @@ feeOpts tl action md txp minUtxo = FeeOptions
     { estimateFee = minimumFee tl feePolicy action md
     , dustThreshold = minUtxo
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
-    , feeUpperBound = Fee
-        $ ceiling a
-        + ceiling b * fromIntegral txMaxSize
-        + getCoin minUtxo
+    -- NOTE
+    -- Our fee calculation is rather good, but not perfect. We make little
+    -- approximation errors that may lead to us leaving slightly more fees than
+    -- the theorical maximum.
+    --
+    -- Therefore, we add a little tolerance on the upper-bound. This is set to
+    -- 200% at the moment and could possibly be lowered down with some analysis
+    -- if necessary.
+    , feeUpperBound = let tolerance = 3 in Fee
+        $ round
+        $ (*tolerance)
+        $ a + b * fromIntegral txMaxSize
     }
   where
     feePolicy@(LinearFee (Quantity a) (Quantity b) _) = W.getFeePolicy txp

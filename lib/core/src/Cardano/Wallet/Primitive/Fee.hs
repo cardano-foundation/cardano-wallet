@@ -178,10 +178,12 @@ adjustForFee unsafeOpt utxo coinSel = do
     let opt = invariant "fee must be non-null" unsafeOpt (not . nullFee)
     cs <- senderPaysFee opt utxo coinSel
     let actualFee = Fee (feeBalance cs)
-    when (actualFee > feeUpperBound opt) $
+    let maxFee = feeUpperBound opt
+    when (actualFee > maxFee) $
         error $ pretty $ unlinesF
             [ "generated a coin selection with an excessively large fee."
             , nameF "actual fee" (build actualFee)
+            , nameF "maximum fee" (build maxFee)
             , nameF "coin selection" (build cs)
             ]
     pure cs
