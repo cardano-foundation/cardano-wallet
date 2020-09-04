@@ -168,13 +168,13 @@ estimateMaxInputsTests net =
     describe ("estimateMaxNumberOfInputs for networkId="<> show net) $ do
 
         it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 1 `shouldBe` 23
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 1 `shouldBe` 23
         it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 10 `shouldBe` 16
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 10 `shouldBe` 16
         it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 20 `shouldBe` 9
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 20 `shouldBe` 9
         it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) 30 `shouldBe` 2
+            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 30 `shouldBe` 2
 
         prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs net)
         prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs net)
@@ -217,9 +217,9 @@ prop_moreOutputsMeansLessInputs
     -> Property
 prop_moreOutputsMeansLessInputs net size nOuts = withMaxSuccess 1000 $
     nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net size nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing nOuts
         >=
-        _estimateMaxNumberOfInputs @ShelleyKey net size (nOuts + 1)
+        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing (nOuts + 1)
 
 -- | Reducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
@@ -229,9 +229,9 @@ prop_lessOutputsMeansMoreInputs
     -> Property
 prop_lessOutputsMeansMoreInputs net size nOuts = withMaxSuccess 1000 $
     nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net size (nOuts - 1)
+        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs @ShelleyKey net size nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing nOuts
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
@@ -241,12 +241,12 @@ prop_biggerMaxSizeMeansMoreInputs
     -> Property
 prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts = withMaxSuccess 1000 $
     size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity size) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity size) Nothing nOuts
         <=
-        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity (size * 2)) nOuts
+        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity (size * 2)) Nothing nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
-testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096)
+testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing
 
 testFeeOpts :: FeeOptions
 testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0)

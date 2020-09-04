@@ -549,8 +549,8 @@ spec = do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
-    it "TRANS_CREATE_10 - Transaction with metadata" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+    it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (1 :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -574,19 +574,57 @@ spec = do
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
-            let link = Link.listTransactions @'Shelley wa
-            rb <- request @([ApiTransaction n]) ctx link Default Empty
-            verify rb
+            -- on src wallet
+            let linkSrcList = Link.listTransactions @'Shelley wa
+            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
+            verify rla
                 [ expectResponseCode HTTP.status200
                 , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT expected))
+                ]
+            -- on dst wallet
+            let linkDstList = Link.listTransactions @'Shelley wb
+            rlb <- request @([ApiTransaction n]) ctx linkDstList Default Empty
+            verify rlb
+                [ expectResponseCode HTTP.status200
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 0
                     (#metadata . #getApiTxMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
 
-    it "TRANS_CREATE_11 - Transaction with invalid metadata" $ \ctx -> do
+        let txid = getFromResponse #id ra
+        eventually "metadata is confirmed in transaction get" $ do
+          -- on src wallet
+            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rg1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT expected))
+                ]
+          -- on dst wallet
+            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
+            rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
+            verify rg2
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT expected))
+                ]
+
+    it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let amt = (1 :: Natural)
+        let amt = (1_000_000 :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -599,9 +637,9 @@ spec = do
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it "TRANS_CREATE_12 - Transaction with too much metadata" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let amt = (1 :: Natural)
+    it "TRANSMETA_CREATE_03 - Transaction with too much metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -618,9 +656,9 @@ spec = do
         expectResponseCode @IO HTTP.status400 r
         expectErrorMessage errMsg400TxTooLarge r
 
-    it "TRANS_ESTIMATE_xxx - fee estimation includes metadata" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let amt = (1 :: Natural)
+    it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -645,6 +683,40 @@ spec = do
             , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
             , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
             ]
+
+    it "TRANSMETA_ESTIMATE_02 - fee estimation with invalid metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        let txMeta = Aeson.object ["1" .= T.replicate 65 "a"]
+        let payload = addTxMetadata txMeta basePayload
+
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payload
+
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxMetadataStringTooLong r
+
+    it "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (1_000_000 :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        -- This will encode to at least 8k of CBOR. The max tx size for the
+        -- integration tests cluster is 4k.
+        let txMeta = Aeson.object
+                [ (toText @Int i, Aeson.String (T.replicate 64 "a"))
+                | i <- [0..127] ]
+        let payload = addTxMetadata txMeta basePayload
+        print payload
+        r <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wa) Default payload
+
+        expectResponseCode @IO HTTP.status400 r
+        expectErrorMessage errMsg400TxTooLarge r
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =

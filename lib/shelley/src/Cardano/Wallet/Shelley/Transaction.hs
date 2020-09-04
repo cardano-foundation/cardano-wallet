@@ -306,10 +306,12 @@ _estimateMaxNumberOfInputs
     => NetworkId
     -> Quantity "byte" Word16
      -- ^ Transaction max size in bytes
+    -> Maybe TxMetadata
+     -- ^ Metadata associated with the transaction.
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs networkId (Quantity maxSize) nOuts =
+_estimateMaxNumberOfInputs networkId (Quantity maxSize) md nOuts =
       fromIntegral $ bisect (lowerBound, upperBound)
   where
     bisect (!inf, !sup)
@@ -330,7 +332,7 @@ _estimateMaxNumberOfInputs networkId (Quantity maxSize) nOuts =
 
     isTooBig nInps = size > fromIntegral maxSize
       where
-        size = computeTxSize networkId (txWitnessTagFor @k) Nothing Nothing sel
+        size = computeTxSize networkId (txWitnessTagFor @k) md Nothing sel
         sel  = dummyCoinSel nInps (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection

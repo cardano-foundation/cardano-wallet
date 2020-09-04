@@ -128,7 +128,6 @@ import Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
-    , ErrTxTooLarge (..)
     , ErrUTxOTooSmall (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -2188,6 +2187,17 @@ instance Buildable e => LiftHandler (ErrSelectForPayment e) where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
+        ErrSelectForPaymentTxTooLarge maxSize maxN  ->
+            apiError err400 TransactionIsTooBig $ mconcat
+                [ "I am afraid that the transaction you're trying to submit is "
+                , "too large! The network allows transactions only as large as "
+                , pretty maxSize, "s! As it stands, the current transaction only "
+                , "allows me to select up to ", showT maxN, " inputs. Note "
+                , "that I am selecting inputs randomly, so retrying *may work* "
+                , "provided I end up choosing bigger inputs sufficient to cover "
+                , "the transaction cost. Alternatively, try sending to less "
+                , "recipients or with smaller metadata."
+                ]
 
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case
@@ -2296,7 +2306,6 @@ instance LiftHandler ErrPostTx where
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> handler e
-        ErrSubmitTxTooLarge e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -2493,17 +2502,6 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "account that is either empty or doesn't have a balance big "
                 , "enough to deserve being withdrawn. I won't proceed with that "
                 , "request."
-                ]
-
-instance LiftHandler ErrTxTooLarge where
-    handler = \case
-        ErrTxTooLarge {tooLargeCurrentSize, tooLargeMaximumSize}  ->
-            apiError err400 TransactionTooLarge $ mconcat
-                [ "I am afraid that the transaction you're trying to submit is "
-                , "too large! It weights ", pretty tooLargeCurrentSize, "s "
-                , "but the network currently allows only ", pretty tooLargeMaximumSize
-                , "s! Likely, this is because you've added some metadata that "
-                , "are too large."
                 ]
 
 instance LiftHandler (Request, ServerError) where

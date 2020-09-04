@@ -127,7 +127,7 @@ newTransactionLayer block0H = TransactionLayer
 
     , minimumFee = _minimumFee
 
-    , estimateMaxNumberOfInputs = \_ _ -> fromIntegral maxNumberOfInputs
+    , estimateMaxNumberOfInputs = \_ _ _ -> fromIntegral maxNumberOfInputs
 
     , validateSelection = \cs -> do
         let tooManyInputs  = length (CS.inputs cs)  > maxNumberOfInputs

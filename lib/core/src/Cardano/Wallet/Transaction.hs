@@ -125,6 +125,8 @@ data TransactionLayer t k = TransactionLayer
     , estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
             -- Max tx size
+        -> Maybe TxMetadata
+            -- Metadata associated with the transaction
         -> Word8
             -- desired number of outputs
         -> Word8
