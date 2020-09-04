@@ -128,6 +128,8 @@ import Data.Set
     ( Set )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Tuple.Extra
+    ( dupe )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -447,40 +449,22 @@ combineChainData registrationMap retirementMap prodMap metaMap =
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
 
--- TODO:
---
--- This function currently executes a total of (2n + 1) database queries, where
--- n is the total number of pools with entries in the pool registrations table.
---
--- Specifically:
---
---    1.  We first execute a query to determine the complete set of all pools
---        (including those that may have retired).
---
---    2.  For each pool, we determine its current life-cycle status by executing
---        a pair of queries to fetch:
---
---          a. The most recent registration certificate.
---          b. The most recent retirement certificate.
---
--- This is almost certainly not optimal.
---
--- If performance becomes a problem, we should investigate ways to reduce the
--- number of queries required:
---
---    See: https://jira.iohk.io/browse/ADP-383
---
 readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} = atomically $ do
-    pools <- listRegisteredPools
-    lifeCycleStatuses <- mapM readPoolLifeCycleStatus pools
-    let mkCertificateMap
-            :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
-        mkCertificateMap f = Map.fromList
-            [(p, c) | (p, Just c) <- zip pools (f <$> lifeCycleStatuses)]
+    lifeCycleData <- listPoolLifeCycleData maxBound
+    let registrationCertificates = lifeCycleData
+            & fmap getPoolRegistrationCertificate
+            & catMaybes
+            & fmap (first (view #poolId) . dupe)
+            & Map.fromList
+    let retirementCertificates = lifeCycleData
+            & fmap getPoolRetirementCertificate
+            & catMaybes
+            & fmap (first (view #poolId) . dupe)
+            & Map.fromList
     combineChainData
-        (mkCertificateMap getPoolRegistrationCertificate)
-        (mkCertificateMap getPoolRetirementCertificate)
+        registrationCertificates
+        retirementCertificates
         <$> readTotalProduction
         <*> readPoolMetadata
 
