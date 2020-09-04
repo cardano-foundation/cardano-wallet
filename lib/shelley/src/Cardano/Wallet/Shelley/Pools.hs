@@ -194,7 +194,7 @@ newStakePoolLayer nl db@DBLayer {..} =
     _knownPools
         :: IO (Set PoolId)
     _knownPools =
-        Map.keysSet <$> liftIO (readPoolDbData db)
+        Map.keysSet <$> liftIO (readPoolDbData db minBound)
 
     _listPools
         :: EpochNo
@@ -206,7 +206,7 @@ newStakePoolLayer nl db@DBLayer {..} =
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
             $ stakeDistribution nl tip userStake
         let lsqData = combineLsqData rawLsqData
-        dbData <- liftIO $ readPoolDbData db
+        dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
         -- TODO:
         -- Use a more efficient way of filtering out retired pools.
@@ -449,9 +449,9 @@ combineChainData registrationMap retirementMap prodMap metaMap =
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
 
-readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
-readPoolDbData DBLayer {..} = atomically $ do
-    lifeCycleData <- listPoolLifeCycleData maxBound
+readPoolDbData :: DBLayer IO -> EpochNo -> IO (Map PoolId PoolDbData)
+readPoolDbData DBLayer {..} currentEpoch = atomically $ do
+    lifeCycleData <- listPoolLifeCycleData currentEpoch
     let registrationCertificates = lifeCycleData
             & fmap getPoolRegistrationCertificate
             & catMaybes
