@@ -462,6 +462,16 @@ instance PersistFieldSql PoolOwner where
 instance Read PoolOwner where
     readsPrec _ = error "readsPrec stub needed for persistent"
 
+instance FromText [PoolOwner] where
+    fromText t = mapM fromText $ T.words t
+
+instance PersistField [PoolOwner] where
+    toPersistValue v = toPersistValue $ T.unwords $ toText <$> v
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql [PoolOwner] where
+    sqlType _ = sqlType (Proxy @Text)
+
 ----------------------------------------------------------------------------
 -- HDPassphrase
 

@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , StakePoolMetadata (..)
@@ -80,6 +81,8 @@ import Data.Either
     ( rights )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -371,6 +374,55 @@ newDBLayer trace fp timeInterpreter = do
                         <$> fromPersistValue poolId
                         <*> fromPersistValue retirementEpoch
             rights . fmap safeCast <$> rawSql query parameters
+
+        listPoolLifeCycleData epochNo =
+            rights . fmap parseRow <$> rawSql query parameters
+          where
+            query = T.unwords
+                [ "SELECT *"
+                , "FROM active_pool_lifecycle_data"
+                , "WHERE retirement_epoch IS NULL OR retirement_epoch > ?;"
+                ]
+            parameters = [ toPersistValue epochNo ]
+            parseRow
+                ( Single fieldPoolId
+                , Single fieldRetirementEpoch
+                , Single fieldOwners
+                , Single fieldCost
+                , Single fieldPledge
+                , Single fieldMarginNumerator
+                , Single fieldMarginDenominator
+                , Single fieldMetadataHash
+                , Single fieldMetadataUrl
+                ) = do
+                regCert <- parseRegistrationCertificate
+                parseRetirementCertificate <&> maybe
+                    (PoolRegistered regCert)
+                    (PoolRegisteredAndRetired regCert)
+              where
+                parseRegistrationCertificate = PoolRegistrationCertificate
+                    <$> fromPersistValue fieldPoolId
+                    <*> fromPersistValue fieldOwners
+                    <*> parseMargin
+                    <*> (Quantity <$> fromPersistValue fieldCost)
+                    <*> (Quantity <$> fromPersistValue fieldPledge)
+                    <*> parseMetadata
+
+                parseRetirementCertificate = do
+                    poolId <- fromPersistValue fieldPoolId
+                    mRetirementEpoch <- fromPersistValue fieldRetirementEpoch
+                    pure $ PoolRetirementCertificate poolId <$> mRetirementEpoch
+
+                parseMargin = mkMargin
+                    <$> fromPersistValue @Word64 fieldMarginNumerator
+                    <*> fromPersistValue @Word64 fieldMarginDenominator
+                  where
+                    mkMargin n d = unsafeMkPercentage $ toRational $ n % d
+
+                parseMetadata = do
+                    u <- fromPersistValue fieldMetadataUrl
+                    h <- fromPersistValue fieldMetadataHash
+                    pure $ (,) <$> u <*> h
 
         rollbackTo point = do
             -- TODO(ADP-356): What if the conversion blocks or fails?

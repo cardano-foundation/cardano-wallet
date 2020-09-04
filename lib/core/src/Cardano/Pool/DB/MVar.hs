@@ -65,6 +65,8 @@ import Data.Generics.Internal.VL.Lens
 import Data.Tuple
     ( swap )
 
+import qualified Data.Set as Set
+
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: TimeInterpreter Identity -> IO (DBLayer IO)
@@ -123,6 +125,14 @@ newDBLayer timeInterpreter = do
 
         listRetiredPools epochNo =
             modifyMVar db (pure . swap . mListRetiredPools epochNo)
+
+        listPoolLifeCycleData epochNo = do
+            registeredPools <- Set.fromList
+                <$> listRegisteredPools
+            retiredPools <- Set.fromList . fmap (view #poolId)
+                <$> listRetiredPools epochNo
+            let nonRetiredPools = registeredPools `Set.difference` retiredPools
+            mapM readPoolLifeCycleStatus $ Set.toList nonRetiredPools
 
         putPoolMetadata a0 a1 =
             void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)
