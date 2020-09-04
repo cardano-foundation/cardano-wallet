@@ -138,6 +138,7 @@ let
         ghcid = "0.8.7";
         ghcide = "0.2.0";
         hlint = "3.1.6";
+        lentil = "1.3.2.0";
         stylish-haskell = "0.11.0.0";
         weeder = "1.0.9";
       };

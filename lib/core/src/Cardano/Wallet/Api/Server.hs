@@ -1525,7 +1525,7 @@ migrateWallet
     -> ApiWalletMigrationPostData n p
     -> Handler [ApiTransaction n]
 migrateWallet ctx (ApiT wid) migrateData = do
-    -- TO DO check if addrs are not empty
+    -- TODO: check if addrs are not empty
 
     migration <- do
         withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
