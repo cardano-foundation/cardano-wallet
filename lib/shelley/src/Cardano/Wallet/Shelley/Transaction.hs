@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -312,28 +311,18 @@ _estimateMaxNumberOfInputs
     -- ^ Number of outputs in transaction
     -> Word8
 _estimateMaxNumberOfInputs networkId (Quantity maxSize) md nOuts =
-      fromIntegral $ bisect (lowerBound, upperBound)
+    findMax minBound
   where
-    bisect (!inf, !sup)
-        | middle == inf && isTooBig sup = inf
-        | middle == inf                 = sup
-        | isTooBig middle               = bisect (inf, middle)
-        | otherwise                     = bisect (middle, sup)
-      where
-        middle = inf + ((sup - inf) `div` 2)
-
-    growingFactor = 2
-
-    lowerBound = upperBound `div` growingFactor
-    upperBound = upperBound_ 1
-      where
-        upperBound_ !n | isTooBig n = n
-                       | otherwise  = upperBound_ (n*growingFactor)
+    findMax :: Word8 -> Word8
+    findMax inf
+        | inf == maxBound    = 0
+        | isTooBig (inf + 1) = inf
+        | otherwise          = findMax (inf + 1)
 
     isTooBig nInps = size > fromIntegral maxSize
       where
         size = computeTxSize networkId (txWitnessTagFor @k) md Nothing sel
-        sel  = dummyCoinSel nInps (fromIntegral nOuts)
+        sel  = dummyCoinSel (fromIntegral nInps) (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
 dummyCoinSel nInps nOuts = mempty

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -33,10 +34,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseScheme (..)
     , preparePassphrase
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (withdrawal), CoinSelectionOptions )
+    ( CoinSelection, CoinSelectionOptions )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
@@ -53,7 +58,8 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkByronWitness
+    ( TxWitnessTagFor
+    , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
     , newTransactionLayer
@@ -63,7 +69,7 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Control.Monad.Trans.Except
     ( catchE, runExceptT, withExceptT )
 import Data.Function
@@ -72,6 +78,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Typeable
+    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word8 )
 import Ouroboros.Network.Block
@@ -93,6 +101,7 @@ import Test.QuickCheck
     , scale
     , vectorOf
     , withMaxSuccess
+    , within
     , (===)
     , (==>)
     )
@@ -115,8 +124,20 @@ spec = do
         prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
-    estimateMaxInputsTests Cardano.Mainnet
-    estimateMaxInputsTests (Cardano.Testnet (Cardano.NetworkMagic 0))
+    estimateMaxInputsTests @ShelleyKey Cardano.Mainnet
+        [(1,23),(10,16),(20,9),(30,2)]
+    estimateMaxInputsTests @ShelleyKey (Cardano.Testnet (Cardano.NetworkMagic 0))
+        [(1,23),(10,16),(20,9),(30,2)]
+
+    estimateMaxInputsTests @ByronKey Cardano.Mainnet
+        [(1,19),(10,12),(20,6),(30,0)]
+    estimateMaxInputsTests @ByronKey (Cardano.Testnet (Cardano.NetworkMagic 0))
+        [(1,18),(10,12),(20,5),(30,0)]
+
+    estimateMaxInputsTests @IcarusKey Cardano.Mainnet
+        [(1,19),(10,14),(20,9),(30,4)]
+    estimateMaxInputsTests @IcarusKey (Cardano.Testnet (Cardano.NetworkMagic 0))
+        [(1,18),(10,13),(20,8),(30,2)]
 
     describe "fee calculations" $ do
         let policy :: FeePolicy
@@ -128,7 +149,7 @@ spec = do
 
         it "withdrawals incur fees" $ property $ \withdrawal ->
             let
-                costWith = minFee Nothing (mempty { withdrawal })
+                costWith = minFee Nothing (mempty { CS.withdrawal = withdrawal })
                 costWithout = minFee Nothing mempty
 
                 marginalCost :: Integer
@@ -178,23 +199,25 @@ spec = do
         res `shouldBe` Right (FeeEstimation 165413 165413)
 
 estimateMaxInputsTests
-    :: Cardano.NetworkId
+    :: forall k. (TxWitnessTagFor k, Typeable k)
+    => Cardano.NetworkId
+    -> [(Word8, Word8)]
     -> SpecWith ()
-estimateMaxInputsTests net =
-    describe ("estimateMaxNumberOfInputs for networkId="<> show net) $ do
+estimateMaxInputsTests net cases = do
+    let k = show $ typeRep (Proxy @k)
+    describe ("estimateMaxNumberOfInputs for "<>k<>" on "<>show net) $ do
+        forM_ cases $ \(nOuts, nInps) -> do
+            let (o,i) = (show nOuts, show nInps)
+            it ("order of magnitude, nOuts = " <> o <> " → nInps = " <> i) $
+                _estimateMaxNumberOfInputs @k net (Quantity 4096) Nothing nOuts
+                    `shouldBe` nInps
 
-        it "order of magnitude, nOuts = 1" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 1 `shouldBe` 23
-        it "order of magnitude, nOuts = 10" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 10 `shouldBe` 16
-        it "order of magnitude, nOuts = 20" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 20 `shouldBe` 9
-        it "order of magnitude, nOuts = 30" $
-            _estimateMaxNumberOfInputs @ShelleyKey net (Quantity 4096) Nothing 30 `shouldBe` 2
-
-        prop "more outputs ==> less inputs" (prop_moreOutputsMeansLessInputs net)
-        prop "less outputs ==> more inputs" (prop_lessOutputsMeansMoreInputs net)
-        prop "bigger size  ==> more inputs" (prop_biggerMaxSizeMeansMoreInputs net)
+        prop "more outputs ==> less inputs"
+            (prop_moreOutputsMeansLessInputs @k net)
+        prop "less outputs ==> more inputs"
+            (prop_lessOutputsMeansMoreInputs @k net)
+        prop "bigger size  ==> more inputs"
+            (prop_biggerMaxSizeMeansMoreInputs @k net)
 
 prop_decodeSignedShelleyTxRoundtrip
     :: DecodeShelleySetup
@@ -227,39 +250,48 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo network pai
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
-    :: Cardano.NetworkId
+    :: forall k. TxWitnessTagFor k
+    => Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_moreOutputsMeansLessInputs net size nOuts = withMaxSuccess 1000 $
-    nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing nOuts
+prop_moreOutputsMeansLessInputs net size nOuts
+    = withMaxSuccess 1000
+    $ within 100000
+    $ nOuts < maxBound ==>
+        _estimateMaxNumberOfInputs @k net size Nothing nOuts
         >=
-        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing (nOuts + 1)
+        _estimateMaxNumberOfInputs @k net size Nothing (nOuts + 1)
 
 -- | Reducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
-    :: Cardano.NetworkId
+    :: forall k. TxWitnessTagFor k
+    => Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_lessOutputsMeansMoreInputs net size nOuts = withMaxSuccess 1000 $
-    nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing (nOuts - 1)
+prop_lessOutputsMeansMoreInputs net size nOuts
+    = withMaxSuccess 1000
+    $ within 100000
+    $ nOuts > minBound ==>
+        _estimateMaxNumberOfInputs @k net size Nothing (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs @ShelleyKey net size Nothing nOuts
+        _estimateMaxNumberOfInputs @k net size Nothing nOuts
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
-    :: Cardano.NetworkId
+    :: forall k. TxWitnessTagFor k
+    => Cardano.NetworkId
     -> Quantity "byte" Word16
     -> Word8
     -> Property
-prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts = withMaxSuccess 1000 $
-    size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity size) Nothing nOuts
+prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts
+    = withMaxSuccess 1000
+    $ within 100000
+    $ size < maxBound `div` 2 ==>
+        _estimateMaxNumberOfInputs @k net (Quantity size) Nothing nOuts
         <=
-        _estimateMaxNumberOfInputs @ShelleyKey net (Quantity (size * 2)) Nothing nOuts
+        _estimateMaxNumberOfInputs @k net (Quantity (size * 2)) Nothing nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing
