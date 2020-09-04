@@ -208,12 +208,8 @@ newStakePoolLayer nl db@DBLayer {..} =
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        -- TODO:
-        -- Use a more efficient way of filtering out retired pools.
-        -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
         r <- liftIO $ try $
             sortByReward seed
-            . filter (not . poolIsRetired)
             . map snd
             . Map.toList
             <$> combineDbAndLsqData
@@ -222,29 +218,16 @@ newStakePoolLayer nl db@DBLayer {..} =
                 lsqData
                 dbData
         case r of
-            Left e@(PastHorizon{}) -> throwE (ErrListPoolsPastHorizonException e)
+            Left e@(PastHorizon{}) ->
+                throwE (ErrListPoolsPastHorizonException e)
             Right r' -> pure r'
-
       where
-
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
             ErrCurrentNodeTipNetworkUnreachable e ->
                 ErrListPoolsNetworkError e
             ErrCurrentNodeTipNotFound ->
                 ErrListPoolsNetworkError $ ErrNetworkUnreachable "tip not found"
-
-        epochIsInFuture :: EpochNo -> Bool
-        epochIsInFuture = (> currentEpoch)
-
-        poolIsRetired :: Api.ApiStakePool -> Bool
-        poolIsRetired =
-            maybe False (not . epochIsInFuture) . poolRetirementEpoch
-
-        poolRetirementEpoch :: Api.ApiStakePool -> Maybe EpochNo
-        poolRetirementEpoch p = p
-            & view #retirement
-            & fmap (view (#epochNumber . #getApiT))
 
         -- Sort by non-myopic member rewards, making sure to also randomly sort
         -- pools that have equal rewards.
