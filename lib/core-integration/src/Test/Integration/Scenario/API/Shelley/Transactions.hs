@@ -766,38 +766,41 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_EXTERNAL_01 - Single Output Transaction - Shelley witnesses" $ \ctx -> do
         wFaucet <- fixtureWallet ctx
-        let amt = (10_000_000 :: Natural)
+        let amtSrc = (10_000_000 :: Natural)
 
+        let mnemonicsSrc =
+                [ "nothing", "heart", "matrix", "fly", "sleep", "slogan", "tomato"
+                , "pulse", "what", "roof", "rail", "since", "plastic", "false", "enlist"
+                ] :: [Text]
         let walletPostData = Json [json| {
                 "name": "empty wallet",
-                "mnemonic_sentence": #{mnemonics15},
+                "mnemonic_sentence": #{mnemonicsSrc},
                 "passphrase": #{fixturePassphrase}
                 } |]
         r1 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData
         verify r1
-            [ expectSuccess
-            , expectResponseCode HTTP.status201
+            [ expectResponseCode HTTP.status201
             , expectField
                 (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             ]
         let wSrc = getFromResponse Prelude.id r1
 
-        -- 1. mnemonic15 phrase: recovery-phrase-src.prv
-        -- --> network empty cause mean expire private finger accident session problem absurd banner stage void what
+        -- 1. recovery-phrase-src.prv
+        -- --> nothing heart matrix fly sleep slogan tomato pulse what roof rail since plastic false enlist
         -- 2. corresponding root key:
         --- $ cat recovery-phrase-src.prv | cardano-address key from-recovery-phrase Shelley > root-src.prv
-        -- --> xprv1dqjlgjd6n9n63guasjpp0q0p93v3lgwenwf2s8z6erzzqxgqv4qnsyk4mrh8z5nz3fesun538g3epe4l8j8rezfdvmns78sp796rsflp980qp6gqgh0uzyxtad0smxd88wt8a9djhkvq8zsvp2gzzycmpq927903
+        -- --> xprv1apjwjs3ksgm5mnnk0cc5v5emgv0hmafmmy8tffay5s2ffk69830whwznr46672ruucdzwwtv9upv72e4ylrypyz5m6cyh0p00t7n3u3agt20lv32j4kxcqlkzu78nzjx0ysxxlc2ghfz9prxfmrds802xsh67k7t
         -- 3. staking private key:
         --- $ cat root-src.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-src.prv
-        -- --> xprv1uz7ghz6969v3ns0veeddflaj9hr0q5dwnzgep7rznt72cvcqv4qa2l9kfqsrzsg72zl89wyty42jq4a6n6l2mnuj4zfv578jvh8tm8pa439z46e6qmhhqrwy40deer2dkcyr44u5ze4awfnhykgf5j94u59rcpdg
+        -- --> xprv1vqxfvfacglus6perg957zahktdch6lg6w4fhpwptvsgmr669830d08h0kk6lyfhlq34r2982jfypmkyc57uguztx7mvguvn8wuc8zjj7etm3ej2h5d52k6ssld7cchcmehgx45h5km3mukfyc5h04urr9qpzq79h
         -- 4. delegation address to which we send 10 ada (index 1 and for network tag 1):
         --- $ cat root-src.prv \
         --- | cardano-address key child 1852H/1815H/0H/0/1 \
         --- | cardano-address key public \
         --- | cardano-address address payment --network-tag 1 \
         --- | cardano-address address delegation $(cat stake-src.prv | cardano-address key public)
-        --- --> addr1q9wteuqmnkywcz9zefjyp0wn3tctz9xgxm8fpcmyzn9uypknudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyq75lt2a
-        payload1 <- mkTxPayload ctx wSrc amt fixturePassphrase
+        --- --> addr1qx2l6wzfqtswyeqe2auxtj5742r5kcl23d66q2ukpgv0j6tv465tn73z5d4m4t3fptal7lnnqsdngmu93e68vxavl8zqef9maq
+        payload1 <- mkTxPayload ctx wSrc amtSrc fixturePassphrase
 
         r2 <- request @ApiFee ctx
                (Link.getTransactionFee @'Shelley wFaucet) Default payload1
@@ -805,16 +808,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         r3 <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wFaucet) Default payload1
-        verify r3
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
+        expectResponseCode @IO HTTP.status202 r3
 
         let (Hash txid) = getApiT $ getFromResponse #id r3
         let txix = case getFromResponse #outputs r3 of
                 [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
-                    | out1 == amt -> 0
-                    | out2 == amt -> 1
+                    | out1 == amtSrc -> 0
+                    | out2 == amtSrc -> 1
                     | otherwise -> error "this should not happen"
                 _ -> error "this should not happen"
 
@@ -823,19 +823,24 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity amt) r'
+                (`shouldBe` Quantity amtSrc) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wFaucet) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMin - amt)) r''
+                (`shouldBe` Quantity (faucetAmt - feeMin - amtSrc)) r''
 
-        let amt1 = (2_000_000 :: Natural)
+        let amtDest = (2_000_000 :: Natural)
 
+        let mnemonicsDest =
+                [ "lens", "cable", "debate", "child", "gaze", "air", "gadget"
+                , "vocal", "urge", "agree", "ivory", "milk", "midnight", "equal"
+                , "meadow", "odor", "fancy", "rain"
+                ] :: [Text]
         let walletPostData1 = Json [json| {
                 "name": "empty wallet",
-                "mnemonic_sentence": #{mnemonics18},
+                "mnemonic_sentence": #{mnemonicsDest},
                 "passphrase": #{fixturePassphrase}
                 } |]
         r4 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData1
@@ -849,76 +854,73 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- The construction of external tx
         -- (a) fee which was estimated using cardano-wallet endpoint
-        payload2 <- mkTxPayload ctx wDest amt1 fixturePassphrase
+        payload2 <- mkTxPayload ctx wDest amtDest fixturePassphrase
         r5 <- request @ApiFee ctx
                (Link.getTransactionFee @'Shelley wSrc) Default payload2
         let (Quantity feeMin1) = getFromResponse #estimatedMin r5
 
-        -- (b) the change address of mnemonic15 wallet
+        -- (b) the change address of wSrc
         --- $ cat root-src.prv \
         ---  > | cardano-address key child 1852H/1815H/0H/1/0 \
         ---  > | cardano-address key public \
         ---  > | cardano-address address payment --network-tag 1 \
         ---  > | cardano-address address delegation $(cat stake-src.prv | cardano-address key public)
         -- --> addr1qxwnlf2zq2zpuwfmknec0522felspg7w8qgg7xeuywhyd8xnudck0fzve4346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyqj7tm03
-        let addr1 =
-               "addr1qxwnlf2zq2zpuwfmknec0522felspg7w8qgg7xeuywhyd8xnudck0fzve4\
-               \346yytz3wpwv9yhlxt7jwuc7ytwx2vfkyqj7tm03"
-        let out1 = amt - feeMin1 - amt1
-        -- (c) the output of mnemonic18 wallet, it is expected to receive amt1
-        -- 1. mnemonic18 phrase: recovery-phrase-dest.prv
-        -- --> whisper control diary solid cattle salmon whale slender spread ice shock solve panel caution upon scatter broken tonight
+        let addrChange =
+               "addr1qyfcdmnncvnrnax8jlly3t25uwhp3tfhn658wq03xmmcz0tv465tn73z5d\
+               \4m4t3fptal7lnnqsdngmu93e68vxavl8zq8v804u"
+        let outChange = amtSrc - feeMin1 - amtDest
+        -- (c) the output of wDest wallet, it is expected to receive amtDest
+        -- 1. recovery-phrase-dest.prv
+        -- --> lens cable debate child gaze air gadget vocal urge agree ivory milk midnight equal meadow odor fancy rain
         -- 2. corresponding root key:
         --- $ cat recovery-phrase-dest.prv | cardano-address key from-recovery-phrase Shelley > root-dest.prv
-        -- --> xprv1kra0jaflzzgtwu5mxl3qsv0gga05fyd3g0yslf3q0kgsq7ctep2wq9yjg4sgq2rwnpcuk2dw8czw9qde5f9ank5vr080fn4z9vzk8zdkvgj7qt6lmlxyn6hm2ne0ymg2srpxfu6cqxxzz75wh93u6klenqd3sg0r
+        -- --> xprv18rm0qqpnhjff0zlxfxvewxlqecj2p9kumjnj8v3srwje5al5udwkeq2w09nemnc76s2h42ynv7k44epe6n2e5p5wz3pu0lcxy338gcv2nvvlaszcpqa5al94ummslwv7muzmxnxml4l5xzfx3vgff297nqssus24
         -- 3. staking private key:
         --- $ cat root-dest.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-dest.prv
-        -- --> xprv1szgf7fs2lm9w0dgka58d8nqa2yklu8jplktzq9469edmrzstep2xgepmyhvllfxfrksh8qce5dnk2nlmaz0ye8qrph3rxlsnh55ntl0ze68996d4v3qlh9pyp3jreanaxlh0pklk2aq9nl4scheqk6a7l568sfj2
+        -- --> xprv1lzgm04cw604c48lws825squexqy6800ldhm627p3vgelfz05udwhwrm8cs6ky86mw94jzvf5k5qz0l3ll0cxdwrfyks70t69nfqymm85q6e9dx4d7mdn0ywj80cmgd7hn5p8f4cxtvl8x5j69cpsuja02yskqld4
         -- 4. delegation address (index 1 and for network tag 1):
         --- $ cat root-dest.prv \
         --- | cardano-address key child 1852H/1815H/0H/0/1 \
         --- | cardano-address key public \
         --- | cardano-address address payment --network-tag 1 \
         --- | cardano-address address delegation $(cat stake-dest.prv | cardano-address key public)
-        --- --> addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfevux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2
-        let addr2 =
-                "addr1qy05t9gyt05y8e0v5rxrhet40tkke8l80ktmvnqnafgqqhjqmr34pgfev\
-                \ux4mslq44avqpjxm9hw2ymyquy6zuy0npmq030jj2"
+        --- --> addr1q9msdjwd4g76graphf58aq9jzs5m554ehu56rtgultej6luvqzvd0c9np7kn7nwjde979jfhjvxlhcrqtee8g6cc49gsn08662
+        let addrDest =
+                "addr1q9msdjwd4g76graphf58aq9jzs5m554ehu56rtgultej6luvqzvd0c9np\
+                \7kn7nwjde979jfhjvxlhcrqtee8g6cc49gsn08662"
 
-        -- Produce corresponding private key (witness) for input address
+        -- Produce corresponding private key (witness) for input address of wSrc
         -- selected in the faucet->src wallet transaction (see above):
         --- cat root-src.prv | cardano-address key child 1852H/1815H/0H/0/1 --base16
         -- --> 400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f006541c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752acfa81d028f8516adad09a8efe3a0209e7e75d6bc61265f48d7471acdd2bf7ee7b23d
         let wit =
-                "400cd8a0c260e5aafe1768bf077815351fedf1bb698e1fb4a32903d52f0065\
-                \41c9dfe5b6c62f5c30aa958711233696d2d3f8486547a9e2f928d064f5752a\
-                \cfa81d028f8516adad09a8efe3a0209e7e75d6bc61265f48d7471acdd2bf7e\
-                \e7b23d"
+                "a8440eef40cf0923d831ea2832095afb81c3c3961d6091b6d3874eedec453c\
+                \5ea05908aa8997a7518fb14d6c4e11127323c5e08b88f215284243aa7591f4\
+                \df956f7f9864ef1a6c79727346fc7913f78bd8c1e0ae3d25f06334fd68dec4\
+                \a34aac"
         let (Right blob) = constructTxFromCardanoTransactions
-                (fromIntegral feeMin1) txid txix out1 addr1 amt1 addr2 wit
+                (fromIntegral feeMin1) txid txix outChange addrChange amtDest addrDest wit
         let baseOk = Base64
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
         let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r6 <- request
             @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
-        verify r6
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
+        expectResponseCode @IO HTTP.status202 r6
 
         eventually "wDest and wSrc balances are as expected" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity amt1) r'
+                (`shouldBe` Quantity amtDest) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity out1) r''
+                (`shouldBe` Quantity outChange) r''
 
     it "TRANS_EXTERNAL_02 - Multiple Outputs Transaction - Shelley witnesses" $ \ctx -> do
         wFaucet <- fixtureWallet ctx
