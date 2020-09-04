@@ -211,14 +211,20 @@ newDBLayer trace fp timeInterpreter = do
 
             pure (foldl' toMap Map.empty production)
 
-        readTotalProduction = do
-            production <- fmap entityVal <$>
-                selectList ([] :: [Filter PoolProduction]) []
-
-            let toMap m (PoolProduction{poolProductionPoolId}) =
-                    Map.insertWith (+) poolProductionPoolId 1 m
-
-            pure $ Map.map Quantity $ foldl' toMap Map.empty production
+        readTotalProduction =
+            Map.fromList . rights . fmap parseRow <$> rawSql query []
+          where
+            query = T.unwords
+                [ "SELECT pool_id, count(pool_id) as block_count"
+                , "FROM pool_production"
+                , "GROUP BY pool_id;"
+                ]
+            parseRow
+                ( Single fieldPoolId
+                , Single fieldBlockCount
+                ) = (,)
+                    <$> fromPersistValue fieldPoolId
+                    <*> (Quantity <$> fromPersistValue fieldBlockCount)
 
         putStakeDistribution epoch@(EpochNo ep) distribution = do
             deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
