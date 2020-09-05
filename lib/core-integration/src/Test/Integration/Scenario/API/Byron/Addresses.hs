@@ -70,7 +70,11 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NotAByronWallet, errMsg403WrongPass, errMsg404NoWallet )
+    ( errMsg403CouldntIdentifyAddrAsMine
+    , errMsg403NotAByronWallet
+    , errMsg403WrongPass
+    , errMsg404NoWallet
+    )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
@@ -107,6 +111,7 @@ spec = do
         scenario_ADDRESS_IMPORT_03 @n emptyRandomWalletMws
         scenario_ADDRESS_IMPORT_04 @n fixtureRandomWallet
         scenario_ADDRESS_IMPORT_05 @n 15000 emptyRandomWalletMws
+        scenario_ADDRESS_IMPORT_06 @n emptyRandomWalletMws
 
 scenario_ADDRESS_LIST_01
     :: forall (n :: NetworkDiscriminant) t.
@@ -424,3 +429,27 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
         ]
   where
     title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <>" of addresses"
+
+scenario_ADDRESS_IMPORT_06
+    :: forall (n :: NetworkDiscriminant) t.
+        ( DecodeAddress n
+        , EncodeAddress n
+        , PaymentAddress n ByronKey
+        )
+    => (Context t -> IO (ApiByronWallet, Mnemonic 12))
+    -> SpecWith (Context t)
+scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> do
+    (w, _)   <- fixture ctx
+    (_, mw2) <- fixture ctx
+
+    -- Get an unused address from other wallet
+    let addr = randomAddresses @n mw2 !! 42
+    let (_, base) = Link.postRandomAddress w
+    let link = base <> "/" <> encodeAddress @n addr
+    r0 <- request @() ctx ("PUT", link) Default Empty
+    verify r0
+        [ expectResponseCode @IO HTTP.status403
+        , expectErrorMessage errMsg403CouldntIdentifyAddrAsMine
+        ]
+  where
+    title = "ADDRESS_IMPORT_06 - posting an unknown address to the wallet returns 403"
