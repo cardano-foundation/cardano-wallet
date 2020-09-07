@@ -190,10 +190,6 @@ import Control.Monad
     ( guard, (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
-import Crypto.Number.Generate
-    ( generateBetween )
-import Crypto.Random.Types
-    ( MonadRandom )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
 import Data.Bifunctor
@@ -268,6 +264,8 @@ import GHC.TypeLits
     ( KnownNat, KnownSymbol, Symbol, natVal, symbolVal )
 import Numeric.Natural
     ( Natural )
+import System.Random
+    ( randomRIO )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -1210,14 +1208,13 @@ instance Buildable UTxO where
 -- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
 -- Otherwise, returns the selected entry and, the UTxO minus the selected one.
 pickRandom
-    :: MonadRandom m
-    => UTxO
-    -> m (Maybe (TxIn, TxOut), UTxO)
+    :: UTxO
+    -> IO (Maybe (TxIn, TxOut), UTxO)
 pickRandom (UTxO utxo)
     | Map.null utxo =
         return (Nothing, UTxO utxo)
     | otherwise = do
-        ix <- fromEnum <$> generateBetween 0 (toEnum (Map.size utxo - 1))
+        ix <- randomRIO (0, toEnum (Map.size utxo - 1))
         return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
 
 -- | Compute the balance of a UTxO
