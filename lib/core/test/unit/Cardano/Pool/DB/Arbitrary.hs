@@ -8,13 +8,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Arbitrary
-    ( ListSerializationMethod
-    , MultiPoolCertificateSequence (..)
+    ( MultiPoolCertificateSequence (..)
+    , getMultiPoolCertificateSequence
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
     , isValidSinglePoolCertificateSequence
-    , serializeLists
     ) where
 
 import Prelude
@@ -247,17 +246,30 @@ instance Arbitrary SinglePoolCertificateSequence where
 -- | Represents valid sequences of registration and retirement certificates
 --   for multiple pools.
 --
-newtype MultiPoolCertificateSequence = MultiPoolCertificateSequence
-    { getMultiPoolCertificateSequence :: [SinglePoolCertificateSequence]
+-- Use 'getMultiPoolCertificateSequence' to obtain a single, flattened list
+-- of pool certificates.
+--
+data MultiPoolCertificateSequence = MultiPoolCertificateSequence
+    { getSerializationMethod :: ListSerializationMethod
+    , getSinglePoolSequences :: [SinglePoolCertificateSequence]
     }
     deriving (Eq, Show)
 
 instance Arbitrary MultiPoolCertificateSequence where
-    arbitrary = MultiPoolCertificateSequence <$> arbitrary
-    shrink
-        = fmap MultiPoolCertificateSequence
-        . shrink
-        . getMultiPoolCertificateSequence
+    arbitrary = MultiPoolCertificateSequence
+        <$> arbitrary
+        <*> arbitrary
+    shrink mpcs =
+        [ MultiPoolCertificateSequence (getSerializationMethod mpcs) sequences
+        | sequences <- shrink (getSinglePoolSequences mpcs)
+        ]
+
+getMultiPoolCertificateSequence
+    :: MultiPoolCertificateSequence -> [PoolCertificate]
+getMultiPoolCertificateSequence mpcs =
+    serializeLists
+        (getSerializationMethod mpcs)
+        (getSinglePoolCertificateSequence <$> getSinglePoolSequences mpcs)
 
 -- | Indicates a way to serialize a list of lists into a single list.
 --

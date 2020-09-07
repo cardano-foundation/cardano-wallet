@@ -27,13 +27,12 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( ListSerializationMethod
-    , MultiPoolCertificateSequence (..)
+    ( MultiPoolCertificateSequence (..)
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
+    , getMultiPoolCertificateSequence
     , isValidSinglePoolCertificateSequence
-    , serializeLists
     )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
@@ -979,10 +978,9 @@ prop_listRegisteredPools DBLayer {..} entries =
 prop_listRetiredPools_multiplePools_multipleCerts
     :: DBLayer IO
     -> MultiPoolCertificateSequence
-    -> ListSerializationMethod
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    DBLayer {..} mpcs serializationMethod = monadicIO (setup >> prop)
+    DBLayer {..} mpcs = monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
@@ -1007,11 +1005,8 @@ prop_listRetiredPools_multiplePools_multipleCerts
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
 
-    certificateSequences = getMultiPoolCertificateSequence mpcs
-
     allCertificatesSerialized :: [PoolCertificate]
-    allCertificatesSerialized = serializeLists serializationMethod
-        (getSinglePoolCertificateSequence <$> certificateSequences)
+    allCertificatesSerialized = getMultiPoolCertificateSequence mpcs
 
     allPublicationsSerialized
         :: [(CertificatePublicationTime, PoolCertificate)]
@@ -1019,7 +1014,7 @@ prop_listRetiredPools_multiplePools_multipleCerts
         publicationTimes `zip` allCertificatesSerialized
 
     allPoolIds :: [PoolId]
-    allPoolIds = getSinglePoolId <$> certificateSequences
+    allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
 
     publicationTimes :: [CertificatePublicationTime]
     publicationTimes =
@@ -1273,7 +1268,7 @@ prop_MultiPoolCertificateSequence_coverage mpcs = checkCoverage
   where
     certificateCount = L.sum $
         L.length . getSinglePoolCertificateSequence <$> certificateSequences
-    certificateSequences = getMultiPoolCertificateSequence mpcs
+    certificateSequences = getSinglePoolSequences mpcs
     poolCount = length certificateSequences
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
