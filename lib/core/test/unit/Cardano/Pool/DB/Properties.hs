@@ -205,6 +205,8 @@ properties = do
             (property . prop_listRegisteredPools)
         it "prop_listRetiredPools_multiplePools_multipleCerts"
             (property . prop_listRetiredPools_multiplePools_multipleCerts)
+        it "prop_listPoolLifeCycleData_multiplePools_multipleCerts"
+            (property . prop_listPoolLifeCycleData_multiplePools_multipleCerts)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
@@ -972,6 +974,87 @@ prop_listRetiredPools_multiplePools_multipleCerts
             assert $ (==)
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
+
+    allPoolIds :: [PoolId]
+    allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
+
+    allPublications :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublications =
+        testCertificatePublicationTimes
+        `zip`
+        getMultiPoolCertificateSequence mpcs
+
+-- | Test `listPoolLifeCycleData` by showing that the following operations are
+--   equivalent:
+--
+--   - Calling `listPoolLifeCycleData` once to fetch lifecycle data for all
+--     active pools.
+--
+--   - Calling `readPoolLifeCycleStatus` multiple times, once for each known
+--     pool, and coalescing the results.
+--
+-- The former operation (calling `listPoolLifeCycleStatus` once) is designed to
+-- be efficient, as it delivers its results with only a single database query.
+--
+-- The latter operation (calling `readPoolLifeCycleStatus` multiple times) is
+-- extremely inefficient, but consists of simpler database operations that we
+-- already verify with other properties.
+--
+-- This property tests that both operations give equivalent results, even with
+-- complex sequences of pool registration and retirement certificates.
+--
+prop_listPoolLifeCycleData_multiplePools_multipleCerts
+    :: DBLayer IO
+    -> MultiPoolCertificateSequence
+    -> Property
+prop_listPoolLifeCycleData_multiplePools_multipleCerts
+    db@DBLayer {..} mpcs = monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
+        lifeCycleDataReadIndividually <- filter isRegistered <$>
+            run (atomically $ mapM readPoolLifeCycleStatus allPoolIds)
+        let poolsMarkedToRetire = catMaybes $
+                getPoolRetirementCertificate <$> lifeCycleDataReadIndividually
+        let epochsToTest =
+                EpochNo minBound :
+                EpochNo maxBound :
+                L.nub (view #retirementEpoch <$> poolsMarkedToRetire)
+        forM_ epochsToTest $ \currentEpoch -> do
+            let lifeCycleDataExpected = Set.fromList $ filter
+                    (not . isRetired currentEpoch)
+                    (lifeCycleDataReadIndividually)
+            lifeCycleDataActual <- Set.fromList <$> run
+                (atomically $ listPoolLifeCycleData currentEpoch)
+            monitor $ counterexample $ unlines
+                [ "\nEpochs to test: "
+                , show epochsToTest
+                , "\nCurrent epoch: "
+                , show currentEpoch
+                , "\nPools marked with a retirement epoch: "
+                , show poolsMarkedToRetire
+                , "\nExpected lifecycle data: "
+                , show lifeCycleDataExpected
+                , "\nActual lifecycle data: "
+                , show lifeCycleDataActual
+                ]
+            assert $ (==)
+                lifeCycleDataExpected
+                lifeCycleDataActual
+
+    isRegistered :: PoolLifeCycleStatus -> Bool
+    isRegistered = \case
+        PoolNotRegistered -> False
+        PoolRegistered {} -> True
+        PoolRegisteredAndRetired {} -> True
+
+    isRetired :: EpochNo -> PoolLifeCycleStatus -> Bool
+    isRetired currentEpoch status = maybe
+        (False)
+        ((<= currentEpoch) . view #retirementEpoch)
+        (getPoolRetirementCertificate status)
 
     allPoolIds :: [PoolId]
     allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
