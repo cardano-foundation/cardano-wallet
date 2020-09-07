@@ -661,15 +661,15 @@ prop_readPoolLifeCycleStatus
     -> SinglePoolCertificateSequence
     -> Property
 prop_readPoolLifeCycleStatus
-    DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
+    db@DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
-        actualStatus <- run $ atomically $ do
-            mapM_ (uncurry putCertificate) certificatePublications
-            readPoolLifeCycleStatus sharedPoolId
+        actualStatus <- run $ do
+            mapM_ (uncurry $ putPoolCertificate db) certificatePublications
+            atomically $ readPoolLifeCycleStatus sharedPoolId
         poolsMarkedToRetire <-
             run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
@@ -728,12 +728,6 @@ prop_readPoolLifeCycleStatus
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
-
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
 
 prop_rollbackRegistration
     :: DBLayer IO
@@ -865,15 +859,14 @@ prop_removePools
     -> [PoolCertificate]
     -> Property
 prop_removePools
-    DBLayer {..} certificates =
+    db@DBLayer {..} certificates =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
         -- Firstly, publish an arbitrary set of pool certificates:
-        run $ atomically $ do
-            mapM_ (uncurry putCertificate) certificatePublications
+        run $ mapM_ (uncurry $ putPoolCertificate db) certificatePublications
         -- Next, read the latest certificates for all pools:
         poolIdsWithRegCertsAtStart <- run poolIdsWithRegCerts
         poolIdsWithRetCertsAtStart <- run poolIdsWithRetCerts
@@ -925,12 +918,6 @@ prop_removePools
         , ii <- [0 .. 3]
         ]
 
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
-
     poolIdsWithRegCerts =
         fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
             <$> atomically $ mapM readPoolRegistration $ Set.toList pools
@@ -980,13 +967,12 @@ prop_listRetiredPools_multiplePools_multipleCerts
     -> MultiPoolCertificateSequence
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    DBLayer {..} mpcs = monadicIO (setup >> prop)
+    db@DBLayer {..} mpcs = monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
-        run $ atomically $ do
-            mapM_ (uncurry putCertificate) allPublications
+        run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
         lifeCycleStatuses <- run $ atomically $ do
             mapM readPoolLifeCycleStatus allPoolIds
         let poolsMarkedToRetire = catMaybes $
@@ -1018,12 +1004,6 @@ prop_listRetiredPools_multiplePools_multipleCerts
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
-
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
@@ -1294,3 +1274,17 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
         [ [ (view #slotNo h, p) | h <- hs ]
         | (p, hs) <- concatMap Map.assocs ms
         ]
+
+-- | Write any kind of pool certificate to the database.
+putPoolCertificate
+    :: DBLayer m
+    -> CertificatePublicationTime
+    -> PoolCertificate
+    -> m ()
+putPoolCertificate
+    DBLayer {atomically, putPoolRegistration, putPoolRetirement}
+    publicationTime = atomically . \case
+        Registration c ->
+            putPoolRegistration publicationTime c
+        Retirement c ->
+            putPoolRetirement publicationTime c
