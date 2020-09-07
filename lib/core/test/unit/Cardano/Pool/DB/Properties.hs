@@ -986,7 +986,7 @@ prop_listRetiredPools_multiplePools_multipleCerts
 
     prop = do
         run $ atomically $ do
-            mapM_ (uncurry putCertificate) allPublicationsSerialized
+            mapM_ (uncurry putCertificate) allPublications
         lifeCycleStatuses <- run $ atomically $ do
             mapM readPoolLifeCycleStatus allPoolIds
         let poolsMarkedToRetire = catMaybes $
@@ -1005,16 +1005,12 @@ prop_listRetiredPools_multiplePools_multipleCerts
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
 
-    allCertificatesSerialized :: [PoolCertificate]
-    allCertificatesSerialized = getMultiPoolCertificateSequence mpcs
-
-    allPublicationsSerialized
-        :: [(CertificatePublicationTime, PoolCertificate)]
-    allPublicationsSerialized =
-        publicationTimes `zip` allCertificatesSerialized
-
     allPoolIds :: [PoolId]
     allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
+
+    allPublications :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublications =
+        publicationTimes `zip` getMultiPoolCertificateSequence mpcs
 
     publicationTimes :: [CertificatePublicationTime]
     publicationTimes =
