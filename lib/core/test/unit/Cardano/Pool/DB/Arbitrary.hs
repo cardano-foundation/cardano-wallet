@@ -214,14 +214,14 @@ isValidSinglePoolCertificateSequence :: SinglePoolCertificateSequence -> Bool
 isValidSinglePoolCertificateSequence
     (SinglePoolCertificateSequence sharedPoolId certificates) =
         allCertificatesReferToSamePool &&
-        firstCertificateIsRegistration
+        firstCertificateIsNotRetirement
   where
     allCertificatesReferToSamePool =
         all (== sharedPoolId) (getPoolCertificatePoolId <$> certificates)
-    firstCertificateIsRegistration = case certificates of
+    firstCertificateIsNotRetirement = case certificates of
+        []                 -> True
         Registration _ : _ -> True
-        Retirement _ : _ -> False
-        [] -> True
+        Retirement   _ : _ -> False
 
 instance Arbitrary SinglePoolCertificateSequence where
 
