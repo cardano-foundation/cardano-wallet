@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -283,9 +281,11 @@ instance PathPiece BlockId where
 ----------------------------------------------------------------------------
 -- SlotId
 
-deriving via Word64 instance (PersistFieldSql SlotNo)
+instance PersistFieldSql SlotNo where
+    sqlType _ = sqlType (Proxy @Word64)
 
-deriving via Word64 instance (Read SlotNo)
+instance Read SlotNo where
+    readsPrec _ = error "readsPrec stub needed for persistent"
 
 persistSlotNo :: SlotNo -> PersistValue
 persistSlotNo = toPersistValue . unSlotNo
@@ -308,7 +308,8 @@ instance PathPiece SlotNo where
 ----------------------------------------------------------------------------
 -- EpochNo
 
-deriving via Word32 instance (PersistFieldSql EpochNo)
+instance PersistFieldSql EpochNo where
+    sqlType _ = sqlType (Proxy @Word32)
 
 mkEpochNo :: Word32 -> Either Text EpochNo
 mkEpochNo n
