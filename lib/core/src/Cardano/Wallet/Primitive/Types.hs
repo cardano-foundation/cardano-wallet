@@ -211,7 +211,7 @@ import Data.Generics.Labels
 import Data.Int
     ( Int32 )
 import Data.List
-    ( intercalate )
+    ( foldl', intercalate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1231,7 +1231,10 @@ balance =
 -- | Compute the balance of a unwrapped UTxO
 balance' :: [(TxIn, TxOut)] -> Word64
 balance' =
-    fromIntegral . balance . UTxO . Map.fromList
+    foldl' fn 0
+  where
+    fn :: Word64 -> (TxIn, TxOut) -> Word64
+    fn tot (_, out) = tot + getCoin (coin out)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
