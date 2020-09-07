@@ -59,6 +59,7 @@ import Data.Maybe
 import Data.Word
     ( Word8 )
 
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.Map.Strict as Map
 
 -- | Construct a list of coin selections / transactions to transfer the totality
@@ -175,7 +176,7 @@ idealBatchSize coinselOpts = fixPoint 1
         | otherwise = fixPoint (n + 1)
       where
         maxN :: Word8 -> Word8
-        maxN = maximumNumberOfInputs coinselOpts
+        maxN = CS.maximumNumberOfInputs coinselOpts
 
 -- | Safe conversion of an integral type to an integer
 integer :: Integral a => a -> Integer

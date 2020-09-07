@@ -123,6 +123,7 @@ spec = do
                         $ 5 * (length (inputs s) + length (outputs s))
                     , onDanglingChange = PayAndBalance
                     , feeUpperBound = Fee maxBound
+                    , maximumNumberOfInputs = maxBound
                     }
             let batchSize = 1
             let utxo = UTxO $ Map.fromList
@@ -245,6 +246,7 @@ genFeeOptions (Coin dust) = do
         , dustThreshold = Coin dust
         , onDanglingChange = PayAndBalance
         , feeUpperBound = Fee maxBound
+        , maximumNumberOfInputs = maxBound
         }
 
 -- | Generate a given UTxO with a particular percentage of dust

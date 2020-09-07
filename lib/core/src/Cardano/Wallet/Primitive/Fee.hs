@@ -62,7 +62,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State
     ( StateT (..), evalStateT )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Fmt
     ( Buildable (..), fixedF, nameF, pretty, unlinesF, (+|) )
 import GHC.Generics
@@ -118,6 +118,12 @@ data FeeOptions = FeeOptions
       -- ^ An extra upper-bound computed from the transaction max size. This is
       -- used to construct an invariant after balancing a transaction to
       -- make sure that the resultant fee is not unexpectedly high.
+
+    , maximumNumberOfInputs
+      :: Word8
+      -- ^ Maximum number of inputs allowed to be selected. This number is
+      -- estimated from the maximum transaction size and an approximation of the
+      -- transaction size based on how many inputs it has.
     } deriving (Generic)
 
 -- | We call 'dangling' a change output that would be too expensive to add. This
@@ -223,7 +229,11 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- re-run the algorithm with this new elements and using the initial
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
-            (inps', surplus) <- coverRemainingFee remFee
+            let nInps = fromIntegral $ length $ inputs coinSel'
+            let maxN = if nInps >= maximumNumberOfInputs opt
+                    then 0
+                    else maximumNumberOfInputs opt - nInps
+            (inps', surplus) <- coverRemainingFee maxN remFee
             let chgs' = splitChange surplus chgs
             go $ coinSel
                 { inputs  = inps <> inps'
@@ -234,12 +244,15 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.
 coverRemainingFee
-    :: Fee
+    :: Word8
+    -> Fee
     -> StateT UTxO (ExceptT ErrAdjustForFee IO) ([(TxIn, TxOut)], Coin)
-coverRemainingFee (Fee fee) = go [] 0 where
+coverRemainingFee maxN (Fee fee) = go [] 0 where
     go additionalInputs surplus
         | surplus >= fee =
             return (additionalInputs, Coin surplus)
+        | length additionalInputs >= fromIntegral maxN =
+            lift $ throwE $ ErrCannotCoverFee (fee - surplus)
         | otherwise = do
             -- We ignore the size of the fee, and just pick randomly
             StateT (lift . pickRandom) >>= \case
