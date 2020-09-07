@@ -575,17 +575,12 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
-    certificatePublications = publicationTimes `zip` certificates
+    certificatePublications =
+        testCertificatePublicationTimes `zip` certificates
 
     mExpectedCertificatePublication = certificatePublications
         & reverse
         & listToMaybe
-
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. ]
-        , ii <- [0 .. 3]
-        ]
 
     certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
@@ -824,7 +819,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
     rollbackPoint =
         -- Pick a slot that approximately corresponds to the midpoint of the
         -- certificate publication list.
-        publicationTimes
+        testCertificatePublicationTimes
             & drop (length certificates `div` 2)
             & fmap (view #slotNo)
             & listToMaybe
@@ -832,7 +827,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
 
     allPublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
-    allPublications = publicationTimes `zip` certificates
+    allPublications = testCertificatePublicationTimes `zip` certificates
 
     expectedPublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
@@ -841,13 +836,6 @@ prop_rollbackRetirement DBLayer{..} certificates =
             (\(CertificatePublicationTime slotId _, _) ->
                 slotId <= rollbackPoint)
             allPublications
-
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
 
 -- When we remove pools, check that:
 --
@@ -909,14 +897,8 @@ prop_removePools
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolCertificate)]
-    certificatePublications = publicationTimes `zip` certificates
-
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
+    certificatePublications =
+        testCertificatePublicationTimes `zip` certificates
 
     poolIdsWithRegCerts =
         fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
@@ -996,14 +978,9 @@ prop_listRetiredPools_multiplePools_multipleCerts
 
     allPublications :: [(CertificatePublicationTime, PoolCertificate)]
     allPublications =
-        publicationTimes `zip` getMultiPoolCertificateSequence mpcs
-
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
+        testCertificatePublicationTimes
+        `zip`
+        getMultiPoolCertificateSequence mpcs
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
@@ -1288,3 +1265,12 @@ putPoolCertificate
             putPoolRegistration publicationTime c
         Retirement c ->
             putPoolRetirement publicationTime c
+
+-- | A sequence of certificate publication times that is useful for testing.
+--
+testCertificatePublicationTimes :: [CertificatePublicationTime]
+testCertificatePublicationTimes =
+    [ CertificatePublicationTime (SlotNo sn) ii
+    | sn <- [0 ..  ]
+    , ii <- [0 .. 3]
+    ]
