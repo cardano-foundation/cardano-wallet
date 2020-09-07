@@ -978,28 +978,11 @@ prop_listRegisteredPools DBLayer {..} entries =
 --
 prop_listRetiredPools_multiplePools_multipleCerts
     :: DBLayer IO
-    -> [SinglePoolCertificateSequence]
+    -> MultiPoolCertificateSequence
     -> ListSerializationMethod
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    DBLayer {..} certificateSequences serializationMethod = checkCoverage
-        -- Check the number of certificates:
-        $ cover 2 (certificateCount == 0)
-            "number of certificates: = 0"
-        $ cover 2 (certificateCount > 0 && certificateCount <= 10)
-            "number of certificates: > 0 && <= 10"
-        $ cover 2 (certificateCount > 10 && certificateCount <= 100)
-            "number of certificates: > 10 && <= 100"
-        $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
-            "number of certificates: > 100 && <= 1000"
-        -- Check the number of pools:
-        $ cover 2 (poolCount == 0)
-            "number of pools: = 0"
-        $ cover 2 (poolCount > 0 && poolCount <= 10)
-            "number of pools: > 0 && <= 10"
-        $ cover 2 (poolCount > 10 && poolCount <= 100)
-            "number of pools: > 10 && <= 100"
-        $ monadicIO (setup >> prop)
+    DBLayer {..} mpcs serializationMethod = monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
@@ -1024,8 +1007,7 @@ prop_listRetiredPools_multiplePools_multipleCerts
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
 
-    certificateCount = length allCertificatesSerialized
-    poolCount = length certificateSequences
+    certificateSequences = getMultiPoolCertificateSequence mpcs
 
     allCertificatesSerialized :: [PoolCertificate]
     allCertificatesSerialized = serializeLists serializationMethod
