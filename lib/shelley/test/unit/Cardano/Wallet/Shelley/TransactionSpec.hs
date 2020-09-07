@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -198,15 +199,20 @@ spec = do
 
         res `shouldBe` Right (FeeEstimation 165413 165413)
 
+newtype GivenNumOutputs = GivenNumOutputs Word8 deriving Num
+newtype ExpectedNumInputs = ExpectedNumInputs Word8 deriving Num
+
+-- | Set of tests related to `estimateMaxNumberOfInputs` from the transaction
+-- layer.
 estimateMaxInputsTests
     :: forall k. (TxWitnessTagFor k, Typeable k)
     => Cardano.NetworkId
-    -> [(Word8, Word8)]
+    -> [(GivenNumOutputs, ExpectedNumInputs)]
     -> SpecWith ()
 estimateMaxInputsTests net cases = do
     let k = show $ typeRep (Proxy @k)
     describe ("estimateMaxNumberOfInputs for "<>k<>" on "<>show net) $ do
-        forM_ cases $ \(nOuts, nInps) -> do
+        forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
             let (o,i) = (show nOuts, show nInps)
             it ("order of magnitude, nOuts = " <> o <> " → nInps = " <> i) $
                 _estimateMaxNumberOfInputs @k net (Quantity 4096) Nothing nOuts

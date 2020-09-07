@@ -310,16 +310,21 @@ _estimateMaxNumberOfInputs
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs networkId (Quantity maxSize) md nOuts =
-    findMax minBound
+_estimateMaxNumberOfInputs networkId txMaxSize md nOuts =
+    findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
-    findMax :: Word8 -> Word8
-    findMax inf
-        | inf == maxBound    = 0
-        | isTooBig (inf + 1) = inf
-        | otherwise          = findMax (inf + 1)
+    -- | Find the largest amount of inputs that doesn't make the tx too big.
+    -- Tries in sequence from 0 and upward (up to 255, but smaller than 50 in
+    -- practice because of the max transaction size).
+    findLargestUntil :: (Word8 -> Bool) -> Word8 -> Word8
+    findLargestUntil isTxTooLarge inf
+        | inf == maxBound        = maxBound
+        | isTxTooLarge (inf + 1) = inf
+        | otherwise              = findLargestUntil isTxTooLarge (inf + 1)
 
-    isTooBig nInps = size > fromIntegral maxSize
+    maxSize = fromIntegral (getQuantity txMaxSize)
+
+    txSizeGivenInputs nInps = size
       where
         size = computeTxSize networkId (txWitnessTagFor @k) md Nothing sel
         sel  = dummyCoinSel (fromIntegral nInps) (fromIntegral nOuts)
