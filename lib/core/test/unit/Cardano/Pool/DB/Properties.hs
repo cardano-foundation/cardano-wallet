@@ -28,6 +28,7 @@ import Cardano.Pool.DB
     )
 import Cardano.Pool.DB.Arbitrary
     ( ListSerializationMethod
+    , MultiPoolCertificateSequence (..)
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
@@ -222,6 +223,8 @@ properties = do
                 prop_determinePoolLifeCycleStatus_differentPools)
         it "SinglePoolCertificateSequence coverage is adequate"
             (property . const prop_SinglePoolCertificateSequence_coverage)
+        it "MultiPoolCertificateSequence coverage is adequate"
+            (property . const prop_MultiPoolCertificateSequence_coverage)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1263,6 +1266,33 @@ prop_SinglePoolCertificateSequence_coverage
     getRetirementCertificate = \case
         Registration _ -> Nothing
         Retirement cert -> Just cert
+
+prop_MultiPoolCertificateSequence_coverage
+    :: MultiPoolCertificateSequence
+    -> Property
+prop_MultiPoolCertificateSequence_coverage mpcs = checkCoverage
+    -- Check the number of certificates:
+    $ cover 2 (certificateCount == 0)
+        "number of certificates: = 0"
+    $ cover 2 (certificateCount > 0 && certificateCount <= 10)
+        "number of certificates: > 0 && <= 10"
+    $ cover 2 (certificateCount > 10 && certificateCount <= 100)
+        "number of certificates: > 10 && <= 100"
+    $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
+        "number of certificates: > 100 && <= 1000"
+    -- Check the number of pools:
+    $ cover 2 (poolCount == 0)
+        "number of pools: = 0"
+    $ cover 2 (poolCount > 0 && poolCount <= 10)
+        "number of pools: > 0 && <= 10"
+    $ cover 2 (poolCount > 10 && poolCount <= 100)
+        "number of pools: > 10 && <= 100"
+    True
+  where
+    certificateCount = L.sum $
+        L.length . getSinglePoolCertificateSequence <$> certificateSequences
+    certificateSequences = getMultiPoolCertificateSequence mpcs
+    poolCount = length certificateSequences
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do

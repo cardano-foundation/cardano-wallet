@@ -9,6 +9,7 @@
 
 module Cardano.Pool.DB.Arbitrary
     ( ListSerializationMethod
+    , MultiPoolCertificateSequence (..)
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
@@ -242,6 +243,21 @@ instance Arbitrary SinglePoolCertificateSequence where
             & fmap (fmap (setPoolCertificatePoolId sharedPoolId))
             & fmap (SinglePoolCertificateSequence sharedPoolId)
             & filter isValidSinglePoolCertificateSequence
+
+-- | Represents valid sequences of registration and retirement certificates
+--   for multiple pools.
+--
+newtype MultiPoolCertificateSequence = MultiPoolCertificateSequence
+    { getMultiPoolCertificateSequence :: [SinglePoolCertificateSequence]
+    }
+    deriving (Eq, Show)
+
+instance Arbitrary MultiPoolCertificateSequence where
+    arbitrary = MultiPoolCertificateSequence <$> arbitrary
+    shrink
+        = fmap MultiPoolCertificateSequence
+        . shrink
+        . getMultiPoolCertificateSequence
 
 -- | Indicates a way to serialize a list of lists into a single list.
 --
