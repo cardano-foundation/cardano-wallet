@@ -37,6 +37,8 @@ import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog )
+import Cardano.Wallet
+    ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
     ( ApiT (..) )
 import Cardano.Wallet.Network
@@ -49,7 +51,13 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, epochPred, firstSlotInEpoch, startTime )
+    ( PastHorizonException (..)
+    , TimeInterpreter
+    , epochOf
+    , epochPred
+    , firstSlotInEpoch
+    , startTime
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader
@@ -84,16 +92,20 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Concurrent
     ( threadDelay )
+import Control.Exception
+    ( try )
 import Control.Monad
     ( forM, forM_, forever, unless, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -157,7 +169,7 @@ data StakePoolLayer = StakePoolLayer
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
+        -> ExceptT ErrListPools IO [Api.ApiStakePool]
     }
 
 newStakePoolLayer
@@ -186,17 +198,18 @@ newStakePoolLayer nl db@DBLayer {..} =
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrNetworkUnavailable IO [Api.ApiStakePool]
+        -> ExceptT ErrListPools IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
         tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
-        rawLsqData <- stakeDistribution nl tip userStake
+        rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
+            $ stakeDistribution nl tip userStake
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db
         seed <- liftIO $ atomically readSystemSeed
         -- TODO:
         -- Use a more efficient way of filtering out retired pools.
         -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
-        liftIO $
+        r <- liftIO $ try $
             sortByReward seed
             . filter (not . poolIsRetired)
             . map snd
@@ -206,11 +219,18 @@ newStakePoolLayer nl db@DBLayer {..} =
                 (nOpt rawLsqData)
                 lsqData
                 dbData
+        case r of
+            Left e@(PastHorizon{}) -> throwE (ErrListPoolsPastHorizonException e)
+            Right r' -> pure r'
+
       where
-        fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrNetworkUnavailable
+
+        fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
-            ErrCurrentNodeTipNetworkUnreachable e -> e
-            ErrCurrentNodeTipNotFound -> ErrNetworkUnreachable "tip not found"
+            ErrCurrentNodeTipNetworkUnreachable e ->
+                ErrListPoolsNetworkError e
+            ErrCurrentNodeTipNotFound ->
+                ErrListPoolsNetworkError $ ErrNetworkUnreachable "tip not found"
 
         epochIsInFuture :: EpochNo -> Bool
         epochIsInFuture = (> currentEpoch)
