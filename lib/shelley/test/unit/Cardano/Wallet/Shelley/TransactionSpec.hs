@@ -3,7 +3,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -214,7 +213,7 @@ estimateMaxInputsTests net cases = do
     describe ("estimateMaxNumberOfInputs for "<>k<>" on "<>show net) $ do
         forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
             let (o,i) = (show nOuts, show nInps)
-            it ("order of magnitude, nOuts = " <> o <> " → nInps = " <> i) $
+            it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $
                 _estimateMaxNumberOfInputs @k net (Quantity 4096) Nothing nOuts
                     `shouldBe` nInps
 
@@ -241,7 +240,7 @@ prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pair
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
     -> Property
-prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo network pairs) = do
+prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let unsigned = mkUnsignedTx slotNo cs Nothing mempty []
@@ -252,7 +251,7 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo network pai
         === Right (sealShelleyTx ledgerTx)
   where
     mkByronWitness' unsigned (_, (TxOut addr _)) =
-        mkByronWitness unsigned network addr
+        mkByronWitness unsigned ntwrk addr
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
