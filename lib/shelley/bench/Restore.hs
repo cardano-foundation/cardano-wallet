@@ -89,7 +89,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, mkSeqAnyState )
 import Cardano.Wallet.Primitive.Model
-    ( currentTip, getState, totalUTxO )
+    ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -122,12 +122,14 @@ import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor (..), newTransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeRunExceptT )
+import Control.Arrow
+    ( first )
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( bracket, throwIO )
+    ( bracket, evaluate, throwIO )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
@@ -142,6 +144,8 @@ import Data.Coerce
     ( coerce )
 import Data.Functor
     ( ($>) )
+import Data.List
+    ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Proxy
@@ -339,7 +343,8 @@ data BenchRndResults s = BenchRndResults
     , restoreTime :: Time
     , readWalletTime :: Time
     , listAddressesTime :: Time
-    , importAddressTime :: Time
+    , importOneAddressTime :: Time
+    , importManyAddressesTime :: Time
     , estimateFeesTime :: Time
     , utxoStatistics :: s
     } deriving (Show, Generic, Functor)
@@ -381,10 +386,15 @@ benchmarksRnd _ w wid wname restoreTime = do
         runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
             w wid (out :| []) (Quantity 0) Nothing
 
-    (_, importAddressTime) <- bench "import random addresses" $ do
-        let (addr, _) = genChange (xprv, mempty) (getState cp)
+    oneAddress <- genAddresses 1 cp
+    (_, importOneAddressTime) <- bench "import one addresses" $ do
         runExceptT $ withExceptT show $
-            W.importRandomAddresses @_ @s @k w wid [addr]
+            W.importRandomAddresses @_ @s @k w wid oneAddress
+
+    manyAddresses <- genAddresses 1000 cp
+    (_, importManyAddressesTime) <- bench "import many addresses" $ do
+        runExceptT $ withExceptT show $
+            W.importRandomAddresses @_ @s @k w wid manyAddresses
 
     pure BenchRndResults
         { benchName = getWalletName wname
@@ -392,11 +402,18 @@ benchmarksRnd _ w wid wname restoreTime = do
         , readWalletTime
         , listAddressesTime
         , estimateFeesTime
-        , importAddressTime
+        , importOneAddressTime
+        , importManyAddressesTime
         , utxoStatistics
         }
   where
-    xprv = Byron.generateKeyFromSeed seed mempty
+    genAddresses :: Int -> Wallet s -> IO [Address]
+    genAddresses n cp = evaluate $ fst $ foldl'
+        (\(xs, s) _ -> first (:xs) $ genChange (xprv, mempty) s)
+        ([], getState cp)
+        [1..n]
+      where
+        xprv = Byron.generateKeyFromSeed seed mempty
 
 data BenchSeqResults s = BenchSeqResults
     { benchName :: Text
