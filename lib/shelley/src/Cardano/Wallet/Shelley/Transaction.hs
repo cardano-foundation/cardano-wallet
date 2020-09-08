@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -311,29 +310,24 @@ _estimateMaxNumberOfInputs
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs networkId (Quantity maxSize) md nOuts =
-      fromIntegral $ bisect (lowerBound, upperBound)
+_estimateMaxNumberOfInputs networkId txMaxSize md nOuts =
+    findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
-    bisect (!inf, !sup)
-        | middle == inf && isTooBig sup = inf
-        | middle == inf                 = sup
-        | isTooBig middle               = bisect (inf, middle)
-        | otherwise                     = bisect (middle, sup)
-      where
-        middle = inf + ((sup - inf) `div` 2)
+    -- | Find the largest amount of inputs that doesn't make the tx too big.
+    -- Tries in sequence from 0 and upward (up to 255, but smaller than 50 in
+    -- practice because of the max transaction size).
+    findLargestUntil :: (Word8 -> Bool) -> Word8 -> Word8
+    findLargestUntil isTxTooLarge inf
+        | inf == maxBound        = maxBound
+        | isTxTooLarge (inf + 1) = inf
+        | otherwise              = findLargestUntil isTxTooLarge (inf + 1)
 
-    growingFactor = 2
+    maxSize = fromIntegral (getQuantity txMaxSize)
 
-    lowerBound = upperBound `div` growingFactor
-    upperBound = upperBound_ 1
-      where
-        upperBound_ !n | isTooBig n = n
-                       | otherwise  = upperBound_ (n*growingFactor)
-
-    isTooBig nInps = size > fromIntegral maxSize
+    txSizeGivenInputs nInps = size
       where
         size = computeTxSize networkId (txWitnessTagFor @k) md Nothing sel
-        sel  = dummyCoinSel nInps (fromIntegral nOuts)
+        sel  = dummyCoinSel (fromIntegral nInps) (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
 dummyCoinSel nInps nOuts = mempty
