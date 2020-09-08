@@ -72,6 +72,51 @@ let
 
   getPackageChecks = mapAttrs (_: package: package.checks);
 
+  # Creates a development environment for Cabal builds or ghci
+  # sessions, with various build tools included.
+  mkShell = name: hsPkgs: hsPkgs.shellFor {
+    inherit name;
+    packages = ps: attrValues (selectProjectPackages ps);
+    buildInputs = (with self; [
+        jormungandr
+        jormungandr-cli
+        cardano-node
+        cardano-cli
+        cardano-address
+        cardano-tx
+        bech32
+      ]) ++ (with pkgs; [
+        niv
+        pkgconfig
+        python3Packages.openapi-spec-validator
+        ruby
+        sqlite-interactive
+        yq
+      ]);
+    tools = {
+      cabal = "3.2.0.0";
+      ghcid = "0.8.7";
+      ghcide = "0.2.0";
+      hlint = "3.1.6";
+      lentil = "1.3.2.0";
+      stylish-haskell = "0.11.0.0";
+      weeder = "1.0.9";
+    };
+    CARDANO_NODE_CONFIGS = cardano-node.deployments;
+    meta.platforms = lib.platforms.unix;
+    shellHook = ''
+      setup_completion() {
+        local p
+        for p in $buildInputs; do
+          if [ -d "$p/share/bash-completion" ]; then
+            addToSearchPath XDG_DATA_DIRS "$p/share"
+          fi
+        done
+      }
+      setup_completion
+    '';
+  };
+
   self = {
     inherit pkgs commonLib src haskellPackages profiledHaskellPackages;
     # Jormungandr
@@ -114,48 +159,8 @@ let
       shelley = self.cardano-wallet;
     });
 
-    shell = haskellPackages.shellFor {
-      name = "cardano-wallet-shell";
-      packages = ps: attrValues (selectProjectPackages ps);
-      buildInputs = (with self; [
-          jormungandr
-          jormungandr-cli
-          cardano-node
-          cardano-cli
-          cardano-address
-          cardano-tx
-          bech32
-        ]) ++ (with pkgs; [
-          niv
-          pkgconfig
-          python3Packages.openapi-spec-validator
-          ruby
-          sqlite-interactive
-          yq
-        ]);
-      tools = {
-        cabal = "3.2.0.0";
-        ghcid = "0.8.7";
-        ghcide = "0.2.0";
-        hlint = "3.1.6";
-        lentil = "1.3.2.0";
-        stylish-haskell = "0.11.0.0";
-        weeder = "1.0.9";
-      };
-      CARDANO_NODE_CONFIGS = cardano-node.deployments;
-      meta.platforms = lib.platforms.unix;
-      shellHook = ''
-        setup_completion() {
-          local p
-          for p in $buildInputs; do
-            if [ -d "$p/share/bash-completion" ]; then
-              addToSearchPath XDG_DATA_DIRS "$p/share"
-            fi
-          done
-        }
-        setup_completion
-      '';
-    };
+    shell = mkShell "cardano-wallet-shell" haskellPackages;
+    shell-prof = mkShell "cardano-wallet-shell-profiled" profiledHaskellPackages;
     cabalShell = import ./nix/cabal-shell.nix { inherit pkgs; walletPackages = self; };
     stackShell = import ./nix/stack-shell.nix { inherit pkgs; walletPackages = self; };
 

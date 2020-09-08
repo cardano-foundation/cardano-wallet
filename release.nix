@@ -90,7 +90,7 @@ let
   inherit (systems.examples) mingwW64 musl64;
 
   mappedJobs = optionalAttrs buildNative {
-    native = mapTestOn (filterJobsNative (packagePlatformsOrig project));
+    native = mapTestOn (filterMappedNative (packagePlatformsOrig (filterJobsNative project)));
   } // optionalAttrs buildWindows {
     "${mingwW64.config}" = mapTestOnCross mingwW64
       (packagePlatformsCross (filterJobsWindows project));
@@ -116,7 +116,14 @@ let
     ) ds);
 
   # Remove build jobs for which cross compiling does not make sense.
-  filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "cabalShell" "stackNixRegenerate"]));
+  filterJobsCross = filterAttrs (n: _: !(elem n [
+    "dockerImage"
+    "shell"
+    "shell-prof"
+    "stackShell"
+    "cabalShell"
+    "stackNixRegenerate"
+  ]));
 
   # Remove cardano-node integration tests for Windows because
   # ouroboros-network doesn't work under wine.
@@ -128,13 +135,20 @@ let
       js: mapAttrsRecursive f (filterJobsCross js);
 
   # Don't run tests on linux native, because they are also run for linux musl.
-  filterJobsNative = let
+  filterMappedNative = let
     removeLinuxNativeChecks = path: value:
       if (head path == "checks" && builtins.typeOf value == "list")
         then remove "x86_64-linux" value
         else value;
   in mapAttrsRecursive removeLinuxNativeChecks;
 
+  # Build profiled packages for the master branch, so that they are cached.
+  # But don't make profiled builds for PRs because this is a waste of time.
+  filterJobsNative = let
+    removeProfiledBuildForPRs = if (pr == null)
+      then id
+      else filterAttrs (n: _: n != "shell-prof");
+  in removeProfiledBuildForPRs;
 
   ############################################################################
   # This aggregate job is what IOHK Hydra uses to update the CI status
