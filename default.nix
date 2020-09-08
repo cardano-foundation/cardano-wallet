@@ -69,6 +69,7 @@ let
   } // args);
   haskellPackages = buildHaskellPackages {};
   profiledHaskellPackages = buildHaskellPackages { profiling = true; };
+  coveredHaskellPackages = buildHaskellPackages { coverage = true; };
 
   getPackageChecks = mapAttrs (_: package: package.checks);
 
@@ -118,7 +119,7 @@ let
   };
 
   self = {
-    inherit pkgs commonLib src haskellPackages profiledHaskellPackages;
+    inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
     # Jormungandr
     inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
@@ -146,9 +147,15 @@ let
     };
 
     # `tests` are the test suites which have been built.
-    tests = collectComponents "tests" isProjectPackage haskellPackages;
+    tests = collectComponents "tests" isProjectPackage coveredHaskellPackages;
     # `checks` are the result of executing the tests.
-    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages haskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages coveredHaskellPackages));
+    # Combined coverage report
+    # fixme: haskell.nix needs to support using `checks` attrset from
+    # above, otherwise we will be running unnecessary test suites.
+    # testCoverageReport = pkgs.haskell-nix.haskellLib.projectCoverageReport {
+    #   packages = selectProjectPackages coveredHaskellPackages;
+    # };
     # `benchmarks` are only built, not run.
     benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
 
