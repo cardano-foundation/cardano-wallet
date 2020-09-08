@@ -9,6 +9,8 @@
 , config ? {}
 # Enable profiling
 , profiling ? config.haskellNix.profiling or false
+# Enable Haskell Program Coverage for cardano-wallet libraries and test suites.
+, coverage ? config.haskellNix.coverage or false
 # Project top-level source tree
 , src
 # GitHub PR number (when building on Hydra)
@@ -60,6 +62,23 @@ let
         packages.cardano-wallet-test-utils.flags.release = true;
         packages.text-class.flags.release = true;
       }
+
+      (lib.optionalAttrs coverage {
+        # Enable Haskell Program Coverage for all local libraries and test suites.
+        packages.cardano-wallet.components.library.doCoverage = true;
+        packages.cardano-wallet.components.tests.unit.doCoverage = true;
+        packages.cardano-wallet.components.tests.integration.doCoverage = true;
+        packages.cardano-wallet-cli.components.library.doCoverage = true;
+        packages.cardano-wallet-core-integration.components.library.doCoverage = true;
+        packages.cardano-wallet-core.components.library.doCoverage = true;
+        packages.cardano-wallet-core.components.tests.unit.doCoverage = true;
+        packages.cardano-wallet-jormungandr.components.library.doCoverage = true;
+        packages.cardano-wallet-jormungandr.components.tests.unit.doCoverage = true;
+        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.doCoverage = true;
+        packages.cardano-wallet-launcher.components.library.doCoverage = true;
+        packages.cardano-wallet-test-utils.components.library.doCoverage = true;
+        packages.text-class.components.library.doCoverage = true;
+      })
 
       # Provide configuration and dependencies to cardano-wallet components
       {
