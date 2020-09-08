@@ -1,4 +1,4 @@
-resolver: cardano-1.19.dev1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/da70d67ff662b85e72e1f203defbf5e3028d03cd/snapshots/cardano-1.19.1.yaml
 
 packages:
 - lib/core

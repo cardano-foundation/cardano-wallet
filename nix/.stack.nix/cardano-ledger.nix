@@ -29,7 +29,6 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
-          (hsPkgs."base64-bytestring-type" or (errorHandler.buildDepError "base64-bytestring-type"))
           (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
@@ -41,7 +40,6 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."concurrency" or (errorHandler.buildDepError "concurrency"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."Cabal" or (errorHandler.buildDepError "Cabal"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
@@ -49,8 +47,6 @@
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
-          (hsPkgs."megaparsec" or (errorHandler.buildDepError "megaparsec"))
-          (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
@@ -134,8 +130,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "0715d2047b3d23e8b75b8430bddf391799c4669d";
-      sha256 = "0l2xlgqix9r376z11rsiws0990b64iw9hvmx94c5p7x9jsyz858q";
+      rev = "74188f62ff743c690bdf287f7fa18eaa2ee354d4";
+      sha256 = "1asc4pgkspqlrg67jykz7h1i9wqf4ms1q1gxllcr3dpa566zdc5q";
       });
     postUnpack = "sourceRoot+=/byron/ledger/impl; echo source root reset to \$sourceRoot";
     }

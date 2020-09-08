@@ -88,6 +88,8 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Utilities
     , invertUnitInterval
+    , interval0
+    , interval1
     ) where
 
 import Prelude
@@ -159,6 +161,8 @@ import Data.Proxy
     ( Proxy )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
+import Data.Ratio
+    ( (%) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -206,7 +210,7 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 import Shelley.Spec.Ledger.BaseTypes
-    ( strictMaybeToMaybe, urlToText )
+    ( interval0, strictMaybeToMaybe, urlToText )
 import Type.Reflection
     ( Typeable, typeRep )
 
@@ -1093,3 +1097,6 @@ instance Buildable LocalAddress where
 --
 invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
 invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue
+
+interval1 :: SL.UnitInterval
+interval1 = SL.truncateUnitInterval (1 % 1)

@@ -54,6 +54,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , TPraosStandardCrypto
     , decentralizationLevelFromPParams
     , fromTip
+    , interval0
+    , interval1
     , invertUnitInterval
     , toCardanoHash
     , toPoint
@@ -198,10 +200,10 @@ spec = do
                 checkCoverage $ property $ \i ->
                     let half = SL.truncateUnitInterval (1 % 2) in
                     cover 10 (i == half) "i = 0.5" $
-                    cover 10 (i == SL.interval0) "i = 0" $
-                    cover 10 (i == SL.interval1) "i = 1" $
-                    cover 10 (i > SL.interval0 && i < half) "0 < i < 0.5" $
-                    cover 10 (half < i && i < SL.interval1) "0.5 < i < 1"
+                    cover 10 (i == interval0) "i = 0" $
+                    cover 10 (i == interval1) "i = 1" $
+                    cover 10 (i > interval0 && i < half) "0 < i < 0.5" $
+                    cover 10 (half < i && i < interval1) "0.5 < i < 1"
                     True
 
             it "invertUnitInterval . invertUnitInterval == id" $
@@ -214,10 +216,10 @@ spec = do
                         `shouldBe` 1
 
             it "invertUnitInterval interval0 == interval1" $
-                invertUnitInterval SL.interval0 `shouldBe` SL.interval1
+                invertUnitInterval interval0 `shouldBe` interval1
 
             it "invertUnitInterval interval1 == interval0" $
-                invertUnitInterval SL.interval1 `shouldBe` SL.interval0
+                invertUnitInterval interval1 `shouldBe` interval0
 
             it "invertUnitInterval half == half" $
                 let half = SL.truncateUnitInterval (1 % 2) in
@@ -251,8 +253,8 @@ epochLength = EpochLength 10
 
 instance Arbitrary SL.UnitInterval where
     arbitrary = oneof
-        [ pure SL.interval0
-        , pure SL.interval1
+        [ pure interval0
+        , pure interval1
         , pure $ SL.truncateUnitInterval (1 % 2)
         , SL.truncateUnitInterval . (% 1000) <$> choose (0, 1000)
         ]
