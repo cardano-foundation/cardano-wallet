@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -55,6 +56,8 @@ import Control.Monad
     ( forM, mapM_, void )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
+import Data.Aeson
+    ( ToJSON (..) )
 import Data.Functor
     ( (<&>) )
 import Data.Text
@@ -214,6 +217,9 @@ newtype Time = Time
 
 instance Buildable Time where
     build = build . secs . unTime
+
+instance ToJSON Time where
+    toJSON = toJSON . pretty @_ @Text
 
 runBenchmarks :: Buildable a => [IO a] -> IO ()
 runBenchmarks bs = do

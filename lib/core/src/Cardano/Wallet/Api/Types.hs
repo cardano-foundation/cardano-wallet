@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiUtxoStatistics (..)
+    , toApiUtxoStatistics
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -168,6 +169,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , GenesisParameters (..)
     , Hash (..)
+    , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
     , ShowFmt (..)
@@ -178,6 +180,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMetadata
     , TxStatus (..)
+    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
@@ -270,6 +273,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -428,6 +432,14 @@ data ApiUtxoStatistics = ApiUtxoStatistics
     , scale :: !(ApiT BoundType)
     , distribution :: !(Map Word64 Word64)
     } deriving (Eq, Generic, Show)
+
+toApiUtxoStatistics :: UTxOStatistics -> ApiUtxoStatistics
+toApiUtxoStatistics (UTxOStatistics histo totalStakes bType) =
+    ApiUtxoStatistics
+    { total = Quantity (fromIntegral totalStakes)
+    , scale = ApiT bType
+    , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
+    }
 
 data WalletPostData = WalletPostData
     { addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
