@@ -116,6 +116,7 @@ import Test.Integration.Framework.TestData
     , mnemonics24
     , mnemonics9
     , payloadWith
+    , payloadWith'
     , polishWalletName
     , russianWalletName
     , simplePayload
@@ -462,16 +463,13 @@ spec = do
                   )
                 , ( show addrPoolMax
                   , addrPoolMax
-                  , [ expectResponseCode @IO HTTP.status201 ]
+                  , [ expectResponseCode @IO HTTP.status201
+                    , expectField (#addressPoolGap . #getApiT) (`shouldBe` maxBound)
+                  ]
                   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
-            let payload = Json [json| {
-                    "name": "Secure Wallet",
-                    "mnemonic_sentence": #{mnemonics24},
-                    "passphrase": "Secure passphrase",
-                    "address_pool_gap": #{addrPoolGap}
-                    } |]
+            let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
 
@@ -524,6 +522,7 @@ spec = do
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
             verify r expectations
+
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> do
         (_, w) <- unsafeRequest @ApiWallet ctx (Link.postWallet @'Shelley) simplePayload
