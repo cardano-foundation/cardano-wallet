@@ -47,7 +47,7 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog (..) )
+    ( ParseFailure (..), PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Logging
@@ -78,7 +78,7 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer (..), contramap, natTracer, traceWith )
 import Data.Either
-    ( rights )
+    ( lefts, rights )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -211,9 +211,15 @@ newDBLayer trace fp timeInterpreter = do
 
             pure (foldl' toMap Map.empty production)
 
-        readTotalProduction =
-            Map.fromList . rights . fmap parseRow <$> rawSql query []
+        readTotalProduction = do
+            parsedRows <- fmap parseRow <$> rawSql query []
+            mapM_ onParseFailure $ lefts parsedRows
+            pure $ Map.fromList $ rights parsedRows
           where
+            onParseFailure = liftIO
+                . traceWith trace
+                . MsgParseFailure
+                . ParseFailure "readTotalProduction"
             query = T.unwords
                 [ "SELECT pool_id, count(pool_id) as block_count"
                 , "FROM pool_production"
@@ -369,20 +375,29 @@ newDBLayer trace fp timeInterpreter = do
                 ]
 
         listRetiredPools epochNo = do
-            let query = T.unwords
-                    [ "SELECT *"
-                    , "FROM active_pool_retirements"
-                    , "WHERE retirement_epoch <= ?;"
-                    ]
-            let parameters = [ toPersistValue epochNo ]
-            let safeCast (Single poolId, Single retirementEpoch) =
-                    PoolRetirementCertificate
-                        <$> fromPersistValue poolId
-                        <*> fromPersistValue retirementEpoch
-            rights . fmap safeCast <$> rawSql query parameters
+            parsedRows <- fmap parseRow <$> rawSql query parameters
+            mapM_ onParseFailure $ lefts parsedRows
+            pure $ rights parsedRows
+          where
+            query = T.unwords
+                [ "SELECT *"
+                , "FROM active_pool_retirements"
+                , "WHERE retirement_epoch <= ?;"
+                ]
+            parameters = [ toPersistValue epochNo ]
+            onParseFailure = liftIO
+                . traceWith trace
+                . MsgParseFailure
+                . ParseFailure "listRetiredPools"
+            parseRow (Single poolId, Single retirementEpoch) =
+                PoolRetirementCertificate
+                    <$> fromPersistValue poolId
+                    <*> fromPersistValue retirementEpoch
 
-        listPoolLifeCycleData epochNo =
-            rights . fmap parseRow <$> rawSql query parameters
+        listPoolLifeCycleData epochNo = do
+            parsedRows <- fmap parseRow <$> rawSql query parameters
+            mapM_ onParseFailure $ lefts parsedRows
+            pure $ rights parsedRows
           where
             query = T.unwords
                 [ "SELECT *"
@@ -390,6 +405,10 @@ newDBLayer trace fp timeInterpreter = do
                 , "WHERE retirement_epoch IS NULL OR retirement_epoch > ?;"
                 ]
             parameters = [ toPersistValue epochNo ]
+            onParseFailure = liftIO
+                . traceWith trace
+                . MsgParseFailure
+                . ParseFailure "listPoolLifeCycleData"
             parseRow
                 ( Single fieldPoolId
                 , Single fieldRetirementEpoch
