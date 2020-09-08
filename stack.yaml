@@ -65,6 +65,11 @@ flags:
   cardano-crypto-praos:
     external-libsodium-vrf: false
 
+  # Using RDRAND instead of /dev/urandom as an entropy source for key
+  # generation is dubious. Set the flag so we use /dev/urandom by default.
+  cryptonite:
+    support_rdrand: false
+
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53
 ghc-options: {"$locals": -ddump-to-file -ddump-hi}
