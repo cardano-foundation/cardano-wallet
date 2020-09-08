@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
@@ -34,6 +35,10 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.DB.Sqlite
@@ -76,15 +81,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery, GenChange (..), IsOurs, IsOwned, KnownAddresses )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndAnyState, mkRndAnyState, mkRndState )
+    ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap
-    , SeqAnyState (..)
-    , SeqState (..)
-    , mkAddressPoolGap
-    , mkSeqAnyState
-    , mkSeqStateFromRootXPrv
-    )
+    ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, mkSeqAnyState )
 import Cardano.Wallet.Primitive.Model
     ( currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -133,6 +132,8 @@ import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
 import Control.Tracer
     ( Tracer (..), traceWith )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Proxy
@@ -141,10 +142,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( getCurrentTime, utcTimeToPOSIXSeconds )
 import Fmt
-    ( Buildable, build, fmt, genericF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, build, genericF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -191,90 +194,88 @@ cardanoRestoreBench tr c socketFile = do
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
 
-    prepareNode networkProxy socketFile np vData
+    prepareNode (trMessageText tr) networkProxy socketFile np vData
     runBenchmarks
-        [ bench_restoration @_ @ByronKey
+        [ bench_restoration @_ @ShelleyKey
             networkProxy
-            tr
+            (trMessageText tr)
             socketFile
             np
             vData
-            "10-percent-rnd.timelog"
-            (walletRnd "Rnd 10% Wallet" $ mkRndAnyState @100)
+            "seq.timelog"
+            (walletSeq "Seq 0% Wallet" $ mkSeqAnyState' @0 networkProxy)
+            benchmarksSeq
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "rnd.timelog"
+            (walletRnd "Rnd 0% Wallet" $ mkRndAnyState @0)
             benchmarksRnd
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.1-percent-rnd.timelog"
+            (walletRnd "Rnd 0.1% Wallet" $ mkRndAnyState @1)
+            benchmarksRnd
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.2-percent-rnd.timelog"
+            (walletRnd "Rnd 0.2% Wallet" $ mkRndAnyState @2)
+            benchmarksRnd
+
+        , bench_restoration @_ @ByronKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.4-percent-rnd.timelog"
+            (walletRnd "Rnd 0.4% Wallet" $ mkRndAnyState @4)
+            benchmarksRnd
+
+         , bench_restoration @_ @ShelleyKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.1-percent-seq.timelog"
+            (walletSeq "Seq 0.1% Wallet" $ mkSeqAnyState' @1 networkProxy)
+            benchmarksSeq
+
+         , bench_restoration @_ @ShelleyKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.2-percent-seq.timelog"
+            (walletSeq "Seq 0.2% Wallet" $ mkSeqAnyState' @2 networkProxy)
+            benchmarksSeq
+
+         , bench_restoration @_ @ShelleyKey
+            networkProxy
+            (trMessageText tr)
+            socketFile
+            np
+            vData
+            "0.4-percent-seq.timelog"
+            (walletSeq "Seq 0.4% Wallet" $ mkSeqAnyState' @4 networkProxy)
+            benchmarksSeq
         ]
---        [ bench_restoration @_ @ShelleyKey
---            networkProxy
---            tr
---            socketFile
---            np
---            vData
---            "seq.timelog"
---            (walletSeq "Seq 0% Wallet" $ mkSeqState networkProxy)
---
---        , bench_restoration @_ @ByronKey
---            networkProxy
---            tr
---            socketFile
---            np
---            vData
---            "rnd.timelog"
---            (walletRnd "Rnd 0% Wallet" mkRndState)
---
---        , bench_restoration @_ @ByronKey
---            networkProxy
---            tr
---            socketFile
---            np
---            vData
---            "0.1-percent-rnd.timelog"
---            (walletRnd "Rnd 0.1% Wallet" $ mkRndAnyState @1)
---
---        , bench_restoration @_ @ByronKey
---            networkProxy
---            tr
---            socketFile
---            np
---            vData
---            "0.2-percent-rnd.timelog"
---            (walletRnd "Rnd 0.2% Wallet" $ mkRndAnyState @2)
---
---        , bench_restoration @_ @ByronKey
---            networkProxy
---            tr
---            socketFile
---            np
---            vData
---            "0.4-percent-rnd.timelog"
---            (walletRnd "Rnd 0.4% Wallet" $ mkRndAnyState @4)
---
---         , bench_restoration @_ @ShelleyKey
---             networkProxy
---             tr
---             socketFile
---             np
---             vData
---             "0.1-percent-seq.timelog"
---             (walletSeq "Seq 0.1% Wallet" $ mkSeqAnyState' @1 networkProxy)
---
---         , bench_restoration @_ @ShelleyKey
---             networkProxy
---             tr
---             socketFile
---             np
---             vData
---             "0.2-percent-seq.timelog"
---             (walletSeq "Seq 0.2% Wallet" $ mkSeqAnyState' @2 networkProxy)
---
---         , bench_restoration @_ @ShelleyKey
---             networkProxy
---             tr
---             socketFile
---             np
---             vData
---             "0.4-percent-seq.timelog"
---             (walletSeq "Seq 0.4% Wallet" $ mkSeqAnyState' @4 networkProxy)
---        ]
   where
     walletRnd
         :: Text
@@ -302,14 +303,6 @@ cardanoRestoreBench tr c socketFile = do
         in
             (wid, WalletName wname, s)
 
-    mkSeqState
-        :: forall (n :: NetworkDiscriminant). ()
-        => Proxy n
-        -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
-        -> AddressPoolGap
-        -> SeqState n ShelleyKey
-    mkSeqState _ = mkSeqStateFromRootXPrv @n
-
     mkSeqAnyState'
         :: forall (p :: Nat) (n :: NetworkDiscriminant). ()
         => Proxy n
@@ -330,7 +323,16 @@ seed = SomeMnemonic . unsafeMkMnemonic @15 $ T.words
 {-------------------------------------------------------------------------------
                                   Benchmarks
 -------------------------------------------------------------------------------}
---
+
+data SomeBenchmarkResults where
+    SomeBenchmarkResults
+        :: forall result. Buildable result
+        => result
+        -> SomeBenchmarkResults
+
+instance Buildable SomeBenchmarkResults where
+    build (SomeBenchmarkResults results) = build results
+
 data BenchRndResults = BenchRndResults
     { benchName :: Text
     , restoreTime :: Time
@@ -392,6 +394,58 @@ benchmarksRnd _ w wid wname restoreTime = do
   where
     xprv = Byron.generateKeyFromSeed seed mempty
 
+data BenchSeqResults = BenchSeqResults
+    { benchName :: Text
+    , restoreTime :: Time
+    , readWalletTime :: Time
+    , listAddressesTime :: Time
+    , estimateFeesTime :: Time
+    , utxoStatistics :: UTxOStatistics
+    } deriving (Show, Generic)
+
+instance Buildable BenchSeqResults where
+    build = genericF
+
+benchmarksSeq
+    :: forall (n :: NetworkDiscriminant) s t k p.
+        ( s ~ SeqAnyState n k p
+        , t ~ IO Shelley
+        , k ~ ShelleyKey
+        , PaymentAddress n k
+        , NetworkDiscriminantVal n
+        , KnownNat p
+        )
+    => Proxy n
+    -> WalletLayer s t k
+    -> WalletId
+    -> WalletName
+    -> Time
+    -> IO BenchSeqResults
+benchmarksSeq _ w wid wname restoreTime = do
+    ((cp, pending), readWalletTime) <- bench "read wallet" $ do
+        (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
+        pure (cp, pending)
+
+    (utxoStatistics, _) <- bench "utxo statistics" $ do
+        pure $ computeUtxoStatistics log10 (totalUTxO pending cp)
+
+    (_, listAddressesTime) <- bench "list addresses" $ do
+        unsafeRunExceptT $ W.listAddresses w wid (const pure)
+
+    (_, estimateFeesTime) <- bench "estimate tx fee" $ do
+        let out = TxOut (dummyAddress @n) (Coin 1)
+        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
+            w wid (out :| []) (Quantity 0) Nothing
+
+    pure BenchSeqResults
+        { benchName = getWalletName wname
+        , restoreTime
+        , readWalletTime
+        , listAddressesTime
+        , estimateFeesTime
+        , utxoStatistics
+        }
+
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s t results.
@@ -412,7 +466,7 @@ bench_restoration
         , Buildable results
         )
     => Proxy n
-    -> Trace IO Text
+    -> Tracer IO (BenchmarkLog n)
     -> FilePath
        -- ^ Socket path
     -> NetworkParameters
@@ -421,19 +475,15 @@ bench_restoration
        -- ^ Log output
     -> (WalletId, WalletName, s)
     -> (Proxy n -> WalletLayer s t k -> WalletId -> WalletName -> Time -> IO results)
-    -> IO results
-bench_restoration proxy tracer socket np vData logFile (wid, wname, s) benchmarks = do
-    let networkText = networkDiscriminantVal @n
+    -> IO SomeBenchmarkResults
+bench_restoration proxy tr socket np vData logFile (wid, wname, s) benchmarks = do
     let networkId = networkIdVal proxy
     let tl = newTransactionLayer @k @(IO Shelley) networkId
     withNetworkLayer nullTracer np socket vData $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
-        withBenchDBLayer @s @k tracer (timeInterpreter nw) $ \db -> do
-            BlockHeader sl _ _ _ <- unsafeRunExceptT $ currentNodeTip nw
-            sayErr . fmt $ networkText ||+ " tip is at " +|| sl ||+ ""
-
+        withBenchDBLayer @s @k (timeInterpreter nw) $ \db -> do
             withFile logFile WriteMode $ \h -> do
                 -- Use a custom tracer to output (time, blockHeight) to a file
                 -- each time we apply blocks.
@@ -449,10 +499,11 @@ bench_restoration proxy tracer socket np vData logFile (wid, wname, s) benchmark
                 wallet <- unsafeRunExceptT $ W.createWallet w wid wname s
                 void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @t @k w wid
                 (_, restorationTime) <- bench "restoration" $ do
-                    waitForWalletSync w wallet gp vData
+                    waitForWalletSync tr proxy w wallet gp vData
 
                 results <- benchmarks proxy w wid wname restorationTime
-                results <$ unsafeRunExceptT (W.deleteWallet w wid)
+                unsafeRunExceptT (W.deleteWallet w wid)
+                    $> SomeBenchmarkResults results
 dummyAddress
     :: forall (n :: NetworkDiscriminant). NetworkDiscriminantVal n
     => Address
@@ -480,13 +531,12 @@ withBenchDBLayer
         , IsOurs s Address
         , PersistPrivateKey (k 'RootK)
         )
-    => Trace IO Text
-    -> TimeInterpreter IO
+    => TimeInterpreter IO
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withBenchDBLayer tr ti action =
+withBenchDBLayer ti action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
+        let before = newDBLayer nullTracer migrationDefaultValues (Just dbFile) ti
         let after = destroyDBLayer . fst
         bracket before after $ \(_ctx, db) -> action db
   where
@@ -497,71 +547,67 @@ withBenchDBLayer tr ti action =
         , Sqlite.defaultHardforkEpoch = Nothing
         }
 
-logChunk :: SlotNo -> IO ()
-logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
-
 prepareNode
     :: forall n. (NetworkDiscriminantVal n)
-    => Proxy n
+    => Tracer IO (BenchmarkLog n)
+    -> Proxy n
     -> FilePath
     -> NetworkParameters
     -> NodeVersionData
     -> IO ()
-prepareNode _ socketPath np vData = do
-    sayErr . fmt $ "Syncing "+|networkDiscriminantVal @n|+" node... "
+prepareNode tr proxy socketPath np vData = do
+    traceWith tr $ MsgSyncStart proxy
     sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
-        waitForNodeSync nw logQuiet
-    sayErr . fmt $ "Completed sync of "+|networkDiscriminantVal @n|+" up to "+||sl||+""
+        waitForNodeSync tr nw
+    traceWith tr $ MsgSyncCompleted proxy sl
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: forall s t k. ()
-    => WalletLayer s t k
+    :: forall s t k n. (NetworkDiscriminantVal n)
+    => Tracer IO (BenchmarkLog n)
+    -> Proxy n
+    -> WalletLayer s t k
     -> WalletId
     -> GenesisParameters
     -> NodeVersionData
     -> IO ()
-waitForWalletSync walletLayer wid gp vData = do
+waitForWalletSync tr proxy walletLayer wid gp vData = do
     (w, _, _) <- unsafeRunExceptT $ W.readWallet walletLayer wid
     let tolerance = mkSyncTolerance 3600
-    prog <- syncProgress
-                tolerance
-                (timeInterpreter nl)
-                (currentTip w)
-                =<< getCurrentTime
+    now  <- getCurrentTime
+    prog <- syncProgress tolerance (timeInterpreter nl) (currentTip w) now
     case prog of
         Ready -> return ()
         NotResponding -> do
             threadDelay 1000000
-            waitForWalletSync walletLayer wid gp vData
-        Syncing (Quantity p) -> do
-            sayErr . fmt $ "[INFO] restoring: "+|p|+""
+            waitForWalletSync tr proxy walletLayer wid gp vData
+        Syncing{} -> do
+            traceWith tr $ MsgRestorationTick prog
             threadDelay 1000000
-            waitForWalletSync walletLayer wid gp vData
+            waitForWalletSync tr proxy walletLayer wid gp vData
   where
     WalletLayer _ _ nl _ _ = walletLayer
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer IO (IO Shelley) Block
-    -> (SlotNo -> SlotNo -> IO ())
+    :: forall n. (NetworkDiscriminantVal n)
+    => Tracer IO (BenchmarkLog n)
+    -> NetworkLayer IO (IO Shelley) Block
     -> IO SlotNo
-waitForNodeSync nw _logSlot = loop 10
+waitForNodeSync tr nw = loop 10
   where
     loop :: Int -> IO SlotNo
     loop retries = runExceptT (currentNodeTip nw) >>= \case
         Right nodeTip -> do
-            let tolerance = mkSyncTolerance 60
-            prog <- syncProgress
-                        tolerance
-                        (timeInterpreter nw)
-                        nodeTip
-                        =<< getCurrentTime
+            let tolerance = mkSyncTolerance 300
+            now  <- getCurrentTime
+            prog <- syncProgress tolerance (timeInterpreter nw) nodeTip now
+            traceWith tr $ MsgNodeTipTick nodeTip prog
             if prog == Ready
                 then pure (slotNo nodeTip)
                 else do
@@ -569,10 +615,38 @@ waitForNodeSync nw _logSlot = loop 10
                     threadDelay 2000000
                     loop retries
         Left e | retries > 0 -> do
-                     sayErr "Fetching tip failed, retrying shortly..."
-                     threadDelay 15000000
+                     let delay = 15000000
+                     traceWith tr $ MsgRetryShortly delay
+                     threadDelay delay
                      loop (retries - 1)
                | otherwise -> throwIO e
 
-logQuiet :: SlotNo -> SlotNo -> IO ()
-logQuiet _ _ = pure ()
+data BenchmarkLog (n :: NetworkDiscriminant)
+    = MsgNodeTipTick BlockHeader SyncProgress
+    | MsgRestorationTick SyncProgress
+    | MsgSyncStart (Proxy n)
+    | MsgSyncCompleted (Proxy n) SlotNo
+    | MsgRetryShortly Int
+    deriving (Show, Eq)
+
+instance HasPrivacyAnnotation (BenchmarkLog n)
+instance HasSeverityAnnotation (BenchmarkLog n) where
+    getSeverityAnnotation = \case
+        MsgNodeTipTick{} -> Info
+        MsgRestorationTick{} -> Info
+        MsgSyncStart{} -> Info
+        MsgSyncCompleted{} -> Info
+        MsgRetryShortly{} -> Warning
+
+instance NetworkDiscriminantVal n => ToText (BenchmarkLog n) where
+    toText = \case
+        MsgNodeTipTick tip progress ->
+            "Initial node synchronization: " +| progress |+ " " +| tip ||+""
+        MsgRestorationTick progress ->
+            "Restoring: "+| progress |+""
+        MsgSyncStart _ ->
+            "Syncing "+| networkDiscriminantVal @n |+" node... "
+        MsgSyncCompleted _ tip ->
+            "Completed sync of "+| networkDiscriminantVal @n |+" up to "+|| tip ||+""
+        MsgRetryShortly delay ->
+            "Fetching tip failed, retrying in " +|| (delay `div` 1000) ||+ "ms"

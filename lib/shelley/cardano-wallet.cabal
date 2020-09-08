@@ -243,6 +243,7 @@ benchmark restore
     , say
     , temporary
     , text
+    , text-class
     , time
     , transformers
   type:
