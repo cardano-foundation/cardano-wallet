@@ -25,20 +25,16 @@ import Cardano.Wallet.Primitive.CoinSelectionSpec
     )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Crypto.Random
-    ( SystemDRG, getSystemDRG )
-import Crypto.Random.Types
-    ( withDRG )
 import Data.Either
     ( isLeft, isRight )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Test.Hspec
-    ( Spec, before, describe, it, shouldSatisfy )
+    ( Spec, describe, it )
 import Test.QuickCheck
-    ( Property, property, (===), (==>) )
+    ( Property, counterexample, property )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor, pre, run )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -328,49 +324,46 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-    before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do
+    describe "Coin selection properties : random algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
-            (property . propFragmentation)
+            (property propFragmentation)
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives the same errors as LargestFirst algorithm"
-            (property . propErrors)
+            (property propErrors)
 
 {-------------------------------------------------------------------------------
                               Properties
 -------------------------------------------------------------------------------}
 
 propFragmentation
-    :: SystemDRG
-    -> CoinSelProp
+    :: CoinSelProp
     -> Property
-propFragmentation drg (CoinSelProp utxo wdrl txOuts) = do
-    isRight selection1 && isRight selection2 ==>
-        let (Right (s1,_), Right (s2,_)) =
-                (selection1, selection2)
-        in prop (s1, s2)
-  where
-    prop (cs1, cs2) =
-        L.length (inputs cs1) `shouldSatisfy` (>= L.length (inputs cs2))
-    (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts wdrl utxo)
-    selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts wdrl utxo
-    opt = CoinSelectionOptions (const 100) noValidation
+propFragmentation (CoinSelProp utxo wdrl txOuts) = monadicIO $ do
+    let opts = CoinSelectionOptions (const 100) noValidation
+    selection1 <- run $ runExceptT $ random opts txOuts wdrl utxo
+    selection2 <- run $ runExceptT $ largestFirst opts txOuts wdrl utxo
+    pre (isRight selection1)
+    pre (isRight selection2)
+    let (Right (s1,_), Right (s2,_)) = (selection1, selection2)
+    monitor $ counterexample $ unlines
+        [ "selection (random): " <> show s1
+        , "selection (largestFirst): " <> show s2
+        ]
+    assert $ L.length (inputs s1) >= L.length (inputs s2)
 
 propErrors
-    :: SystemDRG
-    -> CoinSelProp
+    :: CoinSelProp
     -> Property
-propErrors drg (CoinSelProp utxo wdrl txOuts) = do
-    isLeft selection1 && isLeft selection2 ==>
-        let (Left s1, Left s2) = (selection1, selection2)
-        in prop (s1, s2)
-  where
-    prop (err1, err2) =
-        err1 === err2
-    (selection1,_) = withDRG drg
-        (runExceptT $ random opt txOuts wdrl utxo)
-    selection2 = runIdentity $ runExceptT $
-        largestFirst opt txOuts wdrl utxo
-    opt = (CoinSelectionOptions (const 1) noValidation)
+propErrors (CoinSelProp utxo wdrl txOuts) = monadicIO $ do
+    let opts = CoinSelectionOptions (const 1) noValidation
+    selection1 <- run $ runExceptT $ random opts txOuts wdrl utxo
+    selection2 <- run $ runExceptT $ largestFirst opts txOuts wdrl utxo
+    pre (isLeft selection1)
+    pre (isLeft selection2)
+    let (Left e1, Left e2) = (selection1, selection2)
+    monitor $ counterexample $ unlines
+        [ "error (random): " <> show e1
+        , "error (largestFirst): " <> show e2
+        ]
+    assert (e1 == e2)

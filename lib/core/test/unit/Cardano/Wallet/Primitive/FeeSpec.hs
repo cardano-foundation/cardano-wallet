@@ -41,15 +41,11 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     )
 import Control.Arrow
-    ( first, left )
+    ( first )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Crypto.Random
-    ( SystemDRG, getSystemDRG )
-import Crypto.Random.Types
-    ( withDRG )
 import Data.Either
     ( isRight )
 import Data.Function
@@ -65,7 +61,7 @@ import Data.Word
 import Fmt
     ( Buildable (..), nameF, pretty, tupleF )
 import Test.Hspec
-    ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
+    ( Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -77,7 +73,6 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , coverTable
-    , disjoin
     , elements
     , expectFailure
     , forAllBlind
@@ -93,7 +88,7 @@ import Test.QuickCheck
     , (==>)
     )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, pre, run )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteString as BS
@@ -354,11 +349,11 @@ spec = do
                 & counterexample ("input balance:  "
                     <> show (inputBalance cs))
 
-    before getSystemDRG $ describe "Fee Adjustment properties" $ do
+    describe "Fee Adjustment properties" $ do
         it "Fee adjustment is deterministic when there's no extra inputs"
-            (\_ -> property propDeterministic)
+            (property propDeterministic)
         it "Adjusting for fee (/= 0) reduces the change outputs or increase inputs"
-            (property . propReducedChanges)
+            (property propReducedChanges)
 
     describe "divvyFee" $ do
         it "Σ fst (divvyFee fee outs) == fee"
@@ -418,25 +413,24 @@ propDeterministic (ShowFmt (FeeProp coinSel _ (fee, dust))) = monadicIO $ liftIO
     resultOne `shouldBe` resultTwo
 
 propReducedChanges
-    :: SystemDRG
-    -> ShowFmt FeeProp
+    :: ShowFmt FeeProp
     -> Property
-propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
-    withMaxSuccess 1000 $ isRight coinSel' ==> let Right s = coinSel' in prop s
-  where
-    prop s = do
+propReducedChanges (ShowFmt (FeeProp coinSel utxo (fee, dust)))
+    = withMaxSuccess 1000
+    $ classify (reserve coinSel > fee) "reserve > fee"
+    $ monadicIO
+    $ do
+        coinSel' <- run $ runExceptT $ adjustForFee feeOpt utxo coinSel
+        pre (isRight coinSel')
+        let Right s = coinSel'
         let chgs' = sum $ map getCoin $ change s
         let chgs = sum $ map getCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
-        classify (reserve coinSel > fee) "reserve > fee" $ disjoin
-            [ chgs' `shouldSatisfy` (< chgs)
-            , length inps' `shouldSatisfy` (>= length inps)
-            ]
+        assert (chgs' < chgs || length inps' >= length inps)
+  where
     reserve cs = withdrawal cs + reclaim cs
     feeOpt = feeOptions fee dust
-    coinSel' = left show $ fst $ withDRG drg $ runExceptT $
-        adjustForFee feeOpt utxo coinSel
 
 {-------------------------------------------------------------------------------
                              divvyFee - Properties

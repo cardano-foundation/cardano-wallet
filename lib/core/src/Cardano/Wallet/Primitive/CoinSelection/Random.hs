@@ -38,8 +38,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), except )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
-import Crypto.Random.Types
-    ( MonadRandom )
 import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
@@ -109,12 +107,12 @@ data TargetRange = TargetRange
 -- we set.
 -- @
 random
-    :: forall m e. MonadRandom m
+    :: forall e. ()
     => CoinSelectionOptions e
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> UTxO
-    -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
+    -> ExceptT (ErrCoinSelection e) IO (CoinSelection, UTxO)
 random opt outs (Quantity withdrawal) utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let nOuts = fromIntegral $ NE.length outs
@@ -143,10 +141,9 @@ data SelectionState = SelectionState
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
-    :: forall m. MonadRandom m
-    => SelectionState
+    :: SelectionState
     -> TxOut
-    -> MaybeT m SelectionState
+    -> MaybeT IO SelectionState
 makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
     (selection', utxo') <- coverRandomly ([], utxo0)
     return $ SelectionState
@@ -159,9 +156,8 @@ makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
     TargetRange{targetMin} = mkTargetRange $ getCoin $ coin txout
 
     coverRandomly
-        :: forall m. MonadRandom m
-        => ([(TxIn, TxOut)], UTxO)
-        -> MaybeT m (CoinSelection, UTxO)
+        :: ([(TxIn, TxOut)], UTxO)
+        -> MaybeT IO (CoinSelection, UTxO)
     coverRandomly (inps, utxo)
         | L.length inps > fromIntegral maxN =
             MaybeT $ return Nothing
@@ -191,10 +187,9 @@ makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
 
 -- | Perform an improvement to random selection on a given output.
 improveTxOut
-    :: forall m. MonadRandom m
-    => (Word64, CoinSelection, UTxO)
+    :: (Word64, CoinSelection, UTxO)
     -> CoinSelection
-    -> m (Word64, CoinSelection, UTxO)
+    -> IO (Word64, CoinSelection, UTxO)
 improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _) = do
     (maxN, inps, utxo) <- improve (maxN0, inps0, utxo0)
     return
@@ -211,9 +206,8 @@ improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _)
     target = mkTargetRange $ sum $ getCoin . coin <$> outs
 
     improve
-        :: forall m. MonadRandom m
-        => (Word64, [(TxIn, TxOut)], UTxO)
-        -> m (Word64, [(TxIn, TxOut)], UTxO)
+        :: (Word64, [(TxIn, TxOut)], UTxO)
+        -> IO (Word64, [(TxIn, TxOut)], UTxO)
     improve (maxN, inps, utxo)
         | maxN >= 1 && totalBalance (Quantity withdraw) inps < targetAim target = do
             runMaybeT (pickRandomT utxo) >>= \case
@@ -257,7 +251,7 @@ improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _)
 -------------------------------------------------------------------------------}
 
 -- | Re-wrap 'pickRandom' in a 'MaybeT' monad
-pickRandomT :: MonadRandom m => UTxO -> MaybeT m ((TxIn, TxOut), UTxO)
+pickRandomT :: UTxO -> MaybeT IO ((TxIn, TxOut), UTxO)
 pickRandomT =
     MaybeT . fmap (\(m,u) -> (,u) <$> m) . pickRandom
 

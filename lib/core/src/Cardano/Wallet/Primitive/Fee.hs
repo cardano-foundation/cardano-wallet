@@ -49,7 +49,6 @@ import Cardano.Wallet.Primitive.Types
     , TxIn
     , TxOut (..)
     , UTxO (..)
-    , balance'
     , invariant
     , isValidCoin
     , pickRandom
@@ -62,8 +61,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
 import Control.Monad.Trans.State
     ( StateT (..), evalStateT )
-import Crypto.Random.Types
-    ( MonadRandom )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -169,11 +166,11 @@ newtype ErrAdjustForFee
 -- percentage of the fee (depending on how many change outputs the
 -- algorithm happened to choose).
 adjustForFee
-    :: (HasCallStack, MonadRandom m)
+    :: HasCallStack
     => FeeOptions
     -> UTxO
     -> CoinSelection
-    -> ExceptT ErrAdjustForFee m CoinSelection
+    -> ExceptT ErrAdjustForFee IO CoinSelection
 adjustForFee unsafeOpt utxo coinSel = do
     let opt = invariant "fee must be non-null" unsafeOpt (not . nullFee)
     cs <- senderPaysFee opt utxo coinSel
@@ -193,16 +190,14 @@ adjustForFee unsafeOpt utxo coinSel = do
 -- | The sender pays fee in this scenario, so fees are removed from the change
 -- outputs, and new inputs are selected if necessary.
 senderPaysFee
-    :: MonadRandom m
-    => FeeOptions
+    :: FeeOptions
     -> UTxO
     -> CoinSelection
-    -> ExceptT ErrAdjustForFee m CoinSelection
+    -> ExceptT ErrAdjustForFee IO CoinSelection
 senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
     go
-        :: MonadRandom m
-        => CoinSelection
-        -> StateT UTxO (ExceptT ErrAdjustForFee m) CoinSelection
+        :: CoinSelection
+        -> StateT UTxO (ExceptT ErrAdjustForFee IO) CoinSelection
     go coinSel@(CoinSelection inps _ _ outs chgs _) = do
         -- Substract fee from change outputs, proportionally to their value.
         let (coinSel', remFee) = rebalanceSelection opt coinSel
@@ -228,8 +223,8 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
             -- re-run the algorithm with this new elements and using the initial
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
-            inps' <- coverRemainingFee remFee
-            let chgs' = splitChange (Coin $ balance' inps') chgs
+            (inps', surplus) <- coverRemainingFee remFee
+            let chgs' = splitChange surplus chgs
             go $ coinSel
                 { inputs  = inps <> inps'
                 , outputs = outs
@@ -239,20 +234,19 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.
 coverRemainingFee
-    :: MonadRandom m
-    => Fee
-    -> StateT UTxO (ExceptT ErrAdjustForFee m) [(TxIn, TxOut)]
-coverRemainingFee (Fee fee) = go [] where
-    go acc
-        | balance' acc >= fee =
-            return acc
+    :: Fee
+    -> StateT UTxO (ExceptT ErrAdjustForFee IO) ([(TxIn, TxOut)], Coin)
+coverRemainingFee (Fee fee) = go [] 0 where
+    go additionalInputs surplus
+        | surplus >= fee =
+            return (additionalInputs, Coin surplus)
         | otherwise = do
             -- We ignore the size of the fee, and just pick randomly
             StateT (lift . pickRandom) >>= \case
-                Just entry ->
-                    go (entry : acc)
+                Just input@(_, out) ->
+                    go (input : additionalInputs) (getCoin (coin out) + surplus)
                 Nothing -> do
-                    lift $ throwE $ ErrCannotCoverFee (fee - balance' acc)
+                    lift $ throwE $ ErrCannotCoverFee (fee - surplus)
 
 -- | Reduce the given change outputs by the total fee, returning the remainig
 -- change outputs if any are left, or the remaining fee otherwise
