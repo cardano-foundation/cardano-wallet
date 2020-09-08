@@ -209,6 +209,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     , toApiNetworkParameters
+    , toApiUtxoStatistics
     )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
@@ -281,7 +282,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
-    , HistogramBar (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
@@ -292,7 +292,6 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
-    , UTxOStatistics (..)
     , UnsignedTx (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -1089,12 +1088,7 @@ getUTxOsStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
     stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listUtxoStatistics wrk wid
-    let (UTxOStatistics histo totalStakes bType) = stats
-    return ApiUtxoStatistics
-        { total = Quantity (fromIntegral totalStakes)
-        , scale = ApiT bType
-        , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
-        }
+    return $ toApiUtxoStatistics stats
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
@@ -1141,7 +1135,7 @@ postRandomAddress ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
     addr <- withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k wrk wid pwd mix
+        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k @n wrk wid pwd mix
     pure $ coerceAddress (addr, Unused)
   where
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)

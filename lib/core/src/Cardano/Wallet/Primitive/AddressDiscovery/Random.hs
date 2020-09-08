@@ -24,6 +24,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     (
     -- ** State
       RndState (..)
+    , RndStateLike
     , mkRndState
     , DerivationPath
 
@@ -34,6 +35,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     , deriveRndStateAddress
     , findUnusedPath
     , unavailablePaths
+    , defaultAccountIndex
+    , withRNG
 
     -- ** Benchmarking
     , RndAnyState (..)
@@ -66,6 +69,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), AddressState (..), ChimericAccount )
+import Control.Arrow
+    ( second )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -93,6 +98,42 @@ import System.Random
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+
+class RndStateLike s where
+    -- Import an address into the state. This fails if the address does not belong
+    -- to the wallet. Import an address that is already known is a no-op.
+    importAddress
+        :: Address
+        -> s
+        -> Either ErrImportAddress s
+
+    -- Updates a 'RndState' by adding an address and its derivation path to the
+    -- set of discovered addresses. If the address was in the 'pendingAddresses' set
+    -- (i.e. it was a newly generated change address), then it is removed from
+    -- there.
+    addDiscoveredAddress
+        :: Address
+        -> AddressState
+        -> DerivationPath
+        -> s
+        -> s
+
+    -- | Returns the set of derivation paths that should not be used for new address
+    -- generation because they are already in use.
+    unavailablePaths
+        :: s
+        -> Set DerivationPath
+
+    -- | Default account used for generating new derivation paths.
+    defaultAccountIndex
+        :: s
+        -> Index 'Hardened 'AccountK
+
+    -- | Default random number generator.
+    withRNG
+        :: s
+        -> (StdGen -> (a, StdGen))
+        -> (a, s)
 
 -- | HD random address discovery state and key material for AD.
 data RndState (network :: NetworkDiscriminant) = RndState
@@ -132,6 +173,30 @@ instance Buildable (RndState network) where
 
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
+
+instance RndStateLike (RndState n) where
+    importAddress addr s = do
+        case addressToPath addr (hdPassphrase s) of
+            Nothing ->
+                Left (ErrAddrDoesNotBelong addr)
+            Just path | Map.member path (addresses s) ->
+                Right s
+            Just path ->
+                Right (addDiscoveredAddress addr Unused path s)
+
+    addDiscoveredAddress addr status path st = st
+        { addresses = Map.insert path (addr, status) (addresses st)
+        , pendingAddresses = Map.delete path (pendingAddresses st)
+        }
+
+    unavailablePaths st =
+        Map.keysSet (addresses st) <> Map.keysSet (pendingAddresses st)
+
+    defaultAccountIndex =
+        accountIndex
+
+    withRNG s action =
+        let (result, gen') = action (gen s) in (result, s { gen = gen' })
 
 -- An address is considered to belong to the 'RndState' wallet if it can be
 -- decoded as a Byron HD random address, and where the wallet key can be used
@@ -174,36 +239,6 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
--- | Import an address into the state. This fails if the address does not belong
--- to the wallet. Import an address that is already known is a no-op.
-importAddress
-    :: Address
-    -> RndState n
-    -> Either ErrImportAddress (RndState n)
-importAddress addr s = do
-    case addressToPath addr (hdPassphrase s) of
-        Nothing ->
-            Left (ErrAddrDoesNotBelong addr)
-        Just path | Map.member path (addresses s) ->
-            Right s
-        Just path ->
-            Right (addDiscoveredAddress addr Unused path s)
-
--- | Updates a 'RndState' by adding an address and its derivation path to the
--- set of discovered addresses. If the address was in the 'pendingAddresses' set
--- (i.e. it was a newly generated change address), then it is removed from
--- there.
-addDiscoveredAddress
-    :: Address
-    -> AddressState
-    -> DerivationPath
-    -> RndState n
-    -> RndState n
-addDiscoveredAddress addr status path st = st
-    { addresses = Map.insert path (addr, status) (addresses st)
-    , pendingAddresses = Map.delete path (pendingAddresses st)
-    }
-
 instance PaymentAddress n ByronKey => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
@@ -215,12 +250,6 @@ instance PaymentAddress n ByronKey => GenChange (RndState n) where
             { pendingAddresses = Map.insert path address (pendingAddresses st)
             , gen = gen'
             }
-
--- | Returns the set of derivation paths that should not be used for new address
--- generation because they are already in use.
-unavailablePaths :: RndState n -> Set DerivationPath
-unavailablePaths st =
-    Map.keysSet (addresses st) <> Map.keysSet (pendingAddresses st)
 
 -- | Randomly generates an address derivation path for a given account. If the
 -- path is already in the "blacklist", it will try generating another.
@@ -321,6 +350,22 @@ mkRndAnyState key seed = RndAnyState
         , gen = mkStdGen seed
         }
     }
+
+instance RndStateLike (RndAnyState n p) where
+    importAddress addr (RndAnyState inner) =
+        RndAnyState <$> importAddress addr inner
+
+    addDiscoveredAddress addr status path (RndAnyState inner) =
+        RndAnyState $ addDiscoveredAddress addr status path inner
+
+    unavailablePaths (RndAnyState inner) =
+        unavailablePaths inner
+
+    defaultAccountIndex (RndAnyState inner) =
+        defaultAccountIndex inner
+
+    withRNG (RndAnyState inner) action =
+        second RndAnyState $ withRNG inner action
 
 instance KnownNat p => IsOurs (RndAnyState n p) Address where
     isOurs addr@(Address bytes) st@(RndAnyState inner) =

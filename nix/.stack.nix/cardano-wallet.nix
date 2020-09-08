@@ -169,6 +169,7 @@
         "restore" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
@@ -182,6 +183,7 @@
             (hsPkgs."say" or (errorHandler.buildDepError "say"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             ];

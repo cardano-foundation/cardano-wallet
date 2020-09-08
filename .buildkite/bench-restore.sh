@@ -76,6 +76,10 @@ if [ -n "${BUILDKITE:-}" ]; then
      cat $file | awk 'BEGIN {t0 = 0}{if (t0 == 0) {t0 = $1} else {print $1-t0,$2}}' > $file.dat;
   done;
 
+  for file in *.json; do
+     buildkite-agent artifact upload $file;
+  done;
+
   # Plots all .log files in a single plot;
   echo $GNUPLOT_PROGRAM | gnuplot
   buildkite-agent artifact upload plot.svg

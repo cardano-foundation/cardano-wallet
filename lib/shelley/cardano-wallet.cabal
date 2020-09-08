@@ -230,6 +230,7 @@ benchmark restore
     ghc-options: -O2 -Werror
   build-depends:
       base
+    , aeson
     , bytestring
     , cardano-addresses
     , cardano-wallet-core
@@ -243,6 +244,7 @@ benchmark restore
     , say
     , temporary
     , text
+    , text-class
     , time
     , transformers
   type:
