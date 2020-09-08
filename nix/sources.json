@@ -12,15 +12,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "haskell.nix": {
-        "branch": "master",
+        "branch": "feature/SRE-125-add-coverage-support",
         "description": "Alternative Haskell Infrastructure for Nixpkgs",
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "e4dab4d33ce8fb2b8f375ca7e064731733e44cbd",
-        "sha256": "19r7283878x62l5bn3j4xq001wlmprmw0pxg9ghv21lgjy54cvz1",
+        "rev": "ce74990b9b8bc6c6161625c361529931bfb0e155",
+        "sha256": "1124cmpzp6a08kjamsvqvmxq1pfbimzy4s3ywlmhbq7ssjfjl6hi",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/e4dab4d33ce8fb2b8f375ca7e064731733e44cbd.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/ce74990b9b8bc6c6161625c361529931bfb0e155.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
