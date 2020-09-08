@@ -147,6 +147,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 --
 -- Stake Pool Layer
@@ -194,7 +195,7 @@ newStakePoolLayer nl db@DBLayer {..} =
     _knownPools
         :: IO (Set PoolId)
     _knownPools =
-        Map.keysSet <$> liftIO (readPoolDbData db minBound)
+        Set.fromList <$> liftIO (atomically listRegisteredPools)
 
     _listPools
         :: EpochNo
