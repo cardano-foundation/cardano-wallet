@@ -240,7 +240,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( ErrImportAddress (..), RndState )
+    ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -1106,8 +1106,8 @@ createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
 createRandomAddress
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
-        , PaymentAddress n ByronKey
-        , s ~ RndState n
+        , PaymentAddress n k
+        , RndStateLike s
         , k ~ ByronKey
         )
     => ctx
@@ -1121,21 +1121,22 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
             cp <- withExceptT ErrCreateAddrNoSuchWallet $
                 withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
             let s = getState cp
-            let accIx = Rnd.accountIndex s
+            let accIx = Rnd.defaultAccountIndex s
 
-            (path, gen') <- case mIx of
+            (path, s') <- case mIx of
                 Just addrIx | isKnownIndex accIx addrIx s ->
                     throwE $ ErrIndexAlreadyExists addrIx
                 Just addrIx ->
-                    pure ((liftIndex accIx, liftIndex addrIx), Rnd.gen s)
+                    pure ((liftIndex accIx, liftIndex addrIx), s)
                 Nothing ->
-                    pure $ Rnd.findUnusedPath (Rnd.gen s) accIx (Rnd.unavailablePaths s)
+                    pure $ Rnd.withRNG s $ \rng ->
+                        Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s)
 
             let prepared = preparePassphrase scheme pwd
             let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let s' = (Rnd.addDiscoveredAddress addr Unused path s) { Rnd.gen = gen' }
+            let cp' = updateState (Rnd.addDiscoveredAddress addr Unused path s') cp
             withExceptT ErrCreateAddrNoSuchWallet $
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
+                putCheckpoint (PrimaryKey wid) cp'
             pure addr
   where
     db = ctx ^. dbLayer @s @k
@@ -1143,9 +1144,9 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
         (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
 importRandomAddresses
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , s ~ RndState n
+        , RndStateLike s
         , k ~ ByronKey
         )
     => ctx

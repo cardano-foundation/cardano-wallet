@@ -1141,7 +1141,7 @@ postRandomAddress ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
     addr <- withWorkerCtx ctx wid liftE liftE
-        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k wrk wid pwd mix
+        $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k @n wrk wid pwd mix
     pure $ coerceAddress (addr, Unused)
   where
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
