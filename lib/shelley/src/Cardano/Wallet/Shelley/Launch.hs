@@ -1416,7 +1416,7 @@ preRegisteredStakeKey = Aeson.object
 
 -- | Deposit amount required for registering certificates.
 depositAmt :: Integer
-depositAmt = 100000
+depositAmt = 1000000
 
 -- | Initial amount in each of these special cluster faucet
 faucetAmt :: Integer
