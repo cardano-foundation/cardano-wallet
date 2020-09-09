@@ -99,7 +99,7 @@ spec :: Spec
 spec = do
     describe "Fee calculation : unit tests" $ do
         -- Change covers fee exactly, single change output
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20]
             , fOuts = [17]
             , fChngs = [3]
@@ -113,7 +113,7 @@ spec = do
             })
 
         -- Total change covers fee, multiple change outputs
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20]
             , fOuts = [16,18]
             , fChngs = [4,2]
@@ -127,7 +127,7 @@ spec = do
             })
 
         -- Fee split evenly across change outputs
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20]
             , fOuts = [18,18]
             , fChngs = [2,2]
@@ -141,7 +141,7 @@ spec = do
             })
 
         -- Fee split evenly across change outputs
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20]
             , fOuts = [17,18]
             , fChngs = [3,2]
@@ -155,7 +155,7 @@ spec = do
             })
 
         -- Fee divvied, dust removed (dust = 0)
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
             , fChngs = [6,2,1]
@@ -169,7 +169,7 @@ spec = do
             })
 
         -- Fee divvied, dust removed (dust = 1)
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
             , fChngs = [6,2,1]
@@ -183,7 +183,7 @@ spec = do
             })
 
         -- Cannot cover fee, no extra inputs
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20]
             , fOuts = [17]
             , fChngs = [3]
@@ -193,7 +193,7 @@ spec = do
             }) (Left $ ErrCannotCoverFee 1)
 
         -- Cannot cover fee even with an extra (too small) inputs
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
@@ -203,7 +203,7 @@ spec = do
             }) (Left $ ErrCannotCoverFee 1)
 
         -- Can select extra inputs to exactly cover fee, no change back
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
@@ -216,8 +216,18 @@ spec = do
             , csChngs = []
             })
 
+        -- Cannot select more inputs than allowed to cover fee.
+        feeUnitTest (\opts -> opts { maximumNumberOfInputs = 2 }) (FeeFixture
+            { fInps = [10]
+            , fOuts = [7]
+            , fChngs = [3]
+            , fUtxo = [1,1]
+            , fFee = 5
+            , fDust = 0
+            }) (Left $ ErrCannotCoverFee 1)
+
         -- Can select extra inputs to cover for fee, and leave a change back
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
@@ -231,7 +241,7 @@ spec = do
             })
 
         -- Multiple change output, can select extra inputs to cover fee, no change
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
@@ -245,7 +255,7 @@ spec = do
             })
 
         -- Multiple outputs, extra inputs selected, resulting change
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
@@ -259,7 +269,7 @@ spec = do
             })
 
         -- Multiple change outputs, some bigger than actual Dust
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [20,20]
             , fOuts = [16,18]
             , fChngs = [4,2]
@@ -273,7 +283,7 @@ spec = do
             })
 
         -- Change created when there was no change before
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [1]
             , fOuts = [1]
             , fChngs = []
@@ -289,7 +299,7 @@ spec = do
         let c = getCoin maxBound
 
         -- New BIG inputs selected causes change to overflow
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = [c-1, c-1]
             , fOuts = [c-1]
             , fChngs = [c-1]
@@ -302,7 +312,7 @@ spec = do
             , csChngs = [c `div` 2 - 1, c `div` 2]
             })
 
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = []
             , fOuts = []
             , fChngs = []
@@ -315,7 +325,7 @@ spec = do
             , csChngs = []
             })
 
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = []
             , fOuts = []
             , fChngs = []
@@ -328,7 +338,7 @@ spec = do
             , csChngs = [1]
             })
 
-        feeUnitTest (FeeFixture
+        feeUnitTest id (FeeFixture
             { fInps = []
             , fOuts = []
             , fChngs = []
@@ -593,6 +603,7 @@ prop_rebalanceSelection sel onDangling threshold = do
         , dustThreshold = threshold'
         , onDanglingChange = onDangling
         , feeUpperBound = Fee maxBound
+        , maximumNumberOfInputs = maxBound
         }
 
     reserveNonNull =
@@ -619,16 +630,19 @@ feeOptions fee dust = FeeOptions
         PayAndBalance
     , feeUpperBound =
         Fee maxBound
+    , maximumNumberOfInputs =
+        maxBound
     }
 
 feeUnitTest
-    :: FeeFixture
+    :: (FeeOptions -> FeeOptions)
+    -> FeeFixture
     -> Either ErrAdjustForFee FeeOutput
     -> SpecWith ()
-feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
+feeUnitTest adjustOpts fixture expected = it title $ do
     (utxo, cs) <- setup
     result <- runExceptT $ do
-        cs' <- adjustForFee (feeOptions feeF dustF) utxo cs
+        cs' <- adjustForFee (adjustOpts $ feeOptions feeF dustF) utxo cs
         return $ FeeOutput
             { csInps  = map (getCoin . coin . snd) (inputs cs')
             , csOuts  = map (getCoin . coin) (outputs cs')
@@ -636,6 +650,7 @@ feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title
             }
     result `shouldBe` expected
   where
+    FeeFixture inpsF outsF chngsF utxoF feeF dustF = fixture
     setup :: IO (UTxO, CoinSelection)
     setup = do
         utxo <- generate (genUTxO $ Coin <$> utxoF)
@@ -845,7 +860,9 @@ instance Arbitrary FeeOptions where
             , dustThreshold = Coin t
             , onDanglingChange = PayAndBalance
             , feeUpperBound = Fee maxBound
+            , maximumNumberOfInputs = maxBound
             }
 
 instance Show FeeOptions where
-    show (FeeOptions _ dust onDangling maxFee) = show (dust, onDangling, maxFee)
+    show (FeeOptions _ dust onDangling maxFee maxN) =
+        show (dust, onDangling, maxFee, maxN)

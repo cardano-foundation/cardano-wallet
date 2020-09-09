@@ -1203,8 +1203,9 @@ feeOpts
     -> Maybe TxMetadata
     -> W.TxParameters
     -> W.Coin
+    -> CoinSelection
     -> FeeOptions
-feeOpts tl action md txp minUtxo = FeeOptions
+feeOpts tl action md txp minUtxo cs = FeeOptions
     { estimateFee = minimumFee tl feePolicy action md
     , dustThreshold = minUtxo
     , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
@@ -1220,10 +1221,13 @@ feeOpts tl action md txp minUtxo = FeeOptions
         $ round
         $ (*tolerance)
         $ a + b * fromIntegral txMaxSize
+    , maximumNumberOfInputs =
+        estimateMaxNumberOfInputs tl (Quantity txMaxSize) md nOuts
     }
   where
     feePolicy@(LinearFee (Quantity a) (Quantity b) _) = W.getFeePolicy txp
     Quantity txMaxSize = W.getTxMaxSize txp
+    nOuts = fromIntegral $ length $ outputs cs
 
 -- | Prepare a transaction and automatically select inputs from the
 -- wallet to cover the requested outputs. Note that this only runs
@@ -1296,7 +1300,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
         CoinSelection.random opts recipients withdrawal utxo
 
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing md txp minUtxo
+    let feePolicy = feeOpts tl Nothing md txp minUtxo sel
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1338,8 +1342,8 @@ selectCoinsForDelegationFromUTxO
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
-    let feePolicy = feeOpts tl (Just action) Nothing txp minUtxo
     let sel = initDelegationSelection tl (txp ^. #getFeePolicy) action
+    let feePolicy = feeOpts tl (Just action) Nothing txp minUtxo sel
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
@@ -1418,7 +1422,7 @@ selectCoinsForMigrationFromUTxO
         )
 selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl Nothing Nothing txp minBound)
+    let feeOptions = (feeOpts tl Nothing Nothing txp minBound mempty)
             { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
             , dustThreshold = max (Coin $ ceiling a) minUtxo
             }

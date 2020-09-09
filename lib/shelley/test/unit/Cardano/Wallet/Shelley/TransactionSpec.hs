@@ -302,7 +302,7 @@ testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing
 
 testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0)
+testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0) mempty
   where
     txParams  = TxParameters feePolicy txMaxSize
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
