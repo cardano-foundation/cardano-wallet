@@ -184,6 +184,11 @@ let
     # This attribute ensures that every single derivation required for
     # evaluation of the haskell package set is built and cached on CI.
     # haskellNixRoots = haskellPackages._roots;
+
+    # beware: cobwebs
+    legacy-export-wallets = import ./nix/legacy-export-wallets.nix {
+      inherit system crossSystem config pkgs;
+    };
   };
 
 in

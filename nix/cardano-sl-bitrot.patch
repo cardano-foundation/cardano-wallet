@@ -1,0 +1,44 @@
+diff --git a/stack.yaml b/stack.yaml
+index 67cb0316e..c26661149 100644
+--- a/stack.yaml
++++ b/stack.yaml
+@@ -86,31 +86,31 @@ packages:
+ # https://github.com/haskell-distributed/network-transport/compare/master...serokell:018a50b9042c2115c3ec9c9fd5ca5f28737dd29c?expand=1
+ # Seems relatively straightforward to PR.
+ - location:
+-    git: https://github.com/serokell/network-transport
+-    commit: 018a50b9042c2115c3ec9c9fd5ca5f28737dd29c
++    git: https://github.com/haskell-distributed/network-transport
++    commit: 4d57d8575f83af17498e60f378ba65be9b9e3027
+   extra-dep: true
+ 
+ # This doesn't have much difference at all with the upstream master:
+ # https://github.com/haskell-distributed/network-transport-tcp/compare/master...serokell:3d56652123bd296dc759cd31947eb2a17924e68a?expand=1
+ # As above, seems relatively straightforward to PR.
+ - location:
+-    git: https://github.com/avieth/network-transport-tcp
+-    commit: 2634e5e32178bb0456d800d133f8664321daa2ef # csl-0.6.0
++    git: https://github.com/haskell-distributed/network-transport-tcp
++    commit: d58250e2388b86a1865ac4139373cbdc106e72e1 # csl-0.6.0
+   extra-dep: true
+ 
+ # This one has more changes:
+ # https://github.com/haskell-distributed/network-transport-inmemory/compare/master...avieth:5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a?expand=1
+ # Do we have an issue that documents why we made these changes, so we can make a PR upstream?
+ - location:
+-      git: https://github.com/avieth/network-transport-inmemory
+-      commit: 5d8ff2b07b9df35cf61329a3d975e2c8cf95c12a
++      git: https://github.com/haskell-distributed/network-transport-inmemory
++      commit: aece7d0754e53e321aa80bac5f2c2284a1790d73
+   extra-dep: true
+ 
+ # Waiting on the space leak bug fix PR to be merged:
+ # https://github.com/acid-state/acid-state/pull/104
+ - location:
+-    git: https://github.com/parsonsmatt/acid-state
+-    commit: a1b23e2056f134e53f705a694ab85deeecabec5c
++    git: https://github.com/acid-state/acid-state
++    commit: 2952267f23ca0ee757ff724c7911f3034eb8c7af
+   extra-dep: true
+ 
+ # Required for explorer.
