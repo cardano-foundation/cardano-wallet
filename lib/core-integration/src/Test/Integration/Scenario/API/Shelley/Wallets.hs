@@ -28,6 +28,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
     , ApiNetworkInformation
@@ -470,11 +471,13 @@ spec = do
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
             let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
-            r@(_, Right wallet) <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r expectations
-            addrs <- listAddresses @n ctx wallet
-            length addrs `shouldBe` addrPoolGap
-
+            rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+            verify rW expectations
+            rA <- request @[ApiAddress n] ctx
+                (Link.listAddresses @'Shelley (getFromResponse id rW)) Default Empty
+            verify rA
+                [ expectListSize addrPoolGap
+                ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
         let payload = Json [json| {
