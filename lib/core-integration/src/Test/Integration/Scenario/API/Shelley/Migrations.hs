@@ -121,29 +121,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
-    Hspec.it "SHELLEY_CALCULATE_02 - \
-        \Cannot calculate fee for wallet with dust (that complies with minUTxOValue)."
-        $ \ctx -> do
-            -- NOTE
-            -- Special mnemonic for which wallet has "dust"
-            -- (10 utxo with 43 ADA)
-            let mnemonics =
-                    ["either", "flip", "maple", "shift", "dismiss", "bridge"
-                    , "sweet", "reveal", "green", "tornado", "need", "patient"
-                    , "wall", "stamp", "pass"] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase}
-                    } |]
-            (_, w) <- unsafeRequest @ApiWallet ctx
-                (Link.postWallet @'Shelley) payloadRestore
-            let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-              [ expectResponseCode @IO HTTP.status200
-              ]
-
     describe "SHELLEY_CALCULATE_03 - \
         \Cannot estimate migration for Byron wallet using Shelley endpoint" $ do
           forM_ [ ("Byron", emptyRandomWallet)
