@@ -470,8 +470,11 @@ spec = do
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
             let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+            r@(_, Right wallet) <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify r expectations
+            addrs <- listAddresses @n ctx wallet
+            length addrs `shouldBe` addrPoolGap
+
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
         let payload = Json [json| {
