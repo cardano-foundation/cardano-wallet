@@ -166,6 +166,12 @@ let
       shelley = self.cardano-wallet;
     });
 
+    docs = import ./nix/docs.nix {
+      inherit system crossSystem config pkgs;
+      ghc = haskellPackages._config.ghc.package;
+      haskellPackages = selectProjectPackages haskellPackages;
+    };
+
     shell = mkShell "cardano-wallet-shell" haskellPackages;
     shell-prof = mkShell "cardano-wallet-shell-profiled" profiledHaskellPackages;
 

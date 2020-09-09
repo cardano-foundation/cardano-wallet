@@ -39,6 +39,12 @@ let
           // import ./util.nix { inherit lib haskell-nix; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
+
+        # sphinx-contrib-haddock
+        sphinxcontrib-haddock = (pkgs.callPackage sources.sphinxcontrib-haddock {
+          pythonPackages = pkgs.python3Packages;
+        }).sphinxcontrib-haddock;
+
       })
       # And, of course, our haskell-nix-ified stack project:
       (import ./pkgs.nix { inherit system crossSystem config; })

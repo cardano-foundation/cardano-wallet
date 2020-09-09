@@ -122,6 +122,7 @@ let
     "shell-prof"
     "stackShell"
     "stackNixRegenerate"
+    "docs"
   ]));
 
   # Remove cardano-node integration tests for Windows because

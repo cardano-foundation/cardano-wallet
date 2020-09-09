@@ -35,6 +35,19 @@
         "url": "https://github.com/input-output-hk/iohk-nix/archive/b22d8da9dd38c971ad40d9ad2d1a60cce53995fb.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "sphinxcontrib-haddock": {
+        "branch": "master",
+        "builtin": false,
+        "description": "Tools for using Haddock with Sphinx",
+        "homepage": null,
+        "owner": "michaelpj",
+        "repo": "sphinxcontrib-haddock",
+        "rev": "f3956b3256962b2d27d5a4e96edb7951acf5de34",
+        "sha256": "0mlxa5zzgdka0c6sj7pp4cfvc8rcrd8g2z2113vp614l43g17miv",
+        "type": "tarball",
+        "url": "https://github.com/michaelpj/sphinxcontrib-haddock/archive/f3956b3256962b2d27d5a4e96edb7951acf5de34.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
