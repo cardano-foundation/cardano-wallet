@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -103,6 +102,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotNo (..)
+    , SortOrder (..)
     , TxOut (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -139,7 +139,7 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer (..), traceWith )
 import Data.Aeson
-    ( ToJSON (..), genericToJSON )
+    ( ToJSON (..), genericToJSON, (.=) )
 import Data.Coerce
     ( coerce )
 import Data.Functor
@@ -159,7 +159,17 @@ import Data.Text.Class
 import Data.Time.Clock.POSIX
     ( getCurrentTime, utcTimeToPOSIXSeconds )
 import Fmt
-    ( Buildable, build, genericF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable
+    , blockListF'
+    , build
+    , genericF
+    , nameF
+    , pretty
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -338,22 +348,44 @@ data SomeBenchmarkResults where
 instance Buildable SomeBenchmarkResults where
     build (SomeBenchmarkResults results) = build results
 
-data BenchRndResults s = BenchRndResults
+data WalletOverview = WalletOverview
+    { utxo :: UTxOStatistics
+    , addresses :: Word
+    , transactions :: Word
+    } deriving (Show, Generic)
+
+instance Buildable WalletOverview where
+    build WalletOverview{utxo,addresses,transactions} =
+        blockListF' "" id
+            [ nameF "number of addresses" (build addresses)
+            , nameF "number of transactions" (build transactions)
+            , build utxo
+            ]
+
+instance ToJSON WalletOverview where
+    toJSON WalletOverview{utxo,addresses,transactions} = Aeson.object
+        [ "utxo" .= toApiUtxoStatistics utxo
+        , "addresses" .= addresses
+        , "transactions" .= transactions
+        ]
+
+data BenchRndResults = BenchRndResults
     { benchName :: Text
     , restoreTime :: Time
     , readWalletTime :: Time
     , listAddressesTime :: Time
+    , listTransactionsTime :: Time
     , importOneAddressTime :: Time
     , importManyAddressesTime :: Time
     , estimateFeesTime :: Time
-    , utxoStatistics :: s
-    } deriving (Show, Generic, Functor)
+    , walletOverview :: WalletOverview
+    } deriving (Show, Generic)
 
-instance Buildable s => Buildable (BenchRndResults s) where
+instance Buildable BenchRndResults where
     build = genericF
 
-instance ToJSON (BenchRndResults UTxOStatistics) where
-    toJSON = genericToJSON Aeson.defaultOptions . fmap toApiUtxoStatistics
+instance ToJSON BenchRndResults where
+    toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
     :: forall (n :: NetworkDiscriminant) s t k p.
@@ -369,17 +401,24 @@ benchmarksRnd
     -> WalletId
     -> WalletName
     -> Time
-    -> IO (BenchRndResults UTxOStatistics)
+    -> IO BenchRndResults
 benchmarksRnd _ w wid wname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
 
-    (utxoStatistics, _) <- bench "utxo statistics" $ do
+    (utxo, _) <- bench "utxo statistics" $ do
         pure $ computeUtxoStatistics log10 (totalUTxO pending cp)
 
-    (_, listAddressesTime) <- bench "list addresses" $ do
-        unsafeRunExceptT $ W.listAddresses w wid (const pure)
+    (addresses, listAddressesTime) <- bench "list addresses"
+        $ fmap (fromIntegral . length)
+        $ unsafeRunExceptT
+        $ W.listAddresses w wid (const pure)
+
+    (transactions, listTransactionsTime) <- bench "list transactions"
+        $ fmap (fromIntegral . length)
+        $ unsafeRunExceptT
+        $ W.listTransactions @_ @s @k @t w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (Coin 1)
@@ -396,15 +435,18 @@ benchmarksRnd _ w wid wname restoreTime = do
         runExceptT $ withExceptT show $
             W.importRandomAddresses @_ @s @k w wid manyAddresses
 
+    let walletOverview = WalletOverview{utxo,addresses,transactions}
+
     pure BenchRndResults
         { benchName = getWalletName wname
         , restoreTime
         , readWalletTime
         , listAddressesTime
+        , listTransactionsTime
         , estimateFeesTime
         , importOneAddressTime
         , importManyAddressesTime
-        , utxoStatistics
+        , walletOverview
         }
   where
     genAddresses :: Int -> Wallet s -> IO [Address]
@@ -415,20 +457,21 @@ benchmarksRnd _ w wid wname restoreTime = do
       where
         xprv = Byron.generateKeyFromSeed seed mempty
 
-data BenchSeqResults s = BenchSeqResults
+data BenchSeqResults = BenchSeqResults
     { benchName :: Text
     , restoreTime :: Time
     , readWalletTime :: Time
     , listAddressesTime :: Time
+    , listTransactionsTime :: Time
     , estimateFeesTime :: Time
-    , utxoStatistics :: s
-    } deriving (Show, Generic, Functor)
+    , walletOverview :: WalletOverview
+    } deriving (Show, Generic)
 
-instance Buildable s => Buildable (BenchSeqResults s) where
+instance Buildable BenchSeqResults where
     build = genericF
 
-instance ToJSON (BenchSeqResults UTxOStatistics) where
-    toJSON = genericToJSON Aeson.defaultOptions . fmap toApiUtxoStatistics
+instance ToJSON BenchSeqResults where
+    toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
     :: forall (n :: NetworkDiscriminant) s t k p.
@@ -444,30 +487,40 @@ benchmarksSeq
     -> WalletId
     -> WalletName
     -> Time
-    -> IO (BenchSeqResults UTxOStatistics)
+    -> IO BenchSeqResults
 benchmarksSeq _ w wid wname restoreTime = do
     ((cp, pending), readWalletTime) <- bench "read wallet" $ do
         (cp, _, pending) <- unsafeRunExceptT $ W.readWallet w wid
         pure (cp, pending)
 
-    (utxoStatistics, _) <- bench "utxo statistics" $ do
+    (utxo, _) <- bench "utxo statistics" $ do
         pure $ computeUtxoStatistics log10 (totalUTxO pending cp)
 
-    (_, listAddressesTime) <- bench "list addresses" $ do
-        unsafeRunExceptT $ W.listAddresses w wid (const pure)
+    (addresses, listAddressesTime) <- bench "list addresses"
+        $ fmap (fromIntegral . length)
+        $ unsafeRunExceptT
+        $ W.listAddresses w wid (const pure)
+
+    (transactions, listTransactionsTime) <- bench "list transactions"
+        $ fmap (fromIntegral . length)
+        $ unsafeRunExceptT
+        $ W.listTransactions @_ @s @k @t w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (Coin 1)
         runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
             w wid (out :| []) (Quantity 0) Nothing
 
+    let walletOverview = WalletOverview{utxo,addresses,transactions}
+
     pure BenchSeqResults
         { benchName = getWalletName wname
         , restoreTime
         , readWalletTime
         , listAddressesTime
+        , listTransactionsTime
         , estimateFeesTime
-        , utxoStatistics
+        , walletOverview
         }
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
