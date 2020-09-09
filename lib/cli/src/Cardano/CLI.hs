@@ -54,6 +54,7 @@ module Cardano.CLI
     , syncToleranceOption
     , tlsOption
     , smashURLOption
+    , metadataOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -128,6 +129,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
+    , ApiTxMetadata (..)
     , ApiWallet
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -687,6 +689,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _payments :: NonEmpty Text
+    , _metadata :: ApiTxMetadata
     }
 
 cmdTransactionCreate
@@ -702,7 +705,8 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        <*> metadataOption
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -715,6 +719,7 @@ cmdTransactionCreate mkTxClient mkWalletClient =
                     (Aeson.object
                         [ "payments" .= wPayments
                         , "passphrase" .= ApiT wPwd
+                        , "metadata" .= md
                         ]
                     )
             Left _ ->
@@ -733,7 +738,8 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts) = do
+        <*> metadataOption
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -742,7 +748,10 @@ cmdTransactionFees mkTxClient mkWalletClient =
                 runClient wPort Aeson.encodePretty $ postTransactionFee
                     mkTxClient
                     (ApiT wId)
-                    (Aeson.object [ "payments" .= wPayments ])
+                    (Aeson.object
+                        [ "payments" .= wPayments
+                        , "metadata" .= md
+                        ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
 
@@ -1347,6 +1356,21 @@ transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
 transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
+
+-- | <metadata=JSON>
+--
+-- Note: we decode the JSON just so that we can validate more client-side.
+metadataOption :: Parser ApiTxMetadata
+metadataOption = option txMetadataReader $ mempty
+    <> long "metadata"
+    <> metavar "JSON"
+    <> value (ApiTxMetadata Nothing)
+    <> help ("Application-specific transaction metadata as a JSON object. "
+             <> "The value must match the schema defined in the "
+             <> "cardano-wallet OpenAPI specification.")
+
+txMetadataReader :: ReadM ApiTxMetadata
+txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text
