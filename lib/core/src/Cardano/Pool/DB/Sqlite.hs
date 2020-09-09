@@ -608,11 +608,18 @@ data DatabaseView = DatabaseView
 --
 createView :: Sqlite.Connection -> DatabaseView -> IO ()
 createView conn (DatabaseView name definition) = do
-    query <- Sqlite.prepare conn queryString
-    Sqlite.step query *> Sqlite.finalize query
+    deleteQuery <- Sqlite.prepare conn deleteQueryString
+    Sqlite.step deleteQuery *> Sqlite.finalize deleteQuery
+    createQuery <- Sqlite.prepare conn createQueryString
+    Sqlite.step createQuery *> Sqlite.finalize createQuery
   where
-    queryString = T.unlines
-        [ "CREATE VIEW IF NOT EXISTS"
+    deleteQueryString = T.unlines
+        [ "DROP VIEW IF EXISTS"
+        , name
+        , ";"
+        ]
+    createQueryString = T.unlines
+        [ "CREATE VIEW"
         , name
         , "AS"
         , definition
