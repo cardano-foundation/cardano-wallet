@@ -130,9 +130,9 @@ spec = do
         [(1,23),(10,16),(20,9),(30,2)]
 
     estimateMaxInputsTests @ByronKey Cardano.Mainnet
-        [(1,19),(10,12),(20,6),(30,0)]
+        [(1,16),(10,10),(20,5),(30,0)]
     estimateMaxInputsTests @ByronKey (Cardano.Testnet (Cardano.NetworkMagic 0))
-        [(1,18),(10,12),(20,5),(30,0)]
+        [(1,15),(10,10),(20,4),(30,0)]
 
     estimateMaxInputsTests @IcarusKey Cardano.Mainnet
         [(1,19),(10,14),(20,9),(30,4)]
