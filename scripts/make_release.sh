@@ -17,14 +17,14 @@ set -euo pipefail
 
 ################################################################################
 # Release-specific parameters (Change when you bump the version)
-OLD_GIT_TAG="v2020-07-28"
-OLD_CABAL_VERSION="2020.7.28"
+OLD_GIT_TAG="v2020-08-03"
+OLD_CABAL_VERSION="2020.8.3"
 
-GIT_TAG="v2020-08-03"
-CABAL_VERSION="2020.8.3"
+GIT_TAG="v2020-09-09"
+CABAL_VERSION="2020.9.9"
 
 JORM_TAG="v0.9.0"
-CARDANO_NODE_TAG="1.18.0"
+CARDANO_NODE_TAG="1.19.1"
 ################################################################################
 OLD_DATE="${OLD_GIT_TAG//v}"
 CHANGELOG=GENERATED_CHANGELOG.md
