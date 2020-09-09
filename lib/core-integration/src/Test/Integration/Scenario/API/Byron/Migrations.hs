@@ -89,6 +89,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec as Hspec
 
 
 spec :: forall n t.
@@ -207,7 +208,7 @@ spec = do
               testAddressCycling ctx 3
               testAddressCycling ctx 10
 
-    it "BYRON_MIGRATE_01 - \
+    Hspec.it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> do
         -- NOTE
         -- Special mnemonic for which 200 legacy funds are attached to in the
@@ -266,7 +267,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 17). length)
+            , expectField id ((`shouldBe` 20). length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -345,7 +346,7 @@ spec = do
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
-    it "BYRON_MIGRATE_02 - \
+    Hspec.it "BYRON_MIGRATE_02 - \
         \migrating wallet with dust should fail."
         $ \ctx -> do
             -- NOTE

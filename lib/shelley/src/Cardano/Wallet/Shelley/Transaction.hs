@@ -387,17 +387,19 @@ computeTxSize networkId witTag md action cs =
 
     signed = Cardano.makeSignedTransaction wits unsigned
 
-    -- NOTE
-    -- When we generate dummy output, we generate them as new Shelley addresses
-    -- because their format is much easier to generate (can be a sequence of
-    -- bytes, and a straightforward header). Generating dummy Byron or Icarus
-    -- addresses would be nuts. So instead, we apply a small correction for each
-    -- output which can either slightly increase or decrease the overall size.
-    --
-    -- When change are Shelley addresses, the correction is null.
-    outputCorrection =
-        toInteger (length $ change cs) * perChangeCorrection
+    outputCorrection = sum
+        [ toInteger (length $ change cs) * perChangeCorrection
+        , toInteger (length $ inputs cs) * perInputCorrection
+        ]
       where
+         -- NOTE
+         -- When we generate dummy output, we generate them as new Shelley addresses
+         -- because their format is much easier to generate (can be a sequence of
+         -- bytes, and a straightforward header). Generating dummy Byron or Icarus
+         -- addresses would be nuts. So instead, we apply a small correction for each
+         -- output which can either slightly increase or decrease the overall size.
+         --
+         -- When change are Shelley addresses, the correction is null.
          perChangeCorrection = case witTag of
             TxWitnessShelleyUTxO ->
                 0
@@ -415,6 +417,29 @@ computeTxSize networkId witTag md action cs =
             maxSizeOfByronTestAddr  = 83
             maxSizeOfIcarusMainAddr = 43
             maxSizeOfIcarusTestAddr = 50
+
+         -- NOTE
+         -- We generate dummy witnesses that are exclusively in Shelley format.
+         -- In Byron (or so-called bootstrap witnesses), we need to account for
+         -- some extra bytes due to the inclusion of:
+         --
+         -- - The chain code
+         -- - Serialized address attributes (path and protocol magic)
+         perInputCorrection = case witTag of
+            TxWitnessShelleyUTxO ->
+                0
+            TxWitnessByronUTxO Byron | networkId == Cardano.Mainnet ->
+                ccLen + addrPathAttrLen
+            TxWitnessByronUTxO Byron ->
+                ccLen + addrPathAttrLen + networkMagicLen
+            TxWitnessByronUTxO Icarus | networkId == Cardano.Mainnet ->
+                ccLen
+            TxWitnessByronUTxO Icarus ->
+                ccLen + networkMagicLen
+           where
+             ccLen = 34
+             addrPathAttrLen = 40
+             networkMagicLen = 7
 
     unsigned = mkUnsignedTx maxBound cs' md wdrls certs
       where
@@ -466,7 +491,7 @@ computeTxSize networkId witTag md action cs =
         TxWitnessShelleyUTxO ->
            addrWits <> certWits
         TxWitnessByronUTxO{} ->
-           byronWits
+           addrWits
 
     (addrWits, certWits) =
         ( mconcat
@@ -497,45 +522,9 @@ computeTxSize networkId witTag md action cs =
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    -- Note that the "byron"/bootstrap witnesses are still shelley era
-    -- witnesses.
-    byronWits = map dummyWitnessUniq $ CS.inputs cs
-      where
-        dummyWitness :: BL.ByteString -> Address -> Cardano.Witness Cardano.Shelley
-        dummyWitness chaff addr =
-            Cardano.ShelleyBootstrapWitness $ SL.BootstrapWitness key sig cc padding
-          where
-            key = SL.VKey
-                $ fromMaybe (error "error creating dummy witness ver key")
-                $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff keyLen chaff
-
-            sig = SignedDSIGN
-                $ fromMaybe (error "error creating dummy witness sig")
-                $ rawDeserialiseSigDSIGN
-                $ bloatChaff sigLen chaff
-
-            cc = SL.ChainCode
-                $ bloatChaff ccLen "0"
-
-            padding = serialize'
-                $ Byron.mkAttributes
-                $ Byron.AddrAttributes
-                    { Byron.aaVKDerivationPath = toHDPayloadAddress addr
-                    , Byron.aaNetworkMagic = Cardano.toByronNetworkMagic networkId
-                    }
-
-        dummyWitnessUniq :: (TxIn, TxOut) -> Cardano.Witness Cardano.Shelley
-        dummyWitnessUniq (TxIn (Hash txid) ix, TxOut addr _) =
-            dummyWitness chaff addr
-          where
-            chaff = L8.pack (show ix) <> BL.fromStrict txid
-
     sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
 
     keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
-
-    ccLen =  32
 
     bloatChaff :: Word -> BL.ByteString -> ByteString
     bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
