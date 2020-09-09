@@ -70,7 +70,7 @@ import Cardano.Wallet.Unsafe
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad
-    ( forM )
+    ( forM, forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -78,7 +78,7 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer (..), contramap, natTracer, traceWith )
 import Data.Either
-    ( lefts, rights )
+    ( partitionEithers, rights )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -104,6 +104,8 @@ import Data.Word
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
+    , PersistValue
+    , RawSql
     , SelectOpt (..)
     , Single (..)
     , deleteWhere
@@ -211,15 +213,9 @@ newDBLayer trace fp timeInterpreter = do
 
             pure (foldl' toMap Map.empty production)
 
-        readTotalProduction = do
-            parsedRows <- fmap parseRow <$> rawSql query []
-            mapM_ onParseFailure $ lefts parsedRows
-            pure $ Map.fromList $ rights parsedRows
+        readTotalProduction = Map.fromList <$> runRawQuery trace
+            (RawQuery "readTotalProduction" query [] parseRow)
           where
-            onParseFailure = liftIO
-                . traceWith trace
-                . MsgParseFailure
-                . ParseFailure "readTotalProduction"
             query = T.unwords
                 [ "SELECT pool_id, count(pool_id) as block_count"
                 , "FROM pool_production"
@@ -374,10 +370,8 @@ newDBLayer trace fp timeInterpreter = do
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        listRetiredPools epochNo = do
-            parsedRows <- fmap parseRow <$> rawSql query parameters
-            mapM_ onParseFailure $ lefts parsedRows
-            pure $ rights parsedRows
+        listRetiredPools epochNo = runRawQuery trace $
+            RawQuery "listRetiredPools" query parameters parseRow
           where
             query = T.unwords
                 [ "SELECT *"
@@ -385,19 +379,13 @@ newDBLayer trace fp timeInterpreter = do
                 , "WHERE retirement_epoch <= ?;"
                 ]
             parameters = [ toPersistValue epochNo ]
-            onParseFailure = liftIO
-                . traceWith trace
-                . MsgParseFailure
-                . ParseFailure "listRetiredPools"
             parseRow (Single poolId, Single retirementEpoch) =
                 PoolRetirementCertificate
                     <$> fromPersistValue poolId
                     <*> fromPersistValue retirementEpoch
 
-        listPoolLifeCycleData epochNo = do
-            parsedRows <- fmap parseRow <$> rawSql query parameters
-            mapM_ onParseFailure $ lefts parsedRows
-            pure $ rights parsedRows
+        listPoolLifeCycleData epochNo = runRawQuery trace $ RawQuery
+            "listPoolLifeCycleData" query parameters parseRow
           where
             query = T.unwords
                 [ "SELECT *"
@@ -405,10 +393,6 @@ newDBLayer trace fp timeInterpreter = do
                 , "WHERE retirement_epoch IS NULL OR retirement_epoch > ?;"
                 ]
             parameters = [ toPersistValue epochNo ]
-            onParseFailure = liftIO
-                . traceWith trace
-                . MsgParseFailure
-                . ParseFailure "listPoolLifeCycleData"
             parseRow
                 ( Single fieldPoolId
                 , Single fieldRetirementEpoch
@@ -569,6 +553,37 @@ newDBLayer trace fp timeInterpreter = do
                 let cert = PoolRetirementCertificate {poolId, retirementEpoch}
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
+
+-- | Defines a raw SQL query, runnable with 'runRawQuery'.
+--
+data RawQuery a b = RawQuery
+    { queryName :: Text
+      -- ^ The name of the query.
+    , queryDefinition :: Text
+      -- ^ The SQL definition of the query.
+    , queryParameters :: [PersistValue]
+      -- ^ Parameters of the query.
+    , queryParser :: a -> Either Text b
+      -- ^ A parser for a row of the result.
+    }
+
+-- | Runs a raw SQL query, logging any parse failures that occur.
+--
+runRawQuery
+    :: forall a b. RawSql a
+    => Tracer IO PoolDbLog
+    -> RawQuery a b
+    -> SqlPersistT IO [b]
+runRawQuery trace q = do
+    (failures, results) <- partitionEithers . fmap (queryParser q) <$> rawSql
+        (queryDefinition q)
+        (queryParameters q)
+    forM_ failures
+        $ liftIO
+        . traceWith trace
+        . MsgParseFailure
+        . ParseFailure (queryName q)
+    pure results
 
 migrateManually
     :: Tracer IO PoolDbLog
