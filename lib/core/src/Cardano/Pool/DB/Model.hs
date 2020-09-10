@@ -11,6 +11,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
@@ -290,26 +291,25 @@ mListRetiredPools epochNo db = (retiredPools, db)
     activeRetirementCertificates :: [PoolRetirementCertificate]
     activeRetirementCertificates =
         allKnownPoolIds
-        & fmap lookupLifeCycleStatus
+        & fmap (`lookupLifeCycleStatus` db)
         & fmap getPoolRetirementCertificate
         & catMaybes
 
-    lookupLifeCycleStatus :: PoolId -> PoolLifeCycleStatus
-    lookupLifeCycleStatus poolId =
-        determinePoolLifeCycleStatus
-            (lookupLatestCertificate poolId registrations)
-            (lookupLatestCertificate poolId retirements)
+    PoolDatabase {registrations} = db
 
+lookupLifeCycleStatus :: PoolId -> PoolDatabase -> PoolLifeCycleStatus
+lookupLifeCycleStatus poolId PoolDatabase {registrations, retirements} =
+    determinePoolLifeCycleStatus
+        (lookupLatestCertificate registrations)
+        (lookupLatestCertificate retirements)
+  where
     lookupLatestCertificate
-        :: PoolId
-        -> Map (publicationTime, PoolId) certificate
+        :: Map (publicationTime, PoolId) certificate
         -> Maybe (publicationTime, certificate)
-    lookupLatestCertificate poolId certMap =
+    lookupLatestCertificate certMap =
         fmap (first fst)
         $ Map.lookupMax
         $ Map.filterWithKey (\(_, k) _ -> k == poolId) certMap
-
-    PoolDatabase {registrations, retirements} = db
 
 mUnfetchedPoolMetadataRefs
     :: Int
