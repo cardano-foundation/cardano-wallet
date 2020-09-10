@@ -150,7 +150,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectErrorMessage errMsg403WrongPass
             ]
 
-    it "STAKE_POOLS_JOIN_01 - \
+    it "STAKE_POOLS_JOIN_01rewards - \
         \Can join a pool, earn rewards and collect them" $ \ctx -> do
         -- Setup
         src <- fixtureWallet ctx
@@ -285,16 +285,40 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
         -- Quit delegation altogether.
-        quitStakePool @n ctx (src, fixturePassphrase) >>= flip verify
+        rq <- quitStakePool @n ctx (src, fixturePassphrase)
+        verify rq
+            -- pending tx for quitting pool is initially outgoing
+            -- because there is a fee for this tx
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
+        let txid = getFromResponse Prelude.id rq
+        let (Quantity quitFeeAmt) = getFromResponse #amount rq
+        let finalQuitAmt = Quantity (depositAmt ctx - quitFeeAmt)
+
         eventually "Certificates are inserted after quiting a pool" $ do
-            let ep = Link.listTransactions @'Shelley src
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+            -- last made transaction `txid` is for quitting pool and,
+            -- in fact, it becomes incoming because there is
+            -- keyDeposit being returned
+            let epg = Link.getTransaction @'Shelley src txid
+            rlg <- request @(ApiTransaction n) ctx epg Default Empty
+            verify rlg
+                [ expectField
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField
+                    #amount (`shouldBe` finalQuitAmt)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+            let epl = Link.listTransactions @'Shelley src
+            rlq <- request @[ApiTransaction n] ctx epl Default Empty
+            verify rlq
                 [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    #amount (`shouldBe` finalQuitAmt)
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 1
