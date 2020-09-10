@@ -49,6 +49,7 @@ module Cardano.Pool.DB.Model
     , mPutPoolMetadata
     , mListRegisteredPools
     , mListRetiredPools
+    , mReadPoolLifeCycleStatus
     , mReadSystemSeed
     , mRollbackTo
     , mReadCursor
@@ -296,6 +297,10 @@ mListRetiredPools epochNo db = (retiredPools, db)
         & catMaybes
 
     PoolDatabase {registrations} = db
+
+mReadPoolLifeCycleStatus :: PoolId -> ModelPoolOp PoolLifeCycleStatus
+mReadPoolLifeCycleStatus poolId db = (, db) $ pure $
+    lookupLifeCycleStatus poolId db
 
 lookupLifeCycleStatus :: PoolId -> PoolDatabase -> PoolLifeCycleStatus
 lookupLifeCycleStatus poolId PoolDatabase {registrations, retirements} =
