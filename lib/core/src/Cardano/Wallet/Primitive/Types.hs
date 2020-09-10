@@ -1759,7 +1759,7 @@ data PoolLifeCycleStatus
         PoolRetirementCertificate
         -- ^ Indicates that a pool is registered AND ALSO marked for retirement.
         -- Records the latest registration and retirement certificates.
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 getPoolRegistrationCertificate
     :: PoolLifeCycleStatus -> Maybe PoolRegistrationCertificate

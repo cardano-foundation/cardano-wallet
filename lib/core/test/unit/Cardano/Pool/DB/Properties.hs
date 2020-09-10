@@ -27,12 +27,12 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( ListSerializationMethod
+    ( MultiPoolCertificateSequence (..)
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
+    , getMultiPoolCertificateSequence
     , isValidSinglePoolCertificateSequence
-    , serializeLists
     )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
@@ -205,6 +205,8 @@ properties = do
             (property . prop_listRegisteredPools)
         it "prop_listRetiredPools_multiplePools_multipleCerts"
             (property . prop_listRetiredPools_multiplePools_multipleCerts)
+        it "prop_listPoolLifeCycleData_multiplePools_multipleCerts"
+            (property . prop_listPoolLifeCycleData_multiplePools_multipleCerts)
         it "putPoolProduction* . readTotalProduction matches expectations"
             (property . prop_readTotalProduction)
         it "unfetchedPoolMetadataRefs"
@@ -222,6 +224,8 @@ properties = do
                 prop_determinePoolLifeCycleStatus_differentPools)
         it "SinglePoolCertificateSequence coverage is adequate"
             (property . const prop_SinglePoolCertificateSequence_coverage)
+        it "MultiPoolCertificateSequence coverage is adequate"
+            (property . const prop_MultiPoolCertificateSequence_coverage)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -573,17 +577,12 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
-    certificatePublications = publicationTimes `zip` certificates
+    certificatePublications =
+        testCertificatePublicationTimes `zip` certificates
 
     mExpectedCertificatePublication = certificatePublications
         & reverse
         & listToMaybe
-
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. ]
-        , ii <- [0 .. 3]
-        ]
 
     certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
@@ -659,15 +658,15 @@ prop_readPoolLifeCycleStatus
     -> SinglePoolCertificateSequence
     -> Property
 prop_readPoolLifeCycleStatus
-    DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
+    db@DBLayer {..} (SinglePoolCertificateSequence sharedPoolId certificates) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
-        actualStatus <- run $ atomically $ do
-            mapM_ (uncurry putCertificate) certificatePublications
-            readPoolLifeCycleStatus sharedPoolId
+        actualStatus <- run $ do
+            mapM_ (uncurry $ putPoolCertificate db) certificatePublications
+            atomically $ readPoolLifeCycleStatus sharedPoolId
         poolsMarkedToRetire <-
             run $ atomically $ listRetiredPools $ EpochNo maxBound
         monitor $ counterexample $ unlines
@@ -726,12 +725,6 @@ prop_readPoolLifeCycleStatus
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
-
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
 
 prop_rollbackRegistration
     :: DBLayer IO
@@ -828,7 +821,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
     rollbackPoint =
         -- Pick a slot that approximately corresponds to the midpoint of the
         -- certificate publication list.
-        publicationTimes
+        testCertificatePublicationTimes
             & drop (length certificates `div` 2)
             & fmap (view #slotNo)
             & listToMaybe
@@ -836,7 +829,7 @@ prop_rollbackRetirement DBLayer{..} certificates =
 
     allPublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
-    allPublications = publicationTimes `zip` certificates
+    allPublications = testCertificatePublicationTimes `zip` certificates
 
     expectedPublications
         :: [(CertificatePublicationTime, PoolRetirementCertificate)]
@@ -845,13 +838,6 @@ prop_rollbackRetirement DBLayer{..} certificates =
             (\(CertificatePublicationTime slotId _, _) ->
                 slotId <= rollbackPoint)
             allPublications
-
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
 
 -- When we remove pools, check that:
 --
@@ -863,15 +849,14 @@ prop_removePools
     -> [PoolCertificate]
     -> Property
 prop_removePools
-    DBLayer {..} certificates =
+    db@DBLayer {..} certificates =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
         -- Firstly, publish an arbitrary set of pool certificates:
-        run $ atomically $ do
-            mapM_ (uncurry putCertificate) certificatePublications
+        run $ mapM_ (uncurry $ putPoolCertificate db) certificatePublications
         -- Next, read the latest certificates for all pools:
         poolIdsWithRegCertsAtStart <- run poolIdsWithRegCerts
         poolIdsWithRetCertsAtStart <- run poolIdsWithRetCerts
@@ -914,20 +899,8 @@ prop_removePools
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolCertificate)]
-    certificatePublications = publicationTimes `zip` certificates
-
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
-
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
+    certificatePublications =
+        testCertificatePublicationTimes `zip` certificates
 
     poolIdsWithRegCerts =
         fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
@@ -975,34 +948,15 @@ prop_listRegisteredPools DBLayer {..} entries =
 --
 prop_listRetiredPools_multiplePools_multipleCerts
     :: DBLayer IO
-    -> [SinglePoolCertificateSequence]
-    -> ListSerializationMethod
+    -> MultiPoolCertificateSequence
     -> Property
 prop_listRetiredPools_multiplePools_multipleCerts
-    DBLayer {..} certificateSequences serializationMethod = checkCoverage
-        -- Check the number of certificates:
-        $ cover 2 (certificateCount == 0)
-            "number of certificates: = 0"
-        $ cover 2 (certificateCount > 0 && certificateCount <= 10)
-            "number of certificates: > 0 && <= 10"
-        $ cover 2 (certificateCount > 10 && certificateCount <= 100)
-            "number of certificates: > 10 && <= 100"
-        $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
-            "number of certificates: > 100 && <= 1000"
-        -- Check the number of pools:
-        $ cover 2 (poolCount == 0)
-            "number of pools: = 0"
-        $ cover 2 (poolCount > 0 && poolCount <= 10)
-            "number of pools: > 0 && <= 10"
-        $ cover 2 (poolCount > 10 && poolCount <= 100)
-            "number of pools: > 10 && <= 100"
-        $ monadicIO (setup >> prop)
+    db@DBLayer {..} mpcs = monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
     prop = do
-        run $ atomically $ do
-            mapM_ (uncurry putCertificate) allPublicationsSerialized
+        run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
         lifeCycleStatuses <- run $ atomically $ do
             mapM readPoolLifeCycleStatus allPoolIds
         let poolsMarkedToRetire = catMaybes $
@@ -1021,33 +975,95 @@ prop_listRetiredPools_multiplePools_multipleCerts
                 (Set.fromList retiredPoolsActual)
                 (Set.fromList retiredPoolsExpected)
 
-    certificateCount = length allCertificatesSerialized
-    poolCount = length certificateSequences
+    allPoolIds :: [PoolId]
+    allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
 
-    allCertificatesSerialized :: [PoolCertificate]
-    allCertificatesSerialized = serializeLists serializationMethod
-        (getSinglePoolCertificateSequence <$> certificateSequences)
+    allPublications :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublications =
+        testCertificatePublicationTimes
+        `zip`
+        getMultiPoolCertificateSequence mpcs
 
-    allPublicationsSerialized
-        :: [(CertificatePublicationTime, PoolCertificate)]
-    allPublicationsSerialized =
-        publicationTimes `zip` allCertificatesSerialized
+-- | Test `listPoolLifeCycleData` by showing that the following operations are
+--   equivalent:
+--
+--   - Calling `listPoolLifeCycleData` once to fetch lifecycle data for all
+--     active pools.
+--
+--   - Calling `readPoolLifeCycleStatus` multiple times, once for each known
+--     pool, and coalescing the results.
+--
+-- The former operation (calling `listPoolLifeCycleStatus` once) is designed to
+-- be efficient, as it delivers its results with only a single database query.
+--
+-- The latter operation (calling `readPoolLifeCycleStatus` multiple times) is
+-- extremely inefficient, but consists of simpler database operations that we
+-- already verify with other properties.
+--
+-- This property tests that both operations give equivalent results, even with
+-- complex sequences of pool registration and retirement certificates.
+--
+prop_listPoolLifeCycleData_multiplePools_multipleCerts
+    :: DBLayer IO
+    -> MultiPoolCertificateSequence
+    -> Property
+prop_listPoolLifeCycleData_multiplePools_multipleCerts
+    db@DBLayer {..} mpcs = monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ mapM_ (uncurry $ putPoolCertificate db) allPublications
+        lifeCycleDataReadIndividually <- filter isRegistered <$>
+            run (atomically $ mapM readPoolLifeCycleStatus allPoolIds)
+        let poolsMarkedToRetire = catMaybes $
+                getPoolRetirementCertificate <$> lifeCycleDataReadIndividually
+        let epochsToTest =
+                EpochNo minBound :
+                EpochNo maxBound :
+                L.nub (view #retirementEpoch <$> poolsMarkedToRetire)
+        forM_ epochsToTest $ \currentEpoch -> do
+            let lifeCycleDataExpected = Set.fromList $ filter
+                    (not . isRetired currentEpoch)
+                    (lifeCycleDataReadIndividually)
+            lifeCycleDataActual <- Set.fromList <$> run
+                (atomically $ listPoolLifeCycleData currentEpoch)
+            monitor $ counterexample $ unlines
+                [ "\nEpochs to test: "
+                , show epochsToTest
+                , "\nCurrent epoch: "
+                , show currentEpoch
+                , "\nPools marked with a retirement epoch: "
+                , show poolsMarkedToRetire
+                , "\nExpected lifecycle data: "
+                , show lifeCycleDataExpected
+                , "\nActual lifecycle data: "
+                , show lifeCycleDataActual
+                ]
+            assert $ (==)
+                lifeCycleDataExpected
+                lifeCycleDataActual
+
+    isRegistered :: PoolLifeCycleStatus -> Bool
+    isRegistered = \case
+        PoolNotRegistered -> False
+        PoolRegistered {} -> True
+        PoolRegisteredAndRetired {} -> True
+
+    isRetired :: EpochNo -> PoolLifeCycleStatus -> Bool
+    isRetired currentEpoch status = maybe
+        (False)
+        ((<= currentEpoch) . view #retirementEpoch)
+        (getPoolRetirementCertificate status)
 
     allPoolIds :: [PoolId]
-    allPoolIds = getSinglePoolId <$> certificateSequences
+    allPoolIds = getSinglePoolId <$> getSinglePoolSequences mpcs
 
-    publicationTimes :: [CertificatePublicationTime]
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. 3]
-        , ii <- [0 .. 3]
-        ]
-
-    putCertificate cpt = \case
-        Registration cert ->
-            putPoolRegistration cpt cert
-        Retirement cert ->
-            putPoolRetirement cpt cert
+    allPublications :: [(CertificatePublicationTime, PoolCertificate)]
+    allPublications =
+        testCertificatePublicationTimes
+        `zip`
+        getMultiPoolCertificateSequence mpcs
 
 prop_unfetchedPoolMetadataRefs
     :: DBLayer IO
@@ -1264,6 +1280,33 @@ prop_SinglePoolCertificateSequence_coverage
         Registration _ -> Nothing
         Retirement cert -> Just cert
 
+prop_MultiPoolCertificateSequence_coverage
+    :: MultiPoolCertificateSequence
+    -> Property
+prop_MultiPoolCertificateSequence_coverage mpcs = checkCoverage
+    -- Check the number of certificates:
+    $ cover 2 (certificateCount == 0)
+        "number of certificates: = 0"
+    $ cover 2 (certificateCount > 0 && certificateCount <= 10)
+        "number of certificates: > 0 && <= 10"
+    $ cover 2 (certificateCount > 10 && certificateCount <= 100)
+        "number of certificates: > 10 && <= 100"
+    $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
+        "number of certificates: > 100 && <= 1000"
+    -- Check the number of pools:
+    $ cover 2 (poolCount == 0)
+        "number of pools: = 0"
+    $ cover 2 (poolCount > 0 && poolCount <= 10)
+        "number of pools: > 0 && <= 10"
+    $ cover 2 (poolCount > 10 && poolCount <= 100)
+        "number of pools: > 10 && <= 100"
+    True
+  where
+    certificateCount = L.sum $
+        L.length . getSinglePoolCertificateSequence <$> certificateSequences
+    certificateSequences = getSinglePoolSequences mpcs
+    poolCount = length certificateSequences
+
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
@@ -1291,3 +1334,26 @@ allPoolProduction DBLayer{..} (StakePoolsFixture pairs _) = atomically $
         [ [ (view #slotNo h, p) | h <- hs ]
         | (p, hs) <- concatMap Map.assocs ms
         ]
+
+-- | Write any kind of pool certificate to the database.
+putPoolCertificate
+    :: DBLayer m
+    -> CertificatePublicationTime
+    -> PoolCertificate
+    -> m ()
+putPoolCertificate
+    DBLayer {atomically, putPoolRegistration, putPoolRetirement}
+    publicationTime = atomically . \case
+        Registration c ->
+            putPoolRegistration publicationTime c
+        Retirement c ->
+            putPoolRetirement publicationTime c
+
+-- | A sequence of certificate publication times that is useful for testing.
+--
+testCertificatePublicationTimes :: [CertificatePublicationTime]
+testCertificatePublicationTimes =
+    [ CertificatePublicationTime (SlotNo sn) ii
+    | sn <- [0 ..  ]
+    , ii <- [0 .. 3]
+    ]

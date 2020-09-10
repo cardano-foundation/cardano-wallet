@@ -177,6 +177,13 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- ^ List all pools with an active retirement epoch that is earlier
         -- than or equal to the specified epoch.
 
+    , listPoolLifeCycleData
+        :: EpochNo
+        -> stm [PoolLifeCycleStatus]
+        -- ^ List the lifecycle data of all non-retired pools: pools that
+        -- either don't have an active retirement epoch or pools that have
+        -- an active retirement epoch that is later than the given epoch.
+
     , putPoolMetadata
         :: StakePoolMetadataHash
         -> StakePoolMetadata

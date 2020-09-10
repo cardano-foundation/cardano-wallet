@@ -128,6 +128,8 @@ import Data.Set
     ( Set )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Tuple.Extra
+    ( dupe )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -145,6 +147,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 --
 -- Stake Pool Layer
@@ -192,7 +195,7 @@ newStakePoolLayer nl db@DBLayer {..} =
     _knownPools
         :: IO (Set PoolId)
     _knownPools =
-        Map.keysSet <$> liftIO (readPoolDbData db)
+        Set.fromList <$> liftIO (atomically listRegisteredPools)
 
     _listPools
         :: EpochNo
@@ -204,14 +207,10 @@ newStakePoolLayer nl db@DBLayer {..} =
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
             $ stakeDistribution nl tip userStake
         let lsqData = combineLsqData rawLsqData
-        dbData <- liftIO $ readPoolDbData db
+        dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        -- TODO:
-        -- Use a more efficient way of filtering out retired pools.
-        -- See: https://jira.iohk.io/projects/ADP/issues/ADP-383
         r <- liftIO $ try $
             sortByReward seed
-            . filter (not . poolIsRetired)
             . map snd
             . Map.toList
             <$> combineDbAndLsqData
@@ -220,29 +219,16 @@ newStakePoolLayer nl db@DBLayer {..} =
                 lsqData
                 dbData
         case r of
-            Left e@(PastHorizon{}) -> throwE (ErrListPoolsPastHorizonException e)
+            Left e@(PastHorizon{}) ->
+                throwE (ErrListPoolsPastHorizonException e)
             Right r' -> pure r'
-
       where
-
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
             ErrCurrentNodeTipNetworkUnreachable e ->
                 ErrListPoolsNetworkError e
             ErrCurrentNodeTipNotFound ->
                 ErrListPoolsNetworkError $ ErrNetworkUnreachable "tip not found"
-
-        epochIsInFuture :: EpochNo -> Bool
-        epochIsInFuture = (> currentEpoch)
-
-        poolIsRetired :: Api.ApiStakePool -> Bool
-        poolIsRetired =
-            maybe False (not . epochIsInFuture) . poolRetirementEpoch
-
-        poolRetirementEpoch :: Api.ApiStakePool -> Maybe EpochNo
-        poolRetirementEpoch p = p
-            & view #retirement
-            & fmap (view (#epochNumber . #getApiT))
 
         -- Sort by non-myopic member rewards, making sure to also randomly sort
         -- pools that have equal rewards.
@@ -447,40 +433,22 @@ combineChainData registrationMap retirementMap prodMap metaMap =
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
 
--- TODO:
---
--- This function currently executes a total of (2n + 1) database queries, where
--- n is the total number of pools with entries in the pool registrations table.
---
--- Specifically:
---
---    1.  We first execute a query to determine the complete set of all pools
---        (including those that may have retired).
---
---    2.  For each pool, we determine its current life-cycle status by executing
---        a pair of queries to fetch:
---
---          a. The most recent registration certificate.
---          b. The most recent retirement certificate.
---
--- This is almost certainly not optimal.
---
--- If performance becomes a problem, we should investigate ways to reduce the
--- number of queries required:
---
---    See: https://jira.iohk.io/browse/ADP-383
---
-readPoolDbData :: DBLayer IO -> IO (Map PoolId PoolDbData)
-readPoolDbData DBLayer {..} = atomically $ do
-    pools <- listRegisteredPools
-    lifeCycleStatuses <- mapM readPoolLifeCycleStatus pools
-    let mkCertificateMap
-            :: forall a . (PoolLifeCycleStatus -> Maybe a) -> Map PoolId a
-        mkCertificateMap f = Map.fromList
-            [(p, c) | (p, Just c) <- zip pools (f <$> lifeCycleStatuses)]
+readPoolDbData :: DBLayer IO -> EpochNo -> IO (Map PoolId PoolDbData)
+readPoolDbData DBLayer {..} currentEpoch = atomically $ do
+    lifeCycleData <- listPoolLifeCycleData currentEpoch
+    let registrationCertificates = lifeCycleData
+            & fmap getPoolRegistrationCertificate
+            & catMaybes
+            & fmap (first (view #poolId) . dupe)
+            & Map.fromList
+    let retirementCertificates = lifeCycleData
+            & fmap getPoolRetirementCertificate
+            & catMaybes
+            & fmap (first (view #poolId) . dupe)
+            & Map.fromList
     combineChainData
-        (mkCertificateMap getPoolRegistrationCertificate)
-        (mkCertificateMap getPoolRetirementCertificate)
+        registrationCertificates
+        retirementCertificates
         <$> readTotalProduction
         <*> readPoolMetadata
 

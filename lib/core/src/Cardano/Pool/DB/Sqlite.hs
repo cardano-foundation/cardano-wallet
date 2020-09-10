@@ -47,7 +47,7 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Log
-    ( PoolDbLog (..) )
+    ( ParseFailure (..), PoolDbLog (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Logging
@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolId
+    , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , StakePoolMetadata (..)
@@ -69,7 +70,7 @@ import Cardano.Wallet.Unsafe
 import Control.Exception
     ( bracket, throwIO )
 import Control.Monad
-    ( forM )
+    ( forM, forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -77,9 +78,11 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( Tracer (..), contramap, natTracer, traceWith )
 import Data.Either
-    ( rights )
+    ( partitionEithers, rights )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -101,6 +104,8 @@ import Data.Word
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
+    , PersistValue
+    , RawSql
     , SelectOpt (..)
     , Single (..)
     , deleteWhere
@@ -208,14 +213,20 @@ newDBLayer trace fp timeInterpreter = do
 
             pure (foldl' toMap Map.empty production)
 
-        readTotalProduction = do
-            production <- fmap entityVal <$>
-                selectList ([] :: [Filter PoolProduction]) []
-
-            let toMap m (PoolProduction{poolProductionPoolId}) =
-                    Map.insertWith (+) poolProductionPoolId 1 m
-
-            pure $ Map.map Quantity $ foldl' toMap Map.empty production
+        readTotalProduction = Map.fromList <$> runRawQuery trace
+            (RawQuery "readTotalProduction" query [] parseRow)
+          where
+            query = T.unwords
+                [ "SELECT pool_id, count(pool_id) as block_count"
+                , "FROM pool_production"
+                , "GROUP BY pool_id;"
+                ]
+            parseRow
+                ( Single fieldPoolId
+                , Single fieldBlockCount
+                ) = (,)
+                    <$> fromPersistValue fieldPoolId
+                    <*> (Quantity <$> fromPersistValue fieldBlockCount)
 
         putStakeDistribution epoch@(EpochNo ep) distribution = do
             deleteWhere [StakeDistributionEpoch ==. fromIntegral ep]
@@ -359,18 +370,68 @@ newDBLayer trace fp timeInterpreter = do
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        listRetiredPools epochNo = do
-            let query = T.unwords
-                    [ "SELECT *"
-                    , "FROM active_pool_retirements"
-                    , "WHERE retirement_epoch <= ?;"
-                    ]
-            let parameters = [ toPersistValue epochNo ]
-            let safeCast (Single poolId, Single retirementEpoch) =
-                    PoolRetirementCertificate
-                        <$> fromPersistValue poolId
-                        <*> fromPersistValue retirementEpoch
-            rights . fmap safeCast <$> rawSql query parameters
+        listRetiredPools epochNo = runRawQuery trace $
+            RawQuery "listRetiredPools" query parameters parseRow
+          where
+            query = T.unwords
+                [ "SELECT *"
+                , "FROM active_pool_retirements"
+                , "WHERE retirement_epoch <= ?;"
+                ]
+            parameters = [ toPersistValue epochNo ]
+            parseRow (Single poolId, Single retirementEpoch) =
+                PoolRetirementCertificate
+                    <$> fromPersistValue poolId
+                    <*> fromPersistValue retirementEpoch
+
+        listPoolLifeCycleData epochNo = runRawQuery trace $ RawQuery
+            "listPoolLifeCycleData" query parameters parseRow
+          where
+            query = T.unwords
+                [ "SELECT *"
+                , "FROM active_pool_lifecycle_data"
+                , "WHERE retirement_epoch IS NULL OR retirement_epoch > ?;"
+                ]
+            parameters = [ toPersistValue epochNo ]
+            parseRow
+                ( Single fieldPoolId
+                , Single fieldRetirementEpoch
+                , Single fieldOwners
+                , Single fieldCost
+                , Single fieldPledge
+                , Single fieldMarginNumerator
+                , Single fieldMarginDenominator
+                , Single fieldMetadataHash
+                , Single fieldMetadataUrl
+                ) = do
+                regCert <- parseRegistrationCertificate
+                parseRetirementCertificate <&> maybe
+                    (PoolRegistered regCert)
+                    (PoolRegisteredAndRetired regCert)
+              where
+                parseRegistrationCertificate = PoolRegistrationCertificate
+                    <$> fromPersistValue fieldPoolId
+                    <*> fromPersistValue fieldOwners
+                    <*> parseMargin
+                    <*> (Quantity <$> fromPersistValue fieldCost)
+                    <*> (Quantity <$> fromPersistValue fieldPledge)
+                    <*> parseMetadata
+
+                parseRetirementCertificate = do
+                    poolId <- fromPersistValue fieldPoolId
+                    mRetirementEpoch <- fromPersistValue fieldRetirementEpoch
+                    pure $ PoolRetirementCertificate poolId <$> mRetirementEpoch
+
+                parseMargin = mkMargin
+                    <$> fromPersistValue @Word64 fieldMarginNumerator
+                    <*> fromPersistValue @Word64 fieldMarginDenominator
+                  where
+                    mkMargin n d = unsafeMkPercentage $ toRational $ n % d
+
+                parseMetadata = do
+                    u <- fromPersistValue fieldMetadataUrl
+                    h <- fromPersistValue fieldMetadataHash
+                    pure $ (,) <$> u <*> h
 
         rollbackTo point = do
             -- TODO(ADP-356): What if the conversion blocks or fails?
@@ -493,11 +554,45 @@ newDBLayer trace fp timeInterpreter = do
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
 
+-- | Defines a raw SQL query, runnable with 'runRawQuery'.
+--
+data RawQuery a b = RawQuery
+    { queryName :: Text
+      -- ^ The name of the query.
+    , queryDefinition :: Text
+      -- ^ The SQL definition of the query.
+    , queryParameters :: [PersistValue]
+      -- ^ Parameters of the query.
+    , queryParser :: a -> Either Text b
+      -- ^ A parser for a row of the result.
+    }
+
+-- | Runs a raw SQL query, logging any parse failures that occur.
+--
+runRawQuery
+    :: forall a b. RawSql a
+    => Tracer IO PoolDbLog
+    -> RawQuery a b
+    -> SqlPersistT IO [b]
+runRawQuery trace q = do
+    (failures, results) <- partitionEithers . fmap (queryParser q) <$> rawSql
+        (queryDefinition q)
+        (queryParameters q)
+    forM_ failures
+        $ liftIO
+        . traceWith trace
+        . MsgParseFailure
+        . ParseFailure (queryName q)
+    pure results
+
 migrateManually
     :: Tracer IO PoolDbLog
     -> ManualMigration
 migrateManually _tr =
-    ManualMigration $ \conn ->
+    ManualMigration $ \conn -> do
+        createView conn activePoolLifeCycleData
+        createView conn activePoolOwners
+        createView conn activePoolRegistrations
         createView conn activePoolRetirements
 
 -- | Represents a database view.
@@ -513,15 +608,105 @@ data DatabaseView = DatabaseView
 --
 createView :: Sqlite.Connection -> DatabaseView -> IO ()
 createView conn (DatabaseView name definition) = do
-    query <- Sqlite.prepare conn queryString
-    Sqlite.step query *> Sqlite.finalize query
+    deleteQuery <- Sqlite.prepare conn deleteQueryString
+    Sqlite.step deleteQuery *> Sqlite.finalize deleteQuery
+    createQuery <- Sqlite.prepare conn createQueryString
+    Sqlite.step createQuery *> Sqlite.finalize createQuery
   where
-    queryString = T.unlines
-        [ "CREATE VIEW IF NOT EXISTS"
+    deleteQueryString = T.unlines
+        [ "DROP VIEW IF EXISTS"
+        , name
+        , ";"
+        ]
+    createQueryString = T.unlines
+        [ "CREATE VIEW"
         , name
         , "AS"
         , definition
         ]
+
+-- | Views active lifecycle data for every pool in the set of known pools.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen registration certificate,
+-- retirement certificate, and set of owners for that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolLifeCycleData :: DatabaseView
+activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
+    SELECT
+        active_pool_registrations.pool_id as pool_id,
+        active_pool_retirements.retirement_epoch as retirement_epoch,
+        active_pool_owners.pool_owners as pool_owners,
+        cost,
+        pledge,
+        margin_numerator,
+        margin_denominator,
+        metadata_hash,
+        metadata_url
+    FROM
+        active_pool_registrations
+    LEFT JOIN
+        active_pool_retirements
+    ON active_pool_registrations.pool_id = active_pool_retirements.pool_id
+    LEFT JOIN
+        active_pool_owners
+    ON active_pool_registrations.pool_id = active_pool_owners.pool_id;
+|]
+
+-- | Views the set of active owners for all pools.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen set of owners for that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolOwners :: DatabaseView
+activePoolOwners = DatabaseView "active_pool_owners" [s|
+    SELECT pool_id, pool_owners FROM (
+        SELECT row_number() OVER w AS r, *
+        FROM (
+            SELECT
+                pool_id,
+                slot,
+                slot_internal_index,
+                group_concat(pool_owner, ' ') as pool_owners
+            FROM (
+                SELECT * FROM pool_owner ORDER BY pool_owner_index
+            )
+            GROUP BY pool_id, slot, slot_internal_index
+        )
+        WINDOW w AS (ORDER BY pool_id, slot desc, slot_internal_index desc)
+    )
+    GROUP BY pool_id;
+|]
+
+-- | Views the set of pool registrations that are currently active.
+--
+-- This view has exactly ONE row for each known pool, where each row
+-- corresponds to the most-recently-seen registration certificate for
+-- that pool.
+--
+-- This view does NOT exclude pools that have retired.
+--
+activePoolRegistrations :: DatabaseView
+activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
+    SELECT
+        pool_id,
+        cost,
+        pledge,
+        margin_numerator,
+        margin_denominator,
+        metadata_hash,
+        metadata_url
+    FROM (
+        SELECT row_number() OVER w AS r, *
+        FROM pool_registration
+        WINDOW w AS (ORDER BY pool_id, slot desc, slot_internal_index desc)
+    )
+    GROUP BY pool_id;
+|]
 
 -- | Views the set of pool retirements that are currently active.
 --

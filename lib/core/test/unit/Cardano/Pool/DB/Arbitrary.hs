@@ -8,12 +8,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Arbitrary
-    ( ListSerializationMethod
+    ( MultiPoolCertificateSequence (..)
+    , getMultiPoolCertificateSequence
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
     , isValidSinglePoolCertificateSequence
-    , serializeLists
     ) where
 
 import Prelude
@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( foldM )
+    ( foldM, replicateM )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -70,11 +70,8 @@ import Test.QuickCheck
     , elements
     , frequency
     , genericShrink
-    , listOf
     , oneof
-    , scale
     , shrinkIntegral
-    , shrinkList
     , shuffle
     , vector
     , vectorOf
@@ -159,13 +156,17 @@ instance Arbitrary PoolOwner where
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p xs m c pl md) =
-        (\p' xs' -> PoolRegistrationCertificate p' xs' m c pl md)
-            <$> shrink p
-            <*> shrinkList (const []) xs
+    shrink (PoolRegistrationCertificate pid owners m c pl md) =
+        (\pid' owners' -> PoolRegistrationCertificate pid' owners' m c pl md)
+            <$> shrink pid
+            <*> shrinkOwners owners
+      where
+        shrinkOwners os =
+            -- A valid registration certificate must have at least one owner:
+            [ps | ps <- shrink os, not (null ps)]
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
-        <*> scale (`mod` 8) (listOf arbitrary)
+        <*> genOwners
         <*> genPercentage
         <*> fmap Quantity arbitrary
         <*> fmap Quantity arbitrary
@@ -174,7 +175,11 @@ instance Arbitrary PoolRegistrationCertificate where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL
             <*> arbitrary
-        genURL  = do
+        genOwners = do
+            -- A valid registration certificate must have at least one owner:
+            ownerCount <- choose (1, 4)
+            replicateM ownerCount arbitrary
+        genURL = do
             protocol <- elements [ "http", "https" ]
             fstP <- elements [ "cardano", "ada", "pool", "staking", "reward" ]
             sndP <- elements [ "rocks", "moon", "digital", "server", "fast" ]
@@ -209,14 +214,14 @@ isValidSinglePoolCertificateSequence :: SinglePoolCertificateSequence -> Bool
 isValidSinglePoolCertificateSequence
     (SinglePoolCertificateSequence sharedPoolId certificates) =
         allCertificatesReferToSamePool &&
-        firstCertificateIsRegistration
+        firstCertificateIsNotRetirement
   where
     allCertificatesReferToSamePool =
         all (== sharedPoolId) (getPoolCertificatePoolId <$> certificates)
-    firstCertificateIsRegistration = case certificates of
+    firstCertificateIsNotRetirement = case certificates of
+        []                 -> True
         Registration _ : _ -> True
-        Retirement _ : _ -> False
-        [] -> True
+        Retirement   _ : _ -> False
 
 instance Arbitrary SinglePoolCertificateSequence where
 
@@ -242,6 +247,34 @@ instance Arbitrary SinglePoolCertificateSequence where
             & fmap (fmap (setPoolCertificatePoolId sharedPoolId))
             & fmap (SinglePoolCertificateSequence sharedPoolId)
             & filter isValidSinglePoolCertificateSequence
+
+-- | Represents valid sequences of registration and retirement certificates
+--   for multiple pools.
+--
+-- Use 'getMultiPoolCertificateSequence' to obtain a single, flattened list
+-- of pool certificates.
+--
+data MultiPoolCertificateSequence = MultiPoolCertificateSequence
+    { getSerializationMethod :: ListSerializationMethod
+    , getSinglePoolSequences :: [SinglePoolCertificateSequence]
+    }
+    deriving (Eq, Show)
+
+instance Arbitrary MultiPoolCertificateSequence where
+    arbitrary = MultiPoolCertificateSequence
+        <$> arbitrary
+        <*> arbitrary
+    shrink mpcs =
+        [ MultiPoolCertificateSequence (getSerializationMethod mpcs) sequences
+        | sequences <- shrink (getSinglePoolSequences mpcs)
+        ]
+
+getMultiPoolCertificateSequence
+    :: MultiPoolCertificateSequence -> [PoolCertificate]
+getMultiPoolCertificateSequence mpcs =
+    serializeLists
+        (getSerializationMethod mpcs)
+        (getSinglePoolCertificateSequence <$> getSinglePoolSequences mpcs)
 
 -- | Indicates a way to serialize a list of lists into a single list.
 --
