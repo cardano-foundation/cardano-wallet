@@ -181,7 +181,10 @@ mPutPoolProduction point poolId db@PoolDatabase{pools} =
         , db { pools = Map.alter (alter point) poolId pools }
         )
 
-mReadPoolProduction :: TimeInterpreter Identity -> EpochNo -> ModelPoolOp (Map PoolId [BlockHeader])
+mReadPoolProduction
+    :: TimeInterpreter Identity
+    -> EpochNo
+    -> ModelPoolOp (Map PoolId [BlockHeader])
 mReadPoolProduction timeInterpreter epoch db@PoolDatabase{pools} =
     let epochOf' = runIdentity . timeInterpreter . epochOf
         updateSlots e = Map.map (filter (\x -> epochOf' (slotNo x) == e))
