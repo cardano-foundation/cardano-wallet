@@ -28,7 +28,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
     , ApiNetworkInformation
@@ -473,14 +472,16 @@ spec = do
             let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
             rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify rW expectations
-            let w = getFromResponse id rW
-            rA <- request @[ApiAddress n] ctx
-                (Link.listAddresses @'Shelley w) Default Empty
-            _ <- request @ApiWallet ctx
-                (Link.deleteWallet @'Shelley w) Default Empty
-            verify rA
-                [ expectListSize addrPoolGap
-                ]
+            -- FIXME: ADP-436
+            --
+            -- let w = getFromResponse id rW
+            -- rA <- request @[ApiAddress n] ctx
+            --     (Link.listAddresses @'Shelley w) Default Empty
+            -- _ <- request @ApiWallet ctx
+            --     (Link.deleteWallet @'Shelley w) Default Empty
+            -- verify rA
+            --     [ expectListSize addrPoolGap
+            --     ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
         let payload = Json [json| {
