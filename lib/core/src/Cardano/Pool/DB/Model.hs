@@ -32,7 +32,7 @@ module Cardano.Pool.DB.Model
     , ModelPoolOp
     , PoolErr (..)
     -- * Model pool database functions
-    , mCleanPoolProduction
+    , mCleanDatabase
     , mPutPoolProduction
     , mReadPoolProduction
     , mReadTotalProduction
@@ -165,8 +165,8 @@ newtype PoolErr = PointAlreadyExists BlockHeader
                             Model Pool Database Functions
 -------------------------------------------------------------------------------}
 
-mCleanPoolProduction :: ModelPoolOp ()
-mCleanPoolProduction _ = (Right (), emptyPoolDatabase)
+mCleanDatabase :: ModelPoolOp ()
+mCleanDatabase _ = (Right (), emptyPoolDatabase)
 
 mPutPoolProduction :: BlockHeader -> PoolId -> ModelPoolOp ()
 mPutPoolProduction point poolId db@PoolDatabase{pools} =

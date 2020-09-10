@@ -25,7 +25,7 @@ import Cardano.Pool.DB.Model
     , PoolDatabase
     , PoolErr (..)
     , emptyPoolDatabase
-    , mCleanPoolProduction
+    , mCleanDatabase
     , mListRegisteredPools
     , mListRetiredPools
     , mPutFetchAttempt
@@ -152,7 +152,7 @@ newDBLayer timeInterpreter = do
                 pure retirementCerts
 
         cleanDB =
-            void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+            void $ alterPoolDB (const Nothing) db mCleanDatabase
 
         readPoolMetadata = readPoolDB db mReadPoolMetadata
 
