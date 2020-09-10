@@ -473,8 +473,11 @@ spec = do
             let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
             rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify rW expectations
+            let w = getFromResponse id rW
             rA <- request @[ApiAddress n] ctx
-                (Link.listAddresses @'Shelley (getFromResponse id rW)) Default Empty
+                (Link.listAddresses @'Shelley w) Default Empty
+            _ <- request @ApiWallet ctx
+                (Link.deleteWallet @'Shelley w) Default Empty
             verify rA
                 [ expectListSize addrPoolGap
                 ]
