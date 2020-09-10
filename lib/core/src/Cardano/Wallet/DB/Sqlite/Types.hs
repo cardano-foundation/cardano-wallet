@@ -80,7 +80,7 @@ import Data.Text.Class
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
 import Data.Word
-    ( Word32, Word64, Word8 )
+    ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
@@ -393,12 +393,12 @@ instance PersistField AddressPoolGap where
     toPersistValue = toPersistValue . getAddressPoolGap
     fromPersistValue pv = fromPersistValue >=> mkAddressPoolGap' $ pv
       where
-        mkAddressPoolGap' :: Word8 -> Either Text AddressPoolGap
+        mkAddressPoolGap' :: Word32 -> Either Text AddressPoolGap
         mkAddressPoolGap' = first msg . mkAddressPoolGap . fromIntegral
         msg e = T.pack $ "not a valid value: " <> show pv <> ": " <> show e
 
 instance PersistFieldSql AddressPoolGap where
-    sqlType _ = sqlType (Proxy @Word8)
+    sqlType _ = sqlType (Proxy @Word32)
 
 ----------------------------------------------------------------------------
 -- AccountingStyle

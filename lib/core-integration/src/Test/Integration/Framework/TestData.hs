@@ -36,6 +36,7 @@ module Test.Integration.Framework.TestData
     , cmdOk
     , versionLine
     , payloadWith
+    , payloadWith'
     , simplePayload
     , updateNamePayload
     , updatePassPayload
@@ -89,6 +90,8 @@ import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Data.Text
     ( Text, pack, unpack )
+import Data.Word
+    ( Word32 )
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Framework.DSL
@@ -223,6 +226,14 @@ payloadWith name mnemonics = Json [json| {
      "name": #{name},
      "mnemonic_sentence": #{mnemonics},
      "passphrase": #{fixturePassphrase}
+     } |]
+
+payloadWith' :: Text -> [Text] -> Word32 -> Payload
+payloadWith' name mnemonics gap = Json [json| {
+     "name": #{name},
+     "mnemonic_sentence": #{mnemonics},
+     "passphrase": #{fixturePassphrase},
+     "address_pool_gap": #{gap}
      } |]
 
 simplePayload :: Payload
