@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/da70d67ff662b85e72e1f203defbf5e3028d03cd/snapshots/cardano-1.19.1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/e7de1cc21987a9f3460477016116c8abf194ce81/snapshots/cardano-1.19.1-patched.yaml
 
 packages:
 - lib/core
@@ -44,8 +44,9 @@ extra-deps:
     - persistent-sqlite
     - persistent-template
 
+# cardano-addresses-2.0.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 618bac90810fee7be324ee70428d9fb31e30abbd
+  commit: 9a64226fd749513ad0ed2e43e663f7132c92faa7
   subdirs:
     - command-line
     - core

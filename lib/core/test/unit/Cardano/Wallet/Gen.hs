@@ -26,6 +26,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
+import Cardano.Api.MetaData
+    ( jsonToMetadata )
 import Cardano.Api.Typed
     ( TxMetadata (..) )
 import Cardano.Mnemonic
@@ -40,6 +42,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage )
+import Data.Aeson
+    ( ToJSON (..) )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.List
     ( sortOn )
 import Data.List.Extra
@@ -53,7 +59,7 @@ import Data.Ratio
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32 )
+    ( Word, Word32 )
 import GHC.TypeLits
     ( natVal )
 import Shelley.Spec.Ledger.MetaData
@@ -68,17 +74,23 @@ import Test.QuickCheck
     , listOf1
     , oneof
     , resize
+    , scale
     , shrinkList
     , shrinkMap
+    , suchThat
     , vector
     , vectorOf
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Shelley.Spec.Ledger.MetaData as MD
 
 -- | Generates an arbitrary mnemonic of a size according to the type parameter.
@@ -154,62 +166,66 @@ shrinkActiveSlotCoefficient (ActiveSlotCoefficient f)
         | f < 1 = [1]
         | otherwise = []
 
-
-maxMetaDatumDepth :: Int
-maxMetaDatumDepth = 2
-
-maxMetaDatumListLens :: Int
-maxMetaDatumListLens = 5
-
-sizedMetaDatum :: Int -> Gen MetaDatum
-sizedMetaDatum 0 =
+sizedMetadataValue :: Int -> Gen Aeson.Value
+sizedMetadataValue 0 =
     oneof
-        [ MD.I <$> arbitrary
-        , MD.B <$> genByteString
-        , MD.S <$> genCappedString 32
+        [ toJSON <$> arbitrary @Int
+        , toJSON . ("0x"<>) . base16 <$> genByteString
+        , toJSON <$> genText
         ]
-sizedMetaDatum n =
+sizedMetadataValue n =
     oneof
-        [ sizedMetaDatum 0
+        [ sizedMetadataValue 0
         , oneof
-            -- FIXME: #2098
-            --
-            -- Allow empty maps and lists once fixed.
-            [ MD.Map . sortOn fst . nubOn fst <$>
-                resize maxMetaDatumListLens
-                    (listOf1 $ (,)
-                        <$> genMetaDatumJSONKey
-                        <*> sizedMetaDatum (n-1)
-                    )
-            -- FIXME: #2098
-            --
-            -- jsonToMetadata does an implicit conversion of list of pairs to map,
-            -- which fails to roundtrip back to the same value. Until this is
-            -- fixed in #2098, we only allow list to contains non-ambiguous values.
-            , MD.List <$> resize maxMetaDatumListLens (listOf1 (sizedMetaDatum 0))
+            [ toJSON . HM.fromList <$> resize n
+                (listOf $ (,)
+                    <$> genText
+                    <*> sizedMetadataValue (n-1)
+                )
+            , toJSON <$> resize n
+                (listOf $ sizedMetadataValue (n-1)
+                )
             ]
         ]
 
+base16 :: BS.ByteString -> Text
+base16 = T.decodeUtf8 . convertToBase Base16
+
 genByteString :: Gen BS.ByteString
-genByteString = BS.pack <$> arbitrary
+genByteString = B8.pack <$> (choose (0, 64) >>= vector)
 
 shrinkByteString :: BS.ByteString -> [BS.ByteString]
 shrinkByteString = shrinkMap BS.pack BS.unpack
 
-genCappedString :: Int -> Gen Text
-genCappedString sup = T.take sup . T.pack . getPrintableString <$> arbitrary
+genText :: Gen Text
+genText =
+    (T.pack . take 32 . getPrintableString <$> arbitrary) `suchThat` guardText
 
-genMetaDatum :: Gen MetaDatum
-genMetaDatum = sizedMetaDatum maxMetaDatumDepth
+shrinkText :: Text -> [Text]
+shrinkText =
+    filter guardText . fmap T.pack . shrink . T.unpack
 
--- FIXME: #2098
--- We only expect metadata to roundtrip when coming from valid JSON.
--- JSON only allows keys as strings.
---
--- This is only necessary until #2098 is addressed and because the conversion
--- functions from cardano-api are doing some implicit conversions.
-genMetaDatumJSONKey :: Gen MetaDatum
-genMetaDatumJSONKey = MD.S <$> genCappedString 32
+guardText :: Text -> Bool
+guardText t = not ("0x" `T.isPrefixOf` t)
+
+genTxMetadata :: Gen TxMetadata
+genTxMetadata = do
+    let (maxBreadth, maxDepth) = (3, 3)
+    d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
+    i <- vectorOf @Word (length d) arbitrary
+    let json = toJSON $ HM.fromList $ zip i d
+    case jsonToMetadata json of
+        Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
+        Right metadata -> pure metadata
+
+shrinkTxMetadata :: TxMetadata -> [TxMetadata]
+shrinkTxMetadata (TxMetadata m) = TxMetadata <$> shrinkMetaData m
+
+shrinkMetaData :: MetaData -> [MetaData]
+shrinkMetaData (MD.MetaData m) = MD.MetaData . Map.fromList
+    <$> shrinkList shrinkMetaDataEntry (Map.toList m)
+  where
+    shrinkMetaDataEntry (k, v) = (k,) <$> shrinkMetaDatum v
 
 shrinkMetaDatum :: MetaDatum -> [MetaDatum]
 shrinkMetaDatum (MD.Map xs) =
@@ -222,22 +238,4 @@ shrinkMetaDatum (MD.List xs) =
     MD.List <$> filter (not . null) (shrinkList shrinkMetaDatum xs)
 shrinkMetaDatum (MD.I i) = MD.I <$> shrink i
 shrinkMetaDatum (MD.B b) = MD.B <$> shrinkByteString b
-shrinkMetaDatum (MD.S s) = MD.S <$> shrinkMap T.pack T.unpack s
-
-genMetaData :: Gen MetaData
-genMetaData = do
-    d <- listOf genMetaDatum
-    i <- vectorOf (length d) arbitrary
-    pure $ MD.MetaData $ Map.fromList $ zip i d
-
-shrinkMetaData :: MetaData -> [MetaData]
-shrinkMetaData (MD.MetaData m) = MD.MetaData . Map.fromList
-    <$> shrinkList shrinkMetaDataEntry (Map.toList m)
-  where
-    shrinkMetaDataEntry (k, v) = (k,) <$> shrinkMetaDatum v
-
-genTxMetadata :: Gen TxMetadata
-genTxMetadata = TxMetadata <$> genMetaData
-
-shrinkTxMetadata :: TxMetadata -> [TxMetadata]
-shrinkTxMetadata (TxMetadata m) = TxMetadata <$> shrinkMetaData m
+shrinkMetaDatum (MD.S s) = MD.S <$> shrinkText s

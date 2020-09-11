@@ -81,6 +81,8 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."aeson-qq" or (errorHandler.buildDepError "aeson-qq"))
+            (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -110,8 +112,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "497afd7dedc5d5b9bdcdb0e3cac6a50bd9f7dd54";
-      sha256 = "1w5pgsal897g5n5vpfvrvkkgv2bmqzdbs3jzw9xbphf9jhk3jsai";
+      rev = "eac29083ef25dc619f15854623275fb37e63d2b8";
+      sha256 = "116b2aa8im7pgknc8ln8j0hh4fmb810m8fk2j06kr1xq83xfvdsb";
       });
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }
