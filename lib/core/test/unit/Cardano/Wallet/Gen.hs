@@ -74,8 +74,10 @@ import Test.QuickCheck
     , listOf1
     , oneof
     , resize
+    , scale
     , shrinkList
     , shrinkMap
+    , suchThat
     , vector
     , vectorOf
     )
@@ -197,17 +199,24 @@ shrinkByteString = shrinkMap BS.pack BS.unpack
 
 genText :: Gen Text
 genText =
-    T.pack . take 64 . getPrintableString <$> arbitrary
+    (T.pack . take 32 . getPrintableString <$> arbitrary) `suchThat` guardText
 
 shrinkText :: Text -> [Text]
-shrinkText = fmap T.pack . shrink . T.unpack
+shrinkText =
+    filter guardText . fmap T.pack . shrink . T.unpack
+
+guardText :: Text -> Bool
+guardText t = not ("0x" `T.isPrefixOf` t)
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata = do
-    d <- listOf1 (sizedMetadataValue 3)
+    let (maxBreadth, maxDepth) = (3, 3)
+    d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
     i <- vectorOf @Word (length d) arbitrary
-    let (Right metadata) = jsonToMetadata $ toJSON $ HM.fromList $ zip i d
-    pure metadata
+    let json = toJSON $ HM.fromList $ zip i d
+    case jsonToMetadata json of
+        Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
+        Right metadata -> pure metadata
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
 shrinkTxMetadata (TxMetadata m) = TxMetadata <$> shrinkMetaData m
