@@ -394,43 +394,22 @@ mReadCursor k db@PoolDatabase{pools} =
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
 mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelPoolOp ()
-mRollbackTo timeInterpreter point PoolDatabase { pools
-                               , distributions
-                               , owners
-                               , registrations
-                               , retirements
-                               , metadata
-                               , seed
-                               , fetchAttempts
-                               } =
-    let
-        registrations' =
-            Map.mapMaybeWithKey
-                (discardBy id . view #slotNo . fst) registrations
-        retirements' =
-            Map.mapMaybeWithKey
-                (discardBy id . view #slotNo . fst) retirements
-        owners' = Map.restrictKeys owners
-            $ Set.fromList
-            $ snd <$> Map.keys registrations'
-        epochOf' = runIdentity . timeInterpreter . epochOf
-    in
-        ( Right ()
-        , PoolDatabase
-            { pools = updatePools $ updateSlots pools
-            , distributions = Map.mapMaybeWithKey (discardBy epochOf') distributions
-            , owners = owners'
-            , registrations = registrations'
-            , retirements = retirements'
-            , metadata
-            , fetchAttempts
-            , seed
-            }
-        )
-
+mRollbackTo ti point db = (pure (), ) $
+    dbFiltered
+        & over #owners (`Map.restrictKeys` poolIdsFiltered)
   where
-    updateSlots = Map.map (filter ((<= point) . slotNo))
-    updatePools = Map.filter (not . L.null)
+    dbFiltered = db
+        & over #distributions
+            (Map.mapMaybeWithKey $ discardBy $ runIdentity . ti . epochOf)
+        & over #pools
+            (Map.filter (not . L.null) . fmap (filter ((<= point) . slotNo)))
+        & over #registrations
+            (Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst)
+        & over #retirements
+            (Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst)
+
+    poolIdsFiltered =
+        Set.map snd $ Map.keysSet $ view #registrations dbFiltered
 
     discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy get point' v
