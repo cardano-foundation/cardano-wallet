@@ -234,13 +234,11 @@ mReadPoolRegistration
     :: PoolId
     -> ModelPoolOp
         (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
-mReadPoolRegistration poolId db =
-    ( Right
-        $ fmap (first fst)
-        $ Map.lookupMax
-        $ Map.filterWithKey (only poolId) registrations
-    , db
-    )
+mReadPoolRegistration poolId db = (, db)
+    $ pure
+    $ fmap (first fst)
+    $ Map.lookupMax
+    $ Map.filterWithKey (only poolId) registrations
   where
     PoolDatabase {registrations} = db
     only k (_, k') _ = k == k'
