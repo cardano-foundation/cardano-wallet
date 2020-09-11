@@ -406,21 +406,19 @@ mRollbackTo ti point db = (pure (), ) $
         | point' <= get point = Just v
         | otherwise = Nothing
 
-mRemovePools :: [PoolId] -> PoolDatabase -> (Either PoolErr (), PoolDatabase)
-mRemovePools poolsToRemove db =
-    (pure (), dbFiltered)
+mRemovePools :: [PoolId] -> ModelPoolOp ()
+mRemovePools poolsToRemove = (pure (), )
+    . over #distributions
+        (Map.map $ L.filter $ \(p, _) -> retain p)
+    . over #pools
+        (Map.filterWithKey $ \p _ -> retain p)
+    . over #owners
+        (Map.filterWithKey $ \p _ -> retain p)
+    . over #registrations
+        (Map.filterWithKey $ \(_, p) _ -> retain p)
+    . over #retirements
+        (Map.filterWithKey $ \(_, p) _ -> retain p)
   where
-    dbFiltered = db
-        & over #distributions
-            (Map.map $ L.filter $ \(p, _) -> retain p)
-        & over #pools
-            (Map.filterWithKey $ \p _ -> retain p)
-        & over #owners
-            (Map.filterWithKey $ \p _ -> retain p)
-        & over #registrations
-            (Map.filterWithKey $ \(_, p) _ -> retain p)
-        & over #retirements
-            (Map.filterWithKey $ \(_, p) _ -> retain p)
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove
 
