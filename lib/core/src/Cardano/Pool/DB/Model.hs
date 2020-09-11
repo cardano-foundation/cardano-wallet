@@ -281,11 +281,8 @@ listRegisteredPools :: PoolDatabase -> [PoolId]
 listRegisteredPools PoolDatabase {registrations} =
     snd <$> Map.keys registrations
 
-mListRetiredPools
-    :: EpochNo
-    -> PoolDatabase
-    -> ([PoolRetirementCertificate], PoolDatabase)
-mListRetiredPools epochNo db = (listRetiredPools epochNo db, db)
+mListRetiredPools :: EpochNo -> ModelPoolOp [PoolRetirementCertificate]
+mListRetiredPools epochNo db = (pure $ listRetiredPools epochNo db, db)
 
 listRetiredPools :: EpochNo -> PoolDatabase -> [PoolRetirementCertificate]
 listRetiredPools epochNo db = retiredPools

@@ -122,8 +122,8 @@ newDBLayer timeInterpreter = do
         listRegisteredPools =
             readPoolDB db mListRegisteredPools
 
-        listRetiredPools epochNo =
-            modifyMVar db (pure . swap . mListRetiredPools epochNo)
+        listRetiredPools =
+            readPoolDB db . mListRetiredPools
 
         listPoolLifeCycleData =
             readPoolDB db . mListPoolLifeCycleData
