@@ -355,12 +355,11 @@ mPutPoolMetadata
     :: StakePoolMetadataHash
     -> StakePoolMetadata
     -> ModelPoolOp ()
-mPutPoolMetadata hash meta db@PoolDatabase{metadata,fetchAttempts} =
-    ( Right ()
-    , db { metadata = Map.insert hash meta metadata
-         , fetchAttempts = Map.filterWithKey (\k _ -> snd k /= hash) fetchAttempts
-         }
-    )
+mPutPoolMetadata hash meta = (pure (), )
+    . over #metadata
+        (Map.insert hash meta)
+    . over #fetchAttempts
+         (Map.filterWithKey $ \k _ -> snd k /= hash)
 
 mReadPoolMetadata
     :: ModelPoolOp (Map StakePoolMetadataHash StakePoolMetadata)
