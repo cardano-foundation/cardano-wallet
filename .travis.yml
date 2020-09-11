@@ -50,8 +50,9 @@ jobs:
     name: "Executables"
     script:
     # Fetch the builds from Hydra
+    - nvm install 12.18.3 && nvm use 12.18.3
     - npm install --no-save axios@0.19.2 lodash@4.17.20
-    - node scripts/travis-download-builds.js
+    - node --tls-min-v1.2 scripts/travis-download-builds.js
 
     ############################
     # cardano-node
