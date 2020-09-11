@@ -201,6 +201,8 @@ test-suite integration
     , cardano-wallet
     , cardano-wallet-test-utils
     , contra-tracer
+    , directory
+    , filepath
     , hspec
     , http-client
     , iohk-monitoring

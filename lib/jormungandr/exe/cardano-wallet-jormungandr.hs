@@ -28,7 +28,8 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo, logNotice )
 import Cardano.CLI
-    ( LoggingOptions (..)
+    ( LogOutput (..)
+    , LoggingOptions (..)
     , Port (..)
     , cli
     , cmdAddress
@@ -441,7 +442,7 @@ withTracers
     -> (Trace IO MainLog -> Tracers IO -> IO a)
     -> IO a
 withTracers logOpt action =
-    withLogging Nothing (loggingMinSeverity logOpt) $ \(_, tr) -> do
+    withLogging [LogToStdout $ loggingMinSeverity logOpt] $ \(_, tr) -> do
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr
         logInfo trMain $ MsgVersion version gitRevision

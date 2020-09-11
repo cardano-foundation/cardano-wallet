@@ -20,7 +20,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Trace
     ( Trace, logInfo )
 import Cardano.CLI
-    ( Port (..), withLogging )
+    ( LogOutput (..), Port (..), withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Pool.Jormungandr.Metadata
@@ -131,7 +131,7 @@ instance KnownCommand Jormungandr where
     commandName = "cardano-wallet-jormungandr"
 
 main :: forall t n. (t ~ Jormungandr, n ~ 'Testnet 0) => IO ()
-main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
+main = withUtf8Encoding $ withLogging [LogToStdout Info] $ \(_, tr) -> do
     hspec $ do
         describe "No backend required" $ do
             describe "Cardano.Wallet.NetworkSpec" $ parallel NetworkLayer.spec
