@@ -222,15 +222,12 @@ mPutPoolRegistration
     :: CertificatePublicationTime
     -> PoolRegistrationCertificate
     -> ModelPoolOp ()
-mPutPoolRegistration cpt cert db =
-    ( Right ()
-    , db
-        { owners = Map.insert poolId poolOwners owners
-        , registrations = Map.insert (cpt, poolId) cert registrations
-        }
-    )
+mPutPoolRegistration cpt cert = (pure (),)
+    . over #owners
+        (Map.insert poolId poolOwners)
+    . over #registrations
+        (Map.insert (cpt, poolId) cert)
   where
-    PoolDatabase {owners, registrations} = db
     PoolRegistrationCertificate {poolId, poolOwners} = cert
 
 mReadPoolRegistration
