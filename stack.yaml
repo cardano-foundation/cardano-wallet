@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/da70d67ff662b85e72e1f203defbf5e3028d03cd/snapshots/cardano-1.19.1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/e7de1cc21987a9f3460477016116c8abf194ce81/snapshots/cardano-1.19.1-patched.yaml
 
 packages:
 - lib/core
@@ -50,14 +50,6 @@ extra-deps:
   subdirs:
     - command-line
     - core
-
-# Temporary until transaction metadata using JSON description land in cardano-api
-#
-# See cardano-node#1797
-- git: https://github.com/input-output-hk/cardano-node
-  commit: eac29083ef25dc619f15854623275fb37e63d2b8
-  subdirs:
-    - cardano-api
 
 # Not strictly a dependency at present, but building it here to get
 # access to the cardano-tx cli.
