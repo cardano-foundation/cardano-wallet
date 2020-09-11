@@ -120,7 +120,7 @@ newDBLayer timeInterpreter = do
             void . alterPoolDB (const Nothing) db . mPutFetchAttempt
 
         listRegisteredPools =
-            modifyMVar db (pure . swap . mListRegisteredPools)
+            readPoolDB db mListRegisteredPools
 
         listRetiredPools epochNo =
             modifyMVar db (pure . swap . mListRetiredPools epochNo)

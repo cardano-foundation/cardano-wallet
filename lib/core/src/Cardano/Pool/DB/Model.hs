@@ -274,8 +274,8 @@ mListPoolLifeCycleData epoch db = (, db) $ pure $
         (Set.fromList registeredPools)
         (Set.fromList retiredPools)
 
-mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
-mListRegisteredPools db = (listRegisteredPools db, db)
+mListRegisteredPools :: ModelPoolOp [PoolId]
+mListRegisteredPools db = (pure $ listRegisteredPools db, db)
 
 listRegisteredPools :: PoolDatabase -> [PoolId]
 listRegisteredPools PoolDatabase {registrations} =
