@@ -247,12 +247,10 @@ mPutPoolRetirement
     :: CertificatePublicationTime
     -> PoolRetirementCertificate
     -> ModelPoolOp ()
-mPutPoolRetirement cpt cert db =
-    ( Right ()
-    , db {retirements = Map.insert (cpt, poolId) cert retirements}
-    )
+mPutPoolRetirement cpt cert = (pure (),)
+    . over #retirements
+        (Map.insert (cpt, poolId) cert)
   where
-    PoolDatabase {retirements} = db
     PoolRetirementCertificate poolId _retirementEpoch = cert
 
 mReadPoolRetirement
