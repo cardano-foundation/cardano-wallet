@@ -3,6 +3,7 @@ env:
   STACK_ROOT: "/build/cardano-wallet.stack"
   CACHE_DIR: "/cache/cardano-wallet"
   LC_ALL: "en_US.UTF-8"
+  TESTS_LOGDIR: "/tmp/wallet-integration-logs"
 
 steps:
   - label: 'Prevent merging to wrong branch'
@@ -15,11 +16,13 @@ steps:
 
   - label: 'Stack Rebuild'
     command:
+      - "mkdir -p $TESTS_LOGDIR"
       - "nix-build .buildkite/default.nix -o sr"
       - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     timeout_in_minutes: 120
     artifact_paths:
       - "/build/cardano-wallet/.stack-work/logs/cardano-wallet*.log"
+      - "/tmp/wallet-integration-logs/*.log"
     agents:
       system: x86_64-linux
 
