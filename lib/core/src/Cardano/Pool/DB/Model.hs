@@ -55,6 +55,7 @@ module Cardano.Pool.DB.Model
     , mRollbackTo
     , mReadCursor
     , mRemovePools
+    , mRemoveRetiredPools
     ) where
 
 import Prelude
@@ -453,3 +454,11 @@ mRemovePools poolsToRemove db =
             (Map.filterWithKey $ \(_, p) _ -> retain p)
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove
+
+mRemoveRetiredPools :: EpochNo -> ModelPoolOp [PoolRetirementCertificate]
+mRemoveRetiredPools epoch db =
+    first
+        (fmap $ const certificates)
+        (mRemovePools (view #poolId <$> certificates) db)
+  where
+    certificates = listRetiredPools epoch db

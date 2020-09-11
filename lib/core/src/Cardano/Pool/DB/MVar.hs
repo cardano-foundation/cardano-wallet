@@ -45,6 +45,7 @@ import Cardano.Pool.DB.Model
     , mReadSystemSeed
     , mReadTotalProduction
     , mRemovePools
+    , mRemoveRetiredPools
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -60,10 +61,10 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Data.Either
+    ( fromRight )
 import Data.Functor.Identity
     ( Identity )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Tuple
     ( swap )
 
@@ -139,10 +140,10 @@ newDBLayer timeInterpreter = do
         removePools =
             void . alterPoolDB (const Nothing) db . mRemovePools
 
-        removeRetiredPools epoch =
-            listRetiredPools epoch >>= \retirementCerts -> do
-                removePools (view #poolId <$> retirementCerts)
-                pure retirementCerts
+        removeRetiredPools =
+            fmap (fromRight [])
+                . alterPoolDB (const Nothing) db
+                . mRemoveRetiredPools
 
         cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanDatabase
