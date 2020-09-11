@@ -30,7 +30,7 @@ module Cardano.Pool.DB.Model
       PoolDatabase (..)
     , emptyPoolDatabase
     -- * Model Operation Types
-    , ModelPoolOp
+    , ModelOp
     , PoolErr (..)
     -- * Model pool database functions
     , mCleanDatabase
@@ -160,7 +160,7 @@ emptyPoolDatabase =
                                   Model Operation Types
 -------------------------------------------------------------------------------}
 
-type ModelPoolOp a = PoolDatabase -> (Either PoolErr a, PoolDatabase)
+type ModelOp a = PoolDatabase -> (Either PoolErr a, PoolDatabase)
 
 newtype PoolErr = PointAlreadyExists BlockHeader
     deriving (Show, Eq)
@@ -169,10 +169,10 @@ newtype PoolErr = PointAlreadyExists BlockHeader
                             Model Pool Database Functions
 -------------------------------------------------------------------------------}
 
-mCleanDatabase :: ModelPoolOp ()
+mCleanDatabase :: ModelOp ()
 mCleanDatabase _ = (Right (), emptyPoolDatabase)
 
-mPutPoolProduction :: BlockHeader -> PoolId -> ModelPoolOp ()
+mPutPoolProduction :: BlockHeader -> PoolId -> ModelOp ()
 mPutPoolProduction point poolId db@PoolDatabase{pools} =
     let alter slot = \case
             Nothing -> Just [slot]
@@ -188,21 +188,21 @@ mPutPoolProduction point poolId db@PoolDatabase{pools} =
 mReadPoolProduction
     :: TimeInterpreter Identity
     -> EpochNo
-    -> ModelPoolOp (Map PoolId [BlockHeader])
+    -> ModelOp (Map PoolId [BlockHeader])
 mReadPoolProduction timeInterpreter epoch db@PoolDatabase{pools} =
     let epochOf' = runIdentity . timeInterpreter . epochOf
         updateSlots e = Map.map (filter (\x -> epochOf' (slotNo x) == e))
         updatePools = Map.filter (not . L.null)
     in (Right (updatePools $ (updateSlots epoch) pools), db)
 
-mReadTotalProduction :: ModelPoolOp (Map PoolId (Quantity "block" Word64))
+mReadTotalProduction :: ModelOp (Map PoolId (Quantity "block" Word64))
 mReadTotalProduction db@PoolDatabase{pools} =
     ( Right (Map.map (Quantity . fromIntegral . length) pools), db )
 
 mPutStakeDistribution
     :: EpochNo
     -> [(PoolId, Quantity "lovelace" Word64)]
-    -> ModelPoolOp ()
+    -> ModelOp ()
 mPutStakeDistribution epoch distrib db@PoolDatabase{distributions} =
     ( Right ()
     , db { distributions = Map.insert epoch distrib distributions }
@@ -210,7 +210,7 @@ mPutStakeDistribution epoch distrib db@PoolDatabase{distributions} =
 
 mReadStakeDistribution
     :: EpochNo
-    -> ModelPoolOp [(PoolId, Quantity "lovelace" Word64)]
+    -> ModelOp [(PoolId, Quantity "lovelace" Word64)]
 mReadStakeDistribution epoch db@PoolDatabase{distributions} =
     ( Right $ Map.findWithDefault mempty epoch distributions
     , db
@@ -219,7 +219,7 @@ mReadStakeDistribution epoch db@PoolDatabase{distributions} =
 mPutPoolRegistration
     :: CertificatePublicationTime
     -> PoolRegistrationCertificate
-    -> ModelPoolOp ()
+    -> ModelOp ()
 mPutPoolRegistration cpt cert = (pure (),)
     . over #owners
         (Map.insert poolId poolOwners)
@@ -230,7 +230,7 @@ mPutPoolRegistration cpt cert = (pure (),)
 
 mReadPoolRegistration
     :: PoolId
-    -> ModelPoolOp
+    -> ModelOp
         (Maybe (CertificatePublicationTime, PoolRegistrationCertificate))
 mReadPoolRegistration poolId db = (, db)
     $ pure
@@ -244,7 +244,7 @@ mReadPoolRegistration poolId db = (, db)
 mPutPoolRetirement
     :: CertificatePublicationTime
     -> PoolRetirementCertificate
-    -> ModelPoolOp ()
+    -> ModelOp ()
 mPutPoolRetirement cpt cert = (pure (),)
     . over #retirements
         (Map.insert (cpt, poolId) cert)
@@ -253,7 +253,7 @@ mPutPoolRetirement cpt cert = (pure (),)
 
 mReadPoolRetirement
     :: PoolId
-    -> ModelPoolOp
+    -> ModelOp
         (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
 mReadPoolRetirement poolId db = (, db)
     $ pure
@@ -264,7 +264,7 @@ mReadPoolRetirement poolId db = (, db)
     PoolDatabase {retirements} = db
     only k (_, k') _ = k == k'
 
-mListPoolLifeCycleData :: EpochNo -> ModelPoolOp [PoolLifeCycleStatus]
+mListPoolLifeCycleData :: EpochNo -> ModelOp [PoolLifeCycleStatus]
 mListPoolLifeCycleData epoch db = (, db) $ pure $
     flip lookupLifeCycleStatus db <$> nonRetiredPools
   where
@@ -274,14 +274,14 @@ mListPoolLifeCycleData epoch db = (, db) $ pure $
         (Set.fromList registeredPools)
         (Set.fromList retiredPools)
 
-mListRegisteredPools :: ModelPoolOp [PoolId]
+mListRegisteredPools :: ModelOp [PoolId]
 mListRegisteredPools db = (pure $ listRegisteredPools db, db)
 
 listRegisteredPools :: PoolDatabase -> [PoolId]
 listRegisteredPools PoolDatabase {registrations} =
     snd <$> Map.keys registrations
 
-mListRetiredPools :: EpochNo -> ModelPoolOp [PoolRetirementCertificate]
+mListRetiredPools :: EpochNo -> ModelOp [PoolRetirementCertificate]
 mListRetiredPools epochNo db = (pure $ listRetiredPools epochNo db, db)
 
 listRetiredPools :: EpochNo -> PoolDatabase -> [PoolRetirementCertificate]
@@ -304,7 +304,7 @@ listRetiredPools epochNo db = retiredPools
 
     PoolDatabase {registrations} = db
 
-mReadPoolLifeCycleStatus :: PoolId -> ModelPoolOp PoolLifeCycleStatus
+mReadPoolLifeCycleStatus :: PoolId -> ModelOp PoolLifeCycleStatus
 mReadPoolLifeCycleStatus poolId db = (, db) $ pure $
     lookupLifeCycleStatus poolId db
 
@@ -324,7 +324,7 @@ lookupLifeCycleStatus poolId PoolDatabase {registrations, retirements} =
 
 mUnfetchedPoolMetadataRefs
     :: Int
-    -> ModelPoolOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
+    -> ModelOp [(PoolId, StakePoolMetadataUrl, StakePoolMetadataHash)]
 mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
     ( Right (toTuple <$> take n (Map.elems unfetched))
     , db
@@ -347,7 +347,7 @@ mUnfetchedPoolMetadataRefs n db@PoolDatabase{registrations,metadata} =
 
 mPutFetchAttempt
     :: (StakePoolMetadataUrl, StakePoolMetadataHash)
-    -> ModelPoolOp ()
+    -> ModelOp ()
 mPutFetchAttempt key db@PoolDatabase{fetchAttempts} =
     ( Right ()
     , db { fetchAttempts = Map.insertWith (+) key 1 fetchAttempts }
@@ -356,7 +356,7 @@ mPutFetchAttempt key db@PoolDatabase{fetchAttempts} =
 mPutPoolMetadata
     :: StakePoolMetadataHash
     -> StakePoolMetadata
-    -> ModelPoolOp ()
+    -> ModelOp ()
 mPutPoolMetadata hash meta = (pure (), )
     . over #metadata
         (Map.insert hash meta)
@@ -364,7 +364,7 @@ mPutPoolMetadata hash meta = (pure (), )
          (Map.filterWithKey $ \k _ -> snd k /= hash)
 
 mReadPoolMetadata
-    :: ModelPoolOp (Map StakePoolMetadataHash StakePoolMetadata)
+    :: ModelOp (Map StakePoolMetadataHash StakePoolMetadata)
 mReadPoolMetadata db@PoolDatabase{metadata} = (Right metadata, db)
 
 mReadSystemSeed
@@ -378,14 +378,14 @@ mReadSystemSeed db@PoolDatabase{seed} =
         SystemSeed s ->
             return ( s, db )
 
-mReadCursor :: Int -> ModelPoolOp [BlockHeader]
+mReadCursor :: Int -> ModelOp [BlockHeader]
 mReadCursor k db@PoolDatabase{pools} =
     let allHeaders = fold pools
         sortDesc = L.sortOn (Down . slotNo)
         limit = take k
     in (Right $ reverse $ limit $ sortDesc allHeaders, db)
 
-mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelPoolOp ()
+mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelOp ()
 mRollbackTo ti point db = (pure (), ) $
     dbFiltered
         & over #owners (`Map.restrictKeys` poolIdsFiltered)
@@ -408,7 +408,7 @@ mRollbackTo ti point db = (pure (), ) $
         | point' <= get point = Just v
         | otherwise = Nothing
 
-mRemovePools :: [PoolId] -> ModelPoolOp ()
+mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = (pure (), )
     . over #distributions
         (Map.map $ L.filter $ \(p, _) -> retain p)
@@ -424,7 +424,7 @@ mRemovePools poolsToRemove = (pure (), )
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove
 
-mRemoveRetiredPools :: EpochNo -> ModelPoolOp [PoolRetirementCertificate]
+mRemoveRetiredPools :: EpochNo -> ModelOp [PoolRetirementCertificate]
 mRemoveRetiredPools epoch db =
     first
         (fmap $ const certificates)

@@ -21,7 +21,7 @@ import Prelude
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Model
-    ( ModelPoolOp
+    ( ModelOp
     , PoolDatabase
     , PoolErr (..)
     , emptyPoolDatabase
@@ -157,7 +157,7 @@ alterPoolDB
     -- ^ Error type converter
     -> MVar PoolDatabase
     -- ^ The database variable
-    -> ModelPoolOp a
+    -> ModelOp a
     -- ^ Operation to run on the database
     -> IO (Either err a)
 alterPoolDB convertErr db op = modifyMVar db (bubble . op)
@@ -170,7 +170,7 @@ alterPoolDB convertErr db op = modifyMVar db (bubble . op)
 readPoolDB
     :: MVar PoolDatabase
     -- ^ The database variable
-    -> ModelPoolOp a
+    -> ModelOp a
     -- ^ Operation to run on the database
     -> IO a
 readPoolDB db op =
