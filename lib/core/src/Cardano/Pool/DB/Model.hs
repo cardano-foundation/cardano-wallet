@@ -267,8 +267,8 @@ mReadPoolRetirement poolId db = (, db)
     only k (_, k') _ = k == k'
 
 mListPoolLifeCycleData :: EpochNo -> ModelPoolOp [PoolLifeCycleStatus]
-mListPoolLifeCycleData epoch = runState $ do
-    registeredPools <- state mListRegisteredPools
+mListPoolLifeCycleData epoch db = flip runState db $ do
+    let registeredPools = listRegisteredPools db
     retiredPools <- fmap (view #poolId) <$> state (mListRetiredPools epoch)
     let nonRetiredPools = Set.toList $ Set.difference
             (Set.fromList registeredPools)
@@ -276,8 +276,11 @@ mListPoolLifeCycleData epoch = runState $ do
     sequence <$> mapM (state . mReadPoolLifeCycleStatus) nonRetiredPools
 
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
-mListRegisteredPools db@PoolDatabase{registrations} =
-    ( snd <$> Map.keys registrations, db )
+mListRegisteredPools db = (listRegisteredPools db, db)
+
+listRegisteredPools :: PoolDatabase -> [PoolId]
+listRegisteredPools PoolDatabase {registrations} =
+    snd <$> Map.keys registrations
 
 mListRetiredPools
     :: EpochNo
