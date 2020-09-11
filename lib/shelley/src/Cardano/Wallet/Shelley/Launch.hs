@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -1542,37 +1543,6 @@ timeout t (title, action) = do
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
 
--- | A little notice shown in the logs when setting up the cluster.
-forkCartouche :: Text
-forkCartouche = T.unlines
-    [ ""
-    , "########################################################################"
-    , "#                                                                      #"
-    , "#         Transition from byron to shelley has been triggered.         #"
-    , "#                                                                      #"
-    , "#           This may take roughly 60s. Please be patient...            #"
-    , "#                                                                      #"
-    , "########################################################################"
-    ]
-
--- | A little notice shown in the logs when setting up the cluster.
-clusterCartouche :: Text
-clusterCartouche = T.unlines
-    [ ""
-    , "########################################################################"
-    , "#                                                                      #"
-    , "#  ⚠                             NOTICE                             ⚠  #"
-    , "#                                                                      #"
-    , "#    Cluster is booting. Stake pools are being registered on chain.    #"
-    , "#                                                                      #"
-    , "#    This may take roughly 60s, after which pools will become active   #"
-    , "#    and will start producing blocks. Please be even more patient...   #"
-    , "#                                                                      #"
-    , "#  ⚠                             NOTICE                             ⚠  #"
-    , "#                                                                      #"
-    , "########################################################################"
-    ]
-
 -- | Hash a ByteString using blake2b_256 and encode it in base16
 blake2b256S :: ByteString -> String
 blake2b256S =
@@ -1616,8 +1586,9 @@ withSystemTempDir tr name action = do
 -------------------------------------------------------------------------------}
 
 data ClusterLog
-    = MsgClusterCartouche
-    | MsgForkCartouche
+    = MsgRegisteringStakePools Int -- ^ How many pools
+    | MsgWaitingForFork
+    | MsgStartingCluster FilePath
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
     | MsgTempNoCleanup FilePath
@@ -1634,8 +1605,20 @@ data ClusterLog
 
 instance ToText ClusterLog where
     toText = \case
-        MsgClusterCartouche -> clusterCartouche
-        MsgForkCartouche -> forkCartouche
+        MsgStartingCluster dir ->
+            "Configuring cluster in " <> T.pack dir
+        MsgWaitingForFork ->
+            "Transitioning from Byron to Shelley... Please wait 20s..."
+        MsgRegisteringStakePools 0 -> mconcat
+                [ "Not registering any stake pools due to "
+                , "NO_POOLS=1. Some tests may fail."
+                ]
+        MsgRegisteringStakePools n -> mconcat
+                [ T.pack (show n)
+                , " stake pools are being registered on chain... "
+                , "Please wait 60s until active... "
+                , "Can be skipped using NO_POOLS=1."
+                ]
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg
         MsgStartedStaticServer baseUrl fp ->
@@ -1671,19 +1654,24 @@ instance ToText ClusterLog where
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
-        MsgClusterCartouche -> Warning
-        MsgForkCartouche -> Warning
-        MsgLauncher _ msg -> getSeverityAnnotation msg
+        MsgStartingCluster _ -> Notice
+        MsgRegisteringStakePools _ -> Notice
+        MsgWaitingForFork -> Notice
+        MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
         MsgBracket _ _ -> Debug
         MsgCLIStatus _ ExitSuccess _ _-> Debug
         MsgCLIStatus _ (ExitFailure _) _ _-> Error
         MsgCLIRetry _ -> Info
-        MsgCLIRetryResult{} -> Warning
+        MsgCLIRetryResult{} -> Info
+        -- NOTE: ^ Some failures are expected, so for cleaner logs we use Info,
+        -- instead of Warning.
         MsgSocketIsReady _ -> Info
         MsgStakeDistribution _ ExitSuccess _ _-> Info
-        MsgStakeDistribution _ (ExitFailure _) _ _-> Warning
+        MsgStakeDistribution _ (ExitFailure _) _ _-> Info
+        -- NOTE: ^ Some failures are expected, so for cleaner logs we use Info,
+        -- instead of Warning.
         MsgDebug _ -> Debug
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug
