@@ -79,8 +79,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataUrl
     , getPoolRetirementCertificate
     )
-import Control.Monad.Trans.State.Strict
-    ( runState, state )
 import Data.Bifunctor
     ( first )
 import Data.Foldable
@@ -267,13 +265,14 @@ mReadPoolRetirement poolId db = (, db)
     only k (_, k') _ = k == k'
 
 mListPoolLifeCycleData :: EpochNo -> ModelPoolOp [PoolLifeCycleStatus]
-mListPoolLifeCycleData epoch db = flip runState db $ do
-    let registeredPools = listRegisteredPools db
-    let retiredPools = fmap (view #poolId) (listRetiredPools epoch db)
-    let nonRetiredPools = Set.toList $ Set.difference
-            (Set.fromList registeredPools)
-            (Set.fromList retiredPools)
-    sequence <$> mapM (state . mReadPoolLifeCycleStatus) nonRetiredPools
+mListPoolLifeCycleData epoch db = (, db) $ pure $
+    flip lookupLifeCycleStatus db <$> nonRetiredPools
+  where
+    registeredPools = listRegisteredPools db
+    retiredPools = fmap (view #poolId) (listRetiredPools epoch db)
+    nonRetiredPools = Set.toList $ Set.difference
+        (Set.fromList registeredPools)
+        (Set.fromList retiredPools)
 
 mListRegisteredPools :: PoolDatabase -> ([PoolId], PoolDatabase)
 mListRegisteredPools db = (listRegisteredPools db, db)
