@@ -257,13 +257,11 @@ mReadPoolRetirement
     :: PoolId
     -> ModelPoolOp
         (Maybe (CertificatePublicationTime, PoolRetirementCertificate))
-mReadPoolRetirement poolId db =
-    ( Right
-        $ fmap (first fst)
-        $ Map.lookupMax
-        $ Map.filterWithKey (only poolId) retirements
-    , db
-    )
+mReadPoolRetirement poolId db = (, db)
+    $ pure
+    $ fmap (first fst)
+    $ Map.lookupMax
+    $ Map.filterWithKey (only poolId) retirements
   where
     PoolDatabase {retirements} = db
     only k (_, k') _ = k == k'
