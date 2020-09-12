@@ -20,7 +20,13 @@ let
 
 in pkgs.stdenv.mkDerivation {
   inherit name;
-  buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
+  buildInputs = with pkgs.buildPackages; [
+    gnutar
+    gzip
+    binutils
+    commonLib.haskell-nix-extra-packages.haskellBuildUtils.package
+    nix
+  ];
   checkInputs = with pkgs.buildPackages; [
     ruby
     gnugrep
@@ -34,6 +40,7 @@ in pkgs.stdenv.mkDerivation {
     mkdir $name
     cp -nR ${concatMapStringsSep " " (exe: "${exe}/bin/*") exes} $name
     chmod -R 755 $name
+    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib` )
 
     mkdir -p $out/nix-support
     tar -czf $out/$tarname $name
