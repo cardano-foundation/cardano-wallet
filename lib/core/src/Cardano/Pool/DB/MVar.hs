@@ -60,6 +60,8 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Monad.Trans.State.Strict
+    ( runStateT )
 import Data.Either
     ( fromRight )
 import Data.Functor.Identity
@@ -159,12 +161,14 @@ alterPoolDB
     -> ModelOp a
     -- ^ Operation to run on the database
     -> IO (Either err a)
-alterPoolDB convertErr db op = modifyMVar db (bubble . op)
-  where
-    bubble (Left e, db') = case convertErr e of
-        Just e' -> pure (db', Left e')
-        Nothing -> throwIO $ MVarPoolDBError e
-    bubble (Right a, db') = pure (db', Right a)
+alterPoolDB convertErr dbVar op =
+    modifyMVar dbVar $ \db ->
+        case runStateT op db of
+            Left e -> case convertErr e of
+                Just e' -> pure (db, Left e')
+                Nothing -> throwIO $ MVarPoolDBError e
+            Right (result, dbUpdated) ->
+                pure (dbUpdated, Right result)
 
 readPoolDB
     :: MVar PoolDatabase
