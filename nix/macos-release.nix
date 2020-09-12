@@ -21,7 +21,12 @@ let
 in pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
-  checkInputs = [ pkgs.buildPackages.ruby ];
+  checkInputs = with pkgs.buildPackages; [
+    ruby
+    gnugrep
+    gnused
+    darwin.cctools
+  ];
   doCheck = true;
   phases = [ "buildPhase" "checkPhase" ];
   tarname = "${name}-macos64.tar.gz";
