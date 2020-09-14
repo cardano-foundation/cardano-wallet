@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,13 +18,14 @@ module Cardano.Pool.DB.MVar
 import Prelude
 
 import Cardano.Pool.DB
-    ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
+    ( DBLayer (..), ErrPointAlreadyExists (..) )
 import Cardano.Pool.DB.Model
-    ( ModelPoolOp
+    ( ModelOp
     , PoolDatabase
     , PoolErr (..)
     , emptyPoolDatabase
-    , mCleanPoolProduction
+    , mCleanDatabase
+    , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
     , mPutFetchAttempt
@@ -35,6 +35,7 @@ import Cardano.Pool.DB.Model
     , mPutPoolRetirement
     , mPutStakeDistribution
     , mReadCursor
+    , mReadPoolLifeCycleStatus
     , mReadPoolMetadata
     , mReadPoolProduction
     , mReadPoolRegistration
@@ -43,6 +44,7 @@ import Cardano.Pool.DB.Model
     , mReadSystemSeed
     , mReadTotalProduction
     , mRemovePools
+    , mRemoveRetiredPools
     , mRollbackTo
     , mUnfetchedPoolMetadataRefs
     )
@@ -58,14 +60,14 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Monad.Trans.State.Strict
+    ( runStateT )
+import Data.Either
+    ( fromRight )
 import Data.Functor.Identity
     ( Identity )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Tuple
     ( swap )
-
-import qualified Data.Set as Set
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
@@ -105,10 +107,8 @@ newDBLayer timeInterpreter = do
               $ alterPoolDB (const Nothing) db
               $ mPutPoolRegistration cpt cert
 
-        readPoolLifeCycleStatus poolId =
-            determinePoolLifeCycleStatus
-                <$> readPoolRegistration poolId
-                <*> readPoolRetirement poolId
+        readPoolLifeCycleStatus =
+            readPoolDB db . mReadPoolLifeCycleStatus
 
         putPoolRetirement cpt cert = void
             $ alterPoolDB (const Nothing) db
@@ -121,18 +121,13 @@ newDBLayer timeInterpreter = do
             void . alterPoolDB (const Nothing) db . mPutFetchAttempt
 
         listRegisteredPools =
-            modifyMVar db (pure . swap . mListRegisteredPools)
+            readPoolDB db mListRegisteredPools
 
-        listRetiredPools epochNo =
-            modifyMVar db (pure . swap . mListRetiredPools epochNo)
+        listRetiredPools =
+            readPoolDB db . mListRetiredPools
 
-        listPoolLifeCycleData epochNo = do
-            registeredPools <- Set.fromList
-                <$> listRegisteredPools
-            retiredPools <- Set.fromList . fmap (view #poolId)
-                <$> listRetiredPools epochNo
-            let nonRetiredPools = registeredPools `Set.difference` retiredPools
-            mapM readPoolLifeCycleStatus $ Set.toList nonRetiredPools
+        listPoolLifeCycleData =
+            readPoolDB db . mListPoolLifeCycleData
 
         putPoolMetadata a0 a1 =
             void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)
@@ -146,13 +141,13 @@ newDBLayer timeInterpreter = do
         removePools =
             void . alterPoolDB (const Nothing) db . mRemovePools
 
-        removeRetiredPools epoch =
-            listRetiredPools epoch >>= \retirementCerts -> do
-                removePools (view #poolId <$> retirementCerts)
-                pure retirementCerts
+        removeRetiredPools =
+            fmap (fromRight [])
+                . alterPoolDB (const Nothing) db
+                . mRemoveRetiredPools
 
         cleanDB =
-            void $ alterPoolDB (const Nothing) db mCleanPoolProduction
+            void $ alterPoolDB (const Nothing) db mCleanDatabase
 
         readPoolMetadata = readPoolDB db mReadPoolMetadata
 
@@ -163,20 +158,22 @@ alterPoolDB
     -- ^ Error type converter
     -> MVar PoolDatabase
     -- ^ The database variable
-    -> ModelPoolOp a
+    -> ModelOp a
     -- ^ Operation to run on the database
     -> IO (Either err a)
-alterPoolDB convertErr db op = modifyMVar db (bubble . op)
-  where
-    bubble (Left e, db') = case convertErr e of
-        Just e' -> pure (db', Left e')
-        Nothing -> throwIO $ MVarPoolDBError e
-    bubble (Right a, db') = pure (db', Right a)
+alterPoolDB convertErr dbVar op =
+    modifyMVar dbVar $ \db ->
+        case runStateT op db of
+            Left e -> case convertErr e of
+                Just e' -> pure (db, Left e')
+                Nothing -> throwIO $ MVarPoolDBError e
+            Right (result, dbUpdated) ->
+                pure (dbUpdated, Right result)
 
 readPoolDB
     :: MVar PoolDatabase
     -- ^ The database variable
-    -> ModelPoolOp a
+    -> ModelOp a
     -- ^ Operation to run on the database
     -> IO a
 readPoolDB db op =
