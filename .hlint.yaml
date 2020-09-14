@@ -51,6 +51,7 @@
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 - ignore: {name: "Monoid law, left identity"} # Using 'mempty' can be useful to vertically-align elements
 - ignore: {name: "Use ?~"} # It's actually much clearer to do (.~ Just ...) than having to load yet-another-lens-operator
+- ignore: {name: "Redundant multi-way if"} # Using this style might be appropriate given the circumstances.
 
 # Add custom hints for this project
 #
