@@ -5,21 +5,15 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Pool.DB.Properties
     ( properties
     , withDB
-    , newMemoryDBLayer
     ) where
 
 import Prelude
 
-import Cardano.BM.Trace
-    ( traceInTVarIO )
-import Cardano.DB.Sqlite
-    ( SqliteContext )
 import Cardano.Pool.DB
     ( DBLayer (..)
     , ErrPointAlreadyExists (..)
@@ -34,10 +28,6 @@ import Cardano.Pool.DB.Arbitrary
     , getMultiPoolCertificateSequence
     , isValidSinglePoolCertificateSequence
     )
-import Cardano.Pool.DB.Log
-    ( PoolDbLog )
-import Cardano.Pool.DB.Sqlite
-    ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.Slotting
@@ -93,8 +83,6 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( pretty )
-import GHC.Conc
-    ( TVar, newTVarIO )
 import Test.Hspec
     ( Expectation
     , Spec
@@ -134,18 +122,6 @@ import qualified Data.Text as T
 withDB :: IO (DBLayer IO) -> SpecWith (DBLayer IO) -> Spec
 withDB create = beforeAll create . beforeWith
     (\db@DBLayer{cleanDB, atomically}-> atomically $ cleanDB $> db)
-
--- | Set up a DBLayer for testing, with the command context, and the logging
--- variable.
-newMemoryDBLayer :: IO (DBLayer IO)
-newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
-
-newMemoryDBLayer' :: IO (TVar [PoolDbLog], (SqliteContext, DBLayer IO))
-newMemoryDBLayer' = do
-    logVar <- newTVarIO []
-    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing ti
-  where
-    ti = return . runIdentity . dummyTimeInterpreter
 
 properties :: SpecWith (DBLayer IO)
 properties = do

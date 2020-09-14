@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -6,23 +7,30 @@
 --
 -- DBLayer tests for SQLite implementation.
 
-
 module Cardano.Pool.DB.SqliteSpec
     ( spec
     ) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( traceInTVarIO )
 import Cardano.DB.Sqlite
-    ( DBLog (..) )
+    ( DBLog (..), SqliteContext )
+import Cardano.Pool.DB
+    ( DBLayer (..) )
 import Cardano.Pool.DB.Log
     ( PoolDbLog (..) )
 import Cardano.Pool.DB.Properties
-    ( newMemoryDBLayer, properties, withDB )
+    ( properties, withDB )
 import Cardano.Pool.DB.Sqlite
-    ( withDBLayer )
+    ( newDBLayer, withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
+import Data.Functor.Identity
+    ( runIdentity )
+import GHC.Conc
+    ( TVar, newTVarIO )
 import System.Directory
     ( copyFile )
 import System.FilePath
@@ -35,6 +43,18 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
     ( captureLogging )
+
+-- | Set up a DBLayer for testing, with the command context, and the logging
+-- variable.
+newMemoryDBLayer :: IO (DBLayer IO)
+newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
+
+newMemoryDBLayer' :: IO (TVar [PoolDbLog], (SqliteContext, DBLayer IO))
+newMemoryDBLayer' = do
+    logVar <- newTVarIO []
+    (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing ti
+  where
+    ti = return . runIdentity . dummyTimeInterpreter
 
 spec :: Spec
 spec = do
@@ -64,7 +84,6 @@ test_migrationFromv20191216 =
             length databaseConnMsg  `shouldBe` 3
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
-
 
 isMsgConnStr :: PoolDbLog -> Bool
 isMsgConnStr (MsgGeneric (MsgConnStr _)) = True
