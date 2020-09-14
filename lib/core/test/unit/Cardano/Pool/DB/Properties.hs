@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Properties
     ( properties
@@ -30,6 +32,8 @@ import Cardano.Pool.DB.Arbitrary
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
+import Cardano.Wallet.Gen
+    ( genBlockHeader, genSlotNo )
 import Cardano.Wallet.Primitive.Slotting
     ( epochOf )
 import Cardano.Wallet.Primitive.Types
@@ -52,7 +56,7 @@ import Control.Arrow
 import Control.Exception
     ( evaluate )
 import Control.Monad
-    ( forM_, replicateM, unless )
+    ( forM, forM_, replicateM, unless, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -68,7 +72,7 @@ import Data.Functor.Identity
 import Data.Generics.Internal.VL.Lens
     ( set, view )
 import Data.List.Extra
-    ( nubOrd )
+    ( nubOrd, nubSortOn )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -97,8 +101,11 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( Positive (..)
+    ( Arbitrary
+    , NonNegative (..)
+    , Positive (..)
     , Property
+    , arbitrary
     , checkCoverage
     , classify
     , counterexample
@@ -202,6 +209,8 @@ properties = do
             (property . const prop_SinglePoolCertificateSequence_coverage)
         it "MultiPoolCertificateSequence coverage is adequate"
             (property . const prop_MultiPoolCertificateSequence_coverage)
+        it "forM putHeader headers >> listHeaders == headers"
+            (property . prop_putHeaderListHeader)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1284,6 +1293,54 @@ prop_MultiPoolCertificateSequence_coverage mpcs = checkCoverage
     certificateSequences = getSinglePoolSequences mpcs
     poolCount = length certificateSequences
 
+-- | read . put == pure
+prop_putHeaderListHeader
+    :: DBLayer IO
+    -> [BlockHeader]
+    -> NonNegative Int
+    -> Property
+prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
+    monadicIO (setup >> prop)
+  where
+    -- The generator can't really simulate how we get blocks from the node,
+    -- so we need to do some deduplicaton and sorting.
+    sortedHeaders = nubSortOn blockHeight headers
+    -- This simulates the limiting of results to the last k elements,
+    -- while retaining ascending order.
+    expected = limitTo k sortedHeaders
+    setup = run $ atomically cleanDB
+    prop = do
+        void $ run $ atomically $ forM sortedHeaders putHeader
+        lHeaders <- run $ atomically $ listHeaders k
+        monitor $ counterexample $ unlines
+            [ "Read from DB: " <> show lHeaders
+            , "Expected: " <> show expected
+            , "Input: " <> show sortedHeaders
+            , "k: " <> show k]
+        monitor $ classify (null lHeaders) "Empty distributions"
+        -- this is implicit in 'expected', but it's nice to have
+        -- as separate assertion
+        assertWith "headers are inceraing in block height"
+            (strictlyIncreasing . fmap blockHeight $ lHeaders)
+        assertWith "read back the headers we expect" (lHeaders == expected)
+
+    strictlyIncreasing :: Ord a => [a] -> Bool
+    strictlyIncreasing [] = True
+    strictlyIncreasing [_] = True
+    strictlyIncreasing (x:y:xs) =
+        let !b = (x < y)
+        in b && strictlyIncreasing (y:xs)
+
+    limitTo
+        :: Int
+        -> [a]  -- ^ input list, sorted in ascending order
+        -> [a]  -- ^ output sorted in ascending order, but limited
+                --   to last n elements
+    limitTo n
+        | n <= 0 = id
+        -- this emulates persistent [LimitTo n, Desc ...]
+        | otherwise = reverse . take n . reverse
+
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
@@ -1334,3 +1391,6 @@ testCertificatePublicationTimes =
     | sn <- [0 ..  ]
     , ii <- [0 .. 3]
     ]
+
+instance Arbitrary BlockHeader where
+    arbitrary = genSlotNo >>= genBlockHeader

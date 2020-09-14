@@ -107,6 +107,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- be the last element in the list.
         --
         -- This is useful for the @NetworkLayer@ to know how far we have synced.
+        -- Returns all headers if limit is <= 0.
 
     , readPoolLifeCycleStatus
         :: PoolId
@@ -222,6 +223,17 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         --    - 'listRetiredPools'.
         --    - 'removePools'.
+
+    , putHeader
+        :: BlockHeader
+        -> stm ()
+        -- ^ Add a block header
+
+    , listHeaders
+        :: Int -- limit
+        -> stm [BlockHeader]
+        -- ^ List headers, usually stored during syncing.
+        -- Returns all headers if limit is <= 0.
 
     , cleanDB
         :: stm ()
