@@ -314,13 +314,17 @@ mUnfetchedPoolMetadataRefs
 mUnfetchedPoolMetadataRefs n = inner
     <$> get #registrations
     <*> get #metadata
+    <*> get #fetchAttempts
   where
-    inner registrations metadata = toTuple <$> take n (Map.elems unfetched)
+    inner registrations metadata fetchAttempts =
+        toTuple <$> take n (Map.elems unfetched)
       where
         unfetched = flip Map.filter registrations $ \r ->
             case poolMetadata r of
                 Nothing -> False
-                Just (_, hash) -> hash `notElem` Map.keys metadata
+                Just fkey@(_, hash) -> (&&)
+                    (hash `notElem` Map.keys metadata)
+                    (fkey `notElem` Map.keys fetchAttempts)
         toTuple PoolRegistrationCertificate{poolId,poolMetadata} =
             (poolId, metadataUrl, metadataHash)
           where
