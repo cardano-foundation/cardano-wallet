@@ -262,7 +262,7 @@ spec = do
 
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           --payment PAYMENT"
+            , "                           --payment PAYMENT [--metadata JSON]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
@@ -272,10 +272,15 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            , "  --metadata JSON          Application-specific transaction"
+            , "                           metadata as a JSON object. The value"
+            , "                           must match the schema defined in the"
+            , "                           cardano-wallet OpenAPI specification."
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
             [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
+            , "                         [--metadata JSON]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
@@ -285,6 +290,10 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            , "  --metadata JSON          Application-specific transaction"
+            , "                           metadata as a JSON object. The value"
+            , "                           must match the schema defined in the"
+            , "                           cardano-wallet OpenAPI specification."
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
