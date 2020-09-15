@@ -79,6 +79,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , icarusAddresses
     , json
+    , minUTxOValue
     , request
     , restoreWalletFromPubKey
     , selectCoins
@@ -100,7 +101,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureIcarusWallet ctx
         -- create wallet
@@ -127,7 +128,7 @@ spec = do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{minUTxOValue},
                         "unit": "lovelace"
                     }
                 }],
@@ -142,9 +143,9 @@ spec = do
                 (Link.getWallet @'Byron wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity 1)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity 1)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
         -- delete wallet
@@ -161,9 +162,9 @@ spec = do
                 (Link.getWallet @'Byron wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity 1)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity 1)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -181,7 +182,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }],
@@ -237,7 +238,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }]
@@ -318,7 +319,7 @@ spec = do
             source <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
             let [addr] = take 1 $ icarusAddresses @n mnemonics
 
-            let amount = Quantity 1
+            let amount = Quantity minUTxOValue
             let payment = AddressAmount (ApiT addr, Proxy @n) amount
             selectCoins @n @'Byron ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200

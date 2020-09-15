@@ -2167,7 +2167,7 @@ instance LiftHandler ErrUTxOTooSmall where
             apiError err403 UtxoTooSmall $ mconcat
                 [ "I'm unable to construct the given transaction as some "
                 , "outputs or changes are too small! Each output and change is "
-                , "expected to be >= ", showT minUtxoValue, " Lovelace."
+                , "expected to be >= ", showT minUtxoValue, " Lovelace. "
                 , "In the current transaction the following pieces are not "
                 , "satisfying this condition : ", showT invalidUTxO, " ."
                 ]

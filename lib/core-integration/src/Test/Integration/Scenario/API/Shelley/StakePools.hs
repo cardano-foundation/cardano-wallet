@@ -88,6 +88,7 @@ import Test.Integration.Framework.DSL
     , joinStakePool
     , json
     , listAddresses
+    , minUTxOValue
     , notDelegating
     , quitStakePool
     , request
@@ -118,7 +119,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] @IO ctx
             (Link.listStakePools stake) Default Empty
 
@@ -149,7 +150,7 @@ spec = do
             , expectErrorMessage errMsg403WrongPass
             ]
 
-    it "STAKE_POOLS_JOIN_01 - \
+    it "STAKE_POOLS_JOIN_01rewards - \
         \Can join a pool, earn rewards and collect them" $ \ctx -> do
         -- Setup
         src <- fixtureWallet ctx
@@ -184,7 +185,7 @@ spec = do
 
         -- Try to use rewards
         addrs <- listAddresses @n ctx dest
-        let coin = 1 :: Natural
+        let coin = minUTxOValue :: Natural
         let addr = (addrs !! 1) ^. #id
         let payload = [json|
                 { "payments":
@@ -284,16 +285,40 @@ spec = do
                 ]
 
         -- Quit delegation altogether.
-        quitStakePool @n ctx (src, fixturePassphrase) >>= flip verify
+        rq <- quitStakePool @n ctx (src, fixturePassphrase)
+        verify rq
+            -- pending tx for quitting pool is initially outgoing
+            -- because there is a fee for this tx
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
+        let txid = getFromResponse Prelude.id rq
+        let (Quantity quitFeeAmt) = getFromResponse #amount rq
+        let finalQuitAmt = Quantity (depositAmt ctx - quitFeeAmt)
+
         eventually "Certificates are inserted after quiting a pool" $ do
-            let ep = Link.listTransactions @'Shelley src
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+            -- last made transaction `txid` is for quitting pool and,
+            -- in fact, it becomes incoming because there is
+            -- keyDeposit being returned
+            let epg = Link.getTransaction @'Shelley src txid
+            rlg <- request @(ApiTransaction n) ctx epg Default Empty
+            verify rlg
+                [ expectField
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField
+                    #amount (`shouldBe` finalQuitAmt)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+            let epl = Link.listTransactions @'Shelley src
+            rlq <- request @[ApiTransaction n] ctx epl Default Empty
+            verify rlq
                 [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    #amount (`shouldBe` finalQuitAmt)
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 1
@@ -546,12 +571,15 @@ spec = do
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
 
-        it "STAKE_POOLS_QUIT_01x - \
+        it "STAKE_POOLS_QUIT_01xx - \
             \I can quit if I have enough to cover fee" $ \ctx -> do
+            -- change needed to satisfy minUTxOValue
+            let change = minUTxOValue - costOfQuitting ctx
             let initBalance =
                     [ costOfJoining ctx
                     + depositAmt ctx
                     + costOfQuitting ctx
+                    + change
                     + costOfChange ctx
                     ]
             w <- fixtureWalletWith @n ctx initBalance
@@ -581,10 +609,10 @@ spec = do
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     , expectField
                         (#balance . #getApiT . #total)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx))))
+                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     , expectField
                         (#balance . #getApiT . #available)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx))))
+                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \

@@ -94,6 +94,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , minUTxOValue
     , notDelegating
     , request
     , selectCoins
@@ -138,7 +139,7 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
                 "name": "1st Wallet",
@@ -237,7 +238,7 @@ spec = do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{minUTxOValue},
                         "unit": "lovelace"
                     }
                 }],
@@ -252,9 +253,9 @@ spec = do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
         -- delete wallet
@@ -269,9 +270,9 @@ spec = do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 1)
+                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
@@ -898,7 +899,7 @@ spec = do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": 1,
+                            "quantity": #{minUTxOValue},
                             "unit": "lovelace"
                         }
                     }],
@@ -948,7 +949,7 @@ spec = do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amount = Quantity 1
+            let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
@@ -965,7 +966,7 @@ spec = do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
             targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
-            let amounts = Quantity <$> [1 ..]
+            let amounts = Quantity <$> [minUTxOValue ..]
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
@@ -984,7 +985,7 @@ spec = do
         \Deleted wallet is not available for selection" $ \ctx -> do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode @IO HTTP.status404
@@ -995,7 +996,7 @@ spec = do
         \Wrong selection method (not 'random')" $ \ctx -> do
         w <- fixtureWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
         let endpoints = ("POST",) . mconcat <$>
@@ -1043,7 +1044,7 @@ spec = do
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- fixtureWallet ctx
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-            let payments = NE.fromList [ AddressAmount addr (Quantity 1) ]
+            let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
@@ -1063,7 +1064,7 @@ spec = do
         --send funds
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        let coins = [13::Word64, 43, 66, 101, 1339]
+        let coins = [13_000_000::Word64, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         let payments = flip map coins $ \c -> [json|{
                 "address": #{destination},
                 "amount": {

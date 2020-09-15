@@ -52,7 +52,7 @@ import qualified Data.Text.IO as TIO
 spec
     :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
     => SpecWith s
-spec = do
+spec = describe "COMMON_CLI_PORTS" $ do
     let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s
         overPort fn = over (typed @(Port sym)) (\(Port p) -> Port $ fn p)
 

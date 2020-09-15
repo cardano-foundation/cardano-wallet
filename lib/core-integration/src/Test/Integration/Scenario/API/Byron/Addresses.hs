@@ -53,6 +53,7 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWalletMws
     , emptyRandomWallet
     , emptyRandomWalletMws
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListField
@@ -423,10 +424,11 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> do
         [ expectResponseCode @IO HTTP.status204
         ]
 
-    r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
-    verify r1
-        [ expectListSize addrNum
-        ]
+    eventually "Addresses are imported" $ do
+      r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+      verify r1
+          [ expectListSize addrNum
+          ]
   where
     title = "ADDRESS_IMPORT_05 - I can import " <> show addrNum <>" of addresses"
 

@@ -14,6 +14,7 @@ protocolParams:
   protocolVersion:
     minor: 0
     major: 0
+  minUTxOValue: 1000000
   decentralisationParam: 0.25 # means 75% decentralised
   maxTxSize: 4096
   minFeeA: 100
@@ -28,7 +29,7 @@ protocolParams:
   extraEntropy:
     tag: NeutralNonce
   maxBlockHeaderSize: 217569
-  keyDeposit: 100000
+  keyDeposit: 1000000
   keyDecayRate: 0
   nOpt: 3
   rho: 0.178650067

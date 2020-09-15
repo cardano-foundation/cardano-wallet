@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -51,6 +52,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , getWalletViaCLI
     , listAddressesViaCLI
+    , minUTxOValue
     , postTransactionViaCLI
     , walletId
     )
@@ -64,7 +66,7 @@ spec :: forall n t.
     , DecodeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -174,7 +176,7 @@ spec = do
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
-            let args = [wSrc, "--payment" , T.unpack $ "1@" <> dest]
+            let args = [wSrc, "--payment" , (show minUTxOValue) <> "@" <> (T.unpack dest)]
             (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
@@ -182,7 +184,8 @@ spec = do
             Stdout o2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 10) w
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (10 * 1_000_000)) w
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]

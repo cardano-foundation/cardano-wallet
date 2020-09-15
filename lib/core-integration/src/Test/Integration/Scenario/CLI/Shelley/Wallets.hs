@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -76,6 +77,7 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
+    , minUTxOValue
     , notDelegating
     , postTransactionViaCLI
     , updateWalletNameViaCLI
@@ -102,7 +104,7 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx wid
@@ -198,7 +200,7 @@ spec = do
             ]
 
         --send transaction to the wallet
-        let amount = 11
+        let amount = minUTxOValue
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
@@ -684,7 +686,7 @@ spec = do
             let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
-                    , "--payment", "1@" <> addrStr
+                    , "--payment", T.pack (show minUTxOValue) <> "@" <> addrStr
                     ]
 
             (cTx, outTx, errTx) <- postTransactionViaCLI @t ctx pass args
@@ -713,7 +715,7 @@ spec = do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
-        let coins = [13, 43, 66, 101, 1339] :: [Word64]
+        let coins = [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000] :: [Word64]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
 

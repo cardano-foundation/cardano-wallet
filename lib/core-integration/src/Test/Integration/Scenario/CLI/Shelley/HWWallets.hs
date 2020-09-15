@@ -67,6 +67,7 @@ import Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listTransactionsViaCLI
     , listWalletsViaCLI
+    , minUTxOValue
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , pubKeyFromMnemonics
@@ -89,9 +90,9 @@ spec :: forall n t.
     , DecodeStakeAddress n
     , EncodeAddress n
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
-    it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
+    it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
 
         -- create a wallet
@@ -108,7 +109,7 @@ spec = do
             ]
 
         --send transaction to the wallet
-        let amount = 11
+        let amount = minUTxOValue
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
@@ -172,9 +173,10 @@ spec = do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+
             let args = T.unpack <$>
                     [ wRestored ^. walletId
-                    , "--payment", "1@" <> addr
+                    , "--payment", T.pack (show minUTxOValue) <> "@" <> addr
                     ]
 
             (c, out, err) <- postTransactionViaCLI @t ctx (T.unpack fixturePassphrase) args
@@ -227,7 +229,7 @@ spec = do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-            let amt = 1 :: Int
+            let amt = minUTxOValue
             let args = T.unpack <$>
                     [ wRestored ^. walletId
                     , "--payment", T.pack (show amt) <> "@" <> addr

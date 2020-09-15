@@ -107,7 +107,7 @@ spec :: forall n t.
     , EncodeAddress n
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty

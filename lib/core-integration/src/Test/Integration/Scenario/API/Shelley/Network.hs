@@ -16,7 +16,7 @@ import Data.Quantity
 import Data.Ratio
     ( (%) )
 import Test.Hspec
-    ( SpecWith, shouldBe, shouldNotBe )
+    ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -26,6 +26,7 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectField
     , expectResponseCode
+    , minUTxOValue
     , request
     , verify
     )
@@ -34,7 +35,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx ->
         eventually "hardfork is detected in network parameters " $ do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
@@ -43,10 +44,9 @@ spec = do
         -- for Shelley desiredPoolNumber is node's nOpt protocol parameter
         -- in integration test setup it is 3
         let nOpt = 3
-        let minUtxoValue = Quantity 0
         verify r
             [ expectField (#decentralizationLevel) (`shouldBe` d)
             , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
-            , expectField (#minimumUtxoValue) (`shouldBe` minUtxoValue)
+            , expectField (#minimumUtxoValue) (`shouldBe` (Quantity minUTxOValue))
             , expectField (#hardforkAt) (`shouldNotBe` Nothing)
             ]

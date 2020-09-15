@@ -97,7 +97,7 @@ spec :: forall n t.
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
     ) => SpecWith (Context t)
-spec = do
+spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> do
@@ -114,30 +114,6 @@ spec = do
         \Cannot calculate fee for empty wallet."
         $ \ctx -> do
             w <- emptyWallet ctx
-            let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
-                ]
-
-    it "SHELLEY_CALCULATE_02 - \
-        \Cannot calculate fee for wallet with dust, that cannot be migrated."
-        $ \ctx -> do
-            -- NOTE
-            -- Special mnemonic for which wallet has dust
-            -- (10 utxo with 33 lovelace)
-            let mnemonics =
-                    ["either", "flip", "maple", "shift", "dismiss", "bridge"
-                    , "sweet", "reveal", "green", "tornado", "need", "patient"
-                    , "wall", "stamp", "pass"] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase}
-                    } |]
-            (_, w) <- unsafeRequest @ApiWallet ctx
-                (Link.postWallet @'Shelley) payloadRestore
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
@@ -175,7 +151,7 @@ spec = do
         -- Special mnemonic for which 200 shelley funds are attached to in the
         -- genesis file.
         --
-        -- Out of these 200 coins, 100 of them are of 1 Lovelace and are
+        -- Out of these 200 coins, 100 of them are of 1 ADA and are
         -- expected to be treated as dust. The rest are all worth:
         -- 10,000,000,000 lovelace.
         let mnemonics =
@@ -227,7 +203,7 @@ spec = do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 9) . length)
+            , expectField id ((`shouldBe` 15) . length)
             ]
 
         -- Check that funds become available in the target wallet:
@@ -275,11 +251,11 @@ spec = do
                 ]
 
     Hspec.it "SHELLEY_MIGRATE_02 - \
-        \migrating wallet with dust should fail."
+        \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> do
             -- NOTE
             -- Special mnemonic for which wallet has dust
-            -- (10 utxo with 33 lovelace)
+            -- (10 utxo with 43 ADA)
             let mnemonics =
                     ["either", "flip", "maple", "shift", "dismiss", "bridge"
                     , "sweet", "reveal", "green", "tornado", "need", "patient"
@@ -291,13 +267,25 @@ spec = do
                     } |]
             (_, sourceWallet) <- unsafeRequest @ApiWallet ctx
                 (Link.postWallet @'Shelley) payloadRestore
-            eventually "wallet balance greater than 0" $ do
-                request @ApiWallet ctx
+            originalBalance <- eventually "wallet balance greater than 0" $ do
+                rg <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley sourceWallet)
                     Default
-                    Empty >>= flip verify
+                    Empty
+                verify rg
                     [ expectField (#balance . #getApiT . #available) (.> Quantity 0)
                     ]
+                pure $ getFromResponse (#balance . #getApiT. #available . #getQuantity)
+                                 rg
+
+            -- Calculate the expected migration fee:
+            r0 <- request @ApiWalletMigrationInfo ctx
+                (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
+            verify r0
+                [ expectResponseCode @IO HTTP.status200
+                , expectField #migrationCost (.> Quantity 0)
+                ]
+            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
 
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
@@ -309,11 +297,23 @@ spec = do
                         }|]
             let ep = Link.migrateWallet @'Shelley sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
             verify r
-                [ expectResponseCode @IO HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
-                ]
+                [ expectResponseCode @IO HTTP.status202 ]
+
+            -- Check that funds become available in the target wallet:
+            let expectedBalance = originalBalance - expectedFee
+            eventually "targetWallet balance = expectedBalance" $ do
+                request @ApiWallet ctx
+                    (Link.getWallet @'Shelley targetWallet)
+                    Default
+                    Empty >>= flip verify
+                    [ expectField
+                            (#balance . #getApiT . #available)
+                            ( `shouldBe` Quantity expectedBalance)
+                    , expectField
+                            (#balance . #getApiT . #total)
+                            ( `shouldBe` Quantity expectedBalance)
+                    ]
 
     it "SHELLEY_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."

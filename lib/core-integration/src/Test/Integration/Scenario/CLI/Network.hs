@@ -35,7 +35,7 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, pendingWith )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Hspec.Extra
@@ -54,7 +54,7 @@ import Test.Utils.Paths
     ( inNixBuild )
 
 spec :: forall t. KnownCommand t => SpecWith (Context t)
-spec = do
+spec = describe "COMMON_CLI_NETWORK" $ do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
         let nextEpochNum =
