@@ -22,7 +22,7 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiFee
+    , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
@@ -81,6 +81,7 @@ import Test.Integration.Framework.DSL as DSL
     , Headers (..)
     , Payload (..)
     , TxDescription (..)
+    , between
     , emptyRandomWallet
     , emptyWallet
     , eventually
@@ -90,21 +91,29 @@ import Test.Integration.Framework.DSL as DSL
     , expectResponseCode
     , expectSuccess
     , faucetAmt
+    , faucetUtxoAmt
     , fixturePassphrase
     , fixtureRandomWallet
     , fixtureRawTx
     , fixtureWallet
+    , fixtureWalletWith
     , genMnemonics
     , getFromResponse
     , json
     , listAddresses
     , listAllTransactions
     , request
+    , unsafeRequest
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedTxPayload, errMsg404CannotFindTx )
+    ( errMsg400MalformedTxPayload
+    , errMsg403Fee
+    , errMsg403NotEnoughMoney
+    , errMsg404CannotFindTx
+    )
 import Test.Integration.Jcli
     ( getBlock0H )
 import Test.QuickCheck
@@ -130,6 +139,181 @@ spec :: forall n t.
     , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
 spec = do
+    it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = (1 :: Natural)
+
+        addrs <- listAddresses @n ctx wb
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        (_, ApiFee (Quantity minFee) (Quantity maxFee)) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wa) payload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (minFee + amt, maxFee + amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+            ]
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+        verify ra
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (faucetAmt - maxFee - amt)
+                    , Quantity (faucetAmt - minFee - amt)
+                    )
+            , expectField
+                    (#balance . #getApiT . #available)
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
+            ]
+
+        eventually "wa and wb balances are as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt + amt)) rb
+
+            ra2 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt - maxFee - amt)) ra2
+
+    it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wDest
+
+        let amt = (1 :: Natural)
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        (_, ApiFee (Quantity minFee) (Quantity maxFee)) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wSrc) payload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        verify r
+            [ expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (minFee + (2*amt), maxFee + (2*amt))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+        verify ra
+            [ expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (faucetAmt - maxFee - (2*amt))
+                    , Quantity (faucetAmt - minFee - (2*amt))
+                    )
+            , expectField
+                    (#balance . #getApiT . #available)
+                    (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
+            ]
+        eventually "wDest balance is as expected" $ do
+            rd <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rd
+                [ expectField
+                        (#balance . #getApiT . #available)
+                        (`shouldBe` Quantity (2*amt))
+                , expectField
+                        (#balance . #getApiT . #total)
+                        (`shouldBe` Quantity (2*amt))
+                ]
+
+    it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
+        wDest <- fixtureWallet ctx
+
+        let amt = (1 :: Natural)
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        (_, ApiFee (Quantity minFee) _) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wDest) payload
+
+        wSrc <- fixtureWalletWith @n ctx [minFee `div` 2]
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403Fee
+            ]
+
+    it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
+        let (srcAmt, reqAmt) = (1, 1_000_000)
+        wSrc <- fixtureWalletWith @n ctx [srcAmt]
+        wDest <- emptyWallet ctx
+
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{reqAmt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage $ errMsg403NotEnoughMoney srcAmt reqAmt
+            ]
+
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @(ApiTransaction n) ctx
