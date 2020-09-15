@@ -69,11 +69,13 @@ test-suite unit
       base
     , cardano-wallet-cli
     , cardano-wallet-core
+    , containers
     , filepath
     , hspec
     , network-uri
     , optparse-applicative
     , QuickCheck
+    , shelley-spec-ledger
     , temporary
     , text
     , text-class

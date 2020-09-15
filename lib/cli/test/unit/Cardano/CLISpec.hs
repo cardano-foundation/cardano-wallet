@@ -28,6 +28,7 @@ import Cardano.CLI
     , cmdWalletCreate
     , hGetLine
     , hGetSensitiveLine
+    , metadataOption
     , smashURLOption
     )
 import Cardano.Wallet.Api.Client
@@ -37,6 +38,10 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
+import Cardano.Wallet.Api.Types
+    ( ApiT (..), ApiTxMetadata (..) )
+import Cardano.Wallet.Primitive.Types
+    ( TxMetadata (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -91,8 +96,10 @@ import Test.QuickCheck
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -657,6 +664,25 @@ spec = do
             , ( "https", "https://iohkdev.io", ok )
             , ( "not http(s)", "gopher://iohk.io", err )
             , ( "relative", "/home/user", err )
+            ]
+
+    describe "Tx Metadata JSON option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info metadataOption mempty) ["--metadata", arg]
+        let md = ApiT (TxMetadata (MD.MetaData (Map.singleton 42 (MD.S "hi"))))
+        let ok ex (Success res) = ex == getApiTxMetadata res
+            ok _ _ = False
+        let err (Failure _) = True
+            err _ = False
+        mapM_
+            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
+            [ ("valid", "{ \"42\": \"hi\" }", ok (Just md))
+            , ("malformed", "testing", err)
+            , ("malformed trailling", "{ \"0\": \"\" } arstneio", err)
+            , ("invalid", "{ \"json\": true }", err)
+            , ("null 1", "{ \"0\": null }", err)
+            , ("null 2", "null", ok Nothing)
+            , ("null 3", "{ }", ok (Just (ApiT mempty)))
             ]
 
   where
