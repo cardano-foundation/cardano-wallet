@@ -76,6 +76,7 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixturePassphrase
     , fixturePassphraseEncrypted
+    , genMnemonics
     , getFromResponse
     , json
     , request
@@ -89,7 +90,6 @@ import Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg404NoWallet
     , kanjiWalletName
-    , mnemonics12
     , polishWalletName
     , russianWalletName
     , updateEmptyPassPayload
@@ -312,6 +312,7 @@ spec = describe "BYRON_WALLETS" $ do
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $
             \ctx -> do
+                mnemonics12 <- genMnemonics @12
                 let payload = Json [json| {
                         "name": "Secure Wallet",
                         "mnemonic_sentence": #{mnemonics12},

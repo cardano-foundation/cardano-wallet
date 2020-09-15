@@ -94,6 +94,7 @@ import Test.Integration.Framework.DSL as DSL
     , fixtureRandomWallet
     , fixtureRawTx
     , fixtureWallet
+    , genMnemonics
     , getFromResponse
     , json
     , listAddresses
@@ -103,7 +104,7 @@ import Test.Integration.Framework.DSL as DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MalformedTxPayload, errMsg404CannotFindTx, mnemonics15 )
+    ( errMsg400MalformedTxPayload, errMsg404CannotFindTx )
 import Test.Integration.Jcli
     ( getBlock0H )
 import Test.QuickCheck
@@ -483,6 +484,7 @@ fixtureExternalTx ctx toSend = do
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng
 
     -- we create destination empty wallet
+    mnemonics15 <- genMnemonics @15
     let createWallet = Json [json| {
             "name": "Destination Wallet",
             "mnemonic_sentence": #{mnemonics15},

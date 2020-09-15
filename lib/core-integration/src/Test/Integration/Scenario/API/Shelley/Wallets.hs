@@ -17,15 +17,7 @@ module Test.Integration.Scenario.API.Shelley.Wallets
 import Prelude
 
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MnemonicWords
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
@@ -78,6 +70,7 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
+    , MnemonicLength (..)
     , Payload (..)
     , emptyByronWalletWith
     , emptyRandomWallet
@@ -92,6 +85,8 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixturePassphrase
     , fixtureWallet
+    , genMnemonics
+    , genMnemonics'
     , getFromResponse
     , json
     , listAddresses
@@ -111,12 +106,6 @@ import Test.Integration.Framework.TestData
     , errMsg406
     , errMsg415
     , kanjiWalletName
-    , mnemonics12
-    , mnemonics15
-    , mnemonics18
-    , mnemonics21
-    , mnemonics24
-    , mnemonics9
     , payloadWith
     , payloadWith'
     , polishWalletName
@@ -142,10 +131,12 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
+        m15 <- genMnemonics @15
+        m12 <- genMnemonics @12
         let payload = Json [json| {
                 "name": "1st Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "mnemonic_second_factor": #{mnemonics12},
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
                 "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 30
                 } |]
@@ -161,8 +152,6 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectField (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
 
             , expectField #delegation (`shouldBe` notDelegating [])
-            , expectField
-                    walletId (`shouldBe` "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
             , expectField #passphrase (`shouldNotBe` Nothing)
             ]
         let wid = getFromResponse id r
@@ -277,9 +266,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
+        m21 <- genMnemonics @21
         let payload = Json [json| {
                 "name": "Some Wallet",
-                "mnemonic_sentence": #{mnemonics21},
+                "mnemonic_sentence": #{m21},
                 "passphrase": #{fixturePassphrase}
                 } |]
         r1 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
@@ -345,9 +335,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> do
+            m24 <- genMnemonics @24
             let payload = Json [json| {
                     "name": #{walName},
-                    "mnemonic_sentence": #{mnemonics24},
+                    "mnemonic_sentence": #{m24},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
@@ -355,103 +346,63 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "WALLETS_CREATE_05 - Mnemonics" $ do
         let matrix =
-             [ ( "15 mnemonic words", mnemonics15
-               , [ expectResponseCode @IO HTTP.status201
-                 , expectField walletId
-                    (`shouldBe` "b062e8ccf3685549b6c489a4e94966bc4695b75b")
-                 ]
-               )
-             , ( "18 mnemonic words", mnemonics18
-               , [ expectResponseCode @IO HTTP.status201
-                 , expectField walletId
-                    (`shouldBe` "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11")
-                 ]
-               )
-             , ( "21 mnemonic words" , mnemonics21
-               , [ expectResponseCode @IO HTTP.status201
-                 , expectField walletId
-                    (`shouldBe` "7e8c1af5ff2218f388a313f9c70f0ff0550277e4")
-                 ]
-               )
-             , ( "24 mnemonic words", mnemonics24
-               , [ expectResponseCode @IO HTTP.status201
-                 , expectField walletId
-                    (`shouldBe` "a6b6625cd2bfc51a296b0933f77020991cc80374")
-                 ]
-               )
+             [ ( "15 mnemonic words", M15 )
+             , ( "18 mnemonic words", M18 )
+             , ( "21 mnemonic words", M21 )
+             , ( "24 mnemonic words", M24 )
              ]
 
-        forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
+        forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> do
+            m <- genMnemonics' mnemonics
             let payload = Json [json| {
                     "name": "Just a łallet",
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{m},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r expectations
+            verify r [ expectResponseCode @IO HTTP.status201 ]
 
     describe "WALLETS_CREATE_06 - Mnemonics second factor" $ do
         let matrix =
-                 [ ( "9 mnemonic words", mnemonics9
-                   , [ expectResponseCode @IO HTTP.status201
-                     , expectField walletId
-                        (`shouldBe` "4b1a865e39d1006efb99f538b05ea2343b567108")
-                     ]
-                   )
-                 , ( "12 mnemonic words", mnemonics12
-                   , [ expectResponseCode @IO HTTP.status201
-                     , expectField walletId
-                        (`shouldBe` "2cf060fe53e4e0593f145f22b858dfc60676d4ab")
-                     ]
-                   )
+                 [ ( "9 mnemonic words", M9 )
+                 , ( "12 mnemonic words", M12 )
                  ]
-        forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
+        forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> do
+            m15 <- genMnemonics' M15
+            mSecondFactor <- genMnemonics' mnemonics
+
             let payload = Json [json| {
                     "name": "Just a łallet",
-                    "mnemonic_sentence": #{mnemonics15},
-                    "mnemonic_second_factor": #{mnemonics},
+                    "mnemonic_sentence": #{m15},
+                    "mnemonic_second_factor": #{mSecondFactor},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r expectations
+            verify r [ expectResponseCode @IO HTTP.status201 ]
 
     describe "WALLETS_CREATE_07 - Passphrase" $ do
         let minLength = passphraseMinLength (Proxy @"raw")
         let maxLength = passphraseMaxLength (Proxy @"raw")
         let matrix =
                 [ ( show minLength ++ " char long"
-                  , T.pack (replicate minLength 'ź')
-                  , [ expectResponseCode @IO HTTP.status201
-                    ]
-                  )
+                  , T.pack (replicate minLength 'ź') )
                 , ( show maxLength ++ " char long"
-                , T.pack (replicate maxLength 'ą')
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
-                , ( "Russian passphrase", russianWalletName
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
-                , ( "Polish passphrase", polishWalletName
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
-                , ( "Kanji passphrase", kanjiWalletName
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
-                , ( "Arabic passphrase", arabicWalletName
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
-                , ( "Wildcards passphrase", wildcardsWalletName
-                  , [ expectResponseCode @IO HTTP.status201 ]
-                  )
+                  , T.pack (replicate maxLength 'ą') )
+                , ( "Russian passphrase", russianWalletName )
+                , ( "Polish passphrase", polishWalletName )
+                , ( "Kanji passphrase", kanjiWalletName )
+                , ( "Arabic passphrase", arabicWalletName )
+                , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
-        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
+        forM_ matrix $ \(title, passphrase) -> it title $ \ctx -> do
+            m24 <- genMnemonics @24
             let payload = Json [json| {
                     "name": "Secure Wallet",
-                    "mnemonic_sentence": #{mnemonics24},
+                    "mnemonic_sentence": #{m24},
                     "passphrase": #{passphrase}
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r expectations
+            verify r [ expectResponseCode @IO HTTP.status201 ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
         let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
@@ -478,7 +429,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
-            let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
+            m24 <- genMnemonics @24
+            let payload = payloadWith' "Secure Wallet" m24 (fromIntegral addrPoolGap)
             rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify rW expectations
 
@@ -492,9 +444,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
+        m21 <- genMnemonics @21
         let payload = Json [json| {
                 "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics21},
+                "mnemonic_sentence": #{m21},
                 "passphrase": "Secure passphrase"
                 } |]
         r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
@@ -533,9 +486,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                    )
                  ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+            m21 <- genMnemonics @21
             let payload = Json [json| {
                     "name": "Secure Wallet",
-                    "mnemonic_sentence": #{mnemonics21},
+                    "mnemonic_sentence": #{m21},
                     "passphrase": "Secure passphrase"
                     } |]
             r <- request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
@@ -575,10 +529,12 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
     it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> do
+        m18 <- genMnemonics @18
+        m9 <- genMnemonics @9
         let payload = Json [json| {
                 "name": "Wallet to be listed",
-                "mnemonic_sentence": #{mnemonics18},
-                "mnemonic_second_factor": #{mnemonics9},
+                "mnemonic_sentence": #{m18},
+                "mnemonic_second_factor": #{m9},
                 "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 20
                 } |]
@@ -599,13 +555,14 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectListField 0
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
             , expectListField 0 #delegation (`shouldBe` notDelegating [])
-            , expectListField 0 walletId
-                    (`shouldBe` "dfe87fcf0560fb57937a6468ea51e860672fad79")
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> do
-        let walletDetails = [("1", mnemonics15), ("2", mnemonics18)
-                    , ("3", mnemonics21)]
+        m15 <- genMnemonics @15
+        m18 <- genMnemonics @18
+        m21 <- genMnemonics @21
+        let walletDetails = [("1", m15), ("2", m18)
+                    , ("3", m21)]
         forM_ walletDetails $ \(name, mnemonics) -> do
             let payload = payloadWith name mnemonics
             request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
@@ -857,9 +814,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
         forM_ matrix $ \(title, oldPass) -> it title $ \ctx -> do
+            m24 <- genMnemonics @24
             let createPayload = Json [json| {
                      "name": "Name of the wallet",
-                     "mnemonic_sentence": #{mnemonics24},
+                     "mnemonic_sentence": #{m24},
                      "passphrase": #{oldPass}
                      } |]
             (_, w) <- unsafeRequest @ApiWallet ctx
@@ -1306,15 +1264,3 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
-  where
-    genMnemonics
-       :: forall mw ent csz.
-           ( ConsistentEntropy ent mw csz
-           , ValidEntropySize ent
-           , ValidChecksumSize ent csz
-           , ent ~ EntropySize mw
-           , mw ~ MnemonicWords ent
-           )
-       => IO [Text]
-    genMnemonics =
-        mnemonicToText . entropyToMnemonic @mw <$> genEntropy

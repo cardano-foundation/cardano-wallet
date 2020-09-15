@@ -11,15 +11,7 @@ module Test.Integration.Framework.TestData
     , invalidMnemonics15
     , japaneseMnemonics12
     , japaneseMnemonics15
-    , mnemonics3
-    , mnemonics6
-    , mnemonics9
-    , mnemonics12
-    , mnemonics15
     , notInDictMnemonics15
-    , mnemonics18
-    , mnemonics21
-    , mnemonics24
     , specMnemonicByron
     , specMnemonicSentence
     , specMnemonicSecondFactor
@@ -105,41 +97,6 @@ falseWalletIds =
         , ("39 chars hex", replicate 39 '1')
         , ("41 chars hex", replicate 41 '1')
         ]
-
-mnemonics3 :: [Text]
-mnemonics3 = ["diamond", "flee", "window"]
-
-mnemonics6 :: [Text]
-mnemonics6 = ["tornado", "canvas", "peasant", "spike", "enrich", "dilemma"]
-
-mnemonics9 :: [Text]
-mnemonics9 = ["subway", "tourist", "abstract", "roast", "border", "curious",
-    "exercise", "work", "narrow"]
-
-mnemonics12 :: [Text]
-mnemonics12 = ["agent", "siren", "roof", "water", "giant", "pepper",
-    "obtain", "oxygen", "treat", "vessel", "hip", "garlic"]
-
-mnemonics15 :: [Text]
-mnemonics15 = ["network", "empty", "cause", "mean", "expire", "private",
-    "finger", "accident", "session", "problem", "absurd", "banner", "stage",
-    "void", "what"]
-
-mnemonics18 :: [Text]
-mnemonics18 = ["whisper", "control", "diary", "solid", "cattle", "salmon",
-    "whale", "slender", "spread", "ice", "shock", "solve", "panel",
-    "caution", "upon", "scatter", "broken", "tonight"]
-
-mnemonics21 :: [Text]
-mnemonics21 = ["click", "puzzle", "athlete", "morning", "fold", "retreat",
-    "across", "timber", "essay", "drill", "finger", "erase", "galaxy",
-    "spoon", "swift", "eye", "awesome", "shrimp", "depend", "zebra", "token"]
-
-mnemonics24 :: [Text]
-mnemonics24 = ["decade", "distance", "denial", "jelly", "wash", "sword",
-    "olive", "perfect", "jewel", "renew", "wrestle", "cupboard", "record",
-    "scale", "pattern", "invite", "other", "fruit", "gloom", "west", "oak",
-    "deal", "seek", "hand"]
 
 invalidMnemonics12 :: [Text]
 invalidMnemonics12 = ["word","word","word","word","word","word","word",
@@ -240,7 +197,9 @@ payloadWith' name mnemonics gap = Json [json| {
 simplePayload :: Payload
 simplePayload = Json [json| {
     "name": "Secure Wallet",
-    "mnemonic_sentence": #{mnemonics21},
+    "mnemonic_sentence": ["click", "puzzle", "athlete", "morning", "fold", "retreat",
+        "across", "timber", "essay", "drill", "finger", "erase", "galaxy",
+        "spoon", "swift", "eye", "awesome", "shrimp", "depend", "zebra", "token"],
     "passphrase": #{fixturePassphrase}
     } |]
 
