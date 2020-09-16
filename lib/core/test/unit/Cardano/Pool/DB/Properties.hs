@@ -911,7 +911,8 @@ prop_listRegisteredPools DBLayer {..} entries =
         monitor $ counterexample $ unlines
             [ "Read from DB: " <> show pools
             ]
-        assert (L.sort pools == L.sort (view #poolId <$> entries))
+        assertWith "pools written == pools retrieved"
+            (L.sort pools == L.sort (view #poolId <$> entries))
 
 -- | Test that `listRetiredPools` returns the correct set of retirements for
 --   any given epoch.
