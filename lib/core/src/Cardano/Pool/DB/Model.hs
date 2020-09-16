@@ -281,7 +281,7 @@ mListRetiredPools epochNo = do
             Map.union retirements retirementCancellations
             -- Keep only the most-recently published retirement epoch for each
             -- pool (which will be 'Nothing' in the case of a cancellation):
-            & Map.mapKeys snd
+            & retainOnlyMostRecent
             -- Remove pools that have had their retirements cancelled:
             & pruneEmptyValues
             -- Remove pools that have not yet retired:
@@ -293,6 +293,13 @@ mListRetiredPools epochNo = do
   where
     pruneEmptyValues :: Map k (Maybe v) -> Map k v
     pruneEmptyValues = Map.mapMaybe id
+
+    retainOnlyMostRecent :: Ord k => Map (publicationTime, k) v -> Map k v
+    retainOnlyMostRecent =
+        -- If more than one key from the original map is mapped to the same key
+        -- in the result map, 'Map.mapKeys' guarantees to retain only the value
+        -- corresponding to the greatest of the original keys.
+        Map.mapKeys snd
 
 mReadPoolLifeCycleStatus :: PoolId -> ModelOp PoolLifeCycleStatus
 mReadPoolLifeCycleStatus poolId =
