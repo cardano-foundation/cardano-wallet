@@ -71,6 +71,8 @@
         "word-wrap" = (((hackage.word-wrap)."0.4.1").revisions).default;
         "websockets" = (((hackage.websockets)."0.12.6.1").revisions).default;
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
+        "unordered-containers" = (((hackage.unordered-containers)."0.2.12.0").revisions).default;
+        "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions)."a0d6ddc9ebcfa965a5cbcff1d06d46a79d44ea5a0335c583c2a51bcb41334487";
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;

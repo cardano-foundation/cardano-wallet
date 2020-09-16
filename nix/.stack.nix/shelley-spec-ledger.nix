@@ -41,9 +41,11 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."cborg-json" or (errorHandler.buildDepError "cborg-json"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."partial-order" or (errorHandler.buildDepError "partial-order"))
           (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
@@ -60,8 +62,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "74188f62ff743c690bdf287f7fa18eaa2ee354d4";
-      sha256 = "1asc4pgkspqlrg67jykz7h1i9wqf4ms1q1gxllcr3dpa566zdc5q";
+      rev = "4edcdab87510b2657c62bcf14035817ce6e23455";
+      sha256 = "0pny288kg9di32wdi0y6fbbr3791flc6x44zmvvw6m1hx8299hhq";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/executable-spec; echo source root reset to \$sourceRoot";
     }

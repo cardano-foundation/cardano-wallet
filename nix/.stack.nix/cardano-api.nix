@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-api"; version = "1.19.1"; };
+      identifier = { name = "cardano-api"; version = "1.20.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -81,7 +81,6 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."aeson-qq" or (errorHandler.buildDepError "aeson-qq"))
             (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
@@ -112,8 +111,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "eac29083ef25dc619f15854623275fb37e63d2b8";
-      sha256 = "116b2aa8im7pgknc8ln8j0hh4fmb810m8fk2j06kr1xq83xfvdsb";
+      rev = "bd6863ed32eb0ccd0379689b5913dbbb6769c46f";
+      sha256 = "11yvjx1zv2rdhkcyjm2c6mcimm4njwpvg7vljad7as7ywikxxhgc";
       });
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }

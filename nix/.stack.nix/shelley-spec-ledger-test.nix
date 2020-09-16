@@ -165,8 +165,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "74188f62ff743c690bdf287f7fa18eaa2ee354d4";
-      sha256 = "1asc4pgkspqlrg67jykz7h1i9wqf4ms1q1gxllcr3dpa566zdc5q";
+      rev = "4edcdab87510b2657c62bcf14035817ce6e23455";
+      sha256 = "0pny288kg9di32wdi0y6fbbr3791flc6x44zmvvw6m1hx8299hhq";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/shelley-spec-ledger-test; echo source root reset to \$sourceRoot";
     }
