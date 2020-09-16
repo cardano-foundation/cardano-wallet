@@ -79,6 +79,7 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.DSL as DSL
     ( Context (..)
     , Headers (..)
+    , MnemonicLength (..)
     , Payload (..)
     , TxDescription (..)
     , between
@@ -668,7 +669,7 @@ fixtureExternalTx ctx toSend = do
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng
 
     -- we create destination empty wallet
-    mnemonics15 <- genMnemonics @15
+    mnemonics15 <- genMnemonics M15
     let createWallet = Json [json| {
             "name": "Destination Wallet",
             "mnemonic_sentence": #{mnemonics15},

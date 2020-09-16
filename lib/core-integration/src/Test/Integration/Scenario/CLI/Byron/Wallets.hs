@@ -13,16 +13,6 @@ module Test.Integration.Scenario.CLI.Byron.Wallets
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MnemonicWords
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -39,8 +29,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -58,6 +46,7 @@ import Test.Hspec
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
+    , MnemonicLength (..)
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyIcarusWallet
@@ -68,6 +57,7 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     , expectWalletUTxO
     , fixturePassphrase
+    , genMnemonics
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listWalletsViaCLI
@@ -97,8 +87,8 @@ spec = describe "BYRON_CLI_WALLETS" $ do
 
     describe "CLI_BYRON_GET_04, CLI_BYRON_DELETE_01, BYRON_RESTORE_02, BYRON_RESTORE_03 -\
         \ Deleted wallet is not available, but can be restored" $ do
-        let matrix = [ ("random", genMnemonics @12)
-                     , ("icarus", genMnemonics @15)
+        let matrix = [ ("random", genMnemonics M12)
+                     , ("icarus", genMnemonics M15)
                      ]
         forM_ matrix $ \(style, genM) -> it style $ \ctx -> do
             mnemonic <- genM
@@ -203,33 +193,33 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                     , "words"
                     ]
 
-        it' "random" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "random" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "random" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "icarus" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "icarus" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "icarus" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "trezor" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "trezor" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "trezor" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "ledger" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "ledger" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "ledger" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M24) scenarioSuccess -- ✔️
 
     describe "CLI_BYRON_RESTORE_06 - Passphrase" $ do
         let minLength = passphraseMinLength (Proxy @"raw")
@@ -251,7 +241,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         [ "Name of the wallet"
                         , "--wallet-style", "random"
                         ]
-                mnemonic <- genMnemonics @12
+                mnemonic <- genMnemonics M12
                 (c, out, err) <- createWalletViaCLI @t ctx
                             args (unwords $ T.unpack <$> mnemonic)
                             "\n" (T.unpack passphrase)
@@ -346,14 +336,3 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                 T.unpack e `shouldContain` errMsg
                 c `shouldBe` ExitFailure 1
                 o `shouldBe` mempty
-
-genMnemonics
-    :: forall mw ent csz.
-        ( ConsistentEntropy ent mw csz
-        , ValidEntropySize ent
-        , ValidChecksumSize ent csz
-        , ent ~ EntropySize mw
-        , mw ~ MnemonicWords ent
-        )
-    => IO [Text]
-genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy

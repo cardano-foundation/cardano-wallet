@@ -86,7 +86,6 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , genMnemonics
-    , genMnemonics'
     , getFromResponse
     , json
     , listAddresses
@@ -131,8 +130,8 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
-        m15 <- genMnemonics @15
-        m12 <- genMnemonics @12
+        m15 <- genMnemonics M15
+        m12 <- genMnemonics M12
         let payload = Json [json| {
                 "name": "1st Wallet",
                 "mnemonic_sentence": #{m15},
@@ -266,7 +265,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
-        m21 <- genMnemonics @21
+        m21 <- genMnemonics M21
         let payload = Json [json| {
                 "name": "Some Wallet",
                 "mnemonic_sentence": #{m21},
@@ -335,7 +334,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> do
-            m24 <- genMnemonics @24
+            m24 <- genMnemonics M24
             let payload = Json [json| {
                     "name": #{walName},
                     "mnemonic_sentence": #{m24},
@@ -353,7 +352,7 @@ spec = describe "SHELLEY_WALLETS" $ do
              ]
 
         forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> do
-            m <- genMnemonics' mnemonics
+            m <- genMnemonics mnemonics
             let payload = Json [json| {
                     "name": "Just a łallet",
                     "mnemonic_sentence": #{m},
@@ -368,8 +367,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                  , ( "12 mnemonic words", M12 )
                  ]
         forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> do
-            m15 <- genMnemonics' M15
-            mSecondFactor <- genMnemonics' mnemonics
+            m15 <- genMnemonics M15
+            mSecondFactor <- genMnemonics mnemonics
 
             let payload = Json [json| {
                     "name": "Just a łallet",
@@ -395,7 +394,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
         forM_ matrix $ \(title, passphrase) -> it title $ \ctx -> do
-            m24 <- genMnemonics @24
+            m24 <- genMnemonics M24
             let payload = Json [json| {
                     "name": "Secure Wallet",
                     "mnemonic_sentence": #{m24},
@@ -429,7 +428,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
-            m24 <- genMnemonics @24
+            m24 <- genMnemonics M24
             let payload = payloadWith' "Secure Wallet" m24 (fromIntegral addrPoolGap)
             rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify rW expectations
@@ -444,7 +443,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
-        m21 <- genMnemonics @21
+        m21 <- genMnemonics M21
         let payload = Json [json| {
                 "name": "Secure Wallet",
                 "mnemonic_sentence": #{m21},
@@ -486,7 +485,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                    )
                  ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
-            m21 <- genMnemonics @21
+            m21 <- genMnemonics M21
             let payload = Json [json| {
                     "name": "Secure Wallet",
                     "mnemonic_sentence": #{m21},
@@ -529,8 +528,8 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
     it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> do
-        m18 <- genMnemonics @18
-        m9 <- genMnemonics @9
+        m18 <- genMnemonics M18
+        m9 <- genMnemonics M9
         let payload = Json [json| {
                 "name": "Wallet to be listed",
                 "mnemonic_sentence": #{m18},
@@ -558,9 +557,9 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> do
-        m15 <- genMnemonics @15
-        m18 <- genMnemonics @18
-        m21 <- genMnemonics @21
+        m15 <- genMnemonics M15
+        m18 <- genMnemonics M18
+        m21 <- genMnemonics M21
         let walletDetails = [("1", m15), ("2", m18)
                     , ("3", m21)]
         forM_ walletDetails $ \(name, mnemonics) -> do
@@ -814,7 +813,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
         forM_ matrix $ \(title, oldPass) -> it title $ \ctx -> do
-            m24 <- genMnemonics @24
+            m24 <- genMnemonics M24
             let createPayload = Json [json| {
                      "name": "Name of the wallet",
                      "mnemonic_sentence": #{m24},
@@ -1154,9 +1153,9 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "BYRON_LIST_02,03 -\
         \ Byron wallets listed only via Byron endpoints \\\
         \ Shelley wallets listed only via new endpoints" $ \ctx -> do
-        m1 <- genMnemonics @12
-        m2 <- genMnemonics @12
-        m3 <- genMnemonics @12
+        m1 <- genMnemonics M12
+        m2 <- genMnemonics M12
+        m3 <- genMnemonics M12
         _ <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
         _ <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
         _ <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)
@@ -1192,9 +1191,9 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "BYRON_LIST_04, DELETE_01 -\
         \ Deleted wallets cannot be listed" $ \ctx -> do
-        m1 <- genMnemonics @12
-        m2 <- genMnemonics @12
-        m3 <- genMnemonics @12
+        m1 <- genMnemonics M12
+        m2 <- genMnemonics M12
+        m3 <- genMnemonics M12
         _   <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
         wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
         _   <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)

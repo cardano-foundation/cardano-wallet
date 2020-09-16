@@ -527,7 +527,17 @@ walletId =
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
-genMnemonics
+data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
+
+genMnemonics :: MnemonicLength -> IO [Text]
+genMnemonics M9 = genMnemonics' @9
+genMnemonics M12 = genMnemonics' @12
+genMnemonics M15 = genMnemonics' @15
+genMnemonics M18 = genMnemonics' @18
+genMnemonics M21 = genMnemonics' @21
+genMnemonics M24 = genMnemonics' @24
+
+genMnemonics'
    :: forall mw ent csz.
        ( ConsistentEntropy ent mw csz
        , ValidEntropySize ent
@@ -536,18 +546,8 @@ genMnemonics
        , mw ~ MnemonicWords ent
        )
    => IO [Text]
-genMnemonics =
+genMnemonics' =
     mnemonicToText . entropyToMnemonic @mw <$> genEntropy
-
-data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
-
-genMnemonics' :: MnemonicLength -> IO [Text]
-genMnemonics' M9 = genMnemonics @9
-genMnemonics' M12 = genMnemonics @12
-genMnemonics' M15 = genMnemonics @15
-genMnemonics' M18 = genMnemonics @18
-genMnemonics' M21 = genMnemonics @21
-genMnemonics' M24 = genMnemonics @24
 
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)

@@ -15,16 +15,6 @@ module Test.Integration.Scenario.API.Byron.Wallets
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MnemonicWords
-    , ValidChecksumSize
-    , ValidEntropySize
-    , entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
-    )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
@@ -50,8 +40,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( SpecWith, describe, runIO, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Expectations.Lifted
@@ -61,6 +49,7 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
+    , MnemonicLength (..)
     , Payload (..)
     , emptyByronWalletFromXPrvWith
     , emptyByronWalletWith
@@ -117,9 +106,9 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> do
-            m1 <- genMnemonics @12
-            m2 <- genMnemonics @12
-            m3 <- genMnemonics @12
+            m1 <- genMnemonics M12
+            m2 <- genMnemonics M12
+            m3 <- genMnemonics M12
             _ <- emptyByronWalletWith ctx "random" ("b1", m1, fixturePassphrase)
             _ <- emptyByronWalletWith ctx "random" ("b2", m2, fixturePassphrase)
             _ <- emptyByronWalletWith ctx "random" ("b3", m3, fixturePassphrase)
@@ -138,9 +127,9 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> do
         let pwd = fixturePassphrase
-        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
-        genMnemonics @12 >>= \m -> void (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
-        genMnemonics @15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
+        genMnemonics M15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
+        genMnemonics M12 >>= \m -> void (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
+        genMnemonics M15 >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
         rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
         verify rl
             [ expectResponseCode @IO HTTP.status200
@@ -223,37 +212,37 @@ spec = describe "BYRON_WALLETS" $ do
                     , "words"
                     ]
 
-        it' "random" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "random" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "random" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "random" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "random" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "icarus" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "icarus" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "icarus" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "icarus" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "icarus" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "trezor" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "trezor" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "trezor" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "trezor" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "trezor" (genMnemonics M24) scenarioSuccess -- ✔️
 
-        it' "ledger" (genMnemonics @9)  scenarioFailure -- ❌
-        it' "ledger" (genMnemonics @12) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @15) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @18) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @21) scenarioSuccess -- ✔️
-        it' "ledger" (genMnemonics @24) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M9)  scenarioFailure -- ❌
+        it' "ledger" (genMnemonics M12) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M15) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M18) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M21) scenarioSuccess -- ✔️
+        it' "ledger" (genMnemonics M24) scenarioSuccess -- ✔️
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> do
-            m <- genMnemonics @12
+            m <- genMnemonics M12
             w <- emptyByronWalletWith ctx "random"
                 ("Byron Wallet", m, fixturePassphrase)
             rd <- request
@@ -264,7 +253,7 @@ spec = describe "BYRON_WALLETS" $ do
             w ^. walletId `shouldBe` wr ^. walletId
 
     it "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> do
-        mnemonic <- genMnemonics @12
+        mnemonic <- genMnemonics M12
         let payload = Json [json| {
                 "name": "Some Byron Wallet",
                 "mnemonic_sentence": #{mnemonic},
@@ -312,7 +301,7 @@ spec = describe "BYRON_WALLETS" $ do
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $
             \ctx -> do
-                mnemonics12 <- genMnemonics @12
+                mnemonics12 <- genMnemonics M12
                 let payload = Json [json| {
                         "name": "Secure Wallet",
                         "mnemonic_sentence": #{mnemonics12},
@@ -347,7 +336,7 @@ spec = describe "BYRON_WALLETS" $ do
     it "BYRON_UPDATE_NAME_02 - Update names of wallets from Xprv" $ \ctx -> do
         -- Wallet from XPRV
         let wName = "Byron Wallet from XPRV"
-        mnemonics <- genMnemonics @12
+        mnemonics <- genMnemonics M12
         let rootXPrv = rootPrvKeyFromMnemonics mnemonics fixturePassphrase
         w <- emptyByronWalletFromXPrvWith ctx "random"
             (wName, rootXPrv, fixturePassphraseEncrypted)
@@ -454,15 +443,3 @@ spec = describe "BYRON_WALLETS" $ do
         verify r
             [ expectResponseCode @IO HTTP.status204
             ]
-
-  where
-    genMnemonics
-        :: forall mw ent csz.
-            ( ConsistentEntropy ent mw csz
-            , ValidEntropySize ent
-            , ValidChecksumSize ent csz
-            , ent ~ EntropySize mw
-            , mw ~ MnemonicWords ent
-            )
-        => IO [Text]
-    genMnemonics = mnemonicToText . entropyToMnemonic @mw <$> genEntropy
