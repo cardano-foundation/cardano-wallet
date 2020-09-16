@@ -1,0 +1,151 @@
+name: cardano-1.19.1
+
+resolver: lts-14.25
+
+packages:
+- base16-0.1.2.1
+- base58-bytestring-0.1.0
+- base64-0.4.2
+- bech32-1.1.0
+- bech32-th-1.0.2
+- brick-0.47
+- binary-0.8.7.0
+- bimap-0.4.0
+- canonical-json-0.6.0.0
+- cborg-0.2.4.0
+- clock-0.8
+- config-ini-0.2.4.0
+- connection-0.3.1
+- containers-0.5.11.0
+- data-clist-0.1.2.2
+- dns-3.0.4
+- generic-monoid-0.1.0.0
+- generics-sop-0.5.1.0
+- ghc-byteorder-4.11.0.0.10
+- gray-code-0.3.1
+- hedgehog-1.0.2
+- hedgehog-corpus-0.2.0
+- hedgehog-quickcheck-0.1.1
+- hspec-2.7.0
+- hspec-core-2.7.0
+- hspec-discover-2.7.0
+- io-streams-1.5.1.0
+- io-streams-haproxy-1.0.1.0
+- katip-0.8.4.0
+- libsystemd-journal-1.4.4
+- micro-recursion-schemes-5.0.2.2
+- moo-1.2
+- network-3.1.1.1
+- primitive-0.7.1.0
+- prometheus-2.1.2
+- protolude-0.3.0
+- quickcheck-instances-0.3.19
+- QuickCheck-2.12.6.1
+- quiet-0.2
+- snap-core-1.0.4.1
+- snap-server-1.1.1.1
+- sop-core-0.5.0.1
+- statistics-linreg-0.3
+- streaming-binary-0.3.0.1
+- systemd-2.3.0
+- tasty-hedgehog-1.0.0.2
+- text-1.2.4.0
+- text-ansi-0.1.0
+- text-zipper-0.10.1
+- th-lift-instances-0.1.14
+- time-units-1.0.0
+- transformers-except-0.1.1
+- Unique-0.4.7.6
+- word-wrap-0.4.1
+- websockets-0.12.6.1
+- Win32-2.6.2.0
+
+- git: https://github.com/input-output-hk/cardano-base
+  commit: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+  subdirs:
+  - binary
+  - binary/test
+  - cardano-crypto-class
+  - slotting
+  - cardano-crypto-praos
+
+- git: https://github.com/input-output-hk/cardano-crypto
+  commit: 2547ad1e80aeabca2899951601079408becbc92c
+
+- git: https://github.com/input-output-hk/cardano-ledger-specs
+  commit: 4edcdab87510b2657c62bcf14035817ce6e23455
+  subdirs:
+  # small-steps
+  - semantics/executable-spec
+  - semantics/small-steps-test
+  # cs-ledger
+  - byron/ledger/executable-spec
+  - byron/ledger/impl
+  - byron/crypto
+  - byron/ledger/impl/test
+  - byron/crypto/test
+  # cs-blockchain
+  - byron/chain/executable-spec
+  - shelley/chain-and-ledger/dependencies/non-integer
+  - shelley/chain-and-ledger/executable-spec
+  - shelley/chain-and-ledger/shelley-spec-ledger-test
+
+# Needed for shelley-spec-ledger
+- partial-order-0.2.0.0@sha256:a0d6ddc9ebcfa965a5cbcff1d06d46a79d44ea5a0335c583c2a51bcb41334487
+
+- git: https://github.com/input-output-hk/cardano-node
+  commit: bd6863ed32eb0ccd0379689b5913dbbb6769c46f
+  subdirs:
+  - cardano-api
+  - cardano-cli
+  - cardano-config
+  - cardano-node
+
+# Needed for cardano-node
+- unordered-containers-0.2.12.0
+
+- git: https://github.com/input-output-hk/cardano-prelude
+  commit: 0c5b0a6619fadf22f4d62a12154e181a6d035c1c
+  subdirs:
+  - .
+  - test
+
+- git: https://github.com/input-output-hk/cardano-sl-x509
+  commit: 43a036c5bbe68ca2e9cbe611eab7982e2348fe49
+
+- git: https://github.com/input-output-hk/goblins
+  commit: cde90a2b27f79187ca8310b6549331e59595e7ba
+
+- git: https://github.com/input-output-hk/iohk-monitoring-framework
+  commit: 743f266cfe5fff11d18602faf510f22a544ea295
+  subdirs:
+  - contra-tracer
+  - iohk-monitoring
+  - plugins/backend-aggregation
+  - plugins/backend-ekg
+  - plugins/backend-monitoring
+  - plugins/scribe-systemd
+  - tracer-transformers
+  - plugins/backend-trace-forwarder
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+  subdirs:
+  - io-sim
+  - io-sim-classes
+  - network-mux
+  - ntp-client
+  - ouroboros-network
+  - ouroboros-consensus
+  - ouroboros-consensus-byron
+  - ouroboros-consensus-cardano
+  - ouroboros-consensus-shelley
+  - typed-protocols
+  - typed-protocols-examples
+  - ouroboros-network-framework
+  - Win32-network
+
+- git: https://github.com/snoyberg/http-client.git
+  commit: 1a75bdfca014723dd5d40760fad854b3f0f37156
+  subdirs:
+  - http-client

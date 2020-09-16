@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/e7de1cc21987a9f3460477016116c8abf194ce81/snapshots/cardano-1.19.1-patched.yaml
+resolver: snapshot.yaml
 
 packages:
 - lib/core
