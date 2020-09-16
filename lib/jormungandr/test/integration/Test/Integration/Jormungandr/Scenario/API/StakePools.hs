@@ -331,6 +331,9 @@ spec = do
                 ]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \(_,_,ctx) -> do
+
+        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -365,6 +368,9 @@ spec = do
 
     it "STAKE_POOLS_JOIN_04 -\
         \Delegate, stop in the next epoch, and still earn rewards" $ \(_,_,ctx) -> do
+
+        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+
         w <- fixtureWallet ctx
         (_, p1:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -680,6 +686,9 @@ spec = do
         expectErrorMessage errMsg403WrongPass r
 
     it "STAKE_POOL_NEXT_01 - Can join/re-join another but cannot quit stake pool" $ \(_,_,ctx) -> do
+
+        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
