@@ -386,10 +386,8 @@ mRollbackTo ti point = do
         $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
     modify #retirements
         $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
-    poolIds <-
-        Set.fromList <$> mListRegisteredPools
     modify #owners
-        $ flip Map.restrictKeys poolIds
+        . flip Map.restrictKeys . Set.fromList =<< mListRegisteredPools
   where
     discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy getPoint point' v
