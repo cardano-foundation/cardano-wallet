@@ -123,9 +123,11 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
+    , forAll
     , label
     , property
     , suchThat
+    , (===)
     , (==>)
     )
 import Test.QuickCheck.Monadic
@@ -342,6 +344,12 @@ properties = do
 
         it "There's no checkpoint older than k (+/- 100)" $ \_ ->
             property prop_sparseCheckpointNoOlderThanK
+
+        it "All else equal, sparse checkpoints are the same for all edge size" $ \_ ->
+            property prop_sparseCheckpointEdgeSize0
+
+        it "Checkpoints are eventually stored in a sparse manner" $ \_ ->
+            property prop_checkpointsEventuallyEqual
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
@@ -932,10 +940,91 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg (k, h)) = prop
 
     prop :: Property
     prop = property $ flip all cps $ \cp ->
-        cp == 0 || (age cp - (int $ gapsSize cfg) <= int k)
+        cp == 0 || (age cp - int (gapsSize cfg) <= int k)
 
     age :: Word32 -> Int
     age cp = int h - int cp
+
+-- | This property checks that, the checkpoints kept for an edge size of 0 are
+-- included in the list with a non-null edge size, all else equals.
+prop_sparseCheckpointEdgeSize0
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg (k, h)) = prop
+    & counterexample ("Checkpoints: " <> show cps)
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    cps  = sparseCheckpoints cfg (Quantity k) (Quantity h)
+    cps' = sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity k) (Quantity h)
+
+    prop :: Property
+    prop = property (cps' `L.isSubsequenceOf` cps)
+
+-- | This property shows that, for all possible cuts (i.e. non-null batches) of
+-- a sequence of blocks, the following steps:
+--
+--  For all batch B in sequence:
+--
+--  - Keep all checkpoints in B yielded by sparseCheckpoint with and
+--    edge size of 0.
+--
+--  - Keep the last checkpoint of the batch regardless
+--
+--  - Prune all checkpoints not yielded by sparseCheckpoint with a non-null edge
+--    size
+--
+-- are equivalent to calling `sparseCheckpoints` on the flattened batch
+-- sequence.
+--
+-- Note that the batch creation mimics the way blocks are served by the network
+-- layer to wallets: first by batches of arbitrary size, and then one by one.
+--
+-- The property shows that regardless of how batches are served, after
+-- 'edgeSize' one-by-one step, the end result is the same as if the entire
+-- stream of blocks had been processed in one go.
+prop_checkpointsEventuallyEqual
+    :: GenSparseCheckpointsArgs
+    -> Property
+prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg (k,h)) = prop
+    & counterexample ("h=" <> show h)
+    & counterexample ("k=" <> show k)
+  where
+    prop :: Property
+    prop = forAll (genBatches args) $ \(Batches batches) ->
+        let
+            tip =
+                Quantity $ last $ mconcat batches
+            emptyDB =
+                SparseCheckpointsDB []
+            SparseCheckpointsDB db =
+                L.foldr (\batch -> prune . step batch) emptyDB batches
+        in
+            db === sparseCheckpoints cfg (Quantity k) tip
+
+    step :: [Word32] -> SparseCheckpointsDB -> SparseCheckpointsDB
+    step cps (SparseCheckpointsDB db) =
+        let
+            toKeep =
+                sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity k) (Quantity h)
+            cps' =
+                last cps : (toKeep `L.intersect` cps)
+        in
+            SparseCheckpointsDB $ L.sort $ cps' ++ db
+
+    prune :: SparseCheckpointsDB -> SparseCheckpointsDB
+    prune (SparseCheckpointsDB db) =
+        let
+            tip =
+                Quantity $ last db
+            db' =
+                sparseCheckpoints cfg (Quantity k) tip `L.intersect` db
+        in
+            SparseCheckpointsDB db'
+
+newtype Batches = Batches [[Word32]] deriving Show
+
+newtype SparseCheckpointsDB = SparseCheckpointsDB [Word32] deriving Show
 
 int :: Integral a => a -> Int
 int = fromIntegral
@@ -953,5 +1042,27 @@ instance Arbitrary GenSparseCheckpointsArgs where
         h <- (`mod` 100000) <$> arbitrary
         cfg <- SparseCheckpointsConfig
             <$> choose (1, k-1)
-            <*> choose (0, k)
+            <*> choose (0, 10)
         pure $ GenSparseCheckpointsArgs cfg ( k, h )
+
+-- This functions generate `h` "block header" (modeled as a Word32), grouped in
+-- batches of arbitrary (albeit meaningful) sizes.
+--
+-- Batches always end with `edgeSize` "block header" in singleton batches, to
+-- simulate a fast and slow mode.
+genBatches
+    :: GenSparseCheckpointsArgs
+    -> Gen Batches
+genBatches (GenSparseCheckpointsArgs cfg (_, h)) = do
+    bs <- go [0..h] []
+    let oneByOne = pure <$> [h+1..h+edgeSize cfg]
+    pure (Batches (bs ++ oneByOne))
+  where
+    go :: [Word32] -> [[Word32]] -> Gen [[Word32]]
+    go []     batches = pure $ reverse batches
+    go source batches = do
+        -- NOTE:
+        -- Generate batches that can be larger than the chosen gap size, to make
+        -- sure we generate realistic cases.
+        n <- choose (1, 3 * int (gapsSize cfg))
+        go (drop n source) (take n source : batches)
