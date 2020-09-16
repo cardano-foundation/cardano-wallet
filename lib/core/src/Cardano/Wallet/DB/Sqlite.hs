@@ -61,6 +61,7 @@ import Cardano.Wallet.DB
     , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Sqlite.TH
@@ -1230,7 +1231,7 @@ pruneCheckpoints
 pruneCheckpoints wid cp = do
     let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
     let epochStability = Quantity $ checkpointEpochStability cp
-    let cps = sparseCheckpoints epochStability height
+    let cps = sparseCheckpoints defaultSparseCheckpointsConfig epochStability height
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.

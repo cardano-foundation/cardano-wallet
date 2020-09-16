@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -20,6 +21,8 @@ module Cardano.Wallet.DB
 
       -- * Checkpoints
     , sparseCheckpoints
+    , SparseCheckpointsConfig (..)
+    , defaultSparseCheckpointsConfig
 
       -- * Errors
     , ErrRemovePendingTx (..)
@@ -381,19 +384,20 @@ cleanDB DBLayer{..} = atomically $
 -- Therefore, we need to keep the very first checkpoint in the database, no
 -- matter what.
 sparseCheckpoints
-    :: Quantity "block" Word32
+    :: SparseCheckpointsConfig
+        -- ^ Parameters for the function.
+    -> Quantity "block" Word32
         -- ^ Epoch Stability, i.e. how far we can rollback
     -> Quantity "block" Word32
         -- ^ A given block height
     -> [Word32]
         -- ^ The list of checkpoint heights that should be kept in DB.
-sparseCheckpoints epochStability blkH =
+sparseCheckpoints cfg epochStability blkH  =
     let
-        gapsSize = 100
-        edgeSize = 10
-
+        SparseCheckpointsConfig{gapsSize,edgeSize} = cfg
         k = getQuantity epochStability
         h = getQuantity blkH
+
         minH =
             let x = if h < k then 0 else h - k
             in gapsSize * (x `div` gapsSize)
@@ -405,3 +409,16 @@ sparseCheckpoints epochStability blkH =
             else [h-edgeSize,h-edgeSize+1..h]
     in
         L.sort $ L.nub $ initial : (longTerm ++ shortTerm)
+
+-- | Captures the configuration for the `sparseCheckpoints` function.
+data SparseCheckpointsConfig = SparseCheckpointsConfig
+    { gapsSize :: Word32
+    , edgeSize :: Word32
+    } deriving Show
+
+-- | A sensible default to use in production.
+defaultSparseCheckpointsConfig :: SparseCheckpointsConfig
+defaultSparseCheckpointsConfig = SparseCheckpointsConfig
+    { gapsSize = 1000
+    , edgeSize = 10
+    }

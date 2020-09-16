@@ -194,6 +194,8 @@ import Cardano.Wallet.DB
     , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , SparseCheckpointsConfig (..)
+    , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
@@ -843,7 +845,22 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
         liftIO $ logDelegation delegation
         putDelegationCertificate (PrimaryKey wid) cert slotNo
 
-    let unstable = sparseCheckpoints k (nodeTip ^. #blockHeight)
+    let unstable = sparseCheckpoints cfg k (nodeTip ^. #blockHeight)
+            where
+                -- NOTE
+                -- The edge really is an optimization to avoid rolling back too
+                -- "far" in the past. Yet, we let the edge construct itself
+                -- organically once we reach the tip of the chain and start
+                -- processing blocks one by one.
+                --
+                -- This prevents the wallet from trying to create too many
+                -- checkpoints at once during restoration which causes massive
+                -- performance degradation on large wallets.
+                --
+                -- Rollback may still occur during this short period, but
+                -- rolling back from a few hundred blocks is relatively fast
+                -- anyway.
+                cfg = defaultSparseCheckpointsConfig { edgeSize = 0 }
 
     forM_ (NE.init cps) $ \cp' -> do
         let (Quantity h) = currentTip cp' ^. #blockHeight

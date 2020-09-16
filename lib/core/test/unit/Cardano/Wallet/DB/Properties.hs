@@ -1,11 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -29,7 +27,9 @@ import Cardano.Wallet.DB
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , SparseCheckpointsConfig (..)
     , cleanDB
+    , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Arbitrary
@@ -119,6 +119,7 @@ import Test.QuickCheck
     , Gen
     , Property
     , checkCoverage
+    , choose
     , counterexample
     , cover
     , elements
@@ -289,17 +290,26 @@ properties = do
 
     describe "sparseCheckpoints" $ do
         it "k=2160, h=42" $ \_ -> do
+            let cfg = SparseCheckpointsConfig
+                    { gapsSize = 100
+                    , edgeSize = 10
+                    }
             let k = Quantity 2160
             let h = Quantity 42
+
             -- First unstable block: 0
-            sparseCheckpoints k h `shouldBe`
+            sparseCheckpoints cfg k h `shouldBe`
                 [0,32,33,34,35,36,37,38,39,40,41,42]
 
         it "k=2160, h=2414" $ \_ -> do
+            let cfg = SparseCheckpointsConfig
+                    { gapsSize = 100
+                    , edgeSize = 10
+                    }
             let k = Quantity 2160
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints k h `shouldBe`
+            sparseCheckpoints cfg k h `shouldBe`
                 [ 0    , 500  , 600  , 700  , 800  , 900
                 , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
                 , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
@@ -308,10 +318,26 @@ properties = do
                 , 2710 , 2711 , 2712 , 2713 , 2714
                 ]
 
+        it "k=2160, h=2414" $ \_ -> do
+            let cfg = SparseCheckpointsConfig
+                    { gapsSize = 100
+                    , edgeSize = 0
+                    }
+            let k = Quantity 2160
+            let h = Quantity 2714
+            -- First unstable block: 554
+            sparseCheckpoints cfg k h `shouldBe`
+                [ 0    , 500  , 600  , 700  , 800  , 900
+                , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
+                , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
+                , 2200 , 2300 , 2400 , 2500 , 2600 , 2700
+                , 2714
+                ]
+
         it "The tip is always a checkpoint" $ \_ ->
             property prop_sparseCheckpointTipAlwaysThere
 
-        it "There's at least (min h 10) checkpoints" $ \_ ->
+        it "There's at least (min h edgeSize) checkpoints" $ \_ ->
             property prop_sparseCheckpointMinimum
 
         it "There's no checkpoint older than k (+/- 100)" $ \_ ->
@@ -862,51 +888,51 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
 prop_sparseCheckpointTipAlwaysThere
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs (k, h)) = prop
+prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg (k, h)) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
 
     prop :: Property
     prop = property $ fromIntegral h `elem` cps
 
--- | Check that sparseCheckpoints always return at least 10 checkpoints (or
--- exactly the current height if h < 10).
+-- | Check that sparseCheckpoints always return at least edgeSize checkpoints (or
+-- exactly the current height if h < edgeSize).
 prop_sparseCheckpointMinimum
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs (k, h)) = prop
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg (k, h)) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
 
     prop :: Property
-    prop = property $ fromIntegral (length cps) >= min 10 h
+    prop = property $ fromIntegral (length cps) >= min (edgeSize cfg) h
 
 
 -- | Check that sparseCheckpoints always return checkpoints that can cover
 -- rollbacks up to `k` in the past. This means that, if the current block height
 -- is #3000, and `k=2160`, we should be able to rollback to #840. Since we make
--- checkpoints every 100 blocks, it means that block #800 should be in the list.
+-- checkpoints every gapsSize blocks, it means that block #800 should be in the list.
 --
 -- Note: The initial checkpoint at #0 will always be present.
 prop_sparseCheckpointNoOlderThanK
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs (k, h)) = prop
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg (k, h)) = prop
     & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
     & counterexample ("h=" <> show h)
     & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
 
     prop :: Property
     prop = property $ flip all cps $ \cp ->
-        cp == 0 || (age cp - 100 <= int k)
+        cp == 0 || (age cp - (int $ gapsSize cfg) <= int k)
 
     age :: Word32 -> Int
     age cp = int h - int cp
@@ -917,12 +943,15 @@ int = fromIntegral
 pp :: ProtocolParameters
 pp = dummyProtocolParameters
 
-newtype GenSparseCheckpointsArgs
-    = GenSparseCheckpointsArgs (Word32, Word32)
-    deriving newtype Show
+data GenSparseCheckpointsArgs
+    = GenSparseCheckpointsArgs SparseCheckpointsConfig (Word32, Word32)
+    deriving Show
 
 instance Arbitrary GenSparseCheckpointsArgs where
     arbitrary = do
         k <- (\x -> 10 + (x `mod` 1000)) <$> arbitrary
         h <- (`mod` 100000) <$> arbitrary
-        pure $ GenSparseCheckpointsArgs ( k, h )
+        cfg <- SparseCheckpointsConfig
+            <$> choose (1, k-1)
+            <*> choose (0, k)
+        pure $ GenSparseCheckpointsArgs cfg ( k, h )
