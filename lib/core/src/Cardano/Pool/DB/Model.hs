@@ -77,7 +77,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
-    , getPoolRetirementCertificate
     )
 import Control.Monad.Trans.Class
     ( lift )
@@ -97,8 +96,6 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -275,13 +272,34 @@ mListRegisteredPools =
 
 mListRetiredPools :: EpochNo -> ModelOp [PoolRetirementCertificate]
 mListRetiredPools epochNo = do
-    allKnownPoolIds <- mListRegisteredPools
-    lifeCycleStatuses <- mapM mReadPoolLifeCycleStatus allKnownPoolIds
-    lifeCycleStatuses
-        & fmap getPoolRetirementCertificate
-        & catMaybes
-        & filter ((<= epochNo) . view #retirementEpoch)
+    retirements <- fmap (Just . view #retirementEpoch) <$> get #retirements
+    retirementCancellations <- fmap (const Nothing) <$> get #registrations
+    let retiredPools =
+            -- First, merge the retirements map with the cancellations map.
+            -- A retirement is represented as a 'Just retirementEpoch' value.
+            -- A retirement cancellation is represented as a 'Nothing' value.
+            Map.union retirements retirementCancellations
+            -- Keep only the most-recently published retirement epoch for each
+            -- pool (which will be 'Nothing' in the case of a cancellation):
+            & retainOnlyMostRecent
+            -- Remove pools that have had their retirements cancelled:
+            & pruneEmptyValues
+            -- Remove pools that have not yet retired:
+            & Map.filter (<= epochNo)
+    retiredPools
+        & Map.toList
+        & fmap (uncurry PoolRetirementCertificate)
         & pure
+  where
+    pruneEmptyValues :: Map k (Maybe v) -> Map k v
+    pruneEmptyValues = Map.mapMaybe id
+
+    retainOnlyMostRecent :: Ord k => Map (publicationTime, k) v -> Map k v
+    retainOnlyMostRecent =
+        -- If more than one key from the original map is mapped to the same key
+        -- in the result map, 'Map.mapKeys' guarantees to retain only the value
+        -- corresponding to the greatest of the original keys.
+        Map.mapKeys snd
 
 mReadPoolLifeCycleStatus :: PoolId -> ModelOp PoolLifeCycleStatus
 mReadPoolLifeCycleStatus poolId =
@@ -303,13 +321,17 @@ mUnfetchedPoolMetadataRefs
 mUnfetchedPoolMetadataRefs n = inner
     <$> get #registrations
     <*> get #metadata
+    <*> get #fetchAttempts
   where
-    inner registrations metadata = toTuple <$> take n (Map.elems unfetched)
+    inner registrations metadata fetchAttempts =
+        toTuple <$> take n (Map.elems unfetched)
       where
         unfetched = flip Map.filter registrations $ \r ->
             case poolMetadata r of
                 Nothing -> False
-                Just (_, hash) -> hash `notElem` Map.keys metadata
+                Just fkey@(_, hash) -> (&&)
+                    (hash `notElem` Map.keys metadata)
+                    (fkey `notElem` Map.keys fetchAttempts)
         toTuple PoolRegistrationCertificate{poolId,poolMetadata} =
             (poolId, metadataUrl, metadataHash)
           where
@@ -364,10 +386,8 @@ mRollbackTo ti point = do
         $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
     modify #retirements
         $ Map.mapMaybeWithKey $ discardBy id . view #slotNo . fst
-    poolIds <-
-        Set.fromList <$> mListRegisteredPools
     modify #owners
-        $ flip Map.restrictKeys poolIds
+        . flip Map.restrictKeys . Set.fromList =<< mListRegisteredPools
   where
     discardBy :: Ord point => (SlotNo -> point) -> point -> a -> Maybe a
     discardBy getPoint point' v
