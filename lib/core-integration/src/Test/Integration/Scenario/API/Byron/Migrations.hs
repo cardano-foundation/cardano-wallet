@@ -47,6 +47,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Typeable
+    ( Typeable, typeOf )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -99,6 +101,7 @@ spec :: forall n t.
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
+    , Typeable t
     ) => SpecWith (Context t)
 spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_CALCULATE_01 - \
@@ -257,17 +260,23 @@ spec = describe "BYRON_MIGRATIONS" $ do
         addrs <- listAddresses @n ctx wNew
         let addr1 = (addrs !! 1) ^. #id
 
+        numOfTxs <- case (show (typeOf (_target ctx))) of
+                s | s == "Proxy * Jormungandr" -> pure 1
+                s | s == "Proxy * (IO Shelley)" -> pure 20
+                _ -> fail "unknown target backend?"
+
         let payloadMigrate =
                 Json [json|
                     { passphrase: #{fixturePassphrase}
                     , addresses: [#{addr1}]
                     }|]
-        request @[ApiTransaction n] ctx
+        rm <- request @[ApiTransaction n] ctx
             (Link.migrateWallet @'Byron wOld)
             Default
-            payloadMigrate >>= flip verify
+            payloadMigrate
+        verify rm
             [ expectResponseCode @IO HTTP.status202
-            , expectField id ((`shouldBe` 20). length)
+            , expectField id ( (`shouldBe` (numOfTxs)) . length )
             ]
 
         -- Check that funds become available in the target wallet:
@@ -284,7 +293,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
                         (#balance . #getApiT . #total)
                         ( `shouldBe` Quantity expectedBalance)
                 ]
-
         -- Analyze the target wallet UTxO distribution
         request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
             Default
