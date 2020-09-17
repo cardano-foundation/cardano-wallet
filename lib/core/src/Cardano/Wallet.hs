@@ -845,7 +845,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
         liftIO $ logDelegation delegation
         putDelegationCertificate (PrimaryKey wid) cert slotNo
 
-    let unstable = sparseCheckpoints cfg k (nodeTip ^. #blockHeight)
+    let unstable = sparseCheckpoints cfg (nodeTip ^. #blockHeight)
             where
                 -- NOTE
                 -- The edge really is an optimization to avoid rolling back too
@@ -860,7 +860,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
                 -- Rollback may still occur during this short period, but
                 -- rolling back from a few hundred blocks is relatively fast
                 -- anyway.
-                cfg = defaultSparseCheckpointsConfig { edgeSize = 0 }
+                cfg = (defaultSparseCheckpointsConfig k) { edgeSize = 0 }
 
     forM_ (NE.init cps) $ \cp' -> do
         let (Quantity h) = currentTip cp' ^. #blockHeight

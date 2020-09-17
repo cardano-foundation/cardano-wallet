@@ -1231,7 +1231,8 @@ pruneCheckpoints
 pruneCheckpoints wid cp = do
     let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
     let epochStability = Quantity $ checkpointEpochStability cp
-    let cps = sparseCheckpoints defaultSparseCheckpointsConfig epochStability height
+    let cfg = defaultSparseCheckpointsConfig epochStability
+    let cps = sparseCheckpoints cfg height
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.

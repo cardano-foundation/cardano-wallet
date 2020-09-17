@@ -295,23 +295,23 @@ properties = do
             let cfg = SparseCheckpointsConfig
                     { gapsSize = 100
                     , edgeSize = 10
+                    , epochStability = 2160
                     }
-            let k = Quantity 2160
             let h = Quantity 42
 
             -- First unstable block: 0
-            sparseCheckpoints cfg k h `shouldBe`
+            sparseCheckpoints cfg h `shouldBe`
                 [0,32,33,34,35,36,37,38,39,40,41,42]
 
         it "k=2160, h=2414" $ \_ -> do
             let cfg = SparseCheckpointsConfig
                     { gapsSize = 100
                     , edgeSize = 10
+                    , epochStability = 2160
                     }
-            let k = Quantity 2160
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints cfg k h `shouldBe`
+            sparseCheckpoints cfg h `shouldBe`
                 [ 0    , 500  , 600  , 700  , 800  , 900
                 , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
                 , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
@@ -324,11 +324,11 @@ properties = do
             let cfg = SparseCheckpointsConfig
                     { gapsSize = 100
                     , edgeSize = 0
+                    , epochStability = 2160
                     }
-            let k = Quantity 2160
             let h = Quantity 2714
             -- First unstable block: 554
-            sparseCheckpoints cfg k h `shouldBe`
+            sparseCheckpoints cfg h `shouldBe`
                 [ 0    , 500  , 600  , 700  , 800  , 900
                 , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
                 , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
@@ -345,7 +345,7 @@ properties = do
         it "There's no checkpoint older than k (+/- 100)" $ \_ ->
             property prop_sparseCheckpointNoOlderThanK
 
-        it "All else equal, sparse checkpoints are the same for all edge size" $ \_ ->
+        it "∀ cfg. sparseCheckpoints (cfg { edgeSize = 0 }) ⊆ sparseCheckpoints cfg" $ \_ ->
             property prop_sparseCheckpointEdgeSize0
 
         it "Checkpoints are eventually stored in a sparse manner" $ \_ ->
@@ -896,12 +896,11 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
 prop_sparseCheckpointTipAlwaysThere
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg (k, h)) = prop
+prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg h) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
-    & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity h)
 
     prop :: Property
     prop = property $ fromIntegral h `elem` cps
@@ -911,12 +910,11 @@ prop_sparseCheckpointTipAlwaysThere (GenSparseCheckpointsArgs cfg (k, h)) = prop
 prop_sparseCheckpointMinimum
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg (k, h)) = prop
+prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
-    & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity h)
 
     prop :: Property
     prop = property $ fromIntegral (length cps) >= min (edgeSize cfg) h
@@ -931,16 +929,15 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg (k, h)) = prop
 prop_sparseCheckpointNoOlderThanK
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg (k, h)) = prop
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg h) = prop
     & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
     & counterexample ("h=" <> show h)
-    & counterexample ("k=" <> show k)
   where
-    cps = sparseCheckpoints cfg (Quantity k) (Quantity h)
+    cps = sparseCheckpoints cfg (Quantity h)
 
     prop :: Property
     prop = property $ flip all cps $ \cp ->
-        cp == 0 || (age cp - int (gapsSize cfg) <= int k)
+        cp == 0 || (age cp - int (gapsSize cfg) <= int (epochStability cfg))
 
     age :: Word32 -> Int
     age cp = int h - int cp
@@ -950,13 +947,12 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg (k, h)) = prop
 prop_sparseCheckpointEdgeSize0
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg (k, h)) = prop
+prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg h) = prop
     & counterexample ("Checkpoints: " <> show cps)
     & counterexample ("h=" <> show h)
-    & counterexample ("k=" <> show k)
   where
-    cps  = sparseCheckpoints cfg (Quantity k) (Quantity h)
-    cps' = sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity k) (Quantity h)
+    cps  = sparseCheckpoints cfg (Quantity h)
+    cps' = sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity h)
 
     prop :: Property
     prop = property (cps' `L.isSubsequenceOf` cps)
@@ -986,9 +982,8 @@ prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg (k, h)) = prop
 prop_checkpointsEventuallyEqual
     :: GenSparseCheckpointsArgs
     -> Property
-prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg (k,h)) = prop
+prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) = prop
     & counterexample ("h=" <> show h)
-    & counterexample ("k=" <> show k)
   where
     prop :: Property
     prop = forAll (genBatches args) $ \(Batches batches) ->
@@ -1000,13 +995,13 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg (k,h)) = prop
             SparseCheckpointsDB db =
                 L.foldr (\batch -> prune . step batch) emptyDB batches
         in
-            db === sparseCheckpoints cfg (Quantity k) tip
+            db === sparseCheckpoints cfg tip
 
     step :: [Word32] -> SparseCheckpointsDB -> SparseCheckpointsDB
     step cps (SparseCheckpointsDB db) =
         let
             toKeep =
-                sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity k) (Quantity h)
+                sparseCheckpoints (cfg { edgeSize = 0 }) (Quantity h)
             cps' =
                 last cps : (toKeep `L.intersect` cps)
         in
@@ -1018,7 +1013,7 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg (k,h)) = prop
             tip =
                 Quantity $ last db
             db' =
-                sparseCheckpoints cfg (Quantity k) tip `L.intersect` db
+                sparseCheckpoints cfg tip `L.intersect` db
         in
             SparseCheckpointsDB db'
 
@@ -1033,7 +1028,7 @@ pp :: ProtocolParameters
 pp = dummyProtocolParameters
 
 data GenSparseCheckpointsArgs
-    = GenSparseCheckpointsArgs SparseCheckpointsConfig (Word32, Word32)
+    = GenSparseCheckpointsArgs SparseCheckpointsConfig Word32
     deriving Show
 
 instance Arbitrary GenSparseCheckpointsArgs where
@@ -1043,7 +1038,8 @@ instance Arbitrary GenSparseCheckpointsArgs where
         cfg <- SparseCheckpointsConfig
             <$> choose (1, k-1)
             <*> choose (0, 10)
-        pure $ GenSparseCheckpointsArgs cfg ( k, h )
+            <*> pure k
+        pure $ GenSparseCheckpointsArgs cfg h
 
 -- This functions generate `h` "block header" (modeled as a Word32), grouped in
 -- batches of arbitrary (albeit meaningful) sizes.
@@ -1053,7 +1049,7 @@ instance Arbitrary GenSparseCheckpointsArgs where
 genBatches
     :: GenSparseCheckpointsArgs
     -> Gen Batches
-genBatches (GenSparseCheckpointsArgs cfg (_, h)) = do
+genBatches (GenSparseCheckpointsArgs cfg h) = do
     bs <- go [0..h] []
     let oneByOne = pure <$> [h+1..h+edgeSize cfg]
     pure (Batches (bs ++ oneByOne))

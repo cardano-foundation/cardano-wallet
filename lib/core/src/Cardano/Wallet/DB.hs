@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -59,10 +60,14 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Data.Function
+    ( (&) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32, Word64 )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
@@ -387,19 +392,16 @@ sparseCheckpoints
     :: SparseCheckpointsConfig
         -- ^ Parameters for the function.
     -> Quantity "block" Word32
-        -- ^ Epoch Stability, i.e. how far we can rollback
-    -> Quantity "block" Word32
         -- ^ A given block height
     -> [Word32]
         -- ^ The list of checkpoint heights that should be kept in DB.
-sparseCheckpoints cfg epochStability blkH  =
+sparseCheckpoints cfg blkH  =
     let
-        SparseCheckpointsConfig{gapsSize,edgeSize} = cfg
-        k = getQuantity epochStability
+        SparseCheckpointsConfig{gapsSize,edgeSize,epochStability} = cfg
         h = getQuantity blkH
 
         minH =
-            let x = if h < k then 0 else h - k
+            let x = if h < epochStability then 0 else h - epochStability
             in gapsSize * (x `div` gapsSize)
 
         initial   = 0
@@ -408,17 +410,31 @@ sparseCheckpoints cfg epochStability blkH  =
             then [0..h]
             else [h-edgeSize,h-edgeSize+1..h]
     in
-        L.sort $ L.nub $ initial : (longTerm ++ shortTerm)
+        L.sort (L.nub $ initial : (longTerm ++ shortTerm))
+        & guardGapsSize
+        & guardEdgeSize
+    where
+        guardGapsSize :: HasCallStack => a -> a
+        guardGapsSize
+            | gapsSize cfg > 0 && gapsSize cfg < epochStability cfg = id
+            | otherwise = error "pre-condition failed for gapsSize"
+
+        guardEdgeSize :: HasCallStack => a -> a
+        guardEdgeSize
+            | edgeSize cfg <= epochStability cfg = id
+            | otherwise = error "pre-condition failed for edgeSize"
 
 -- | Captures the configuration for the `sparseCheckpoints` function.
 data SparseCheckpointsConfig = SparseCheckpointsConfig
     { gapsSize :: Word32
     , edgeSize :: Word32
+    , epochStability :: Word32
     } deriving Show
 
 -- | A sensible default to use in production.
-defaultSparseCheckpointsConfig :: SparseCheckpointsConfig
-defaultSparseCheckpointsConfig = SparseCheckpointsConfig
-    { gapsSize = 1000
+defaultSparseCheckpointsConfig :: Quantity "block" Word32 -> SparseCheckpointsConfig
+defaultSparseCheckpointsConfig (Quantity k) = SparseCheckpointsConfig
+    { gapsSize = k `div` 3
     , edgeSize = 10
+    , epochStability = k
     }
