@@ -262,8 +262,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
         numOfTxs <- case (show (typeOf (_target ctx))) of
                 s | s == "Proxy * Jormungandr" -> pure 1
-                s | s == "Proxy * (IO Shelley)" -> pure 20
-                _ -> fail "unknown target backend?"
+                s | s == "Proxy * Shelley" -> pure 20
+                _ -> fail ("unknown target backend? (" <> show (typeOf (_target ctx)) <> ")")
 
         let payloadMigrate =
                 Json [json|
