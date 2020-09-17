@@ -28,6 +28,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
     , ApiNetworkInformation
@@ -69,7 +70,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -454,7 +455,12 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
         let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
-        let addrPoolMax = fromIntegral @_ @Int $ getAddressPoolGap maxBound
+        -- Although maxAddressPoolGap = 100k, there are performance issues when
+        -- creating/using such wallets. Therefore using max gap that is used in Daedalus.
+        -- Performance issues are addressed in ADP-442, ADP-436
+        let maxDaedalusGap = (1_000 :: Word32)
+        let addrPoolBig = fromIntegral maxDaedalusGap
+
         let matrix =
                 [ ( show addrPoolMin
                   , addrPoolMin
@@ -462,10 +468,12 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#addressPoolGap . #getApiT) (`shouldBe` minBound)
                     ]
                   )
-                , ( show addrPoolMax
-                  , addrPoolMax
+                , ( show addrPoolBig
+                  , addrPoolBig
                   , [ expectResponseCode @IO HTTP.status201
-                    , expectField (#addressPoolGap . #getApiT) (`shouldBe` maxBound)
+                    , expectField
+                        (#addressPoolGap . #getApiT . #getAddressPoolGap)
+                        (`shouldBe` maxDaedalusGap)
                   ]
                   )
                 ]
@@ -473,16 +481,15 @@ spec = describe "SHELLEY_WALLETS" $ do
             let payload = payloadWith' "Secure Wallet" mnemonics24 (fromIntegral addrPoolGap)
             rW <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
             verify rW expectations
-            -- FIXME: ADP-436
-            --
-            -- let w = getFromResponse id rW
-            -- rA <- request @[ApiAddress n] ctx
-            --     (Link.listAddresses @'Shelley w) Default Empty
-            -- _ <- request @ApiWallet ctx
-            --     (Link.deleteWallet @'Shelley w) Default Empty
-            -- verify rA
-            --     [ expectListSize addrPoolGap
-            --     ]
+
+            let w = getFromResponse id rW
+            rA <- request @[ApiAddress n] ctx
+                (Link.listAddresses @'Shelley w) Default Empty
+            _ <- request @ApiWallet ctx
+                (Link.deleteWallet @'Shelley w) Default Empty
+            verify rA
+                [ expectListSize addrPoolGap
+                ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
         let payload = Json [json| {
