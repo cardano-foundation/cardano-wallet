@@ -116,6 +116,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , json
+    , minUTxOValue
     , request
     , unsafeRequest
     , verify
@@ -200,7 +201,7 @@ walletApiBench capture ctx = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         pure (wal1, wal2)
 
-    -- Creates n fixture wallets and send 1-lovelace transactions to one of them
+    -- Creates n fixture wallets and send 1-ada transactions to one of them
     -- (m times). The money is sent in batches (see batchSize below) from
     -- additionally created source fixture wallet. Then we wait for the money
     -- to be accommodated in recipient wallet. After that the source fixture
@@ -208,11 +209,11 @@ walletApiBench capture ctx = do
     nFixtureWalletWithTxs n m = do
         (wal1, wal2) <- nFixtureWallet n
 
-        let amt = (1 :: Natural)
+        let amt = minUTxOValue
         let batchSize = 10
         let whole10Rounds = div m batchSize
         let lastBit = mod m batchSize
-        let amtExp val = fromIntegral ((fromIntegral val) + faucetAmt) :: Natural
+        let amtExp val = ((amt * fromIntegral val) + faucetAmt) :: Natural
         let expInflows =
                 if whole10Rounds > 0 then
                     [x*batchSize | x<-[1..whole10Rounds]] ++ [lastBit]
@@ -224,7 +225,7 @@ walletApiBench capture ctx = do
         pure (wal1, wal2)
 
     nFixtureWalletWithUTxOs n utxoNumber = do
-        let utxoExp = replicate utxoNumber 1
+        let utxoExp = replicate utxoNumber minUTxOValue
         wal1 <- fixtureWalletWith @n ctx utxoExp
         (_, wal2) <- nFixtureWallet n
 
@@ -235,7 +236,7 @@ walletApiBench capture ctx = do
                 [ expectSuccess
                 , expectField
                         (#balance . #getApiT . #available . #getQuantity)
-                        (`shouldBe` fromIntegral utxoNumber)
+                        (`shouldBe` (minUTxOValue * (fromIntegral utxoNumber)))
                 ]
 
         rStat <- request @ApiUtxoStatistics ctx
@@ -302,7 +303,7 @@ walletApiBench capture ctx = do
         fmtResult "listTransactions   " t5
 
         (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal2) Empty
-        let amt = 1 :: Natural
+        let amt = minUTxOValue
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
