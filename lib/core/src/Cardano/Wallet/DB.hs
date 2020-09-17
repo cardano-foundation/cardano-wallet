@@ -24,6 +24,7 @@ module Cardano.Wallet.DB
     , sparseCheckpoints
     , SparseCheckpointsConfig (..)
     , defaultSparseCheckpointsConfig
+    , gapSize
 
       -- * Errors
     , ErrRemovePendingTx (..)
@@ -60,14 +61,10 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
-import Data.Function
-    ( (&) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64 )
-import GHC.Stack
-    ( HasCallStack )
+    ( Word32, Word64, Word8 )
 import Numeric.Natural
     ( Natural )
 
@@ -397,44 +394,58 @@ sparseCheckpoints
         -- ^ The list of checkpoint heights that should be kept in DB.
 sparseCheckpoints cfg blkH  =
     let
-        SparseCheckpointsConfig{gapsSize,edgeSize,epochStability} = cfg
+        SparseCheckpointsConfig{edgeSize,epochStability} = cfg
+        g = gapSize cfg
         h = getQuantity blkH
+        e = fromIntegral edgeSize
 
         minH =
             let x = if h < epochStability then 0 else h - epochStability
-            in gapsSize * (x `div` gapsSize)
+            in g * (x `div` g)
 
         initial   = 0
-        longTerm  = [minH,minH+gapsSize..h]
-        shortTerm = if h < edgeSize
+        longTerm  = [minH,minH+g..h]
+        shortTerm = if h < e
             then [0..h]
-            else [h-edgeSize,h-edgeSize+1..h]
+            else [h-e,h-e+1..h]
     in
         L.sort (L.nub $ initial : (longTerm ++ shortTerm))
-        & guardGapsSize
-        & guardEdgeSize
-    where
-        guardGapsSize :: HasCallStack => a -> a
-        guardGapsSize
-            | gapsSize cfg > 0 && gapsSize cfg < epochStability cfg = id
-            | otherwise = error "pre-condition failed for gapsSize"
-
-        guardEdgeSize :: HasCallStack => a -> a
-        guardEdgeSize
-            | edgeSize cfg <= epochStability cfg = id
-            | otherwise = error "pre-condition failed for edgeSize"
 
 -- | Captures the configuration for the `sparseCheckpoints` function.
+--
+-- NOTE: large values of 'edgeSize' aren't recommended as they would mean
+-- storing many unnecessary checkpoints. In Ouroboros Praos, there's a
+-- reasonable probability for small forks of a few blocks so it makes sense to
+-- maintain a small part that is denser near the edge.
 data SparseCheckpointsConfig = SparseCheckpointsConfig
-    { gapsSize :: Word32
-    , edgeSize :: Word32
+    { edgeSize :: Word8
     , epochStability :: Word32
     } deriving Show
 
--- | A sensible default to use in production.
+-- | A sensible default to use in production. See also 'SparseCheckpointsConfig'
 defaultSparseCheckpointsConfig :: Quantity "block" Word32 -> SparseCheckpointsConfig
-defaultSparseCheckpointsConfig (Quantity k) = SparseCheckpointsConfig
-    { gapsSize = k `div` 3
-    , edgeSize = 10
-    , epochStability = k
-    }
+defaultSparseCheckpointsConfig (Quantity epochStability) =
+    SparseCheckpointsConfig
+        { edgeSize = 5
+        , epochStability
+        }
+
+-- | A reasonable gap size used internally in 'sparseCheckpoints'.
+--
+-- 'Reasonable' means that it's not _too frequent_ and it's not too large. A
+-- value that is too small in front of k would require generating much more
+-- checkpoints than necessary.
+--
+-- A value that is larger than `k` may have dramatic consequences in case of
+-- deep rollbacks.
+--
+-- As a middle ground, we current choose `k / 3`, which is justified by:
+--
+-- - The current speed of the network layer (several thousands blocks per seconds)
+-- - The current value of k = 2160
+--
+-- So, `k / 3` = 720, which should remain around a second of time needed to catch
+-- up in case of large rollbacks.
+gapSize :: SparseCheckpointsConfig -> Word32
+gapSize SparseCheckpointsConfig{epochStability} =
+    epochStability `div` 3

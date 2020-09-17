@@ -30,6 +30,7 @@ import Cardano.Wallet.DB
     , SparseCheckpointsConfig (..)
     , cleanDB
     , defaultSparseCheckpointsConfig
+    , gapSize
     , sparseCheckpoints
     )
 import Cardano.Wallet.DB.Arbitrary
@@ -293,48 +294,48 @@ properties = do
     describe "sparseCheckpoints" $ do
         it "k=2160, h=42" $ \_ -> do
             let cfg = SparseCheckpointsConfig
-                    { gapsSize = 100
-                    , edgeSize = 10
+                    { edgeSize = 10
                     , epochStability = 2160
                     }
             let h = Quantity 42
 
             -- First unstable block: 0
             sparseCheckpoints cfg h `shouldBe`
-                [0,32,33,34,35,36,37,38,39,40,41,42]
+                [ 0
+                , 32,33,34,35,36,37,38,39,40,41 -- Short-term checkpoints
+                , 42 -- Tip
+                ]
 
         it "k=2160, h=2414" $ \_ -> do
             let cfg = SparseCheckpointsConfig
-                    { gapsSize = 100
-                    , edgeSize = 10
+                    { edgeSize = 10
                     , epochStability = 2160
                     }
             let h = Quantity 2714
             -- First unstable block: 554
             sparseCheckpoints cfg h `shouldBe`
-                [ 0    , 500  , 600  , 700  , 800  , 900
-                , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
-                , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
-                , 2200 , 2300 , 2400 , 2500 , 2600 , 2700
-                , 2704 , 2705 , 2706 , 2707 , 2708 , 2709
-                , 2710 , 2711 , 2712 , 2713 , 2714
+                [ 0
+                , 720, 1440, 2160               -- Long-term checkpoints
+
+                , 2704, 2705, 2706, 2707, 2708  -- Short-term checkpoints
+                , 2709, 2710, 2711, 2712, 2713  -- edgeSize = 10
+
+                , 2714  -- Tip
                 ]
 
         it "k=2160, h=2414" $ \_ -> do
             let cfg = SparseCheckpointsConfig
-                    { gapsSize = 100
-                    , edgeSize = 0
+                    { edgeSize = 0
                     , epochStability = 2160
                     }
             let h = Quantity 2714
             -- First unstable block: 554
             sparseCheckpoints cfg h `shouldBe`
-                [ 0    , 500  , 600  , 700  , 800  , 900
-                , 1000 , 1100 , 1200 , 1300 , 1400 , 1500
-                , 1600 , 1700 , 1800 , 1900 , 2000 , 2100
-                , 2200 , 2300 , 2400 , 2500 , 2600 , 2700
-                , 2714
+                [ 0
+                , 720, 1440, 2160               -- Long-term checkpoints
+                , 2714  -- Tip
                 ]
+
 
         it "The tip is always a checkpoint" $ \_ ->
             property prop_sparseCheckpointTipAlwaysThere
@@ -917,19 +918,25 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) = prop
     cps = sparseCheckpoints cfg (Quantity h)
 
     prop :: Property
-    prop = property $ fromIntegral (length cps) >= min (edgeSize cfg) h
-
+    prop = property $ fromIntegral (length cps) >= min e h
+      where
+        e = fromIntegral $ edgeSize cfg
 
 -- | Check that sparseCheckpoints always return checkpoints that can cover
 -- rollbacks up to `k` in the past. This means that, if the current block height
 -- is #3000, and `k=2160`, we should be able to rollback to #840. Since we make
--- checkpoints every gapsSize blocks, it means that block #800 should be in the list.
+-- checkpoints every gapSize blocks, it means that block #800 should be in the list.
 --
--- Note: The initial checkpoint at #0 will always be present.
+-- Note 1:
+--   The initial checkpoint at #0 will always be present.
+--
+-- Note 2:
+--   The property only holds for value of 'edgeSize' that are smaller than k
 prop_sparseCheckpointNoOlderThanK
     :: GenSparseCheckpointsArgs
     -> Property
-prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg h) = prop
+prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg h) =
+    (fromIntegral (edgeSize cfg) <= epochStability cfg) ==> prop
     & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
     & counterexample ("h=" <> show h)
   where
@@ -937,10 +944,11 @@ prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg h) = prop
 
     prop :: Property
     prop = property $ flip all cps $ \cp ->
-        cp == 0 || (age cp - int (gapsSize cfg) <= int (epochStability cfg))
+        cp == 0 || (age cp - int (gapSize cfg) <= int (epochStability cfg))
 
     age :: Word32 -> Int
     age cp = int h - int cp
+
 
 -- | This property checks that, the checkpoints kept for an edge size of 0 are
 -- included in the list with a non-null edge size, all else equals.
@@ -1034,11 +1042,8 @@ data GenSparseCheckpointsArgs
 instance Arbitrary GenSparseCheckpointsArgs where
     arbitrary = do
         k <- (\x -> 10 + (x `mod` 1000)) <$> arbitrary
-        h <- (`mod` 100000) <$> arbitrary
-        cfg <- SparseCheckpointsConfig
-            <$> choose (1, k-1)
-            <*> choose (0, 10)
-            <*> pure k
+        h <- (`mod` 10000) <$> arbitrary
+        cfg <- SparseCheckpointsConfig <$> arbitrary <*> pure k
         pure $ GenSparseCheckpointsArgs cfg h
 
 -- This functions generate `h` "block header" (modeled as a Word32), grouped in
@@ -1051,7 +1056,8 @@ genBatches
     -> Gen Batches
 genBatches (GenSparseCheckpointsArgs cfg h) = do
     bs <- go [0..h] []
-    let oneByOne = pure <$> [h+1..h+edgeSize cfg]
+    let e = fromIntegral $ edgeSize cfg
+    let oneByOne = pure <$> [h+1..h+e]
     pure (Batches (bs ++ oneByOne))
   where
     go :: [Word32] -> [[Word32]] -> Gen [[Word32]]
@@ -1060,5 +1066,5 @@ genBatches (GenSparseCheckpointsArgs cfg h) = do
         -- NOTE:
         -- Generate batches that can be larger than the chosen gap size, to make
         -- sure we generate realistic cases.
-        n <- choose (1, 3 * int (gapsSize cfg))
+        n <- fromIntegral <$> choose (1, 3 * gapSize cfg)
         go (drop n source) (take n source : batches)
