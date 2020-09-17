@@ -48,6 +48,7 @@
         "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
         "network" = (((hackage.network)."3.1.1.1").revisions).default;
+        "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
         "primitive" = (((hackage.primitive)."0.7.1.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "protolude" = (((hackage.protolude)."0.3.0").revisions).default;
@@ -67,6 +68,7 @@
         "th-lift-instances" = (((hackage.th-lift-instances)."0.1.14").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
+        "unordered-containers" = (((hackage.unordered-containers)."0.2.12.0").revisions).default;
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "word-wrap" = (((hackage.word-wrap)."0.4.1").revisions).default;
         "websockets" = (((hackage.websockets)."0.12.6.1").revisions).default;
@@ -106,6 +108,7 @@
         cardano-cli = ./cardano-cli.nix;
         cardano-config = ./cardano-config.nix;
         cardano-node = ./cardano-node.nix;
+        hedgehog-extras = ./hedgehog-extras.nix;
         cardano-prelude = ./cardano-prelude.nix;
         cardano-prelude-test = ./cardano-prelude-test.nix;
         cardano-sl-x509 = ./cardano-sl-x509.nix;
