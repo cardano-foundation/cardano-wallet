@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
+    , StandardCrypto
     , getProducer
     , poolCertsFromShelleyBlock
     , toCardanoBlockHeader
@@ -138,8 +139,6 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
-import Ouroboros.Consensus.Shelley.Protocol
-    ( TPraosCrypto )
 import System.Random
     ( RandomGen, random )
 
@@ -457,10 +456,10 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
 --
 
 monitorStakePools
-    :: forall t sc. (TPraosCrypto sc)
-    => Tracer IO StakePoolLog
+    :: forall t.
+       Tracer IO StakePoolLog
     -> GenesisParameters
-    -> NetworkLayer IO t (CardanoBlock sc)
+    -> NetworkLayer IO t (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
 monitorStakePools tr gp nl db@DBLayer{..} = do
@@ -497,12 +496,12 @@ monitorStakePools tr gp nl db@DBLayer{..} = do
     initCursor = atomically $ readPoolProductionCursor (max 100 k)
       where k = fromIntegral $ getQuantity getEpochStability
 
-    getHeader :: CardanoBlock sc -> BlockHeader
+    getHeader :: CardanoBlock StandardCrypto -> BlockHeader
     getHeader = toCardanoBlockHeader gp
 
     forward
         :: IORef EpochNo
-        -> NonEmpty (CardanoBlock sc)
+        -> NonEmpty (CardanoBlock StandardCrypto)
         -> (BlockHeader, ProtocolParameters)
         -> IO (FollowAction ())
     forward latestGarbageCollectionEpochRef blocks (_nodeTip, _pparams) = do

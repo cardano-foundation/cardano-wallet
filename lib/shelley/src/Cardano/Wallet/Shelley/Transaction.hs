@@ -45,6 +45,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..), SignedDSIGN (..) )
+import Cardano.Ledger.Crypto
+    ( Crypto (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..), Depth (..), Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -70,7 +72,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
-    , TPraosStandardCrypto
+    , StandardCrypto
     , sealShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -100,8 +102,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word64, Word8 )
-import Ouroboros.Consensus.Shelley.Protocol.Crypto
-    ( Crypto (..) )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -522,9 +522,9 @@ computeTxSize networkId witTag md action cs =
           where
             chaff = L8.pack (show ix) <> BL.fromStrict txid
 
-    sigLen = sizeSigDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+    sigLen = sizeSigDSIGN $ Proxy @(DSIGN StandardCrypto)
 
-    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN TPraosStandardCrypto)
+    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN StandardCrypto)
 
     bloatChaff :: Word -> BL.ByteString -> ByteString
     bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle

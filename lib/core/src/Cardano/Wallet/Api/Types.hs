@@ -130,7 +130,9 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubToBytes )
 import Cardano.Api.MetaData
-    ( jsonFromMetadata, jsonToMetadata, renderMetaDataJsonConversionError )
+    ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
+import Cardano.Api.Typed
+    ( displayError )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)
@@ -1253,12 +1255,12 @@ instance
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT TxMetadata) where
-    parseJSON = fmap ApiT . either (fail . prettyError) pure . jsonToMetadata
-      where
-        prettyError = T.unpack . renderMetaDataJsonConversionError
+    parseJSON = fmap ApiT
+        . either (fail . displayError) pure
+        . metadataFromJson TxMetadataJsonDetailedSchema
 
 instance ToJSON (ApiT TxMetadata) where
-    toJSON = jsonFromMetadata . getApiT
+    toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT
 
 instance FromJSON ApiTxMetadata where
     parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing

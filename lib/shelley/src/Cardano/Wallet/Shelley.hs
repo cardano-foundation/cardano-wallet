@@ -121,7 +121,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, TPraosStandardCrypto, fromCardanoBlock )
+    ( CardanoBlock, StandardCrypto, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -338,7 +338,7 @@ serveWallet
     withPoolsMonitoring
         :: Maybe FilePath
         -> GenesisParameters
-        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
+        -> NetworkLayer IO t (CardanoBlock StandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
@@ -371,7 +371,7 @@ serveWallet
             , WalletKey k
             )
         => TransactionLayer t k
-        -> NetworkLayer IO t (CardanoBlock TPraosStandardCrypto)
+        -> NetworkLayer IO t (CardanoBlock StandardCrypto)
         -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
         -> IO (ApiLayer s t k)
     apiLayer tl nl coworker = do
@@ -468,7 +468,7 @@ data Tracers' f = Tracers
     , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
     , poolsDbTracer      :: f PoolDbLog
     , ntpClientTracer    :: f NtpTrace
-    , networkTracer      :: f (NetworkLayerLog TPraosStandardCrypto)
+    , networkTracer      :: f NetworkLayerLog
     }
 
 -- | All of the Shelley 'Tracer's.
